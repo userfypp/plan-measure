@@ -21,6 +21,14 @@ export function TopBar({ session, onOpenPdf, onExport, onSettingChange }: TopBar
       <div className={styles.fileName} title={session?.pdf.name}>
         {session?.pdf.name ?? "No PDF loaded"}
       </div>
+      <a
+        className={styles.feedback}
+        href="https://github.com/userfypp/plan-measure/discussions/1"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Feedback
+      </a>
       {session && (
         <>
           <label className={styles.unit}>

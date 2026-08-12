@@ -46,6 +46,16 @@
   white-space: nowrap;
 }
 
+.feedback {
+  color: #52606d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.feedback:hover {
+  color: #1f5faa;
+}
+
 .unit,
 .toggle {
   display: flex;
