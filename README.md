@@ -12,6 +12,7 @@ The active session is stored only in the browser's IndexedDB so it can be recove
 
 ## v1 features
 
+- Live app: https://userfypp.github.io/plan-measure/
 - PDF loading through a file picker or drag-and-drop, with a 100 MB limit.
 - Multi-page PDF navigation with independent calibration and measurement numbering per page.
 - Millimetre, centimetre, and metre calibration and display units.
