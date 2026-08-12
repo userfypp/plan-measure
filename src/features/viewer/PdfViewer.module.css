@@ -1,0 +1,139 @@
+.viewerShell {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 44px;
+  background: #d9dee4;
+}
+
+.viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: #cbd2d9;
+  background-image:
+    linear-gradient(45deg, rgb(255 255 255 / 18%) 25%, transparent 25%),
+    linear-gradient(-45deg, rgb(255 255 255 / 18%) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 18%) 75%),
+    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 18%) 75%);
+  background-size: 24px 24px;
+  background-position:
+    0 0,
+    0 12px,
+    12px -12px,
+    -12px 0;
+}
+
+.pdfCanvas {
+  position: absolute;
+  display: block;
+  background: #fff;
+  box-shadow: 0 2px 14px rgb(31 41 51 / 28%);
+  pointer-events: none;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+.cursorDefault,
+.cursorDefault .stage,
+.cursorDefault .stage canvas {
+  cursor: default !important;
+}
+
+.cursorCrosshair,
+.cursorCrosshair .stage,
+.cursorCrosshair .stage canvas {
+  cursor: crosshair !important;
+}
+
+.cursorGrab,
+.cursorGrab .stage,
+.cursorGrab .stage canvas {
+  cursor: grab !important;
+}
+
+.cursorGrabbing,
+.cursorGrabbing .stage,
+.cursorGrabbing .stage canvas {
+  cursor: grabbing !important;
+}
+
+.loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 90%);
+  color: #52606d;
+  font-size: 13px;
+}
+
+.drawingStatus {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px 7px 12px;
+  border-radius: 7px;
+  background: rgb(15 23 42 / 92%);
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 5px 16px rgb(15 23 42 / 25%);
+}
+
+.drawingStatus button {
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-top: 1px solid #bcc6cf;
+  background: #f8fafc;
+  color: #52606d;
+  font-size: 13px;
+}
+
+.navigation button {
+  min-height: 30px;
+  border: 1px solid #b8c2cc;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: #fff;
+  color: #243b53;
+  cursor: pointer;
+}
+
+.navigation button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: #cbd2d9;
+}
+
+.zoomValue {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

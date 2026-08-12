@@ -1,0 +1,46 @@
+.form {
+  display: grid;
+  gap: 8px;
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 8px;
+}
+
+.inputRow input,
+.inputRow select {
+  height: 40px;
+  border: 1px solid #aab4be;
+  border-radius: 6px;
+  padding: 0 10px;
+}
+
+.error {
+  margin: 0 !important;
+  color: #b42318 !important;
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.actions button {
+  min-height: 38px;
+  border: 1px solid #aab4be;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.actions .primary {
+  border-color: #1f5faa;
+  background: #1f5faa;
+  color: #fff;
+}

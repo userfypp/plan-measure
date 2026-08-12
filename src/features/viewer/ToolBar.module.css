@@ -1,0 +1,74 @@
+.toolbar {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-left: 1px solid #cbd2d9;
+  background: #f8fafc;
+}
+
+.tools {
+  display: grid;
+  gap: 6px;
+  padding: 10px 8px;
+}
+
+.tools button {
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 3px;
+  background: transparent;
+  color: #334e68;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tools button:hover:not(:disabled) {
+  border-color: #cbd2d9;
+  background: #fff;
+}
+
+.tools button.active {
+  border-color: #77a7df;
+  background: #e8f1fb;
+  color: #174f8b;
+}
+
+.tools button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.symbol {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.scale {
+  display: grid;
+  gap: 5px;
+  padding: 11px 8px 13px;
+  border-top: 1px solid #d9e2ec;
+  color: #52606d;
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.scale strong {
+  color: #243b53;
+}
+
+.scale button {
+  border: 0;
+  padding: 3px;
+  background: transparent;
+  color: #1f5faa;
+  font-size: 10px;
+  text-decoration: underline;
+  cursor: pointer;
+}

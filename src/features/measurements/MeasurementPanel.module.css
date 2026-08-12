@@ -1,0 +1,124 @@
+.panel {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-right: 1px solid #cbd2d9;
+  background: #f8fafc;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid #d9e2ec;
+  background: #f8fafc;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.header span {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #e4e7eb;
+  text-align: center;
+  color: #52606d;
+  font-size: 11px;
+}
+
+.empty {
+  padding: 24px 16px;
+  color: #7b8794;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.list {
+  display: grid;
+  gap: 1px;
+  background: #d9e2ec;
+}
+
+.item {
+  min-width: 0;
+  overflow: hidden;
+  padding: 11px 12px;
+  border-left: 3px solid transparent;
+  background: #fff;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: #f5f8fb;
+}
+
+.item.selected {
+  border-left-color: #c2410c;
+  background: #fff7ed;
+}
+
+.itemTop {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemTop input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 5px;
+  background: transparent;
+  color: #102a43;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.itemTop input:hover,
+.itemTop input:focus {
+  border-color: #aab4be;
+  background: #fff;
+}
+
+.delete {
+  min-width: max-content;
+  justify-self: end;
+  border: 0;
+  padding: 4px 2px 4px 6px;
+  background: transparent;
+  color: #b42318;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.type {
+  margin: 5px 0 2px 5px;
+  color: #7b8794;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.value {
+  min-width: 0;
+  margin-left: 5px;
+  overflow-wrap: anywhere;
+  color: #52606d;
+  font-size: 12px;
+  line-height: 1.4;
+}

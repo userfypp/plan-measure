@@ -1,0 +1,170 @@
+.app {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  color: #1f2933;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.messagePlaceholder {
+  height: 0;
+}
+
+.workspace {
+  position: relative;
+  min-width: 920px;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 276px minmax(0, 1fr) 88px;
+}
+
+.emptyState {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #e4e7eb;
+}
+
+.dropCard {
+  width: min(520px, 100%);
+  display: grid;
+  justify-items: center;
+  padding: 58px 40px;
+  border: 2px dashed #9fb3c8;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.dropCard h1 {
+  margin: 18px 0 4px;
+  color: #243b53;
+  font-size: 22px;
+}
+
+.dropCard p {
+  margin: 4px 0 12px;
+  color: #7b8794;
+  font-size: 13px;
+}
+
+.dropCard button {
+  min-height: 40px;
+  border: 1px solid #1f5faa;
+  border-radius: 6px;
+  padding: 0 18px;
+  background: #1f5faa;
+  color: #fff;
+  cursor: pointer;
+}
+
+.dropCard small {
+  margin-top: 20px;
+  color: #7b8794;
+}
+
+.documentMark {
+  width: 54px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #7698b8;
+  border-radius: 6px;
+  color: #486581;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dragActive .dropCard {
+  border-color: #1f5faa;
+  background: #eaf2fb;
+}
+
+.dropOverlay {
+  position: absolute;
+  z-index: 10;
+  inset: 16px;
+  display: grid;
+  place-items: center;
+  border: 3px dashed #1f5faa;
+  border-radius: 12px;
+  background: rgb(234 242 251 / 92%);
+  color: #174f8b;
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.errorBanner,
+.warning {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 7px 16px;
+  background: #fee4e2;
+  color: #912018;
+  font-size: 13px;
+}
+
+.warning {
+  background: #fff1c2;
+  color: #7a4d00;
+}
+
+.errorBanner button,
+.warning button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.loadingOverlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(238 241 244 / 78%);
+  color: #334e68;
+  font-weight: 650;
+  backdrop-filter: blur(2px);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.modalActions button {
+  min-height: 38px;
+  border: 1px solid #aab4be;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: #fff;
+  color: #243b53;
+  cursor: pointer;
+}
+
+.modalActions .primary {
+  border-color: #1f5faa;
+  background: #1f5faa;
+  color: #fff;
+}
+
+.modalActions .danger {
+  border-color: #b42318;
+  background: #b42318;
+  color: #fff;
+}

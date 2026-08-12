@@ -1,0 +1,83 @@
+.topBar {
+  min-width: 0;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border-bottom: 1px solid #b8c2cc;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+.brand {
+  color: #102a43;
+  font-size: 16px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.open,
+.export {
+  min-height: 34px;
+  border: 1px solid #aab4be;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #fff;
+  color: #243b53;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.export {
+  margin-left: auto;
+  border-color: #1f5faa;
+  background: #1f5faa;
+  color: #fff;
+}
+
+.fileName {
+  min-width: 80px;
+  max-width: 260px;
+  overflow: hidden;
+  color: #52606d;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unit,
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #52606d;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.unit {
+  margin-left: auto;
+}
+
+.unit select {
+  height: 30px;
+  border: 1px solid #b8c2cc;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.toggle input {
+  margin: 0;
+}
+
+@media (max-width: 1150px) {
+  .toggle {
+    font-size: 0;
+  }
+
+  .toggle input {
+    width: 16px;
+    height: 16px;
+  }
+}
