@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canvasLayout,
+  clampPointToPage,
   clampViewerZoom,
   fitToScreen,
   logicalPageBoundsFromViewport,
@@ -71,6 +72,18 @@ describe("page and screen coordinates", () => {
     const bottomRight = pageToScreen({ x: page.width, y: page.height }, transform);
     expect(layout.left + layout.cssWidth).toBe(bottomRight.x);
     expect(layout.top + layout.cssHeight).toBe(bottomRight.y);
+  });
+
+  it("maps a pointer to the exact clamped page vertex", () => {
+    const transform = { zoom: 2, panX: 40, panY: 30 };
+    const page = { width: 500, height: 400 };
+    const pointer = pageToScreen({ x: 120, y: 80 }, transform);
+
+    expect(clampPointToPage(screenToPage(pointer, transform), page)).toEqual({ x: 120, y: 80 });
+    expect(clampPointToPage(screenToPage({ x: -100, y: 1000 }, transform), page)).toEqual({
+      x: 0,
+      y: 400,
+    });
   });
 
   it("clamps every logical zoom path to the supported 10–800% range", () => {

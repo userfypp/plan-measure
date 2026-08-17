@@ -73,6 +73,8 @@ export function downloadCsv(session: SessionV1): void {
   const baseName = session.pdf.name.replace(/\.pdf$/i, "");
   anchor.href = url;
   anchor.download = `${baseName}-measurements.csv`;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 250);
 }

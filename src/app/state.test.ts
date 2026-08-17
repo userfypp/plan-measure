@@ -122,6 +122,22 @@ describe("application reducer", () => {
     expect(result.draft).toBeNull();
   });
 
+  it("clears transient selection and drawing state when loading a replacement session", () => {
+    const state: AppState = {
+      ...loadedState(),
+      tool: "polygon",
+      selectedMeasurementId: "stale-measurement",
+      draft: { type: "polygon", points: [{ x: 1, y: 1 }], pointer: null },
+    };
+    const result = appReducer(state, {
+      type: "LOAD_SESSION",
+      session: createEmptySession({ name: "replacement.pdf", size: 200, lastModified: 2 }, 1),
+    });
+    expect(result.tool).toBe("select");
+    expect(result.selectedMeasurementId).toBeNull();
+    expect(result.draft).toBeNull();
+  });
+
   it("ignores stale throttled pointer updates after a draft is cancelled", () => {
     const state = appReducer(loadedState(), {
       type: "UPDATE_DRAFT_POINTER",

@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../app/state";
 import type { SessionV1 } from "../types/domain";
-import { buildCsv, NoMeasurementsError } from "./csv";
+import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
 function measuredSession(): SessionV1 {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
@@ -55,5 +55,41 @@ describe("CSV export", () => {
   it("rejects empty exports", () => {
     const session = createEmptySession({ name: "empty.pdf", size: 1, lastModified: 1 }, 1);
     expect(() => buildCsv(session)).toThrow(NoMeasurementsError);
+  });
+
+  it("keeps the object URL alive until the browser has started the download", () => {
+    const anchor = {
+      href: "",
+      download: "",
+      click: vi.fn(),
+      remove: vi.fn(),
+    };
+    const append = vi.fn();
+    const revokeObjectURL = vi.fn();
+    const setTimeout = vi.fn((callback: () => void) => {
+      callback();
+      return 1;
+    });
+    vi.stubGlobal("document", {
+      body: { append },
+      createElement: vi.fn(() => anchor),
+    });
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:test"),
+      revokeObjectURL,
+    });
+    vi.stubGlobal("window", { setTimeout });
+
+    try {
+      downloadCsv(measuredSession());
+      expect(append).toHaveBeenCalledWith(anchor);
+      expect(anchor.click).toHaveBeenCalledOnce();
+      expect(anchor.remove).toHaveBeenCalledOnce();
+      expect(setTimeout).toHaveBeenCalledOnce();
+      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 250);
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:test");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

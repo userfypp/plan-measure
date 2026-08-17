@@ -70,6 +70,16 @@ export function screenToPage(point: Point, transform: ViewTransform): Point {
   };
 }
 
+export function clampPointToPage(
+  point: Point,
+  page: Pick<LogicalPageBounds, "width" | "height">,
+): Point {
+  return {
+    x: Math.min(page.width, Math.max(0, point.x)),
+    y: Math.min(page.height, Math.max(0, point.y)),
+  };
+}
+
 export function clampViewerZoom(zoom: number): number {
   return Math.min(VIEWER_MAX_ZOOM, Math.max(VIEWER_MIN_ZOOM, zoom));
 }

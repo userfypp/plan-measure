@@ -16,6 +16,7 @@ import {
   type SavedSession,
 } from "../services/persistence";
 import { loadPdf, PdfUserError, validatePdfFile, type LoadedPdf } from "../services/pdf";
+import { shouldIgnoreGlobalKeyboardShortcut } from "../utils/keyboard";
 import styles from "./App.module.css";
 
 interface PendingPdf {
@@ -27,14 +28,6 @@ interface PendingPdf {
 interface CalibrationCandidate {
   pageNumber: number;
   points: [Point, Point];
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.matches("input, textarea, select, [contenteditable='true']") ||
-    Boolean(target.closest("dialog"))
-  );
 }
 
 export function App() {
@@ -114,7 +107,7 @@ function PlanMeasureApp() {
     function handleDelete(event: KeyboardEvent) {
       if (
         (event.key !== "Delete" && event.key !== "Backspace") ||
-        isEditableTarget(event.target) ||
+        shouldIgnoreGlobalKeyboardShortcut(event.target) ||
         !state.selectedMeasurementId ||
         !state.session
       ) {
@@ -133,6 +126,9 @@ function PlanMeasureApp() {
 
   async function activatePdf(candidate: PendingPdf) {
     setPendingPdf(null);
+    setCalibrationCandidate(null);
+    setConfirmRecalibrate(false);
+    setAutosaveSuspended(false);
     setLoading(true);
     persistenceGenerationRef.current += 1;
     setAutosaveEnabled(false);
@@ -311,7 +307,6 @@ function PlanMeasureApp() {
         >
           <MeasurementPanel page={currentPage} />
           <PdfViewer
-            key={`${state.session.pdf.name}:${state.session.pdf.lastModified}:${currentPage.pageNumber}`}
             document={activePdf.document}
             page={currentPage}
             onPageChange={(pageNumber) => {

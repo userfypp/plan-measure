@@ -17,6 +17,7 @@ import { areEffectivelyIdentical, distance } from "../../utils/geometry";
 import { formatMeasurement } from "../../utils/format";
 import {
   canvasLayout,
+  clampPointToPage,
   fitToScreen,
   isPointInPage,
   logicalPageBoundsFromViewport,
@@ -27,7 +28,9 @@ import {
   zoomViewAtPoint,
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
+import { shouldIgnoreGlobalKeyboardShortcut } from "../../utils/keyboard";
 import styles from "./PdfViewer.module.css";
+import { LruRenderCache } from "./renderCache";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
 
@@ -51,12 +54,20 @@ function averagePoint(points: Point[]): Point {
   };
 }
 
-function editableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.matches("input, textarea, select, [contenteditable='true']") ||
-    Boolean(target.closest("dialog"))
-  );
+interface LoadedPageData {
+  document: PDFDocumentProxy;
+  pageNumber: number;
+  pdfPage: PDFPageProxy;
+  bounds: LogicalPageBounds;
+}
+
+function copyRasterToCanvas(source: HTMLCanvasElement, target: HTMLCanvasElement): boolean {
+  target.width = source.width;
+  target.height = source.height;
+  const context = target.getContext("2d", { alpha: false });
+  if (!context) return false;
+  context.drawImage(source, 0, 0);
+  return true;
 }
 
 export function PdfViewer({
@@ -78,8 +89,12 @@ export function PdfViewer({
   } | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
-  const [pdfPage, setPdfPage] = useState<PDFPageProxy | null>(null);
-  const [bounds, setBounds] = useState<LogicalPageBounds | null>(null);
+  const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
+  const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
+  const renderRequestRef = useRef(0);
+  const pageReadyRef = useRef(false);
+  const [pageRenderData, setPageRenderData] = useState<LoadedPageData | null>(null);
+  const [pageReady, setPageReady] = useState(false);
   const [viewerSize, setViewerSize] = useState({ width: 0, height: 0 });
   const [devicePixelRatio, setDevicePixelRatio] = useState(() => window.devicePixelRatio || 1);
   const [transform, setTransform] = useState<ViewTransform>({ zoom: 1, panX: 0, panY: 0 });
@@ -91,6 +106,8 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+
+  const bounds = pageRenderData?.bounds ?? null;
 
   const commitTransform = useCallback((next: ViewTransform) => {
     transformRef.current = next;
@@ -124,14 +141,34 @@ export function PdfViewer({
 
   useEffect(() => {
     let cancelled = false;
+    renderRequestRef.current += 1;
+    renderTaskRef.current?.cancel();
+    renderTaskRef.current = null;
+    if (cachedDocumentRef.current !== document) {
+      renderCacheRef.current.clear();
+      cachedDocumentRef.current = document;
+    }
+    // Keep the old canvas pixels detached from the new page until the new raster is ready.
+    pageReadyRef.current = false;
+    // This state transition hides a previous page immediately when the requested page changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPageReady(false);
+    // The loaded page data is replaced atomically by the async PDF.js result below.
+    setPageRenderData(null);
+    // A page navigation always returns to the page's fit transform.
+    setFitMode(true);
     void document
       .getPage(page.pageNumber)
       .then((loadedPage) => {
         if (cancelled) return;
         const rotation = normalizeRotation(loadedPage.rotate);
         const logicalViewport = loadedPage.getViewport({ scale: 1, rotation });
-        setPdfPage(loadedPage);
-        setBounds(logicalPageBoundsFromViewport(logicalViewport));
+        setPageRenderData({
+          document,
+          pageNumber: page.pageNumber,
+          pdfPage: loadedPage,
+          bounds: logicalPageBoundsFromViewport(logicalViewport),
+        });
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -140,6 +177,9 @@ export function PdfViewer({
       });
     return () => {
       cancelled = true;
+      renderRequestRef.current += 1;
+      renderTaskRef.current?.cancel();
+      renderTaskRef.current = null;
     };
   }, [dispatch, document, page.pageNumber]);
 
@@ -150,41 +190,108 @@ export function PdfViewer({
     commitTransform(fitToScreen(bounds, viewerSize));
   }, [bounds, viewerSize, fitMode, commitTransform]);
 
+  const viewTransform = useMemo(
+    () =>
+      bounds && viewerSize.width > 0 && viewerSize.height > 0 && fitMode
+        ? fitToScreen(bounds, viewerSize)
+        : transform,
+    [bounds, fitMode, transform, viewerSize],
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !pdfPage || !bounds) return;
-    const requestedTransform = { zoom: transform.zoom, panX: 0, panY: 0 };
-    const timer = window.setTimeout(() => {
+    const loadedPage = pageRenderData;
+    if (!canvas || !loadedPage || viewerSize.width <= 0 || viewerSize.height <= 0) return;
+
+    const requestId = ++renderRequestRef.current;
+    const layout = pdfRasterLayout(
+      loadedPage.bounds,
+      { zoom: viewTransform.zoom, panX: 0, panY: 0 },
+      devicePixelRatio,
+    );
+    const cacheKey = [
+      loadedPage.pageNumber,
+      loadedPage.bounds.rotation,
+      layout.backingWidth,
+      layout.backingHeight,
+      layout.rasterScale,
+    ].join(":");
+
+    const render = () => {
+      if (requestId !== renderRequestRef.current) return;
       renderTaskRef.current?.cancel();
-      const layout = pdfRasterLayout(bounds, requestedTransform, devicePixelRatio);
-      const renderViewport = pdfPage.getViewport({
-        scale: layout.rasterScale,
-        rotation: bounds.rotation,
-      });
-      canvas.width = layout.backingWidth;
-      canvas.height = layout.backingHeight;
-      const context = canvas.getContext("2d", { alpha: false });
+      renderTaskRef.current = null;
+      const cachedRaster = renderCacheRef.current.get(cacheKey);
+      if (cachedRaster) {
+        if (!copyRasterToCanvas(cachedRaster, canvas)) {
+          dispatch({ type: "SET_ERROR", message: "The PDF canvas could not be created." });
+          return;
+        }
+        pageReadyRef.current = true;
+        setPageReady(true);
+        return;
+      }
+
+      const rasterCanvas = window.document.createElement("canvas");
+      rasterCanvas.width = layout.backingWidth;
+      rasterCanvas.height = layout.backingHeight;
+      const context = rasterCanvas.getContext("2d", { alpha: false });
       if (!context) {
         dispatch({ type: "SET_ERROR", message: "The PDF canvas could not be created." });
         return;
       }
-      const renderTask = pdfPage.render({
-        canvas,
+      const renderViewport = loadedPage.pdfPage.getViewport({
+        scale: layout.rasterScale,
+        rotation: loadedPage.bounds.rotation,
+      });
+      const renderTask = loadedPage.pdfPage.render({
+        canvas: rasterCanvas,
         canvasContext: context,
         viewport: renderViewport,
       });
       renderTaskRef.current = renderTask;
-      void renderTask.promise.catch((error: unknown) => {
-        const message = pdfRenderErrorMessage(error);
-        if (message) dispatch({ type: "SET_ERROR", message });
-      });
-    }, PDF_RENDER_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [bounds, devicePixelRatio, dispatch, pdfPage, transform.zoom]);
+      void renderTask.promise
+        .then(() => {
+          if (requestId !== renderRequestRef.current) return;
+          renderTaskRef.current = null;
+          renderCacheRef.current.set(
+            cacheKey,
+            rasterCanvas,
+            layout.backingWidth * layout.backingHeight,
+          );
+          if (!copyRasterToCanvas(rasterCanvas, canvas)) {
+            dispatch({ type: "SET_ERROR", message: "The PDF canvas could not be created." });
+            return;
+          }
+          pageReadyRef.current = true;
+          setPageReady(true);
+        })
+        .catch((error: unknown) => {
+          if (requestId !== renderRequestRef.current) return;
+          renderTaskRef.current = null;
+          const message = pdfRenderErrorMessage(error);
+          if (message) dispatch({ type: "SET_ERROR", message });
+        });
+    };
+
+    const timer = pageReadyRef.current ? window.setTimeout(render, PDF_RENDER_DEBOUNCE_MS) : null;
+    if (timer === null) render();
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      if (requestId === renderRequestRef.current) {
+        renderRequestRef.current += 1;
+        renderTaskRef.current?.cancel();
+        renderTaskRef.current = null;
+      }
+    };
+  }, [devicePixelRatio, dispatch, pageRenderData, viewTransform.zoom, viewerSize]);
 
   useEffect(
     () => () => {
+      renderRequestRef.current += 1;
       renderTaskRef.current?.cancel();
+      renderTaskRef.current = null;
+      renderCacheRef.current.clear();
       if (draftPointerFrameRef.current !== null) {
         window.cancelAnimationFrame(draftPointerFrameRef.current);
       }
@@ -216,7 +323,7 @@ export function PdfViewer({
 
   useEffect(() => {
     function keyDown(event: KeyboardEvent) {
-      if (editableTarget(event.target)) return;
+      if (shouldIgnoreGlobalKeyboardShortcut(event.target)) return;
       if (event.key === " ") {
         event.preventDefault();
         setSpacePan(true);
@@ -432,7 +539,15 @@ export function PdfViewer({
     return state.draft.pointer ? [...state.draft.points, state.draft.pointer] : state.draft.points;
   }, [state.draft]);
 
-  const pdfCanvasLayout = bounds ? canvasLayout(bounds, transform, devicePixelRatio) : null;
+  const showPage = Boolean(
+    pageReady &&
+      pageRenderData?.document === document &&
+      pageRenderData.pageNumber === page.pageNumber &&
+      bounds &&
+      viewerSize.width > 0 &&
+      viewerSize.height > 0,
+  );
+  const pdfCanvasLayout = bounds ? canvasLayout(bounds, viewTransform, devicePixelRatio) : null;
 
   return (
     <div className={styles.viewerShell}>
@@ -448,11 +563,12 @@ export function PdfViewer({
                   height: pdfCanvasLayout.cssHeight,
                   left: pdfCanvasLayout.left,
                   top: pdfCanvasLayout.top,
+                  visibility: showPage ? "visible" : "hidden",
                 }
-              : undefined
+              : { visibility: "hidden" }
           }
         />
-        {bounds && viewerSize.width > 0 && viewerSize.height > 0 && (
+        {showPage && bounds && viewerSize.width > 0 && viewerSize.height > 0 && (
           <Stage
             width={viewerSize.width}
             height={viewerSize.height}
@@ -467,10 +583,10 @@ export function PdfViewer({
             <Layer>
               <Group
                 ref={pageGroupRef}
-                x={transform.panX}
-                y={transform.panY}
-                scaleX={transform.zoom}
-                scaleY={transform.zoom}
+                x={viewTransform.panX}
+                y={viewTransform.panY}
+                scaleX={viewTransform.zoom}
+                scaleY={viewTransform.zoom}
                 clipX={0}
                 clipY={0}
                 clipWidth={bounds.width}
@@ -487,18 +603,18 @@ export function PdfViewer({
                     <Line
                       points={pointsToFlat([page.calibration.start, page.calibration.end])}
                       stroke="#d97706"
-                      strokeWidth={2 / transform.zoom}
-                      dash={[8 / transform.zoom, 5 / transform.zoom]}
+                      strokeWidth={2 / viewTransform.zoom}
+                      dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
                     />
                     {[page.calibration.start, page.calibration.end].map((point, index) => (
                       <Circle
                         key={index}
                         x={point.x}
                         y={point.y}
-                        radius={4 / transform.zoom}
+                        radius={4 / viewTransform.zoom}
                         fill="#fff"
                         stroke="#d97706"
-                        strokeWidth={2 / transform.zoom}
+                        strokeWidth={2 / viewTransform.zoom}
                       />
                     ))}
                   </>
@@ -509,7 +625,8 @@ export function PdfViewer({
                       key={measurement.id}
                       measurement={measurement}
                       bounds={bounds}
-                      zoom={transform.zoom}
+                      zoom={viewTransform.zoom}
+                      transform={viewTransform}
                       selected={state.selectedMeasurementId === measurement.id}
                       editable={state.tool === "select" && !spacePan && !isPanning}
                       showLabel={state.session?.settings.showLabels ?? true}
@@ -524,8 +641,8 @@ export function PdfViewer({
                   <Line
                     points={pointsToFlat(draftPoints)}
                     stroke={state.draft.type === "calibrate" ? "#d97706" : "#2563eb"}
-                    strokeWidth={2 / transform.zoom}
-                    dash={[7 / transform.zoom, 5 / transform.zoom]}
+                    strokeWidth={2 / viewTransform.zoom}
+                    dash={[7 / viewTransform.zoom, 5 / viewTransform.zoom]}
                     lineJoin="round"
                   />
                 )}
@@ -533,17 +650,17 @@ export function PdfViewer({
                   <Circle
                     x={state.draft.points[0].x}
                     y={state.draft.points[0].y}
-                    radius={7 / transform.zoom}
+                    radius={7 / viewTransform.zoom}
                     fill="#fff"
                     stroke="#2563eb"
-                    strokeWidth={3 / transform.zoom}
+                    strokeWidth={3 / viewTransform.zoom}
                   />
                 )}
               </Group>
             </Layer>
           </Stage>
         )}
-        {!pdfPage && <div className={styles.loading}>Rendering page…</div>}
+        {!showPage && <div className={styles.loading}>Rendering page…</div>}
         {state.draft?.type === "polygon" && (
           <div className={styles.drawingStatus}>
             <span>{state.draft.points.length} vertices · Click the first point to finish</span>
@@ -587,7 +704,7 @@ export function PdfViewer({
         >
           −
         </button>
-        <span className={styles.zoomValue}>{Math.round(transform.zoom * 100)}%</span>
+        <span className={styles.zoomValue}>{Math.round(viewTransform.zoom * 100)}%</span>
         <button
           type="button"
           aria-label="Zoom in"
@@ -612,6 +729,7 @@ interface MeasurementShapeProps {
   displayUnit: LinearUnit;
   bounds: LogicalPageBounds;
   zoom: number;
+  transform: ViewTransform;
   selected: boolean;
   editable: boolean;
   showLabel: boolean;
@@ -626,6 +744,7 @@ const MeasurementShape = memo(function MeasurementShape({
   displayUnit,
   bounds,
   zoom,
+  transform,
   selected,
   editable,
   showLabel,
@@ -634,36 +753,87 @@ const MeasurementShape = memo(function MeasurementShape({
 }: MeasurementShapeProps) {
   const vertexFrameRef = useRef<number | null>(null);
   const pendingVertexPointsRef = useRef<Point[] | null>(null);
+  const dragPointsRef = useRef<Point[] | null>(null);
+  const finalDragPointsRef = useRef<Point[] | null>(null);
+  const [dragPoints, setDragPoints] = useState<Point[] | null>(null);
   const stroke = selected ? "#c2410c" : "#2563eb";
-  const flatPoints = useMemo(() => pointsToFlat(measurement.points), [measurement.points]);
+  const visibleMeasurement = useMemo<Measurement>(() => {
+    if (!dragPoints) return measurement;
+    if (measurement.type === "line") {
+      return {
+        ...measurement,
+        points: [dragPoints[0] ?? measurement.points[0], dragPoints[1] ?? measurement.points[1]],
+      };
+    }
+    return { ...measurement, points: dragPoints };
+  }, [dragPoints, measurement]);
+  const flatPoints = useMemo(
+    () => pointsToFlat(visibleMeasurement.points),
+    [visibleMeasurement.points],
+  );
   const labelPoint = useMemo(
     () =>
-      measurement.type === "line"
+      visibleMeasurement.type === "line"
         ? {
-            x: (measurement.points[0].x + measurement.points[1].x) / 2,
-            y: (measurement.points[0].y + measurement.points[1].y) / 2,
+            x: (visibleMeasurement.points[0].x + visibleMeasurement.points[1].x) / 2,
+            y: (visibleMeasurement.points[0].y + visibleMeasurement.points[1].y) / 2,
           }
-        : averagePoint(measurement.points),
-    [measurement],
+        : averagePoint(visibleMeasurement.points),
+    [visibleMeasurement],
   );
   const labelText = useMemo(
-    () => (calibration ? formatMeasurement(measurement, calibration, displayUnit) : null),
-    [calibration, displayUnit, measurement],
+    () => (calibration ? formatMeasurement(visibleMeasurement, calibration, displayUnit) : null),
+    [calibration, displayUnit, visibleMeasurement],
   );
+
+  useEffect(() => {
+    const finalPoints = finalDragPointsRef.current;
+    if (!finalPoints || measurement.points.length !== finalPoints.length) return;
+    if (
+      measurement.points.some(
+        (point, index) =>
+          point.x !== finalPoints[index]?.x || point.y !== finalPoints[index]?.y,
+      )
+    ) {
+      return;
+    }
+    finalDragPointsRef.current = null;
+    dragPointsRef.current = null;
+    // Keep the final local frame until the reducer has published those exact points.
+    setDragPoints(null);
+  }, [measurement.points]);
 
   useEffect(
     () => () => {
       if (vertexFrameRef.current !== null) {
         window.cancelAnimationFrame(vertexFrameRef.current);
       }
+      pendingVertexPointsRef.current = null;
+      dragPointsRef.current = null;
+      finalDragPointsRef.current = null;
+      onVertexDragStateChange(false);
     },
-    [],
+    [onVertexDragStateChange],
   );
 
   function pointsWithVertex(index: number, point: Point): Point[] {
-    return measurement.points.map((existing, pointIndex) =>
+    const sourcePoints = dragPointsRef.current ?? measurement.points;
+    return sourcePoints.map((existing, pointIndex) =>
       pointIndex === index ? point : existing,
     );
+  }
+
+  function updateDragPoints(points: Point[]) {
+    dragPointsRef.current = points;
+    setDragPoints(points);
+  }
+
+  function pointFromDragEvent(event: KonvaEventObject<MouseEvent>): Point {
+    const pointer = event.target.getStage()?.getPointerPosition();
+    const rawPoint = pointer
+      ? screenToPage({ x: pointer.x, y: pointer.y }, transform)
+      : { x: event.target.x(), y: event.target.y() };
+    return clampPointToPage(rawPoint, bounds);
   }
 
   function dispatchVertexPoints(points: Point[]) {
@@ -722,7 +892,7 @@ const MeasurementShape = memo(function MeasurementShape({
       )}
       {selected &&
         editable &&
-        measurement.points.map((point, index) => (
+        visibleMeasurement.points.map((point, index) => (
           <Circle
             key={index}
             x={point.x}
@@ -731,27 +901,35 @@ const MeasurementShape = memo(function MeasurementShape({
             fill="#fff"
             stroke="#c2410c"
             strokeWidth={2 / zoom}
+            hitStrokeWidth={10 / zoom}
             draggable
-            onDragStart={() => onVertexDragStateChange(true)}
+            onDragStart={(event) => {
+              finalDragPointsRef.current = null;
+              dragPointsRef.current = null;
+              const startPoint = pointFromDragEvent(event);
+              event.target.position(startPoint);
+              updateDragPoints(pointsWithVertex(index, startPoint));
+              onVertexDragStateChange(true);
+            }}
             onDragMove={(event) => {
-              const nextPoint = {
-                x: Math.min(bounds.width, Math.max(0, event.target.x())),
-                y: Math.min(bounds.height, Math.max(0, event.target.y())),
-              };
+              const nextPoint = pointFromDragEvent(event);
               event.target.position(nextPoint);
-              queueVertexPoints(pointsWithVertex(index, nextPoint));
+              const nextPoints = pointsWithVertex(index, nextPoint);
+              updateDragPoints(nextPoints);
+              queueVertexPoints(nextPoints);
             }}
             onDragEnd={(event) => {
-              const finalPoint = {
-                x: Math.min(bounds.width, Math.max(0, event.target.x())),
-                y: Math.min(bounds.height, Math.max(0, event.target.y())),
-              };
+              const finalPoint = pointFromDragEvent(event);
+              event.target.position(finalPoint);
               if (vertexFrameRef.current !== null) {
                 window.cancelAnimationFrame(vertexFrameRef.current);
                 vertexFrameRef.current = null;
               }
               pendingVertexPointsRef.current = null;
-              dispatchVertexPoints(pointsWithVertex(index, finalPoint));
+              const finalPoints = pointsWithVertex(index, finalPoint);
+              finalDragPointsRef.current = finalPoints;
+              updateDragPoints(finalPoints);
+              dispatchVertexPoints(finalPoints);
               onVertexDragStateChange(false);
             }}
           />
