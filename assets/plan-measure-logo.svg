@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Plan Measure</title>
+
+  <g
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path
+      d="M120 120V392H392"
+      stroke="#334155"
+      stroke-width="44"
+    />
+
+    <path
+      d="M120 240L272 392"
+      stroke="#6E9F91"
+      stroke-width="24"
+    />
+  </g>
+
+  <circle cx="120" cy="240" r="24" fill="#6E9F91" />
+  <circle cx="272" cy="392" r="24" fill="#6E9F91" />
+</svg>
