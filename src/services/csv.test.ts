@@ -12,7 +12,7 @@ function measuredSession(): SessionV1 {
     referenceDistanceMm: 1000,
   };
   session.pages[1]!.measurements.push({
-    id: "line",
+    id: "line-id",
     type: "line",
     name: 'Lobby, "north"',
     points: [
@@ -20,9 +20,18 @@ function measuredSession(): SessionV1 {
       { x: 25, y: 0 },
     ],
   });
+  session.pages[1]!.measurements.push({
+    id: "second-line-id",
+    type: "line",
+    name: "Second measurement",
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ],
+  });
   session.pages[2]!.calibration = session.pages[1]!.calibration;
   session.pages[2]!.measurements.push({
-    id: "polygon",
+    id: "polygon-id",
     type: "polygon",
     name: "Room\nA",
     points: [
@@ -38,10 +47,43 @@ function measuredSession(): SessionV1 {
 describe("CSV export", () => {
   it("exports exact columns and all pages with correctly empty fields", () => {
     const csv = buildCsv(measuredSession());
-    expect(csv.startsWith("\uFEFFpage,name,type,length,perimeter,area,unit\r\n")).toBe(true);
-    expect(csv).toContain('1,"Lobby, ""north""",Line,2.50,,,m');
-    expect(csv).toContain('2,"Room\nA",Polygon,,4.00,1.00,m');
+    expect(
+      csv.startsWith(
+        "\uFEFFpage,page_label,measurement_id,name,type,length,perimeter,area,unit\r\n",
+      ),
+    ).toBe(true);
+    expect(csv).toContain('1,,line-id,"Lobby, ""north""",Line,2.50,,,m');
+    expect(csv).toContain("1,,second-line-id,Second measurement,Line,1.00,,,m");
+    expect(csv).toContain('2,,polygon-id,"Room\nA",Polygon,,4.00,1.00,m');
     expect(csv.endsWith("\r\n")).toBe(true);
+  });
+
+  it("exports exact PDF page labels by page number", () => {
+    const csv = buildCsv(measuredSession(), ["i", "7"]);
+    expect(csv).toContain('1,i,line-id,"Lobby, ""north""",Line,2.50,,,m');
+    expect(csv).toContain('2,7,polygon-id,"Room\nA",Polygon,,4.00,1.00,m');
+  });
+
+  it("preserves measurement ids across repeated exports", () => {
+    const session = measuredSession();
+    const firstExport = buildCsv(session);
+
+    expect(buildCsv(session)).toBe(firstExport);
+    expect(firstExport).toContain(",line-id,");
+    expect(firstExport).toContain(",second-line-id,");
+    expect(firstExport).toContain(",polygon-id,");
+  });
+
+  it("leaves page labels empty when the PDF has none and escapes label values", () => {
+    const session = measuredSession();
+    const withoutLabels = buildCsv(session, null);
+    expect(withoutLabels).toContain('1,,line-id,"Lobby, ""north""",Line,2.50,,,m');
+
+    const label = 'Cover, "A"\nSheet';
+    const withEscapedLabel = buildCsv(session, [label, "7"]);
+    expect(withEscapedLabel).toContain(
+      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,2.50,,,m',
+    );
   });
 
   it("formats values in the selected unit", () => {

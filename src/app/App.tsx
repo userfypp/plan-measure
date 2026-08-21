@@ -239,7 +239,7 @@ function PlanMeasureApp() {
   function exportMeasurements() {
     if (!state.session) return;
     try {
-      downloadCsv(state.session);
+      downloadCsv(state.session, activePdf?.pageLabels ?? null);
     } catch (error) {
       dispatch({
         type: "SET_ERROR",

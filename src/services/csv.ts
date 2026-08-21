@@ -3,7 +3,17 @@ import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import { formatNumber } from "../utils/format";
 import { fromMillimetres, fromSquareMillimetres } from "../utils/units";
 
-const HEADER = ["page", "name", "type", "length", "perimeter", "area", "unit"];
+const HEADER = [
+  "page",
+  "page_label",
+  "measurement_id",
+  "name",
+  "type",
+  "length",
+  "perimeter",
+  "area",
+  "unit",
+];
 
 function escapeCsv(value: string | number): string {
   const stringValue = String(value);
@@ -13,6 +23,7 @@ function escapeCsv(value: string | number): string {
 
 function measurementRow(
   pageNumber: number,
+  pageLabel: string,
   measurement: Measurement,
   session: SessionV1,
 ): string[] {
@@ -24,6 +35,8 @@ function measurementRow(
   if (measurement.type === "line") {
     return [
       String(pageNumber),
+      pageLabel,
+      measurement.id,
       measurement.name,
       "Line",
       formatNumber(fromMillimetres(lineLengthMm(measurement.points, calibration), unit)),
@@ -35,6 +48,8 @@ function measurementRow(
   const result = polygonResultsMm(measurement, calibration);
   return [
     String(pageNumber),
+    pageLabel,
+    measurement.id,
     measurement.name,
     "Polygon",
     "",
@@ -51,13 +66,15 @@ export class NoMeasurementsError extends Error {
   }
 }
 
-export function buildCsv(session: SessionV1): string {
+export function buildCsv(session: SessionV1, pageLabels: readonly string[] | null = null): string {
   const rows: string[][] = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
     if (!page) continue;
     for (const measurement of page.measurements) {
-      rows.push(measurementRow(pageNumber, measurement, session));
+      rows.push(
+        measurementRow(pageNumber, pageLabels?.[pageNumber - 1] ?? "", measurement, session),
+      );
     }
   }
   if (rows.length === 0) throw new NoMeasurementsError();
@@ -65,8 +82,8 @@ export function buildCsv(session: SessionV1): string {
   return `\uFEFF${contents}\r\n`;
 }
 
-export function downloadCsv(session: SessionV1): void {
-  const csv = buildCsv(session);
+export function downloadCsv(session: SessionV1, pageLabels: readonly string[] | null = null): void {
+  const csv = buildCsv(session, pageLabels);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

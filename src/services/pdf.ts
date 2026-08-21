@@ -26,6 +26,24 @@ function friendlyPdfError(error: unknown): PdfUserError {
 export interface LoadedPdf {
   document: PDFDocumentProxy;
   loadingTask: PDFDocumentLoadingTask;
+  pageLabels: string[] | null;
+}
+
+export async function readPdfPageLabels(document: PDFDocumentProxy): Promise<string[] | null> {
+  try {
+    const pageLabels = await document.getPageLabels();
+    if (
+      pageLabels === null ||
+      pageLabels.length !== document.numPages ||
+      !pageLabels.every((pageLabel) => typeof pageLabel === "string")
+    ) {
+      return null;
+    }
+    return pageLabels;
+  } catch (error) {
+    console.warn("PDF.js page labels could not be read; continuing without them.", error);
+    return null;
+  }
 }
 
 export async function loadPdf(blob: Blob): Promise<LoadedPdf> {
@@ -37,7 +55,9 @@ export async function loadPdf(blob: Blob): Promise<LoadedPdf> {
     };
   });
   try {
-    return { document: await Promise.race([loadingTask.promise, passwordRequested]), loadingTask };
+    const document = await Promise.race([loadingTask.promise, passwordRequested]);
+    const pageLabels = await readPdfPageLabels(document);
+    return { document, loadingTask, pageLabels };
   } catch (error) {
     console.error("PDF.js failed to load the document.", error);
     await loadingTask.destroy().catch(() => undefined);
