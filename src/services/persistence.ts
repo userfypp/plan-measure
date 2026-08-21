@@ -30,11 +30,15 @@ interface PlanMeasureDb extends DBSchema {
 let databasePromise: Promise<IDBPDatabase<PlanMeasureDb>> | null = null;
 
 function getDatabase(): Promise<IDBPDatabase<PlanMeasureDb>> {
-  databasePromise ??= openDB<PlanMeasureDb>(DATABASE_NAME, 1, {
+  if (databasePromise) return databasePromise;
+  databasePromise = openDB<PlanMeasureDb>(DATABASE_NAME, 1, {
     upgrade(database) {
       database.createObjectStore("sessions", { keyPath: "key" });
       database.createObjectStore("pdfs", { keyPath: "key" });
     },
+  }).catch((error: unknown) => {
+    databasePromise = null;
+    throw error;
   });
   return databasePromise;
 }
