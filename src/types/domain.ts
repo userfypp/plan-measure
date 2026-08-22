@@ -11,9 +11,15 @@ export interface Calibration {
   referenceDistanceMm: number;
 }
 
+export interface PageCalibration extends Calibration {
+  id: string;
+  name: string;
+}
+
 interface MeasurementBase {
   id: string;
   name: string;
+  calibrationId: string;
 }
 
 export interface LineMeasurement extends MeasurementBase {
@@ -30,7 +36,9 @@ export type Measurement = LineMeasurement | PolygonMeasurement;
 
 export interface PageState {
   pageNumber: number;
-  calibration: Calibration | null;
+  calibrations: PageCalibration[];
+  activeCalibrationId: string | null;
+  nextCalibrationNumber: number;
   measurements: Measurement[];
   nextLineNumber: number;
   nextPolygonNumber: number;
@@ -49,8 +57,42 @@ export interface SessionSettings {
   showCalibration: boolean;
 }
 
+interface LegacyMeasurementBase {
+  id: string;
+  name: string;
+}
+
+export interface LegacyLineMeasurement extends LegacyMeasurementBase {
+  type: "line";
+  points: [Point, Point];
+}
+
+export interface LegacyPolygonMeasurement extends LegacyMeasurementBase {
+  type: "polygon";
+  points: Point[];
+}
+
+export type LegacyMeasurement = LegacyLineMeasurement | LegacyPolygonMeasurement;
+
+export interface LegacyPageState {
+  pageNumber: number;
+  calibration: Calibration | null;
+  measurements: LegacyMeasurement[];
+  nextLineNumber: number;
+  nextPolygonNumber: number;
+}
+
 export interface SessionV1 {
   schemaVersion: 1;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, LegacyPageState>;
+  settings: SessionSettings;
+}
+
+export interface SessionV2 {
+  schemaVersion: 2;
   pdf: PdfMetadata;
   pageCount: number;
   currentPage: number;

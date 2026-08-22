@@ -1,39 +1,44 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../app/state";
-import type { SessionV1 } from "../types/domain";
+import type { SessionV2 } from "../types/domain";
 import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
-function measuredSession(): SessionV1 {
+function measuredSession(): SessionV2 {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
   session.settings.displayUnit = "m";
-  session.pages[1]!.calibration = {
-    start: { x: 0, y: 0 },
-    end: { x: 10, y: 0 },
-    referenceDistanceMm: 1000,
-  };
+  session.pages[1]!.calibrations = [
+    {
+      id: "scale-1",
+      name: "Scale 1",
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 0 },
+      referenceDistanceMm: 1000,
+    },
+    {
+      id: "scale-2",
+      name: "Detail A",
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 0 },
+      referenceDistanceMm: 5000,
+    },
+  ];
+  session.pages[1]!.activeCalibrationId = "scale-2";
+  session.pages[1]!.nextCalibrationNumber = 3;
   session.pages[1]!.measurements.push({
     id: "line-id",
     type: "line",
     name: 'Lobby, "north"',
+    calibrationId: "scale-1",
     points: [
       { x: 0, y: 0 },
       { x: 25, y: 0 },
     ],
   });
   session.pages[1]!.measurements.push({
-    id: "second-line-id",
-    type: "line",
-    name: "Second measurement",
-    points: [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-    ],
-  });
-  session.pages[2]!.calibration = session.pages[1]!.calibration;
-  session.pages[2]!.measurements.push({
     id: "polygon-id",
     type: "polygon",
     name: "Room\nA",
+    calibrationId: "scale-2",
     points: [
       { x: 0, y: 0 },
       { x: 10, y: 0 },
@@ -41,74 +46,97 @@ function measuredSession(): SessionV1 {
       { x: 0, y: 10 },
     ],
   });
+  session.pages[2]!.calibrations = [
+    {
+      id: "scale-3",
+      name: "Section",
+      start: { x: 0, y: 0 },
+      end: { x: 20, y: 0 },
+      referenceDistanceMm: 500,
+    },
+  ];
+  session.pages[2]!.activeCalibrationId = "scale-3";
+  session.pages[2]!.nextCalibrationNumber = 2;
+  session.pages[2]!.measurements.push({
+    id: "second-line-id",
+    type: "line",
+    name: "Second measurement",
+    calibrationId: "scale-3",
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ],
+  });
   return session;
 }
 
 describe("CSV export", () => {
-  it("exports exact columns and all pages with correctly empty fields", () => {
+  it("exports exact columns and calibration metadata for every row", () => {
     const csv = buildCsv(measuredSession());
     expect(
       csv.startsWith(
-        "\uFEFFpage,page_label,measurement_id,name,type,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,length,perimeter,area,unit\r\n",
+        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,length,perimeter,area,unit\r\n",
       ),
     ).toBe(true);
-    expect(csv).toContain('1,,line-id,"Lobby, ""north""",Line,1000,10,100,2.50,,,m');
-    expect(csv).toContain("1,,second-line-id,Second measurement,Line,1000,10,100,1.00,,,m");
-    expect(csv).toContain('2,,polygon-id,"Room\nA",Polygon,1000,10,100,,4.00,1.00,m');
+    expect(csv).toContain(
+      '1,,line-id,"Lobby, ""north""",Line,scale-1,Scale 1,1000,10,100,2.50,,,m',
+    );
+    expect(csv).toContain(
+      '1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,5000,10,500,,20.00,25.00,m',
+    );
+    expect(csv).toContain(
+      "2,,second-line-id,Second measurement,Line,scale-3,Section,500,20,25,0.25,,,m",
+    );
     expect(csv.endsWith("\r\n")).toBe(true);
   });
 
-  it("exports exact calibration audit values", () => {
+  it("uses each measurement's calibration even after the active scale changes", () => {
     const session = measuredSession();
-    session.pages[1]!.calibration = {
-      start: { x: 0, y: 0 },
-      end: { x: 25, y: 0 },
-      referenceDistanceMm: 1000,
-    };
+    const before = buildCsv(session);
+    session.pages[1]!.activeCalibrationId = "scale-1";
+    const after = buildCsv(session);
 
-    const firstRow = buildCsv(session).split("\r\n")[1];
-
-    expect(firstRow).toBe('1,,line-id,"Lobby, ""north""",Line,1000,25,40,1.00,,,m');
+    expect(after).toBe(before);
+    expect(after).toContain(",scale-1,Scale 1,1000,10,100,2.50,,,");
+    expect(after).toContain(",scale-2,Detail A,5000,10,500,,20.00,25.00,");
   });
 
   it("preserves calibration metadata precision beyond two decimals", () => {
     const session = measuredSession();
-    session.pages[1]!.calibration = {
-      start: { x: 0, y: 0 },
+    session.pages[1]!.calibrations[0] = {
+      ...session.pages[1]!.calibrations[0]!,
       end: { x: 3, y: 0 },
-      referenceDistanceMm: 1000,
     };
 
     const firstRow = buildCsv(session).split("\r\n")[1];
 
-    expect(firstRow).toContain(",1000,3,333.3333333333333,");
+    expect(firstRow).toContain(",scale-1,Scale 1,1000,3,333.3333333333333,");
   });
 
-  it("repeats one page calibration metadata for every measurement", () => {
-    const rows = buildCsv(measuredSession()).split("\r\n");
-
-    expect(rows[1]).toContain(",Line,1000,10,100,");
-    expect(rows[2]).toContain(",Line,1000,10,100,");
+  it("exports exact PDF page labels by page number and escapes label values", () => {
+    const label = 'Cover, "A"\nSheet';
+    const csv = buildCsv(measuredSession(), [label, "7"]);
+    expect(csv).toContain(
+      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,scale-1,Scale 1,1000,10,100,2.50,,,m',
+    );
+    expect(csv).toContain(
+      "2,7,second-line-id,Second measurement,Line,scale-3,Section,500,20,25,0.25,,,m",
+    );
   });
 
-  it("exports each page's own calibration metadata", () => {
+  it("formats values in the selected unit", () => {
     const session = measuredSession();
-    session.pages[2]!.calibration = {
-      start: { x: 0, y: 0 },
-      end: { x: 20, y: 0 },
-      referenceDistanceMm: 500,
-    };
+    session.settings.displayUnit = "cm";
+    const csv = buildCsv(session);
+    expect(csv).toContain("Line,scale-1,Scale 1,1000,10,100,250.00,,,cm");
+    expect(csv).toContain("Polygon,scale-2,Detail A,5000,10,500,,2000.00,250000.00,cm");
 
-    const rows = buildCsv(session).split("\r\n");
-
-    expect(rows[1]).toContain(",Line,1000,10,100,");
-    expect(rows[3]).toContain(",Polygon,500,20,25,");
-  });
-
-  it("exports exact PDF page labels by page number", () => {
-    const csv = buildCsv(measuredSession(), ["i", "7"]);
-    expect(csv).toContain('1,i,line-id,"Lobby, ""north""",Line,1000,10,100,2.50,,,m');
-    expect(csv).toContain('2,7,polygon-id,"Room\nA",Polygon,1000,10,100,,4.00,1.00,m');
+    session.settings.displayUnit = "mm";
+    const millimetreCsv = buildCsv(session);
+    expect(millimetreCsv).toContain("Line,scale-1,Scale 1,1000,10,100,2500.00,,,mm");
+    expect(millimetreCsv).toContain(
+      "Polygon,scale-2,Detail A,5000,10,500,,20000.00,25000000.00,mm",
+    );
   });
 
   it("preserves measurement ids across repeated exports", () => {
@@ -117,48 +145,24 @@ describe("CSV export", () => {
 
     expect(buildCsv(session)).toBe(firstExport);
     expect(firstExport).toContain(",line-id,");
-    expect(firstExport).toContain(",second-line-id,");
     expect(firstExport).toContain(",polygon-id,");
+    expect(firstExport).toContain(",second-line-id,");
   });
 
-  it("leaves page labels empty when the PDF has none and escapes label values", () => {
-    const session = measuredSession();
-    const withoutLabels = buildCsv(session, null);
-    expect(withoutLabels).toContain('1,,line-id,"Lobby, ""north""",Line,1000,10,100,2.50,,,m');
-
-    const label = 'Cover, "A"\nSheet';
-    const withEscapedLabel = buildCsv(session, [label, "7"]);
-    expect(withEscapedLabel).toContain(
-      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,1000,10,100,2.50,,,m',
-    );
-  });
-
-  it("formats values in the selected unit", () => {
-    const session = measuredSession();
-    session.settings.displayUnit = "cm";
-    const csv = buildCsv(session);
-    expect(csv).toContain("Line,1000,10,100,250.00,,,cm");
-    expect(csv).toContain("Polygon,1000,10,100,,400.00,10000.00,cm");
-
-    session.settings.displayUnit = "mm";
-    const millimetreCsv = buildCsv(session);
-    expect(millimetreCsv).toContain("Line,1000,10,100,2500.00,,,mm");
-    expect(millimetreCsv).toContain("Polygon,1000,10,100,,4000.00,1000000.00,mm");
-  });
-
-  it("rejects measurements without page calibration", () => {
+  it("rejects a measurement with no referenced calibration", () => {
     const session = createEmptySession({ name: "uncalibrated.pdf", size: 1, lastModified: 1 }, 1);
     session.pages[1]!.measurements.push({
       id: "line-id",
       type: "line",
       name: "Uncalibrated",
+      calibrationId: "missing-scale",
       points: [
         { x: 0, y: 0 },
         { x: 1, y: 0 },
       ],
     });
 
-    expect(() => buildCsv(session)).toThrow("Page 1 has measurements without calibration.");
+    expect(() => buildCsv(session)).toThrow("Measurement line-id has a missing calibration.");
   });
 
   it("rejects empty exports", () => {

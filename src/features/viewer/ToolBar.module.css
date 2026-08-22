@@ -63,6 +63,41 @@
   color: #243b53;
 }
 
+.scaleSelect {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.scaleSelect span {
+  color: #7b8794;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.scaleSelect select {
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid #aab4be;
+  border-radius: 4px;
+  padding: 0 3px;
+  background: #fff;
+  color: #243b53;
+  font-size: 10px;
+}
+
+.scale small {
+  color: #7b8794;
+  font-size: 9px;
+}
+
+.scaleActions {
+  display: grid;
+  gap: 2px;
+}
+
 .scale button {
   border: 0;
   padding: 3px;
@@ -71,4 +106,11 @@
   font-size: 10px;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.scale button.activeScaleAction {
+  border-radius: 4px;
+  background: #e8f1fb;
+  color: #174f8b;
+  text-decoration: none;
 }

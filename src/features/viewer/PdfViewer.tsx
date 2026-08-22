@@ -5,7 +5,6 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { useAppState, type AppAction } from "../../app/state";
 import type {
-  Calibration,
   LinearUnit,
   LogicalPageBounds,
   Measurement,
@@ -13,6 +12,7 @@ import type {
   Point,
   ViewTransform,
 } from "../../types/domain";
+import { getMeasurementCalibration } from "../../utils/calibration";
 import { areEffectivelyIdentical, distance } from "../../utils/geometry";
 import { formatMeasurement } from "../../utils/format";
 import {
@@ -541,11 +541,11 @@ export function PdfViewer({
 
   const showPage = Boolean(
     pageReady &&
-      pageRenderData?.document === document &&
-      pageRenderData.pageNumber === page.pageNumber &&
-      bounds &&
-      viewerSize.width > 0 &&
-      viewerSize.height > 0,
+    pageRenderData?.document === document &&
+    pageRenderData.pageNumber === page.pageNumber &&
+    bounds &&
+    viewerSize.width > 0 &&
+    viewerSize.height > 0,
   );
   const pdfCanvasLayout = bounds ? canvasLayout(bounds, viewTransform, devicePixelRatio) : null;
 
@@ -598,27 +598,45 @@ export function PdfViewer({
                   height={bounds.height}
                   fill="rgba(255,255,255,0.001)"
                 />
-                {state.session?.settings.showCalibration && page.calibration && (
-                  <>
-                    <Line
-                      points={pointsToFlat([page.calibration.start, page.calibration.end])}
-                      stroke="#d97706"
-                      strokeWidth={2 / viewTransform.zoom}
-                      dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
-                    />
-                    {[page.calibration.start, page.calibration.end].map((point, index) => (
-                      <Circle
-                        key={index}
-                        x={point.x}
-                        y={point.y}
-                        radius={4 / viewTransform.zoom}
-                        fill="#fff"
-                        stroke="#d97706"
-                        strokeWidth={2 / viewTransform.zoom}
-                      />
-                    ))}
-                  </>
-                )}
+                {state.session?.settings.showCalibration &&
+                  page.calibrations.map((calibration) => {
+                    const active = calibration.id === page.activeCalibrationId;
+                    const stroke = active ? "#d97706" : "#52606d";
+                    const labelPoint = {
+                      x: (calibration.start.x + calibration.end.x) / 2,
+                      y: (calibration.start.y + calibration.end.y) / 2,
+                    };
+                    return (
+                      <Group key={calibration.id} listening={false} opacity={active ? 1 : 0.72}>
+                        <Line
+                          points={pointsToFlat([calibration.start, calibration.end])}
+                          stroke={stroke}
+                          strokeWidth={(active ? 3 : 2) / viewTransform.zoom}
+                          dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
+                        />
+                        {[calibration.start, calibration.end].map((point, index) => (
+                          <Circle
+                            key={`${calibration.id}-${index}`}
+                            x={point.x}
+                            y={point.y}
+                            radius={4 / viewTransform.zoom}
+                            fill="#fff"
+                            stroke={stroke}
+                            strokeWidth={(active ? 2 : 1.5) / viewTransform.zoom}
+                          />
+                        ))}
+                        <Label x={labelPoint.x} y={labelPoint.y} offsetY={20 / viewTransform.zoom}>
+                          <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / viewTransform.zoom} />
+                          <Text
+                            text={calibration.name}
+                            fill="#fff"
+                            fontSize={11 / viewTransform.zoom}
+                            padding={4 / viewTransform.zoom}
+                          />
+                        </Label>
+                      </Group>
+                    );
+                  })}
                 {state.session?.settings.showMeasurements &&
                   page.measurements.map((measurement) => (
                     <MeasurementShape
@@ -630,7 +648,7 @@ export function PdfViewer({
                       selected={state.selectedMeasurementId === measurement.id}
                       editable={state.tool === "select" && !spacePan && !isPanning}
                       showLabel={state.session?.settings.showLabels ?? true}
-                      calibration={page.calibration}
+                      page={page}
                       displayUnit={state.session?.settings.displayUnit ?? "m"}
                       pageNumber={page.pageNumber}
                       dispatch={dispatch}
@@ -725,7 +743,7 @@ export function PdfViewer({
 interface MeasurementShapeProps {
   measurement: Measurement;
   pageNumber: number;
-  calibration: Calibration | null;
+  page: PageState;
   displayUnit: LinearUnit;
   bounds: LogicalPageBounds;
   zoom: number;
@@ -740,7 +758,7 @@ interface MeasurementShapeProps {
 const MeasurementShape = memo(function MeasurementShape({
   measurement,
   pageNumber,
-  calibration,
+  page,
   displayUnit,
   bounds,
   zoom,
@@ -767,6 +785,7 @@ const MeasurementShape = memo(function MeasurementShape({
     }
     return { ...measurement, points: dragPoints };
   }, [dragPoints, measurement]);
+  const calibration = getMeasurementCalibration(page, visibleMeasurement);
   const flatPoints = useMemo(
     () => pointsToFlat(visibleMeasurement.points),
     [visibleMeasurement.points],
@@ -791,8 +810,7 @@ const MeasurementShape = memo(function MeasurementShape({
     if (!finalPoints || measurement.points.length !== finalPoints.length) return;
     if (
       measurement.points.some(
-        (point, index) =>
-          point.x !== finalPoints[index]?.x || point.y !== finalPoints[index]?.y,
+        (point, index) => point.x !== finalPoints[index]?.x || point.y !== finalPoints[index]?.y,
       )
     ) {
       return;
@@ -818,9 +836,7 @@ const MeasurementShape = memo(function MeasurementShape({
 
   function pointsWithVertex(index: number, point: Point): Point[] {
     const sourcePoints = dragPointsRef.current ?? measurement.points;
-    return sourcePoints.map((existing, pointIndex) =>
-      pointIndex === index ? point : existing,
-    );
+    return sourcePoints.map((existing, pointIndex) => (pointIndex === index ? point : existing));
   }
 
   function updateDragPoints(points: Point[]) {

@@ -9,6 +9,7 @@
   gap: 8px;
 }
 
+.nameInput,
 .inputRow input,
 .inputRow select {
   height: 40px;

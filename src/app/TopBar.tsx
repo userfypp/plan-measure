@@ -1,8 +1,8 @@
-import type { LinearUnit, SessionV1 } from "../types/domain";
+import type { LinearUnit, SessionV2 } from "../types/domain";
 import styles from "./TopBar.module.css";
 
 interface TopBarProps {
-  session: SessionV1 | null;
+  session: SessionV2 | null;
   onOpenPdf: () => void;
   onExport: () => void;
   onSettingChange: (

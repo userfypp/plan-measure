@@ -1,8 +1,9 @@
 # Plan Measure
 
 Plan Measure is a focused desktop web application for measuring real-world distances,
-perimeters, and areas on architectural PDF plans. Open a PDF, calibrate each page from a known
-distance, then draw and edit line or polygon measurements directly over the plan.
+perimeters, and areas on architectural PDF plans. Open a PDF, add one or more named scales to
+each page from known distances, then draw and edit line or polygon measurements directly over the
+plan.
 
 ## Privacy
 
@@ -14,15 +15,16 @@ The active session is stored only in the browser's IndexedDB so it can be recove
 
 - Live app: https://userfypp.github.io/plan-measure/
 - PDF loading through a file picker or drag-and-drop, with a 100 MB limit.
-- Multi-page PDF navigation with independent calibration and measurement numbering per page.
+- Multi-page PDF navigation with independent named scales, active-scale selection, and measurement
+  numbering per page.
 - Millimetre, centimetre, and metre calibration and display units.
 - Straight-line length measurements and polygon perimeter/area measurements.
 - Editable measurement names and draggable line endpoints or polygon vertices.
 - Pan, pointer-centred zoom, keyboard zoom, and fit-to-screen controls.
 - Independent visibility controls for labels, measurements, and calibration references.
 - One recoverable, browser-local autosaved session with explicit Continue/Discard recovery.
-- CSV export across every page with page, measurement, and calibration traceability; measurement
-  values use the current display unit.
+- CSV export across every page with page, measurement, and per-measurement calibration
+  traceability; measurement values use the current display unit.
 
 ## Requirements
 
@@ -52,15 +54,18 @@ npm run format   # Format the repository with Prettier
 ## Using Plan Measure
 
 1. Choose **Open PDF** or drop a PDF into the empty workspace.
-2. Select **Calibrate**, choose two points whose real distance is known, and enter that distance.
+2. Select **Add scale**, choose two points whose real distance is known, then give the scale a
+   name and enter that distance. The first scale is named **Scale 1** by default.
 3. Select **Line** or **Polygon** and click on the plan. Close a polygon by clicking its first
    vertex. Press Escape to cancel unfinished work.
 4. Use **Select** to choose a measurement and drag its vertex handles. Names can be edited in the
    left panel.
 5. Choose **Export CSV** to export measurements from every page.
 
-Line and Polygon are unavailable until the current page is calibrated. Recalibration preserves
-page geometry and immediately recomputes all values on that page.
+Line and Polygon are unavailable until the current page has a valid active scale. A page can have
+multiple named scales; the selected active scale is used only for new measurements, while every
+existing measurement permanently retains its own scale. Recalibrating a scale preserves its ID and
+geometry, and recomputes only the measurements linked to that scale.
 
 ## Architecture
 
@@ -87,10 +92,12 @@ The PDF canvas and Konva page group use that same transform. PDF.js renders its 
 There is no additional CSS zoom transform, so zoom is applied exactly once. Device pixel ratio
 changes backing resolution only and never changes stored points or measurement calculations.
 
-Calibration distance is stored canonically in millimetres. Linear results multiply page distance
-by the calibration ratio; polygon area uses the square of that ratio and the shoelace formula.
-Measurement values retain full internal precision and are rounded to two decimals only for display
-and CSV; calibration audit metadata uses stable decimal serialization without arbitrary rounding.
+Calibration distances are stored canonically in millimetres. Each measurement stores the ID of the
+named page calibration used when it was created. Linear results multiply page distance by that
+calibration ratio; polygon area uses the square of that ratio and the shoelace formula. Measurement
+values retain full internal precision and are rounded to two decimals only for display and CSV;
+CSV rows include the calibration ID, name, reference distance, page distance, and ratio used for
+that individual measurement.
 
 ### Local persistence
 
@@ -106,9 +113,9 @@ memory and displays a warning that reload recovery is unavailable.
 ## Testing and CI
 
 Vitest covers geometry, calibration, squared area scaling, units, CSV escaping and all-page export,
-session serialization/IndexedDB round trips, reducer invariants, and page/screen transforms across
-zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub Actions installs from the
-lockfile and runs lint, tests, and a production build on pushes to `main` and pull requests.
+V1-to-V2 session migration/IndexedDB round trips, reducer invariants, and page/screen transforms
+across zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub Actions installs from
+the lockfile and runs lint, tests, and a production build on pushes to `main` and pull requests.
 
 ## Supported browsers
 

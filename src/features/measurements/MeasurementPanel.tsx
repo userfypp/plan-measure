@@ -1,6 +1,7 @@
 import { memo, useRef, useState, type Dispatch, type KeyboardEvent } from "react";
 import { useAppState, type AppAction } from "../../app/state";
-import type { Calibration, LinearUnit, Measurement, PageState } from "../../types/domain";
+import type { LinearUnit, Measurement, PageState } from "../../types/domain";
+import { getActiveCalibration, getMeasurementCalibration } from "../../utils/calibration";
 import { formatMeasurement } from "../../utils/format";
 import styles from "./MeasurementPanel.module.css";
 
@@ -15,9 +16,9 @@ export function MeasurementPanel({ page }: { page: PageState }) {
       </div>
       {page.measurements.length === 0 ? (
         <div className={styles.empty}>
-          {page.calibration
+          {getActiveCalibration(page)
             ? "Choose Line or Polygon to add a measurement."
-            : "Calibrate this page to begin measuring."}
+            : "Add a scale to begin measuring."}
         </div>
       ) : (
         <div className={styles.list}>
@@ -25,7 +26,7 @@ export function MeasurementPanel({ page }: { page: PageState }) {
             <MeasurementItem
               key={measurement.id}
               pageNumber={page.pageNumber}
-              calibration={page.calibration}
+              page={page}
               measurement={measurement}
               selected={state.selectedMeasurementId === measurement.id}
               displayUnit={displayUnit}
@@ -40,7 +41,7 @@ export function MeasurementPanel({ page }: { page: PageState }) {
 
 interface MeasurementItemProps {
   pageNumber: number;
-  calibration: Calibration | null;
+  page: PageState;
   measurement: Measurement;
   selected: boolean;
   displayUnit: LinearUnit;
@@ -49,7 +50,7 @@ interface MeasurementItemProps {
 
 const MeasurementItem = memo(function MeasurementItem({
   pageNumber,
-  calibration,
+  page,
   measurement,
   selected,
   displayUnit,
@@ -57,6 +58,7 @@ const MeasurementItem = memo(function MeasurementItem({
 }: MeasurementItemProps) {
   const [name, setName] = useState(measurement.name);
   const cancelBlurRef = useRef(false);
+  const calibration = getMeasurementCalibration(page, measurement);
 
   function commitName() {
     if (cancelBlurRef.current) {
@@ -120,8 +122,11 @@ const MeasurementItem = memo(function MeasurementItem({
       </div>
       <div className={styles.type}>{measurement.type === "line" ? "Line" : "Polygon"}</div>
       <div className={styles.value}>
-        {calibration ? formatMeasurement(measurement, calibration, displayUnit) : "Not calibrated"}
+        {calibration
+          ? formatMeasurement(measurement, calibration, displayUnit)
+          : "Scale unavailable"}
       </div>
+      <div className={styles.scale}>Scale: {calibration?.name ?? "Unavailable"}</div>
     </article>
   );
 });

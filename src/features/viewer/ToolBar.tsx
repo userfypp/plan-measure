@@ -1,13 +1,13 @@
 import { useAppState } from "../../app/state";
 import type { PageState, Tool } from "../../types/domain";
+import { getActiveCalibration } from "../../utils/calibration";
 import { formatNumber } from "../../utils/format";
 import { fromMillimetres } from "../../utils/units";
 import styles from "./ToolBar.module.css";
 
-const TOOLS: { id: Tool; label: string; shortcut?: string }[] = [
+const TOOLS: { id: Exclude<Tool, "calibrate">; label: string; shortcut?: string }[] = [
   { id: "select", label: "Select" },
   { id: "hand", label: "Hand", shortcut: "Space" },
-  { id: "calibrate", label: "Calibrate" },
   { id: "line", label: "Line" },
   { id: "polygon", label: "Polygon" },
 ];
@@ -15,15 +15,18 @@ const TOOLS: { id: Tool; label: string; shortcut?: string }[] = [
 interface ToolBarProps {
   page: PageState;
   onChooseTool: (tool: Tool) => void;
+  onAddScale: () => void;
+  onRecalibrate: () => void;
 }
 
-export function ToolBar({ page, onChooseTool }: ToolBarProps) {
-  const { state } = useAppState();
-  const calibrated = Boolean(page.calibration);
+export function ToolBar({ page, onChooseTool, onAddScale, onRecalibrate }: ToolBarProps) {
+  const { state, dispatch } = useAppState();
+  const activeCalibration = getActiveCalibration(page);
+  const calibrated = Boolean(activeCalibration);
   const unit = state.session?.settings.displayUnit ?? "m";
-  const reference = page.calibration
-    ? `${formatNumber(fromMillimetres(page.calibration.referenceDistanceMm, unit))} ${unit} reference`
-    : "Not calibrated";
+  const reference = activeCalibration
+    ? `${formatNumber(fromMillimetres(activeCalibration.referenceDistanceMm, unit))} ${unit} reference`
+    : "No active scale";
 
   return (
     <aside className={styles.toolbar} aria-label="Viewer tools">
@@ -38,7 +41,7 @@ export function ToolBar({ page, onChooseTool }: ToolBarProps) {
               disabled={disabled}
               title={
                 disabled
-                  ? `${tool.label} requires page calibration`
+                  ? `${tool.label} requires an active scale`
                   : tool.shortcut
                     ? `${tool.label} (${tool.shortcut})`
                     : tool.label
@@ -50,11 +53,9 @@ export function ToolBar({ page, onChooseTool }: ToolBarProps) {
                   ? "↖"
                   : tool.id === "hand"
                     ? "✋"
-                    : tool.id === "calibrate"
-                      ? "↔"
-                      : tool.id === "line"
-                        ? "╱"
-                        : "△"}
+                    : tool.id === "line"
+                      ? "╱"
+                      : "△"}
               </span>
               <span>{tool.label}</span>
             </button>
@@ -63,12 +64,48 @@ export function ToolBar({ page, onChooseTool }: ToolBarProps) {
       </div>
       <div className={styles.scale}>
         <strong>Scale</strong>
-        <span>{reference}</span>
-        {page.calibration && (
-          <button type="button" onClick={() => onChooseTool("calibrate")}>
-            Recalibrate
-          </button>
+        {activeCalibration ? (
+          <>
+            <label className={styles.scaleSelect}>
+              <span>Active</span>
+              <select
+                aria-label="Active scale for new measurements"
+                value={activeCalibration.id}
+                onChange={(event) =>
+                  dispatch({
+                    type: "SET_ACTIVE_CALIBRATION",
+                    pageNumber: page.pageNumber,
+                    calibrationId: event.target.value,
+                  })
+                }
+              >
+                {page.calibrations.map((calibration) => (
+                  <option key={calibration.id} value={calibration.id}>
+                    {calibration.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span>{reference}</span>
+            <small>New measurements use this scale.</small>
+          </>
+        ) : (
+          <span>{reference}</span>
         )}
+        <div className={styles.scaleActions}>
+          <button
+            type="button"
+            className={state.tool === "calibrate" ? styles.activeScaleAction : ""}
+            onClick={onAddScale}
+          >
+            Add scale
+          </button>
+          {activeCalibration && (
+            <button type="button" onClick={onRecalibrate}>
+              Recalibrate
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );

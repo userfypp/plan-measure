@@ -1,4 +1,5 @@
-import type { Measurement, SessionV1 } from "../types/domain";
+import type { Measurement, PageState, SessionV2 } from "../types/domain";
+import { getMeasurementCalibration } from "../utils/calibration";
 import {
   distance,
   lineLengthMm,
@@ -14,6 +15,8 @@ const HEADER = [
   "measurement_id",
   "name",
   "type",
+  "calibration_id",
+  "calibration_name",
   "calibration_reference_mm",
   "calibration_page_distance",
   "calibration_mm_per_page_unit",
@@ -33,11 +36,12 @@ function measurementRow(
   pageNumber: number,
   pageLabel: string,
   measurement: Measurement,
-  session: SessionV1,
+  page: PageState,
+  session: SessionV2,
 ): string[] {
-  const calibration = session.pages[pageNumber]?.calibration;
+  const calibration = getMeasurementCalibration(page, measurement);
   if (!calibration) {
-    throw new Error(`Page ${pageNumber} has measurements without calibration.`);
+    throw new Error(`Measurement ${measurement.id} has a missing calibration.`);
   }
   const calibrationPageDistance = distance(calibration.start, calibration.end);
   const calibrationMmPerPageUnit = millimetresPerPageUnit(calibration);
@@ -57,6 +61,8 @@ function measurementRow(
       measurement.id,
       measurement.name,
       "Line",
+      calibration.id,
+      calibration.name,
       calibrationReferenceMm,
       calibrationPageDistanceValue,
       calibrationMmPerPageUnitValue,
@@ -73,6 +79,8 @@ function measurementRow(
     measurement.id,
     measurement.name,
     "Polygon",
+    calibration.id,
+    calibration.name,
     calibrationReferenceMm,
     calibrationPageDistanceValue,
     calibrationMmPerPageUnitValue,
@@ -90,14 +98,14 @@ export class NoMeasurementsError extends Error {
   }
 }
 
-export function buildCsv(session: SessionV1, pageLabels: readonly string[] | null = null): string {
+export function buildCsv(session: SessionV2, pageLabels: readonly string[] | null = null): string {
   const rows: string[][] = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
     if (!page) continue;
     for (const measurement of page.measurements) {
       rows.push(
-        measurementRow(pageNumber, pageLabels?.[pageNumber - 1] ?? "", measurement, session),
+        measurementRow(pageNumber, pageLabels?.[pageNumber - 1] ?? "", measurement, page, session),
       );
     }
   }
@@ -106,7 +114,7 @@ export function buildCsv(session: SessionV1, pageLabels: readonly string[] | nul
   return `\uFEFF${contents}\r\n`;
 }
 
-export function downloadCsv(session: SessionV1, pageLabels: readonly string[] | null = null): void {
+export function downloadCsv(session: SessionV2, pageLabels: readonly string[] | null = null): void {
   const csv = buildCsv(session, pageLabels);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

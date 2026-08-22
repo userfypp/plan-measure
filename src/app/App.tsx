@@ -7,7 +7,7 @@ import { MeasurementPanel } from "../features/measurements/MeasurementPanel";
 import { PdfViewer } from "../features/viewer/PdfViewer";
 import { ToolBar } from "../features/viewer/ToolBar";
 import { canActivatePdf, PdfLoadLifecycle } from "./pdfLoadLifecycle";
-import type { LinearUnit, Point, SessionV1, Tool } from "../types/domain";
+import type { LinearUnit, Point, SessionV2, Tool } from "../types/domain";
 import { downloadCsv } from "../services/csv";
 import {
   discardSavedSession,
@@ -18,18 +18,27 @@ import {
 } from "../services/persistence";
 import { loadPdf, PdfUserError, validatePdfFile, type LoadedPdf } from "../services/pdf";
 import { shouldIgnoreGlobalKeyboardShortcut } from "../utils/keyboard";
+import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
 import styles from "./App.module.css";
 
 interface PendingPdf {
   file: File;
   loaded: LoadedPdf;
-  session: SessionV1;
+  session: SessionV2;
   loadGeneration: number;
 }
 
 interface CalibrationCandidate {
   pageNumber: number;
   points: [Point, Point];
+  calibrationId: string | null;
+}
+
+interface RecalibrationConfirmation {
+  pageNumber: number;
+  calibrationId: string;
+  calibrationName: string;
+  measurementCount: number;
 }
 
 export function App() {
@@ -52,6 +61,7 @@ function PlanMeasureApp() {
   const disposedRef = useRef(false);
   const latestPdfLoadRef = useRef<number | null>(null);
   const activationCountRef = useRef(0);
+  const calibrationTargetIdRef = useRef<string | null>(null);
   const [activePdf, setActivePdf] = useState<LoadedPdf | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [recovery, setRecovery] = useState<SavedSession | null>(null);
@@ -61,7 +71,9 @@ function PlanMeasureApp() {
   const [calibrationCandidate, setCalibrationCandidate] = useState<CalibrationCandidate | null>(
     null,
   );
-  const [confirmRecalibrate, setConfirmRecalibrate] = useState(false);
+  const [confirmRecalibrate, setConfirmRecalibrate] = useState<RecalibrationConfirmation | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [autosaveSuspended, setAutosaveSuspended] = useState(false);
@@ -144,11 +156,7 @@ function PlanMeasureApp() {
       activePdfRef.current = null;
       pendingPdfRef.current = null;
       activatingPdfRef.current = null;
-      void Promise.all([
-        destroyPdf(active),
-        destroyPdf(pending?.loaded),
-        destroyPdf(activating),
-      ]);
+      void Promise.all([destroyPdf(active), destroyPdf(pending?.loaded), destroyPdf(activating)]);
     };
   }, [destroyPdf]);
 
@@ -239,7 +247,8 @@ function PlanMeasureApp() {
       setPendingPdf((current) => (current === candidate ? null : current));
     }
     setCalibrationCandidate(null);
-    setConfirmRecalibrate(false);
+    calibrationTargetIdRef.current = null;
+    setConfirmRecalibrate(null);
     setAutosaveSuspended(false);
     activatingPdfRef.current = candidate.loaded;
     beginPdfActivation(candidate.loadGeneration);
@@ -377,11 +386,37 @@ function PlanMeasureApp() {
   }
 
   function chooseTool(tool: Tool) {
-    if (tool === "calibrate" && currentPage?.calibration && currentPage.measurements.length > 0) {
-      setConfirmRecalibrate(true);
-      return;
+    if (tool === "calibrate") {
+      calibrationTargetIdRef.current = null;
     }
     dispatch({ type: "SET_TOOL", tool });
+  }
+
+  function beginRecalibration(pageNumber: number, calibrationId: string) {
+    calibrationTargetIdRef.current = calibrationId;
+    dispatch({ type: "SET_TOOL", tool: "calibrate" });
+  }
+
+  function requestRecalibration() {
+    if (!currentPage) return;
+    const calibration = getActiveCalibration(currentPage);
+    if (!calibration) {
+      dispatch({ type: "SET_ERROR", message: "Select a valid scale before recalibrating." });
+      return;
+    }
+    const measurementCount = currentPage.measurements.filter(
+      (measurement) => measurement.calibrationId === calibration.id,
+    ).length;
+    if (measurementCount === 0) {
+      beginRecalibration(currentPage.pageNumber, calibration.id);
+      return;
+    }
+    setConfirmRecalibrate({
+      pageNumber: currentPage.pageNumber,
+      calibrationId: calibration.id,
+      calibrationName: calibration.name,
+      measurementCount,
+    });
   }
 
   function exportMeasurements() {
@@ -397,6 +432,13 @@ function PlanMeasureApp() {
   }
 
   const currentPage = state.session?.pages[state.session.currentPage];
+  const calibrationCandidatePage = calibrationCandidate
+    ? (state.session?.pages[calibrationCandidate.pageNumber] ?? null)
+    : null;
+  const calibrationCandidateTarget =
+    calibrationCandidatePage && calibrationCandidate?.calibrationId
+      ? findPageCalibration(calibrationCandidatePage, calibrationCandidate.calibrationId)
+      : null;
 
   return (
     <div className={styles.app}>
@@ -459,14 +501,26 @@ function PlanMeasureApp() {
             page={currentPage}
             onPageChange={(pageNumber) => {
               setCalibrationCandidate(null);
+              calibrationTargetIdRef.current = null;
               dispatch({ type: "SET_PAGE", pageNumber });
             }}
-            onCalibrationCandidate={(points) =>
-              setCalibrationCandidate({ pageNumber: currentPage.pageNumber, points })
-            }
+            onCalibrationCandidate={(points) => {
+              const calibrationId = calibrationTargetIdRef.current;
+              calibrationTargetIdRef.current = null;
+              setCalibrationCandidate({
+                pageNumber: currentPage.pageNumber,
+                points,
+                calibrationId,
+              });
+            }}
             onVertexDragStateChange={setAutosaveSuspended}
           />
-          <ToolBar page={currentPage} onChooseTool={chooseTool} />
+          <ToolBar
+            page={currentPage}
+            onChooseTool={chooseTool}
+            onAddScale={() => chooseTool("calibrate")}
+            onRecalibrate={requestRecalibration}
+          />
           {dragActive && (
             <div className={styles.dropOverlay}>Drop PDF to replace current session</div>
           )}
@@ -581,24 +635,26 @@ function PlanMeasureApp() {
 
       {confirmRecalibrate && (
         <Modal
-          title="Recalibrate this page?"
+          title={`Recalibrate “${confirmRecalibrate.calibrationName}”?`}
           labelledBy="recalibration-title"
-          onCancel={() => setConfirmRecalibrate(false)}
+          onCancel={() => setConfirmRecalibrate(null)}
         >
           <p>
-            Existing geometry will stay in place, but every value on this page will be recalculated
-            using the new scale.
+            {confirmRecalibrate.measurementCount} {"measurement"}
+            {confirmRecalibrate.measurementCount === 1 ? " uses" : "s use"} this scale. Their values
+            will be recalculated using the new calibration. Geometry will stay in place.
           </p>
           <div className={styles.modalActions}>
-            <button type="button" onClick={() => setConfirmRecalibrate(false)}>
+            <button type="button" onClick={() => setConfirmRecalibrate(null)}>
               Cancel
             </button>
             <button
               type="button"
               className={styles.primary}
               onClick={() => {
-                setConfirmRecalibrate(false);
-                dispatch({ type: "SET_TOOL", tool: "calibrate" });
+                const confirmation = confirmRecalibrate;
+                setConfirmRecalibrate(null);
+                beginRecalibration(confirmation.pageNumber, confirmation.calibrationId);
               }}
             >
               Recalibrate
@@ -607,27 +663,53 @@ function PlanMeasureApp() {
         </Modal>
       )}
 
-      {calibrationCandidate && state.session && (
+      {calibrationCandidate && state.session && calibrationCandidatePage && (
         <CalibrationDialog
           points={calibrationCandidate.points}
+          initialName={
+            calibrationCandidateTarget?.name ??
+            `Scale ${calibrationCandidatePage.nextCalibrationNumber}`
+          }
+          title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
           onCancel={() => {
             setCalibrationCandidate(null);
+            calibrationTargetIdRef.current = null;
             dispatch({ type: "SET_TOOL", tool: "select" });
           }}
-          onConfirm={(referenceDistanceMm) => {
+          onConfirm={({ name, referenceDistanceMm }) => {
             if (state.session!.currentPage !== calibrationCandidate.pageNumber) {
               setCalibrationCandidate(null);
               return;
             }
-            dispatch({
-              type: "SET_CALIBRATION",
-              pageNumber: calibrationCandidate.pageNumber,
-              calibration: {
-                start: calibrationCandidate.points[0],
-                end: calibrationCandidate.points[1],
-                referenceDistanceMm,
-              },
-            });
+            const calibration = {
+              start: calibrationCandidate.points[0],
+              end: calibrationCandidate.points[1],
+              referenceDistanceMm,
+            };
+            if (calibrationCandidate.calibrationId) {
+              if (!calibrationCandidateTarget) {
+                dispatch({
+                  type: "SET_ERROR",
+                  message: "The scale to recalibrate is no longer available.",
+                });
+              } else {
+                dispatch({
+                  type: "RECALIBRATE_CALIBRATION",
+                  pageNumber: calibrationCandidate.pageNumber,
+                  calibrationId: calibrationCandidateTarget.id,
+                  name,
+                  calibration,
+                });
+              }
+            } else {
+              dispatch({
+                type: "ADD_CALIBRATION",
+                pageNumber: calibrationCandidate.pageNumber,
+                id: crypto.randomUUID(),
+                name,
+                calibration,
+              });
+            }
             setCalibrationCandidate(null);
           }}
         />

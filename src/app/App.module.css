@@ -19,7 +19,7 @@
   min-width: 920px;
   min-height: 0;
   display: grid;
-  grid-template-columns: 276px minmax(0, 1fr) 88px;
+  grid-template-columns: 276px minmax(0, 1fr) 128px;
 }
 
 .emptyState {
