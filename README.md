@@ -16,7 +16,8 @@ The active session is stored only in the browser's IndexedDB so it can be recove
 - Live app: https://userfypp.github.io/plan-measure/
 - PDF loading through a file picker or drag-and-drop, with a 100 MB limit.
 - Multi-page PDF navigation with independent named scales, active-scale selection, and measurement
-  numbering per page.
+  numbering per page. Scales can be normal uniform references or optional X/Y correction for
+  scans and plots with different horizontal and vertical scaling.
 - Millimetre, centimetre, and metre calibration and display units.
 - Straight-line length measurements and polygon perimeter/area measurements.
 - Editable measurement names and draggable line endpoints or polygon vertices.
@@ -54,8 +55,9 @@ npm run format   # Format the repository with Prettier
 ## Using Plan Measure
 
 1. Choose **Open PDF** or drop a PDF into the empty workspace.
-2. Select **Add scale**, choose two points whose real distance is known, then give the scale a
-   name and enter that distance. The first scale is named **Scale 1** by default.
+2. Select **Add scale** and choose **Uniform** for the normal two-point flow, or **X/Y correction**
+   for a scanned/printed plan with independent horizontal and vertical scale references. The first
+   scale is named **Scale 1** by default.
 3. Select **Line** or **Polygon** and click on the plan. Close a polygon by clicking its first
    vertex. Press Escape to cancel unfinished work.
 4. Use **Select** to choose a measurement and drag its vertex handles. Names can be edited in the
@@ -65,7 +67,9 @@ npm run format   # Format the repository with Prettier
 Line and Polygon are unavailable until the current page has a valid active scale. A page can have
 multiple named scales; the selected active scale is used only for new measurements, while every
 existing measurement permanently retains its own scale. Recalibrating a scale preserves its ID and
-geometry, and recomputes only the measurements linked to that scale.
+geometry, and recomputes only the measurements linked to that scale. X/Y correction is an
+axis-aligned anisotropic scale only: it does not correct skew, perspective, local distortion, or
+non-linear warping.
 
 ## Architecture
 
@@ -93,11 +97,13 @@ There is no additional CSS zoom transform, so zoom is applied exactly once. Devi
 changes backing resolution only and never changes stored points or measurement calculations.
 
 Calibration distances are stored canonically in millimetres. Each measurement stores the ID of the
-named page calibration used when it was created. Linear results multiply page distance by that
-calibration ratio; polygon area uses the square of that ratio and the shoelace formula. Measurement
-values retain full internal precision and are rounded to two decimals only for display and CSV;
-CSV rows include the calibration ID, name, reference distance, page distance, and ratio used for
-that individual measurement.
+named page calibration used when it was created. Uniform scales use one Euclidean reference ratio.
+X/Y correction uses an X reference with `|dx| > |dy|` and a Y reference with `|dy| > |dx|`; it
+derives scale from the relevant axis component, tolerating small click deviation. Lines and each
+polygon edge are transformed by their own X/Y components, while polygon area is multiplied by
+`scaleX × scaleY`. Measurement values retain full internal precision and are rounded to two decimals
+only for display and CSV. CSV rows include per-measurement calibration IDs, names, modes, and both
+audit scale factors; uniform-only reference columns are deliberately blank for X/Y scales.
 
 ### Local persistence
 
@@ -112,8 +118,8 @@ memory and displays a warning that reload recovery is unavailable.
 
 ## Testing and CI
 
-Vitest covers geometry, calibration, squared area scaling, units, CSV escaping and all-page export,
-V1-to-V2 session migration/IndexedDB round trips, reducer invariants, and page/screen transforms
+Vitest covers geometry, uniform and X/Y calibration, squared area scaling, units, CSV escaping and
+all-page export, V1/V2-to-V3 session migration/IndexedDB round trips, reducer invariants, and page/screen transforms
 across zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub Actions installs from
 the lockfile and runs lint, tests, and a production build on pushes to `main` and pull requests.
 

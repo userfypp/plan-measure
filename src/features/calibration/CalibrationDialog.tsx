@@ -8,6 +8,8 @@ interface CalibrationDialogProps {
   points: [Point, Point];
   initialName: string;
   title: string;
+  referenceLabel?: string;
+  includeName?: boolean;
   onConfirm: (calibration: { name: string; referenceDistanceMm: number }) => void;
   onCancel: () => void;
 }
@@ -15,6 +17,8 @@ interface CalibrationDialogProps {
 export function CalibrationDialog({
   initialName,
   title,
+  referenceLabel,
+  includeName = true,
   onConfirm,
   onCancel,
 }: CalibrationDialogProps) {
@@ -26,7 +30,7 @@ export function CalibrationDialog({
   function submit(event: FormEvent) {
     event.preventDefault();
     const trimmedName = name.trim();
-    if (!trimmedName) {
+    if (includeName && !trimmedName) {
       setError("Enter a scale name.");
       return;
     }
@@ -45,16 +49,23 @@ export function CalibrationDialog({
 
   return (
     <Modal title={title} onCancel={onCancel} labelledBy="calibration-title" modal={false}>
-      <p>Enter the real-world distance between the two selected points.</p>
+      <p>
+        Enter the real-world distance between the two selected points.
+        {referenceLabel ? ` This is the ${referenceLabel} reference.` : ""}
+      </p>
       <form onSubmit={submit} className={styles.form}>
-        <label htmlFor="calibration-name">Scale name</label>
-        <input
-          id="calibration-name"
-          className={styles.nameInput}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoFocus
-        />
+        {includeName && (
+          <>
+            <label htmlFor="calibration-name">Scale name</label>
+            <input
+              id="calibration-name"
+              className={styles.nameInput}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              autoFocus
+            />
+          </>
+        )}
         <label htmlFor="calibration-distance">Reference distance</label>
         <div className={styles.inputRow}>
           <input

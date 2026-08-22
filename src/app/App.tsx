@@ -7,7 +7,16 @@ import { MeasurementPanel } from "../features/measurements/MeasurementPanel";
 import { PdfViewer } from "../features/viewer/PdfViewer";
 import { ToolBar } from "../features/viewer/ToolBar";
 import { canActivatePdf, PdfLoadLifecycle } from "./pdfLoadLifecycle";
-import type { LinearUnit, Point, SessionV2, Tool } from "../types/domain";
+import {
+  beginCalibrationFlow,
+  cancelCalibrationFlow,
+  confirmCalibration,
+  selectCalibrationReference,
+  type CalibrationFlow,
+  type CalibrationSelection,
+  type CalibrationTransientState,
+} from "./calibrationFlow";
+import type { LinearUnit, SessionV3, Tool } from "../types/domain";
 import { downloadCsv } from "../services/csv";
 import {
   discardSavedSession,
@@ -19,19 +28,14 @@ import {
 import { loadPdf, PdfUserError, validatePdfFile, type LoadedPdf } from "../services/pdf";
 import { shouldIgnoreGlobalKeyboardShortcut } from "../utils/keyboard";
 import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
+import { isPredominantlyHorizontal, isPredominantlyVertical } from "../utils/geometry";
 import styles from "./App.module.css";
 
 interface PendingPdf {
   file: File;
   loaded: LoadedPdf;
-  session: SessionV2;
+  session: SessionV3;
   loadGeneration: number;
-}
-
-interface CalibrationCandidate {
-  pageNumber: number;
-  points: [Point, Point];
-  calibrationId: string | null;
 }
 
 interface RecalibrationConfirmation {
@@ -61,16 +65,17 @@ function PlanMeasureApp() {
   const disposedRef = useRef(false);
   const latestPdfLoadRef = useRef<number | null>(null);
   const activationCountRef = useRef(0);
-  const calibrationTargetIdRef = useRef<string | null>(null);
   const [activePdf, setActivePdf] = useState<LoadedPdf | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [recovery, setRecovery] = useState<SavedSession | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
   const [pendingPdf, setPendingPdf] = useState<PendingPdf | null>(null);
-  const [calibrationCandidate, setCalibrationCandidate] = useState<CalibrationCandidate | null>(
+  const [calibrationFlow, setCalibrationFlow] = useState<CalibrationFlow | null>(null);
+  const [calibrationCandidate, setCalibrationCandidate] = useState<CalibrationSelection | null>(
     null,
   );
+  const [chooseCalibrationMode, setChooseCalibrationMode] = useState(false);
   const [confirmRecalibrate, setConfirmRecalibrate] = useState<RecalibrationConfirmation | null>(
     null,
   );
@@ -247,7 +252,7 @@ function PlanMeasureApp() {
       setPendingPdf((current) => (current === candidate ? null : current));
     }
     setCalibrationCandidate(null);
-    calibrationTargetIdRef.current = null;
+    setCalibrationFlow(null);
     setConfirmRecalibrate(null);
     setAutosaveSuspended(false);
     activatingPdfRef.current = candidate.loaded;
@@ -386,14 +391,36 @@ function PlanMeasureApp() {
   }
 
   function chooseTool(tool: Tool) {
-    if (tool === "calibrate") {
-      calibrationTargetIdRef.current = null;
+    if (calibrationFlow && tool !== "calibrate") {
+      setCalibrationCandidate(null);
+      setCalibrationFlow(null);
     }
     dispatch({ type: "SET_TOOL", tool });
   }
 
+  function cancelCalibration() {
+    const cleared: CalibrationTransientState = cancelCalibrationFlow({
+      flow: calibrationFlow,
+      candidate: calibrationCandidate,
+    });
+    setCalibrationCandidate(cleared.candidate);
+    setCalibrationFlow(cleared.flow);
+    dispatch({ type: "SET_TOOL", tool: "select" });
+  }
+
   function beginRecalibration(pageNumber: number, calibrationId: string) {
-    calibrationTargetIdRef.current = calibrationId;
+    const calibration =
+      state.session?.pages[pageNumber] &&
+      findPageCalibration(state.session.pages[pageNumber], calibrationId);
+    if (!calibration) return;
+    setCalibrationFlow(beginCalibrationFlow(pageNumber, calibrationId, calibration.mode));
+    dispatch({ type: "SET_TOOL", tool: "calibrate" });
+  }
+
+  function beginNewCalibration(mode: "uniform" | "xy") {
+    if (!currentPage) return;
+    setCalibrationFlow(beginCalibrationFlow(currentPage.pageNumber, null, mode));
+    setChooseCalibrationMode(false);
     dispatch({ type: "SET_TOOL", tool: "calibrate" });
   }
 
@@ -501,24 +528,45 @@ function PlanMeasureApp() {
             page={currentPage}
             onPageChange={(pageNumber) => {
               setCalibrationCandidate(null);
-              calibrationTargetIdRef.current = null;
+              setCalibrationFlow(null);
               dispatch({ type: "SET_PAGE", pageNumber });
             }}
             onCalibrationCandidate={(points) => {
-              const calibrationId = calibrationTargetIdRef.current;
-              calibrationTargetIdRef.current = null;
-              setCalibrationCandidate({
-                pageNumber: currentPage.pageNumber,
-                points,
-                calibrationId,
-              });
+              const flow = calibrationFlow;
+              if (!flow) return;
+              const phase = flow.phase;
+              if (phase === "x" && !isPredominantlyHorizontal(points[0], points[1])) {
+                dispatch({
+                  type: "SET_ERROR",
+                  message: "X reference must be primarily horizontal (|dx| > |dy|).",
+                });
+                dispatch({ type: "SET_TOOL", tool: "calibrate" });
+                return;
+              }
+              if (phase === "y" && !isPredominantlyVertical(points[0], points[1])) {
+                dispatch({
+                  type: "SET_ERROR",
+                  message: "Y reference must be primarily vertical (|dy| > |dx|).",
+                });
+                dispatch({ type: "SET_TOOL", tool: "calibrate" });
+                return;
+              }
+              setCalibrationCandidate(selectCalibrationReference(flow, points));
             }}
+            calibrationReferenceLabel={
+              calibrationFlow?.mode === "xy"
+                ? calibrationFlow.phase === "y"
+                  ? "Y"
+                  : "X"
+                : undefined
+            }
+            onCalibrationCancel={cancelCalibration}
             onVertexDragStateChange={setAutosaveSuspended}
           />
           <ToolBar
             page={currentPage}
             onChooseTool={chooseTool}
-            onAddScale={() => chooseTool("calibrate")}
+            onAddScale={() => setChooseCalibrationMode(true)}
             onRecalibrate={requestRecalibration}
           />
           {dragActive && (
@@ -663,29 +711,70 @@ function PlanMeasureApp() {
         </Modal>
       )}
 
+      {chooseCalibrationMode && (
+        <Modal
+          title="Add scale"
+          labelledBy="calibration-mode-title"
+          onCancel={() => setChooseCalibrationMode(false)}
+        >
+          <p>Choose the scale type. Uniform is the normal two-point calibration.</p>
+          <div className={styles.modalActions}>
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={() => beginNewCalibration("uniform")}
+            >
+              Uniform
+            </button>
+            <button type="button" onClick={() => beginNewCalibration("xy")}>
+              X/Y correction
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {calibrationCandidate && state.session && calibrationCandidatePage && (
         <CalibrationDialog
           points={calibrationCandidate.points}
           initialName={
+            calibrationCandidate.name ??
             calibrationCandidateTarget?.name ??
             `Scale ${calibrationCandidatePage.nextCalibrationNumber}`
           }
           title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
+          referenceLabel={
+            calibrationCandidate.phase === "x"
+              ? "horizontal X"
+              : calibrationCandidate.phase === "y"
+                ? "vertical Y"
+                : undefined
+          }
+          includeName={calibrationCandidate.phase !== "y"}
           onCancel={() => {
-            setCalibrationCandidate(null);
-            calibrationTargetIdRef.current = null;
-            dispatch({ type: "SET_TOOL", tool: "select" });
+            cancelCalibration();
           }}
           onConfirm={({ name, referenceDistanceMm }) => {
             if (state.session!.currentPage !== calibrationCandidate.pageNumber) {
-              setCalibrationCandidate(null);
+              cancelCalibration();
               return;
             }
-            const calibration = {
-              start: calibrationCandidate.points[0],
-              end: calibrationCandidate.points[1],
+            if (!calibrationFlow) {
+              cancelCalibration();
+              return;
+            }
+            const confirmation = confirmCalibration(
+              calibrationFlow,
+              calibrationCandidate,
               referenceDistanceMm,
-            };
+              name,
+            );
+            if (confirmation.kind === "select-y") {
+              setCalibrationFlow(confirmation.flow);
+              setCalibrationCandidate(null);
+              dispatch({ type: "SET_TOOL", tool: "calibrate" });
+              return;
+            }
+            const calibration = confirmation.calibration;
             if (calibrationCandidate.calibrationId) {
               if (!calibrationCandidateTarget) {
                 dispatch({
@@ -711,6 +800,7 @@ function PlanMeasureApp() {
               });
             }
             setCalibrationCandidate(null);
+            setCalibrationFlow(null);
           }}
         />
       )}

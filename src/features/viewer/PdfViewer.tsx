@@ -39,6 +39,8 @@ interface PdfViewerProps {
   page: PageState;
   onPageChange: (pageNumber: number) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
+  calibrationReferenceLabel?: "X" | "Y";
+  onCalibrationCancel: () => void;
   onVertexDragStateChange: (dragging: boolean) => void;
 }
 
@@ -75,6 +77,8 @@ export function PdfViewer({
   page,
   onPageChange,
   onCalibrationCandidate,
+  calibrationReferenceLabel,
+  onCalibrationCancel,
   onVertexDragStateChange,
 }: PdfViewerProps) {
   const { state, dispatch } = useAppState();
@@ -333,6 +337,10 @@ export function PdfViewer({
       } else if (event.key === "-") {
         event.preventDefault();
         zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP);
+      } else if (event.key === "Escape" && state.tool === "calibrate") {
+        event.preventDefault();
+        dispatch({ type: "SET_DRAFT", draft: null });
+        onCalibrationCancel();
       } else if (event.key === "Escape" && state.draft) {
         event.preventDefault();
         dispatch({ type: "SET_DRAFT", draft: null });
@@ -351,7 +359,7 @@ export function PdfViewer({
       window.removeEventListener("keydown", keyDown);
       window.removeEventListener("keyup", keyUp);
     };
-  }, [dispatch, state.draft, viewerSize, zoomAround]);
+  }, [dispatch, onCalibrationCancel, state.draft, state.tool, viewerSize, zoomAround]);
 
   function stagePointer(event: KonvaEventObject<MouseEvent | WheelEvent>): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
@@ -599,43 +607,68 @@ export function PdfViewer({
                   fill="rgba(255,255,255,0.001)"
                 />
                 {state.session?.settings.showCalibration &&
-                  page.calibrations.map((calibration) => {
+                  page.calibrations.flatMap((calibration) => {
                     const active = calibration.id === page.activeCalibrationId;
                     const stroke = active ? "#d97706" : "#52606d";
-                    const labelPoint = {
-                      x: (calibration.start.x + calibration.end.x) / 2,
-                      y: (calibration.start.y + calibration.end.y) / 2,
-                    };
-                    return (
-                      <Group key={calibration.id} listening={false} opacity={active ? 1 : 0.72}>
-                        <Line
-                          points={pointsToFlat([calibration.start, calibration.end])}
-                          stroke={stroke}
-                          strokeWidth={(active ? 3 : 2) / viewTransform.zoom}
-                          dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
-                        />
-                        {[calibration.start, calibration.end].map((point, index) => (
-                          <Circle
-                            key={`${calibration.id}-${index}`}
-                            x={point.x}
-                            y={point.y}
-                            radius={4 / viewTransform.zoom}
-                            fill="#fff"
+                    const references =
+                      calibration.mode === "uniform"
+                        ? [{ key: "uniform", label: calibration.name, ...calibration }]
+                        : [
+                            {
+                              key: "x",
+                              label: `${calibration.name} · X`,
+                              ...calibration.xReference,
+                            },
+                            {
+                              key: "y",
+                              label: `${calibration.name} · Y`,
+                              ...calibration.yReference,
+                            },
+                          ];
+                    return references.map((reference) => {
+                      const labelPoint = {
+                        x: (reference.start.x + reference.end.x) / 2,
+                        y: (reference.start.y + reference.end.y) / 2,
+                      };
+                      return (
+                        <Group
+                          key={`${calibration.id}-${reference.key}`}
+                          listening={false}
+                          opacity={active ? 1 : 0.72}
+                        >
+                          <Line
+                            points={pointsToFlat([reference.start, reference.end])}
                             stroke={stroke}
-                            strokeWidth={(active ? 2 : 1.5) / viewTransform.zoom}
+                            strokeWidth={(active ? 3 : 2) / viewTransform.zoom}
+                            dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
                           />
-                        ))}
-                        <Label x={labelPoint.x} y={labelPoint.y} offsetY={20 / viewTransform.zoom}>
-                          <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / viewTransform.zoom} />
-                          <Text
-                            text={calibration.name}
-                            fill="#fff"
-                            fontSize={11 / viewTransform.zoom}
-                            padding={4 / viewTransform.zoom}
-                          />
-                        </Label>
-                      </Group>
-                    );
+                          {[reference.start, reference.end].map((point, index) => (
+                            <Circle
+                              key={`${calibration.id}-${index}`}
+                              x={point.x}
+                              y={point.y}
+                              radius={4 / viewTransform.zoom}
+                              fill="#fff"
+                              stroke={stroke}
+                              strokeWidth={(active ? 2 : 1.5) / viewTransform.zoom}
+                            />
+                          ))}
+                          <Label
+                            x={labelPoint.x}
+                            y={labelPoint.y}
+                            offsetY={20 / viewTransform.zoom}
+                          >
+                            <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / viewTransform.zoom} />
+                            <Text
+                              text={reference.label}
+                              fill="#fff"
+                              fontSize={11 / viewTransform.zoom}
+                              padding={4 / viewTransform.zoom}
+                            />
+                          </Label>
+                        </Group>
+                      );
+                    });
                   })}
                 {state.session?.settings.showMeasurements &&
                   page.measurements.map((measurement) => (
@@ -689,6 +722,19 @@ export function PdfViewer({
                 dispatch({ type: "SET_TOOL", tool: "select" });
               }}
             >
+              Cancel
+            </button>
+          </div>
+        )}
+        {state.tool === "calibrate" && state.draft?.type !== "polygon" && (
+          <div className={styles.drawingStatus}>
+            <span>
+              Select two points for the{" "}
+              {calibrationReferenceLabel
+                ? `${calibrationReferenceLabel} reference`
+                : "scale reference"}
+            </span>
+            <button type="button" onClick={onCalibrationCancel}>
               Cancel
             </button>
           </div>

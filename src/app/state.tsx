@@ -7,29 +7,33 @@ import {
   type ReactNode,
 } from "react";
 import type {
-  Calibration,
   DrawingDraft,
   LinearUnit,
   PageState,
+  UniformPageCalibration,
+  XyPageCalibration,
   PdfMetadata,
   Point,
   SessionSettings,
-  SessionV2,
+  SessionV3,
   Tool,
 } from "../types/domain";
-import { isValidCalibration } from "../utils/geometry";
+import { isValidPageCalibration } from "../utils/geometry";
 import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
 
 export interface AppState {
-  session: SessionV2 | null;
+  session: SessionV3 | null;
   tool: Tool;
   selectedMeasurementId: string | null;
   draft: DrawingDraft | null;
   error: string | null;
 }
 
+type CalibrationInput =
+  Omit<UniformPageCalibration, "id" | "name"> | Omit<XyPageCalibration, "id" | "name">;
+
 export type AppAction =
-  | { type: "LOAD_SESSION"; session: SessionV2 }
+  | { type: "LOAD_SESSION"; session: SessionV3 }
   | { type: "CLEAR_SESSION" }
   | { type: "SET_PAGE"; pageNumber: number }
   | { type: "SET_TOOL"; tool: Tool }
@@ -40,14 +44,14 @@ export type AppAction =
       pageNumber: number;
       id: string;
       name: string;
-      calibration: Calibration;
+      calibration: CalibrationInput;
     }
   | {
       type: "RECALIBRATE_CALIBRATION";
       pageNumber: number;
       calibrationId: string;
       name: string;
-      calibration: Calibration;
+      calibration: CalibrationInput;
     }
   | { type: "SET_ACTIVE_CALIBRATION"; pageNumber: number; calibrationId: string }
   | { type: "ADD_LINE"; pageNumber: number; id: string; points: [Point, Point] }
@@ -88,13 +92,13 @@ export function createEmptySession(
   pdf: PdfMetadata,
   pageCount: number,
   settings?: Partial<SessionSettings>,
-): SessionV2 {
+): SessionV3 {
   const pages: Record<number, PageState> = {};
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     pdf,
     pageCount,
     currentPage: 1,
@@ -110,10 +114,10 @@ export function createEmptySession(
 }
 
 function updatePage(
-  session: SessionV2,
+  session: SessionV3,
   pageNumber: number,
   updater: (page: PageState) => PageState,
-): SessionV2 {
+): SessionV3 {
   const page = session.pages[pageNumber];
   if (!page) return session;
   return {
@@ -125,7 +129,7 @@ function updatePage(
   };
 }
 
-function pageHasActiveCalibration(session: SessionV2 | null, pageNumber?: number): boolean {
+function pageHasActiveCalibration(session: SessionV3 | null, pageNumber?: number): boolean {
   if (!session) return false;
   const page = session.pages[pageNumber ?? session.currentPage];
   return Boolean(page && getActiveCalibration(page));
@@ -184,7 +188,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         !page ||
         !action.id.trim() ||
         !name ||
-        !isValidCalibration(action.calibration) ||
+        !isValidPageCalibration({ ...action.calibration, id: action.id, name }) ||
         findPageCalibration(page, action.id)
       ) {
         return {
@@ -214,7 +218,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const page = state.session.pages[action.pageNumber];
       const calibration = page && findPageCalibration(page, action.calibrationId);
       const name = action.name.trim();
-      if (!page || !calibration || !name || !isValidCalibration(action.calibration)) {
+      if (
+        !page ||
+        !calibration ||
+        !name ||
+        calibration.mode !== action.calibration.mode ||
+        !isValidPageCalibration({ ...action.calibration, id: calibration.id, name })
+      ) {
         return {
           ...state,
           tool: "select",

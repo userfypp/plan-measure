@@ -1,15 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../app/state";
-import type { SessionV2 } from "../types/domain";
+import type { SessionV3 } from "../types/domain";
 import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
-function measuredSession(): SessionV2 {
+function measuredSession(): SessionV3 {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
   session.settings.displayUnit = "m";
   session.pages[1]!.calibrations = [
     {
       id: "scale-1",
       name: "Scale 1",
+      mode: "uniform",
       start: { x: 0, y: 0 },
       end: { x: 10, y: 0 },
       referenceDistanceMm: 1000,
@@ -17,9 +18,17 @@ function measuredSession(): SessionV2 {
     {
       id: "scale-2",
       name: "Detail A",
-      start: { x: 0, y: 0 },
-      end: { x: 10, y: 0 },
-      referenceDistanceMm: 5000,
+      mode: "xy",
+      xReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 1 },
+        referenceDistanceMm: 5000,
+      },
+      yReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 10 },
+        referenceDistanceMm: 10000,
+      },
     },
   ];
   session.pages[1]!.activeCalibrationId = "scale-2";
@@ -50,6 +59,7 @@ function measuredSession(): SessionV2 {
     {
       id: "scale-3",
       name: "Section",
+      mode: "uniform",
       start: { x: 0, y: 0 },
       end: { x: 20, y: 0 },
       referenceDistanceMm: 500,
@@ -75,17 +85,17 @@ describe("CSV export", () => {
     const csv = buildCsv(measuredSession());
     expect(
       csv.startsWith(
-        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,length,perimeter,area,unit\r\n",
+        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit\r\n",
       ),
     ).toBe(true);
     expect(csv).toContain(
-      '1,,line-id,"Lobby, ""north""",Line,scale-1,Scale 1,1000,10,100,2.50,,,m',
+      '1,,line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,m',
     );
     expect(csv).toContain(
-      '1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,5000,10,500,,20.00,25.00,m',
+      '1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,xy,,,,500,1000,,30.00,50.00,m',
     );
     expect(csv).toContain(
-      "2,,second-line-id,Second measurement,Line,scale-3,Section,500,20,25,0.25,,,m",
+      "2,,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m",
     );
     expect(csv.endsWith("\r\n")).toBe(true);
   });
@@ -97,30 +107,34 @@ describe("CSV export", () => {
     const after = buildCsv(session);
 
     expect(after).toBe(before);
-    expect(after).toContain(",scale-1,Scale 1,1000,10,100,2.50,,,");
-    expect(after).toContain(",scale-2,Detail A,5000,10,500,,20.00,25.00,");
+    expect(after).toContain(",scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,");
+    expect(after).toContain(",scale-2,Detail A,xy,,,,500,1000,,30.00,50.00,");
   });
 
   it("preserves calibration metadata precision beyond two decimals", () => {
     const session = measuredSession();
+    const calibration = session.pages[1]!.calibrations[0]!;
+    if (calibration.mode !== "uniform") throw new Error("Expected uniform test calibration.");
     session.pages[1]!.calibrations[0] = {
-      ...session.pages[1]!.calibrations[0]!,
+      ...calibration,
       end: { x: 3, y: 0 },
     };
 
     const firstRow = buildCsv(session).split("\r\n")[1];
 
-    expect(firstRow).toContain(",scale-1,Scale 1,1000,3,333.3333333333333,");
+    expect(firstRow).toContain(
+      ",scale-1,Scale 1,uniform,1000,3,333.3333333333333,333.3333333333333,333.3333333333333,",
+    );
   });
 
   it("exports exact PDF page labels by page number and escapes label values", () => {
     const label = 'Cover, "A"\nSheet';
     const csv = buildCsv(measuredSession(), [label, "7"]);
     expect(csv).toContain(
-      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,scale-1,Scale 1,1000,10,100,2.50,,,m',
+      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,m',
     );
     expect(csv).toContain(
-      "2,7,second-line-id,Second measurement,Line,scale-3,Section,500,20,25,0.25,,,m",
+      "2,7,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m",
     );
   });
 
@@ -128,14 +142,16 @@ describe("CSV export", () => {
     const session = measuredSession();
     session.settings.displayUnit = "cm";
     const csv = buildCsv(session);
-    expect(csv).toContain("Line,scale-1,Scale 1,1000,10,100,250.00,,,cm");
-    expect(csv).toContain("Polygon,scale-2,Detail A,5000,10,500,,2000.00,250000.00,cm");
+    expect(csv).toContain("Line,scale-1,Scale 1,uniform,1000,10,100,100,100,250.00,,,cm");
+    expect(csv).toContain("Polygon,scale-2,Detail A,xy,,,,500,1000,,3000.00,500000.00,cm");
 
     session.settings.displayUnit = "mm";
     const millimetreCsv = buildCsv(session);
-    expect(millimetreCsv).toContain("Line,scale-1,Scale 1,1000,10,100,2500.00,,,mm");
     expect(millimetreCsv).toContain(
-      "Polygon,scale-2,Detail A,5000,10,500,,20000.00,25000000.00,mm",
+      "Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2500.00,,,mm",
+    );
+    expect(millimetreCsv).toContain(
+      "Polygon,scale-2,Detail A,xy,,,,500,1000,,30000.00,50000000.00,mm",
     );
   });
 

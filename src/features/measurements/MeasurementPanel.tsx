@@ -126,7 +126,10 @@ const MeasurementItem = memo(function MeasurementItem({
           ? formatMeasurement(measurement, calibration, displayUnit)
           : "Scale unavailable"}
       </div>
-      <div className={styles.scale}>Scale: {calibration?.name ?? "Unavailable"}</div>
+      <div className={styles.scale}>
+        Scale: {calibration?.name ?? "Unavailable"}
+        {calibration?.mode === "xy" ? " · X/Y" : ""}
+      </div>
     </article>
   );
 });

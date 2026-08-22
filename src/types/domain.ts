@@ -11,10 +11,23 @@ export interface Calibration {
   referenceDistanceMm: number;
 }
 
-export interface PageCalibration extends Calibration {
+export interface UniformPageCalibration extends Calibration {
   id: string;
   name: string;
+  mode: "uniform";
 }
+
+export type XyCalibrationReference = Calibration;
+
+export interface XyPageCalibration {
+  id: string;
+  name: string;
+  mode: "xy";
+  xReference: XyCalibrationReference;
+  yReference: XyCalibrationReference;
+}
+
+export type PageCalibration = UniformPageCalibration | XyPageCalibration;
 
 interface MeasurementBase {
   id: string;
@@ -93,6 +106,30 @@ export interface SessionV1 {
 
 export interface SessionV2 {
   schemaVersion: 2;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageStateV2>;
+  settings: SessionSettings;
+}
+
+export interface PageCalibrationV2 extends Calibration {
+  id: string;
+  name: string;
+}
+
+export interface PageStateV2 {
+  pageNumber: number;
+  calibrations: PageCalibrationV2[];
+  activeCalibrationId: string | null;
+  nextCalibrationNumber: number;
+  measurements: Measurement[];
+  nextLineNumber: number;
+  nextPolygonNumber: number;
+}
+
+export interface SessionV3 {
+  schemaVersion: 3;
   pdf: PdfMetadata;
   pageCount: number;
   currentPage: number;

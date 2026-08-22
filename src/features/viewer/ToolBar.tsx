@@ -3,6 +3,7 @@ import type { PageState, Tool } from "../../types/domain";
 import { getActiveCalibration } from "../../utils/calibration";
 import { formatNumber } from "../../utils/format";
 import { fromMillimetres } from "../../utils/units";
+import { calibrationScaleX, calibrationScaleY } from "../../utils/geometry";
 import styles from "./ToolBar.module.css";
 
 const TOOLS: { id: Exclude<Tool, "calibrate">; label: string; shortcut?: string }[] = [
@@ -24,9 +25,11 @@ export function ToolBar({ page, onChooseTool, onAddScale, onRecalibrate }: ToolB
   const activeCalibration = getActiveCalibration(page);
   const calibrated = Boolean(activeCalibration);
   const unit = state.session?.settings.displayUnit ?? "m";
-  const reference = activeCalibration
-    ? `${formatNumber(fromMillimetres(activeCalibration.referenceDistanceMm, unit))} ${unit} reference`
-    : "No active scale";
+  const reference = !activeCalibration
+    ? "No active scale"
+    : activeCalibration.mode === "uniform"
+      ? `Uniform · ${formatNumber(fromMillimetres(activeCalibration.referenceDistanceMm, unit))} ${unit} reference`
+      : `X/Y correction · X: ${formatNumber(calibrationScaleX(activeCalibration))} mm/unit · Y: ${formatNumber(calibrationScaleY(activeCalibration))} mm/unit`;
 
   return (
     <aside className={styles.toolbar} aria-label="Viewer tools">

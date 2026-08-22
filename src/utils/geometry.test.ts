@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Calibration } from "../types/domain";
+import type { Calibration, PageCalibration } from "../types/domain";
 import {
   areEffectivelyIdentical,
   distance,
@@ -9,12 +9,30 @@ import {
   polygonAreaPageUnitsSquared,
   polygonPerimeterPageUnits,
   polygonResultsMm,
+  calibrationScaleX,
+  calibrationScaleY,
+  isPredominantlyHorizontal,
+  isPredominantlyVertical,
 } from "./geometry";
 
 const calibration: Calibration = {
   start: { x: 0, y: 0 },
   end: { x: 10, y: 0 },
   referenceDistanceMm: 1000,
+};
+
+const uniform: PageCalibration = {
+  id: "uniform",
+  name: "Uniform",
+  mode: "uniform",
+  ...calibration,
+};
+const xy: PageCalibration = {
+  id: "xy",
+  name: "X/Y",
+  mode: "xy",
+  xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: 100 },
+  yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: 200 },
 };
 
 describe("geometry", () => {
@@ -56,6 +74,95 @@ describe("geometry", () => {
         calibration,
       ),
     ).toBe(2500);
+  });
+
+  it("keeps uniform line, perimeter, and area results exactly identical to the legacy formula", () => {
+    const line: [{ x: number; y: number }, { x: number; y: number }] = [
+      { x: 0, y: 0 },
+      { x: 3, y: 4 },
+    ];
+    const polygon = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 3 },
+        { x: 0, y: 3 },
+      ],
+    };
+    expect(calibrationScaleX(uniform)).toBe(millimetresPerPageUnit(calibration));
+    expect(calibrationScaleY(uniform)).toBe(millimetresPerPageUnit(calibration));
+    expect(lineLengthMm(line, uniform)).toBe(lineLengthMm(line, calibration));
+    expect(polygonResultsMm(polygon, uniform)).toEqual(polygonResultsMm(polygon, calibration));
+  });
+
+  it("uses independent X/Y scales for diagonal, horizontal, vertical, perimeter, and area", () => {
+    expect(calibrationScaleX(xy)).toBe(10);
+    expect(calibrationScaleY(xy)).toBe(20);
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: 3, y: 4 },
+        ],
+        xy,
+      ),
+    ).toBeCloseTo(Math.hypot(30, 80));
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: 5, y: 0 },
+        ],
+        xy,
+      ),
+    ).toBe(50);
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: 0, y: 5 },
+        ],
+        xy,
+      ),
+    ).toBe(100);
+    const rectangle = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+        { x: 3, y: 4 },
+        { x: 0, y: 4 },
+      ],
+    };
+    expect(polygonResultsMm(rectangle, xy)).toEqual({ perimeterMm: 220, areaMm2: 2400 });
+  });
+
+  it("does not use an average X/Y scale for diagonal lines or perimeters", () => {
+    const diagonal = lineLengthMm(
+      [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+      xy,
+    );
+    expect(diagonal).not.toBe(Math.hypot(3, 4) * 15);
+    const rectangle = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+        { x: 3, y: 4 },
+        { x: 0, y: 4 },
+      ],
+    };
+    expect(polygonResultsMm(rectangle, xy).perimeterMm).not.toBe(
+      polygonPerimeterPageUnits(rectangle.points) * 15,
+    );
+  });
+
+  it("accepts small reference click deviation only in the intended primary axis", () => {
+    expect(isPredominantlyHorizontal({ x: 0, y: 0 }, { x: 10, y: 1 })).toBe(true);
+    expect(isPredominantlyHorizontal({ x: 0, y: 0 }, { x: 1, y: 10 })).toBe(false);
+    expect(isPredominantlyVertical({ x: 0, y: 0 }, { x: 1, y: 10 })).toBe(true);
+    expect(isPredominantlyVertical({ x: 0, y: 0 }, { x: 10, y: 1 })).toBe(false);
   });
 
   it("recalibrates values while preserving geometry", () => {

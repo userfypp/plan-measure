@@ -8,6 +8,7 @@ const page: PageState = {
     {
       id: "scale-1",
       name: "Main plan",
+      mode: "uniform",
       start: { x: 0, y: 0 },
       end: { x: 10, y: 0 },
       referenceDistanceMm: 1000,
@@ -15,6 +16,7 @@ const page: PageState = {
     {
       id: "scale-2",
       name: "Detail A",
+      mode: "uniform",
       start: { x: 0, y: 0 },
       end: { x: 10, y: 0 },
       referenceDistanceMm: 5000,

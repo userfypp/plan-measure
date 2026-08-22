@@ -1,4 +1,4 @@
-import type { Calibration, LinearUnit, Measurement } from "../types/domain";
+import type { LinearUnit, Measurement, PageCalibration } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "./geometry";
 import { fromMillimetres, fromSquareMillimetres } from "./units";
 
@@ -8,7 +8,7 @@ export function formatNumber(value: number): string {
 
 export function formatMeasurement(
   measurement: Measurement,
-  calibration: Calibration,
+  calibration: PageCalibration,
   unit: LinearUnit,
 ): string {
   if (measurement.type === "line") {

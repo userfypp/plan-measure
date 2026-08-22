@@ -17,9 +17,24 @@ function addScale(state: AppState, id: string, name: string, referenceDistanceMm
     id,
     name,
     calibration: {
+      mode: "uniform",
       start: { x: 0, y: 0 },
       end: { x: 10, y: 0 },
       referenceDistanceMm,
+    },
+  });
+}
+
+function addXyScale(state: AppState, id: string, name: string, xMm = 100, yMm = 200): AppState {
+  return appReducer(state, {
+    type: "ADD_CALIBRATION",
+    pageNumber: 1,
+    id,
+    name,
+    calibration: {
+      mode: "xy",
+      xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: xMm },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: yMm },
     },
   });
 }
@@ -84,6 +99,30 @@ describe("application reducer", () => {
       referenceDistanceMm: 5000,
     });
     expect(page.activeCalibrationId).toBe("scale-2");
+  });
+
+  it("creates an X/Y calibration and binds new measurements to it", () => {
+    let state = addScale(loadedState(), "uniform", "Main plan");
+    state = addXyScale(state, "xy", "Scanned detail");
+    state = appReducer(state, {
+      type: "ADD_LINE",
+      pageNumber: 1,
+      id: "xy-line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    });
+    const page = state.session!.pages[1]!;
+    expect(page.activeCalibrationId).toBe("xy");
+    expect(page.calibrations[1]).toMatchObject({ id: "xy", mode: "xy" });
+    expect(page.measurements[0]!.calibrationId).toBe("xy");
+    expect(
+      lineLengthMm(
+        page.measurements[0]!.points,
+        getMeasurementCalibration(page, page.measurements[0]!)!,
+      ),
+    ).toBeCloseTo(Math.hypot(30, 80));
   });
 
   it("binds new measurements to the active calibration and keeps existing links on scale changes", () => {
@@ -164,6 +203,7 @@ describe("application reducer", () => {
       calibrationId: "scale-1",
       name: "Main plan revised",
       calibration: {
+        mode: "uniform",
         start: { x: 0, y: 0 },
         end: { x: 10, y: 0 },
         referenceDistanceMm: 2000,
@@ -189,6 +229,67 @@ describe("application reducer", () => {
     ]);
     expect(afterA).toBe(beforeA * 2);
     expect(afterB).toBe(beforeB);
+  });
+
+  it("recalibrates X/Y in place and changes only its linked measurement results", () => {
+    let state = addScale(loadedState(), "uniform", "Main plan");
+    state = appReducer(state, {
+      type: "ADD_LINE",
+      pageNumber: 1,
+      id: "uniform-line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    });
+    state = addXyScale(state, "xy", "Scanned detail");
+    state = appReducer(state, {
+      type: "ADD_LINE",
+      pageNumber: 1,
+      id: "xy-line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    });
+    const before = state.session!.pages[1]!;
+    const beforeUniform = lineLengthMm(
+      before.measurements[0]!.points,
+      getMeasurementCalibration(before, before.measurements[0]!)!,
+    );
+    const beforeXy = lineLengthMm(
+      before.measurements[1]!.points,
+      getMeasurementCalibration(before, before.measurements[1]!)!,
+    );
+    state = appReducer(state, {
+      type: "RECALIBRATE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "xy",
+      name: "Scanned detail revised",
+      calibration: {
+        mode: "xy",
+        xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: 200 },
+        yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: 400 },
+      },
+    });
+    const after = state.session!.pages[1]!;
+    expect(after.calibrations[1]).toMatchObject({
+      id: "xy",
+      mode: "xy",
+      name: "Scanned detail revised",
+    });
+    expect(
+      lineLengthMm(
+        after.measurements[0]!.points,
+        getMeasurementCalibration(after, after.measurements[0]!)!,
+      ),
+    ).toBe(beforeUniform);
+    expect(
+      lineLengthMm(
+        after.measurements[1]!.points,
+        getMeasurementCalibration(after, after.measurements[1]!)!,
+      ),
+    ).toBe(beforeXy * 2);
   });
 
   it("creates measurements with persistent page-local counters", () => {
@@ -297,6 +398,7 @@ describe("application reducer", () => {
       id: "scale-1",
       name: "Scale 1",
       calibration: {
+        mode: "uniform",
         start: { x: 10, y: 10 },
         end: { x: 10, y: 10 },
         referenceDistanceMm: 1000,
@@ -311,6 +413,7 @@ describe("application reducer", () => {
       id: "scale-1",
       name: "Scale 1",
       calibration: {
+        mode: "uniform",
         start: { x: 0, y: 0 },
         end: { x: 10, y: 0 },
         referenceDistanceMm: Number.POSITIVE_INFINITY,
@@ -326,6 +429,7 @@ describe("application reducer", () => {
       id: "scale-1",
       name: "Another scale",
       calibration: {
+        mode: "uniform",
         start: { x: 0, y: 0 },
         end: { x: 10, y: 0 },
         referenceDistanceMm: 1000,

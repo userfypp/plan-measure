@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptySession } from "../app/state";
-import type { SessionV1, SessionV2 } from "../types/domain";
+import type { Point, SessionV1, SessionV2, SessionV3 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
   discardSavedSession,
@@ -68,13 +68,14 @@ function legacySession(withCalibration: boolean): SessionV1 {
   };
 }
 
-function currentMeasuredSession(): SessionV2 {
+function currentMeasuredSession(): SessionV3 {
   const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 2);
   session.settings.displayUnit = "cm";
   session.settings.showLabels = false;
   session.pages[2]!.calibrations.push({
     id: "custom-scale",
     name: "Detail A",
+    mode: "uniform",
     start: { x: 5, y: 6 },
     end: { x: 7, y: 8 },
     referenceDistanceMm: 900,
@@ -94,12 +95,52 @@ function currentMeasuredSession(): SessionV2 {
   return session;
 }
 
+function v2MeasuredSession(): SessionV2 {
+  return {
+    schemaVersion: 2,
+    pdf: { name: "v2-plan.pdf", size: 4, lastModified: 2 },
+    pageCount: 1,
+    currentPage: 1,
+    pages: {
+      1: {
+        pageNumber: 1,
+        calibrations: [
+          {
+            id: "v2-scale",
+            name: "V2 scale",
+            start: { x: 0, y: 0 },
+            end: { x: 10, y: 0 },
+            referenceDistanceMm: 1000,
+          },
+        ],
+        activeCalibrationId: "v2-scale",
+        nextCalibrationNumber: 2,
+        measurements: [
+          {
+            id: "v2-line",
+            type: "line",
+            name: "V2 line",
+            calibrationId: "v2-scale",
+            points: [
+              { x: 0, y: 0 },
+              { x: 3, y: 4 },
+            ],
+          },
+        ],
+        nextLineNumber: 2,
+        nextPolygonNumber: 1,
+      },
+    },
+    settings: { displayUnit: "m", showLabels: true, showMeasurements: true, showCalibration: true },
+  };
+}
+
 describe("session persistence", () => {
-  it("migrates a V1 page without calibration to an empty V2 page", () => {
+  it("migrates a V1 page without calibration to an empty V3 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(page.calibrations).toEqual([]);
     expect(page.activeCalibrationId).toBeNull();
     expect(page.nextCalibrationNumber).toBe(1);
@@ -127,6 +168,7 @@ describe("session persistence", () => {
     expect(calibration).toMatchObject({
       id: "legacy-page-1-scale-1",
       name: "Scale 1",
+      mode: "uniform",
       ...legacyCalibration,
     });
     expect(page.activeCalibrationId).toBe(calibration.id);
@@ -169,11 +211,38 @@ describe("session persistence", () => {
     expect(second.pages[1]!.calibrations[0]!.id).toBe(first.pages[1]!.calibrations[0]!.id);
   });
 
-  it("serializes only V2 and round trips calibrations and measurement references", () => {
+  it("migrates V2 calibrations to uniform V3 without changing IDs or results", () => {
+    const v2 = v2MeasuredSession();
+    const before = lineLengthMm(
+      v2.pages[1]!.measurements[0]!.points,
+      v2.pages[1]!.calibrations[0]!,
+    );
+    const migrated = deserializeSession(JSON.stringify(v2));
+    const page = migrated.pages[1]!;
+    expect(migrated.schemaVersion).toBe(3);
+    expect(page.calibrations[0]).toMatchObject({
+      id: "v2-scale",
+      name: "V2 scale",
+      mode: "uniform",
+    });
+    expect(page.activeCalibrationId).toBe("v2-scale");
+    expect(page.measurements[0]!.calibrationId).toBe("v2-scale");
+    expect(lineLengthMm(page.measurements[0]!.points, page.calibrations[0]!)).toBe(before);
+  });
+
+  it("serializes only V3 and round trips uniform/X/Y calibrations and measurement references", () => {
     const session = currentMeasuredSession();
+    session.pages[1]!.calibrations.push({
+      id: "xy-scale",
+      name: "Scanned detail",
+      mode: "xy",
+      xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: 100 },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: 200 },
+    });
+    session.pages[1]!.activeCalibrationId = "xy-scale";
     const serialized = serializeSession(session);
 
-    expect(JSON.parse(serialized).schemaVersion).toBe(2);
+    expect(JSON.parse(serialized).schemaVersion).toBe(3);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -214,6 +283,49 @@ describe("session persistence", () => {
     const untrimmedName = currentMeasuredSession();
     untrimmedName.pages[2]!.calibrations[0]!.name = " Detail A ";
     expect(() => deserializeSession(JSON.stringify(untrimmedName))).toThrow("invalid");
+  });
+
+  it("rejects corrupt V3 X/Y references", () => {
+    const base = currentMeasuredSession();
+    const page = base.pages[2]!;
+    page.calibrations[0] = {
+      id: "xy",
+      name: "X/Y",
+      mode: "xy",
+      xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: 100 },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: 200 },
+    };
+    const corrupt = (mutate: (value: Record<string, unknown>) => void) => {
+      const value = JSON.parse(serializeSession(base)) as Record<string, unknown>;
+      mutate(value);
+      expect(() => deserializeSession(JSON.stringify(value))).toThrow("invalid");
+    };
+    corrupt((value) => {
+      (value.pages as Record<string, { calibrations: Array<{ xReference: { end: Point } }> }>)[
+        "2"
+      ]!.calibrations[0]!.xReference.end = { x: 0, y: 10 };
+    });
+    corrupt((value) => {
+      (value.pages as Record<string, { calibrations: Array<{ yReference: { end: Point } }> }>)[
+        "2"
+      ]!.calibrations[0]!.yReference.end = { x: 10, y: 0 };
+    });
+    corrupt((value) => {
+      (
+        value.pages as Record<
+          string,
+          { calibrations: Array<{ xReference: { referenceDistanceMm: number } }> }
+        >
+      )["2"]!.calibrations[0]!.xReference.referenceDistanceMm = 0;
+    });
+    corrupt((value) => {
+      (
+        value.pages as Record<
+          string,
+          { calibrations: Array<{ yReference: { referenceDistanceMm: number } }> }
+        >
+      )["2"]!.calibrations[0]!.yReference.referenceDistanceMm = Number.POSITIVE_INFINITY;
+    });
   });
 
   it("round trips PDF blob and metadata through IndexedDB", async () => {
