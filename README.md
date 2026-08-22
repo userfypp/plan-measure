@@ -21,7 +21,8 @@ The active session is stored only in the browser's IndexedDB so it can be recove
 - Pan, pointer-centred zoom, keyboard zoom, and fit-to-screen controls.
 - Independent visibility controls for labels, measurements, and calibration references.
 - One recoverable, browser-local autosaved session with explicit Continue/Discard recovery.
-- CSV export across every page using the current display unit.
+- CSV export across every page with page, measurement, and calibration traceability; measurement
+  values use the current display unit.
 
 ## Requirements
 
@@ -88,7 +89,8 @@ changes backing resolution only and never changes stored points or measurement c
 
 Calibration distance is stored canonically in millimetres. Linear results multiply page distance
 by the calibration ratio; polygon area uses the square of that ratio and the shoelace formula.
-Values retain full internal precision and are rounded to two decimals only for display and CSV.
+Measurement values retain full internal precision and are rounded to two decimals only for display
+and CSV; calibration audit metadata uses stable decimal serialization without arbitrary rounding.
 
 ### Local persistence
 

@@ -1,5 +1,10 @@
 import type { Measurement, SessionV1 } from "../types/domain";
-import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
+import {
+  distance,
+  lineLengthMm,
+  millimetresPerPageUnit,
+  polygonResultsMm,
+} from "../utils/geometry";
 import { formatNumber } from "../utils/format";
 import { fromMillimetres, fromSquareMillimetres } from "../utils/units";
 
@@ -9,6 +14,9 @@ const HEADER = [
   "measurement_id",
   "name",
   "type",
+  "calibration_reference_mm",
+  "calibration_page_distance",
+  "calibration_mm_per_page_unit",
   "length",
   "perimeter",
   "area",
@@ -31,6 +39,16 @@ function measurementRow(
   if (!calibration) {
     throw new Error(`Page ${pageNumber} has measurements without calibration.`);
   }
+  const calibrationPageDistance = distance(calibration.start, calibration.end);
+  const calibrationMmPerPageUnit = millimetresPerPageUnit(calibration);
+  if (!Number.isFinite(calibrationPageDistance) || !Number.isFinite(calibrationMmPerPageUnit)) {
+    throw new RangeError("Calibration must produce finite audit values.");
+  }
+  // Audit metadata uses String(number) for stable, locale-independent decimal serialization
+  // without arbitrary display rounding.
+  const calibrationReferenceMm = String(calibration.referenceDistanceMm);
+  const calibrationPageDistanceValue = String(calibrationPageDistance);
+  const calibrationMmPerPageUnitValue = String(calibrationMmPerPageUnit);
   const unit = session.settings.displayUnit;
   if (measurement.type === "line") {
     return [
@@ -39,6 +57,9 @@ function measurementRow(
       measurement.id,
       measurement.name,
       "Line",
+      calibrationReferenceMm,
+      calibrationPageDistanceValue,
+      calibrationMmPerPageUnitValue,
       formatNumber(fromMillimetres(lineLengthMm(measurement.points, calibration), unit)),
       "",
       "",
@@ -52,6 +73,9 @@ function measurementRow(
     measurement.id,
     measurement.name,
     "Polygon",
+    calibrationReferenceMm,
+    calibrationPageDistanceValue,
+    calibrationMmPerPageUnitValue,
     "",
     formatNumber(fromMillimetres(result.perimeterMm, unit)),
     formatNumber(fromSquareMillimetres(result.areaMm2, unit)),
