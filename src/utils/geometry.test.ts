@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Calibration, PageCalibration } from "../types/domain";
+import type { Calibration, PageCalibration, Point } from "../types/domain";
 import {
   areEffectivelyIdentical,
   distance,
@@ -34,6 +34,100 @@ const xy: PageCalibration = {
   xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: 100 },
   yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: 200 },
 };
+
+const logicalPageWidth = 10;
+const logicalPageHeight = 12;
+const asymmetricPolygon: Point[] = [
+  { x: 1, y: 1 },
+  { x: 5, y: 1 },
+  { x: 5, y: 3 },
+  { x: 3, y: 5 },
+  { x: 1, y: 4 },
+];
+const asymmetricLine: [Point, Point] = [
+  { x: 1, y: 1 },
+  { x: 5, y: 3 },
+];
+
+const quarterTurns = [
+  { rotation: 0 as const, transform: (point: Point): Point => ({ ...point }) },
+  {
+    rotation: 90 as const,
+    transform: (point: Point): Point => ({
+      x: logicalPageHeight - point.y,
+      y: point.x,
+    }),
+  },
+  {
+    rotation: 180 as const,
+    transform: (point: Point): Point => ({
+      x: logicalPageWidth - point.x,
+      y: logicalPageHeight - point.y,
+    }),
+  },
+  {
+    rotation: 270 as const,
+    transform: (point: Point): Point => ({
+      x: point.y,
+      y: logicalPageWidth - point.x,
+    }),
+  },
+] as const;
+
+const xyBase: Extract<PageCalibration, { mode: "xy" }> = {
+  id: "xy-base",
+  name: "X/Y base",
+  mode: "xy",
+  xReference: {
+    start: { x: 0, y: 0 },
+    end: { x: 10, y: 0 },
+    referenceDistanceMm: 100,
+  },
+  yReference: {
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 10 },
+    referenceDistanceMm: 200,
+  },
+};
+
+function mapPoints(points: readonly Point[], transform: (point: Point) => Point): Point[] {
+  return points.map((point) => transform(point));
+}
+
+function signedArea(points: readonly Point[]): number {
+  return (
+    points.reduce((total, point, index) => {
+      const next = points[(index + 1) % points.length];
+      return next ? total + point.x * next.y - next.x * point.y : total;
+    }, 0) / 2
+  );
+}
+
+function xyCalibrationAtVisualRotation(
+  rotation: (typeof quarterTurns)[number]["rotation"],
+): PageCalibration {
+  const transform = quarterTurns.find((turn) => turn.rotation === rotation)?.transform;
+  if (!transform) throw new Error(`Missing transform for ${rotation} degrees.`);
+
+  const axesSwap = rotation === 90 || rotation === 270;
+  const xSource = axesSwap ? xyBase.yReference : xyBase.xReference;
+  const ySource = axesSwap ? xyBase.xReference : xyBase.yReference;
+  return {
+    id: `xy-${rotation}`,
+    name: `X/Y ${rotation}`,
+    mode: "xy",
+    xReference: {
+      start: transform(xSource.start),
+      end: transform(xSource.end),
+      referenceDistanceMm: xSource.referenceDistanceMm,
+    },
+    yReference: {
+      start: transform(ySource.start),
+      end: transform(ySource.end),
+      referenceDistanceMm: ySource.referenceDistanceMm,
+    },
+  };
+}
 
 describe("geometry", () => {
   it("calculates horizontal, vertical, and diagonal distances", () => {
@@ -93,6 +187,75 @@ describe("geometry", () => {
     expect(calibrationScaleY(uniform)).toBe(millimetresPerPageUnit(calibration));
     expect(lineLengthMm(line, uniform)).toBe(lineLengthMm(line, calibration));
     expect(polygonResultsMm(polygon, uniform)).toEqual(polygonResultsMm(polygon, calibration));
+  });
+
+  it("keeps uniform line, perimeter, and area invariant under quarter-turns", () => {
+    const baseLineMm = lineLengthMm(asymmetricLine, uniform);
+    const basePolygonMm = polygonResultsMm({ points: asymmetricPolygon }, uniform);
+
+    for (const { transform } of quarterTurns) {
+      const rotatedLine = mapPoints(asymmetricLine, transform) as [Point, Point];
+      const rotatedPolygon = mapPoints(asymmetricPolygon, transform);
+      const rotatedResults = polygonResultsMm({ points: rotatedPolygon }, uniform);
+
+      expect(lineLengthMm(rotatedLine, uniform)).toBeCloseTo(baseLineMm, 10);
+      expect(rotatedResults.perimeterMm).toBeCloseTo(basePolygonMm.perimeterMm, 10);
+      expect(rotatedResults.areaMm2).toBeCloseTo(basePolygonMm.areaMm2, 10);
+    }
+  });
+
+  it("keeps measurements invariant under horizontal/vertical mirrors and vertex winding", () => {
+    const mirrors = [
+      {
+        name: "mirrorX",
+        // Flip the horizontal screen coordinate (left/right).
+        transform: (point: Point): Point => ({
+          x: logicalPageWidth - point.x,
+          y: point.y,
+        }),
+      },
+      {
+        name: "mirrorY",
+        // Flip the vertical screen coordinate (top/bottom).
+        transform: (point: Point): Point => ({
+          x: point.x,
+          y: logicalPageHeight - point.y,
+        }),
+      },
+    ];
+    const baseUniformLineMm = lineLengthMm(asymmetricLine, uniform);
+    const baseUniformPolygonMm = polygonResultsMm({ points: asymmetricPolygon }, uniform);
+    const baseXyLineMm = lineLengthMm(asymmetricLine, xyBase);
+    const baseXyPolygonMm = polygonResultsMm({ points: asymmetricPolygon }, xyBase);
+
+    for (const { transform } of mirrors) {
+      const mirroredLine = mapPoints(asymmetricLine, transform) as [Point, Point];
+      const mirroredPolygon = mapPoints(asymmetricPolygon, transform);
+      const mirroredUniformResults = polygonResultsMm({ points: mirroredPolygon }, uniform);
+      const mirroredXyResults = polygonResultsMm({ points: mirroredPolygon }, xyBase);
+
+      expect(lineLengthMm(mirroredLine, uniform)).toBeCloseTo(baseUniformLineMm, 10);
+      expect(mirroredUniformResults.perimeterMm).toBeCloseTo(
+        baseUniformPolygonMm.perimeterMm,
+        10,
+      );
+      expect(mirroredUniformResults.areaMm2).toBeCloseTo(baseUniformPolygonMm.areaMm2, 10);
+      expect(lineLengthMm(mirroredLine, xyBase)).toBeCloseTo(baseXyLineMm, 10);
+      expect(mirroredXyResults.perimeterMm).toBeCloseTo(baseXyPolygonMm.perimeterMm, 10);
+      expect(mirroredXyResults.areaMm2).toBeCloseTo(baseXyPolygonMm.areaMm2, 10);
+
+      expect(signedArea(mirroredPolygon)).toBeCloseTo(-signedArea(asymmetricPolygon), 10);
+      const reversed = [...mirroredPolygon].reverse();
+      expect(signedArea(reversed)).toBeCloseTo(-signedArea(mirroredPolygon), 10);
+      expect(polygonAreaPageUnitsSquared(reversed)).toBeCloseTo(
+        polygonAreaPageUnitsSquared(mirroredPolygon),
+        10,
+      );
+      expect(polygonResultsMm({ points: reversed }, xyBase).areaMm2).toBeCloseTo(
+        baseXyPolygonMm.areaMm2,
+        10,
+      );
+    }
   });
 
   it("uses independent X/Y scales for diagonal, horizontal, vertical, perimeter, and area", () => {
@@ -156,6 +319,37 @@ describe("geometry", () => {
     expect(polygonResultsMm(rectangle, xy).perimeterMm).not.toBe(
       polygonPerimeterPageUnits(rectangle.points) * 15,
     );
+  });
+
+  it("uses visual X/Y references after rotation, swapping scales only for 90/270 degrees", () => {
+    const baseLineMm = lineLengthMm(asymmetricLine, xyBase);
+    const basePolygonMm = polygonResultsMm({ points: asymmetricPolygon }, xyBase);
+
+    for (const { rotation, transform } of quarterTurns) {
+      const visualCalibration = xyCalibrationAtVisualRotation(rotation);
+      const rotatedLine = mapPoints(asymmetricLine, transform) as [Point, Point];
+      const rotatedPolygon = mapPoints(asymmetricPolygon, transform);
+      const rotatedResults = polygonResultsMm({ points: rotatedPolygon }, visualCalibration);
+      const expectedScaleX = rotation === 90 || rotation === 270 ? 20 : 10;
+      const expectedScaleY = rotation === 90 || rotation === 270 ? 10 : 20;
+
+      expect(calibrationScaleX(visualCalibration)).toBe(expectedScaleX);
+      expect(calibrationScaleY(visualCalibration)).toBe(expectedScaleY);
+      expect(lineLengthMm(rotatedLine, visualCalibration)).toBeCloseTo(baseLineMm, 10);
+      expect(rotatedResults.perimeterMm).toBeCloseTo(basePolygonMm.perimeterMm, 10);
+      expect(rotatedResults.areaMm2).toBeCloseTo(basePolygonMm.areaMm2, 10);
+    }
+
+    // Reusing the unrotated anisotropic axes after a 90° visual rotation is
+    // intentionally not invariant for lengths/perimeters. The app's X/Y
+    // references are selected in the current visual viewport, so the physical
+    // reference distances must follow the visual axes instead.
+    const naive90 = polygonResultsMm(
+      { points: mapPoints(asymmetricPolygon, quarterTurns[1]!.transform) },
+      xyBase,
+    );
+    expect(naive90.perimeterMm).not.toBeCloseTo(basePolygonMm.perimeterMm, 8);
+    expect(naive90.areaMm2).toBeCloseTo(basePolygonMm.areaMm2, 10);
   });
 
   it("accepts small reference click deviation only in the intended primary axis", () => {

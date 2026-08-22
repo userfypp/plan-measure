@@ -4,6 +4,7 @@ import {
   clampPointToPage,
   clampViewerZoom,
   fitToScreen,
+  isPointInPage,
   logicalPageBoundsFromViewport,
   MAX_PDF_RASTER_DIMENSION,
   MAX_PDF_RASTER_PIXELS,
@@ -36,16 +37,31 @@ describe("page and screen coordinates", () => {
     expect(result.panY).toBeCloseTo(110);
   });
 
-  it("accounts for intrinsic PDF rotation", () => {
-    expect(rotatedPageBounds(600, 800, 0)).toMatchObject({ width: 600, height: 800 });
-    expect(rotatedPageBounds(600, 800, 90)).toMatchObject({ width: 800, height: 600 });
-    expect(rotatedPageBounds(600, 800, 180)).toMatchObject({ width: 600, height: 800 });
-    expect(rotatedPageBounds(600, 800, 270)).toMatchObject({ width: 800, height: 600 });
-    expect(logicalPageBoundsFromViewport({ width: 800, height: 600, rotation: 90 })).toEqual({
-      width: 800,
-      height: 600,
-      rotation: 90,
+  it.each([
+    { rotation: 0, width: 600, height: 800 },
+    { rotation: 90, width: 800, height: 600 },
+    { rotation: 180, width: 600, height: 800 },
+    { rotation: 270, width: 800, height: 600 },
+  ])("uses the PDF.js viewport bounds for intrinsic $rotation° rotation", (viewport) => {
+    expect(rotatedPageBounds(600, 800, viewport.rotation)).toMatchObject({
+      width: viewport.width,
+      height: viewport.height,
+      rotation: viewport.rotation,
     });
+    const page = logicalPageBoundsFromViewport(viewport);
+    expect(page).toEqual(viewport);
+
+    const transform = { zoom: 1.5, panX: 37, panY: -18 };
+    const corners = [
+      { x: 0, y: 0 },
+      { x: page.width, y: 0 },
+      { x: page.width, y: page.height },
+      { x: 0, y: page.height },
+    ];
+    for (const corner of corners) {
+      const logicalPoint = screenToPage(pageToScreen(corner, transform), transform);
+      expect(isPointInPage(logicalPoint, page)).toBe(true);
+    }
   });
 
   it("uses DPR only for backing resolution", () => {
