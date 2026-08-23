@@ -1,4 +1,13 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+} from "react";
 import { Circle, Group, Label, Layer, Line, Rect, Stage, Tag, Text } from "react-konva";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
@@ -28,7 +37,10 @@ import {
   zoomViewAtPoint,
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
-import { shouldIgnoreGlobalKeyboardShortcut } from "../../utils/keyboard";
+import {
+  getDrawingKeyboardAction,
+  shouldIgnoreGlobalKeyboardShortcut,
+} from "../../utils/keyboard";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
 
@@ -110,6 +122,28 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+  const completePolygon = useCallback(
+    (points: Point[]) => {
+      dispatch({
+        type: "ADD_POLYGON",
+        pageNumber: page.pageNumber,
+        id: crypto.randomUUID(),
+        points,
+      });
+    },
+    [dispatch, page.pageNumber],
+  );
+  const stateRef = useRef(state);
+  const viewerSizeRef = useRef(viewerSize);
+  const onCalibrationCancelRef = useRef(onCalibrationCancel);
+  const completePolygonRef = useRef(completePolygon);
+
+  useLayoutEffect(() => {
+    stateRef.current = state;
+    viewerSizeRef.current = viewerSize;
+    onCalibrationCancelRef.current = onCalibrationCancel;
+    completePolygonRef.current = completePolygon;
+  }, [completePolygon, onCalibrationCancel, state, viewerSize]);
 
   const bounds = pageRenderData?.bounds ?? null;
 
@@ -328,23 +362,37 @@ export function PdfViewer({
   useEffect(() => {
     function keyDown(event: KeyboardEvent) {
       if (shouldIgnoreGlobalKeyboardShortcut(event.target)) return;
+      const currentState = stateRef.current;
       if (event.key === " ") {
         event.preventDefault();
         setSpacePan(true);
       } else if (event.key === "+" || event.key === "=") {
         event.preventDefault();
-        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, VIEWER_ZOOM_STEP);
+        const size = viewerSizeRef.current;
+        zoomAround({ x: size.width / 2, y: size.height / 2 }, VIEWER_ZOOM_STEP);
       } else if (event.key === "-") {
         event.preventDefault();
-        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP);
-      } else if (event.key === "Escape" && state.tool === "calibrate") {
-        event.preventDefault();
-        dispatch({ type: "SET_DRAFT", draft: null });
-        onCalibrationCancel();
-      } else if (event.key === "Escape" && state.draft) {
-        event.preventDefault();
-        dispatch({ type: "SET_DRAFT", draft: null });
-        dispatch({ type: "SET_TOOL", tool: "select" });
+        const size = viewerSizeRef.current;
+        zoomAround({ x: size.width / 2, y: size.height / 2 }, 1 / VIEWER_ZOOM_STEP);
+      } else {
+        const action = getDrawingKeyboardAction(event.key, currentState.tool, currentState.draft);
+        if (action === "cancel-calibration") {
+          event.preventDefault();
+          dispatch({ type: "SET_DRAFT", draft: null });
+          onCalibrationCancelRef.current();
+        } else if (action === "complete-polygon") {
+          event.preventDefault();
+          const draft = currentState.draft;
+          if (draft?.type === "polygon" && draft.points.length >= 3) {
+            completePolygonRef.current(draft.points);
+          }
+        } else if (action === "cancel-draft") {
+          event.preventDefault();
+          dispatch({ type: "SET_DRAFT", draft: null });
+        } else if (action === "exit-tool") {
+          event.preventDefault();
+          dispatch({ type: "SET_TOOL", tool: "select" });
+        }
       }
     }
     function keyUp(event: KeyboardEvent) {
@@ -359,7 +407,7 @@ export function PdfViewer({
       window.removeEventListener("keydown", keyDown);
       window.removeEventListener("keyup", keyUp);
     };
-  }, [dispatch, onCalibrationCancel, state.draft, state.tool, viewerSize, zoomAround]);
+  }, [dispatch, zoomAround]);
 
   function stagePointer(event: KonvaEventObject<MouseEvent | WheelEvent>): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
@@ -367,6 +415,7 @@ export function PdfViewer({
   }
 
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
+    viewerRef.current?.focus();
     if (state.tool !== "hand" && !spacePan) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
@@ -428,15 +477,6 @@ export function PdfViewer({
     panDragRef.current = null;
     if (completedPan) setTransform(transformRef.current);
     setIsPanning(false);
-  }
-
-  function completePolygon(points: Point[]) {
-    dispatch({
-      type: "ADD_POLYGON",
-      pageNumber: page.pageNumber,
-      id: crypto.randomUUID(),
-      points,
-    });
   }
 
   function handleStageClick(event: KonvaEventObject<MouseEvent>) {
@@ -559,7 +599,11 @@ export function PdfViewer({
 
   return (
     <div className={styles.viewerShell}>
-      <div ref={viewerRef} className={`${styles.viewport} ${cursorClass}`}>
+      <div
+        ref={viewerRef}
+        className={`${styles.viewport} ${cursorClass}`}
+        tabIndex={-1}
+      >
         <canvas
           ref={canvasRef}
           className={styles.pdfCanvas}
@@ -717,10 +761,7 @@ export function PdfViewer({
             <span>{state.draft.points.length} vertices · Click the first point to finish</span>
             <button
               type="button"
-              onClick={() => {
-                dispatch({ type: "SET_DRAFT", draft: null });
-                dispatch({ type: "SET_TOOL", tool: "select" });
-              }}
+              onClick={() => dispatch({ type: "SET_DRAFT", draft: null })}
             >
               Cancel
             </button>

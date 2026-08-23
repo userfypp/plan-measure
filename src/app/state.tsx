@@ -294,7 +294,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         session,
-        tool: "select",
         draft: null,
         selectedMeasurementId: action.id,
         error: null,
@@ -331,7 +330,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         session,
-        tool: "select",
         draft: null,
         selectedMeasurementId: action.id,
         error: null,

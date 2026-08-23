@@ -73,6 +73,79 @@ describe("application reducer", () => {
     expect(polygonResult.error).toContain("valid scale");
   });
 
+  it("keeps Line active across consecutive measurements", () => {
+    let state = appReducer(addScale(loadedState(), "scale-1", "Scale 1"), {
+      type: "SET_TOOL",
+      tool: "line",
+    });
+
+    state = appReducer(state, {
+      type: "ADD_LINE",
+      pageNumber: 1,
+      id: "line-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
+    expect(state.tool).toBe("line");
+    expect(state.draft).toBeNull();
+
+    state = appReducer(state, {
+      type: "ADD_LINE",
+      pageNumber: 1,
+      id: "line-2",
+      points: [
+        { x: 20, y: 20 },
+        { x: 30, y: 20 },
+      ],
+    });
+    const page = state.session!.pages[1]!;
+    expect(state.tool).toBe("line");
+    expect(state.draft).toBeNull();
+    expect(page.measurements.map((measurement) => measurement.name)).toEqual(["Line 1", "Line 2"]);
+    expect(page.nextLineNumber).toBe(3);
+  });
+
+  it("keeps Polygon active across consecutive measurements", () => {
+    let state = appReducer(addScale(loadedState(), "scale-1", "Scale 1"), {
+      type: "SET_TOOL",
+      tool: "polygon",
+    });
+
+    state = appReducer(state, {
+      type: "ADD_POLYGON",
+      pageNumber: 1,
+      id: "polygon-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+      ],
+    });
+    expect(state.tool).toBe("polygon");
+    expect(state.draft).toBeNull();
+
+    state = appReducer(state, {
+      type: "ADD_POLYGON",
+      pageNumber: 1,
+      id: "polygon-2",
+      points: [
+        { x: 20, y: 20 },
+        { x: 30, y: 20 },
+        { x: 30, y: 30 },
+      ],
+    });
+    const page = state.session!.pages[1]!;
+    expect(state.tool).toBe("polygon");
+    expect(state.draft).toBeNull();
+    expect(page.measurements.map((measurement) => measurement.name)).toEqual([
+      "Polygon 1",
+      "Polygon 2",
+    ]);
+    expect(page.nextPolygonNumber).toBe(3);
+  });
+
   it("creates the first calibration and makes it active", () => {
     const state = addScale(loadedState(), "scale-1", "Main plan");
     const page = state.session?.pages[1];
