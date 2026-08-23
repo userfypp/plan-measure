@@ -8,6 +8,7 @@ import {
   useState,
   type Dispatch,
 } from "react";
+import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
 import { Circle, Group, Label, Layer, Line, Rect, Stage, Tag, Text } from "react-konva";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
@@ -37,14 +38,19 @@ import {
   zoomViewAtPoint,
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
+import { getDrawingKeyboardAction, shouldIgnoreGlobalKeyboardShortcut } from "../../utils/keyboard";
 import {
-  getDrawingKeyboardAction,
-  shouldIgnoreGlobalKeyboardShortcut,
-} from "../../utils/keyboard";
+  LABEL_EDGE_MARGIN_SCREEN_PX,
+  placeLabelWithinBounds,
+  type LabelDimensions,
+} from "../../utils/labelLayout";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
+const LABEL_PADDING_SCREEN_PX = 4;
+const MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX = 12;
+const CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX = 11;
 
 interface PdfViewerProps {
   document: PDFDocumentProxy;
@@ -66,6 +72,15 @@ function averagePoint(points: Point[]): Point {
     x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
     y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
   };
+}
+
+function measureLabelText(text: string, fontSizeScreenPx: number, zoom: number): LabelDimensions {
+  const textNode = new KonvaTextNode({
+    text,
+    fontSize: fontSizeScreenPx / zoom,
+    padding: LABEL_PADDING_SCREEN_PX / zoom,
+  });
+  return { width: textNode.width(), height: textNode.height() };
 }
 
 interface LoadedPageData {
@@ -599,11 +614,7 @@ export function PdfViewer({
 
   return (
     <div className={styles.viewerShell}>
-      <div
-        ref={viewerRef}
-        className={`${styles.viewport} ${cursorClass}`}
-        tabIndex={-1}
-      >
+      <div ref={viewerRef} className={`${styles.viewport} ${cursorClass}`} tabIndex={-1}>
         <canvas
           ref={canvasRef}
           className={styles.pdfCanvas}
@@ -674,6 +685,18 @@ export function PdfViewer({
                         x: (reference.start.x + reference.end.x) / 2,
                         y: (reference.start.y + reference.end.y) / 2,
                       };
+                      const labelDimensions = measureLabelText(
+                        reference.label,
+                        CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
+                        viewTransform.zoom,
+                      );
+                      const labelPlacement = placeLabelWithinBounds(
+                        labelPoint,
+                        labelDimensions,
+                        bounds,
+                        viewTransform.zoom,
+                        LABEL_EDGE_MARGIN_SCREEN_PX,
+                      );
                       return (
                         <Group
                           key={`${calibration.id}-${reference.key}`}
@@ -697,17 +720,13 @@ export function PdfViewer({
                               strokeWidth={(active ? 2 : 1.5) / viewTransform.zoom}
                             />
                           ))}
-                          <Label
-                            x={labelPoint.x}
-                            y={labelPoint.y}
-                            offsetY={20 / viewTransform.zoom}
-                          >
+                          <Label x={labelPlacement.x} y={labelPlacement.y}>
                             <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / viewTransform.zoom} />
                             <Text
                               text={reference.label}
                               fill="#fff"
-                              fontSize={11 / viewTransform.zoom}
-                              padding={4 / viewTransform.zoom}
+                              fontSize={CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX / viewTransform.zoom}
+                              padding={LABEL_PADDING_SCREEN_PX / viewTransform.zoom}
                             />
                           </Label>
                         </Group>
@@ -759,10 +778,7 @@ export function PdfViewer({
         {state.draft?.type === "polygon" && (
           <div className={styles.drawingStatus}>
             <span>{state.draft.points.length} vertices · Click the first point to finish</span>
-            <button
-              type="button"
-              onClick={() => dispatch({ type: "SET_DRAFT", draft: null })}
-            >
+            <button type="button" onClick={() => dispatch({ type: "SET_DRAFT", draft: null })}>
               Cancel
             </button>
           </div>
@@ -891,6 +907,24 @@ const MeasurementShape = memo(function MeasurementShape({
     () => (calibration ? formatMeasurement(visibleMeasurement, calibration, displayUnit) : null),
     [calibration, displayUnit, visibleMeasurement],
   );
+  const labelDimensions = useMemo(
+    () =>
+      labelText ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom) : null,
+    [labelText, zoom],
+  );
+  const labelPlacement = useMemo(
+    () =>
+      labelDimensions
+        ? placeLabelWithinBounds(
+            labelPoint,
+            labelDimensions,
+            bounds,
+            zoom,
+            LABEL_EDGE_MARGIN_SCREEN_PX,
+          )
+        : null,
+    [bounds, labelDimensions, labelPoint, zoom],
+  );
 
   useEffect(() => {
     const finalPoints = finalDragPointsRef.current;
@@ -987,10 +1021,15 @@ const MeasurementShape = memo(function MeasurementShape({
           onClick={select}
         />
       )}
-      {showLabel && labelText && (
-        <Label x={labelPoint.x} y={labelPoint.y} listening={false} offsetY={20 / zoom}>
+      {showLabel && labelText && labelPlacement && (
+        <Label x={labelPlacement.x} y={labelPlacement.y} listening={false}>
           <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / zoom} />
-          <Text text={labelText} fill="#fff" fontSize={12 / zoom} padding={4 / zoom} />
+          <Text
+            text={labelText}
+            fill="#fff"
+            fontSize={MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX / zoom}
+            padding={LABEL_PADDING_SCREEN_PX / zoom}
+          />
         </Label>
       )}
       {selected &&
