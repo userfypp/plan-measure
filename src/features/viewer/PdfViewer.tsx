@@ -20,6 +20,7 @@ import type {
   Measurement,
   PageState,
   Point,
+  Tool,
   ViewTransform,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
@@ -38,7 +39,11 @@ import {
   zoomViewAtPoint,
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
-import { getDrawingKeyboardAction, shouldIgnoreGlobalKeyboardShortcut } from "../../utils/keyboard";
+import {
+  getDrawingKeyboardAction,
+  getToolShortcut,
+  shouldIgnoreGlobalKeyboardShortcut,
+} from "../../utils/keyboard";
 import {
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelWithinBounds,
@@ -56,6 +61,7 @@ interface PdfViewerProps {
   document: PDFDocumentProxy;
   page: PageState;
   onPageChange: (pageNumber: number) => void;
+  onChooseTool: (tool: Tool) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
   calibrationReferenceLabel?: "X" | "Y";
   onCalibrationCancel: () => void;
@@ -103,6 +109,7 @@ export function PdfViewer({
   document,
   page,
   onPageChange,
+  onChooseTool,
   onCalibrationCandidate,
   calibrationReferenceLabel,
   onCalibrationCancel,
@@ -151,14 +158,16 @@ export function PdfViewer({
   const stateRef = useRef(state);
   const viewerSizeRef = useRef(viewerSize);
   const onCalibrationCancelRef = useRef(onCalibrationCancel);
+  const onChooseToolRef = useRef(onChooseTool);
   const completePolygonRef = useRef(completePolygon);
 
   useLayoutEffect(() => {
     stateRef.current = state;
     viewerSizeRef.current = viewerSize;
     onCalibrationCancelRef.current = onCalibrationCancel;
+    onChooseToolRef.current = onChooseTool;
     completePolygonRef.current = completePolygon;
-  }, [completePolygon, onCalibrationCancel, state, viewerSize]);
+  }, [completePolygon, onCalibrationCancel, onChooseTool, state, viewerSize]);
 
   const bounds = pageRenderData?.bounds ?? null;
 
@@ -407,6 +416,11 @@ export function PdfViewer({
         } else if (action === "exit-tool") {
           event.preventDefault();
           dispatch({ type: "SET_TOOL", tool: "select" });
+        } else {
+          const tool = getToolShortcut(event.key);
+          if (!tool) return;
+          event.preventDefault();
+          onChooseToolRef.current(tool);
         }
       }
     }
@@ -430,7 +444,6 @@ export function PdfViewer({
   }
 
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
-    viewerRef.current?.focus();
     if (state.tool !== "hand" && !spacePan) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
@@ -614,7 +627,7 @@ export function PdfViewer({
 
   return (
     <div className={styles.viewerShell}>
-      <div ref={viewerRef} className={`${styles.viewport} ${cursorClass}`} tabIndex={-1}>
+      <div ref={viewerRef} className={`${styles.viewport} ${cursorClass}`}>
         <canvas
           ref={canvasRef}
           className={styles.pdfCanvas}

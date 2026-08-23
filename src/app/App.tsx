@@ -531,6 +531,7 @@ function PlanMeasureApp() {
               setCalibrationFlow(null);
               dispatch({ type: "SET_PAGE", pageNumber });
             }}
+            onChooseTool={chooseTool}
             onCalibrationCandidate={(points) => {
               const flow = calibrationFlow;
               if (!flow) return;

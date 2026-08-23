@@ -1,5 +1,9 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { getDrawingKeyboardAction, shouldIgnoreGlobalKeyboardShortcut } from "./keyboard";
+import {
+  getDrawingKeyboardAction,
+  getToolShortcut,
+  shouldIgnoreGlobalKeyboardShortcut,
+} from "./keyboard";
 
 class FakeHTMLElement {
   constructor(
@@ -79,5 +83,21 @@ describe("drawing keyboard actions", () => {
   it("routes calibration Escape to the existing calibration cancellation flow", () => {
     expect(getDrawingKeyboardAction("Escape", "calibrate", lineDraft)).toBe("cancel-calibration");
     expect(getDrawingKeyboardAction("Escape", "calibrate", null)).toBe("cancel-calibration");
+  });
+});
+
+describe("tool keyboard shortcuts", () => {
+  it.each([
+    ["P", "polygon"],
+    ["l", "line"],
+    ["H", "hand"],
+    ["v", "select"],
+  ] as const)("maps %s to %s", (key, tool) => {
+    expect(getToolShortcut(key)).toBe(tool);
+  });
+
+  it("does not claim drawing completion or cancellation keys", () => {
+    expect(getToolShortcut("Enter")).toBeNull();
+    expect(getToolShortcut("Escape")).toBeNull();
   });
 });

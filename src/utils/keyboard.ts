@@ -16,6 +16,23 @@ export type DrawingKeyboardAction =
   | "complete-polygon"
   | "exit-tool";
 
+export type ToolShortcut = Exclude<Tool, "calibrate">;
+
+export function getToolShortcut(key: string): ToolShortcut | null {
+  switch (key.toLowerCase()) {
+    case "p":
+      return "polygon";
+    case "l":
+      return "line";
+    case "h":
+      return "hand";
+    case "v":
+      return "select";
+    default:
+      return null;
+  }
+}
+
 export function getDrawingKeyboardAction(
   key: string,
   tool: Tool,
