@@ -3,7 +3,7 @@
 Plan Measure is a focused desktop web application for measuring real-world distances,
 perimeters, and areas on architectural PDF plans. Open a PDF, add one or more named scales to
 each page from known distances, then draw and edit line or polygon measurements directly over the
-plan.
+plan. It supports Line, open Polyline, and closed Polygon measurements.
 
 ## Privacy
 
@@ -19,8 +19,13 @@ The active session is stored only in the browser's IndexedDB so it can be recove
   numbering per page. Scales can be normal uniform references or optional X/Y correction for
   scans and plots with different horizontal and vertical scaling.
 - Millimetre, centimetre, and metre calibration and display units.
-- Straight-line length measurements and polygon perimeter/area measurements.
-- Editable measurement names and draggable line endpoints or polygon vertices.
+- Line measurements, continuous Polyline lengths, and Polygon perimeter/area measurements.
+- Continuous drawing with Enter to finish Polyline or Polygon, and Escape to cancel a draft or
+  leave the active drawing tool.
+- Keyboard shortcuts: **V** Select, **H** Hand, **L** Line, **M** Polyline, **P** Polygon, and
+  **O** Ortho 90° for new drawing segments.
+- Editable measurement names and draggable vertices for every measurement type.
+- Optional Ortho 90° drawing mode for new Line, Polyline, and Polygon segments.
 - Pan, pointer-centred zoom, keyboard zoom, and fit-to-screen controls.
 - Independent visibility controls for labels, measurements, and calibration references.
 - One recoverable, browser-local autosaved session with explicit Continue/Discard recovery.
@@ -58,16 +63,19 @@ npm run format   # Format the repository with Prettier
 2. Select **Add scale** and choose **Uniform** for the normal two-point flow, or **X/Y correction**
    for a scanned/printed plan with independent horizontal and vertical scale references. The first
    scale is named **Scale 1** by default.
-3. Select **Line** or **Polygon** and click on the plan. Close a polygon by clicking its first
-   vertex. Press Escape to cancel unfinished work.
+3. Select **Line**, **Polyline**, or **Polygon** and click on the plan. Line completes after its
+   second point; Polyline and Polygon continue until you press **Enter**. A Polygon can also close
+   by clicking its first vertex. Press **Escape** to cancel an unfinished drawing, then again to
+   leave its tool.
 4. Use **Select** to choose a measurement and drag its vertex handles. Names can be edited in the
    left panel.
-5. Choose **Export CSV** to export measurements from every page.
+5. Use **O** or the **Ortho 90°** control to constrain new segments horizontally or vertically.
+6. Choose **Export CSV** to export measurements from every page.
 
-Line and Polygon are unavailable until the current page has a valid active scale. A page can have
-multiple named scales; the selected active scale is used only for new measurements, while every
-existing measurement permanently retains its own scale. Recalibrating a scale preserves its ID and
-geometry, and recomputes only the measurements linked to that scale. X/Y correction is an
+Line, Polyline, and Polygon are unavailable until the current page has a valid active scale. A page
+can have multiple named scales; the selected active scale is used only for new measurements, while
+every existing measurement permanently retains its own scale. Recalibrating a scale preserves its
+ID and geometry, and recomputes only the measurements linked to that scale. X/Y correction is an
 axis-aligned anisotropic scale only: it does not correct skew, perspective, local distortion, or
 non-linear warping.
 
@@ -99,18 +107,21 @@ changes backing resolution only and never changes stored points or measurement c
 Calibration distances are stored canonically in millimetres. Each measurement stores the ID of the
 named page calibration used when it was created. Uniform scales use one Euclidean reference ratio.
 X/Y correction uses an X reference with `|dx| > |dy|` and a Y reference with `|dy| > |dx|`; it
-derives scale from the relevant axis component, tolerating small click deviation. Lines and each
-polygon edge are transformed by their own X/Y components, while polygon area is multiplied by
-`scaleX × scaleY`. Measurement values retain full internal precision and are rounded to two decimals
-only for display and CSV. CSV rows include per-measurement calibration IDs, names, modes, and both
-audit scale factors; uniform-only reference columns are deliberately blank for X/Y scales.
+derives scale from the relevant axis component, tolerating small click deviation. Each Line or path
+segment is transformed by its own X/Y components, while Polygon area is multiplied by `scaleX ×
+scaleY`. Measurement values retain full internal precision. The UI uses two decimals by default and
+expands the decimal places when rounding would hide a finite non-zero value as zero. CSV measurement
+values use a locale-independent, deterministic number serialization without rounding; ordinary
+decimal values keep at least two fractional places for compatibility with existing exports. CSV rows
+include per-measurement calibration IDs, names, modes, and both audit scale factors; uniform-only
+reference columns are deliberately blank for X/Y scales.
 
 ### Local persistence
 
 The small [`idb`](https://www.npmjs.com/package/idb) wrapper is used to keep IndexedDB transactions
 and error handling understandable. The PDF blob is stored separately from versioned session
 metadata, so ordinary autosaves do not repeatedly rewrite the PDF. Only meaningful completed
-changes are saved; pointer movement, drafts, zoom, and pan are never persisted.
+changes are saved; pointer movement, drafts, Ortho mode, zoom, and pan are never persisted.
 
 Exactly one active local session is retained. Opening a replacement PDF requires confirmation and
 atomically replaces that session. If browser storage is unavailable, Plan Measure keeps working in
@@ -118,9 +129,10 @@ memory and displays a warning that reload recovery is unavailable.
 
 ## Testing and CI
 
-Vitest covers geometry, uniform and X/Y calibration, squared area scaling, units, CSV escaping and
-all-page export, V1/V2-to-V3 session migration/IndexedDB round trips, reducer invariants, and page/screen transforms
-across zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub Actions installs from
+Vitest covers geometry, uniform and X/Y calibration, path measurement flows, units, CSV escaping
+and all-page export, V1/V2/V3-to-V4 session migration/IndexedDB round trips, reducer invariants,
+keyboard policy, and page/screen transforms across zoom, pan, rotation, fit-to-screen, and device
+pixel ratios. GitHub Actions installs from
 the lockfile and runs lint, tests, and a production build on pushes to `main` and pull requests.
 
 ## Supported browsers
@@ -134,7 +146,6 @@ for pointer, trackpad, and keyboard use. Dedicated mobile and tablet layouts are
 - Password-protected PDFs are not supported and there is no password-entry flow.
 - Physical units are limited to mm, cm, and m; imperial units are not supported.
 - No undo/redo history.
-- Line measurements contain one straight segment; there are no multi-segment polylines.
 - No cloud storage, synchronization, accounts, collaboration, or sharing links.
 - Only one browser-local recoverable session is retained; there is no project library.
 - No OCR, AI, automatic room detection, angles, coordinates, volume calculations, or advanced

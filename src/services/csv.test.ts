@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../app/state";
-import type { SessionV3 } from "../types/domain";
+import type { LinearUnit, SessionV4 } from "../types/domain";
 import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
-function measuredSession(): SessionV3 {
+function measuredSession(): SessionV4 {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
   session.settings.displayUnit = "m";
   session.pages[1]!.calibrations = [
@@ -80,7 +80,67 @@ function measuredSession(): SessionV3 {
   return session;
 }
 
+function smallMeasuredSession(displayUnit: LinearUnit): SessionV4 {
+  const session = createEmptySession({ name: "small.pdf", size: 10, lastModified: 1 }, 1);
+  session.settings.displayUnit = displayUnit;
+  session.pages[1]!.calibrations = [
+    {
+      id: "small-scale",
+      name: "Small scale",
+      mode: "uniform",
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 0 },
+      referenceDistanceMm: 1,
+    },
+  ];
+  session.pages[1]!.activeCalibrationId = "small-scale";
+  session.pages[1]!.measurements.push(
+    {
+      id: "small-line-id",
+      type: "line",
+      name: "Small line",
+      calibrationId: "small-scale",
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+      ],
+    },
+    {
+      id: "small-polygon-id",
+      type: "polygon",
+      name: "Small polygon",
+      calibrationId: "small-scale",
+      points: [
+        { x: 0, y: 0 },
+        { x: 2, y: 0 },
+        { x: 2, y: 2 },
+        { x: 0, y: 2 },
+      ],
+    },
+  );
+  return session;
+}
+
 describe("CSV export", () => {
+  it("exports Polyline as an open accumulated length", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements.push({
+      id: "polyline-id",
+      type: "polyline",
+      name: "Service run",
+      calibrationId: "scale-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    });
+
+    expect(buildCsv(session)).toContain(
+      "1,,polyline-id,Service run,Polyline,scale-1,Scale 1,uniform,1000,10,100,100,100,0.70,,,m",
+    );
+  });
+
   it("exports exact columns and calibration metadata for every row", () => {
     const csv = buildCsv(measuredSession());
     expect(
@@ -154,6 +214,24 @@ describe("CSV export", () => {
       "Polygon,scale-2,Detail A,xy,,,,500,1000,,30000.00,50000000.00,mm",
     );
   });
+
+  it.each([
+    ["mm", "4.00", "8.00", "4.00"],
+    ["cm", "0.40", "0.80", "0.04"],
+    ["m", "0.004", "0.008", "0.000004"],
+  ] as const)(
+    "does not round small length, perimeter, or area to zero in %s",
+    (unit, length, perimeter, area) => {
+      const csv = buildCsv(smallMeasuredSession(unit));
+
+      expect(csv).toContain(
+        `1,,small-line-id,Small line,Line,small-scale,Small scale,uniform,1,1,1,1,1,${length},,,${unit}`,
+      );
+      expect(csv).toContain(
+        `1,,small-polygon-id,Small polygon,Polygon,small-scale,Small scale,uniform,1,1,1,1,1,,${perimeter},${area},${unit}`,
+      );
+    },
+  );
 
   it("preserves measurement ids across repeated exports", () => {
     const session = measuredSession();

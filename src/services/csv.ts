@@ -1,14 +1,14 @@
-import type { Measurement, PageState, SessionV3 } from "../types/domain";
+import type { Measurement, PageState, SessionV4 } from "../types/domain";
 import { getMeasurementCalibration } from "../utils/calibration";
 import {
   calibrationScaleX,
   calibrationScaleY,
   distance,
-  lineLengthMm,
+  measurementPathSpecs,
+  measurementResultsMm,
   millimetresPerPageUnit,
-  polygonResultsMm,
 } from "../utils/geometry";
-import { formatNumber } from "../utils/format";
+import { formatCsvNumber } from "../utils/format";
 import { fromMillimetres, fromSquareMillimetres } from "../utils/units";
 
 const HEADER = [
@@ -42,7 +42,7 @@ function measurementRow(
   pageLabel: string,
   measurement: Measurement,
   page: PageState,
-  session: SessionV3,
+  session: SessionV4,
 ): string[] {
   const calibration = getMeasurementCalibration(page, measurement);
   if (!calibration) {
@@ -62,13 +62,15 @@ function measurementRow(
   const calibrationMmPerPageUnitValue =
     calibration.mode === "uniform" ? String(millimetresPerPageUnit(calibration)) : "";
   const unit = session.settings.displayUnit;
-  if (measurement.type === "line") {
+  const spec = measurementPathSpecs[measurement.type];
+  const result = measurementResultsMm(measurement, calibration);
+  if (!spec.closed) {
     return [
       String(pageNumber),
       pageLabel,
       measurement.id,
       measurement.name,
-      "Line",
+      spec.label,
       calibration.id,
       calibration.name,
       calibration.mode,
@@ -77,19 +79,18 @@ function measurementRow(
       calibrationMmPerPageUnitValue,
       String(scaleX),
       String(scaleY),
-      formatNumber(fromMillimetres(lineLengthMm(measurement.points, calibration), unit)),
+      formatCsvNumber(fromMillimetres(result.lengthMm ?? 0, unit)),
       "",
       "",
       unit,
     ];
   }
-  const result = polygonResultsMm(measurement, calibration);
   return [
     String(pageNumber),
     pageLabel,
     measurement.id,
     measurement.name,
-    "Polygon",
+    spec.label,
     calibration.id,
     calibration.name,
     calibration.mode,
@@ -99,8 +100,8 @@ function measurementRow(
     String(scaleX),
     String(scaleY),
     "",
-    formatNumber(fromMillimetres(result.perimeterMm, unit)),
-    formatNumber(fromSquareMillimetres(result.areaMm2, unit)),
+    formatCsvNumber(fromMillimetres(result.perimeterMm ?? 0, unit)),
+    formatCsvNumber(fromSquareMillimetres(result.areaMm2 ?? 0, unit)),
     unit,
   ];
 }
@@ -112,7 +113,7 @@ export class NoMeasurementsError extends Error {
   }
 }
 
-export function buildCsv(session: SessionV3, pageLabels: readonly string[] | null = null): string {
+export function buildCsv(session: SessionV4, pageLabels: readonly string[] | null = null): string {
   const rows: string[][] = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
@@ -128,7 +129,7 @@ export function buildCsv(session: SessionV3, pageLabels: readonly string[] | nul
   return `\uFEFF${contents}\r\n`;
 }
 
-export function downloadCsv(session: SessionV3, pageLabels: readonly string[] | null = null): void {
+export function downloadCsv(session: SessionV4, pageLabels: readonly string[] | null = null): void {
   const csv = buildCsv(session, pageLabels);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

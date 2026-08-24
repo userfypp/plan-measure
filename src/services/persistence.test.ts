@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptySession } from "../app/state";
-import type { Point, SessionV1, SessionV2, SessionV3 } from "../types/domain";
+import type { Point, SessionV1, SessionV2, SessionV3, SessionV4 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
   discardSavedSession,
@@ -68,7 +68,7 @@ function legacySession(withCalibration: boolean): SessionV1 {
   };
 }
 
-function currentMeasuredSession(): SessionV3 {
+function currentMeasuredSession(): SessionV4 {
   const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 2);
   session.settings.displayUnit = "cm";
   session.settings.showLabels = false;
@@ -135,18 +135,58 @@ function v2MeasuredSession(): SessionV2 {
   };
 }
 
+function v3MeasuredSession(): SessionV3 {
+  return {
+    schemaVersion: 3,
+    pdf: { name: "v3-plan.pdf", size: 5, lastModified: 3 },
+    pageCount: 1,
+    currentPage: 1,
+    pages: {
+      1: {
+        pageNumber: 1,
+        calibrations: [
+          {
+            id: "v3-scale",
+            name: "V3 scale",
+            mode: "uniform",
+            start: { x: 0, y: 0 },
+            end: { x: 10, y: 0 },
+            referenceDistanceMm: 1000,
+          },
+        ],
+        activeCalibrationId: "v3-scale",
+        nextCalibrationNumber: 2,
+        measurements: [
+          {
+            id: "v3-line",
+            type: "line",
+            name: "V3 line",
+            calibrationId: "v3-scale",
+            points: [
+              { x: 0, y: 0 },
+              { x: 10, y: 0 },
+            ],
+          },
+        ],
+        nextLineNumber: 2,
+        nextPolygonNumber: 1,
+      },
+    },
+    settings: { displayUnit: "m", showLabels: true, showMeasurements: true, showCalibration: true },
+  };
+}
+
 describe("session persistence", () => {
-  it("migrates a V1 page without calibration to an empty V3 page", () => {
+  it("migrates a V1 page without calibration to an empty V4 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(page.calibrations).toEqual([]);
     expect(page.activeCalibrationId).toBeNull();
     expect(page.nextCalibrationNumber).toBe(1);
     expect(page.measurements).toEqual([]);
-    expect(page.nextLineNumber).toBe(1);
-    expect(page.nextPolygonNumber).toBe(1);
+    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 1, polygon: 1 });
   });
 
   it("migrates V1 measurements to one deterministic Scale 1 without changing results", () => {
@@ -173,8 +213,11 @@ describe("session persistence", () => {
     });
     expect(page.activeCalibrationId).toBe(calibration.id);
     expect(page.nextCalibrationNumber).toBe(2);
-    expect(page.nextLineNumber).toBe(legacyPage.nextLineNumber);
-    expect(page.nextPolygonNumber).toBe(legacyPage.nextPolygonNumber);
+    expect(page.nextMeasurementNumber).toEqual({
+      line: legacyPage.nextLineNumber,
+      polyline: 1,
+      polygon: legacyPage.nextPolygonNumber,
+    });
     expect(migrated.pdf).toEqual(legacy.pdf);
     expect(migrated.currentPage).toBe(legacy.currentPage);
     expect(migrated.settings).toEqual(legacy.settings);
@@ -211,7 +254,7 @@ describe("session persistence", () => {
     expect(second.pages[1]!.calibrations[0]!.id).toBe(first.pages[1]!.calibrations[0]!.id);
   });
 
-  it("migrates V2 calibrations to uniform V3 without changing IDs or results", () => {
+  it("migrates V2 calibrations through V3 to V4 without changing IDs or results", () => {
     const v2 = v2MeasuredSession();
     const before = lineLengthMm(
       v2.pages[1]!.measurements[0]!.points,
@@ -219,7 +262,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -230,7 +273,20 @@ describe("session persistence", () => {
     expect(lineLengthMm(page.measurements[0]!.points, page.calibrations[0]!)).toBe(before);
   });
 
-  it("serializes only V3 and round trips uniform/X/Y calibrations and measurement references", () => {
+  it("migrates V3 counters and measurements to V4 without changing geometry", () => {
+    const v3 = v3MeasuredSession();
+    const migrated = deserializeSession(JSON.stringify(v3));
+
+    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.pages[1]!.measurements).toEqual(v3.pages[1]!.measurements);
+    expect(migrated.pages[1]!.nextMeasurementNumber).toEqual({
+      line: 2,
+      polyline: 1,
+      polygon: 1,
+    });
+  });
+
+  it("serializes V4 and round trips uniform/X/Y calibrations and measurement references", () => {
     const session = currentMeasuredSession();
     session.pages[1]!.calibrations.push({
       id: "xy-scale",
@@ -240,10 +296,37 @@ describe("session persistence", () => {
       yReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 10 }, referenceDistanceMm: 200 },
     });
     session.pages[1]!.activeCalibrationId = "xy-scale";
+    session.pages[1]!.measurements.push({
+      id: "polyline-v4",
+      type: "polyline",
+      name: "V4 service run",
+      calibrationId: "xy-scale",
+      points: [
+        { x: 0, y: 0 },
+        { x: 5, y: 0 },
+        { x: 5, y: 5 },
+      ],
+    });
     const serialized = serializeSession(session);
 
-    expect(JSON.parse(serialized).schemaVersion).toBe(3);
+    expect(JSON.parse(serialized).schemaVersion).toBe(4);
     expect(deserializeSession(serialized)).toEqual(session);
+  });
+
+  it("rejects corrupt V4 measurement IDs and canonicalizes restored session data", () => {
+    const duplicate = currentMeasuredSession();
+    duplicate.pages[2]!.measurements.push({ ...duplicate.pages[2]!.measurements[0]! });
+    expect(() => deserializeSession(serializeSession(duplicate))).toThrow("duplicate measurement IDs");
+
+    const invalidId = currentMeasuredSession();
+    invalidId.pages[2]!.measurements[0]!.id = " measurement-id ";
+    expect(() => deserializeSession(serializeSession(invalidId))).toThrow("invalid");
+
+    const raw = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
+    raw.orthogonal = true;
+    const restored = deserializeSession(JSON.stringify(raw));
+    expect(restored).not.toHaveProperty("orthogonal");
+    expect(restored).toEqual(currentMeasuredSession());
   });
 
   it("rejects corrupt V2 calibration references and duplicate calibration IDs", () => {

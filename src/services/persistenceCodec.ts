@@ -2,13 +2,20 @@ import type {
   Calibration,
   LegacyMeasurement,
   Measurement,
+  MeasurementV3,
   PageCalibration,
   Point,
   SessionV1,
   SessionV2,
   SessionV3,
+  SessionV4,
 } from "../types/domain";
-import { isValidCalibration, isValidPageCalibration } from "../utils/geometry";
+import {
+  hasValidMeasurementPoints,
+  isMeasurementType,
+  isValidCalibration,
+  isValidPageCalibration,
+} from "../utils/geometry";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -36,6 +43,7 @@ function hasCalibrationIdentity(value: Record<string, unknown>): boolean {
   return (
     typeof value.id === "string" &&
     Boolean(value.id.trim()) &&
+    value.id === value.id.trim() &&
     typeof value.name === "string" &&
     Boolean(value.name.trim()) &&
     value.name === value.name.trim()
@@ -75,10 +83,11 @@ function isPageCalibrationV3(value: unknown): value is PageCalibration {
   return false;
 }
 
-function hasValidMeasurementShape(value: Record<string, unknown>): boolean {
+function hasValidMeasurementIdentity(value: Record<string, unknown>): boolean {
   if (
     typeof value.id !== "string" ||
-    !value.id ||
+    !value.id.trim() ||
+    value.id !== value.id.trim() ||
     typeof value.name !== "string" ||
     !value.name.trim() ||
     value.name !== value.name.trim() ||
@@ -86,20 +95,39 @@ function hasValidMeasurementShape(value: Record<string, unknown>): boolean {
     !value.points.every(isPoint)
   )
     return false;
+  return true;
+}
+function hasValidMeasurementShapeV3(value: Record<string, unknown>): boolean {
+  if (!hasValidMeasurementIdentity(value)) return false;
+  const points = value.points as unknown[];
   return value.type === "line"
-    ? value.points.length === 2
-    : value.type === "polygon" && value.points.length >= 3;
+    ? points.length === 2
+    : value.type === "polygon" && points.length >= 3;
 }
 function isLegacyMeasurement(value: unknown): value is LegacyMeasurement {
-  return isObject(value) && hasValidMeasurementShape(value);
+  return isObject(value) && hasValidMeasurementShapeV3(value);
 }
-function isMeasurement(value: unknown): value is Measurement {
+function isMeasurementV3(value: unknown): value is MeasurementV3 {
   return (
     isObject(value) &&
     typeof value.calibrationId === "string" &&
     Boolean(value.calibrationId.trim()) &&
-    hasValidMeasurementShape(value)
+    value.calibrationId === value.calibrationId.trim() &&
+    hasValidMeasurementShapeV3(value)
   );
+}
+function isMeasurement(value: unknown): value is Measurement {
+  if (
+    !isObject(value) ||
+    typeof value.calibrationId !== "string" ||
+    !value.calibrationId.trim() ||
+    value.calibrationId !== value.calibrationId.trim()
+  )
+    return false;
+  const measurementType = value.type;
+  if (typeof measurementType !== "string" || !isMeasurementType(measurementType)) return false;
+  if (!hasValidMeasurementIdentity(value)) return false;
+  return hasValidMeasurementPoints(measurementType, value.points as Point[]);
 }
 function hasValidSessionHeader(value: Record<string, unknown>): boolean {
   return (
@@ -124,6 +152,7 @@ function assertValidLegacySession(value: Record<string, unknown>): void {
   if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
   const pageCount = value.pageCount as number;
   const pages = value.pages as Record<string, unknown>;
+  const measurementIds = new Set<string>();
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     const page = pages[String(pageNumber)];
     if (
@@ -140,15 +169,21 @@ function assertValidLegacySession(value: Record<string, unknown>): void {
       throw new Error(`The saved state for page ${pageNumber} is invalid.`);
     if (page.measurements.length > 0 && page.calibration === null)
       throw new Error(`Page ${pageNumber} has measurements without calibration.`);
+    for (const measurement of page.measurements) {
+      const id = (measurement as { id: string }).id;
+      if (measurementIds.has(id)) throw new Error("The saved session has duplicate measurement IDs.");
+      measurementIds.add(id);
+    }
   }
 }
-function assertValidModernSession(
+function assertValidSessionV3(
   value: Record<string, unknown>,
   isCalibrationValue: (value: unknown) => boolean,
 ): void {
   if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
   const pageCount = value.pageCount as number;
   const pages = value.pages as Record<string, unknown>;
+  const measurementIds = new Set<string>();
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     const page = pages[String(pageNumber)];
     if (
@@ -157,7 +192,7 @@ function assertValidModernSession(
       !Array.isArray(page.calibrations) ||
       !page.calibrations.every(isCalibrationValue) ||
       !Array.isArray(page.measurements) ||
-      !page.measurements.every(isMeasurement) ||
+      !page.measurements.every(isMeasurementV3) ||
       !Number.isInteger(page.nextCalibrationNumber) ||
       (page.nextCalibrationNumber as number) < 1 ||
       !Number.isInteger(page.nextLineNumber) ||
@@ -183,6 +218,60 @@ function assertValidModernSession(
       throw new Error(`Page ${pageNumber} has measurements without calibration.`);
     if (page.measurements.some((measurement) => !calibrationIds.has(measurement.calibrationId)))
       throw new Error(`Page ${pageNumber} has a measurement with a missing calibration.`);
+    for (const measurement of page.measurements) {
+      const id = (measurement as { id: string }).id;
+      if (measurementIds.has(id)) throw new Error("The saved session has duplicate measurement IDs.");
+      measurementIds.add(id);
+    }
+  }
+}
+function hasValidMeasurementCounters(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  return ["line", "polyline", "polygon"].every(
+    (type) => Number.isInteger(value[type]) && (value[type] as number) >= 1,
+  );
+}
+function assertValidSessionV4(value: Record<string, unknown>): void {
+  if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
+  const pageCount = value.pageCount as number;
+  const pages = value.pages as Record<string, unknown>;
+  const measurementIds = new Set<string>();
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    const page = pages[String(pageNumber)];
+    if (
+      !isObject(page) ||
+      page.pageNumber !== pageNumber ||
+      !Array.isArray(page.calibrations) ||
+      !page.calibrations.every(isPageCalibrationV3) ||
+      !Array.isArray(page.measurements) ||
+      !page.measurements.every(isMeasurement) ||
+      !Number.isInteger(page.nextCalibrationNumber) ||
+      (page.nextCalibrationNumber as number) < 1 ||
+      !hasValidMeasurementCounters(page.nextMeasurementNumber)
+    )
+      throw new Error(`The saved state for page ${pageNumber} is invalid.`);
+    const calibrationIds = new Set(
+      page.calibrations.map((calibration) => (calibration as { id: string }).id),
+    );
+    if (calibrationIds.size !== page.calibrations.length)
+      throw new Error(`Page ${pageNumber} has duplicate calibration IDs.`);
+    if (page.calibrations.length === 0 && page.activeCalibrationId !== null)
+      throw new Error(`Page ${pageNumber} has an active calibration that does not exist.`);
+    if (
+      page.calibrations.length > 0 &&
+      (typeof page.activeCalibrationId !== "string" ||
+        !calibrationIds.has(page.activeCalibrationId))
+    )
+      throw new Error(`Page ${pageNumber} has an active calibration that does not exist.`);
+    if (page.measurements.length > 0 && page.calibrations.length === 0)
+      throw new Error(`Page ${pageNumber} has measurements without calibration.`);
+    if (page.measurements.some((measurement) => !calibrationIds.has(measurement.calibrationId)))
+      throw new Error(`Page ${pageNumber} has a measurement with a missing calibration.`);
+    for (const measurement of page.measurements) {
+      const id = (measurement as { id: string }).id;
+      if (measurementIds.has(id)) throw new Error("The saved session has duplicate measurement IDs.");
+      measurementIds.add(id);
+    }
   }
 }
 function legacyCalibrationId(pageNumber: number): string {
@@ -233,23 +322,91 @@ function migrateSessionV2(session: SessionV2): SessionV3 {
   }
   return { ...session, schemaVersion: 3, pages };
 }
-export function serializeSession(session: SessionV3): string {
+function migrateSessionV3(session: SessionV3): SessionV4 {
+  const pages: SessionV4["pages"] = {};
+  for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
+    const page = session.pages[pageNumber]!;
+    pages[pageNumber] = {
+      pageNumber: page.pageNumber,
+      calibrations: page.calibrations,
+      activeCalibrationId: page.activeCalibrationId,
+      nextCalibrationNumber: page.nextCalibrationNumber,
+      measurements: page.measurements,
+      nextMeasurementNumber: {
+        line: page.nextLineNumber,
+        polyline: 1,
+        polygon: page.nextPolygonNumber,
+      },
+    };
+  }
+  return { ...session, schemaVersion: 4, pages };
+}
+
+function canonicalizeSessionV4(session: SessionV4): SessionV4 {
+  const pages: SessionV4["pages"] = {};
+  for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
+    const page = session.pages[pageNumber]!;
+    pages[pageNumber] = {
+      pageNumber,
+      calibrations: page.calibrations.map((calibration) =>
+        calibration.mode === "uniform"
+          ? { ...calibration, start: { ...calibration.start }, end: { ...calibration.end } }
+          : {
+              ...calibration,
+              xReference: {
+                ...calibration.xReference,
+                start: { ...calibration.xReference.start },
+                end: { ...calibration.xReference.end },
+              },
+              yReference: {
+                ...calibration.yReference,
+                start: { ...calibration.yReference.start },
+                end: { ...calibration.yReference.end },
+              },
+            },
+      ),
+      activeCalibrationId: page.activeCalibrationId,
+      nextCalibrationNumber: page.nextCalibrationNumber,
+      measurements: page.measurements.map((measurement) => ({
+        id: measurement.id,
+        type: measurement.type,
+        name: measurement.name,
+        calibrationId: measurement.calibrationId,
+        points: measurement.points.map((point) => ({ ...point })),
+      })),
+      nextMeasurementNumber: { ...page.nextMeasurementNumber },
+    };
+  }
+  return {
+    schemaVersion: 4,
+    pdf: { ...session.pdf },
+    pageCount: session.pageCount,
+    currentPage: session.currentPage,
+    pages,
+    settings: { ...session.settings },
+  };
+}
+export function serializeSession(session: SessionV4): string {
   return JSON.stringify(session);
 }
-export function deserializeSession(serialized: string): SessionV3 {
+export function deserializeSession(serialized: string): SessionV4 {
   const value: unknown = JSON.parse(serialized);
   if (!isObject(value)) throw new Error("The saved session uses an unsupported schema.");
   if (value.schemaVersion === 1) {
     assertValidLegacySession(value);
-    return migrateSessionV1(value as unknown as SessionV1);
+    return canonicalizeSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1)));
   }
   if (value.schemaVersion === 2) {
-    assertValidModernSession(value, isPageCalibrationV2);
-    return migrateSessionV2(value as unknown as SessionV2);
+    assertValidSessionV3(value, isPageCalibrationV2);
+    return canonicalizeSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2)));
   }
   if (value.schemaVersion === 3) {
-    assertValidModernSession(value, isPageCalibrationV3);
-    return value as unknown as SessionV3;
+    assertValidSessionV3(value, isPageCalibrationV3);
+    return canonicalizeSessionV4(migrateSessionV3(value as unknown as SessionV3));
+  }
+  if (value.schemaVersion === 4) {
+    assertValidSessionV4(value);
+    return canonicalizeSessionV4(value as unknown as SessionV4);
   }
   throw new Error("The saved session uses an unsupported schema.");
 }

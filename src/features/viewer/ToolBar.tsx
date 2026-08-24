@@ -1,26 +1,36 @@
 import { useAppState } from "../../app/state";
 import type { PageState, Tool } from "../../types/domain";
 import { getActiveCalibration } from "../../utils/calibration";
-import { formatNumber } from "../../utils/format";
+import { formatDisplayNumber } from "../../utils/format";
 import { fromMillimetres } from "../../utils/units";
-import { calibrationScaleX, calibrationScaleY } from "../../utils/geometry";
+import { calibrationScaleX, calibrationScaleY, isMeasurementType } from "../../utils/geometry";
+import { viewerShortcuts } from "../../utils/keyboard";
 import styles from "./ToolBar.module.css";
 
-const TOOLS: { id: Exclude<Tool, "calibrate">; label: string; shortcut?: string }[] = [
-  { id: "select", label: "Select" },
-  { id: "hand", label: "Hand", shortcut: "Space" },
-  { id: "line", label: "Line" },
-  { id: "polygon", label: "Polygon" },
-];
+const TOOLS = viewerShortcuts.flatMap((shortcut) =>
+  typeof shortcut.action === "string"
+    ? []
+    : [{ id: shortcut.action.tool, label: shortcut.label, shortcut: shortcut.key.toUpperCase() }],
+);
+const ORTHOGONAL_SHORTCUT = viewerShortcuts.find(
+  (shortcut) => shortcut.action === "toggle-orthogonal",
+)!;
 
 interface ToolBarProps {
   page: PageState;
   onChooseTool: (tool: Tool) => void;
+  onRestoreViewerFocus: () => void;
   onAddScale: () => void;
   onRecalibrate: () => void;
 }
 
-export function ToolBar({ page, onChooseTool, onAddScale, onRecalibrate }: ToolBarProps) {
+export function ToolBar({
+  page,
+  onChooseTool,
+  onRestoreViewerFocus,
+  onAddScale,
+  onRecalibrate,
+}: ToolBarProps) {
   const { state, dispatch } = useAppState();
   const activeCalibration = getActiveCalibration(page);
   const calibrated = Boolean(activeCalibration);
@@ -28,14 +38,14 @@ export function ToolBar({ page, onChooseTool, onAddScale, onRecalibrate }: ToolB
   const reference = !activeCalibration
     ? "No active scale"
     : activeCalibration.mode === "uniform"
-      ? `Uniform · ${formatNumber(fromMillimetres(activeCalibration.referenceDistanceMm, unit))} ${unit} reference`
-      : `X/Y correction · X: ${formatNumber(calibrationScaleX(activeCalibration))} mm/unit · Y: ${formatNumber(calibrationScaleY(activeCalibration))} mm/unit`;
+      ? `Uniform · ${formatDisplayNumber(fromMillimetres(activeCalibration.referenceDistanceMm, unit))} ${unit} reference`
+      : `X/Y correction · X: ${formatDisplayNumber(calibrationScaleX(activeCalibration))} mm/unit · Y: ${formatDisplayNumber(calibrationScaleY(activeCalibration))} mm/unit`;
 
   return (
     <aside className={styles.toolbar} aria-label="Viewer tools">
       <div className={styles.tools}>
         {TOOLS.map((tool) => {
-          const disabled = (tool.id === "line" || tool.id === "polygon") && !calibrated;
+          const disabled = isMeasurementType(tool.id) && !calibrated;
           return (
             <button
               key={tool.id}
@@ -45,11 +55,12 @@ export function ToolBar({ page, onChooseTool, onAddScale, onRecalibrate }: ToolB
               title={
                 disabled
                   ? `${tool.label} requires an active scale`
-                  : tool.shortcut
-                    ? `${tool.label} (${tool.shortcut})`
-                    : tool.label
+                  : `${tool.label} (${tool.shortcut})`
               }
-              onClick={() => onChooseTool(tool.id)}
+              onClick={() => {
+                onChooseTool(tool.id);
+                onRestoreViewerFocus();
+              }}
             >
               <span className={styles.symbol} aria-hidden="true">
                 {tool.id === "select"
@@ -64,6 +75,21 @@ export function ToolBar({ page, onChooseTool, onAddScale, onRecalibrate }: ToolB
             </button>
           );
         })}
+        <button
+          type="button"
+          className={state.orthogonal ? styles.active : ""}
+          aria-pressed={state.orthogonal}
+          title={`Constrain new drawing segments to horizontal or vertical (${ORTHOGONAL_SHORTCUT.key.toUpperCase()})`}
+          onClick={() => {
+            dispatch({ type: "SET_ORTHOGONAL", value: !state.orthogonal });
+            onRestoreViewerFocus();
+          }}
+        >
+          <span className={styles.symbol} aria-hidden="true">
+            ⊾
+          </span>
+          <span>{ORTHOGONAL_SHORTCUT.label}</span>
+        </button>
       </div>
       <div className={styles.scale}>
         <strong>Scale</strong>

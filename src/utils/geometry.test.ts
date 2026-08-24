@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Calibration, PageCalibration, Point } from "../types/domain";
 import {
   areEffectivelyIdentical,
+  constrainOrthogonal,
   distance,
   isValidCalibration,
   lineLengthMm,
@@ -13,6 +14,8 @@ import {
   calibrationScaleY,
   isPredominantlyHorizontal,
   isPredominantlyVertical,
+  isOrthogonalSegment,
+  pathLengthMm,
 } from "./geometry";
 
 const calibration: Calibration = {
@@ -20,6 +23,29 @@ const calibration: Calibration = {
   end: { x: 10, y: 0 },
   referenceDistanceMm: 1000,
 };
+
+describe("path geometry", () => {
+  it("accumulates open path length without adding a closing segment", () => {
+    expect(
+      pathLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: 3, y: 0 },
+          { x: 3, y: 4 },
+        ],
+        { ...calibration, referenceDistanceMm: 10 },
+        false,
+      ),
+    ).toBe(7);
+  });
+
+  it("constrains a candidate point to the dominant orthogonal axis", () => {
+    expect(constrainOrthogonal({ x: 10, y: 20 }, { x: 30, y: 24 })).toEqual({ x: 30, y: 20 });
+    expect(constrainOrthogonal({ x: 10, y: 20 }, { x: 13, y: 40 })).toEqual({ x: 10, y: 40 });
+    expect(isOrthogonalSegment({ x: 0, y: 0 }, { x: 0, y: 9 })).toBe(true);
+    expect(isOrthogonalSegment({ x: 0, y: 0 }, { x: 3, y: 9 })).toBe(false);
+  });
+});
 
 const uniform: PageCalibration = {
   id: "uniform",
@@ -235,10 +261,7 @@ describe("geometry", () => {
       const mirroredXyResults = polygonResultsMm({ points: mirroredPolygon }, xyBase);
 
       expect(lineLengthMm(mirroredLine, uniform)).toBeCloseTo(baseUniformLineMm, 10);
-      expect(mirroredUniformResults.perimeterMm).toBeCloseTo(
-        baseUniformPolygonMm.perimeterMm,
-        10,
-      );
+      expect(mirroredUniformResults.perimeterMm).toBeCloseTo(baseUniformPolygonMm.perimeterMm, 10);
       expect(mirroredUniformResults.areaMm2).toBeCloseTo(baseUniformPolygonMm.areaMm2, 10);
       expect(lineLengthMm(mirroredLine, xyBase)).toBeCloseTo(baseXyLineMm, 10);
       expect(mirroredXyResults.perimeterMm).toBeCloseTo(baseXyPolygonMm.perimeterMm, 10);

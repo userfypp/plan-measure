@@ -9,23 +9,30 @@ import {
 import type {
   DrawingDraft,
   LinearUnit,
+  MeasurementType,
   PageState,
   UniformPageCalibration,
   XyPageCalibration,
   PdfMetadata,
   Point,
   SessionSettings,
-  SessionV3,
+  SessionV4,
   Tool,
 } from "../types/domain";
-import { isValidPageCalibration } from "../utils/geometry";
+import {
+  hasValidMeasurementPoints,
+  isMeasurementType,
+  isValidPageCalibration,
+  measurementPathSpecs,
+} from "../utils/geometry";
 import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
 
 export interface AppState {
-  session: SessionV3 | null;
+  session: SessionV4 | null;
   tool: Tool;
   selectedMeasurementId: string | null;
   draft: DrawingDraft | null;
+  orthogonal: boolean;
   error: string | null;
 }
 
@@ -33,12 +40,13 @@ type CalibrationInput =
   Omit<UniformPageCalibration, "id" | "name"> | Omit<XyPageCalibration, "id" | "name">;
 
 export type AppAction =
-  | { type: "LOAD_SESSION"; session: SessionV3 }
+  | { type: "LOAD_SESSION"; session: SessionV4 }
   | { type: "CLEAR_SESSION" }
   | { type: "SET_PAGE"; pageNumber: number }
   | { type: "SET_TOOL"; tool: Tool }
   | { type: "SET_DRAFT"; draft: DrawingDraft | null }
   | { type: "UPDATE_DRAFT_POINTER"; draftType: DrawingDraft["type"]; pointer: Point }
+  | { type: "SET_ORTHOGONAL"; value: boolean }
   | {
       type: "ADD_CALIBRATION";
       pageNumber: number;
@@ -54,8 +62,13 @@ export type AppAction =
       calibration: CalibrationInput;
     }
   | { type: "SET_ACTIVE_CALIBRATION"; pageNumber: number; calibrationId: string }
-  | { type: "ADD_LINE"; pageNumber: number; id: string; points: [Point, Point] }
-  | { type: "ADD_POLYGON"; pageNumber: number; id: string; points: Point[] }
+  | {
+      type: "ADD_MEASUREMENT";
+      pageNumber: number;
+      id: string;
+      measurementType: MeasurementType;
+      points: Point[];
+    }
   | { type: "SELECT_MEASUREMENT"; id: string | null }
   | { type: "UPDATE_MEASUREMENT_POINTS"; pageNumber: number; id: string; points: Point[] }
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
@@ -73,6 +86,7 @@ export const initialAppState: AppState = {
   tool: "select",
   selectedMeasurementId: null,
   draft: null,
+  orthogonal: false,
   error: null,
 };
 
@@ -83,8 +97,7 @@ function createPageState(pageNumber: number): PageState {
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
     measurements: [],
-    nextLineNumber: 1,
-    nextPolygonNumber: 1,
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1 },
   };
 }
 
@@ -92,13 +105,13 @@ export function createEmptySession(
   pdf: PdfMetadata,
   pageCount: number,
   settings?: Partial<SessionSettings>,
-): SessionV3 {
+): SessionV4 {
   const pages: Record<number, PageState> = {};
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     pdf,
     pageCount,
     currentPage: 1,
@@ -114,10 +127,10 @@ export function createEmptySession(
 }
 
 function updatePage(
-  session: SessionV3,
+  session: SessionV4,
   pageNumber: number,
   updater: (page: PageState) => PageState,
-): SessionV3 {
+): SessionV4 {
   const page = session.pages[pageNumber];
   if (!page) return session;
   return {
@@ -129,7 +142,7 @@ function updatePage(
   };
 }
 
-function pageHasActiveCalibration(session: SessionV3 | null, pageNumber?: number): boolean {
+function pageHasActiveCalibration(session: SessionV4 | null, pageNumber?: number): boolean {
   if (!session) return false;
   const page = session.pages[pageNumber ?? session.currentPage];
   return Boolean(page && getActiveCalibration(page));
@@ -157,10 +170,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
     case "SET_TOOL": {
-      if (
-        (action.tool === "line" || action.tool === "polygon") &&
-        !pageHasActiveCalibration(state.session)
-      ) {
+      if (isMeasurementType(action.tool) && !pageHasActiveCalibration(state.session)) {
         return {
           ...state,
           tool: "select",
@@ -180,6 +190,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "UPDATE_DRAFT_POINTER":
       if (!state.draft || state.draft.type !== action.draftType) return state;
       return { ...state, draft: { ...state.draft, pointer: action.pointer } };
+    case "SET_ORTHOGONAL":
+      return { ...state, orthogonal: action.value };
     case "ADD_CALIBRATION": {
       if (!state.session) return state;
       const page = state.session.pages[action.pageNumber];
@@ -266,7 +278,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         error: null,
       };
     }
-    case "ADD_LINE": {
+    case "ADD_MEASUREMENT": {
       const page = state.session?.pages[action.pageNumber];
       const calibration = page && getActiveCalibration(page);
       if (!state.session || !page || !calibration) {
@@ -277,51 +289,24 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           error: "Select a valid scale before creating measurements.",
         };
       }
-      const session = updatePage(state.session, action.pageNumber, (page) => ({
-        ...page,
-        nextLineNumber: page.nextLineNumber + 1,
-        measurements: [
-          ...page.measurements,
-          {
-            id: action.id,
-            type: "line" as const,
-            name: `Line ${page.nextLineNumber}`,
-            points: action.points,
-            calibrationId: calibration.id,
-          },
-        ],
-      }));
-      return {
-        ...state,
-        session,
-        draft: null,
-        selectedMeasurementId: action.id,
-        error: null,
-      };
-    }
-    case "ADD_POLYGON": {
-      const page = state.session?.pages[action.pageNumber];
-      const calibration = page && getActiveCalibration(page);
-      if (!state.session || !page || !calibration) {
+      if (!action.id.trim() || !hasValidMeasurementPoints(action.measurementType, action.points)) {
         return {
           ...state,
-          tool: "select",
-          draft: null,
-          error: "Select a valid scale before creating measurements.",
+          error: `A ${measurementPathSpecs[action.measurementType].label.toLowerCase()} has an invalid set of vertices.`,
         };
-      }
-      if (action.points.length < 3) {
-        return { ...state, error: "A polygon requires at least three vertices." };
       }
       const session = updatePage(state.session, action.pageNumber, (page) => ({
         ...page,
-        nextPolygonNumber: page.nextPolygonNumber + 1,
+        nextMeasurementNumber: {
+          ...page.nextMeasurementNumber,
+          [action.measurementType]: page.nextMeasurementNumber[action.measurementType] + 1,
+        },
         measurements: [
           ...page.measurements,
           {
             id: action.id,
-            type: "polygon" as const,
-            name: `Polygon ${page.nextPolygonNumber}`,
+            type: action.measurementType,
+            name: `${measurementPathSpecs[action.measurementType].label} ${page.nextMeasurementNumber[action.measurementType]}`,
             points: action.points,
             calibrationId: calibration.id,
           },
@@ -343,11 +328,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...page,
         measurements: page.measurements.map((measurement) => {
           if (measurement.id !== action.id) return measurement;
-          if (measurement.type === "line") {
-            if (action.points.length !== 2) return measurement;
-            return { ...measurement, points: [action.points[0]!, action.points[1]!] };
-          }
-          if (action.points.length < 3) return measurement;
+          if (!hasValidMeasurementPoints(measurement.type, action.points)) return measurement;
           return { ...measurement, points: action.points };
         }),
       }));

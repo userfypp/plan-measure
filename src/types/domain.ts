@@ -45,14 +45,14 @@ export interface PolygonMeasurement extends MeasurementBase {
   points: Point[];
 }
 
-export type Measurement = LineMeasurement | PolygonMeasurement;
+export type MeasurementV3 = LineMeasurement | PolygonMeasurement;
 
-export interface PageState {
+export interface PageStateV3 {
   pageNumber: number;
   calibrations: PageCalibration[];
   activeCalibrationId: string | null;
   nextCalibrationNumber: number;
-  measurements: Measurement[];
+  measurements: MeasurementV3[];
   nextLineNumber: number;
   nextPolygonNumber: number;
 }
@@ -123,7 +123,7 @@ export interface PageStateV2 {
   calibrations: PageCalibrationV2[];
   activeCalibrationId: string | null;
   nextCalibrationNumber: number;
-  measurements: Measurement[];
+  measurements: MeasurementV3[];
   nextLineNumber: number;
   nextPolygonNumber: number;
 }
@@ -133,11 +133,40 @@ export interface SessionV3 {
   pdf: PdfMetadata;
   pageCount: number;
   currentPage: number;
+  pages: Record<number, PageStateV3>;
+  settings: SessionSettings;
+}
+
+export type MeasurementType = "line" | "polyline" | "polygon";
+
+export interface PathMeasurement extends MeasurementBase {
+  type: MeasurementType;
+  points: Point[];
+}
+
+export type Measurement = PathMeasurement;
+
+export type MeasurementCounters = Record<MeasurementType, number>;
+
+export interface PageState {
+  pageNumber: number;
+  calibrations: PageCalibration[];
+  activeCalibrationId: string | null;
+  nextCalibrationNumber: number;
+  measurements: Measurement[];
+  nextMeasurementNumber: MeasurementCounters;
+}
+
+export interface SessionV4 {
+  schemaVersion: 4;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
   pages: Record<number, PageState>;
   settings: SessionSettings;
 }
 
-export type Tool = "select" | "hand" | "calibrate" | "line" | "polygon";
+export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 
 export interface ViewTransform {
   zoom: number;
@@ -153,5 +182,9 @@ export interface LogicalPageBounds {
 
 export type DrawingDraft =
   | { type: "calibrate"; points: Point[]; pointer: Point | null }
-  | { type: "line"; points: Point[]; pointer: Point | null }
-  | { type: "polygon"; points: Point[]; pointer: Point | null };
+  | {
+      type: "path";
+      measurementType: MeasurementType;
+      points: Point[];
+      pointer: Point | null;
+    };

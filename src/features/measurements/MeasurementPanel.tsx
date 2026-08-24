@@ -3,6 +3,7 @@ import { useAppState, type AppAction } from "../../app/state";
 import type { LinearUnit, Measurement, PageState } from "../../types/domain";
 import { getActiveCalibration, getMeasurementCalibration } from "../../utils/calibration";
 import { formatMeasurement } from "../../utils/format";
+import { measurementPathSpecs } from "../../utils/geometry";
 import styles from "./MeasurementPanel.module.css";
 
 export function MeasurementPanel({ page }: { page: PageState }) {
@@ -17,11 +18,11 @@ export function MeasurementPanel({ page }: { page: PageState }) {
       {page.measurements.length === 0 ? (
         <div className={styles.empty}>
           {getActiveCalibration(page)
-            ? "Choose Line or Polygon to add a measurement."
+            ? "Choose Line, Polyline, or Polygon to add a measurement."
             : "Add a scale to begin measuring."}
         </div>
       ) : (
-        <div className={styles.list}>
+        <div className={styles.list} role="list" aria-label="Measurements">
           {page.measurements.map((measurement) => (
             <MeasurementItem
               key={measurement.id}
@@ -39,7 +40,7 @@ export function MeasurementPanel({ page }: { page: PageState }) {
   );
 }
 
-interface MeasurementItemProps {
+export interface MeasurementItemProps {
   pageNumber: number;
   page: PageState;
   measurement: Measurement;
@@ -48,7 +49,7 @@ interface MeasurementItemProps {
   dispatch: Dispatch<AppAction>;
 }
 
-const MeasurementItem = memo(function MeasurementItem({
+export const MeasurementItem = memo(function MeasurementItem({
   pageNumber,
   page,
   measurement,
@@ -89,10 +90,15 @@ const MeasurementItem = memo(function MeasurementItem({
     }
   }
 
+  function selectMeasurement() {
+    dispatch({ type: "SELECT_MEASUREMENT", id: measurement.id });
+  }
+
   return (
     <article
       className={`${styles.item} ${selected ? styles.selected : ""}`}
-      onClick={() => dispatch({ type: "SELECT_MEASUREMENT", id: measurement.id })}
+      role="listitem"
+      onClick={selectMeasurement}
     >
       <div className={styles.itemTop}>
         <input
@@ -120,16 +126,30 @@ const MeasurementItem = memo(function MeasurementItem({
           Delete
         </button>
       </div>
-      <div className={styles.type}>{measurement.type === "line" ? "Line" : "Polygon"}</div>
-      <div className={styles.value}>
-        {calibration
-          ? formatMeasurement(measurement, calibration, displayUnit)
-          : "Scale unavailable"}
-      </div>
-      <div className={styles.scale}>
-        Scale: {calibration?.name ?? "Unavailable"}
-        {calibration?.mode === "xy" ? " · X/Y" : ""}
-      </div>
+      <button
+        type="button"
+        className={styles.selection}
+        aria-label={`${selected ? "Selected" : "Select"} measurement ${measurement.name}`}
+        aria-pressed={selected}
+        aria-describedby={`measurement-details-${measurement.id}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          selectMeasurement();
+        }}
+      >
+        <span id={`measurement-details-${measurement.id}`} className={styles.details}>
+          <span className={styles.type}>{measurementPathSpecs[measurement.type].label}</span>
+          <span className={styles.value}>
+            {calibration
+              ? formatMeasurement(measurement, calibration, displayUnit)
+              : "Scale unavailable"}
+          </span>
+          <span className={styles.scale}>
+            Scale: {calibration?.name ?? "Unavailable"}
+            {calibration?.mode === "xy" ? " · X/Y" : ""}
+          </span>
+        </span>
+      </button>
     </article>
   );
 });

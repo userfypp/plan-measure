@@ -1,4 +1,56 @@
-import type { Calibration, PageCalibration, Point, PolygonMeasurement } from "../types/domain";
+import type {
+  Calibration,
+  Measurement,
+  MeasurementType,
+  PageCalibration,
+  Point,
+  PolygonMeasurement,
+} from "../types/domain";
+
+export interface MeasurementPathSpec {
+  label: string;
+  minVertices: number;
+  maxVertices: number | null;
+  closed: boolean;
+}
+
+export const measurementPathSpecs: Record<MeasurementType, MeasurementPathSpec> = {
+  line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false },
+  polyline: { label: "Polyline", minVertices: 2, maxVertices: null, closed: false },
+  polygon: { label: "Polygon", minVertices: 3, maxVertices: null, closed: true },
+};
+
+export function isMeasurementType(value: string): value is MeasurementType {
+  return value === "line" || value === "polyline" || value === "polygon";
+}
+
+export function hasValidMeasurementPoints(
+  type: MeasurementType,
+  points: readonly Point[],
+): boolean {
+  const spec = measurementPathSpecs[type];
+  return (
+    points.length >= spec.minVertices &&
+    (spec.maxVertices === null || points.length <= spec.maxVertices) &&
+    points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)) &&
+    points.every(
+      (point, index) => index === 0 || !areEffectivelyIdentical(points[index - 1]!, point),
+    )
+  );
+}
+
+export function constrainOrthogonal(anchor: Point, candidate: Point): Point {
+  const dx = candidate.x - anchor.x;
+  const dy = candidate.y - anchor.y;
+  return Math.abs(dx) >= Math.abs(dy)
+    ? { x: candidate.x, y: anchor.y }
+    : { x: anchor.x, y: candidate.y };
+}
+
+export function isOrthogonalSegment(start: Point, end: Point): boolean {
+  const tolerance = calibrationPointTolerance(start, end);
+  return Math.abs(end.x - start.x) <= tolerance || Math.abs(end.y - start.y) <= tolerance;
+}
 
 export function distance(a: Point, b: Point): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
@@ -107,6 +159,20 @@ export function lineLengthMm(
   return Math.hypot(dxMm, dyMm);
 }
 
+export function pathLengthMm(
+  points: readonly Point[],
+  calibration: Calibration | PageCalibration,
+  closed: boolean,
+): number {
+  if (points.length < 2) return 0;
+  const segmentCount = closed ? points.length : points.length - 1;
+  return Array.from({ length: segmentCount }, (_, index) => {
+    const start = points[index]!;
+    const end = points[(index + 1) % points.length]!;
+    return lineLengthMm([start, end], calibration);
+  }).reduce((total, length) => total + length, 0);
+}
+
 export function polygonPerimeterPageUnits(points: Point[]): number {
   if (points.length < 2) return 0;
   return points.reduce((total, point, index) => {
@@ -131,15 +197,25 @@ export function polygonResultsMm(
   const scaleX = calibrationScaleX(calibration);
   const scaleY = calibrationScaleY(calibration);
   const points = measurement.points;
-  const perimeterMm =
-    points.length < 2
-      ? 0
-      : points.reduce((total, point, index) => {
-          const next = points[(index + 1) % points.length];
-          return next ? total + lineLengthMm([point, next], calibration) : total;
-        }, 0);
+  const perimeterMm = pathLengthMm(points, calibration, true);
   return {
     perimeterMm,
     areaMm2: polygonAreaPageUnitsSquared(points) * scaleX * scaleY,
   };
+}
+
+export function measurementResultsMm(
+  measurement: Measurement,
+  calibration: Calibration | PageCalibration,
+): { lengthMm: number | null; perimeterMm: number | null; areaMm2: number | null } {
+  const spec = measurementPathSpecs[measurement.type];
+  if (!spec.closed) {
+    return {
+      lengthMm: pathLengthMm(measurement.points, calibration, false),
+      perimeterMm: null,
+      areaMm2: null,
+    };
+  }
+  const polygon = polygonResultsMm(measurement, calibration);
+  return { lengthMm: null, perimeterMm: polygon.perimeterMm, areaMm2: polygon.areaMm2 };
 }

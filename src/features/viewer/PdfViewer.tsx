@@ -7,6 +7,10 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MutableRefObject,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
 } from "react";
 import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
 import { Circle, Group, Label, Layer, Line, Rect, Stage, Tag, Text } from "react-konva";
@@ -18,13 +22,19 @@ import type {
   LinearUnit,
   LogicalPageBounds,
   Measurement,
+  MeasurementType,
   PageState,
   Point,
   Tool,
   ViewTransform,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
-import { areEffectivelyIdentical, distance } from "../../utils/geometry";
+import {
+  areEffectivelyIdentical,
+  constrainOrthogonal,
+  isMeasurementType,
+  measurementPathSpecs,
+} from "../../utils/geometry";
 import { formatMeasurement } from "../../utils/format";
 import {
   canvasLayout,
@@ -39,11 +49,7 @@ import {
   zoomViewAtPoint,
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
-import {
-  getDrawingKeyboardAction,
-  getToolShortcut,
-  shouldIgnoreGlobalKeyboardShortcut,
-} from "../../utils/keyboard";
+import { getViewerKeyboardAction, shouldIgnoreGlobalKeyboardShortcut } from "../../utils/keyboard";
 import {
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelWithinBounds,
@@ -66,6 +72,7 @@ interface PdfViewerProps {
   calibrationReferenceLabel?: "X" | "Y";
   onCalibrationCancel: () => void;
   onVertexDragStateChange: (dragging: boolean) => void;
+  viewerFocusRef: MutableRefObject<(() => void) | null>;
 }
 
 function pointsToFlat(points: Point[]): number[] {
@@ -114,6 +121,7 @@ export function PdfViewer({
   calibrationReferenceLabel,
   onCalibrationCancel,
   onVertexDragStateChange,
+  viewerFocusRef,
 }: PdfViewerProps) {
   const { state, dispatch } = useAppState();
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +130,7 @@ export function PdfViewer({
   const renderTaskRef = useRef<RenderTask | null>(null);
   const draftPointerFrameRef = useRef<number | null>(null);
   const pendingDraftPointerRef = useRef<{
-    draftType: "calibrate" | "line" | "polygon";
+    draftType: "calibrate" | "path";
     point: Point;
   } | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
@@ -144,12 +152,13 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
-  const completePolygon = useCallback(
-    (points: Point[]) => {
+  const completePath = useCallback(
+    (measurementType: MeasurementType, points: Point[]) => {
       dispatch({
-        type: "ADD_POLYGON",
+        type: "ADD_MEASUREMENT",
         pageNumber: page.pageNumber,
         id: crypto.randomUUID(),
+        measurementType,
         points,
       });
     },
@@ -159,17 +168,25 @@ export function PdfViewer({
   const viewerSizeRef = useRef(viewerSize);
   const onCalibrationCancelRef = useRef(onCalibrationCancel);
   const onChooseToolRef = useRef(onChooseTool);
-  const completePolygonRef = useRef(completePolygon);
+  const completePathRef = useRef(completePath);
 
   useLayoutEffect(() => {
     stateRef.current = state;
     viewerSizeRef.current = viewerSize;
     onCalibrationCancelRef.current = onCalibrationCancel;
     onChooseToolRef.current = onChooseTool;
-    completePolygonRef.current = completePolygon;
-  }, [completePolygon, onCalibrationCancel, onChooseTool, state, viewerSize]);
+    completePathRef.current = completePath;
+  }, [completePath, onCalibrationCancel, onChooseTool, state, viewerSize]);
 
   const bounds = pageRenderData?.bounds ?? null;
+
+  useEffect(() => {
+    const focusViewer = () => viewerRef.current?.focus({ preventScroll: true });
+    viewerFocusRef.current = focusViewer;
+    return () => {
+      if (viewerFocusRef.current === focusViewer) viewerFocusRef.current = null;
+    };
+  }, [viewerFocusRef]);
 
   const commitTransform = useCallback((next: ViewTransform) => {
     transformRef.current = next;
@@ -383,60 +400,66 @@ export function PdfViewer({
     commitTransform(fitToScreen(bounds, viewerSize));
   }, [bounds, viewerSize, commitTransform]);
 
-  useEffect(() => {
-    function keyDown(event: KeyboardEvent) {
-      if (shouldIgnoreGlobalKeyboardShortcut(event.target)) return;
+  const focusViewerSurface = useCallback((target: EventTarget | null) => {
+    if (shouldIgnoreGlobalKeyboardShortcut(target)) return;
+    viewerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const handleViewerPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => focusViewerSurface(event.target),
+    [focusViewerSurface],
+  );
+
+  const handleViewerWheel = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => focusViewerSurface(event.target),
+    [focusViewerSurface],
+  );
+
+  const handleViewerKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
       const currentState = stateRef.current;
-      if (event.key === " ") {
-        event.preventDefault();
+      const action = getViewerKeyboardAction(
+        event.nativeEvent,
+        currentState.tool,
+        currentState.draft,
+      );
+      if (!action) return;
+
+      event.preventDefault();
+      if (action === "start-pan") {
         setSpacePan(true);
-      } else if (event.key === "+" || event.key === "=") {
-        event.preventDefault();
+      } else if (action === "zoom-in" || action === "zoom-out") {
         const size = viewerSizeRef.current;
-        zoomAround({ x: size.width / 2, y: size.height / 2 }, VIEWER_ZOOM_STEP);
-      } else if (event.key === "-") {
-        event.preventDefault();
-        const size = viewerSizeRef.current;
-        zoomAround({ x: size.width / 2, y: size.height / 2 }, 1 / VIEWER_ZOOM_STEP);
-      } else {
-        const action = getDrawingKeyboardAction(event.key, currentState.tool, currentState.draft);
-        if (action === "cancel-calibration") {
-          event.preventDefault();
-          dispatch({ type: "SET_DRAFT", draft: null });
-          onCalibrationCancelRef.current();
-        } else if (action === "complete-polygon") {
-          event.preventDefault();
-          const draft = currentState.draft;
-          if (draft?.type === "polygon" && draft.points.length >= 3) {
-            completePolygonRef.current(draft.points);
-          }
-        } else if (action === "cancel-draft") {
-          event.preventDefault();
-          dispatch({ type: "SET_DRAFT", draft: null });
-        } else if (action === "exit-tool") {
-          event.preventDefault();
-          dispatch({ type: "SET_TOOL", tool: "select" });
-        } else {
-          const tool = getToolShortcut(event.key);
-          if (!tool) return;
-          event.preventDefault();
-          onChooseToolRef.current(tool);
+        zoomAround(
+          { x: size.width / 2, y: size.height / 2 },
+          action === "zoom-in" ? VIEWER_ZOOM_STEP : 1 / VIEWER_ZOOM_STEP,
+        );
+      } else if (action === "cancel-calibration") {
+        dispatch({ type: "SET_DRAFT", draft: null });
+        onCalibrationCancelRef.current();
+      } else if (action === "complete-path") {
+        const draft = currentState.draft;
+        if (draft?.type === "path") {
+          completePathRef.current(draft.measurementType, draft.points);
         }
+      } else if (action === "cancel-draft") {
+        dispatch({ type: "SET_DRAFT", draft: null });
+      } else if (action === "exit-tool") {
+        dispatch({ type: "SET_TOOL", tool: "select" });
+      } else if (action === "toggle-orthogonal") {
+        dispatch({ type: "SET_ORTHOGONAL", value: !currentState.orthogonal });
+      } else {
+        onChooseToolRef.current(action.tool);
       }
-    }
-    function keyUp(event: KeyboardEvent) {
-      if (event.key === " ") {
-        if (panDragRef.current) setTransform(transformRef.current);
-        setSpacePan(false);
-      }
-    }
-    window.addEventListener("keydown", keyDown);
-    window.addEventListener("keyup", keyUp);
-    return () => {
-      window.removeEventListener("keydown", keyDown);
-      window.removeEventListener("keyup", keyUp);
-    };
-  }, [dispatch, zoomAround]);
+    },
+    [dispatch, zoomAround],
+  );
+
+  const handleViewerKeyUp = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== " ") return;
+    if (panDragRef.current) setTransform(transformRef.current);
+    setSpacePan(false);
+  }, []);
 
   function stagePointer(event: KonvaEventObject<MouseEvent | WheelEvent>): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
@@ -466,7 +489,7 @@ export function PdfViewer({
     }
   }
 
-  function queueDraftPointerUpdate(draftType: "calibrate" | "line" | "polygon", point: Point) {
+  function queueDraftPointerUpdate(draftType: "calibrate" | "path", point: Point) {
     pendingDraftPointerRef.current = { draftType, point };
     if (draftPointerFrameRef.current !== null) return;
     draftPointerFrameRef.current = window.requestAnimationFrame(() => {
@@ -542,43 +565,37 @@ export function PdfViewer({
       return;
     }
 
-    if (state.tool === "line") {
-      if (!draft || draft.type !== "line" || draft.points.length === 0) {
-        dispatch({ type: "SET_DRAFT", draft: { type: "line", points: [point], pointer: point } });
-        return;
-      }
-      const first = draft.points[0]!;
-      if (areEffectivelyIdentical(first, point)) {
-        dispatch({ type: "SET_ERROR", message: "Choose a different second endpoint." });
-        return;
-      }
-      dispatch({
-        type: "ADD_LINE",
-        pageNumber: page.pageNumber,
-        id: crypto.randomUUID(),
-        points: [first, point],
-      });
-      return;
-    }
-
-    if (state.tool === "polygon") {
-      if (!draft || draft.type !== "polygon") {
+    if (isMeasurementType(state.tool)) {
+      const measurementType = state.tool;
+      if (!draft || draft.type !== "path" || draft.measurementType !== measurementType) {
         dispatch({
           type: "SET_DRAFT",
-          draft: { type: "polygon", points: [point], pointer: point },
+          draft: { type: "path", measurementType, points: [point], pointer: point },
         });
         return;
       }
       const first = draft.points[0];
-      if (first && distance(first, point) * transformRef.current.zoom <= 10) {
-        if (draft.points.length >= 3) completePolygon(draft.points);
+      const spec = measurementPathSpecs[measurementType];
+      if (
+        spec.closed &&
+        first &&
+        Math.hypot(first.x - point.x, first.y - point.y) * transformRef.current.zoom <= 10
+      ) {
+        if (draft.points.length >= spec.minVertices) {
+          completePath(measurementType, draft.points);
+        }
         return;
       }
       const last = draft.points.at(-1);
-      if (last && areEffectivelyIdentical(last, point)) return;
+      const effectivePoint = last && state.orthogonal ? constrainOrthogonal(last, point) : point;
+      if (last && areEffectivelyIdentical(last, effectivePoint)) return;
+      if (spec.maxVertices === 2) {
+        completePath(measurementType, [...draft.points, effectivePoint]);
+        return;
+      }
       dispatch({
         type: "SET_DRAFT",
-        draft: { ...draft, points: [...draft.points, point], pointer: point },
+        draft: { ...draft, points: [...draft.points, effectivePoint], pointer: effectivePoint },
       });
     }
   }
@@ -612,8 +629,14 @@ export function PdfViewer({
 
   const draftPoints = useMemo(() => {
     if (!state.draft) return [];
-    return state.draft.pointer ? [...state.draft.points, state.draft.pointer] : state.draft.points;
-  }, [state.draft]);
+    if (!state.draft.pointer) return state.draft.points;
+    const last = state.draft.points.at(-1);
+    const pointer =
+      state.draft.type === "path" && state.orthogonal && last
+        ? constrainOrthogonal(last, state.draft.pointer)
+        : state.draft.pointer;
+    return [...state.draft.points, pointer];
+  }, [state.draft, state.orthogonal]);
 
   const showPage = Boolean(
     pageReady &&
@@ -627,7 +650,17 @@ export function PdfViewer({
 
   return (
     <div className={styles.viewerShell}>
-      <div ref={viewerRef} className={`${styles.viewport} ${cursorClass}`}>
+      <div
+        ref={viewerRef}
+        className={`${styles.viewport} ${cursorClass}`}
+        role="region"
+        tabIndex={0}
+        aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, or P to select a tool.`}
+        onPointerDownCapture={handleViewerPointerDown}
+        onWheelCapture={handleViewerWheel}
+        onKeyDown={handleViewerKeyDown}
+        onKeyUp={handleViewerKeyUp}
+      >
         <canvas
           ref={canvasRef}
           className={styles.pdfCanvas}
@@ -773,30 +806,37 @@ export function PdfViewer({
                     lineJoin="round"
                   />
                 )}
-                {state.draft?.type === "polygon" && state.draft.points[0] && (
-                  <Circle
-                    x={state.draft.points[0].x}
-                    y={state.draft.points[0].y}
-                    radius={7 / viewTransform.zoom}
-                    fill="#fff"
-                    stroke="#2563eb"
-                    strokeWidth={3 / viewTransform.zoom}
-                  />
-                )}
+                {state.draft?.type === "path" &&
+                  measurementPathSpecs[state.draft.measurementType].closed &&
+                  state.draft.points[0] && (
+                    <Circle
+                      x={state.draft.points[0].x}
+                      y={state.draft.points[0].y}
+                      radius={7 / viewTransform.zoom}
+                      fill="#fff"
+                      stroke="#2563eb"
+                      strokeWidth={3 / viewTransform.zoom}
+                    />
+                  )}
               </Group>
             </Layer>
           </Stage>
         )}
         {!showPage && <div className={styles.loading}>Rendering page…</div>}
-        {state.draft?.type === "polygon" && (
+        {state.draft?.type === "path" && state.draft.measurementType !== "line" && (
           <div className={styles.drawingStatus}>
-            <span>{state.draft.points.length} vertices · Click the first point to finish</span>
+            <span>
+              {state.draft.points.length} vertices ·{" "}
+              {state.draft.measurementType === "polygon"
+                ? "Click the first point or press Enter to finish"
+                : "Press Enter to finish"}
+            </span>
             <button type="button" onClick={() => dispatch({ type: "SET_DRAFT", draft: null })}>
               Cancel
             </button>
           </div>
         )}
-        {state.tool === "calibrate" && state.draft?.type !== "polygon" && (
+        {state.tool === "calibrate" && state.draft?.type !== "path" && (
           <div className={styles.drawingStatus}>
             <span>
               Select two points for the{" "}
@@ -893,12 +933,6 @@ const MeasurementShape = memo(function MeasurementShape({
   const stroke = selected ? "#c2410c" : "#2563eb";
   const visibleMeasurement = useMemo<Measurement>(() => {
     if (!dragPoints) return measurement;
-    if (measurement.type === "line") {
-      return {
-        ...measurement,
-        points: [dragPoints[0] ?? measurement.points[0], dragPoints[1] ?? measurement.points[1]],
-      };
-    }
     return { ...measurement, points: dragPoints };
   }, [dragPoints, measurement]);
   const calibration = getMeasurementCalibration(page, visibleMeasurement);
@@ -907,14 +941,8 @@ const MeasurementShape = memo(function MeasurementShape({
     [visibleMeasurement.points],
   );
   const labelPoint = useMemo(
-    () =>
-      visibleMeasurement.type === "line"
-        ? {
-            x: (visibleMeasurement.points[0].x + visibleMeasurement.points[1].x) / 2,
-            y: (visibleMeasurement.points[0].y + visibleMeasurement.points[1].y) / 2,
-          }
-        : averagePoint(visibleMeasurement.points),
-    [visibleMeasurement],
+    () => averagePoint(visibleMeasurement.points),
+    [visibleMeasurement.points],
   );
   const labelText = useMemo(
     () => (calibration ? formatMeasurement(visibleMeasurement, calibration, displayUnit) : null),
@@ -1014,26 +1042,22 @@ const MeasurementShape = memo(function MeasurementShape({
 
   return (
     <Group>
-      {measurement.type === "line" ? (
-        <Line
-          points={flatPoints}
-          stroke={stroke}
-          strokeWidth={(selected ? 3 : 2) / zoom}
-          hitStrokeWidth={12 / zoom}
-          onClick={select}
-        />
-      ) : (
-        <Line
-          points={flatPoints}
-          closed
-          fill={selected ? "rgba(194,65,12,0.13)" : "rgba(37,99,235,0.10)"}
-          stroke={stroke}
-          strokeWidth={(selected ? 3 : 2) / zoom}
-          hitStrokeWidth={12 / zoom}
-          lineJoin="round"
-          onClick={select}
-        />
-      )}
+      <Line
+        points={flatPoints}
+        closed={measurementPathSpecs[measurement.type].closed}
+        fill={
+          measurementPathSpecs[measurement.type].closed
+            ? selected
+              ? "rgba(194,65,12,0.13)"
+              : "rgba(37,99,235,0.10)"
+            : undefined
+        }
+        stroke={stroke}
+        strokeWidth={(selected ? 3 : 2) / zoom}
+        hitStrokeWidth={12 / zoom}
+        lineJoin="round"
+        onClick={select}
+      />
       {showLabel && labelText && labelPlacement && (
         <Label x={labelPlacement.x} y={labelPlacement.y} listening={false}>
           <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / zoom} />

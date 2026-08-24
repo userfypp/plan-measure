@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { lineLengthMm } from "../utils/geometry";
+import { getDrawingKeyboardAction } from "../utils/keyboard";
 import { appReducer, createEmptySession, initialAppState, type AppState } from "./state";
 
 function loadedState(): AppState {
@@ -46,11 +47,29 @@ describe("application reducer", () => {
     expect(line.error).toContain("valid scale");
   });
 
+  it("keeps X/Y orientation errors visible when calibration resumes", () => {
+    for (const message of [
+      "X reference must be primarily horizontal (|dx| > |dy|).",
+      "Y reference must be primarily vertical (|dy| > |dx|).",
+    ]) {
+      let state = appReducer(loadedState(), { type: "SET_TOOL", tool: "calibrate" });
+      state = appReducer(state, { type: "SET_ERROR", message });
+
+      expect(state.tool).toBe("calibrate");
+      expect(state.draft).toBeNull();
+      expect(state.error).toBe(message);
+
+      const dismissed = appReducer(state, { type: "SET_TOOL", tool: "select" });
+      expect(dismissed.error).toBeNull();
+    }
+  });
+
   it("rejects programmatic measurement creation without a valid active calibration", () => {
     const lineResult = appReducer(loadedState(), {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-1",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -60,9 +79,10 @@ describe("application reducer", () => {
     expect(lineResult.tool).toBe("select");
 
     const polygonResult = appReducer(loadedState(), {
-      type: "ADD_POLYGON",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "polygon-1",
+      measurementType: "polygon",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -80,9 +100,10 @@ describe("application reducer", () => {
     });
 
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-1",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -92,9 +113,10 @@ describe("application reducer", () => {
     expect(state.draft).toBeNull();
 
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-2",
+      measurementType: "line",
       points: [
         { x: 20, y: 20 },
         { x: 30, y: 20 },
@@ -104,7 +126,7 @@ describe("application reducer", () => {
     expect(state.tool).toBe("line");
     expect(state.draft).toBeNull();
     expect(page.measurements.map((measurement) => measurement.name)).toEqual(["Line 1", "Line 2"]);
-    expect(page.nextLineNumber).toBe(3);
+    expect(page.nextMeasurementNumber.line).toBe(3);
   });
 
   it("keeps Polygon active across consecutive measurements", () => {
@@ -114,9 +136,10 @@ describe("application reducer", () => {
     });
 
     state = appReducer(state, {
-      type: "ADD_POLYGON",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "polygon-1",
+      measurementType: "polygon",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -127,9 +150,10 @@ describe("application reducer", () => {
     expect(state.draft).toBeNull();
 
     state = appReducer(state, {
-      type: "ADD_POLYGON",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "polygon-2",
+      measurementType: "polygon",
       points: [
         { x: 20, y: 20 },
         { x: 30, y: 20 },
@@ -143,7 +167,71 @@ describe("application reducer", () => {
       "Polygon 1",
       "Polygon 2",
     ]);
-    expect(page.nextPolygonNumber).toBe(3);
+    expect(page.nextMeasurementNumber.polygon).toBe(3);
+  });
+
+  it("accepts Polygon completion with Ortho enabled, including a diagonal closing edge", () => {
+    let state = appReducer(addScale(loadedState(), "scale-1", "Scale 1"), {
+      type: "SET_TOOL",
+      tool: "polygon",
+    });
+    state = appReducer(state, { type: "SET_ORTHOGONAL", value: true });
+    state = appReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "orthogonal-polygon",
+      measurementType: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+        { x: 4, y: 10 },
+        { x: 4, y: 3 },
+      ],
+    });
+
+    expect(state.session!.pages[1]!.measurements).toContainEqual(
+      expect.objectContaining({ id: "orthogonal-polygon", type: "polygon" }),
+    );
+    expect(state.session!.pages[1]!.measurements[0]!.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 4, y: 10 },
+      { x: 4, y: 3 },
+    ]);
+    expect(state.orthogonal).toBe(true);
+  });
+
+  it("completes a Polyline with Enter and creates it with an independent generic counter", () => {
+    let state = appReducer(addScale(loadedState(), "scale-1", "Scale 1"), {
+      type: "SET_TOOL",
+      tool: "polyline",
+    });
+    const draft = {
+      type: "path" as const,
+      measurementType: "polyline" as const,
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+      ],
+      pointer: null,
+    };
+    state = appReducer(state, { type: "SET_DRAFT", draft });
+    expect(getDrawingKeyboardAction("Enter", state.tool, state.draft)).toBe("complete-path");
+    state = appReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "polyline-1",
+      measurementType: "polyline",
+      points: draft.points,
+    });
+
+    const page = state.session!.pages[1]!;
+    expect(page.measurements[0]).toMatchObject({ type: "polyline", name: "Polyline 1" });
+    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 2, polygon: 1 });
+    expect(state.tool).toBe("polyline");
   });
 
   it("creates the first calibration and makes it active", () => {
@@ -178,9 +266,10 @@ describe("application reducer", () => {
     let state = addScale(loadedState(), "uniform", "Main plan");
     state = addXyScale(state, "xy", "Scanned detail");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "xy-line",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 3, y: 4 },
@@ -201,9 +290,10 @@ describe("application reducer", () => {
   it("binds new measurements to the active calibration and keeps existing links on scale changes", () => {
     let state = addScale(loadedState(), "scale-1", "Scale 1");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-a",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -223,9 +313,10 @@ describe("application reducer", () => {
       calibrationId: "scale-2",
     });
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-b",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -239,9 +330,10 @@ describe("application reducer", () => {
   it("recalibrates only measurements linked to that calibration while preserving its ID", () => {
     let state = addScale(loadedState(), "scale-1", "Main plan");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-a",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -249,9 +341,10 @@ describe("application reducer", () => {
     });
     state = addScale(state, "scale-2", "Detail A", 5000);
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-b",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -307,9 +400,10 @@ describe("application reducer", () => {
   it("recalibrates X/Y in place and changes only its linked measurement results", () => {
     let state = addScale(loadedState(), "uniform", "Main plan");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "uniform-line",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 3, y: 4 },
@@ -317,9 +411,10 @@ describe("application reducer", () => {
     });
     state = addXyScale(state, "xy", "Scanned detail");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "xy-line",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 3, y: 4 },
@@ -368,9 +463,10 @@ describe("application reducer", () => {
   it("creates measurements with persistent page-local counters", () => {
     let state = addScale(loadedState(), "scale-1", "Scale 1");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-1",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -378,9 +474,10 @@ describe("application reducer", () => {
     });
     state = appReducer(state, { type: "DELETE_MEASUREMENT", pageNumber: 1, id: "line-1" });
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-2",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 20, y: 0 },
@@ -393,9 +490,10 @@ describe("application reducer", () => {
     let state = addScale(loadedState(), "scale-1", "  Main plan  ");
     expect(state.session?.pages[1]?.calibrations[0]?.name).toBe("Main plan");
     state = appReducer(state, {
-      type: "ADD_LINE",
+      type: "ADD_MEASUREMENT",
       pageNumber: 1,
       id: "line-1",
+      measurementType: "line",
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
@@ -424,7 +522,7 @@ describe("application reducer", () => {
     state = {
       ...state,
       tool: "line",
-      draft: { type: "line", points: [{ x: 1, y: 1 }], pointer: null },
+      draft: { type: "path", measurementType: "line", points: [{ x: 1, y: 1 }], pointer: null },
     };
     const switched = appReducer(state, {
       type: "SET_ACTIVE_CALIBRATION",
@@ -444,7 +542,8 @@ describe("application reducer", () => {
       ...loadedState(),
       tool: "polygon",
       selectedMeasurementId: "stale-measurement",
-      draft: { type: "polygon", points: [{ x: 1, y: 1 }], pointer: null },
+      draft: { type: "path", measurementType: "polygon", points: [{ x: 1, y: 1 }], pointer: null },
+      orthogonal: true,
     };
     const result = appReducer(state, {
       type: "LOAD_SESSION",
@@ -453,12 +552,13 @@ describe("application reducer", () => {
     expect(result.tool).toBe("select");
     expect(result.selectedMeasurementId).toBeNull();
     expect(result.draft).toBeNull();
+    expect(result.orthogonal).toBe(false);
   });
 
   it("ignores stale throttled pointer updates after a draft is cancelled", () => {
     const state = appReducer(loadedState(), {
       type: "UPDATE_DRAFT_POINTER",
-      draftType: "polygon",
+      draftType: "path",
       pointer: { x: 20, y: 20 },
     });
     expect(state.draft).toBeNull();

@@ -16,7 +16,7 @@ import {
   type CalibrationSelection,
   type CalibrationTransientState,
 } from "./calibrationFlow";
-import type { LinearUnit, SessionV3, Tool } from "../types/domain";
+import type { LinearUnit, SessionV4, Tool } from "../types/domain";
 import { downloadCsv } from "../services/csv";
 import {
   discardSavedSession,
@@ -26,7 +26,7 @@ import {
   type SavedSession,
 } from "../services/persistence";
 import { loadPdf, PdfUserError, validatePdfFile, type LoadedPdf } from "../services/pdf";
-import { shouldIgnoreGlobalKeyboardShortcut } from "../utils/keyboard";
+import { shouldIgnoreKeyboardShortcut } from "../utils/keyboard";
 import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
 import { isPredominantlyHorizontal, isPredominantlyVertical } from "../utils/geometry";
 import styles from "./App.module.css";
@@ -34,7 +34,7 @@ import styles from "./App.module.css";
 interface PendingPdf {
   file: File;
   loaded: LoadedPdf;
-  session: SessionV3;
+  session: SessionV4;
   loadGeneration: number;
 }
 
@@ -56,6 +56,7 @@ export function App() {
 function PlanMeasureApp() {
   const { state, dispatch } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewerFocusRef = useRef<(() => void) | null>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const persistenceGenerationRef = useRef(0);
   const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
@@ -216,7 +217,7 @@ function PlanMeasureApp() {
     function handleDelete(event: KeyboardEvent) {
       if (
         (event.key !== "Delete" && event.key !== "Backspace") ||
-        shouldIgnoreGlobalKeyboardShortcut(event.target) ||
+        shouldIgnoreKeyboardShortcut(event) ||
         !state.selectedMeasurementId ||
         !state.session
       ) {
@@ -537,19 +538,19 @@ function PlanMeasureApp() {
               if (!flow) return;
               const phase = flow.phase;
               if (phase === "x" && !isPredominantlyHorizontal(points[0], points[1])) {
+                dispatch({ type: "SET_TOOL", tool: "calibrate" });
                 dispatch({
                   type: "SET_ERROR",
                   message: "X reference must be primarily horizontal (|dx| > |dy|).",
                 });
-                dispatch({ type: "SET_TOOL", tool: "calibrate" });
                 return;
               }
               if (phase === "y" && !isPredominantlyVertical(points[0], points[1])) {
+                dispatch({ type: "SET_TOOL", tool: "calibrate" });
                 dispatch({
                   type: "SET_ERROR",
                   message: "Y reference must be primarily vertical (|dy| > |dx|).",
                 });
-                dispatch({ type: "SET_TOOL", tool: "calibrate" });
                 return;
               }
               setCalibrationCandidate(selectCalibrationReference(flow, points));
@@ -563,10 +564,12 @@ function PlanMeasureApp() {
             }
             onCalibrationCancel={cancelCalibration}
             onVertexDragStateChange={setAutosaveSuspended}
+            viewerFocusRef={viewerFocusRef}
           />
           <ToolBar
             page={currentPage}
             onChooseTool={chooseTool}
+            onRestoreViewerFocus={() => viewerFocusRef.current?.()}
             onAddScale={() => setChooseCalibrationMode(true)}
             onRecalibrate={requestRecalibration}
           />
