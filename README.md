@@ -81,6 +81,27 @@ ID and geometry, and recomputes only the measurements linked to that scale. X/Y 
 axis-aligned anisotropic scale only: it does not correct skew, perspective, local distortion, or
 non-linear warping.
 
+## Workspace guide
+
+- **Top bar:** open or replace the current PDF, open **View** to change display units and toggle
+  labels, measurement geometry, or calibration references, and export the complete measurement set
+  as CSV.
+- **Tool rail:** use Select to inspect and edit existing geometry, Hand to pan, Line/Polyline/Polygon
+  to draw, and Ortho 90° to constrain new segments. Tools that require calibration remain disabled
+  until the current page has an active scale.
+- **Viewer:** use the page controls to move through the PDF, zoom in or out, or fit the page to the
+  available space. Measurements and calibration references remain attached to their PDF page.
+- **Measurements tab:** select a measurement, rename it, or delete it. The fixed **Selection
+  Inspector** shows the selected object's type, calculated value, scale/calibration, and assigned
+  classifications without duplicating the row actions.
+- **Classifications tab:** assign catalog values to the selected measurement and manage the reusable
+  catalog. Dimensions and values can be created and renamed; values can be archived without removing
+  existing assignments and restored later. Dimension names are unique, and value names are unique
+  within each dimension.
+
+Classification assignments are measurement-specific. Selecting another measurement changes the
+assignment controls and inspector without changing the catalog or other measurements.
+
 ## Architecture
 
 The application uses Vite 8, React 19.2, strict TypeScript, CSS Modules, PDF.js, Konva, and
