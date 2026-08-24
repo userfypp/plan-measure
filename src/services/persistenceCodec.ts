@@ -2,6 +2,7 @@ import type {
   Calibration,
   LegacyMeasurement,
   Measurement,
+  MeasurementV4,
   MeasurementV3,
   PageCalibration,
   Point,
@@ -9,6 +10,7 @@ import type {
   SessionV2,
   SessionV3,
   SessionV4,
+  SessionV5,
 } from "../types/domain";
 import {
   hasValidMeasurementPoints,
@@ -116,7 +118,7 @@ function isMeasurementV3(value: unknown): value is MeasurementV3 {
     hasValidMeasurementShapeV3(value)
   );
 }
-function isMeasurement(value: unknown): value is Measurement {
+function isMeasurementV4(value: unknown): value is MeasurementV4 {
   if (
     !isObject(value) ||
     typeof value.calibrationId !== "string" ||
@@ -128,6 +130,17 @@ function isMeasurement(value: unknown): value is Measurement {
   if (typeof measurementType !== "string" || !isMeasurementType(measurementType)) return false;
   if (!hasValidMeasurementIdentity(value)) return false;
   return hasValidMeasurementPoints(measurementType, value.points as Point[]);
+}
+function isMeasurement(value: unknown): value is Measurement {
+  if (!isMeasurementV4(value) || !isObject(value)) return false;
+  const classificationValueIds = value.classificationValueIds;
+  return (
+    Array.isArray(classificationValueIds) &&
+    classificationValueIds.every(
+      (id) => typeof id === "string" && Boolean(id.trim()) && id === id.trim(),
+    ) &&
+    new Set(classificationValueIds).size === classificationValueIds.length
+  );
 }
 function hasValidSessionHeader(value: Record<string, unknown>): boolean {
   return (
@@ -244,7 +257,7 @@ function assertValidSessionV4(value: Record<string, unknown>): void {
       !Array.isArray(page.calibrations) ||
       !page.calibrations.every(isPageCalibrationV3) ||
       !Array.isArray(page.measurements) ||
-      !page.measurements.every(isMeasurement) ||
+      !page.measurements.every(isMeasurementV4) ||
       !Number.isInteger(page.nextCalibrationNumber) ||
       (page.nextCalibrationNumber as number) < 1 ||
       !hasValidMeasurementCounters(page.nextMeasurementNumber)
@@ -271,6 +284,67 @@ function assertValidSessionV4(value: Record<string, unknown>): void {
       const id = (measurement as { id: string }).id;
       if (measurementIds.has(id)) throw new Error("The saved session has duplicate measurement IDs.");
       measurementIds.add(id);
+    }
+  }
+}
+function assertValidClassificationCatalog(value: unknown): Map<string, string> {
+  if (!isObject(value) || !Array.isArray(value.dimensions))
+    throw new Error("The saved classification catalog is invalid.");
+  const ids = new Set<string>();
+  const valueDimensions = new Map<string, string>();
+  const dimensionNames = new Set<string>();
+  for (const dimension of value.dimensions) {
+    if (
+      !isObject(dimension) ||
+      typeof dimension.id !== "string" ||
+      !dimension.id.trim() ||
+      dimension.id !== dimension.id.trim() ||
+      typeof dimension.name !== "string" ||
+      !dimension.name.trim() ||
+      dimension.name !== dimension.name.trim() ||
+      !Array.isArray(dimension.values) ||
+      ids.has(dimension.id) ||
+      dimensionNames.has(dimension.name.toLocaleLowerCase())
+    )
+      throw new Error("The saved classification catalog is invalid.");
+    ids.add(dimension.id);
+    dimensionNames.add(dimension.name.toLocaleLowerCase());
+    const valueNames = new Set<string>();
+    for (const classificationValue of dimension.values) {
+      if (
+        !isObject(classificationValue) ||
+        typeof classificationValue.id !== "string" ||
+        !classificationValue.id.trim() ||
+        classificationValue.id !== classificationValue.id.trim() ||
+        typeof classificationValue.name !== "string" ||
+        !classificationValue.name.trim() ||
+        classificationValue.name !== classificationValue.name.trim() ||
+        typeof classificationValue.archived !== "boolean" ||
+        ids.has(classificationValue.id) ||
+        valueNames.has(classificationValue.name.toLocaleLowerCase())
+      )
+        throw new Error("The saved classification catalog is invalid.");
+      ids.add(classificationValue.id);
+      valueDimensions.set(classificationValue.id, dimension.id);
+      valueNames.add(classificationValue.name.toLocaleLowerCase());
+    }
+  }
+  return valueDimensions;
+}
+
+function assertValidSessionV5(value: Record<string, unknown>): void {
+  assertValidSessionV4(value);
+  const valueDimensions = assertValidClassificationCatalog(value.classificationCatalog);
+  const pages = value.pages as Record<string, { measurements: unknown[] }>;
+  for (const page of Object.values(pages)) {
+    if (!page.measurements.every(isMeasurement))
+      throw new Error("The saved session has an invalid measurement classification.");
+    for (const measurement of page.measurements as Measurement[]) {
+      if (measurement.classificationValueIds.some((id) => !valueDimensions.has(id)))
+        throw new Error("The saved session has a measurement with a missing classification value.");
+      const assignedDimensions = measurement.classificationValueIds.map((id) => valueDimensions.get(id)!);
+      if (new Set(assignedDimensions).size !== assignedDimensions.length)
+        throw new Error("The saved session assigns multiple values from one classification dimension.");
     }
   }
 }
@@ -342,8 +416,23 @@ function migrateSessionV3(session: SessionV3): SessionV4 {
   return { ...session, schemaVersion: 4, pages };
 }
 
-function canonicalizeSessionV4(session: SessionV4): SessionV4 {
-  const pages: SessionV4["pages"] = {};
+function migrateSessionV4(session: SessionV4): SessionV5 {
+  const pages: SessionV5["pages"] = {};
+  for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
+    const page = session.pages[pageNumber]!;
+    pages[pageNumber] = {
+      ...page,
+      measurements: page.measurements.map((measurement) => ({
+        ...measurement,
+        classificationValueIds: [],
+      })),
+    };
+  }
+  return { ...session, schemaVersion: 5, pages, classificationCatalog: { dimensions: [] } };
+}
+
+function canonicalizeSessionV5(session: SessionV5): SessionV5 {
+  const pages: SessionV5["pages"] = {};
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber]!;
     pages[pageNumber] = {
@@ -373,40 +462,57 @@ function canonicalizeSessionV4(session: SessionV4): SessionV4 {
         name: measurement.name,
         calibrationId: measurement.calibrationId,
         points: measurement.points.map((point) => ({ ...point })),
+        classificationValueIds: [...measurement.classificationValueIds],
       })),
       nextMeasurementNumber: { ...page.nextMeasurementNumber },
     };
   }
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     pdf: { ...session.pdf },
     pageCount: session.pageCount,
     currentPage: session.currentPage,
     pages,
     settings: { ...session.settings },
+    classificationCatalog: {
+      dimensions: session.classificationCatalog.dimensions.map((dimension) => ({
+        id: dimension.id,
+        name: dimension.name,
+        values: dimension.values.map((classificationValue) => ({ ...classificationValue })),
+      })),
+    },
   };
 }
-export function serializeSession(session: SessionV4): string {
+export function serializeSession(session: SessionV5): string {
+  assertValidSessionV5(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
-export function deserializeSession(serialized: string): SessionV4 {
+export function deserializeSession(serialized: string): SessionV5 {
   const value: unknown = JSON.parse(serialized);
   if (!isObject(value)) throw new Error("The saved session uses an unsupported schema.");
   if (value.schemaVersion === 1) {
     assertValidLegacySession(value);
-    return canonicalizeSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1)));
+    return canonicalizeSessionV5(
+      migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+    );
   }
   if (value.schemaVersion === 2) {
     assertValidSessionV3(value, isPageCalibrationV2);
-    return canonicalizeSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2)));
+    return canonicalizeSessionV5(
+      migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+    );
   }
   if (value.schemaVersion === 3) {
     assertValidSessionV3(value, isPageCalibrationV3);
-    return canonicalizeSessionV4(migrateSessionV3(value as unknown as SessionV3));
+    return canonicalizeSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3)));
   }
   if (value.schemaVersion === 4) {
     assertValidSessionV4(value);
-    return canonicalizeSessionV4(value as unknown as SessionV4);
+    return canonicalizeSessionV5(migrateSessionV4(value as unknown as SessionV4));
+  }
+  if (value.schemaVersion === 5) {
+    assertValidSessionV5(value);
+    return canonicalizeSessionV5(value as unknown as SessionV5);
   }
   throw new Error("The saved session uses an unsupported schema.");
 }

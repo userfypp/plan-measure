@@ -1,5 +1,5 @@
 import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { SessionV4 } from "../types/domain";
+import type { SessionV5 } from "../types/domain";
 import { deserializeSession, serializeSession } from "./persistenceCodec";
 
 const DATABASE_NAME = "plan-measure";
@@ -44,7 +44,7 @@ function getDatabase(): Promise<IDBPDatabase<PlanMeasureDb>> {
 }
 
 export interface SavedSession {
-  session: SessionV4;
+  session: SessionV5;
   pdfBlob: Blob;
 }
 
@@ -64,13 +64,14 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
   };
 }
 
-export async function replaceSavedSession(session: SessionV4, pdfBlob: Blob): Promise<void> {
+export async function replaceSavedSession(session: SessionV5, pdfBlob: Blob): Promise<void> {
+  const serialized = serializeSession(session);
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
   await Promise.all([
     transaction.objectStore("sessions").put({
       key: ACTIVE_KEY,
-      serialized: serializeSession(session),
+      serialized,
       savedAt: Date.now(),
     }),
     transaction.objectStore("pdfs").put({ key: ACTIVE_KEY, blob: pdfBlob }),
@@ -78,7 +79,8 @@ export async function replaceSavedSession(session: SessionV4, pdfBlob: Blob): Pr
   await transaction.done;
 }
 
-export async function saveSessionMetadata(session: SessionV4): Promise<void> {
+export async function saveSessionMetadata(session: SessionV5): Promise<void> {
+  const serialized = serializeSession(session);
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
   const pdfKey = await transaction.objectStore("pdfs").getKey(ACTIVE_KEY);
@@ -89,7 +91,7 @@ export async function saveSessionMetadata(session: SessionV4): Promise<void> {
   }
   await transaction.objectStore("sessions").put({
     key: ACTIVE_KEY,
-    serialized: serializeSession(session),
+    serialized,
     savedAt: Date.now(),
   });
   await transaction.done;

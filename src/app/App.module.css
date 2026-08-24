@@ -1,143 +1,205 @@
-.app {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  color: #1f2933;
-}
-
 .hiddenInput {
   display: none;
 }
 
-.messagePlaceholder {
-  height: 0;
+.viewerLoading {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
 }
 
-.workspace {
-  position: relative;
-  min-width: 920px;
+.secondaryPanelStack {
+  min-width: 0;
   min-height: 0;
+  height: 100%;
   display: grid;
-  grid-template-columns: 276px minmax(0, 1fr) 128px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
-.emptyState {
-  min-height: 0;
+.scaleControls {
   display: grid;
-  place-items: center;
-  padding: 32px;
-  background: #e4e7eb;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
-.dropCard {
-  width: min(520px, 100%);
+.scaleControlsHeader {
   display: grid;
-  justify-items: center;
-  padding: 58px 40px;
-  border: 2px dashed #9fb3c8;
-  border-radius: 12px;
-  background: #f8fafc;
-  text-align: center;
-}
-
-.dropCard h1 {
-  margin: 18px 0 4px;
-  color: #243b53;
-  font-size: 22px;
-}
-
-.dropCard p {
-  margin: 4px 0 12px;
-  color: #7b8794;
-  font-size: 13px;
-}
-
-.dropCard button {
-  min-height: 40px;
-  border: 1px solid #1f5faa;
-  border-radius: 6px;
-  padding: 0 18px;
-  background: #1f5faa;
-  color: #fff;
-  cursor: pointer;
-}
-
-.dropCard small {
-  margin-top: 20px;
-  color: #7b8794;
-}
-
-.documentMark {
-  width: 54px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border: 2px solid #7698b8;
-  border-radius: 6px;
-  color: #486581;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.dragActive .dropCard {
-  border-color: #1f5faa;
-  background: #eaf2fb;
-}
-
-.dropOverlay {
-  position: absolute;
-  z-index: 10;
-  inset: 16px;
-  display: grid;
-  place-items: center;
-  border: 3px dashed #1f5faa;
-  border-radius: 12px;
-  background: rgb(234 242 251 / 92%);
-  color: #174f8b;
-  font-size: 18px;
-  font-weight: 700;
-  pointer-events: none;
-}
-
-.errorBanner,
-.warning {
-  min-height: 40px;
-  display: flex;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 7px 16px;
-  background: #fee4e2;
-  color: #912018;
-  font-size: 13px;
+  justify-content: space-between;
+  gap: var(--space-8);
 }
 
-.warning {
-  background: #fff1c2;
-  color: #7a4d00;
+.scaleControlsActions {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-4);
 }
 
-.errorBanner button,
-.warning button {
+.scaleControlsActions > * {
+  grid-column: span 3;
+  padding-inline: var(--space-4);
+  font-size: var(--font-size-xs);
+}
+
+.scaleControlsActions > :first-child:nth-last-child(5),
+.scaleControlsActions > :first-child:nth-last-child(5) ~ * {
+  grid-column: span 2;
+}
+
+.scaleControlsActions > :nth-child(4):nth-last-child(2),
+.scaleControlsActions > :nth-child(4):nth-last-child(2) ~ * {
+  grid-column: span 3;
+}
+
+.scaleControlsHeader > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.scaleControlsHeader > span {
+  justify-self: end;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.eyebrow {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.panelTabs button {
+  min-width: 0;
+  min-height: 40px;
   border: 0;
-  background: transparent;
-  color: inherit;
-  font-weight: 700;
-  text-decoration: underline;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 var(--space-8);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 
-.loadingOverlay {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
+.panelTabs button:hover {
+  border-bottom-color: var(--color-border-strong);
+  background: var(--color-surface-subdued);
+  color: var(--color-text);
+}
+
+.panelTabs {
   display: grid;
-  place-items: center;
-  background: rgb(238 241 244 / 78%);
-  color: #334e68;
-  font-weight: 650;
-  backdrop-filter: blur(2px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.panelTabs button[aria-selected="true"] {
+  border-bottom-color: var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-primary-active);
+}
+
+.panelTabs span {
+  color: var(--color-text-muted);
+}
+
+.panelContent {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panelContent > * {
+  width: 100%;
+  height: 100%;
+}
+
+.panelContent[hidden] {
+  display: none;
+}
+
+.secondaryPanelStack > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 820px) {
+  .scaleControls {
+    grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .scaleControlsActions {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  }
+
+  .scaleControlsActions > * {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .scaleControls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scaleControlsActions {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .scaleControlsActions > * {
+    grid-column: span 2;
+    padding-inline: var(--space-4);
+    font-size: 11px;
+  }
+
+  .scaleControlsActions > :first-child:nth-last-child(2),
+  .scaleControlsActions > :first-child:nth-last-child(2) ~ *,
+  .scaleControlsActions > :first-child:nth-last-child(4),
+  .scaleControlsActions > :first-child:nth-last-child(4) ~ *,
+  .scaleControlsActions > :nth-child(4):nth-last-child(2),
+  .scaleControlsActions > :nth-child(4):nth-last-child(2) ~ * {
+    grid-column: span 3;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 500px) {
+  .scaleControls {
+    grid-template-columns: minmax(108px, 120px) minmax(0, 1fr);
+    gap: var(--space-4);
+    padding-block: var(--space-4);
+  }
+
+  .scaleControlsHeader > span {
+    display: none;
+  }
+
+  .scaleControlsHeader {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scaleControlsActions {
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .scaleControlsActions > * {
+    grid-column: auto;
+  }
 }
 
 .modalActions {
@@ -145,110 +207,4 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
-}
-
-.modalActions button {
-  min-height: 38px;
-  border: 1px solid #aab4be;
-  border-radius: 6px;
-  padding: 0 14px;
-  background: #fff;
-  color: #243b53;
-  cursor: pointer;
-}
-
-.modalActions .primary {
-  border-color: #1f5faa;
-  background: #1f5faa;
-  color: #fff;
-}
-
-.modalActions .danger {
-  border-color: #b42318;
-  background: #b42318;
-  color: #fff;
-}
-
-.referenceEditList {
-  display: grid;
-  gap: 10px;
-  max-height: min(52vh, 420px);
-  margin: 0;
-  padding: 0 4px 0 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.referenceEditRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.referenceEditInfo {
-  min-width: 0;
-}
-
-.referenceEditName {
-  display: block;
-  overflow-wrap: anywhere;
-  color: #243b53;
-  line-height: 1.35;
-}
-
-.referenceEditMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 5px;
-  color: #52606d;
-  font-size: 13px;
-}
-
-.referenceEditType {
-  border-radius: 999px;
-  padding: 1px 7px;
-  background: #d9e2ec;
-  color: #334e68;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.referenceEditActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.referenceEditActions button {
-  min-height: 38px;
-  border: 1px solid #aab4be;
-  border-radius: 6px;
-  padding: 0 14px;
-  background: #fff;
-  color: #243b53;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.referenceEditActions button:focus-visible,
-.modalActions button:focus-visible {
-  outline: 3px solid rgb(31 95 170 / 35%);
-  outline-offset: 2px;
-}
-
-@media (max-width: 520px) {
-  .referenceEditRow {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .referenceEditActions {
-    justify-content: flex-start;
-  }
 }

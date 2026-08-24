@@ -56,7 +56,7 @@ export function formatNumber(value: number): string {
 }
 
 export function formatMeasurement(
-  measurement: Measurement,
+  measurement: Pick<Measurement, "type" | "points">,
   calibration: PageCalibration,
   unit: LinearUnit,
 ): string {

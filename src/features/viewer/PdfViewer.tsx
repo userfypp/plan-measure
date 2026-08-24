@@ -6,9 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type Dispatch,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -17,7 +15,9 @@ import { Circle, Group, Label, Layer, Line, Rect, Stage, Tag, Text } from "react
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import { useAppState, type AppAction } from "../../app/state";
+import { useAppState } from "../../app/state";
+import { useSessionState } from "../../app/sessionState";
+import { useWorkspaceState } from "../../app/workspaceState";
 import type {
   LinearUnit,
   CalibrationReferenceKey,
@@ -50,15 +50,24 @@ import {
   zoomViewAtPoint,
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
-import { getViewerKeyboardAction, shouldIgnoreGlobalKeyboardShortcut } from "../../utils/keyboard";
+import {
+  getGlobalViewerKeyboardAction,
+  getViewerKeyboardAction,
+  shouldIgnoreGlobalKeyboardShortcut,
+  type ViewerKeyboardAction,
+} from "../../utils/keyboard";
 import {
   LABEL_EDGE_MARGIN_SCREEN_PX,
+  placeLabelAvoidingOverlaps,
   placeLabelWithinBounds,
   type LabelDimensions,
+  type LabelPlacement,
+  type OccupiedLabelRect,
 } from "../../utils/labelLayout";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
+import { useViewerNavigationRegistration } from "./ViewerNavigation";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
 const LABEL_PADDING_SCREEN_PX = 4;
@@ -77,8 +86,6 @@ interface PdfViewerProps {
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
   onCalibrationReferenceEditCancel: () => void;
   onCalibrationReferenceEditSave: () => void;
-  onVertexDragStateChange: (dragging: boolean) => void;
-  viewerFocusRef: MutableRefObject<(() => void) | null>;
 }
 
 interface CalibrationReferenceEditPreview {
@@ -137,10 +144,25 @@ export function PdfViewer({
   onCalibrationReferencePointsChange,
   onCalibrationReferenceEditCancel,
   onCalibrationReferenceEditSave,
-  onVertexDragStateChange,
-  viewerFocusRef,
 }: PdfViewerProps) {
-  const { state, dispatch } = useAppState();
+  const { setError } = useAppState();
+  const onNavigationChange = useViewerNavigationRegistration();
+  const { session, addMeasurement } = useSessionState();
+  const {
+    activeTool,
+    draft: workspaceDraft,
+    orthogonal,
+    toggleOrthogonal,
+    chooseTool: chooseWorkspaceTool,
+    selectedMeasurementId,
+    selectMeasurement: selectWorkspaceMeasurement,
+    clearSelection: clearWorkspaceSelection,
+    startDraft,
+    updateDraft,
+    updateDraftPointer,
+    clearDraft,
+    completeDraft,
+  } = useWorkspaceState();
   const viewerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageGroupRef = useRef<Konva.Group>(null);
@@ -171,19 +193,34 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+  const selectMeasurement = useCallback(
+    (id: string) => {
+      selectWorkspaceMeasurement(id);
+      setError(null);
+    },
+    [selectWorkspaceMeasurement, setError],
+  );
+  const clearSelection = useCallback(() => {
+    clearWorkspaceSelection();
+    setError(null);
+  }, [clearWorkspaceSelection, setError]);
   const completePath = useCallback(
     (measurementType: MeasurementType, points: Point[]) => {
-      dispatch({
-        type: "ADD_MEASUREMENT",
+      const id = crypto.randomUUID();
+      addMeasurement({
         pageNumber: page.pageNumber,
-        id: crypto.randomUUID(),
+        id,
         measurementType,
         points,
       });
+      completeDraft();
+      selectWorkspaceMeasurement(id);
     },
-    [dispatch, page.pageNumber],
+    [addMeasurement, completeDraft, page.pageNumber, selectWorkspaceMeasurement],
   );
-  const stateRef = useRef(state);
+  const activeToolRef = useRef(activeTool);
+  const workspaceDraftRef = useRef(workspaceDraft);
+  const clearDraftRef = useRef(clearDraft);
   const viewerSizeRef = useRef(viewerSize);
   const onCalibrationCancelRef = useRef(onCalibrationCancel);
   const onChooseToolRef = useRef(onChooseTool);
@@ -192,7 +229,9 @@ export function PdfViewer({
   const onCalibrationReferenceEditCancelRef = useRef(onCalibrationReferenceEditCancel);
 
   useLayoutEffect(() => {
-    stateRef.current = state;
+    activeToolRef.current = activeTool;
+    workspaceDraftRef.current = workspaceDraft;
+    clearDraftRef.current = clearDraft;
     viewerSizeRef.current = viewerSize;
     onCalibrationCancelRef.current = onCalibrationCancel;
     onChooseToolRef.current = onChooseTool;
@@ -201,23 +240,17 @@ export function PdfViewer({
     onCalibrationReferenceEditCancelRef.current = onCalibrationReferenceEditCancel;
   }, [
     calibrationReferenceEdit,
+    clearDraft,
     completePath,
     onCalibrationCancel,
     onCalibrationReferenceEditCancel,
     onChooseTool,
-    state,
+    activeTool,
+    workspaceDraft,
     viewerSize,
   ]);
 
   const bounds = pageRenderData?.bounds ?? null;
-
-  useEffect(() => {
-    const focusViewer = () => viewerRef.current?.focus({ preventScroll: true });
-    viewerFocusRef.current = focusViewer;
-    return () => {
-      if (viewerFocusRef.current === focusViewer) viewerFocusRef.current = null;
-    };
-  }, [viewerFocusRef]);
 
   const commitTransform = useCallback((next: ViewTransform) => {
     transformRef.current = next;
@@ -282,7 +315,7 @@ export function PdfViewer({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          dispatch({ type: "SET_ERROR", message: pdfRenderErrorMessage(error) });
+          setError(pdfRenderErrorMessage(error));
         }
       });
     return () => {
@@ -291,7 +324,7 @@ export function PdfViewer({
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
     };
-  }, [dispatch, document, page.pageNumber]);
+  }, [document, page.pageNumber, setError]);
 
   useEffect(() => {
     if (!bounds || viewerSize.width <= 0 || viewerSize.height <= 0 || !fitMode) return;
@@ -334,7 +367,7 @@ export function PdfViewer({
       const cachedRaster = renderCacheRef.current.get(cacheKey);
       if (cachedRaster) {
         if (!copyRasterToCanvas(cachedRaster, canvas)) {
-          dispatch({ type: "SET_ERROR", message: "The PDF canvas could not be created." });
+          setError("The PDF canvas could not be created.");
           return;
         }
         pageReadyRef.current = true;
@@ -347,7 +380,7 @@ export function PdfViewer({
       rasterCanvas.height = layout.backingHeight;
       const context = rasterCanvas.getContext("2d", { alpha: false });
       if (!context) {
-        dispatch({ type: "SET_ERROR", message: "The PDF canvas could not be created." });
+        setError("The PDF canvas could not be created.");
         return;
       }
       const renderViewport = loadedPage.pdfPage.getViewport({
@@ -370,7 +403,7 @@ export function PdfViewer({
             layout.backingWidth * layout.backingHeight,
           );
           if (!copyRasterToCanvas(rasterCanvas, canvas)) {
-            dispatch({ type: "SET_ERROR", message: "The PDF canvas could not be created." });
+            setError("The PDF canvas could not be created.");
             return;
           }
           pageReadyRef.current = true;
@@ -380,7 +413,7 @@ export function PdfViewer({
           if (requestId !== renderRequestRef.current) return;
           renderTaskRef.current = null;
           const message = pdfRenderErrorMessage(error);
-          if (message) dispatch({ type: "SET_ERROR", message });
+          if (message) setError(message);
         });
     };
 
@@ -394,7 +427,7 @@ export function PdfViewer({
         renderTaskRef.current = null;
       }
     };
-  }, [devicePixelRatio, dispatch, pageRenderData, viewTransform.zoom, viewerSize]);
+  }, [devicePixelRatio, pageRenderData, setError, viewTransform.zoom, viewerSize]);
 
   useEffect(
     () => () => {
@@ -434,6 +467,29 @@ export function PdfViewer({
     commitTransform(fitToScreen(bounds, viewerSize));
   }, [bounds, viewerSize, commitTransform]);
 
+  useLayoutEffect(() => {
+    onNavigationChange?.({
+      pageNumber: page.pageNumber,
+      pageCount: session?.pageCount ?? 1,
+      zoom: viewTransform.zoom,
+      onPageChange,
+      onZoomOut: () =>
+        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP),
+      onZoomIn: () =>
+        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, VIEWER_ZOOM_STEP),
+      onFit: fitPage,
+    });
+  }, [
+    fitPage,
+    onNavigationChange,
+    onPageChange,
+    page.pageNumber,
+    session?.pageCount,
+    viewTransform.zoom,
+    viewerSize,
+    zoomAround,
+  ]);
+
   const focusViewerSurface = useCallback((target: EventTarget | null) => {
     if (shouldIgnoreGlobalKeyboardShortcut(target)) return;
     viewerRef.current?.focus({ preventScroll: true });
@@ -449,22 +505,8 @@ export function PdfViewer({
     [focusViewerSurface],
   );
 
-  const handleViewerKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const currentState = stateRef.current;
-      if (event.key === "Escape" && calibrationReferenceEditRef.current) {
-        event.preventDefault();
-        onCalibrationReferenceEditCancelRef.current();
-        return;
-      }
-      const action = getViewerKeyboardAction(
-        event.nativeEvent,
-        currentState.tool,
-        currentState.draft,
-      );
-      if (!action) return;
-
-      event.preventDefault();
+  const executeKeyboardAction = useCallback(
+    (action: ViewerKeyboardAction) => {
       if (action === "start-pan") {
         setSpacePan(true);
       } else if (action === "zoom-in" || action === "zoom-out") {
@@ -474,31 +516,96 @@ export function PdfViewer({
           action === "zoom-in" ? VIEWER_ZOOM_STEP : 1 / VIEWER_ZOOM_STEP,
         );
       } else if (action === "cancel-calibration") {
-        dispatch({ type: "SET_DRAFT", draft: null });
+        clearDraftRef.current();
         onCalibrationCancelRef.current();
       } else if (action === "complete-path") {
-        const draft = currentState.draft;
+        const draft = workspaceDraftRef.current;
         if (draft?.type === "path") {
           completePathRef.current(draft.measurementType, draft.points);
         }
       } else if (action === "cancel-draft") {
-        dispatch({ type: "SET_DRAFT", draft: null });
+        clearDraftRef.current();
       } else if (action === "exit-tool") {
-        dispatch({ type: "SET_TOOL", tool: "select" });
+        onChooseToolRef.current("select");
       } else if (action === "toggle-orthogonal") {
-        dispatch({ type: "SET_ORTHOGONAL", value: !currentState.orthogonal });
+        toggleOrthogonal();
       } else {
         onChooseToolRef.current(action.tool);
       }
     },
-    [dispatch, zoomAround],
+    [toggleOrthogonal, zoomAround],
   );
 
-  const handleViewerKeyUp = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== " ") return;
+  const finishPan = useCallback(() => {
+    const completedPan = panDragRef.current !== null;
+    panDragRef.current = null;
+    if (completedPan) {
+      setTransform(transformRef.current);
+      if (suppressPanClickTimerRef.current !== null) {
+        window.clearTimeout(suppressPanClickTimerRef.current);
+      }
+      suppressPanClickTimerRef.current = window.setTimeout(() => {
+        suppressPanClickRef.current = false;
+        suppressPanClickTimerRef.current = null;
+      }, 0);
+    }
+    setIsPanning(false);
+  }, []);
+
+  const releaseSpacePan = useCallback(() => {
     if (panDragRef.current) setTransform(transformRef.current);
     setSpacePan(false);
   }, []);
+
+  const handleViewerKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape" && calibrationReferenceEditRef.current) {
+        event.preventDefault();
+        onCalibrationReferenceEditCancelRef.current();
+        return;
+      }
+      const action = getViewerKeyboardAction(
+        event.nativeEvent,
+        activeToolRef.current,
+        workspaceDraftRef.current,
+      );
+      if (!action) return;
+      if (
+        event.repeat &&
+        (action === "toggle-orthogonal" || typeof action === "object")
+      ) return;
+
+      event.preventDefault();
+      if (typeof action === "object" && action.tool === activeToolRef.current) return;
+      executeKeyboardAction(action);
+    },
+    [executeKeyboardAction],
+  );
+
+  useEffect(() => {
+    function handleGlobalKeyDown(event: KeyboardEvent) {
+      const action = getGlobalViewerKeyboardAction(event);
+      if (!action) return;
+      if (typeof action === "object" && action.tool === activeToolRef.current) return;
+      event.preventDefault();
+      executeKeyboardAction(action);
+    }
+    function handleGlobalKeyUp(event: KeyboardEvent) {
+      if (event.key === " ") releaseSpacePan();
+    }
+    function handleWindowBlur() {
+      releaseSpacePan();
+      finishPan();
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    window.addEventListener("keyup", handleGlobalKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+      window.removeEventListener("keyup", handleGlobalKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [executeKeyboardAction, finishPan, releaseSpacePan]);
 
   function stagePointer(event: KonvaEventObject<MouseEvent | WheelEvent>): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
@@ -506,7 +613,7 @@ export function PdfViewer({
   }
 
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
-    if (!startsViewerPan(state.tool, spacePan, event.evt.button)) return;
+    if (!startsViewerPan(activeTool, spacePan, event.evt.button)) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
     event.evt.preventDefault();
@@ -538,11 +645,7 @@ export function PdfViewer({
       const pending = pendingDraftPointerRef.current;
       pendingDraftPointerRef.current = null;
       if (!pending) return;
-      dispatch({
-        type: "UPDATE_DRAFT_POINTER",
-        draftType: pending.draftType,
-        pointer: pending.point,
-      });
+      updateDraftPointer(pending.draftType, pending.point);
     });
   }
 
@@ -558,26 +661,14 @@ export function PdfViewer({
       });
       return;
     }
-    if (!bounds || !state.draft) return;
+    if (!bounds || !workspaceDraft) return;
     const pagePoint = screenToPage(pointer, transformRef.current);
     if (!isPointInPage(pagePoint, bounds)) return;
-    queueDraftPointerUpdate(state.draft.type, pagePoint);
+    queueDraftPointerUpdate(workspaceDraft.type, pagePoint);
   }
 
   function handleMouseUp() {
-    const completedPan = panDragRef.current !== null;
-    panDragRef.current = null;
-    if (completedPan) {
-      setTransform(transformRef.current);
-      if (suppressPanClickTimerRef.current !== null) {
-        window.clearTimeout(suppressPanClickTimerRef.current);
-      }
-      suppressPanClickTimerRef.current = window.setTimeout(() => {
-        suppressPanClickRef.current = false;
-        suppressPanClickTimerRef.current = null;
-      }, 0);
-    }
-    setIsPanning(false);
+    finishPan();
   }
 
   function handleStageClick(event: KonvaEventObject<MouseEvent>) {
@@ -591,12 +682,12 @@ export function PdfViewer({
       return;
     }
     if (calibrationReferenceEdit) return;
-    if (!bounds || state.tool === "select" || state.tool === "hand" || spacePan) {
+    if (!bounds || activeTool === "select" || activeTool === "hand" || spacePan) {
       if (
         (event.target === event.target.getStage() || event.target.name() === "page-background") &&
-        state.tool === "select"
+        activeTool === "select"
       ) {
-        dispatch({ type: "SELECT_MEASUREMENT", id: null });
+        clearSelection();
       }
       return;
     }
@@ -604,34 +695,29 @@ export function PdfViewer({
     if (!pointer) return;
     const point = screenToPage(pointer, transformRef.current);
     if (!isPointInPage(point, bounds)) return;
-    const draft = state.draft;
+    const draft = workspaceDraft;
 
-    if (state.tool === "calibrate") {
+    if (activeTool === "calibrate") {
       if (!draft || draft.type !== "calibrate" || draft.points.length === 0) {
-        dispatch({
-          type: "SET_DRAFT",
-          draft: { type: "calibrate", points: [point], pointer: point },
-        });
+        startDraft({ type: "calibrate", points: [point], pointer: point });
         return;
       }
       const first = draft.points[0]!;
       if (areEffectivelyIdentical(first, point)) {
-        dispatch({ type: "SET_ERROR", message: "Choose two distinct calibration points." });
+        setError("Choose two distinct calibration points.");
         return;
       }
-      dispatch({ type: "SET_DRAFT", draft: null });
-      dispatch({ type: "SET_TOOL", tool: "select" });
+      clearDraft();
+      chooseWorkspaceTool("select");
+      setError(null);
       onCalibrationCandidate([first, point]);
       return;
     }
 
-    if (isMeasurementType(state.tool)) {
-      const measurementType = state.tool;
+    if (isMeasurementType(activeTool)) {
+      const measurementType = activeTool;
       if (!draft || draft.type !== "path" || draft.measurementType !== measurementType) {
-        dispatch({
-          type: "SET_DRAFT",
-          draft: { type: "path", measurementType, points: [point], pointer: point },
-        });
+        startDraft({ type: "path", measurementType, points: [point], pointer: point });
         return;
       }
       const first = draft.points[0];
@@ -647,16 +733,13 @@ export function PdfViewer({
         return;
       }
       const last = draft.points.at(-1);
-      const effectivePoint = last && state.orthogonal ? constrainOrthogonal(last, point) : point;
+      const effectivePoint = last && orthogonal ? constrainOrthogonal(last, point) : point;
       if (last && areEffectivelyIdentical(last, effectivePoint)) return;
       if (spec.maxVertices === 2) {
         completePath(measurementType, [...draft.points, effectivePoint]);
         return;
       }
-      dispatch({
-        type: "SET_DRAFT",
-        draft: { ...draft, points: [...draft.points, effectivePoint], pointer: effectivePoint },
-      });
+      updateDraft({ ...draft, points: [...draft.points, effectivePoint], pointer: effectivePoint });
     }
   }
 
@@ -681,22 +764,22 @@ export function PdfViewer({
 
   const cursorClass = isPanning
     ? styles.cursorGrabbing
-    : state.tool === "hand" || spacePan
+    : activeTool === "hand" || spacePan
       ? styles.cursorGrab
-      : state.tool === "select"
+      : activeTool === "select"
         ? styles.cursorDefault
         : styles.cursorCrosshair;
 
   const draftPoints = useMemo(() => {
-    if (!state.draft) return [];
-    if (!state.draft.pointer) return state.draft.points;
-    const last = state.draft.points.at(-1);
+    if (!workspaceDraft) return [];
+    if (!workspaceDraft.pointer) return workspaceDraft.points;
+    const last = workspaceDraft.points.at(-1);
     const pointer =
-      state.draft.type === "path" && state.orthogonal && last
-        ? constrainOrthogonal(last, state.draft.pointer)
-        : state.draft.pointer;
-    return [...state.draft.points, pointer];
-  }, [state.draft, state.orthogonal]);
+      workspaceDraft.type === "path" && orthogonal && last
+        ? constrainOrthogonal(last, workspaceDraft.pointer)
+        : workspaceDraft.pointer;
+    return [...workspaceDraft.points, pointer];
+  }, [orthogonal, workspaceDraft]);
 
   const showPage = Boolean(
     pageReady &&
@@ -707,6 +790,82 @@ export function PdfViewer({
     viewerSize.height > 0,
   );
   const pdfCanvasLayout = bounds ? canvasLayout(bounds, viewTransform, devicePixelRatio) : null;
+  const displayUnit = session?.settings.displayUnit ?? "m";
+  const showCalibrationLabels = session?.settings.showCalibration ?? false;
+  const showMeasurementLabels = Boolean(
+    session?.settings.showMeasurements && session.settings.showLabels,
+  );
+  const plannedLabelPlacements = useMemo(() => {
+    const placements = new Map<string, LabelPlacement>();
+    const occupied: OccupiedLabelRect[] = [];
+    if (!bounds) return placements;
+
+    function reserve(key: string, anchor: Point, dimensions: LabelDimensions) {
+      const placement = placeLabelAvoidingOverlaps(
+        anchor,
+        dimensions,
+        bounds!,
+        viewTransform.zoom,
+        occupied,
+        LABEL_EDGE_MARGIN_SCREEN_PX,
+      );
+      placements.set(key, placement);
+      occupied.push({ ...placement, ...dimensions });
+    }
+
+    if (showCalibrationLabels) {
+      for (const calibration of page.calibrations) {
+        const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
+        const references = calibration.mode === "uniform"
+          ? [{ key: "uniform", label: calibration.name, start: calibration.start, end: calibration.end }]
+          : [
+              { key: "x", label: `${calibration.name} · X`, ...calibration.xReference },
+              { key: "y", label: `${calibration.name} · Y`, ...calibration.yReference },
+            ];
+        for (const reference of references) {
+          const referenceIsEditing = editing && calibrationReferenceEdit?.reference === reference.key;
+          const start = referenceIsEditing && calibrationReferenceEdit
+            ? calibrationReferenceEdit.points[0]
+            : reference.start;
+          const end = referenceIsEditing && calibrationReferenceEdit
+            ? calibrationReferenceEdit.points[1]
+            : reference.end;
+          const labelText = `${reference.label}${referenceIsEditing ? " · editing" : ""}`;
+          reserve(
+            `calibration:${calibration.id}:${reference.key}`,
+            { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+            measureLabelText(labelText, CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX, viewTransform.zoom),
+          );
+        }
+      }
+    }
+
+    if (showMeasurementLabels) {
+      const orderedMeasurements = [...page.measurements].sort((left, right) =>
+        left.id === selectedMeasurementId ? -1 : right.id === selectedMeasurementId ? 1 : 0,
+      );
+      for (const measurement of orderedMeasurements) {
+        const calibration = getMeasurementCalibration(page, measurement);
+        if (!calibration) continue;
+        const labelText = formatMeasurement(measurement, calibration, displayUnit);
+        reserve(
+          `measurement:${measurement.id}`,
+          averagePoint(measurement.points),
+          measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, viewTransform.zoom),
+        );
+      }
+    }
+    return placements;
+  }, [
+    bounds,
+    calibrationReferenceEdit,
+    page,
+    selectedMeasurementId,
+    displayUnit,
+    showCalibrationLabels,
+    showMeasurementLabels,
+    viewTransform.zoom,
+  ]);
 
   return (
     <div className={styles.viewerShell}>
@@ -715,11 +874,11 @@ export function PdfViewer({
         className={`${styles.viewport} ${cursorClass}`}
         role="region"
         tabIndex={0}
+        data-dialog-focus-fallback
         aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, or P to select a tool.`}
         onPointerDownCapture={handleViewerPointerDown}
         onWheelCapture={handleViewerWheel}
         onKeyDown={handleViewerKeyDown}
-        onKeyUp={handleViewerKeyUp}
       >
         <canvas
           ref={canvasRef}
@@ -767,7 +926,7 @@ export function PdfViewer({
                   height={bounds.height}
                   fill="rgba(255,255,255,0.001)"
                 />
-                {state.session?.settings.showCalibration &&
+                {session?.settings.showCalibration &&
                   page.calibrations.flatMap((calibration) => {
                     const active = calibration.id === page.activeCalibrationId;
                     const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
@@ -801,18 +960,15 @@ export function PdfViewer({
                         x: (visibleReference.start.x + visibleReference.end.x) / 2,
                         y: (visibleReference.start.y + visibleReference.end.y) / 2,
                       };
+                      const labelText = `${reference.label}${referenceIsEditing ? " · editing" : ""}`;
                       const labelDimensions = measureLabelText(
-                        `${reference.label}${referenceIsEditing ? " · editing" : ""}`,
+                        labelText,
                         CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
                         viewTransform.zoom,
                       );
-                      const labelPlacement = placeLabelWithinBounds(
-                        labelPoint,
-                        labelDimensions,
-                        bounds,
-                        viewTransform.zoom,
-                        LABEL_EDGE_MARGIN_SCREEN_PX,
-                      );
+                      const labelPlacement = plannedLabelPlacements.get(
+                        `calibration:${calibration.id}:${reference.key}`,
+                      ) ?? placeLabelWithinBounds(labelPoint, labelDimensions, bounds, viewTransform.zoom);
                       return (
                         <Group
                           key={`${calibration.id}-${reference.key}`}
@@ -839,7 +995,7 @@ export function PdfViewer({
                           <Label x={labelPlacement.x} y={labelPlacement.y}>
                             <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / viewTransform.zoom} />
                             <Text
-                              text={reference.label}
+                              text={labelText}
                               fill="#fff"
                               fontSize={CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX / viewTransform.zoom}
                               padding={LABEL_PADDING_SCREEN_PX / viewTransform.zoom}
@@ -849,7 +1005,7 @@ export function PdfViewer({
                       );
                     });
                   })}
-                {state.session?.settings.showMeasurements &&
+                {session?.settings.showMeasurements &&
                   page.measurements.map((measurement) => (
                     <MeasurementShape
                       key={measurement.id}
@@ -857,36 +1013,38 @@ export function PdfViewer({
                       bounds={bounds}
                       zoom={viewTransform.zoom}
                       transform={viewTransform}
-                      selected={state.selectedMeasurementId === measurement.id}
+                      selected={selectedMeasurementId === measurement.id}
                       editable={
-                        state.tool === "select" &&
+                        activeTool === "select" &&
                         !spacePan &&
                         !isPanning &&
                         !calibrationReferenceEdit
                       }
-                      showLabel={state.session?.settings.showLabels ?? true}
+                      showLabel={session?.settings.showLabels ?? true}
                       page={page}
-                      displayUnit={state.session?.settings.displayUnit ?? "m"}
+                      displayUnit={session?.settings.displayUnit ?? "m"}
                       pageNumber={page.pageNumber}
-                      dispatch={dispatch}
-                      onVertexDragStateChange={onVertexDragStateChange}
+                      onSelectMeasurement={selectMeasurement}
+                      plannedLabelPlacement={
+                        plannedLabelPlacements.get(`measurement:${measurement.id}`) ?? null
+                      }
                     />
                   ))}
-                {state.draft && draftPoints.length >= 2 && (
+                {workspaceDraft && draftPoints.length >= 2 && (
                   <Line
                     points={pointsToFlat(draftPoints)}
-                    stroke={state.draft.type === "calibrate" ? "#d97706" : "#2563eb"}
+                    stroke={workspaceDraft.type === "calibrate" ? "#d97706" : "#2563eb"}
                     strokeWidth={2 / viewTransform.zoom}
                     dash={[7 / viewTransform.zoom, 5 / viewTransform.zoom]}
                     lineJoin="round"
                   />
                 )}
-                {state.draft?.type === "path" &&
-                  measurementPathSpecs[state.draft.measurementType].closed &&
-                  state.draft.points[0] && (
+                {workspaceDraft?.type === "path" &&
+                  measurementPathSpecs[workspaceDraft.measurementType].closed &&
+                  workspaceDraft.points[0] && (
                     <Circle
-                      x={state.draft.points[0].x}
-                      y={state.draft.points[0].y}
+                      x={workspaceDraft.points[0].x}
+                      y={workspaceDraft.points[0].y}
                       radius={7 / viewTransform.zoom}
                       fill="#fff"
                       stroke="#2563eb"
@@ -920,20 +1078,20 @@ export function PdfViewer({
             </button>
           </div>
         )}
-        {state.draft?.type === "path" && state.draft.measurementType !== "line" && (
+        {workspaceDraft?.type === "path" && workspaceDraft.measurementType !== "line" && (
           <div className={styles.drawingStatus}>
             <span>
-              {state.draft.points.length} vertices ·{" "}
-              {state.draft.measurementType === "polygon"
+              {workspaceDraft.points.length} vertices ·{" "}
+              {workspaceDraft.measurementType === "polygon"
                 ? "Click the first point or press Enter to finish"
                 : "Press Enter to finish"}
             </span>
-            <button type="button" onClick={() => dispatch({ type: "SET_DRAFT", draft: null })}>
+            <button type="button" onClick={clearDraft}>
               Cancel
             </button>
           </div>
         )}
-        {state.tool === "calibrate" && state.draft?.type !== "path" && (
+        {activeTool === "calibrate" && workspaceDraft?.type !== "path" && (
           <div className={styles.drawingStatus}>
             <span>
               Select two points for the{" "}
@@ -947,48 +1105,6 @@ export function PdfViewer({
           </div>
         )}
       </div>
-      <nav className={styles.navigation} aria-label="PDF page and zoom controls">
-        <button
-          type="button"
-          onClick={() => onPageChange(page.pageNumber - 1)}
-          disabled={page.pageNumber <= 1}
-        >
-          Previous
-        </button>
-        <span>
-          Page {page.pageNumber} of {state.session?.pageCount ?? 1}
-        </span>
-        <button
-          type="button"
-          onClick={() => onPageChange(page.pageNumber + 1)}
-          disabled={page.pageNumber >= (state.session?.pageCount ?? 1)}
-        >
-          Next
-        </button>
-        <span className={styles.separator} />
-        <button
-          type="button"
-          aria-label="Zoom out"
-          onClick={() =>
-            zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP)
-          }
-        >
-          −
-        </button>
-        <span className={styles.zoomValue}>{Math.round(viewTransform.zoom * 100)}%</span>
-        <button
-          type="button"
-          aria-label="Zoom in"
-          onClick={() =>
-            zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, VIEWER_ZOOM_STEP)
-          }
-        >
-          +
-        </button>
-        <button type="button" onClick={fitPage}>
-          Fit to screen
-        </button>
-      </nav>
     </div>
   );
 }
@@ -1107,8 +1223,8 @@ interface MeasurementShapeProps {
   selected: boolean;
   editable: boolean;
   showLabel: boolean;
-  dispatch: Dispatch<AppAction>;
-  onVertexDragStateChange: (dragging: boolean) => void;
+  onSelectMeasurement: (id: string) => void;
+  plannedLabelPlacement: LabelPlacement | null;
 }
 
 const MeasurementShape = memo(function MeasurementShape({
@@ -1122,11 +1238,10 @@ const MeasurementShape = memo(function MeasurementShape({
   selected,
   editable,
   showLabel,
-  dispatch,
-  onVertexDragStateChange,
+  onSelectMeasurement,
+  plannedLabelPlacement,
 }: MeasurementShapeProps) {
-  const vertexFrameRef = useRef<number | null>(null);
-  const pendingVertexPointsRef = useRef<Point[] | null>(null);
+  const { updateMeasurement: updateSessionMeasurement } = useSessionState();
   const dragPointsRef = useRef<Point[] | null>(null);
   const finalDragPointsRef = useRef<Point[] | null>(null);
   const [dragPoints, setDragPoints] = useState<Point[] | null>(null);
@@ -1155,7 +1270,9 @@ const MeasurementShape = memo(function MeasurementShape({
   );
   const labelPlacement = useMemo(
     () =>
-      labelDimensions
+      !dragPoints && plannedLabelPlacement
+        ? plannedLabelPlacement
+        : labelDimensions
         ? placeLabelWithinBounds(
             labelPoint,
             labelDimensions,
@@ -1164,7 +1281,7 @@ const MeasurementShape = memo(function MeasurementShape({
             LABEL_EDGE_MARGIN_SCREEN_PX,
           )
         : null,
-    [bounds, labelDimensions, labelPoint, zoom],
+    [bounds, dragPoints, labelDimensions, labelPoint, plannedLabelPlacement, zoom],
   );
 
   useEffect(() => {
@@ -1182,19 +1299,6 @@ const MeasurementShape = memo(function MeasurementShape({
     // Keep the final local frame until the reducer has published those exact points.
     setDragPoints(null);
   }, [measurement.points]);
-
-  useEffect(
-    () => () => {
-      if (vertexFrameRef.current !== null) {
-        window.cancelAnimationFrame(vertexFrameRef.current);
-      }
-      pendingVertexPointsRef.current = null;
-      dragPointsRef.current = null;
-      finalDragPointsRef.current = null;
-      onVertexDragStateChange(false);
-    },
-    [onVertexDragStateChange],
-  );
 
   function pointsWithVertex(index: number, point: Point): Point[] {
     const sourcePoints = dragPointsRef.current ?? measurement.points;
@@ -1214,30 +1318,18 @@ const MeasurementShape = memo(function MeasurementShape({
     return clampPointToPage(rawPoint, bounds);
   }
 
-  function dispatchVertexPoints(points: Point[]) {
-    dispatch({
-      type: "UPDATE_MEASUREMENT_POINTS",
+  function updateMeasurementPoints(points: Point[]) {
+    updateSessionMeasurement({
       pageNumber,
       id: measurement.id,
       points,
     });
   }
 
-  function queueVertexPoints(points: Point[]) {
-    pendingVertexPointsRef.current = points;
-    if (vertexFrameRef.current !== null) return;
-    vertexFrameRef.current = window.requestAnimationFrame(() => {
-      vertexFrameRef.current = null;
-      const pending = pendingVertexPointsRef.current;
-      pendingVertexPointsRef.current = null;
-      if (pending) dispatchVertexPoints(pending);
-    });
-  }
-
   function select(event: KonvaEventObject<MouseEvent>) {
     if (!editable) return;
     event.cancelBubble = true;
-    dispatch({ type: "SELECT_MEASUREMENT", id: measurement.id });
+    onSelectMeasurement(measurement.id);
   }
 
   return (
@@ -1288,28 +1380,20 @@ const MeasurementShape = memo(function MeasurementShape({
               const startPoint = pointFromDragEvent(event);
               event.target.position(startPoint);
               updateDragPoints(pointsWithVertex(index, startPoint));
-              onVertexDragStateChange(true);
             }}
             onDragMove={(event) => {
               const nextPoint = pointFromDragEvent(event);
               event.target.position(nextPoint);
               const nextPoints = pointsWithVertex(index, nextPoint);
               updateDragPoints(nextPoints);
-              queueVertexPoints(nextPoints);
             }}
             onDragEnd={(event) => {
               const finalPoint = pointFromDragEvent(event);
               event.target.position(finalPoint);
-              if (vertexFrameRef.current !== null) {
-                window.cancelAnimationFrame(vertexFrameRef.current);
-                vertexFrameRef.current = null;
-              }
-              pendingVertexPointsRef.current = null;
               const finalPoints = pointsWithVertex(index, finalPoint);
               finalDragPointsRef.current = finalPoints;
               updateDragPoints(finalPoints);
-              dispatchVertexPoints(finalPoints);
-              onVertexDragStateChange(false);
+              updateMeasurementPoints(finalPoints);
             }}
           />
         ))}

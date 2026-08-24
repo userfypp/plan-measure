@@ -1,0 +1,24 @@
+.collection {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  background: var(--color-surface-subdued);
+}
+
+.list {
+  display: grid;
+  gap: 1px;
+  padding-bottom: 1px;
+  background: var(--color-border);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-16);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  text-align: center;
+}

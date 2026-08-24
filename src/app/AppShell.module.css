@@ -1,0 +1,83 @@
+.appShell {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--color-text);
+}
+
+.statusRow {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.statusPlaceholder {
+  height: 0;
+}
+
+.status {
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  padding: 7px var(--space-16);
+  font-size: 13px;
+}
+
+.status span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.status button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.error {
+  background: var(--color-danger-subdued);
+  color: var(--color-danger-active);
+}
+
+.warning {
+  background: var(--color-warning-subdued);
+  color: var(--color-warning);
+}
+
+.content {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  overflow: hidden;
+}
+
+.loadingOverlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(238 241 244 / 78%);
+  color: var(--color-text-muted);
+  font-weight: 650;
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 640px) {
+  .status {
+    justify-content: space-between;
+    gap: var(--space-8);
+  }
+}

@@ -1,0 +1,126 @@
+.inspector {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--space-8) var(--space-16) var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.empty {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.empty p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
+.heading {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.headingText {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subdued);
+}
+
+.details > div {
+  min-width: 0;
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-surface);
+}
+
+.details > div:nth-child(odd) {
+  border-right: 1px solid var(--color-border);
+}
+
+.details > div:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.details dt {
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details dd {
+  min-width: 0;
+  margin: 0;
+  overflow: visible;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.measurementValue {
+  font-size: var(--font-size-xs);
+}
+
+.classificationValue {
+  display: flex;
+  align-items: flex-start;
+}
+
+.classificationBadge {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: var(--line-height-tight);
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.unavailable {
+  color: var(--color-warning) !important;
+}

@@ -25,6 +25,8 @@ The active session is stored only in the browser's IndexedDB so it can be recove
 - Keyboard shortcuts: **V** Select, **H** Hand, **L** Line, **M** Polyline, **P** Polygon, and
   **O** Ortho 90° for new drawing segments.
 - Editable measurement names and draggable vertices for every measurement type.
+- Reusable classification dimensions and values that can be assigned independently to each
+  measurement and survive session recovery.
 - Optional Ortho 90° drawing mode for new Line, Polyline, and Polygon segments.
 - Pan, pointer-centred zoom, keyboard zoom, and fit-to-screen controls.
 - Independent visibility controls for labels, measurements, and calibration references.
@@ -60,15 +62,15 @@ npm run format   # Format the repository with Prettier
 ## Using Plan Measure
 
 1. Choose **Open PDF** or drop a PDF into the empty workspace.
-2. Select **Add scale** and choose **Uniform** for the normal two-point flow, or **X/Y correction**
-   for a scanned/printed plan with independent horizontal and vertical scale references. The first
-   scale is named **Scale 1** by default.
+2. In **Scale tools**, choose **Add uniform** for the normal two-point flow, or **Add X/Y** for a
+   scanned/printed plan with independent horizontal and vertical scale references. The first scale
+   is named **Scale 1** by default.
 3. Select **Line**, **Polyline**, or **Polygon** and click on the plan. Line completes after its
    second point; Polyline and Polygon continue until you press **Enter**. A Polygon can also close
    by clicking its first vertex. Press **Escape** to cancel an unfinished drawing, then again to
    leave its tool.
-4. Use **Select** to choose a measurement and drag its vertex handles. Names can be edited in the
-   left panel.
+4. Use **Select** to choose a measurement and drag its vertex handles. Names and classification
+   assignments can be edited in the right workspace panel.
 5. Use **O** or the **Ortho 90°** control to constrain new segments horizontally or vertically.
 6. Choose **Export CSV** to export measurements from every page.
 
@@ -82,9 +84,11 @@ non-linear warping.
 ## Architecture
 
 The application uses Vite 8, React 19.2, strict TypeScript, CSS Modules, PDF.js, Konva, and
-react-konva. Important state is centralized in a reducer and Context. The source is grouped into
-application state/shell, PDF and viewer behavior, calibration, measurements, persistence/export
-services, domain types, and pure mathematical utilities.
+react-konva. Persistent domain data lives in `SessionState`; selection, tools, drafts, previews, and
+temporary workflows live in `WorkspaceState`; and blocking UI is represented by callback-free
+descriptors in `OverlayState`. Runtime errors remain in the application shell. The source is grouped
+into application state/shell, PDF and viewer behavior, calibration, measurements, classifications,
+persistence/export services, domain types, and pure mathematical utilities.
 
 ### Coordinate and measurement model
 
@@ -129,20 +133,22 @@ memory and displays a warning that reload recovery is unavailable.
 
 ## Testing and CI
 
-Vitest covers geometry, uniform and X/Y calibration, path measurement flows, units, CSV escaping
-and all-page export, V1/V2/V3-to-V4 session migration/IndexedDB round trips, reducer invariants,
-keyboard policy, and page/screen transforms across zoom, pan, rotation, fit-to-screen, and device
-pixel ratios. GitHub Actions installs from
+Vitest covers geometry, uniform and X/Y calibration, path measurement flows, classifications,
+units, CSV escaping and all-page export, V1/V2/V3/V4-to-V5 session migration/IndexedDB round trips,
+state-boundary and reducer invariants, keyboard policy, label placement, PDF lifecycle/autosave, and
+page/screen transforms across zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub
+Actions installs from
 the lockfile and runs lint, tests, and a production build on pushes to `main` and pull requests.
 
 ## Supported browsers
 
-v1 officially supports recent desktop releases of Chrome, Edge, Firefox, and Safari. It is designed
-for pointer, trackpad, and keyboard use. Dedicated mobile and tablet layouts are not provided.
+v1 officially supports recent releases of Chrome, Edge, Firefox, and Safari. The workspace adapts to
+narrow and low-height viewports while its drawing interactions remain optimized for pointer,
+trackpad, and keyboard use.
 
 ## Known v1 limitations
 
-- Desktop focused; no dedicated mobile or tablet support.
+- Drawing and vertex editing are not yet optimized for touch-only use.
 - Password-protected PDFs are not supported and there is no password-entry flow.
 - Physical units are limited to mm, cm, and m; imperial units are not supported.
 - No undo/redo history.

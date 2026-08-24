@@ -1,12 +1,14 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   getDrawingKeyboardAction,
+  getGlobalViewerKeyboardAction,
   getShortcutLabel,
   getToolShortcut,
   getToolShortcutLabel,
   getViewerKeyboardAction,
   shouldIgnoreKeyboardShortcut,
   shouldIgnoreGlobalKeyboardShortcut,
+  shouldIgnoreGlobalViewerShortcutTarget,
   viewerShortcuts,
   type KeyboardShortcutEvent,
 } from "./keyboard";
@@ -15,14 +17,26 @@ class FakeHTMLElement {
   constructor(
     private readonly kind: string,
     private readonly insideDialog = false,
+    private readonly inputType: string | null = null,
+    private readonly insideEditable = false,
   ) {}
+
+  get isContentEditable(): boolean {
+    return this.kind.includes("contenteditable");
+  }
+
+  getAttribute(name: string): string | null {
+    return name === "type" ? this.inputType : null;
+  }
 
   matches(selector: string): boolean {
     return selector.split(", ").includes(this.kind);
   }
 
   closest(selector: string): FakeHTMLElement | null {
-    return selector === "dialog" && this.insideDialog ? this : null;
+    if (selector.includes("dialog") && this.insideDialog) return this;
+    if (selector.includes("contenteditable") && this.insideEditable) return this;
+    return null;
   }
 }
 
@@ -45,6 +59,7 @@ function keyboardEvent(
     ctrlKey: false,
     defaultPrevented: false,
     metaKey: false,
+    repeat: false,
     ...overrides,
   };
 }
@@ -74,6 +89,67 @@ describe("global keyboard shortcut targets", () => {
     expect(
       shouldIgnoreGlobalKeyboardShortcut(new FakeHTMLElement("canvas") as unknown as EventTarget),
     ).toBe(false);
+  });
+});
+
+describe("global viewer keyboard policy", () => {
+  it.each(["button", "a", "summary", "body"])(
+    "allows tool shortcuts after focus moves to %s",
+    (kind) => {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(shouldIgnoreGlobalViewerShortcutTarget(target)).toBe(false);
+      expect(getGlobalViewerKeyboardAction(keyboardEvent("L", target))).toEqual({
+        type: "choose-tool",
+        tool: "line",
+      });
+    },
+  );
+
+  it.each(["input", "textarea", "select", "[contenteditable='true']"])(
+    "preserves text editing in %s",
+    (kind) => {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(getGlobalViewerKeyboardAction(keyboardEvent("p", target))).toBeNull();
+      expect(getGlobalViewerKeyboardAction(keyboardEvent("-", target))).toBeNull();
+    },
+  );
+
+  it.each(["checkbox", "radio", "range"])(
+    "allows tool shortcuts after a non-editing %s input",
+    (inputType) => {
+      const target = new FakeHTMLElement("input", false, inputType) as unknown as EventTarget;
+      expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target))).toEqual({
+        type: "choose-tool",
+        tool: "line",
+      });
+    },
+  );
+
+  it("protects descendants of every contenteditable form", () => {
+    const target = new FakeHTMLElement("span", false, null, true) as unknown as EventTarget;
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("p", target))).toBeNull();
+  });
+
+  it("does not claim shortcuts inside a dialog", () => {
+    const target = new FakeHTMLElement("button", true) as unknown as EventTarget;
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target))).toBeNull();
+  });
+
+  it("ignores repeated tool and Ortho shortcuts without disabling held zoom", () => {
+    const target = new FakeHTMLElement("button") as unknown as EventTarget;
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target, { repeat: true }))).toBeNull();
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("o", target, { repeat: true }))).toBeNull();
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("+", target, { repeat: true }))).toBe("zoom-in");
+  });
+
+  it.each(["metaKey", "ctrlKey", "altKey"] as const)("preserves %s combinations", (modifier) => {
+    expect(
+      getGlobalViewerKeyboardAction(
+        keyboardEvent("l", new FakeHTMLElement("button") as unknown as EventTarget, {
+          [modifier]: true,
+        }),
+      ),
+    ).toBeNull();
   });
 });
 

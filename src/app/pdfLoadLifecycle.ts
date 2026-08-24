@@ -34,3 +34,14 @@ export function canActivatePdf<T>(
     (!requiresPendingConfirmation || pending === candidate)
   );
 }
+
+export interface PdfReplacementState {
+  sessionLoaded: boolean;
+  pdfRuntimeLoaded: boolean;
+  pdfActivating: boolean;
+  recoveryProtected: boolean;
+}
+
+export function shouldConfirmPdfReplacement(state: PdfReplacementState): boolean {
+  return Object.values(state).some(Boolean);
+}

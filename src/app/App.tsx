@@ -1,33 +1,43 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { AppProvider, createEmptySession, useAppState } from "./state";
-import { TopBar } from "./TopBar";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { AppProvider, useAppState } from "./state";
+import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
+import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
+import {
+  OverlayProvider,
+  useOverlayState,
+  type OverlayConfirmation,
+  type OverlayDialog,
+} from "./overlayState";
+import { OverlayHost } from "./OverlayHost";
+import { enqueueAutosave, isAutosaveReady } from "./autosave";
+import { AppShell, LoadingOverlay } from "./AppShell";
+import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
+import { ViewerContextBar, type ViewerContextData } from "./ViewerContextBar";
+import { ToolRail } from "./ToolRail";
 import { Modal } from "../components/Modal";
+import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
-import { MeasurementPanel } from "../features/measurements/MeasurementPanel";
-import { PdfViewer } from "../features/viewer/PdfViewer";
-import { ToolBar } from "../features/viewer/ToolBar";
-import { canActivatePdf, PdfLoadLifecycle } from "./pdfLoadLifecycle";
+import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
+import {
+  MeasurementPanel,
+  type MeasurementDeleteRequest,
+} from "../features/measurements/MeasurementPanel";
+import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
+import { canActivatePdf, PdfLoadLifecycle, shouldConfirmPdfReplacement } from "./pdfLoadLifecycle";
 import {
   beginCalibrationFlow,
-  cancelCalibrationFlow,
   confirmCalibration,
   selectCalibrationReference,
-  type CalibrationFlow,
-  type CalibrationSelection,
-  type CalibrationTransientState,
 } from "./calibrationFlow";
 import {
   beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
-  cancelCalibrationReferenceEdit as clearCalibrationReferenceEdit,
-  updateCalibrationReferenceEdit as updateCalibrationReferenceEditDraft,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
 import type {
   CalibrationReferenceKey,
-  LinearUnit,
   PageCalibration,
   Point,
-  SessionV4,
+  SessionV5,
   Tool,
 } from "../types/domain";
 import { downloadCsv } from "../services/csv";
@@ -38,7 +48,8 @@ import {
   saveSessionMetadata,
   type SavedSession,
 } from "../services/persistence";
-import { loadPdf, PdfUserError, validatePdfFile, type LoadedPdf } from "../services/pdf";
+import type { LoadedPdf } from "../services/pdf";
+import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
 import { shouldIgnoreKeyboardShortcut } from "../utils/keyboard";
 import {
   findPageCalibration,
@@ -48,48 +59,107 @@ import {
 import {
   isPredominantlyHorizontal,
   isPredominantlyVertical,
+  isMeasurementType,
   isValidPageCalibration,
+  measurementPathSpecs,
 } from "../utils/geometry";
 import styles from "./App.module.css";
 
+const PdfViewer = lazy(() =>
+  import("../features/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+);
+
+async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
+  const { loadPdf } = await import("../services/pdf");
+  return loadPdf(blob);
+}
+
 interface PendingPdf {
+  pdfId: string;
   file: File;
   loaded: LoadedPdf;
-  session: SessionV4;
+  session: SessionV5;
   loadGeneration: number;
-}
-
-interface RecalibrationConfirmation {
-  pageNumber: number;
-  calibrationId: string;
-  calibrationName: string;
-  measurementCount: number;
-}
-
-interface CalibrationReferenceEditConfirmation {
-  edit: CalibrationReferenceEdit;
-  calibrationName: string;
-  measurementCount: number;
 }
 
 export function App() {
   return (
     <AppProvider>
-      <PlanMeasureApp />
+      <SessionProvider>
+        <WorkspaceProvider>
+          <OverlayProvider>
+            <PlanMeasureApp />
+          </OverlayProvider>
+        </WorkspaceProvider>
+      </SessionProvider>
     </AppProvider>
   );
 }
 
 function PlanMeasureApp() {
-  const { state, dispatch } = useAppState();
+  const { state: appState, setError, clearError } = useAppState();
+  const {
+    session,
+    loadSession,
+    clearSession,
+    updatePage,
+    addCalibration,
+    recalibrateCalibration,
+    setActiveCalibration,
+    updateCalibration,
+    renameMeasurement,
+    deleteMeasurement,
+    addClassificationDimension,
+    renameClassificationDimension,
+    addClassificationValue,
+    renameClassificationValue,
+    archiveClassificationValue,
+    restoreClassificationValue,
+    assignClassificationValue,
+    removeClassificationValue,
+  } = useSessionState();
+  const {
+    requestReplacePdf,
+    closeDialog,
+    requestRecalibration: openRecalibrationConfirmation,
+    requestSaveCalibrationReferenceEdit: openCalibrationReferenceEditConfirmation,
+    requestDeleteMeasurement: openDeleteMeasurementConfirmation,
+    closeConfirmation,
+    closeAllOverlays,
+  } = useOverlayState();
+  const {
+    draft,
+    selectedMeasurementId,
+    calibrationFlow,
+    calibrationCandidate,
+    calibrationReferenceEdit,
+    secondaryPanel,
+    workspaceVersion,
+    resetWorkspace,
+    pageChanged,
+    chooseTool: chooseWorkspaceTool,
+    selectMeasurement: selectWorkspaceMeasurement,
+    clearSelection,
+    clearDraft,
+    startCalibration,
+    updateCalibrationCandidate,
+    advanceCalibrationStep,
+    cancelCalibration: cancelWorkspaceCalibration,
+    completeCalibration,
+    startReferenceEdit,
+    updateReferenceEdit,
+    cancelReferenceEdit,
+    confirmReferenceEdit,
+    setSecondaryPanel,
+  } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const viewerFocusRef = useRef<(() => void) | null>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const persistenceGenerationRef = useRef(0);
   const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
   const activePdfRef = useRef<LoadedPdf | null>(null);
   const pendingPdfRef = useRef<PendingPdf | null>(null);
   const activatingPdfRef = useRef<LoadedPdf | null>(null);
+  const dragDepthRef = useRef(0);
   const disposedRef = useRef(false);
   const latestPdfLoadRef = useRef<number | null>(null);
   const activationCountRef = useRef(0);
@@ -98,25 +168,51 @@ function PlanMeasureApp() {
   const [recovery, setRecovery] = useState<SavedSession | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
-  const [pendingPdf, setPendingPdf] = useState<PendingPdf | null>(null);
-  const [calibrationFlow, setCalibrationFlow] = useState<CalibrationFlow | null>(null);
-  const [calibrationCandidate, setCalibrationCandidate] = useState<CalibrationSelection | null>(
-    null,
-  );
-  const [chooseCalibrationMode, setChooseCalibrationMode] = useState(false);
-  const [confirmRecalibrate, setConfirmRecalibrate] = useState<RecalibrationConfirmation | null>(
-    null,
-  );
-  const [chooseCalibrationReferenceEdit, setChooseCalibrationReferenceEdit] = useState(false);
-  const [calibrationReferenceEdit, setCalibrationReferenceEdit] =
-    useState<CalibrationReferenceEdit | null>(null);
-  const [confirmCalibrationReferenceEdit, setConfirmCalibrationReferenceEdit] =
-    useState<CalibrationReferenceEditConfirmation | null>(null);
+  const [recoveryProtected, setRecoveryProtected] = useState(false);
+  const [confirmDiscardRecovery, setConfirmDiscardRecovery] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [autosaveSuspended, setAutosaveSuspended] = useState(false);
   const [autosaveEnabled, setAutosaveEnabled] = useState(false);
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
+
+  const clearDragState = useCallback(() => {
+    dragDepthRef.current = 0;
+    setDragActive(false);
+  }, []);
+
+  const requestMeasurementDelete = useCallback(
+    (request: MeasurementDeleteRequest) => {
+      const page = session?.pages[request.pageNumber];
+      const measurement = page?.measurements.find(
+        (candidate) => candidate.id === request.measurementId,
+      );
+      if (!page || !measurement) return;
+      openDeleteMeasurementConfirmation({
+        pageNumber: page.pageNumber,
+        measurementId: measurement.id,
+        measurementName: measurement.name,
+      });
+    },
+    [openDeleteMeasurementConfirmation, session],
+  );
+
+  const selectMeasurementFromPanel = useCallback(
+    (measurementId: string) => {
+      selectWorkspaceMeasurement(measurementId);
+      clearError();
+    },
+    [clearError, selectWorkspaceMeasurement],
+  );
+
+  const handlePageChange = useCallback(
+    (pageNumber: number) => {
+      pageChanged();
+      closeConfirmation();
+      clearError();
+      updatePage(pageNumber);
+    },
+    [clearError, closeConfirmation, pageChanged, updatePage],
+  );
 
   const destroyPdf = useCallback(
     (loaded: LoadedPdf | null | undefined) => pdfLoadLifecycleRef.current.destroy(loaded),
@@ -153,7 +249,7 @@ function PlanMeasureApp() {
   function publishPendingPdf(candidate: PendingPdf) {
     const previous = pendingPdfRef.current;
     pendingPdfRef.current = candidate;
-    setPendingPdf(candidate);
+    requestReplacePdf({ pdfId: candidate.pdfId, fileName: candidate.file.name });
     if (previous && previous !== candidate) void destroyPdf(previous.loaded);
   }
 
@@ -161,7 +257,7 @@ function PlanMeasureApp() {
     const pending = pendingPdfRef.current;
     if (!pending || (candidate && pending !== candidate)) return;
     pendingPdfRef.current = null;
-    setPendingPdf((current) => (current === pending ? null : current));
+    closeDialog();
     void destroyPdf(pending.loaded);
   }
 
@@ -204,11 +300,13 @@ function PlanMeasureApp() {
       .then((saved) => {
         if (cancelled) return;
         setRecovery(saved);
+        setRecoveryProtected(Boolean(saved));
         setRecoveryChecked(true);
       })
       .catch((error: unknown) => {
         console.error("IndexedDB recovery failed.", error);
         if (cancelled) return;
+        setRecoveryProtected(true);
         setRecoveryIssue(
           "The previous session could not be read. You can try to discard it or continue without browser recovery.",
         );
@@ -220,16 +318,23 @@ function PlanMeasureApp() {
   }, []);
 
   useEffect(() => {
-    if (!state.session || !pdfBlob || !autosaveEnabled || autosaveSuspended) return;
-    const session = state.session;
+    const autosaveInputs = {
+      snapshot: session,
+      pdfRuntimeReady: activePdf !== null,
+      pdfBlob,
+      enabled: autosaveEnabled,
+    };
+    if (!isAutosaveReady(autosaveInputs)) return;
+    const snapshot = autosaveInputs.snapshot;
     const generation = persistenceGenerationRef.current;
     const timer = window.setTimeout(() => {
-      saveQueueRef.current = saveQueueRef.current
-        .catch(() => undefined)
-        .then(() => {
-          if (generation !== persistenceGenerationRef.current) return;
-          return saveSessionMetadata(session);
-        })
+      saveQueueRef.current = enqueueAutosave(
+        saveQueueRef.current,
+        snapshot,
+        generation,
+        (candidateGeneration) => candidateGeneration === persistenceGenerationRef.current,
+        saveSessionMetadata,
+      )
         .then(() => {
           if (generation === persistenceGenerationRef.current) setAutosaveWarning(null);
         })
@@ -243,28 +348,46 @@ function PlanMeasureApp() {
         });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [autosaveEnabled, autosaveSuspended, pdfBlob, state.session]);
+  }, [activePdf, autosaveEnabled, pdfBlob, session]);
 
   useEffect(() => {
     function handleDelete(event: KeyboardEvent) {
       if (
         (event.key !== "Delete" && event.key !== "Backspace") ||
         shouldIgnoreKeyboardShortcut(event) ||
-        !state.selectedMeasurementId ||
-        !state.session
+        !selectedMeasurementId ||
+        !session
       ) {
         return;
       }
+      const page = session.pages[session.currentPage];
+      const measurement = page?.measurements.find(
+        (candidate) => candidate.id === selectedMeasurementId,
+      );
+      if (!page || !measurement) return;
       event.preventDefault();
-      dispatch({
-        type: "DELETE_MEASUREMENT",
-        pageNumber: state.session.currentPage,
-        id: state.selectedMeasurementId,
+      requestMeasurementDelete({
+        pageNumber: page.pageNumber,
+        measurementId: measurement.id,
+        measurementName: measurement.name,
       });
     }
     window.addEventListener("keydown", handleDelete);
     return () => window.removeEventListener("keydown", handleDelete);
-  }, [dispatch, state.selectedMeasurementId, state.session]);
+  }, [requestMeasurementDelete, selectedMeasurementId, session]);
+
+  useEffect(() => {
+    window.addEventListener("blur", clearDragState);
+    window.addEventListener("dragend", clearDragState);
+    window.addEventListener("drop", clearDragState);
+    document.addEventListener("visibilitychange", clearDragState);
+    return () => {
+      window.removeEventListener("blur", clearDragState);
+      window.removeEventListener("dragend", clearDragState);
+      window.removeEventListener("drop", clearDragState);
+      document.removeEventListener("visibilitychange", clearDragState);
+    };
+  }, [clearDragState]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
     if (
@@ -282,15 +405,11 @@ function PlanMeasureApp() {
     }
     if (pendingPdfRef.current === candidate) {
       pendingPdfRef.current = null;
-      setPendingPdf((current) => (current === candidate ? null : current));
+      closeDialog();
     }
-    setCalibrationCandidate(null);
-    setCalibrationFlow(null);
-    setConfirmRecalibrate(null);
-    setChooseCalibrationReferenceEdit(false);
-    setCalibrationReferenceEdit(null);
-    setConfirmCalibrationReferenceEdit(null);
-    setAutosaveSuspended(false);
+    cancelWorkspaceCalibration();
+    closeConfirmation();
+    cancelReferenceEdit();
     activatingPdfRef.current = candidate.loaded;
     beginPdfActivation(candidate.loadGeneration);
     persistenceGenerationRef.current += 1;
@@ -315,12 +434,14 @@ function PlanMeasureApp() {
       const installed = await installActivePdf(candidate.loaded);
       if (!installed) return;
       setPdfBlob(candidate.file);
-      dispatch({ type: "LOAD_SESSION", session: candidate.session });
+      loadSession(candidate.session);
+      resetWorkspace();
+      closeAllOverlays();
       if (saved) {
         setAutosaveEnabled(true);
         setAutosaveWarning(null);
       } else {
-        dispatch({ type: "SET_ERROR", message: "Autosave could not be started." });
+        setError("Autosave could not be started.");
       }
     } finally {
       if (activatingPdfRef.current === candidate.loaded) activatingPdfRef.current = null;
@@ -336,17 +457,30 @@ function PlanMeasureApp() {
     let handedOff = false;
     try {
       validatePdfFile(file);
-      loaded = await loadPdf(file);
+      loaded = await loadPdfRuntime(file);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
         await destroyPdf(loaded);
         return;
       }
-      const session = createEmptySession(
+      const newSession = createEmptySession(
         { name: file.name, size: file.size, lastModified: file.lastModified },
         loaded.document.numPages,
       );
-      const candidate = { file, loaded, session, loadGeneration };
-      if (state.session || activePdfRef.current || activatingPdfRef.current) {
+      const candidate = {
+        pdfId: crypto.randomUUID(),
+        file,
+        loaded,
+        session: newSession,
+        loadGeneration,
+      };
+      if (
+        shouldConfirmPdfReplacement({
+          sessionLoaded: Boolean(session),
+          pdfRuntimeLoaded: Boolean(activePdfRef.current),
+          pdfActivating: Boolean(activatingPdfRef.current),
+          recoveryProtected,
+        })
+      ) {
         handedOff = true;
         publishPendingPdf(candidate);
         finishPdfLoad(loadGeneration);
@@ -361,7 +495,7 @@ function PlanMeasureApp() {
         error instanceof PdfUserError
           ? error.message
           : "The PDF could not be opened. Try another file.";
-      dispatch({ type: "SET_ERROR", message });
+      setError(message);
       finishPdfLoad(loadGeneration);
     }
   }
@@ -372,7 +506,7 @@ function PlanMeasureApp() {
     beginPdfLoad(loadGeneration);
     let loaded: LoadedPdf | null = null;
     try {
-      loaded = await loadPdf(recovery.pdfBlob);
+      loaded = await loadPdfRuntime(recovery.pdfBlob);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
         await destroyPdf(loaded);
         return;
@@ -382,21 +516,23 @@ function PlanMeasureApp() {
         loaded = null;
         throw new Error("The saved PDF does not match its session metadata.");
       }
+      // Recovery order: install the validated runtime before publishing the
+      // persistent snapshot, then reset interaction/UI state and enable saves.
       const installed = await installActivePdf(loaded);
       if (!installed) return;
       loaded = null;
       setPdfBlob(recovery.pdfBlob);
-      dispatch({ type: "LOAD_SESSION", session: recovery.session });
+      loadSession(recovery.session);
+      resetWorkspace();
+      closeAllOverlays();
       setAutosaveEnabled(true);
       setRecovery(null);
+      setRecoveryProtected(false);
     } catch (error) {
       if (loaded) await destroyPdf(loaded);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
       console.error("Saved PDF recovery failed.", error);
-      dispatch({
-        type: "SET_ERROR",
-        message: "The previous session could not be restored. You can discard it and open a PDF.",
-      });
+      setError("The previous session could not be restored. You can discard it and open a PDF.");
     } finally {
       finishPdfLoad(loadGeneration);
     }
@@ -406,72 +542,100 @@ function PlanMeasureApp() {
     pdfLoadLifecycleRef.current.begin();
     latestPdfLoadRef.current = null;
     updateLoadingState();
+    persistenceGenerationRef.current += 1;
+    setAutosaveEnabled(false);
+    cancelWorkspaceCalibration();
+    closeConfirmation();
+    cancelReferenceEdit();
     try {
+      await saveQueueRef.current.catch(() => undefined);
       await discardSavedSession();
       if (disposedRef.current) return;
       setRecovery(null);
       setRecoveryIssue(null);
-      setAutosaveEnabled(false);
-      dispatch({ type: "CLEAR_SESSION" });
+      setRecoveryProtected(false);
+      setConfirmDiscardRecovery(false);
+      clearSession();
+      resetWorkspace();
+      closeAllOverlays();
     } catch (error) {
       console.error("Could not discard the saved session.", error);
-      dispatch({ type: "SET_ERROR", message: "The saved session could not be discarded." });
+      setError("The saved session could not be discarded.");
     }
   }
 
-  function handleDrop(event: DragEvent) {
+  function handleDragEnter(event: DragEvent<HTMLElement>) {
     event.preventDefault();
-    setDragActive(false);
+    dragDepthRef.current += 1;
+    setDragActive(true);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) clearDragState();
+  }
+
+  function handleDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    clearDragState();
     const file = event.dataTransfer.files[0];
     if (file) void chooseFile(file);
   }
 
   function chooseTool(tool: Tool) {
     if (calibrationReferenceEdit && tool !== "select" && tool !== "hand") {
-      dispatch({ type: "SET_ERROR", message: "Finish or cancel the scale reference edit first." });
+      setError("Finish or cancel the scale reference edit first.");
       return;
     }
-    if (calibrationFlow && tool !== "calibrate") {
-      setCalibrationCandidate(null);
-      setCalibrationFlow(null);
+    if (calibrationFlow && tool !== "calibrate") cancelWorkspaceCalibration();
+    const currentPage = session?.pages[session.currentPage];
+    const activePageCalibration = currentPage && getActiveCalibration(currentPage);
+    if (isMeasurementType(tool) && (!currentPage || !activePageCalibration)) {
+      clearDraft();
+      chooseWorkspaceTool("select");
+      setError("Select a valid scale before creating measurements.");
+      return;
     }
-    dispatch({ type: "SET_TOOL", tool });
+    clearDraft();
+    chooseWorkspaceTool(tool);
+    clearError();
   }
 
   function cancelCalibration() {
-    const cleared: CalibrationTransientState = cancelCalibrationFlow({
-      flow: calibrationFlow,
-      candidate: calibrationCandidate,
-    });
-    setCalibrationCandidate(cleared.candidate);
-    setCalibrationFlow(cleared.flow);
-    dispatch({ type: "SET_TOOL", tool: "select" });
+    cancelWorkspaceCalibration();
+    clearDraft();
+    chooseTool("select");
   }
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
     if (calibrationReferenceEdit) return;
     const calibration =
-      state.session?.pages[pageNumber] &&
-      findPageCalibration(state.session.pages[pageNumber], calibrationId);
+      session?.pages[pageNumber] && findPageCalibration(session.pages[pageNumber], calibrationId);
     if (!calibration) return;
-    setCalibrationFlow(beginCalibrationFlow(pageNumber, calibrationId, calibration.mode));
-    dispatch({ type: "SET_TOOL", tool: "calibrate" });
+    startCalibration(beginCalibrationFlow(pageNumber, calibrationId, calibration.mode));
+    chooseTool("calibrate");
   }
 
   function beginNewCalibration(mode: "uniform" | "xy") {
     if (calibrationReferenceEdit) return;
     if (!currentPage) return;
-    setCalibrationFlow(beginCalibrationFlow(currentPage.pageNumber, null, mode));
-    setChooseCalibrationMode(false);
-    dispatch({ type: "SET_TOOL", tool: "calibrate" });
+    startCalibration(beginCalibrationFlow(currentPage.pageNumber, null, mode));
+    chooseTool("calibrate");
   }
 
-  function requestRecalibration() {
+  function requestRecalibration(calibrationId?: string) {
     if (calibrationReferenceEdit) return;
     if (!currentPage) return;
-    const calibration = getActiveCalibration(currentPage);
+    const calibration = calibrationId
+      ? findPageCalibration(currentPage, calibrationId)
+      : getActiveCalibration(currentPage);
     if (!calibration) {
-      dispatch({ type: "SET_ERROR", message: "Select a valid scale before recalibrating." });
+      setError("Select a valid scale before recalibrating.");
       return;
     }
     const measurementCount = currentPage.measurements.filter(
@@ -481,12 +645,45 @@ function PlanMeasureApp() {
       beginRecalibration(currentPage.pageNumber, calibration.id);
       return;
     }
-    setConfirmRecalibrate({
+    openRecalibrationConfirmation({
       pageNumber: currentPage.pageNumber,
       calibrationId: calibration.id,
       calibrationName: calibration.name,
       measurementCount,
     });
+  }
+
+  function assignClassification(
+    measurementId: string,
+    dimensionId: string,
+    valueId: string | null,
+  ) {
+    if (!currentPage || !session) return;
+    const measurement = currentPage.measurements.find(
+      (candidate) => candidate.id === measurementId,
+    );
+    const dimension = session.classificationCatalog.dimensions.find(
+      (candidate) => candidate.id === dimensionId,
+    );
+    if (!measurement || !dimension) return;
+    const currentValueId = dimension.values.find((value) =>
+      measurement.classificationValueIds.includes(value.id),
+    )?.id;
+    if (!valueId && currentValueId) {
+      removeClassificationValue({
+        pageNumber: currentPage.pageNumber,
+        measurementId,
+        dimensionId,
+        valueId: currentValueId,
+      });
+    } else if (valueId) {
+      assignClassificationValue({
+        pageNumber: currentPage.pageNumber,
+        measurementId,
+        dimensionId,
+        valueId,
+      });
+    }
   }
 
   function beginCalibrationReferenceEdit(
@@ -496,28 +693,23 @@ function PlanMeasureApp() {
     if (!currentPage) return;
     const edit = createCalibrationReferenceEdit(currentPage.pageNumber, calibration, reference);
     if (!edit) return;
-    setChooseCalibrationReferenceEdit(false);
-    setCalibrationReferenceEdit(edit);
-    setConfirmCalibrationReferenceEdit(null);
-    dispatch({ type: "SELECT_MEASUREMENT", id: null });
-    dispatch({ type: "SET_TOOL", tool: "select" });
+    startReferenceEdit(edit);
+    closeConfirmation();
+    clearSelection();
+    chooseTool("select");
   }
 
   function updateCalibrationReferenceEdit(points: [Point, Point]) {
-    setCalibrationReferenceEdit((current) =>
-      current ? updateCalibrationReferenceEditDraft(current, points) : current,
-    );
+    updateReferenceEdit(points);
   }
 
   function cancelCalibrationReferenceEdit() {
-    setCalibrationReferenceEdit(clearCalibrationReferenceEdit());
-    setConfirmCalibrationReferenceEdit(null);
+    cancelReferenceEdit();
+    closeConfirmation();
   }
 
-  function calibrationReferenceEditPreview(
-    edit: CalibrationReferenceEdit,
-  ): PageCalibration | null {
-    const page = state.session?.pages[edit.pageNumber];
+  function calibrationReferenceEditPreview(edit: CalibrationReferenceEdit): PageCalibration | null {
+    const page = session?.pages[edit.pageNumber];
     const calibration = page && findPageCalibration(page, edit.calibrationId);
     return calibration
       ? replaceCalibrationReferencePoints(calibration, edit.reference, edit.points)
@@ -527,13 +719,10 @@ function PlanMeasureApp() {
   function requestCalibrationReferenceEditSave() {
     const edit = calibrationReferenceEdit;
     const preview = edit && calibrationReferenceEditPreview(edit);
-    const page = edit && state.session?.pages[edit.pageNumber];
+    const page = edit && session?.pages[edit.pageNumber];
     const calibration = page && edit && findPageCalibration(page, edit.calibrationId);
     if (!edit || !preview || !calibration || !isValidPageCalibration(preview)) {
-      dispatch({
-        type: "SET_ERROR",
-        message: "Place the reference points in a valid position before saving.",
-      });
+      setError("Place the reference points in a valid position before saving.");
       return;
     }
     const measurementCount = page.measurements.filter(
@@ -543,40 +732,81 @@ function PlanMeasureApp() {
       commitCalibrationReferenceEdit(edit);
       return;
     }
-    setConfirmCalibrationReferenceEdit({
-      edit,
+    openCalibrationReferenceEditConfirmation({
+      pageNumber: edit.pageNumber,
+      calibrationId: edit.calibrationId,
+      reference: edit.reference,
       calibrationName: calibration.name,
       measurementCount,
     });
   }
 
   function commitCalibrationReferenceEdit(edit: CalibrationReferenceEdit) {
-    dispatch({
-      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+    updateCalibration({
       pageNumber: edit.pageNumber,
       calibrationId: edit.calibrationId,
       reference: edit.reference,
       points: edit.points,
     });
-    setCalibrationReferenceEdit(null);
-    setConfirmCalibrationReferenceEdit(null);
+    confirmReferenceEdit();
+    closeConfirmation();
+  }
+
+  function handleOverlayDialogConfirm(dialog: OverlayDialog) {
+    if (dialog.type !== "replacePdf") return;
+    const candidate = pendingPdfRef.current;
+    if (!candidate || candidate.pdfId !== dialog.payload.pdfId) return;
+    void activatePdf(candidate, true);
+  }
+
+  function handleOverlayDialogCancel(dialog: OverlayDialog) {
+    if (dialog.type !== "replacePdf") return;
+    const candidate = pendingPdfRef.current;
+    if (!candidate || candidate.pdfId !== dialog.payload.pdfId) return;
+    clearPendingPdf(candidate);
+  }
+
+  function handleOverlayConfirmationConfirm(confirmation: OverlayConfirmation) {
+    if (confirmation.type === "deleteMeasurement") {
+      const { pageNumber, measurementId } = confirmation.payload;
+      const page = session?.pages[pageNumber];
+      const measurement = page?.measurements.find((candidate) => candidate.id === measurementId);
+      if (!session || session.currentPage !== pageNumber || !page || !measurement) return;
+      deleteMeasurement(pageNumber, measurementId);
+      if (selectedMeasurementId === measurementId) clearSelection();
+      return;
+    }
+
+    if (confirmation.type === "recalibrateScale") {
+      beginRecalibration(confirmation.payload.pageNumber, confirmation.payload.calibrationId);
+      return;
+    }
+
+    const edit = calibrationReferenceEdit;
+    if (
+      !edit ||
+      edit.pageNumber !== confirmation.payload.pageNumber ||
+      edit.calibrationId !== confirmation.payload.calibrationId ||
+      edit.reference !== confirmation.payload.reference
+    ) {
+      setError("The reference edit is no longer available.");
+      return;
+    }
+    commitCalibrationReferenceEdit(edit);
   }
 
   function exportMeasurements() {
-    if (!state.session) return;
+    if (!session) return;
     try {
-      downloadCsv(state.session, activePdf?.pageLabels ?? null);
+      downloadCsv(session, activePdf?.pageLabels ?? null);
     } catch (error) {
-      dispatch({
-        type: "SET_ERROR",
-        message: error instanceof Error ? error.message : "The CSV could not be exported.",
-      });
+      setError(error instanceof Error ? error.message : "The CSV could not be exported.");
     }
   }
 
-  const currentPage = state.session?.pages[state.session.currentPage];
+  const currentPage = session?.pages[session.currentPage];
   const calibrationCandidatePage = calibrationCandidate
-    ? (state.session?.pages[calibrationCandidate.pageNumber] ?? null)
+    ? (session?.pages[calibrationCandidate.pageNumber] ?? null)
     : null;
   const calibrationCandidateTarget =
     calibrationCandidatePage && calibrationCandidate?.calibrationId
@@ -603,21 +833,106 @@ function PlanMeasureApp() {
           ),
         }
       : currentPage;
+  const activePageCalibration = currentPage ? getActiveCalibration(currentPage) : null;
+  const activeCalibration = activePageCalibration;
+  const selectedMeasurement =
+    currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
+    null;
+  const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
+  const activeCalibrationActions = activeCalibration
+    ? [
+        {
+          label: "Recalibrate",
+          disabled: calibrationActionsDisabled,
+          onClick: () => requestRecalibration(activeCalibration.id),
+        },
+        {
+          label: activeCalibration.mode === "uniform" ? "Edit points" : "Edit X",
+          disabled: calibrationActionsDisabled,
+          onClick: () =>
+            beginCalibrationReferenceEdit(
+              activeCalibration,
+              activeCalibration.mode === "uniform" ? "uniform" : "x",
+            ),
+        },
+        ...(activeCalibration.mode === "xy"
+          ? [
+              {
+                label: "Edit Y",
+                disabled: calibrationActionsDisabled,
+                onClick: () => beginCalibrationReferenceEdit(activeCalibration, "y"),
+              },
+            ]
+          : []),
+      ]
+    : [];
+  const workflowContext: ViewerContextData["workflow"] = calibrationReferenceEdit
+    ? {
+        label:
+          calibrationReferenceEdit.reference === "uniform"
+            ? "Editing scale reference"
+            : `Editing ${calibrationReferenceEdit.reference.toUpperCase()} reference`,
+        tone: "active",
+      }
+    : calibrationFlow
+      ? {
+          label:
+            calibrationFlow.mode === "xy"
+              ? `Calibrating ${calibrationFlow.phase.toUpperCase()} reference`
+              : "Calibrating scale",
+          tone: "active",
+        }
+      : draft?.type === "path"
+        ? {
+            label: `Drawing ${draft.measurementType}`,
+            tone: "active",
+          }
+        : { label: "Ready", tone: "neutral" };
+  const viewerContext: ViewerContextData = {
+    scale: activeCalibration
+      ? {
+          id: activeCalibration.id,
+          name: activeCalibration.name,
+          modeLabel: activeCalibration.mode === "uniform" ? "Uniform" : "X/Y correction",
+          options:
+            currentPage?.calibrations.map((calibration) => ({
+              id: calibration.id,
+              name: calibration.name,
+            })) ?? [],
+          disabled: calibrationActionsDisabled,
+        }
+      : null,
+    workflow: workflowContext,
+    selection: selectedMeasurement
+      ? {
+          name: selectedMeasurement.name,
+          typeLabel: measurementPathSpecs[selectedMeasurement.type].label,
+        }
+      : null,
+  };
+  const canCreateMeasurements = Boolean(activeCalibration) && !calibrationReferenceEdit;
+  const measurementToolDisabledReason = calibrationReferenceEdit
+    ? "Finish or cancel the scale reference edit first"
+    : "This tool requires an active scale";
+  const toolAvailability: ToolAvailabilityMap = {
+    line: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
+    polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
+    polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
+  };
 
   return (
-    <div className={styles.app}>
-      <TopBar
-        session={state.session}
-        onOpenPdf={() => fileInputRef.current?.click()}
-        onExport={exportMeasurements}
-        onSettingChange={(setting, value) => {
-          if (setting === "displayUnit") {
-            dispatch({ type: "SET_SETTING", setting, value: value as LinearUnit });
-          } else {
-            dispatch({ type: "SET_SETTING", setting, value: value as boolean });
-          }
-        }}
-      />
+    <AppShell
+      onOpenPdf={() => fileInputRef.current?.click()}
+      onExport={exportMeasurements}
+      statusMessage={autosaveWarning ?? appState.error}
+      statusTone={autosaveWarning ? "warning" : "error"}
+      onDismissStatus={() => {
+        if (autosaveWarning) setAutosaveWarning(null);
+        else {
+          clearError();
+        }
+      }}
+    >
       <input
         ref={fileInputRef}
         className={styles.hiddenInput}
@@ -629,356 +944,263 @@ function PlanMeasureApp() {
           event.target.value = "";
         }}
       />
-      {state.error || autosaveWarning ? (
-        <div className={autosaveWarning ? styles.warning : styles.errorBanner} role="alert">
-          <span>{autosaveWarning ?? state.error}</span>
-          <button
-            type="button"
-            aria-label="Dismiss message"
-            onClick={() => {
-              if (autosaveWarning) setAutosaveWarning(null);
-              else dispatch({ type: "SET_ERROR", message: null });
-            }}
-          >
-            Dismiss
-          </button>
-        </div>
-      ) : (
-        <div className={styles.messagePlaceholder} aria-hidden="true" />
-      )}
-      {state.session && activePdf && currentPage && previewPage ? (
-        <main
-          className={`${styles.workspace} ${dragActive ? styles.dragActive : ""}`}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (event.currentTarget === event.target) setDragActive(false);
-          }}
+      {session && activePdf && currentPage && previewPage ? (
+        <WorkspaceShell
+          dragActive={dragActive}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-        >
-          <MeasurementPanel page={previewPage} />
-          <PdfViewer
-            document={activePdf.document}
-            page={previewPage}
-            onPageChange={(pageNumber) => {
-              setCalibrationCandidate(null);
-              setCalibrationFlow(null);
-              dispatch({ type: "SET_PAGE", pageNumber });
-            }}
-            onChooseTool={chooseTool}
-            onCalibrationCandidate={(points) => {
-              const flow = calibrationFlow;
-              if (!flow) return;
-              const phase = flow.phase;
-              if (phase === "x" && !isPredominantlyHorizontal(points[0], points[1])) {
-                dispatch({ type: "SET_TOOL", tool: "calibrate" });
-                dispatch({
-                  type: "SET_ERROR",
-                  message: "X reference must be primarily horizontal (|dx| > |dy|).",
-                });
-                return;
+          toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
+          viewerContext={
+            <ViewerContextBar
+              context={viewerContext}
+              onScaleChange={(calibrationId) => {
+                if (currentPage) setActiveCalibration(currentPage.pageNumber, calibrationId);
+              }}
+            />
+          }
+          viewer={
+            <Suspense
+              fallback={
+                <div className={styles.viewerLoading} role="status">
+                  Loading viewer…
+                </div>
               }
-              if (phase === "y" && !isPredominantlyVertical(points[0], points[1])) {
-                dispatch({ type: "SET_TOOL", tool: "calibrate" });
-                dispatch({
-                  type: "SET_ERROR",
-                  message: "Y reference must be primarily vertical (|dy| > |dx|).",
-                });
-                return;
-              }
-              setCalibrationCandidate(selectCalibrationReference(flow, points));
-            }}
-            calibrationReferenceLabel={
-              calibrationFlow?.mode === "xy"
-                ? calibrationFlow.phase === "y"
-                  ? "Y"
-                  : "X"
-                : undefined
-            }
-            onCalibrationCancel={cancelCalibration}
-            calibrationReferenceEdit={
-              calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
-                ? {
-                    calibrationId: calibrationReferenceEdit.calibrationId,
-                    reference: calibrationReferenceEdit.reference,
-                    points: calibrationReferenceEdit.points,
-                    valid: calibrationReferenceEditIsValid,
+            >
+              <PdfViewer
+                document={activePdf.document}
+                page={previewPage}
+                onPageChange={handlePageChange}
+                onChooseTool={chooseTool}
+                onCalibrationCandidate={(points) => {
+                  const flow = calibrationFlow;
+                  if (!flow) return;
+                  const phase = flow.phase;
+                  if (phase === "x" && !isPredominantlyHorizontal(points[0], points[1])) {
+                    chooseTool("calibrate");
+                    setError("X reference must be primarily horizontal (|dx| > |dy|).");
+                    return;
                   }
-                : null
-            }
-            onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
-            onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
-            onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
-            onVertexDragStateChange={setAutosaveSuspended}
-            viewerFocusRef={viewerFocusRef}
-          />
-          <ToolBar
-            page={currentPage}
-            onChooseTool={chooseTool}
-            onRestoreViewerFocus={() => viewerFocusRef.current?.()}
-            onAddScale={() => setChooseCalibrationMode(true)}
-            onRecalibrate={requestRecalibration}
-            onEditReferencePoints={() => setChooseCalibrationReferenceEdit(true)}
-            editingCalibration={Boolean(calibrationReferenceEdit)}
-            editingPageNumber={calibrationReferenceEdit?.pageNumber ?? null}
-            onCancelReferenceEdit={cancelCalibrationReferenceEdit}
-          />
-          {dragActive && (
-            <div className={styles.dropOverlay}>Drop PDF to replace current session</div>
-          )}
-        </main>
-      ) : (
-        <main
-          className={`${styles.emptyState} ${dragActive ? styles.dragActive : ""}`}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (event.currentTarget === event.target) setDragActive(false);
-          }}
-          onDrop={handleDrop}
-        >
-          <div className={styles.dropCard}>
-            <div className={styles.documentMark} aria-hidden="true">
-              PDF
+                  if (phase === "y" && !isPredominantlyVertical(points[0], points[1])) {
+                    chooseTool("calibrate");
+                    setError("Y reference must be primarily vertical (|dy| > |dx|).");
+                    return;
+                  }
+                  updateCalibrationCandidate(selectCalibrationReference(flow, points));
+                }}
+                calibrationReferenceLabel={
+                  calibrationFlow?.mode === "xy"
+                    ? calibrationFlow.phase === "y"
+                      ? "Y"
+                      : "X"
+                    : undefined
+                }
+                onCalibrationCancel={cancelCalibration}
+                calibrationReferenceEdit={
+                  calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
+                    ? {
+                        calibrationId: calibrationReferenceEdit.calibrationId,
+                        reference: calibrationReferenceEdit.reference,
+                        points: calibrationReferenceEdit.points,
+                        valid: calibrationReferenceEditIsValid,
+                      }
+                    : null
+                }
+                onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
+                onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
+                onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
+              />
+            </Suspense>
+          }
+          secondaryPanel={
+            <div className={styles.secondaryPanelStack}>
+              <section className={styles.scaleControls} aria-label="Scales on current page">
+                <div className={styles.scaleControlsHeader}>
+                  <div>
+                    <span className={styles.eyebrow}>Calibration</span>
+                    <strong>Scale tools</strong>
+                  </div>
+                  <span>
+                    {currentPage.calibrations.length}{" "}
+                    {currentPage.calibrations.length === 1 ? "scale" : "scales"}
+                  </span>
+                </div>
+                <div className={styles.scaleControlsActions}>
+                  <Button
+                    variant="secondary"
+                    size="compact"
+                    disabled={calibrationActionsDisabled}
+                    onClick={() => beginNewCalibration("uniform")}
+                  >
+                    Add uniform
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="compact"
+                    disabled={calibrationActionsDisabled}
+                    onClick={() => beginNewCalibration("xy")}
+                  >
+                    Add X/Y
+                  </Button>
+                  {activeCalibrationActions.map((action) => (
+                    <Button
+                      key={action.label}
+                      variant="secondary"
+                      size="compact"
+                      disabled={action.disabled}
+                      onClick={action.onClick}
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+              </section>
+              <div className={styles.panelTabs} role="tablist" aria-label="Workspace data">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={secondaryPanel === "measurements"}
+                  onClick={() => setSecondaryPanel("measurements")}
+                >
+                  Measurements <span>{currentPage.measurements.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={secondaryPanel === "classifications"}
+                  onClick={() => setSecondaryPanel("classifications")}
+                >
+                  Classifications <span>{session.classificationCatalog.dimensions.length}</span>
+                </button>
+              </div>
+              <div className={styles.panelContent} hidden={secondaryPanel !== "measurements"}>
+                <MeasurementPanel
+                  page={previewPage}
+                  onSelectMeasurement={selectMeasurementFromPanel}
+                  onRenameMeasurement={renameMeasurement}
+                  onRequestDelete={requestMeasurementDelete}
+                />
+              </div>
+              <div className={styles.panelContent} hidden={secondaryPanel !== "classifications"}>
+                <ClassificationWorkspace
+                  key={workspaceVersion}
+                  catalog={session.classificationCatalog}
+                  selectedMeasurement={selectedMeasurement}
+                  onAssign={assignClassification}
+                  disabled={Boolean(
+                    calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                  )}
+                  onCreateDimension={(name) =>
+                    addClassificationDimension(crypto.randomUUID(), name)
+                  }
+                  onRenameDimension={renameClassificationDimension}
+                  onCreateValue={(dimensionId, name) =>
+                    addClassificationValue(dimensionId, crypto.randomUUID(), name)
+                  }
+                  onRenameValue={renameClassificationValue}
+                  onArchiveValue={archiveClassificationValue}
+                  onRestoreValue={restoreClassificationValue}
+                />
+              </div>
             </div>
-            <h1>Drop a PDF here</h1>
-            <p>or</p>
-            <button type="button" onClick={() => fileInputRef.current?.click()}>
-              Open PDF
-            </button>
-            <small>PDF files up to 100 MB · Your plan stays in this browser</small>
-          </div>
-        </main>
+          }
+        />
+      ) : (
+        <WorkspaceShell
+          isEmpty
+          dragActive={dragActive}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          emptyState={<EmptyWorkspaceState onOpenPdf={() => fileInputRef.current?.click()} />}
+        />
       )}
 
-      {!recoveryChecked && (
-        <div className={styles.loadingOverlay}>Checking for a saved session…</div>
-      )}
-      {loading && <div className={styles.loadingOverlay}>Loading PDF…</div>}
+      {!recoveryChecked && <LoadingOverlay>Checking for a saved session…</LoadingOverlay>}
+      {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
 
-      {recovery && !state.session && (
-        <Modal title="Previous session found" labelledBy="recovery-title">
-          <p>
-            Continue working on <strong>{recovery.session.pdf.name}</strong>, or discard the saved
-            browser-local session.
-          </p>
-          <div className={styles.modalActions}>
-            <button type="button" onClick={() => void discardRecovery()}>
-              Discard
-            </button>
-            <button
-              type="button"
-              className={styles.primary}
-              onClick={() => void continueRecovery()}
-            >
-              Continue
-            </button>
-          </div>
+      {recovery && !session && !loading && (
+        <Modal title="Previous session found">
+          {confirmDiscardRecovery ? (
+            <>
+              <p>
+                The saved session for <strong>{recovery.session.pdf.name}</strong> and its local PDF
+                will be permanently removed.
+              </p>
+              <div className={styles.modalActions}>
+                <Button variant="secondary" onClick={() => setConfirmDiscardRecovery(false)}>
+                  Cancel
+                </Button>
+                <Button variant="danger" onClick={() => void discardRecovery()}>
+                  Discard saved session
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>
+                Continue working on <strong>{recovery.session.pdf.name}</strong>, or discard the
+                saved browser-local session.
+              </p>
+              <div className={styles.modalActions}>
+                <Button variant="dangerSecondary" onClick={() => setConfirmDiscardRecovery(true)}>
+                  Discard
+                </Button>
+                <Button onClick={() => void continueRecovery()}>Continue</Button>
+              </div>
+            </>
+          )}
         </Modal>
       )}
 
-      {recoveryIssue && !state.session && (
-        <Modal title="Saved session unavailable" labelledBy="recovery-error-title">
-          <p>{recoveryIssue}</p>
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={() => {
-                setRecoveryIssue(null);
-                setAutosaveEnabled(false);
-                setAutosaveWarning(
-                  "Autosave is unavailable. Work in this tab will not survive a reload.",
-                );
-              }}
-            >
-              Continue without recovery
-            </button>
-            <button type="button" className={styles.primary} onClick={() => void discardRecovery()}>
-              Discard saved session
-            </button>
-          </div>
+      {recoveryIssue && !session && (
+        <Modal title="Saved session unavailable">
+          {confirmDiscardRecovery ? (
+            <>
+              <p>The unreadable saved session and its local PDF will be permanently removed.</p>
+              <div className={styles.modalActions}>
+                <Button variant="secondary" onClick={() => setConfirmDiscardRecovery(false)}>
+                  Cancel
+                </Button>
+                <Button variant="danger" onClick={() => void discardRecovery()}>
+                  Discard saved session
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>{recoveryIssue}</p>
+              <div className={styles.modalActions}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setRecoveryIssue(null);
+                    setAutosaveEnabled(false);
+                    setAutosaveWarning(
+                      "The previous saved session is protected. Opening another PDF will require confirmation.",
+                    );
+                  }}
+                >
+                  Continue without recovery
+                </Button>
+                <Button variant="dangerSecondary" onClick={() => setConfirmDiscardRecovery(true)}>
+                  Discard saved session
+                </Button>
+              </div>
+            </>
+          )}
         </Modal>
       )}
 
-      {pendingPdf && (
-        <Modal
-          title="Replace current PDF?"
-          labelledBy="replacement-title"
-          onCancel={() => {
-            clearPendingPdf(pendingPdf);
-          }}
-        >
-          <p>
-            Loading <strong>{pendingPdf.file.name}</strong> will replace the currently saved local
-            session and all its measurements.
-          </p>
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={() => {
-                clearPendingPdf(pendingPdf);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.danger}
-              onClick={() => void activatePdf(pendingPdf, true)}
-            >
-              Replace PDF
-            </button>
-          </div>
-        </Modal>
-      )}
+      <OverlayHost
+        onDialogConfirm={handleOverlayDialogConfirm}
+        onDialogCancel={handleOverlayDialogCancel}
+        onConfirmationConfirm={handleOverlayConfirmationConfirm}
+      />
 
-      {confirmRecalibrate && (
-        <Modal
-          title={`Recalibrate “${confirmRecalibrate.calibrationName}”?`}
-          labelledBy="recalibration-title"
-          onCancel={() => setConfirmRecalibrate(null)}
-        >
-          <p>
-            {confirmRecalibrate.measurementCount} {"measurement"}
-            {confirmRecalibrate.measurementCount === 1 ? " uses" : "s use"} this scale. Their values
-            will be recalculated using the new calibration. Geometry will stay in place.
-          </p>
-          <div className={styles.modalActions}>
-            <button type="button" onClick={() => setConfirmRecalibrate(null)}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.primary}
-              onClick={() => {
-                const confirmation = confirmRecalibrate;
-                setConfirmRecalibrate(null);
-                beginRecalibration(confirmation.pageNumber, confirmation.calibrationId);
-              }}
-            >
-              Recalibrate
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {confirmCalibrationReferenceEdit && (
-        <Modal
-          title={`Save reference-point changes for “${confirmCalibrationReferenceEdit.calibrationName}”?`}
-          labelledBy="reference-edit-confirmation-title"
-          onCancel={() => setConfirmCalibrationReferenceEdit(null)}
-        >
-          <p>
-            {confirmCalibrationReferenceEdit.measurementCount} {"measurement"}
-            {confirmCalibrationReferenceEdit.measurementCount === 1 ? " uses" : "s use"} this
-            scale. Their values will be recalculated. Geometry will stay in place.
-          </p>
-          <div className={styles.modalActions}>
-            <button type="button" onClick={() => setConfirmCalibrationReferenceEdit(null)}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.primary}
-              onClick={() => commitCalibrationReferenceEdit(confirmCalibrationReferenceEdit.edit)}
-            >
-              Save reference points
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {chooseCalibrationReferenceEdit && currentPage && (
-        <Modal
-          title="Edit reference points"
-          labelledBy="reference-edit-selection-title"
-          onCancel={() => setChooseCalibrationReferenceEdit(false)}
-        >
-          <p>Select a scale and reference. This does not change the active scale for new measurements.</p>
-          <ul className={styles.referenceEditList} aria-label="Scales available for reference-point editing">
-            {currentPage.calibrations.map((calibration) => {
-              const measurementCount = currentPage.measurements.filter(
-                (measurement) => measurement.calibrationId === calibration.id,
-              ).length;
-              return (
-                <li key={calibration.id} className={styles.referenceEditRow}>
-                  <div className={styles.referenceEditInfo}>
-                    <strong className={styles.referenceEditName}>{calibration.name}</strong>
-                    <div className={styles.referenceEditMeta}>
-                      <span className={styles.referenceEditType}>
-                        {calibration.mode === "uniform" ? "Uniform" : "X/Y"}
-                      </span>
-                      <span>
-                        {measurementCount} {measurementCount === 1 ? "measurement" : "measurements"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.referenceEditActions} aria-label={`Actions for ${calibration.name}`}>
-                    {calibration.mode === "uniform" ? (
-                      <button
-                        type="button"
-                        onClick={() => beginCalibrationReferenceEdit(calibration, "uniform")}
-                      >
-                        Edit points
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => beginCalibrationReferenceEdit(calibration, "x")}
-                        >
-                          Edit X
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => beginCalibrationReferenceEdit(calibration, "y")}
-                        >
-                          Edit Y
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div className={styles.modalActions}>
-            <button type="button" onClick={() => setChooseCalibrationReferenceEdit(false)}>
-              Cancel
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {chooseCalibrationMode && (
-        <Modal
-          title="Add scale"
-          labelledBy="calibration-mode-title"
-          onCancel={() => setChooseCalibrationMode(false)}
-        >
-          <p>Choose the scale type. Uniform is the normal two-point calibration.</p>
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={styles.primary}
-              onClick={() => beginNewCalibration("uniform")}
-            >
-              Uniform
-            </button>
-            <button type="button" onClick={() => beginNewCalibration("xy")}>
-              X/Y correction
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {calibrationCandidate && state.session && calibrationCandidatePage && (
+      {calibrationCandidate && session && calibrationCandidatePage && (
         <CalibrationDialog
           points={calibrationCandidate.points}
           initialName={
@@ -999,7 +1221,7 @@ function PlanMeasureApp() {
             cancelCalibration();
           }}
           onConfirm={({ name, referenceDistanceMm }) => {
-            if (state.session!.currentPage !== calibrationCandidate.pageNumber) {
+            if (session.currentPage !== calibrationCandidate.pageNumber) {
               cancelCalibration();
               return;
             }
@@ -1014,21 +1236,16 @@ function PlanMeasureApp() {
               name,
             );
             if (confirmation.kind === "select-y") {
-              setCalibrationFlow(confirmation.flow);
-              setCalibrationCandidate(null);
-              dispatch({ type: "SET_TOOL", tool: "calibrate" });
+              advanceCalibrationStep(confirmation.flow);
+              chooseTool("calibrate");
               return;
             }
             const calibration = confirmation.calibration;
             if (calibrationCandidate.calibrationId) {
               if (!calibrationCandidateTarget) {
-                dispatch({
-                  type: "SET_ERROR",
-                  message: "The scale to recalibrate is no longer available.",
-                });
+                setError("The scale to recalibrate is no longer available.");
               } else {
-                dispatch({
-                  type: "RECALIBRATE_CALIBRATION",
+                recalibrateCalibration({
                   pageNumber: calibrationCandidate.pageNumber,
                   calibrationId: calibrationCandidateTarget.id,
                   name,
@@ -1036,19 +1253,19 @@ function PlanMeasureApp() {
                 });
               }
             } else {
-              dispatch({
-                type: "ADD_CALIBRATION",
+              addCalibration({
                 pageNumber: calibrationCandidate.pageNumber,
                 id: crypto.randomUUID(),
                 name,
                 calibration,
               });
             }
-            setCalibrationCandidate(null);
-            setCalibrationFlow(null);
+            completeCalibration();
+            clearDraft();
+            chooseWorkspaceTool("select");
           }}
         />
       )}
-    </div>
+    </AppShell>
   );
 }

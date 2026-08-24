@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PDFDocumentProxy, PDFDocumentLoadingTask } from "pdfjs-dist";
 import type { LoadedPdf } from "../services/pdf";
-import { canActivatePdf, PdfLoadLifecycle } from "./pdfLoadLifecycle";
+import { canActivatePdf, PdfLoadLifecycle, shouldConfirmPdfReplacement } from "./pdfLoadLifecycle";
 
 function fakeLoadedPdf() {
   const destroy = vi.fn().mockResolvedValue(undefined);
@@ -48,5 +48,10 @@ describe("PDF load lifecycle", () => {
 
     expect(canActivatePdf(lifecycle, generation, candidate, candidate, true)).toBe(true);
     expect(canActivatePdf(lifecycle, generation, candidate, otherCandidate, true)).toBe(false);
+  });
+
+  it("protects an unreadable saved session until replacement is explicitly confirmed", () => {
+    expect(shouldConfirmPdfReplacement({ sessionLoaded: false, pdfRuntimeLoaded: false, pdfActivating: false, recoveryProtected: true })).toBe(true);
+    expect(shouldConfirmPdfReplacement({ sessionLoaded: false, pdfRuntimeLoaded: false, pdfActivating: false, recoveryProtected: false })).toBe(false);
   });
 });

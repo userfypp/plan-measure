@@ -142,14 +142,56 @@ export interface SessionV3 {
 
 export type MeasurementType = "line" | "polyline" | "polygon";
 
-export interface PathMeasurement extends MeasurementBase {
+export interface PathMeasurementV4 extends MeasurementBase {
   type: MeasurementType;
   points: Point[];
 }
 
-export type Measurement = PathMeasurement;
+export type MeasurementV4 = PathMeasurementV4;
 
 export type MeasurementCounters = Record<MeasurementType, number>;
+
+export interface PageStateV4 {
+  pageNumber: number;
+  calibrations: PageCalibration[];
+  activeCalibrationId: string | null;
+  nextCalibrationNumber: number;
+  measurements: MeasurementV4[];
+  nextMeasurementNumber: MeasurementCounters;
+}
+
+export interface SessionV4 {
+  schemaVersion: 4;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageStateV4>;
+  settings: SessionSettings;
+}
+
+export interface ClassificationValue {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+export interface ClassificationDimension {
+  id: string;
+  name: string;
+  values: ClassificationValue[];
+}
+
+export interface ClassificationCatalog {
+  dimensions: ClassificationDimension[];
+}
+
+export interface PathMeasurement extends MeasurementBase {
+  type: MeasurementType;
+  points: Point[];
+  classificationValueIds: string[];
+}
+
+export type Measurement = PathMeasurement;
 
 export interface PageState {
   pageNumber: number;
@@ -160,13 +202,14 @@ export interface PageState {
   nextMeasurementNumber: MeasurementCounters;
 }
 
-export interface SessionV4 {
-  schemaVersion: 4;
+export interface SessionV5 {
+  schemaVersion: 5;
   pdf: PdfMetadata;
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageState>;
   settings: SessionSettings;
+  classificationCatalog: ClassificationCatalog;
 }
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;

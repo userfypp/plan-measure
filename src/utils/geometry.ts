@@ -205,7 +205,7 @@ export function polygonResultsMm(
 }
 
 export function measurementResultsMm(
-  measurement: Measurement,
+  measurement: Pick<Measurement, "type" | "points">,
   calibration: Calibration | PageCalibration,
 ): { lengthMm: number | null; perimeterMm: number | null; areaMm2: number | null } {
   const spec = measurementPathSpecs[measurement.type];

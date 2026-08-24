@@ -1,0 +1,139 @@
+.row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-left: 3px solid transparent;
+  background: var(--color-surface);
+}
+
+.row:hover {
+  background: var(--color-surface-subdued);
+}
+
+.selected {
+  border-left-color: var(--color-primary);
+  background: var(--color-selected);
+}
+
+.row[data-editing="true"] {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.row.selected:hover {
+  background: var(--color-selected);
+}
+
+.content {
+  min-width: 0;
+}
+
+.selection {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-4) 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.selection:hover {
+  background: transparent;
+}
+
+.selection:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.rename {
+  color: var(--color-text-muted);
+}
+
+.rename:hover:not(:disabled) {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.renameForm {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-8);
+}
+
+.renameInput {
+  min-width: 0;
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.summary {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.nameLine {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.name,
+.value,
+.calibration {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.type {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.value {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.calibration {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.unavailable {
+  color: var(--color-warning);
+}

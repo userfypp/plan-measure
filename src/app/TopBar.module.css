@@ -1,93 +1,232 @@
 .topBar {
   min-width: 0;
   min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  overflow: visible;
+}
+
+.documentGroup,
+.actions {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 14px;
-  border-bottom: 1px solid #b8c2cc;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+  gap: var(--space-12);
+}
+
+.actions {
+  justify-content: flex-end;
+  overflow: visible;
 }
 
 .brand {
-  color: #102a43;
+  flex: 0 0 auto;
+  color: var(--color-text);
   font-size: 16px;
   font-weight: 750;
   white-space: nowrap;
 }
 
-.open,
-.export {
-  min-height: 34px;
-  border: 1px solid #aab4be;
-  border-radius: 6px;
-  padding: 0 12px;
-  background: #fff;
-  color: #243b53;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.export {
-  margin-left: auto;
-  border-color: #1f5faa;
-  background: #1f5faa;
-  color: #fff;
-}
-
 .fileName {
-  min-width: 80px;
-  max-width: 260px;
+  min-width: 72px;
+  flex: 0 1 auto;
   overflow: hidden;
-  color: #52606d;
-  font-size: 12px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .feedback {
-  color: #52606d;
-  font-size: 12px;
+  min-height: 32px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-8);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
   white-space: nowrap;
 }
 
+.feedback svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
 .feedback:hover {
-  color: #1f5faa;
+  background: var(--color-surface-subdued);
+  color: var(--color-primary);
+}
+
+.feedback:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.viewMenu { position: relative; }
+
+.viewTriggerOpen {
+  border-color: var(--color-primary);
+  background: var(--color-selected);
+}
+
+.viewIcon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.viewOptions {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + var(--space-8));
+  right: 0;
+  width: min(280px, calc(100vw - 24px));
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-elevated);
+  max-height: calc(100dvh - 74px);
+  overflow-y: auto;
+}
+
+.menuHeader {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+
+.menuHeader strong { color: var(--color-text); font-size: var(--font-size-sm); }
+
+.menuHeader span,
+.toggleText small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
 }
 
 .unit,
 .toggle {
-  display: flex;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 5px;
-  color: #52606d;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.unit {
-  margin-left: auto;
+  gap: var(--space-12);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
 }
 
 .unit select {
-  height: 30px;
-  border: 1px solid #b8c2cc;
-  border-radius: 5px;
-  background: #fff;
+  width: 118px;
+  min-height: var(--control-height-compact);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-8);
+  background: var(--color-surface);
+  color: var(--color-text);
 }
+
+.unit select:focus-visible,
+.toggle input:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+
+.toggle:hover { background: var(--color-surface-subdued); }
+
+.toggleText { min-width: 0; display: grid; gap: 1px; }
+.toggleText strong { font-size: var(--font-size-xs); }
 
 .toggle input {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex: 0 0 auto;
   margin: 0;
+  appearance: none;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-subdued);
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 
-@media (max-width: 1150px) {
-  .toggle {
-    font-size: 0;
-  }
+.toggle input::before {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  content: "";
+  transition: transform var(--duration-fast);
+}
 
-  .toggle input {
-    width: 16px;
-    height: 16px;
+.toggle input:checked {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.toggle input:checked::before {
+  transform: translateX(16px);
+}
+
+.menuDivider { height: 1px; background: var(--color-border); }
+
+@media (max-width: 1024px) {
+  .topBar { gap: var(--space-8); padding-inline: 10px; }
+  .documentGroup, .actions { gap: var(--space-8); }
+}
+
+@media (max-width: 700px) {
+  .brand { display: none; }
+
+  .viewMenu { position: static; }
+
+  .viewOptions {
+    position: fixed;
+    top: 62px;
+    right: var(--space-12);
+    left: var(--space-12);
+    width: auto;
   }
+}
+
+@media (max-width: 520px) {
+  .feedback span { display: none; }
+}
+
+@media (max-width: 440px) {
+  .fileName { min-width: 40px; }
+  .topBar, .documentGroup, .actions { gap: var(--space-4); }
+  .topBar { padding-inline: var(--space-8); }
+}
+
+@media (max-width: 360px) {
+  .fileName { display: none; }
 }

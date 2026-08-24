@@ -1,0 +1,51 @@
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.content {
+  position: fixed;
+  z-index: 200;
+  width: max-content;
+  max-width: 240px;
+  padding: var(--space-8) var(--space-12);
+  color: var(--color-surface);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  text-align: start;
+  white-space: normal;
+  background-color: var(--color-text);
+  border-radius: var(--radius-small);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  animation: tooltip-in var(--duration-fast) ease-out;
+}
+
+.content.top {
+  transform: translate(-50%, -100%);
+}
+
+.content.right {
+  transform: translateY(-50%);
+}
+
+.content.bottom {
+  transform: translateX(-50%);
+}
+
+.content.left {
+  transform: translate(-100%, -50%);
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
+}

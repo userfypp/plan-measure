@@ -3,7 +3,7 @@ import { isMeasurementType, measurementPathSpecs } from "./geometry";
 
 export type KeyboardShortcutEvent = Pick<
   KeyboardEvent,
-  "altKey" | "ctrlKey" | "defaultPrevented" | "key" | "metaKey" | "target"
+  "altKey" | "ctrlKey" | "defaultPrevented" | "key" | "metaKey" | "repeat" | "target"
 >;
 
 export function shouldIgnoreGlobalKeyboardShortcut(target: EventTarget | null): boolean {
@@ -13,6 +13,19 @@ export function shouldIgnoreGlobalKeyboardShortcut(target: EventTarget | null): 
       "input, textarea, select, button, a, [contenteditable='true'], [role='button'], [role='link']",
     ) || Boolean(target.closest("dialog"))
   );
+}
+
+export function shouldIgnoreGlobalViewerShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (
+    target.isContentEditable ||
+    target.closest("[contenteditable]") ||
+    target.matches("textarea, select") ||
+    target.closest("dialog, [role='dialog']")
+  ) return true;
+  if (!target.matches("input")) return false;
+  const inputType = target.getAttribute("type")?.toLocaleLowerCase() ?? "text";
+  return !["button", "checkbox", "radio", "range", "reset", "submit"].includes(inputType);
 }
 
 /**
@@ -135,4 +148,24 @@ export function getViewerKeyboardAction(
   if (drawingAction) return drawingAction;
 
   return findShortcut(event.key)?.action ?? null;
+}
+
+/**
+ * Tool and zoom shortcuts remain available after using application chrome.
+ * Text editing, dialogs, browser modifiers, and native drawing keys keep their
+ * local behavior.
+ */
+export function getGlobalViewerKeyboardAction(
+  event: KeyboardShortcutEvent,
+): "zoom-in" | "zoom-out" | ShortcutAction | null {
+  if (
+    event.defaultPrevented ||
+    hasKeyboardShortcutModifier(event) ||
+    shouldIgnoreGlobalViewerShortcutTarget(event.target)
+  ) return null;
+
+  if (event.key === "+" || event.key === "=") return "zoom-in";
+  if (event.key === "-") return "zoom-out";
+  const shortcut = findShortcut(event.key)?.action ?? null;
+  return event.repeat && shortcut ? null : shortcut;
 }

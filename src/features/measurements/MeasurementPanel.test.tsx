@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-import type { Dispatch } from "react";
-import { type AppAction } from "../../app/state";
+import { describe, expect, it } from "vitest";
 import type { Measurement, PageState } from "../../types/domain";
-import { MeasurementItem } from "./MeasurementPanel";
+import { MeasurementRow } from "./MeasurementRow";
+import { SelectionInspector } from "./SelectionInspector";
+import { createMeasurementViewModel, getMeasurementEmptyMessage } from "./measurementViewModels";
 
 const measurement: Measurement = {
   id: "line-1",
@@ -14,6 +14,7 @@ const measurement: Measurement = {
     { x: 10, y: 0 },
   ],
   calibrationId: "scale-1",
+  classificationValueIds: [],
 };
 
 const page: PageState = {
@@ -34,38 +35,92 @@ const page: PageState = {
   nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1 },
 };
 
-function renderItem(selected = false): string {
-  return renderToStaticMarkup(
-    <MeasurementItem
-      pageNumber={page.pageNumber}
-      page={page}
-      measurement={measurement}
-      selected={selected}
-      displayUnit="m"
-      dispatch={vi.fn() as Dispatch<AppAction>}
-    />,
-  );
+function viewModel(selected = false) {
+  return createMeasurementViewModel(page, measurement, "m", selected);
 }
 
-describe("MeasurementItem accessibility", () => {
-  it("exposes a native selection button alongside the editing controls", () => {
-    const markup = renderItem();
+describe("measurement view models", () => {
+  it("keeps the row and inspector presentation independent from domain objects", () => {
+    expect(viewModel(true)).toEqual({
+      id: "line-1",
+      name: "Hallway",
+      typeLabel: "Line",
+      valueLabel: "1.00 m",
+      calibrationSummary: "Main plan · Uniform",
+      hasCalibration: true,
+      selected: true,
+    });
+  });
+
+  it("keeps the empty-state guidance local to the current page", () => {
+    expect(getMeasurementEmptyMessage(page)).toBe(
+      "Choose Line, Polyline, or Polygon to add a measurement.",
+    );
+    expect(getMeasurementEmptyMessage({ ...page, activeCalibrationId: null })).toBe(
+      "Select an available scale to begin measuring.",
+    );
+  });
+});
+
+describe("MeasurementRow accessibility", () => {
+  it("exposes selection and an always-discoverable delete action", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={viewModel()}
+        onSelectMeasurement={() => undefined}
+        onRenameMeasurement={() => undefined}
+        onDeleteMeasurement={() => undefined}
+      />,
+    );
 
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain('type="button"');
     expect(markup).toContain('aria-label="Select measurement Hallway"');
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-describedby="measurement-details-line-1"');
-    expect(markup).toContain('aria-label="Name for Hallway"');
+    expect(markup).toContain("Main plan · Uniform");
+    expect(markup).toContain('aria-label="Rename Hallway"');
     expect(markup).toContain('aria-label="Delete Hallway"');
+    expect(markup).not.toContain('aria-label="Name for Hallway"');
   });
 
-  it("announces the selected state without changing the name or Delete controls", () => {
-    const markup = renderItem(true);
+  it("announces the selected state", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={viewModel(true)}
+        onSelectMeasurement={() => undefined}
+        onRenameMeasurement={() => undefined}
+        onDeleteMeasurement={() => undefined}
+      />,
+    );
 
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
     expect(markup).toContain('aria-pressed="true"');
-    expect(markup).toContain('aria-label="Name for Hallway"');
-    expect(markup).toContain('aria-label="Delete Hallway"');
+  });
+});
+
+describe("SelectionInspector", () => {
+  it("shows only the selected measurement details", () => {
+    const markup = renderToStaticMarkup(
+      <SelectionInspector
+        measurement={viewModel(true)}
+        classificationSummary="Trade: Electrical"
+      />,
+    );
+
+    expect(markup).toContain("Selection inspector");
+    expect(markup).toContain("Type");
+    expect(markup).toContain("Value");
+    expect(markup).toContain("Scale / calibration");
+    expect(markup).toContain("Trade: Electrical");
+    expect(markup).not.toContain("Rename");
+    expect(markup).not.toContain("Delete measurement");
+    expect(markup).not.toContain("Assigned values");
+  });
+
+  it("renders a clear empty state when nothing is selected", () => {
+    const markup = renderToStaticMarkup(<SelectionInspector measurement={null} />);
+
+    expect(markup).toContain("Select a measurement to inspect its details.");
   });
 });

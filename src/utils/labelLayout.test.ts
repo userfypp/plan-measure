@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { LABEL_EDGE_MARGIN_SCREEN_PX, placeLabelWithinBounds } from "./labelLayout";
+import {
+  LABEL_EDGE_MARGIN_SCREEN_PX,
+  placeLabelAvoidingOverlaps,
+  placeLabelWithinBounds,
+} from "./labelLayout";
 
 const page = { width: 100, height: 80 };
 const label = { width: 20, height: 10 };
@@ -86,5 +90,41 @@ describe("label placement within page bounds", () => {
     expect(Number.isFinite(placement.y)).toBe(true);
     expect(placement.x).toBeGreaterThanOrEqual(0);
     expect(placement.y).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("label collision avoidance", () => {
+  it("keeps the centered position when it is unoccupied", () => {
+    expect(placeLabelAvoidingOverlaps({ x: 50, y: 40 }, label, page, 1, [])).toEqual({
+      x: 40,
+      y: 35,
+    });
+  });
+
+  it("moves a second label to a deterministic non-overlapping position", () => {
+    const first = placeLabelAvoidingOverlaps({ x: 50, y: 40 }, label, page, 1, []);
+    const second = placeLabelAvoidingOverlaps(
+      { x: 51, y: 40 },
+      label,
+      page,
+      1,
+      [{ ...first, ...label }],
+    );
+
+    expect(second).not.toEqual(first);
+    expect(second.y + label.height + 4 <= first.y || first.y + label.height + 4 <= second.y).toBe(true);
+  });
+
+  it("keeps displaced labels within page bounds", () => {
+    const occupied = [
+      { x: 76, y: 64, width: 20, height: 10 },
+      { x: 76, y: 50, width: 20, height: 10 },
+    ];
+    const placement = placeLabelAvoidingOverlaps({ x: 99, y: 79 }, label, page, 1, occupied);
+
+    expect(placement.x).toBeGreaterThanOrEqual(4);
+    expect(placement.y).toBeGreaterThanOrEqual(4);
+    expect(right(placement, label.width)).toBeLessThanOrEqual(96);
+    expect(bottom(placement, label.height)).toBeLessThanOrEqual(76);
   });
 });

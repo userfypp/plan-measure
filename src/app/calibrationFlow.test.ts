@@ -5,7 +5,10 @@ import {
   confirmCalibration,
   selectCalibrationReference,
 } from "./calibrationFlow";
-import { appReducer, createEmptySession, initialAppState } from "./state";
+import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
+
+const appReducer = sessionReducer;
+const initialAppState = initialSessionState;
 
 const xPoints = [
   { x: 10, y: 20 },

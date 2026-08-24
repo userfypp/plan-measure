@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEmptySession } from "../app/state";
-import type { LinearUnit, SessionV4 } from "../types/domain";
+import { createEmptySession } from "../app/sessionState";
+import type { LinearUnit, SessionV5 } from "../types/domain";
 import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
-function measuredSession(): SessionV4 {
+function measuredSession(): SessionV5 {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
   session.settings.displayUnit = "m";
   session.pages[1]!.calibrations = [
@@ -42,6 +42,7 @@ function measuredSession(): SessionV4 {
       { x: 0, y: 0 },
       { x: 25, y: 0 },
     ],
+    classificationValueIds: [],
   });
   session.pages[1]!.measurements.push({
     id: "polygon-id",
@@ -54,6 +55,7 @@ function measuredSession(): SessionV4 {
       { x: 10, y: 10 },
       { x: 0, y: 10 },
     ],
+    classificationValueIds: [],
   });
   session.pages[2]!.calibrations = [
     {
@@ -76,11 +78,12 @@ function measuredSession(): SessionV4 {
       { x: 0, y: 0 },
       { x: 10, y: 0 },
     ],
+    classificationValueIds: [],
   });
   return session;
 }
 
-function smallMeasuredSession(displayUnit: LinearUnit): SessionV4 {
+function smallMeasuredSession(displayUnit: LinearUnit): SessionV5 {
   const session = createEmptySession({ name: "small.pdf", size: 10, lastModified: 1 }, 1);
   session.settings.displayUnit = displayUnit;
   session.pages[1]!.calibrations = [
@@ -104,6 +107,7 @@ function smallMeasuredSession(displayUnit: LinearUnit): SessionV4 {
         { x: 0, y: 0 },
         { x: 4, y: 0 },
       ],
+      classificationValueIds: [],
     },
     {
       id: "small-polygon-id",
@@ -116,6 +120,7 @@ function smallMeasuredSession(displayUnit: LinearUnit): SessionV4 {
         { x: 2, y: 2 },
         { x: 0, y: 2 },
       ],
+      classificationValueIds: [],
     },
   );
   return session;
@@ -134,6 +139,7 @@ describe("CSV export", () => {
         { x: 3, y: 0 },
         { x: 3, y: 4 },
       ],
+      classificationValueIds: [],
     });
 
     expect(buildCsv(session)).toContain(
@@ -254,6 +260,7 @@ describe("CSV export", () => {
         { x: 0, y: 0 },
         { x: 1, y: 0 },
       ],
+      classificationValueIds: [],
     });
 
     expect(() => buildCsv(session)).toThrow("Measurement line-id has a missing calibration.");
