@@ -611,4 +611,162 @@ describe("application reducer", () => {
     expect(state.session?.pages[1]?.calibrations).toHaveLength(1);
     expect(state.error).toContain("unique ID");
   });
+
+  it("updates valid uniform reference points without changing IDs, links, or geometry", () => {
+    let state = addScale(loadedState(), "scale-1", "Scale 1", 1000);
+    state = appReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "line-1",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
+    const before = lineLengthMm(
+      state.session!.pages[1]!.measurements[0]!.points,
+      state.session!.pages[1]!.calibrations[0]!,
+    );
+
+    state = appReducer(state, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "scale-1",
+      reference: "uniform",
+      points: [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+      ],
+    });
+    const page = state.session!.pages[1]!;
+    expect(page.calibrations[0]).toMatchObject({ id: "scale-1", name: "Scale 1" });
+    expect(page.measurements[0]).toMatchObject({ calibrationId: "scale-1" });
+    expect(page.measurements[0]!.points).toEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }]);
+    expect(lineLengthMm(page.measurements[0]!.points, page.calibrations[0]!)).toBe(before / 2);
+  });
+
+  it("rejects an invalid uniform, X, or Y reference update", () => {
+    const uniform = addScale(loadedState(), "uniform", "Uniform");
+    const invalidUniform = appReducer(uniform, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "uniform",
+      reference: "uniform",
+      points: [
+        { x: 1, y: 1 },
+        { x: 1, y: 1 },
+      ],
+    });
+    expect(invalidUniform.session).toEqual(uniform.session);
+
+    const xy = addXyScale(loadedState(), "xy", "X/Y");
+    const invalidX = appReducer(xy, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "xy",
+      reference: "x",
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 10 },
+      ],
+    });
+    const invalidY = appReducer(xy, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "xy",
+      reference: "y",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
+    expect(invalidX.session).toEqual(xy.session);
+    expect(invalidY.session).toEqual(xy.session);
+  });
+
+  it("updates X/Y references independently and recalculates only linked measurements", () => {
+    let state = addScale(loadedState(), "uniform", "Uniform", 1000);
+    state = appReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "uniform-line",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    });
+    state = addXyScale(state, "xy", "X/Y", 100, 200);
+    state = appReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "xy-line",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    });
+    const before = state.session!.pages[1]!;
+    const uniformBefore = lineLengthMm(before.measurements[0]!.points, before.calibrations[0]!);
+    const xyBefore = lineLengthMm(before.measurements[1]!.points, before.calibrations[1]!);
+
+    state = appReducer(state, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "xy",
+      reference: "x",
+      points: [
+        { x: 0, y: 0 },
+        { x: 20, y: 1 },
+      ],
+    });
+    const after = state.session!.pages[1]!;
+    expect(after.calibrations[1]).toMatchObject({ id: "xy", mode: "xy" });
+    expect(after.measurements.map((measurement) => measurement.calibrationId)).toEqual([
+      "uniform",
+      "xy",
+    ]);
+    expect(lineLengthMm(after.measurements[0]!.points, after.calibrations[0]!)).toBe(uniformBefore);
+    expect(lineLengthMm(after.measurements[1]!.points, after.calibrations[1]!)).toBeLessThan(xyBefore);
+  });
+
+  it("updates a valid Y reference while preserving the X reference", () => {
+    let state = addXyScale(loadedState(), "xy", "X/Y", 100, 200);
+    state = appReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "vertical-line",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 4 },
+      ],
+    });
+    const before = state.session!.pages[1]!;
+    const beforeLength = lineLengthMm(before.measurements[0]!.points, before.calibrations[0]!);
+
+    state = appReducer(state, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "xy",
+      reference: "y",
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 20 },
+      ],
+    });
+    const calibration = state.session!.pages[1]!.calibrations[0]!;
+    if (calibration.mode !== "xy") throw new Error("Expected an X/Y calibration.");
+    expect(calibration.xReference).toEqual({
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 1 },
+      referenceDistanceMm: 100,
+    });
+    expect(calibration.yReference.end).toEqual({ x: 1, y: 20 });
+    expect(lineLengthMm(state.session!.pages[1]!.measurements[0]!.points, calibration)).toBe(
+      beforeLength / 2,
+    );
+  });
 });

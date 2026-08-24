@@ -11,6 +11,7 @@ import type {
   LinearUnit,
   MeasurementType,
   PageState,
+  CalibrationReferenceKey,
   UniformPageCalibration,
   XyPageCalibration,
   PdfMetadata,
@@ -25,7 +26,11 @@ import {
   isValidPageCalibration,
   measurementPathSpecs,
 } from "../utils/geometry";
-import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
+import {
+  findPageCalibration,
+  getActiveCalibration,
+  replaceCalibrationReferencePoints,
+} from "../utils/calibration";
 
 export interface AppState {
   session: SessionV4 | null;
@@ -62,6 +67,13 @@ export type AppAction =
       calibration: CalibrationInput;
     }
   | { type: "SET_ACTIVE_CALIBRATION"; pageNumber: number; calibrationId: string }
+  | {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS";
+      pageNumber: number;
+      calibrationId: string;
+      reference: CalibrationReferenceKey;
+      points: [Point, Point];
+    }
   | {
       type: "ADD_MEASUREMENT";
       pageNumber: number;
@@ -275,6 +287,31 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         })),
         tool: state.draft ? "select" : state.tool,
         draft: null,
+        error: null,
+      };
+    }
+    case "UPDATE_CALIBRATION_REFERENCE_POINTS": {
+      if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      const calibration = page && findPageCalibration(page, action.calibrationId);
+      const updatedCalibration =
+        calibration &&
+        replaceCalibrationReferencePoints(calibration, action.reference, action.points);
+      if (!page || !calibration || !updatedCalibration || !isValidPageCalibration(updatedCalibration)) {
+        return {
+          ...state,
+          error:
+            "Scale reference requires distinct points and a valid uniform, X, or Y orientation.",
+        };
+      }
+      return {
+        ...state,
+        session: updatePage(state.session, action.pageNumber, (currentPage) => ({
+          ...currentPage,
+          calibrations: currentPage.calibrations.map((currentCalibration) =>
+            currentCalibration.id === action.calibrationId ? updatedCalibration : currentCalibration,
+          ),
+        })),
         error: null,
       };
     }

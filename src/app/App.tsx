@@ -16,7 +16,20 @@ import {
   type CalibrationSelection,
   type CalibrationTransientState,
 } from "./calibrationFlow";
-import type { LinearUnit, SessionV4, Tool } from "../types/domain";
+import {
+  beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
+  cancelCalibrationReferenceEdit as clearCalibrationReferenceEdit,
+  updateCalibrationReferenceEdit as updateCalibrationReferenceEditDraft,
+  type CalibrationReferenceEdit,
+} from "./calibrationReferenceEdit";
+import type {
+  CalibrationReferenceKey,
+  LinearUnit,
+  PageCalibration,
+  Point,
+  SessionV4,
+  Tool,
+} from "../types/domain";
 import { downloadCsv } from "../services/csv";
 import {
   discardSavedSession,
@@ -27,8 +40,16 @@ import {
 } from "../services/persistence";
 import { loadPdf, PdfUserError, validatePdfFile, type LoadedPdf } from "../services/pdf";
 import { shouldIgnoreKeyboardShortcut } from "../utils/keyboard";
-import { findPageCalibration, getActiveCalibration } from "../utils/calibration";
-import { isPredominantlyHorizontal, isPredominantlyVertical } from "../utils/geometry";
+import {
+  findPageCalibration,
+  getActiveCalibration,
+  replaceCalibrationReferencePoints,
+} from "../utils/calibration";
+import {
+  isPredominantlyHorizontal,
+  isPredominantlyVertical,
+  isValidPageCalibration,
+} from "../utils/geometry";
 import styles from "./App.module.css";
 
 interface PendingPdf {
@@ -41,6 +62,12 @@ interface PendingPdf {
 interface RecalibrationConfirmation {
   pageNumber: number;
   calibrationId: string;
+  calibrationName: string;
+  measurementCount: number;
+}
+
+interface CalibrationReferenceEditConfirmation {
+  edit: CalibrationReferenceEdit;
   calibrationName: string;
   measurementCount: number;
 }
@@ -80,6 +107,11 @@ function PlanMeasureApp() {
   const [confirmRecalibrate, setConfirmRecalibrate] = useState<RecalibrationConfirmation | null>(
     null,
   );
+  const [chooseCalibrationReferenceEdit, setChooseCalibrationReferenceEdit] = useState(false);
+  const [calibrationReferenceEdit, setCalibrationReferenceEdit] =
+    useState<CalibrationReferenceEdit | null>(null);
+  const [confirmCalibrationReferenceEdit, setConfirmCalibrationReferenceEdit] =
+    useState<CalibrationReferenceEditConfirmation | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [autosaveSuspended, setAutosaveSuspended] = useState(false);
@@ -255,6 +287,9 @@ function PlanMeasureApp() {
     setCalibrationCandidate(null);
     setCalibrationFlow(null);
     setConfirmRecalibrate(null);
+    setChooseCalibrationReferenceEdit(false);
+    setCalibrationReferenceEdit(null);
+    setConfirmCalibrationReferenceEdit(null);
     setAutosaveSuspended(false);
     activatingPdfRef.current = candidate.loaded;
     beginPdfActivation(candidate.loadGeneration);
@@ -392,6 +427,10 @@ function PlanMeasureApp() {
   }
 
   function chooseTool(tool: Tool) {
+    if (calibrationReferenceEdit && tool !== "select" && tool !== "hand") {
+      dispatch({ type: "SET_ERROR", message: "Finish or cancel the scale reference edit first." });
+      return;
+    }
     if (calibrationFlow && tool !== "calibrate") {
       setCalibrationCandidate(null);
       setCalibrationFlow(null);
@@ -410,6 +449,7 @@ function PlanMeasureApp() {
   }
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
+    if (calibrationReferenceEdit) return;
     const calibration =
       state.session?.pages[pageNumber] &&
       findPageCalibration(state.session.pages[pageNumber], calibrationId);
@@ -419,6 +459,7 @@ function PlanMeasureApp() {
   }
 
   function beginNewCalibration(mode: "uniform" | "xy") {
+    if (calibrationReferenceEdit) return;
     if (!currentPage) return;
     setCalibrationFlow(beginCalibrationFlow(currentPage.pageNumber, null, mode));
     setChooseCalibrationMode(false);
@@ -426,6 +467,7 @@ function PlanMeasureApp() {
   }
 
   function requestRecalibration() {
+    if (calibrationReferenceEdit) return;
     if (!currentPage) return;
     const calibration = getActiveCalibration(currentPage);
     if (!calibration) {
@@ -445,6 +487,79 @@ function PlanMeasureApp() {
       calibrationName: calibration.name,
       measurementCount,
     });
+  }
+
+  function beginCalibrationReferenceEdit(
+    calibration: PageCalibration,
+    reference: CalibrationReferenceKey,
+  ) {
+    if (!currentPage) return;
+    const edit = createCalibrationReferenceEdit(currentPage.pageNumber, calibration, reference);
+    if (!edit) return;
+    setChooseCalibrationReferenceEdit(false);
+    setCalibrationReferenceEdit(edit);
+    setConfirmCalibrationReferenceEdit(null);
+    dispatch({ type: "SELECT_MEASUREMENT", id: null });
+    dispatch({ type: "SET_TOOL", tool: "select" });
+  }
+
+  function updateCalibrationReferenceEdit(points: [Point, Point]) {
+    setCalibrationReferenceEdit((current) =>
+      current ? updateCalibrationReferenceEditDraft(current, points) : current,
+    );
+  }
+
+  function cancelCalibrationReferenceEdit() {
+    setCalibrationReferenceEdit(clearCalibrationReferenceEdit());
+    setConfirmCalibrationReferenceEdit(null);
+  }
+
+  function calibrationReferenceEditPreview(
+    edit: CalibrationReferenceEdit,
+  ): PageCalibration | null {
+    const page = state.session?.pages[edit.pageNumber];
+    const calibration = page && findPageCalibration(page, edit.calibrationId);
+    return calibration
+      ? replaceCalibrationReferencePoints(calibration, edit.reference, edit.points)
+      : null;
+  }
+
+  function requestCalibrationReferenceEditSave() {
+    const edit = calibrationReferenceEdit;
+    const preview = edit && calibrationReferenceEditPreview(edit);
+    const page = edit && state.session?.pages[edit.pageNumber];
+    const calibration = page && edit && findPageCalibration(page, edit.calibrationId);
+    if (!edit || !preview || !calibration || !isValidPageCalibration(preview)) {
+      dispatch({
+        type: "SET_ERROR",
+        message: "Place the reference points in a valid position before saving.",
+      });
+      return;
+    }
+    const measurementCount = page.measurements.filter(
+      (measurement) => measurement.calibrationId === calibration.id,
+    ).length;
+    if (measurementCount === 0) {
+      commitCalibrationReferenceEdit(edit);
+      return;
+    }
+    setConfirmCalibrationReferenceEdit({
+      edit,
+      calibrationName: calibration.name,
+      measurementCount,
+    });
+  }
+
+  function commitCalibrationReferenceEdit(edit: CalibrationReferenceEdit) {
+    dispatch({
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: edit.pageNumber,
+      calibrationId: edit.calibrationId,
+      reference: edit.reference,
+      points: edit.points,
+    });
+    setCalibrationReferenceEdit(null);
+    setConfirmCalibrationReferenceEdit(null);
   }
 
   function exportMeasurements() {
@@ -467,6 +582,27 @@ function PlanMeasureApp() {
     calibrationCandidatePage && calibrationCandidate?.calibrationId
       ? findPageCalibration(calibrationCandidatePage, calibrationCandidate.calibrationId)
       : null;
+  const calibrationReferencePreview = calibrationReferenceEdit
+    ? calibrationReferenceEditPreview(calibrationReferenceEdit)
+    : null;
+  const calibrationReferenceEditIsValid = Boolean(
+    calibrationReferencePreview && isValidPageCalibration(calibrationReferencePreview),
+  );
+  const previewPage =
+    currentPage &&
+    calibrationReferenceEdit &&
+    calibrationReferenceEdit.pageNumber === currentPage.pageNumber &&
+    calibrationReferencePreview &&
+    calibrationReferenceEditIsValid
+      ? {
+          ...currentPage,
+          calibrations: currentPage.calibrations.map((calibration) =>
+            calibration.id === calibrationReferenceEdit.calibrationId
+              ? calibrationReferencePreview
+              : calibration,
+          ),
+        }
+      : currentPage;
 
   return (
     <div className={styles.app}>
@@ -510,7 +646,7 @@ function PlanMeasureApp() {
       ) : (
         <div className={styles.messagePlaceholder} aria-hidden="true" />
       )}
-      {state.session && activePdf && currentPage ? (
+      {state.session && activePdf && currentPage && previewPage ? (
         <main
           className={`${styles.workspace} ${dragActive ? styles.dragActive : ""}`}
           onDragEnter={(event) => {
@@ -523,10 +659,10 @@ function PlanMeasureApp() {
           }}
           onDrop={handleDrop}
         >
-          <MeasurementPanel page={currentPage} />
+          <MeasurementPanel page={previewPage} />
           <PdfViewer
             document={activePdf.document}
-            page={currentPage}
+            page={previewPage}
             onPageChange={(pageNumber) => {
               setCalibrationCandidate(null);
               setCalibrationFlow(null);
@@ -563,6 +699,19 @@ function PlanMeasureApp() {
                 : undefined
             }
             onCalibrationCancel={cancelCalibration}
+            calibrationReferenceEdit={
+              calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
+                ? {
+                    calibrationId: calibrationReferenceEdit.calibrationId,
+                    reference: calibrationReferenceEdit.reference,
+                    points: calibrationReferenceEdit.points,
+                    valid: calibrationReferenceEditIsValid,
+                  }
+                : null
+            }
+            onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
+            onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
+            onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
             onVertexDragStateChange={setAutosaveSuspended}
             viewerFocusRef={viewerFocusRef}
           />
@@ -572,6 +721,10 @@ function PlanMeasureApp() {
             onRestoreViewerFocus={() => viewerFocusRef.current?.()}
             onAddScale={() => setChooseCalibrationMode(true)}
             onRecalibrate={requestRecalibration}
+            onEditReferencePoints={() => setChooseCalibrationReferenceEdit(true)}
+            editingCalibration={Boolean(calibrationReferenceEdit)}
+            editingPageNumber={calibrationReferenceEdit?.pageNumber ?? null}
+            onCancelReferenceEdit={cancelCalibrationReferenceEdit}
           />
           {dragActive && (
             <div className={styles.dropOverlay}>Drop PDF to replace current session</div>
@@ -710,6 +863,94 @@ function PlanMeasureApp() {
               }}
             >
               Recalibrate
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmCalibrationReferenceEdit && (
+        <Modal
+          title={`Save reference-point changes for “${confirmCalibrationReferenceEdit.calibrationName}”?`}
+          labelledBy="reference-edit-confirmation-title"
+          onCancel={() => setConfirmCalibrationReferenceEdit(null)}
+        >
+          <p>
+            {confirmCalibrationReferenceEdit.measurementCount} {"measurement"}
+            {confirmCalibrationReferenceEdit.measurementCount === 1 ? " uses" : "s use"} this
+            scale. Their values will be recalculated. Geometry will stay in place.
+          </p>
+          <div className={styles.modalActions}>
+            <button type="button" onClick={() => setConfirmCalibrationReferenceEdit(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={() => commitCalibrationReferenceEdit(confirmCalibrationReferenceEdit.edit)}
+            >
+              Save reference points
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {chooseCalibrationReferenceEdit && currentPage && (
+        <Modal
+          title="Edit reference points"
+          labelledBy="reference-edit-selection-title"
+          onCancel={() => setChooseCalibrationReferenceEdit(false)}
+        >
+          <p>Select a scale and reference. This does not change the active scale for new measurements.</p>
+          <ul className={styles.referenceEditList} aria-label="Scales available for reference-point editing">
+            {currentPage.calibrations.map((calibration) => {
+              const measurementCount = currentPage.measurements.filter(
+                (measurement) => measurement.calibrationId === calibration.id,
+              ).length;
+              return (
+                <li key={calibration.id} className={styles.referenceEditRow}>
+                  <div className={styles.referenceEditInfo}>
+                    <strong className={styles.referenceEditName}>{calibration.name}</strong>
+                    <div className={styles.referenceEditMeta}>
+                      <span className={styles.referenceEditType}>
+                        {calibration.mode === "uniform" ? "Uniform" : "X/Y"}
+                      </span>
+                      <span>
+                        {measurementCount} {measurementCount === 1 ? "measurement" : "measurements"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={styles.referenceEditActions} aria-label={`Actions for ${calibration.name}`}>
+                    {calibration.mode === "uniform" ? (
+                      <button
+                        type="button"
+                        onClick={() => beginCalibrationReferenceEdit(calibration, "uniform")}
+                      >
+                        Edit points
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => beginCalibrationReferenceEdit(calibration, "x")}
+                        >
+                          Edit X
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => beginCalibrationReferenceEdit(calibration, "y")}
+                        >
+                          Edit Y
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className={styles.modalActions}>
+            <button type="button" onClick={() => setChooseCalibrationReferenceEdit(false)}>
+              Cancel
             </button>
           </div>
         </Modal>

@@ -20,6 +20,7 @@ import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { useAppState, type AppAction } from "../../app/state";
 import type {
   LinearUnit,
+  CalibrationReferenceKey,
   LogicalPageBounds,
   Measurement,
   MeasurementType,
@@ -57,6 +58,7 @@ import {
 } from "../../utils/labelLayout";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
+import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
 const LABEL_PADDING_SCREEN_PX = 4;
@@ -71,8 +73,19 @@ interface PdfViewerProps {
   onCalibrationCandidate: (points: [Point, Point]) => void;
   calibrationReferenceLabel?: "X" | "Y";
   onCalibrationCancel: () => void;
+  calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
+  onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
+  onCalibrationReferenceEditCancel: () => void;
+  onCalibrationReferenceEditSave: () => void;
   onVertexDragStateChange: (dragging: boolean) => void;
   viewerFocusRef: MutableRefObject<(() => void) | null>;
+}
+
+interface CalibrationReferenceEditPreview {
+  calibrationId: string;
+  reference: CalibrationReferenceKey;
+  points: [Point, Point];
+  valid: boolean;
 }
 
 function pointsToFlat(points: Point[]): number[] {
@@ -120,6 +133,10 @@ export function PdfViewer({
   onCalibrationCandidate,
   calibrationReferenceLabel,
   onCalibrationCancel,
+  calibrationReferenceEdit,
+  onCalibrationReferencePointsChange,
+  onCalibrationReferenceEditCancel,
+  onCalibrationReferenceEditSave,
   onVertexDragStateChange,
   viewerFocusRef,
 }: PdfViewerProps) {
@@ -148,6 +165,8 @@ export function PdfViewer({
   const [fitMode, setFitMode] = useState(true);
   const [spacePan, setSpacePan] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+  const suppressPanClickRef = useRef(false);
+  const suppressPanClickTimerRef = useRef<number | null>(null);
   const panDragRef = useRef<{
     pointer: Point;
     transform: ViewTransform;
@@ -169,6 +188,8 @@ export function PdfViewer({
   const onCalibrationCancelRef = useRef(onCalibrationCancel);
   const onChooseToolRef = useRef(onChooseTool);
   const completePathRef = useRef(completePath);
+  const calibrationReferenceEditRef = useRef(calibrationReferenceEdit);
+  const onCalibrationReferenceEditCancelRef = useRef(onCalibrationReferenceEditCancel);
 
   useLayoutEffect(() => {
     stateRef.current = state;
@@ -176,7 +197,17 @@ export function PdfViewer({
     onCalibrationCancelRef.current = onCalibrationCancel;
     onChooseToolRef.current = onChooseTool;
     completePathRef.current = completePath;
-  }, [completePath, onCalibrationCancel, onChooseTool, state, viewerSize]);
+    calibrationReferenceEditRef.current = calibrationReferenceEdit;
+    onCalibrationReferenceEditCancelRef.current = onCalibrationReferenceEditCancel;
+  }, [
+    calibrationReferenceEdit,
+    completePath,
+    onCalibrationCancel,
+    onCalibrationReferenceEditCancel,
+    onChooseTool,
+    state,
+    viewerSize,
+  ]);
 
   const bounds = pageRenderData?.bounds ?? null;
 
@@ -377,6 +408,9 @@ export function PdfViewer({
       if (wheelZoomFrameRef.current !== null) {
         window.cancelAnimationFrame(wheelZoomFrameRef.current);
       }
+      if (suppressPanClickTimerRef.current !== null) {
+        window.clearTimeout(suppressPanClickTimerRef.current);
+      }
     },
     [],
   );
@@ -418,6 +452,11 @@ export function PdfViewer({
   const handleViewerKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       const currentState = stateRef.current;
+      if (event.key === "Escape" && calibrationReferenceEditRef.current) {
+        event.preventDefault();
+        onCalibrationReferenceEditCancelRef.current();
+        return;
+      }
       const action = getViewerKeyboardAction(
         event.nativeEvent,
         currentState.tool,
@@ -467,9 +506,11 @@ export function PdfViewer({
   }
 
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
-    if (state.tool !== "hand" && !spacePan) return;
+    if (!startsViewerPan(state.tool, spacePan, event.evt.button)) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
+    event.evt.preventDefault();
+    suppressPanClickRef.current = true;
     panDragRef.current = { pointer, transform: transformRef.current };
     setFitMode(false);
     setIsPanning(true);
@@ -526,11 +567,30 @@ export function PdfViewer({
   function handleMouseUp() {
     const completedPan = panDragRef.current !== null;
     panDragRef.current = null;
-    if (completedPan) setTransform(transformRef.current);
+    if (completedPan) {
+      setTransform(transformRef.current);
+      if (suppressPanClickTimerRef.current !== null) {
+        window.clearTimeout(suppressPanClickTimerRef.current);
+      }
+      suppressPanClickTimerRef.current = window.setTimeout(() => {
+        suppressPanClickRef.current = false;
+        suppressPanClickTimerRef.current = null;
+      }, 0);
+    }
     setIsPanning(false);
   }
 
   function handleStageClick(event: KonvaEventObject<MouseEvent>) {
+    if (!isPrimaryViewerClick(event.evt.button)) return;
+    if (suppressPanClickRef.current) {
+      suppressPanClickRef.current = false;
+      if (suppressPanClickTimerRef.current !== null) {
+        window.clearTimeout(suppressPanClickTimerRef.current);
+        suppressPanClickTimerRef.current = null;
+      }
+      return;
+    }
+    if (calibrationReferenceEdit) return;
     if (!bounds || state.tool === "select" || state.tool === "hand" || spacePan) {
       if (
         (event.target === event.target.getStage() || event.target.name() === "page-background") &&
@@ -710,7 +770,8 @@ export function PdfViewer({
                 {state.session?.settings.showCalibration &&
                   page.calibrations.flatMap((calibration) => {
                     const active = calibration.id === page.activeCalibrationId;
-                    const stroke = active ? "#d97706" : "#52606d";
+                    const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
+                    const stroke = editing ? "#7c3aed" : active ? "#d97706" : "#52606d";
                     const references =
                       calibration.mode === "uniform"
                         ? [{ key: "uniform", label: calibration.name, ...calibration }]
@@ -727,12 +788,21 @@ export function PdfViewer({
                             },
                           ];
                     return references.map((reference) => {
+                      const referenceIsEditing =
+                        editing && calibrationReferenceEdit?.reference === reference.key;
+                      const visibleReference = referenceIsEditing
+                        ? {
+                            ...reference,
+                            start: calibrationReferenceEdit.points[0],
+                            end: calibrationReferenceEdit.points[1],
+                          }
+                        : reference;
                       const labelPoint = {
-                        x: (reference.start.x + reference.end.x) / 2,
-                        y: (reference.start.y + reference.end.y) / 2,
+                        x: (visibleReference.start.x + visibleReference.end.x) / 2,
+                        y: (visibleReference.start.y + visibleReference.end.y) / 2,
                       };
                       const labelDimensions = measureLabelText(
-                        reference.label,
+                        `${reference.label}${referenceIsEditing ? " · editing" : ""}`,
                         CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
                         viewTransform.zoom,
                       );
@@ -746,26 +816,26 @@ export function PdfViewer({
                       return (
                         <Group
                           key={`${calibration.id}-${reference.key}`}
-                          listening={false}
+                          listening={referenceIsEditing}
                           opacity={active ? 1 : 0.72}
                         >
                           <Line
-                            points={pointsToFlat([reference.start, reference.end])}
+                            points={pointsToFlat([visibleReference.start, visibleReference.end])}
                             stroke={stroke}
-                            strokeWidth={(active ? 3 : 2) / viewTransform.zoom}
+                            strokeWidth={(referenceIsEditing || active ? 3 : 2) / viewTransform.zoom}
                             dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
                           />
-                          {[reference.start, reference.end].map((point, index) => (
-                            <Circle
-                              key={`${calibration.id}-${index}`}
-                              x={point.x}
-                              y={point.y}
-                              radius={4 / viewTransform.zoom}
-                              fill="#fff"
-                              stroke={stroke}
-                              strokeWidth={(active ? 2 : 1.5) / viewTransform.zoom}
-                            />
-                          ))}
+                          <CalibrationReferenceMarkers
+                            calibrationId={calibration.id}
+                            points={[visibleReference.start, visibleReference.end]}
+                            editable={referenceIsEditing}
+                            stroke={stroke}
+                            zoom={viewTransform.zoom}
+                            transform={viewTransform}
+                            bounds={bounds}
+                            emphasized={referenceIsEditing || active}
+                            onPointsChange={onCalibrationReferencePointsChange}
+                          />
                           <Label x={labelPlacement.x} y={labelPlacement.y}>
                             <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / viewTransform.zoom} />
                             <Text
@@ -788,7 +858,12 @@ export function PdfViewer({
                       zoom={viewTransform.zoom}
                       transform={viewTransform}
                       selected={state.selectedMeasurementId === measurement.id}
-                      editable={state.tool === "select" && !spacePan && !isPanning}
+                      editable={
+                        state.tool === "select" &&
+                        !spacePan &&
+                        !isPanning &&
+                        !calibrationReferenceEdit
+                      }
                       showLabel={state.session?.settings.showLabels ?? true}
                       page={page}
                       displayUnit={state.session?.settings.displayUnit ?? "m"}
@@ -823,6 +898,28 @@ export function PdfViewer({
           </Stage>
         )}
         {!showPage && <div className={styles.loading}>Rendering page…</div>}
+        {calibrationReferenceEdit && (
+          <div className={styles.drawingStatus}>
+            <span>
+              Editing {calibrationReferenceEdit.reference === "uniform"
+                ? "scale reference"
+                : `${calibrationReferenceEdit.reference.toUpperCase()} reference`}
+              {calibrationReferenceEdit.valid
+                ? " · Preview updates linked measurements"
+                : " · Points must remain a valid reference before saving"}
+            </span>
+            <button type="button" onClick={onCalibrationReferenceEditCancel}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!calibrationReferenceEdit.valid}
+              onClick={onCalibrationReferenceEditSave}
+            >
+              Save
+            </button>
+          </div>
+        )}
         {state.draft?.type === "path" && state.draft.measurementType !== "line" && (
           <div className={styles.drawingStatus}>
             <span>
@@ -894,6 +991,109 @@ export function PdfViewer({
       </nav>
     </div>
   );
+}
+
+interface CalibrationReferenceMarkersProps {
+  calibrationId: string;
+  points: [Point, Point];
+  editable: boolean;
+  stroke: string;
+  zoom: number;
+  transform: ViewTransform;
+  bounds: LogicalPageBounds;
+  emphasized: boolean;
+  onPointsChange: (points: [Point, Point]) => void;
+}
+
+function CalibrationReferenceMarkers({
+  calibrationId,
+  points,
+  editable,
+  stroke,
+  zoom,
+  transform,
+  bounds,
+  emphasized,
+  onPointsChange,
+}: CalibrationReferenceMarkersProps) {
+  const frameRef = useRef<number | null>(null);
+  const pendingPointsRef = useRef<[Point, Point] | null>(null);
+  const dragPointsRef = useRef<[Point, Point]>(points);
+
+  useEffect(() => {
+    dragPointsRef.current = points;
+  }, [points]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      pendingPointsRef.current = null;
+    },
+    [],
+  );
+
+  function pointFromDragEvent(event: KonvaEventObject<MouseEvent>): Point {
+    const pointer = event.target.getStage()?.getPointerPosition();
+    const rawPoint = pointer
+      ? screenToPage({ x: pointer.x, y: pointer.y }, transform)
+      : { x: event.target.x(), y: event.target.y() };
+    return clampPointToPage(rawPoint, bounds);
+  }
+
+  function queuePoints(nextPoints: [Point, Point]) {
+    dragPointsRef.current = nextPoints;
+    pendingPointsRef.current = nextPoints;
+    if (frameRef.current !== null) return;
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = null;
+      const pending = pendingPointsRef.current;
+      pendingPointsRef.current = null;
+      if (pending) onPointsChange(pending);
+    });
+  }
+
+  function pointsWithHandle(index: number, point: Point): [Point, Point] {
+    const current = dragPointsRef.current;
+    return index === 0 ? [point, current[1]] : [current[0], point];
+  }
+
+  function handleDragMove(index: number, event: KonvaEventObject<MouseEvent>) {
+    event.cancelBubble = true;
+    const point = pointFromDragEvent(event);
+    event.target.position(point);
+    queuePoints(pointsWithHandle(index, point));
+  }
+
+  function handleDragEnd(index: number, event: KonvaEventObject<MouseEvent>) {
+    event.cancelBubble = true;
+    const point = pointFromDragEvent(event);
+    event.target.position(point);
+    if (frameRef.current !== null) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    pendingPointsRef.current = null;
+    const nextPoints = pointsWithHandle(index, point);
+    dragPointsRef.current = nextPoints;
+    onPointsChange(nextPoints);
+  }
+
+  return points.map((point, index) => (
+    <Circle
+      key={`${calibrationId}-${index}`}
+      x={point.x}
+      y={point.y}
+      radius={4 / zoom}
+      fill="#fff"
+      stroke={stroke}
+      strokeWidth={(emphasized ? 2 : 1.5) / zoom}
+      draggable={editable}
+      hitStrokeWidth={editable ? 12 / zoom : 0}
+      onDragStart={editable ? (event) => (event.cancelBubble = true) : undefined}
+      onDragMove={editable ? (event) => handleDragMove(index, event) : undefined}
+      onDragEnd={editable ? (event) => handleDragEnd(index, event) : undefined}
+    />
+  ));
 }
 
 interface MeasurementShapeProps {

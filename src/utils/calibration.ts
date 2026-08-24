@@ -1,4 +1,11 @@
-import type { Measurement, PageCalibration, PageState } from "../types/domain";
+import type {
+  Calibration,
+  CalibrationReferenceKey,
+  Measurement,
+  PageCalibration,
+  PageState,
+  Point,
+} from "../types/domain";
 
 export function findPageCalibration(
   page: Pick<PageState, "calibrations">,
@@ -17,4 +24,41 @@ export function getMeasurementCalibration(
   measurement: Pick<Measurement, "calibrationId">,
 ): PageCalibration | null {
   return findPageCalibration(page, measurement.calibrationId);
+}
+
+export function getCalibrationReference(
+  calibration: PageCalibration,
+  reference: CalibrationReferenceKey,
+): Calibration | null {
+  if (calibration.mode === "uniform") {
+    return reference === "uniform" ? calibration : null;
+  }
+  if (reference === "x") return calibration.xReference;
+  if (reference === "y") return calibration.yReference;
+  return null;
+}
+
+export function replaceCalibrationReferencePoints(
+  calibration: PageCalibration,
+  reference: CalibrationReferenceKey,
+  points: readonly [Point, Point],
+): PageCalibration | null {
+  const [start, end] = points;
+  const nextPoints = { start: { ...start }, end: { ...end } };
+  if (calibration.mode === "uniform") {
+    return reference === "uniform" ? { ...calibration, ...nextPoints } : null;
+  }
+  if (reference === "x") {
+    return {
+      ...calibration,
+      xReference: { ...calibration.xReference, ...nextPoints },
+    };
+  }
+  if (reference === "y") {
+    return {
+      ...calibration,
+      yReference: { ...calibration.yReference, ...nextPoints },
+    };
+  }
+  return null;
 }

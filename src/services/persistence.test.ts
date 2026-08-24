@@ -313,6 +313,26 @@ describe("session persistence", () => {
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
+  it("round trips confirmed edited reference points without changing V4", () => {
+    const session = currentMeasuredSession();
+    const calibration = session.pages[2]!.calibrations[0]!;
+    if (calibration.mode !== "uniform") throw new Error("Expected a uniform calibration.");
+    session.pages[2]!.calibrations[0] = {
+      ...calibration,
+      start: { x: 15, y: 16 },
+      end: { x: 35, y: 16 },
+    };
+    const restored = deserializeSession(serializeSession(session));
+
+    expect(restored.schemaVersion).toBe(4);
+    expect(restored.pages[2]!.calibrations[0]).toMatchObject({
+      id: "custom-scale",
+      start: { x: 15, y: 16 },
+      end: { x: 35, y: 16 },
+    });
+    expect(restored.pages[2]!.measurements[0]!.calibrationId).toBe("custom-scale");
+  });
+
   it("rejects corrupt V4 measurement IDs and canonicalizes restored session data", () => {
     const duplicate = currentMeasuredSession();
     duplicate.pages[2]!.measurements.push({ ...duplicate.pages[2]!.measurements[0]! });

@@ -29,6 +29,9 @@ export interface XyPageCalibration {
 
 export type PageCalibration = UniformPageCalibration | XyPageCalibration;
 
+/** Identifies one editable two-point reference within a page calibration. */
+export type CalibrationReferenceKey = "uniform" | "x" | "y";
+
 interface MeasurementBase {
   id: string;
   name: string;

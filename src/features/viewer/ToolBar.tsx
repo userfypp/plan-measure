@@ -22,6 +22,10 @@ interface ToolBarProps {
   onRestoreViewerFocus: () => void;
   onAddScale: () => void;
   onRecalibrate: () => void;
+  onEditReferencePoints: () => void;
+  editingCalibration: boolean;
+  editingPageNumber: number | null;
+  onCancelReferenceEdit: () => void;
 }
 
 export function ToolBar({
@@ -30,6 +34,10 @@ export function ToolBar({
   onRestoreViewerFocus,
   onAddScale,
   onRecalibrate,
+  onEditReferencePoints,
+  editingCalibration,
+  editingPageNumber,
+  onCancelReferenceEdit,
 }: ToolBarProps) {
   const { state, dispatch } = useAppState();
   const activeCalibration = getActiveCalibration(page);
@@ -45,7 +53,7 @@ export function ToolBar({
     <aside className={styles.toolbar} aria-label="Viewer tools">
       <div className={styles.tools}>
         {TOOLS.map((tool) => {
-          const disabled = isMeasurementType(tool.id) && !calibrated;
+          const disabled = isMeasurementType(tool.id) && (!calibrated || editingCalibration);
           return (
             <button
               key={tool.id}
@@ -53,7 +61,9 @@ export function ToolBar({
               className={state.tool === tool.id ? styles.active : ""}
               disabled={disabled}
               title={
-                disabled
+                editingCalibration && isMeasurementType(tool.id)
+                  ? "Finish or cancel the scale reference edit first"
+                  : disabled
                   ? `${tool.label} requires an active scale`
                   : `${tool.label} (${tool.shortcut})`
               }
@@ -100,6 +110,7 @@ export function ToolBar({
               <select
                 aria-label="Active scale for new measurements"
                 value={activeCalibration.id}
+                disabled={editingCalibration}
                 onChange={(event) =>
                   dispatch({
                     type: "SET_ACTIVE_CALIBRATION",
@@ -125,16 +136,32 @@ export function ToolBar({
           <button
             type="button"
             className={state.tool === "calibrate" ? styles.activeScaleAction : ""}
+            disabled={editingCalibration}
             onClick={onAddScale}
           >
             Add scale
           </button>
           {activeCalibration && (
-            <button type="button" onClick={onRecalibrate}>
+            <button type="button" disabled={editingCalibration} onClick={onRecalibrate}>
               Recalibrate
             </button>
           )}
+          {page.calibrations.length > 0 && (
+            <button type="button" disabled={editingCalibration} onClick={onEditReferencePoints}>
+              Edit reference points
+            </button>
+          )}
         </div>
+        {editingCalibration && (
+          <div>
+            <small>
+              Editing scale reference{editingPageNumber === page.pageNumber ? " on this page" : ` on page ${editingPageNumber}`}.
+            </small>
+            <button type="button" onClick={onCancelReferenceEdit}>
+              Cancel edit
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );
