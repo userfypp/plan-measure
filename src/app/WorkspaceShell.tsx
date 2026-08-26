@@ -12,6 +12,7 @@ interface WorkspaceShellProps {
   onDragLeave: DragEventHandler<HTMLElement>;
   onDrop: DragEventHandler<HTMLElement>;
   toolRail?: ReactNode;
+  leftPanel?: ReactNode;
   viewerContext?: ReactNode;
   viewer?: ReactNode;
   secondaryPanel?: ReactNode;
@@ -27,6 +28,7 @@ export function WorkspaceShell({
   onDragLeave,
   onDrop,
   toolRail,
+  leftPanel,
   viewerContext,
   viewer,
   secondaryPanel,
@@ -56,7 +58,14 @@ export function WorkspaceShell({
       className={`${styles.workspace} ${dragActive ? styles.dragActive : ""}`}
       {...dropZoneProps}
     >
-      {toolRail}
+      <div className={styles.leftRail} data-layout-slot="left-rail">
+        {toolRail}
+        {leftPanel && (
+          <div className={styles.leftInspector} data-layout-slot="selection-inspector">
+            {leftPanel}
+          </div>
+        )}
+      </div>
       <ViewerShell contextBar={viewerContext}>{viewer}</ViewerShell>
       <SecondaryPanelHost>{secondaryPanel}</SecondaryPanelHost>
       {dragActive && <div className={styles.dropOverlay}>{dropOverlay}</div>}

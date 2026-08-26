@@ -1,44 +1,31 @@
 .contextBar {
   min-width: 0;
-  min-height: 48px;
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.65fr) minmax(170px, 0.8fr);
+  min-height: 40px;
+  display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
 }
 
 .contextItem {
+  flex: 1 1 auto;
   min-width: 0;
-  display: grid;
-  align-content: center;
-  gap: 2px;
-  padding: 7px 12px;
-  border-right: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-12);
 }
 
-.contextItem:last-child {
-  border-right: 0;
-}
-
-.label {
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.07em;
-  line-height: 1;
-  text-transform: uppercase;
+.contextItem + .contextItem {
+  flex: 0 1 42%;
 }
 
 .value {
   min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
   overflow: hidden;
+  color: var(--color-text);
   font-size: var(--font-size-sm);
-  line-height: 1.2;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -50,53 +37,29 @@
   gap: var(--space-8);
 }
 
-.scaleValue select {
-  width: min(240px, 100%);
+.selectWrapper {
+  position: relative;
+  display: block;
+  flex: 0 1 136px;
   min-width: 0;
-  min-height: var(--control-height-compact);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
-  background: var(--color-surface);
-  color: var(--color-text);
+  width: 136px;
+  max-width: min(240px, 100%);
+}
+
+.selectWrapper select {
+  display: block;
+  width: 100%;
+  height: var(--control-height-compact);
+  padding: 0 28px 0 10px;
+  text-align: left;
+  text-align-last: left;
+}
+
+.scaleValue small {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.scaleValue select:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.value strong {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 400;
-  text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.contextBar kbd {
-  flex: 0 0 auto;
-  min-width: 18px;
-  padding: 2px 4px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-small);
-  color: var(--color-text-muted);
-  font-size: 10px;
-  line-height: 1;
-  text-align: center;
-}
-
-.value small {
-  flex: 0 0 auto;
-  color: var(--color-text-muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.neutral {
-  color: var(--color-text);
 }
 
 .active {
@@ -107,27 +70,9 @@
   color: var(--color-warning);
 }
 
-@media (max-width: 900px) {
-  .contextBar {
-    grid-template-columns: minmax(0, 1fr) minmax(130px, auto);
-  }
-
-  .selectionItem {
-    display: none;
-  }
-}
-
 @media (max-width: 760px) {
-  .contextBar {
-    grid-template-columns: minmax(0, 1fr) minmax(110px, auto);
-  }
-
   .contextItem {
-    padding-inline: 8px;
-  }
-
-  .value small {
-    display: none;
+    padding-inline: var(--space-8);
   }
 
   .scaleValue > small {

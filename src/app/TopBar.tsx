@@ -23,10 +23,7 @@ export function TopBar({ onOpenPdf, onExport }: TopBarProps) {
     }
     function handleKeyDown(event: KeyboardEvent) {
       const target = event.target instanceof Element ? event.target : null;
-      if (
-        event.defaultPrevented ||
-        target?.closest("dialog, [role='dialog']")
-      ) return;
+      if (event.defaultPrevented || target?.closest("dialog, [role='dialog']")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         setViewOpen(false);
@@ -78,10 +75,6 @@ export function TopBar({ onOpenPdf, onExport }: TopBarProps) {
               aria-controls={viewMenuId}
               onClick={() => setViewOpen((open) => !open)}
             >
-              <svg className={styles.viewIcon} viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M2.5 10s2.7-4.25 7.5-4.25S17.5 10 17.5 10 14.8 14.25 10 14.25 2.5 10 2.5 10Z" />
-                <circle cx="10" cy="10" r="2" />
-              </svg>
               View
             </Button>
             {viewOpen && (
@@ -94,7 +87,9 @@ export function TopBar({ onOpenPdf, onExport }: TopBarProps) {
                   <span>Display unit</span>
                   <select
                     value={session.settings.displayUnit}
-                    onChange={(event) => updateSettings({ displayUnit: event.target.value as "mm" | "cm" | "m" })}
+                    onChange={(event) =>
+                      updateSettings({ displayUnit: event.target.value as "mm" | "cm" | "m" })
+                    }
                   >
                     <option value="mm">Millimetres</option>
                     <option value="cm">Centimetres</option>
@@ -102,20 +97,44 @@ export function TopBar({ onOpenPdf, onExport }: TopBarProps) {
                   </select>
                 </label>
                 <div className={styles.menuDivider} />
-                <ViewToggle label="Labels" description="Show calculated values" checked={session.settings.showLabels} onChange={(checked) => updateSettings({ showLabels: checked })} />
-                <ViewToggle label="Measurements" description="Show drawn geometry" checked={session.settings.showMeasurements} onChange={(checked) => updateSettings({ showMeasurements: checked })} />
-                <ViewToggle label="Calibration" description="Show scale references" checked={session.settings.showCalibration} onChange={(checked) => updateSettings({ showCalibration: checked })} />
+                <ViewToggle
+                  label="Labels"
+                  description="Show calculated values"
+                  checked={session.settings.showLabels}
+                  onChange={(checked) => updateSettings({ showLabels: checked })}
+                />
+                <ViewToggle
+                  label="Measurements"
+                  description="Show drawn geometry"
+                  checked={session.settings.showMeasurements}
+                  onChange={(checked) => updateSettings({ showMeasurements: checked })}
+                />
+                <ViewToggle
+                  label="Calibration"
+                  description="Show scale references"
+                  checked={session.settings.showCalibration}
+                  onChange={(checked) => updateSettings({ showCalibration: checked })}
+                />
               </div>
             )}
           </div>
         )}
-        {session && <Button size="compact" onClick={onExport}>Export CSV</Button>}
+        {session && (
+          <Button size="compact" onClick={onExport}>
+            Export CSV
+          </Button>
+        )}
       </div>
     </header>
   );
 }
 
-function ViewToggle({ label, description, checked, onChange }: {
+function ViewToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
   label: string;
   description: string;
   checked: boolean;
@@ -123,8 +142,16 @@ function ViewToggle({ label, description, checked, onChange }: {
 }) {
   return (
     <label className={styles.toggle}>
-      <span className={styles.toggleText}><strong>{label}</strong><small>{description}</small></span>
-      <input type="checkbox" role="switch" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span className={styles.toggleText}>
+        <strong>{label}</strong>
+        <small>{description}</small>
+      </span>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
     </label>
   );
 }

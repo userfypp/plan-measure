@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { Measurement, PageState } from "../../types/domain";
 import { MeasurementRow } from "./MeasurementRow";
 import { SelectionInspector } from "./SelectionInspector";
-import { createMeasurementViewModel, getMeasurementEmptyMessage } from "./measurementViewModels";
+import {
+  createMeasurementViewModel,
+  getMeasurementClassificationSummary,
+  getMeasurementEmptyMessage,
+} from "./measurementViewModels";
 
 const measurement: Measurement = {
   id: "line-1",
@@ -60,6 +64,53 @@ describe("measurement view models", () => {
       "Select an available scale to begin measuring.",
     );
   });
+
+  it("formats line, polyline, and polygon selections consistently", () => {
+    const polyline: Measurement = {
+      ...measurement,
+      type: "polyline",
+      points: [...measurement.points, { x: 5, y: 5 }],
+    };
+    const polygon: Measurement = {
+      ...measurement,
+      type: "polygon",
+      points: [...measurement.points, { x: 5, y: 5 }],
+    };
+
+    expect(
+      [measurement, polyline, polygon].map(
+        (candidate) => createMeasurementViewModel(page, candidate, "m").typeLabel,
+      ),
+    ).toEqual(["Line", "Polyline", "Polygon"]);
+  });
+
+  it("keeps every assigned classification in the inspector summary", () => {
+    expect(
+      getMeasurementClassificationSummary(
+        {
+          ...measurement,
+          classificationValueIds: ["bathroom", "kitchen", "natural-light"],
+        },
+        {
+          dimensions: [
+            {
+              id: "room",
+              name: "Room",
+              values: [
+                { id: "bathroom", name: "Bathroom", archived: false },
+                { id: "kitchen", name: "Kitchen", archived: false },
+              ],
+            },
+            {
+              id: "light",
+              name: "Lighting",
+              values: [{ id: "natural-light", name: "Natural light", archived: true }],
+            },
+          ],
+        },
+      ),
+    ).toBe("Room: Bathroom · Room: Kitchen · Lighting: Natural light (archived)");
+  });
 });
 
 describe("MeasurementRow accessibility", () => {
@@ -108,7 +159,7 @@ describe("SelectionInspector", () => {
       />,
     );
 
-    expect(markup).toContain("Selection inspector");
+    expect(markup).not.toContain("Selection inspector");
     expect(markup).toContain("Type");
     expect(markup).toContain("Value");
     expect(markup).toContain("Scale / calibration");

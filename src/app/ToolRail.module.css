@@ -1,58 +1,45 @@
 .toolRail {
-  grid-area: tool;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow-x: clip;
   overflow-y: auto;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.header {
-  padding: 12px 8px 6px;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.eyebrow {
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .tools {
   display: grid;
-  justify-items: center;
-  gap: 4px;
-  padding: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--border-width);
+  padding: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-right: 0;
+  background: var(--color-border);
 }
 
 .toolButton {
-  width: 52px;
-  height: 56px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   display: grid;
-  grid-template-rows: 24px auto;
+  grid-template-rows: 24px 10px;
   place-items: center;
+  align-content: center;
   gap: 2px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-medium);
-  padding: 6px 3px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition:
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
+  border: 0;
+  border-radius: var(--radius-flat);
+  padding: 4px;
+  background: var(--color-surface);
+  color: var(--color-tool);
 }
 
 .toolButton:hover:not(:disabled) {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-subdued);
+  position: relative;
+  z-index: 1;
+  background: var(--color-surface);
   color: var(--color-text);
+  box-shadow: var(--shadow-tool-hover);
 }
 
 .toolButton:focus-visible {
@@ -61,19 +48,17 @@
 }
 
 .toolButton.active {
-  border-color: var(--color-primary);
   background: var(--color-selected);
   color: var(--color-primary-active);
 }
 
 .toolButton:disabled {
-  cursor: not-allowed;
   opacity: var(--opacity-disabled);
 }
 
 .icon {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: inline-grid;
   place-items: center;
 }
@@ -94,23 +79,18 @@
 
 .shortcut {
   min-width: 16px;
-  color: var(--color-text-muted);
+  color: var(--color-tool);
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   line-height: 1;
 }
 
 .tools > span {
-  width: 52px;
-  max-width: 52px;
+  display: block;
+  width: 100%;
+  max-width: none;
 }
 
 .active .shortcut {
   color: var(--color-primary-active);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toolButton {
-    transition: none;
-  }
 }

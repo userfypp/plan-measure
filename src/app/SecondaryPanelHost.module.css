@@ -3,7 +3,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-left: 1px solid var(--color-border);
+  border-left: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
 }
 
@@ -15,7 +15,6 @@
 
 @media (max-width: 820px), (max-width: 900px) and (max-height: 500px) {
   .secondaryPanelHost {
-    border-top: 1px solid var(--color-border);
     border-left: 0;
   }
 }

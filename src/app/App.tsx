@@ -18,10 +18,12 @@ import { Modal } from "../components/Modal";
 import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
+import { MeasurementClassificationDock } from "../features/classification/MeasurementClassificationDock";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
 } from "../features/measurements/MeasurementPanel";
+import { SelectionInspectorPanel } from "../features/measurements/SelectionInspectorPanel";
 import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
 import { canActivatePdf, PdfLoadLifecycle, shouldConfirmPdfReplacement } from "./pdfLoadLifecycle";
 import {
@@ -61,7 +63,6 @@ import {
   isPredominantlyVertical,
   isMeasurementType,
   isValidPageCalibration,
-  measurementPathSpecs,
 } from "../utils/geometry";
 import styles from "./App.module.css";
 
@@ -903,12 +904,6 @@ function PlanMeasureApp() {
         }
       : null,
     workflow: workflowContext,
-    selection: selectedMeasurement
-      ? {
-          name: selectedMeasurement.name,
-          typeLabel: measurementPathSpecs[selectedMeasurement.type].label,
-        }
-      : null,
   };
   const canCreateMeasurements = Boolean(activeCalibration) && !calibrationReferenceEdit;
   const measurementToolDisabledReason = calibrationReferenceEdit
@@ -952,6 +947,7 @@ function PlanMeasureApp() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
+          leftPanel={<SelectionInspectorPanel page={previewPage} />}
           viewerContext={
             <ViewerContextBar
               context={viewerContext}
@@ -1018,7 +1014,6 @@ function PlanMeasureApp() {
               <section className={styles.scaleControls} aria-label="Scales on current page">
                 <div className={styles.scaleControlsHeader}>
                   <div>
-                    <span className={styles.eyebrow}>Calibration</span>
                     <strong>Scale tools</strong>
                   </div>
                   <span>
@@ -1080,14 +1075,22 @@ function PlanMeasureApp() {
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onRenameMeasurement={renameMeasurement}
                   onRequestDelete={requestMeasurementDelete}
+                  classificationDock={
+                    <MeasurementClassificationDock
+                      measurement={selectedMeasurement}
+                      catalog={session.classificationCatalog}
+                      onAssign={assignClassification}
+                      disabled={Boolean(
+                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                      )}
+                    />
+                  }
                 />
               </div>
               <div className={styles.panelContent} hidden={secondaryPanel !== "classifications"}>
                 <ClassificationWorkspace
                   key={workspaceVersion}
                   catalog={session.classificationCatalog}
-                  selectedMeasurement={selectedMeasurement}
-                  onAssign={assignClassification}
                   disabled={Boolean(
                     calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
                   )}

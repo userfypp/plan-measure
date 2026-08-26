@@ -3,10 +3,11 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
-  padding: var(--space-8) var(--space-16) var(--space-4);
+  max-height: min(420px, 58vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--space-8);
   background: var(--color-surface);
-  border-top: 1px solid var(--color-border-strong);
 }
 
 .empty {
@@ -28,66 +29,49 @@
   margin-bottom: var(--space-4);
 }
 
-.headingText {
-  min-width: 0;
-}
-
-.eyebrow {
-  margin: 0 0 var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .title {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--color-text);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .details {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-flat);
   background: var(--color-surface-subdued);
 }
 
 .details > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
   padding: var(--space-4) var(--space-8);
   background: var(--color-surface);
 }
 
-.details > div:nth-child(odd) {
-  border-right: 1px solid var(--color-border);
-}
-
-.details > div:nth-child(-n + 2) {
-  border-bottom: 1px solid var(--color-border);
+.details > div:not(:last-child) {
+  border-bottom: var(--border-width) solid var(--color-border);
 }
 
 .details dt {
-  overflow: hidden;
   margin-bottom: var(--space-4);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .details dd {
@@ -103,20 +87,26 @@
 }
 
 .measurementValue {
+  display: grid;
+  gap: var(--space-4);
   font-size: var(--font-size-xs);
 }
 
 .classificationValue {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .classificationBadge {
   display: block;
+  margin-inline: auto;
   max-width: 100%;
   overflow: visible;
   overflow-wrap: anywhere;
   line-height: var(--line-height-tight);
+  text-align: center;
   text-overflow: clip;
   white-space: normal;
 }

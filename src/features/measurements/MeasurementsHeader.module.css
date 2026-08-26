@@ -7,7 +7,7 @@
   gap: var(--space-8);
   padding: 0 var(--space-16);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-width) solid var(--color-border);
 }
 
 .title {
@@ -30,5 +30,5 @@
   line-height: var(--line-height-tight);
   text-align: center;
   background: var(--color-surface-subdued);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-flat);
 }

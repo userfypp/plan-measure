@@ -22,12 +22,8 @@
   font-size: var(--font-size-md);
   line-height: var(--line-height-normal);
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-control);
-  transition:
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-flat);
 }
 
 .control::placeholder {
@@ -66,10 +62,4 @@
 .error {
   color: var(--color-danger);
   font-weight: var(--font-weight-medium);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .control {
-    transition: none;
-  }
 }

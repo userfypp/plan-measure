@@ -40,7 +40,11 @@ export function ClassificationManager({
     event.preventDefault();
     const name = dimensionName.trim();
     if (!name) return;
-    if (catalog.dimensions.some((dimension) => dimension.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    if (
+      catalog.dimensions.some(
+        (dimension) => dimension.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+      )
+    ) {
       setCreateError("Dimension names must be unique.");
       return;
     }
@@ -54,8 +58,13 @@ export function ClassificationManager({
     const name = (valueNames[dimensionId] ?? "").trim();
     if (!name) return;
     const dimension = catalog.dimensions.find((candidate) => candidate.id === dimensionId);
-    if (dimension?.values.some((value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-      setValueErrors((current) => ({ ...current, [dimensionId]: "Value names must be unique in this dimension." }));
+    if (
+      dimension?.values.some((value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase())
+    ) {
+      setValueErrors((current) => ({
+        ...current,
+        [dimensionId]: "Value names must be unique in this dimension.",
+      }));
       return;
     }
     onCreateValue(dimensionId, name);
@@ -77,16 +86,26 @@ export function ClassificationManager({
       return;
     }
     const dimension = catalog.dimensions.find((candidate) => candidate.id === editing.dimensionId);
-    const value = editing.type === "value"
-      ? dimension?.values.find((candidate) => candidate.id === editing.valueId)
-      : null;
+    const value =
+      editing.type === "value"
+        ? dimension?.values.find((candidate) => candidate.id === editing.valueId)
+        : null;
     if (!dimension || (editing.type === "value" && !value)) {
       setNameError("This classification is no longer available.");
       return;
     }
-    const duplicate = editing.type === "dimension"
-      ? catalog.dimensions.some((candidate) => candidate.id !== editing.dimensionId && candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase())
-      : dimension.values.some((candidate) => candidate.id !== editing.valueId && candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+    const duplicate =
+      editing.type === "dimension"
+        ? catalog.dimensions.some(
+            (candidate) =>
+              candidate.id !== editing.dimensionId &&
+              candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+          )
+        : dimension.values.some(
+            (candidate) =>
+              candidate.id !== editing.valueId &&
+              candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+          );
     if (duplicate) {
       setNameError(`${editing.type === "dimension" ? "Dimension" : "Value"} names must be unique.`);
       return;
@@ -100,11 +119,13 @@ export function ClassificationManager({
   return (
     <section className={styles.manager} aria-label="Classification catalog">
       <header className={styles.header}>
-        <div><span className={styles.eyebrow}>Catalog</span><h2>Classifications</h2></div>
+        <h2>Classifications</h2>
         <Badge>{catalog.dimensions.length}</Badge>
       </header>
       <div className={styles.body}>
-        <p className={styles.description}>Create reusable values. Classifications never change measurement scales.</p>
+        <p className={styles.description}>
+          Create reusable values. Classifications never change measurement scales.
+        </p>
         {catalog.dimensions.length === 0 ? (
           <p className={styles.empty}>Create a dimension such as Trade, Status, or Area.</p>
         ) : (
@@ -114,9 +135,20 @@ export function ClassificationManager({
                 <div className={styles.itemHeader}>
                   <div className={styles.itemText}>
                     <strong>{dimension.name}</strong>
-                    <span>{dimension.values.filter((value) => !value.archived).length} active values</span>
+                    <span>
+                      {dimension.values.filter((value) => !value.archived).length} active values
+                    </span>
                   </div>
-                  <Button variant="ghost" size="compact" disabled={disabled} onClick={() => startEditing({ type: "dimension", dimensionId: dimension.id }, dimension.name)}>Rename</Button>
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    disabled={disabled}
+                    onClick={() =>
+                      startEditing({ type: "dimension", dimensionId: dimension.id }, dimension.name)
+                    }
+                  >
+                    Rename
+                  </Button>
                 </div>
                 <ul className={styles.valueList} aria-label={`${dimension.name} values`}>
                   {dimension.values.map((value) => (
@@ -125,11 +157,30 @@ export function ClassificationManager({
                       {value.archived ? (
                         <div className={styles.actions}>
                           <Badge variant="neutral">Archived</Badge>
-                          <Button variant="ghost" size="compact" disabled={disabled} onClick={() => onRestoreValue(dimension.id, value.id)}>Restore</Button>
+                          <Button
+                            variant="ghost"
+                            size="compact"
+                            disabled={disabled}
+                            onClick={() => onRestoreValue(dimension.id, value.id)}
+                          >
+                            Restore
+                          </Button>
                         </div>
                       ) : (
                         <div className={styles.actions}>
-                          <Button variant="ghost" size="compact" disabled={disabled} onClick={() => startEditing({ type: "value", dimensionId: dimension.id, valueId: value.id }, value.name)}>Rename</Button>
+                          <Button
+                            variant="ghost"
+                            size="compact"
+                            disabled={disabled}
+                            onClick={() =>
+                              startEditing(
+                                { type: "value", dimensionId: dimension.id, valueId: value.id },
+                                value.name,
+                              )
+                            }
+                          >
+                            Rename
+                          </Button>
                           <Button
                             variant="dangerSecondary"
                             size="compact"
@@ -145,25 +196,74 @@ export function ClassificationManager({
                     </li>
                   ))}
                 </ul>
-                <form className={styles.inlineForm} onSubmit={(event) => submitValue(event, dimension.id)}>
-                  <Input label={`New value for ${dimension.name}`} value={valueNames[dimension.id] ?? ""} error={valueErrors[dimension.id]} disabled={disabled} onChange={(event) => { setValueNames((current) => ({ ...current, [dimension.id]: event.target.value })); setValueErrors((current) => ({ ...current, [dimension.id]: null })); }} />
-                  <Button type="submit" disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}>Add value</Button>
+                <form
+                  className={styles.inlineForm}
+                  onSubmit={(event) => submitValue(event, dimension.id)}
+                >
+                  <Input
+                    label={`New value for ${dimension.name}`}
+                    value={valueNames[dimension.id] ?? ""}
+                    error={valueErrors[dimension.id]}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setValueNames((current) => ({
+                        ...current,
+                        [dimension.id]: event.target.value,
+                      }));
+                      setValueErrors((current) => ({ ...current, [dimension.id]: null }));
+                    }}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
+                  >
+                    Add value
+                  </Button>
                 </form>
               </li>
             ))}
           </ul>
         )}
         <form className={styles.create} onSubmit={submitDimension}>
-          <Input label="New dimension" value={dimensionName} error={createError} disabled={disabled} onChange={(event) => { setDimensionName(event.target.value); setCreateError(null); }} />
-          <Button type="submit" disabled={disabled || !dimensionName.trim()}>Add dimension</Button>
+          <Input
+            label="New dimension"
+            value={dimensionName}
+            error={createError}
+            disabled={disabled}
+            onChange={(event) => {
+              setDimensionName(event.target.value);
+              setCreateError(null);
+            }}
+          />
+          <Button type="submit" disabled={disabled || !dimensionName.trim()}>
+            Add dimension
+          </Button>
         </form>
       </div>
       {editing && (
-        <form className={styles.renameOverlay} onSubmit={submitRename} aria-label="Rename classification">
-          <Input label={`Rename ${editing.type}`} value={editName} error={nameError} disabled={disabled} autoFocus onChange={(event) => setEditName(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setEditing(null); }} />
+        <form
+          className={styles.renameOverlay}
+          onSubmit={submitRename}
+          aria-label="Rename classification"
+        >
+          <Input
+            label={`Rename ${editing.type}`}
+            value={editName}
+            error={nameError}
+            disabled={disabled}
+            autoFocus
+            onChange={(event) => setEditName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setEditing(null);
+            }}
+          />
           <div className={styles.actions}>
-            <Button variant="secondary" size="compact" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button type="submit" size="compact" disabled={disabled}>Save</Button>
+            <Button variant="secondary" size="compact" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="compact" disabled={disabled}>
+              Save
+            </Button>
           </div>
         </form>
       )}

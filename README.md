@@ -69,8 +69,9 @@ npm run format   # Format the repository with Prettier
    second point; Polyline and Polygon continue until you press **Enter**. A Polygon can also close
    by clicking its first vertex. Press **Escape** to cancel an unfinished drawing, then again to
    leave its tool.
-4. Use **Select** to choose a measurement and drag its vertex handles. Names and classification
-   assignments can be edited in the right workspace panel.
+4. Use **Select** to choose a measurement and drag its vertex handles. Edit names in the
+   **Measurements** tab; assign catalog values from the classification dock at the bottom of that
+   panel.
 5. Use **O** or the **Ortho 90°** control to constrain new segments horizontally or vertically.
 6. Choose **Export CSV** to export measurements from every page.
 
@@ -91,13 +92,13 @@ non-linear warping.
   until the current page has an active scale.
 - **Viewer:** use the page controls to move through the PDF, zoom in or out, or fit the page to the
   available space. Measurements and calibration references remain attached to their PDF page.
-- **Measurements tab:** select a measurement, rename it, or delete it. The fixed **Selection
-  Inspector** shows the selected object's type, calculated value, scale/calibration, and assigned
-  classifications without duplicating the row actions.
-- **Classifications tab:** assign catalog values to the selected measurement and manage the reusable
-  catalog. Dimensions and values can be created and renamed; values can be archived without removing
-  existing assignments and restored later. Dimension names are unique, and value names are unique
-  within each dimension.
+- **Measurements tab:** select, rename, or delete a measurement. The **Selection Inspector** stays
+  in the left tool rail and shows the selected object's type, calculated value, scale/calibration,
+  and assigned classifications. The dock at the bottom of the panel contains the assignment
+  controls for the selected measurement.
+- **Classifications tab:** manage the reusable catalog only. Dimensions and values can be created
+  and renamed; values can be archived without removing existing assignments and restored later.
+  Dimension names are unique, and value names are unique within each dimension.
 
 Classification assignments are measurement-specific. Selecting another measurement changes the
 assignment controls and inspector without changing the catalog or other measurements.

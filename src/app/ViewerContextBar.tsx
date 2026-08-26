@@ -18,10 +18,6 @@ export interface ViewerContextData {
     label: string;
     tone: "neutral" | "active" | "warning";
   };
-  selection: {
-    name: string;
-    typeLabel: string;
-  } | null;
 }
 
 export function ViewerContextBar({
@@ -34,19 +30,22 @@ export function ViewerContextBar({
   return (
     <div className={styles.contextBar} aria-label="Viewer context">
       <div className={styles.contextItem}>
-        <span className={styles.label}>Scale</span>
         {context.scale ? (
           <div className={styles.scaleValue}>
-            <select
-              aria-label="Active scale"
-              value={context.scale.id}
-              disabled={context.scale.disabled}
-              onChange={(event) => onScaleChange(event.target.value)}
-            >
-              {context.scale.options.map((option) => (
-                <option key={option.id} value={option.id}>{option.name}</option>
-              ))}
-            </select>
+            <span className={styles.selectWrapper}>
+              <select
+                aria-label="Active scale"
+                value={context.scale.id}
+                disabled={context.scale.disabled}
+                onChange={(event) => onScaleChange(event.target.value)}
+              >
+                {context.scale.options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </span>
             <small>{context.scale.modeLabel}</small>
           </div>
         ) : (
@@ -56,28 +55,13 @@ export function ViewerContextBar({
         )}
       </div>
 
-      <div className={styles.contextItem}>
-        <span className={styles.label}>Workflow</span>
-        <span
-          className={`${styles.value} ${styles[context.workflow.tone]}`}
-          role="status"
-          title={context.workflow.label}
-        >
-          {context.workflow.label}
-        </span>
-      </div>
-
-      <div className={`${styles.contextItem} ${styles.selectionItem}`}>
-        <span className={styles.label}>Selection</span>
-        {context.selection ? (
-          <span className={styles.value} title={context.selection.name}>
-            <strong>{context.selection.name}</strong>
-            <small>{context.selection.typeLabel}</small>
+      {context.workflow.tone !== "neutral" && (
+        <div className={styles.contextItem}>
+          <span className={`${styles.value} ${styles[context.workflow.tone]}`} role="status">
+            {context.workflow.label}
           </span>
-        ) : (
-          <span className={`${styles.value} ${styles.neutral}`}>None selected</span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

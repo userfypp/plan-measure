@@ -16,22 +16,11 @@
   justify-content: space-between;
   gap: var(--space-8);
   padding: 7px var(--space-12);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.eyebrow,
-.sectionLabel {
-  display: block;
-  color: var(--color-text-muted);
-  font-size: 9px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.07em;
-  line-height: 1.2;
-  text-transform: uppercase;
+  border-bottom: var(--border-width) solid var(--color-border);
 }
 
 .header h2 {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--color-text);
   font-size: 14px;
   line-height: 1.2;
@@ -72,18 +61,28 @@
   min-width: 0;
   gap: var(--space-8);
   padding: var(--space-8);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-medium);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-flat);
   background: var(--color-surface);
 }
 
 .itemHeader,
-.meta,
-.actions {
+.meta {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: var(--space-8);
+}
+
+.actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-group-gap);
+}
+
+.actions > * + * {
+  margin-inline-start: var(--control-border-overlap);
 }
 
 .itemHeader,
@@ -120,7 +119,7 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-4);
+  gap: var(--space-group-gap);
 }
 
 .actions {
@@ -152,7 +151,7 @@
   align-items: center;
   min-height: 32px;
   padding: var(--space-4) 0;
-  border-top: 1px solid var(--color-border);
+  border-top: var(--border-width) solid var(--color-border);
   color: var(--color-text);
   font-size: var(--font-size-sm);
 }
@@ -168,7 +167,7 @@
 .valueItem > .actions {
   flex: 0 0 auto;
   flex-wrap: nowrap;
-  gap: var(--space-4);
+  gap: var(--space-group-gap);
 }
 
 .inlineForm > :first-child,
@@ -183,10 +182,18 @@
   display: grid;
   gap: var(--space-8);
   padding: var(--space-12);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-medium);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-flat);
   background: var(--color-surface);
-  box-shadow: var(--shadow-elevated);
+  box-shadow: var(--shadow-none);
+}
+
+.renameOverlay .actions {
+  gap: var(--space-8);
+}
+
+.renameOverlay .actions > * + * {
+  margin-inline-start: 0;
 }
 
 .create {

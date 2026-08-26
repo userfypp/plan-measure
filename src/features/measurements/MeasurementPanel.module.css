@@ -1,20 +1,30 @@
 .panel {
-  --selection-inspector-height: 176px;
+  --classification-panel-height: clamp(176px, 32vh, 280px);
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: auto minmax(120px, 1fr) var(--selection-inspector-height);
+  grid-template-rows: auto minmax(120px, 1fr) var(--classification-panel-height);
   overflow: hidden;
   background: var(--color-surface-subdued);
 }
 
+.classificationSlot,
+.futureSlot {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-subdued);
+}
+
+.classificationSlot > * {
+  width: 100%;
+  height: 100%;
+}
+
 @media (max-width: 820px), (max-height: 620px) {
   .panel {
-    grid-template-rows: auto minmax(0, 1fr) var(--selection-inspector-height);
-  }
-
-  .panel > :last-child {
-    max-height: none;
+    grid-template-rows: auto minmax(0, 1fr) var(--classification-panel-height);
   }
 }
 
@@ -29,8 +39,8 @@
     flex: 0 0 180px;
   }
 
-  .panel > :last-child {
-    flex: 0 0 var(--selection-inspector-height);
-    max-height: none;
+  .panel > .classificationSlot,
+  .panel > .futureSlot {
+    flex: 0 0 var(--classification-panel-height);
   }
 }

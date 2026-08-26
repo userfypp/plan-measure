@@ -11,6 +11,7 @@ import { useWorkspaceState } from "./workspaceState";
 import styles from "./ToolRail.module.css";
 
 type RailTool = Exclude<ToolDefinition["id"], "orthogonal">;
+const TOOL_GRID_COLUMNS = 3;
 
 interface ToolRailProps {
   toolAvailability: ToolAvailabilityMap;
@@ -20,27 +21,50 @@ interface ToolRailProps {
 export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const { activeTool, orthogonal, toggleOrthogonal } = useWorkspaceState();
   const [rovingToolId, setRovingToolId] = useState<ToolDefinition["id"]>("select");
-  const focusedToolIsAvailable = toolRailRegistry.some((definition) =>
-    definition.id === rovingToolId &&
-    !getToolAvailabilityState(definition, toolAvailability).disabled,
+  const focusedToolIsAvailable = toolRailRegistry.some(
+    (definition) =>
+      definition.id === rovingToolId &&
+      !getToolAvailabilityState(definition, toolAvailability).disabled,
   );
   const currentRovingToolId = focusedToolIsAvailable ? rovingToolId : "select";
 
   function handleToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const navigationStep =
+      event.key === "ArrowUp"
+        ? -TOOL_GRID_COLUMNS
+        : event.key === "ArrowDown"
+          ? TOOL_GRID_COLUMNS
+          : event.key === "ArrowLeft"
+            ? -1
+            : event.key === "ArrowRight"
+              ? 1
+              : null;
+    const isBoundaryNavigation = event.key === "Home" || event.key === "End";
+    if (navigationStep === null && !isBoundaryNavigation) return;
+
     const buttons = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]:not(:disabled)"),
+      event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]"),
     );
-    if (buttons.length === 0) return;
+    const navigableButtons = buttons.filter((button) => !button.disabled);
+    if (navigableButtons.length === 0) return;
+
     const currentIndex = buttons.findIndex((button) => button === document.activeElement);
-    const nextIndex = event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? buttons.length - 1
-        : event.key === "ArrowUp"
-          ? (currentIndex - 1 + buttons.length) % buttons.length
-          : (currentIndex + 1) % buttons.length;
-    const nextButton = buttons[nextIndex];
+    const activeIndex = currentIndex >= 0 ? currentIndex : buttons.indexOf(navigableButtons[0]!);
+    let nextButton =
+      event.key === "Home"
+        ? navigableButtons[0]
+        : event.key === "End"
+          ? navigableButtons[navigableButtons.length - 1]
+          : undefined;
+
+    if (!nextButton && navigationStep !== null) {
+      let nextIndex = activeIndex;
+      do {
+        nextIndex = (nextIndex + navigationStep + buttons.length) % buttons.length;
+      } while (buttons[nextIndex]?.disabled && nextIndex !== activeIndex);
+      nextButton = buttons[nextIndex];
+    }
+
     if (!nextButton) return;
     event.preventDefault();
     setRovingToolId(nextButton.dataset.toolId as ToolDefinition["id"]);
@@ -49,14 +73,10 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
 
   return (
     <aside className={styles.toolRail} aria-label="Viewer tools" data-layout-slot="tool-rail">
-      <div className={styles.header}>
-        <span className={styles.eyebrow}>Tools</span>
-      </div>
       <div
         className={styles.tools}
         role="toolbar"
         aria-label="Drawing tools"
-        aria-orientation="vertical"
         onKeyDown={handleToolbarKeyDown}
       >
         {toolRailRegistry.map((definition) => {

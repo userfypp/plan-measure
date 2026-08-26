@@ -10,15 +10,19 @@ const context: ViewerContextData = {
     options: [{ id: "scale-1", name: "Main plan" }],
   },
   workflow: { label: "Ready", tone: "neutral" },
-  selection: null,
 };
 
 describe("ViewerContextBar", () => {
-  it("shows only scale and workflow context without repeating the active tool", () => {
-    const markup = renderToStaticMarkup(<ViewerContextBar context={context} onScaleChange={() => {}} />);
+  it("shows the active scale without the neutral workflow status", () => {
+    const markup = renderToStaticMarkup(
+      <ViewerContextBar context={context} onScaleChange={() => {}} />,
+    );
 
     expect(markup).toContain("Main plan");
-    expect(markup).toContain("Ready");
-    expect(markup).toContain("None selected");
+    expect(markup).toContain("Uniform");
+    expect(markup).not.toContain("Ready");
+    expect(markup).not.toContain(">Scale<");
+    expect(markup).not.toContain(">Workflow<");
+    expect(markup).not.toContain("None selected");
   });
 });

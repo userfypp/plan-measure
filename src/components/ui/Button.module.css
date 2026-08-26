@@ -4,19 +4,14 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-8);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-flat);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    color var(--duration-fast) ease,
-    opacity var(--duration-fast) ease;
 }
 
 .button:focus-visible {
@@ -125,9 +120,9 @@
   width: 14px;
   height: 14px;
   flex: 0 0 auto;
-  border: 2px solid currentColor;
+  border: var(--border-width) solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-flat);
   animation: button-spin 700ms linear infinite;
 }
 
@@ -138,10 +133,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .button {
-    transition: none;
-  }
-
   .spinner {
     animation: none;
   }

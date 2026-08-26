@@ -1,4 +1,4 @@
-import type { LinearUnit, Measurement, PageState } from "../../types/domain";
+import type { ClassificationCatalog, LinearUnit, Measurement, PageState } from "../../types/domain";
 import { getActiveCalibration, getMeasurementCalibration } from "../../utils/calibration";
 import { formatMeasurement } from "../../utils/format";
 import { measurementPathSpecs } from "../../utils/geometry";
@@ -51,9 +51,24 @@ export function createMeasurementViewModels(
   );
 }
 
-export function getMeasurementEmptyMessage(
-  page: PageState,
+export function getMeasurementClassificationSummary(
+  measurement: Measurement | null,
+  catalog: ClassificationCatalog | null | undefined,
 ): string {
+  if (!measurement || !catalog) return "None assigned";
+
+  return (
+    catalog.dimensions
+      .flatMap((dimension) =>
+        dimension.values
+          .filter((value) => measurement.classificationValueIds.includes(value.id))
+          .map((value) => `${dimension.name}: ${value.name}${value.archived ? " (archived)" : ""}`),
+      )
+      .join(" · ") || "None assigned"
+  );
+}
+
+export function getMeasurementEmptyMessage(page: PageState): string {
   return getActiveCalibration(page)
     ? "Choose Line, Polyline, or Polygon to add a measurement."
     : page.calibrations.length > 0

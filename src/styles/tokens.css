@@ -9,6 +9,7 @@
   --color-text-muted: #52606d;
   --color-border: #d9e2ec;
   --color-border-strong: #9fb3c8;
+  --color-tool: #64748b;
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-active: #1e40af;
@@ -28,12 +29,19 @@
   --color-surface-inverse: rgb(15 23 42 / 92%);
   --color-on-inverse: #ffffff;
   --color-border-inverse: rgb(255 255 255 / 35%);
+  --color-inverse-hover: rgb(255 255 255 / 12%);
+  --color-viewer-surface: #eef1f4;
+  --color-loading-overlay: rgb(238 241 244 / 78%);
+  --color-dialog-backdrop: rgb(15 23 42 / 45%);
 
   /* Spacing */
   --space-4: 4px;
   --space-8: 8px;
   --space-12: 12px;
   --space-16: 16px;
+  --space-group-gap: 0px;
+  --border-width: 1px;
+  --control-border-overlap: -1px;
 
   /* Typography */
   --font-family-sans:
@@ -47,25 +55,20 @@
   --line-height-normal: 1.5;
 
   /* Shape */
-  --radius-small: 4px;
-  --radius-control: 6px;
-  --radius-medium: 8px;
-  --radius-full: 999px;
+  --radius-flat: 0;
 
   /* Controls */
   --control-height-compact: 32px;
   --control-height-regular: 40px;
 
-  /* Focus and elevation */
+  /* Focus and flat surfaces */
   --color-focus: #4c8bf5;
   --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
   --focus-ring: var(--focus-ring-width) solid var(--color-focus);
-  --shadow-xs: 0 1px 2px rgb(15 23 42 / 8%);
-  --shadow-sm: 0 4px 12px rgb(15 23 42 / 14%);
-  --shadow-elevated: 0 12px 32px rgb(15 23 42 / 18%);
+  --shadow-tool-hover: 0 1px 3px rgb(15 23 42 / 18%);
+  --shadow-none: none;
 
-  /* Motion and state */
-  --duration-fast: 120ms;
+  /* State */
   --opacity-disabled: 0.56;
 }

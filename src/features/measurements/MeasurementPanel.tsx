@@ -1,9 +1,9 @@
+import type { ReactNode } from "react";
 import { useSessionState } from "../../app/sessionState";
 import { useWorkspaceState } from "../../app/workspaceState";
 import type { PageState } from "../../types/domain";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementsHeader } from "./MeasurementsHeader";
-import { SelectionInspector } from "./SelectionInspector";
 import { getMeasurementEmptyMessage, createMeasurementViewModels } from "./measurementViewModels";
 import styles from "./MeasurementPanel.module.css";
 
@@ -18,6 +18,7 @@ export interface MeasurementPanelProps {
   onSelectMeasurement: (measurementId: string) => void;
   onRenameMeasurement: (pageNumber: number, measurementId: string, name: string) => void;
   onRequestDelete: (request: MeasurementDeleteRequest) => void;
+  classificationDock?: ReactNode;
 }
 
 export function MeasurementPanel({
@@ -25,26 +26,12 @@ export function MeasurementPanel({
   onSelectMeasurement,
   onRenameMeasurement,
   onRequestDelete,
+  classificationDock,
 }: MeasurementPanelProps) {
   const { session } = useSessionState();
   const { selectedMeasurementId } = useWorkspaceState();
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurements = createMeasurementViewModels(page, displayUnit, selectedMeasurementId);
-  const selectedMeasurement =
-    measurements.find((measurement) => measurement.id === selectedMeasurementId) ?? null;
-  const selectedMeasurementDomain =
-    page.measurements.find((measurement) => measurement.id === selectedMeasurementId) ?? null;
-  const classificationSummary = selectedMeasurementDomain
-    ? session?.classificationCatalog.dimensions
-        .flatMap((dimension) =>
-          dimension.values
-            .filter((value) => selectedMeasurementDomain.classificationValueIds.includes(value.id))
-            .map(
-              (value) => `${dimension.name}: ${value.name}${value.archived ? " (archived)" : ""}`,
-            ),
-        )
-        .join(" · ") || "None assigned"
-    : "None assigned";
 
   function requestDelete(measurementId: string) {
     const measurement = measurements.find((candidate) => candidate.id === measurementId);
@@ -68,10 +55,13 @@ export function MeasurementPanel({
         }
         onDeleteMeasurement={requestDelete}
       />
-      <SelectionInspector
-        measurement={selectedMeasurement}
-        classificationSummary={classificationSummary}
-      />
+      {classificationDock ? (
+        <div className={styles.classificationSlot} data-layout-slot="classification-assignment">
+          {classificationDock}
+        </div>
+      ) : (
+        <div className={styles.futureSlot} aria-hidden="true" data-layout-slot="future-panel" />
+      )}
     </aside>
   );
 }

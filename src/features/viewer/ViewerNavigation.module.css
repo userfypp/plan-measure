@@ -4,11 +4,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border-top: 1px solid var(--color-border-strong);
+  gap: var(--space-8);
   background: var(--color-surface);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+}
+
+.navigation > button:not(.iconButton) {
+  font-weight: 400;
 }
 
 .iconButton {
@@ -28,8 +31,12 @@
 .separator {
   width: 1px;
   height: 20px;
-  margin: 0 4px;
+  margin: 0 var(--space-8);
   background: var(--color-border);
+}
+
+.navigation > span:not(.separator) {
+  padding-inline: var(--space-8);
 }
 
 .zoomValue {
@@ -40,7 +47,7 @@
 
 @media (max-width: 640px) {
   .navigation {
-    gap: 5px;
+    gap: var(--space-8);
     font-size: 12px;
   }
 
@@ -54,7 +61,7 @@
     min-height: 74px;
     flex-wrap: wrap;
     align-content: center;
-    gap: 4px;
+    gap: var(--space-8);
     padding: 4px;
   }
 

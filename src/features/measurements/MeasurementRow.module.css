@@ -5,7 +5,7 @@
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8) var(--space-12);
-  border-left: 3px solid transparent;
+  border-left: var(--border-width) solid transparent;
   background: var(--color-surface);
 }
 
@@ -40,7 +40,7 @@
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-flat);
   cursor: pointer;
 }
 
@@ -56,7 +56,21 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-group-gap);
+}
+
+.actions > * + * {
+  margin-inline-start: var(--control-border-overlap);
+}
+
+.actions > * {
+  position: relative;
+  z-index: 0;
+}
+
+.actions > *:hover:not(:disabled),
+.actions > *:focus-visible {
+  z-index: 1;
 }
 
 .rename {
@@ -83,7 +97,7 @@
 .editActions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-4);
+  gap: var(--space-8);
 }
 
 .summary {

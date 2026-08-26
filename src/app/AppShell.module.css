@@ -69,10 +69,9 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(238 241 244 / 78%);
+  background: var(--color-loading-overlay);
   color: var(--color-text-muted);
   font-weight: 650;
-  backdrop-filter: blur(2px);
 }
 
 @media (max-width: 640px) {

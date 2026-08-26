@@ -27,12 +27,9 @@ export function SelectionInspector({
   return (
     <section className={styles.inspector} aria-labelledby={titleId}>
       <div className={styles.heading}>
-        <div className={styles.headingText}>
-          <p className={styles.eyebrow}>Selection inspector</p>
-          <h3 className={styles.title} id={titleId}>
-            {measurement.name}
-          </h3>
-        </div>
+        <h3 className={styles.title} id={titleId}>
+          {measurement.name}
+        </h3>
       </div>
       <dl className={styles.details}>
         <div>
@@ -42,7 +39,9 @@ export function SelectionInspector({
         <div>
           <dt>Value</dt>
           <dd className={styles.measurementValue} title={measurement.valueLabel}>
-            {measurement.valueLabel}
+            {measurement.valueLabel.split(" · ").map((valuePart) => (
+              <span key={valuePart}>{valuePart}</span>
+            ))}
           </dd>
         </div>
         <div>
