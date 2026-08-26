@@ -1,19 +1,18 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import { AppProvider, useAppState } from "./state";
-import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
+import { SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
 import {
   OverlayProvider,
   useOverlayState,
   type OverlayConfirmation,
-  type OverlayDialog,
 } from "./overlayState";
 import { OverlayHost } from "./OverlayHost";
-import { enqueueAutosave, isAutosaveReady } from "./autosave";
 import { AppShell, LoadingOverlay } from "./AppShell";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { ViewerContextBar, type ViewerContextData } from "./ViewerContextBar";
 import { ToolRail } from "./ToolRail";
+import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { Modal } from "../components/Modal";
 import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
@@ -25,7 +24,6 @@ import {
 } from "../features/measurements/MeasurementPanel";
 import { SelectionInspectorPanel } from "../features/measurements/SelectionInspectorPanel";
 import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
-import { canActivatePdf, PdfLoadLifecycle, shouldConfirmPdfReplacement } from "./pdfLoadLifecycle";
 import {
   beginCalibrationFlow,
   confirmCalibration,
@@ -39,19 +37,9 @@ import type {
   CalibrationReferenceKey,
   PageCalibration,
   Point,
-  SessionV6,
   Tool,
 } from "../types/domain";
 import { downloadCsv } from "../services/csv";
-import {
-  discardSavedSession,
-  loadSavedSession,
-  replaceSavedSession,
-  saveSessionMetadata,
-  type SavedSession,
-} from "../services/persistence";
-import type { LoadedPdf } from "../services/pdf";
-import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
 import { shouldIgnoreKeyboardShortcut } from "../utils/keyboard";
 import {
   findPageCalibration,
@@ -69,19 +57,6 @@ import styles from "./App.module.css";
 const PdfViewer = lazy(() =>
   import("../features/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
 );
-
-async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
-  const { loadPdf } = await import("../services/pdf");
-  return loadPdf(blob);
-}
-
-interface PendingPdf {
-  pdfId: string;
-  file: File;
-  loaded: LoadedPdf;
-  session: SessionV6;
-  loadGeneration: number;
-}
 
 export function App() {
   return (
@@ -155,27 +130,39 @@ function PlanMeasureApp() {
     setSecondaryPanel,
   } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const persistenceGenerationRef = useRef(0);
-  const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
-  const activePdfRef = useRef<LoadedPdf | null>(null);
-  const pendingPdfRef = useRef<PendingPdf | null>(null);
-  const activatingPdfRef = useRef<LoadedPdf | null>(null);
   const dragDepthRef = useRef(0);
-  const disposedRef = useRef(false);
-  const latestPdfLoadRef = useRef<number | null>(null);
-  const activationCountRef = useRef(0);
-  const [activePdf, setActivePdf] = useState<LoadedPdf | null>(null);
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [recovery, setRecovery] = useState<SavedSession | null>(null);
-  const [recoveryChecked, setRecoveryChecked] = useState(false);
-  const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
-  const [recoveryProtected, setRecoveryProtected] = useState(false);
-  const [confirmDiscardRecovery, setConfirmDiscardRecovery] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [autosaveEnabled, setAutosaveEnabled] = useState(false);
-  const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
+
+  const {
+    activePdf,
+    recovery,
+    recoveryChecked,
+    recoveryIssue,
+    confirmDiscardRecovery,
+    loading,
+    autosaveWarning,
+    chooseFile,
+    continueRecovery,
+    discardRecovery,
+    continueWithoutRecovery,
+    showDiscardRecoveryConfirmation,
+    hideDiscardRecoveryConfirmation,
+    dismissAutosaveWarning,
+    confirmPdfReplacement,
+    cancelPdfReplacement,
+  } = usePdfSessionLifecycle({
+    session,
+    loadSession,
+    clearSession,
+    resetWorkspace,
+    cancelWorkspaceCalibration,
+    cancelReferenceEdit,
+    requestReplacePdf,
+    closeDialog,
+    closeConfirmation,
+    closeAllOverlays,
+    setError,
+  });
 
   const clearDragState = useCallback(() => {
     dragDepthRef.current = 0;
@@ -216,142 +203,6 @@ function PlanMeasureApp() {
     [clearError, closeConfirmation, pageChanged, updatePage],
   );
 
-  const destroyPdf = useCallback(
-    (loaded: LoadedPdf | null | undefined) => pdfLoadLifecycleRef.current.destroy(loaded),
-    [],
-  );
-
-  const updateLoadingState = useCallback(() => {
-    if (disposedRef.current) return;
-    setLoading(latestPdfLoadRef.current !== null || activationCountRef.current > 0);
-  }, []);
-
-  function beginPdfLoad(generation: number) {
-    latestPdfLoadRef.current = generation;
-    updateLoadingState();
-  }
-
-  function finishPdfLoad(generation: number) {
-    if (latestPdfLoadRef.current !== generation) return;
-    latestPdfLoadRef.current = null;
-    updateLoadingState();
-  }
-
-  function beginPdfActivation(loadGeneration: number) {
-    activationCountRef.current += 1;
-    finishPdfLoad(loadGeneration);
-    updateLoadingState();
-  }
-
-  function finishPdfActivation() {
-    activationCountRef.current = Math.max(0, activationCountRef.current - 1);
-    updateLoadingState();
-  }
-
-  function publishPendingPdf(candidate: PendingPdf) {
-    const previous = pendingPdfRef.current;
-    pendingPdfRef.current = candidate;
-    requestReplacePdf({ pdfId: candidate.pdfId, fileName: candidate.file.name });
-    if (previous && previous !== candidate) void destroyPdf(previous.loaded);
-  }
-
-  function clearPendingPdf(candidate?: PendingPdf) {
-    const pending = pendingPdfRef.current;
-    if (!pending || (candidate && pending !== candidate)) return;
-    pendingPdfRef.current = null;
-    closeDialog();
-    void destroyPdf(pending.loaded);
-  }
-
-  const installActivePdf = useCallback(
-    async (loaded: LoadedPdf): Promise<boolean> => {
-      const previous = activePdfRef.current;
-      activePdfRef.current = loaded;
-      await destroyPdf(previous);
-      if (disposedRef.current || activePdfRef.current !== loaded) {
-        if (activePdfRef.current === loaded) activePdfRef.current = null;
-        await destroyPdf(loaded);
-        return false;
-      }
-      setActivePdf(loaded);
-      return true;
-    },
-    [destroyPdf],
-  );
-
-  useEffect(() => {
-    disposedRef.current = false;
-    const lifecycle = pdfLoadLifecycleRef.current;
-    return () => {
-      disposedRef.current = true;
-      lifecycle.begin();
-      latestPdfLoadRef.current = null;
-      const active = activePdfRef.current;
-      const pending = pendingPdfRef.current;
-      const activating = activatingPdfRef.current;
-      activePdfRef.current = null;
-      pendingPdfRef.current = null;
-      activatingPdfRef.current = null;
-      void Promise.all([destroyPdf(active), destroyPdf(pending?.loaded), destroyPdf(activating)]);
-    };
-  }, [destroyPdf]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadSavedSession()
-      .then((saved) => {
-        if (cancelled) return;
-        setRecovery(saved);
-        setRecoveryProtected(Boolean(saved));
-        setRecoveryChecked(true);
-      })
-      .catch((error: unknown) => {
-        console.error("IndexedDB recovery failed.", error);
-        if (cancelled) return;
-        setRecoveryProtected(true);
-        setRecoveryIssue(
-          "The previous session could not be read. You can try to discard it or continue without browser recovery.",
-        );
-        setRecoveryChecked(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const autosaveInputs = {
-      snapshot: session,
-      pdfRuntimeReady: activePdf !== null,
-      pdfBlob,
-      enabled: autosaveEnabled,
-    };
-    if (!isAutosaveReady(autosaveInputs)) return;
-    const snapshot = autosaveInputs.snapshot;
-    const generation = persistenceGenerationRef.current;
-    const timer = window.setTimeout(() => {
-      saveQueueRef.current = enqueueAutosave(
-        saveQueueRef.current,
-        snapshot,
-        generation,
-        (candidateGeneration) => candidateGeneration === persistenceGenerationRef.current,
-        saveSessionMetadata,
-      )
-        .then(() => {
-          if (generation === persistenceGenerationRef.current) setAutosaveWarning(null);
-        })
-        .catch((error: unknown) => {
-          if (generation !== persistenceGenerationRef.current) return;
-          console.error("IndexedDB autosave failed.", error);
-          setAutosaveWarning(
-            "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
-          );
-          setAutosaveEnabled(false);
-        });
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [activePdf, autosaveEnabled, pdfBlob, session]);
-
   useEffect(() => {
     function handleDelete(event: KeyboardEvent) {
       if (
@@ -390,181 +241,6 @@ function PlanMeasureApp() {
       document.removeEventListener("visibilitychange", clearDragState);
     };
   }, [clearDragState]);
-
-  async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
-    if (
-      disposedRef.current ||
-      !canActivatePdf(
-        pdfLoadLifecycleRef.current,
-        candidate.loadGeneration,
-        candidate,
-        pendingPdfRef.current,
-        requiresPendingConfirmation,
-      )
-    ) {
-      await destroyPdf(candidate.loaded);
-      return;
-    }
-    if (pendingPdfRef.current === candidate) {
-      pendingPdfRef.current = null;
-      closeDialog();
-    }
-    cancelWorkspaceCalibration();
-    closeConfirmation();
-    cancelReferenceEdit();
-    activatingPdfRef.current = candidate.loaded;
-    beginPdfActivation(candidate.loadGeneration);
-    persistenceGenerationRef.current += 1;
-    setAutosaveEnabled(false);
-    try {
-      await saveQueueRef.current.catch(() => undefined);
-      if (disposedRef.current) return;
-
-      let saved = false;
-      try {
-        await replaceSavedSession(candidate.session, candidate.file);
-        saved = true;
-      } catch (error) {
-        console.error("Could not save the new PDF session.", error);
-        setAutosaveEnabled(false);
-        setAutosaveWarning(
-          "The PDF is open, but autosave is unavailable. Your work may not survive a reload.",
-        );
-      }
-      if (disposedRef.current) return;
-
-      const installed = await installActivePdf(candidate.loaded);
-      if (!installed) return;
-      setPdfBlob(candidate.file);
-      loadSession(candidate.session);
-      resetWorkspace();
-      closeAllOverlays();
-      if (saved) {
-        setAutosaveEnabled(true);
-        setAutosaveWarning(null);
-      } else {
-        setError("Autosave could not be started.");
-      }
-    } finally {
-      if (activatingPdfRef.current === candidate.loaded) activatingPdfRef.current = null;
-      finishPdfActivation();
-    }
-  }
-
-  async function chooseFile(file: File) {
-    const loadGeneration = pdfLoadLifecycleRef.current.begin();
-    clearPendingPdf();
-    beginPdfLoad(loadGeneration);
-    let loaded: LoadedPdf | null = null;
-    let handedOff = false;
-    try {
-      validatePdfFile(file);
-      loaded = await loadPdfRuntime(file);
-      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
-        await destroyPdf(loaded);
-        return;
-      }
-      const newSession = createEmptySession(
-        { name: file.name, size: file.size, lastModified: file.lastModified },
-        loaded.document.numPages,
-      );
-      const candidate = {
-        pdfId: crypto.randomUUID(),
-        file,
-        loaded,
-        session: newSession,
-        loadGeneration,
-      };
-      if (
-        shouldConfirmPdfReplacement({
-          sessionLoaded: Boolean(session),
-          pdfRuntimeLoaded: Boolean(activePdfRef.current),
-          pdfActivating: Boolean(activatingPdfRef.current),
-          recoveryProtected,
-        })
-      ) {
-        handedOff = true;
-        publishPendingPdf(candidate);
-        finishPdfLoad(loadGeneration);
-      } else {
-        handedOff = true;
-        await activatePdf(candidate);
-      }
-    } catch (error) {
-      if (loaded && !handedOff) await destroyPdf(loaded);
-      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
-      const message =
-        error instanceof PdfUserError
-          ? error.message
-          : "The PDF could not be opened. Try another file.";
-      setError(message);
-      finishPdfLoad(loadGeneration);
-    }
-  }
-
-  async function continueRecovery() {
-    if (!recovery) return;
-    const loadGeneration = pdfLoadLifecycleRef.current.begin();
-    beginPdfLoad(loadGeneration);
-    let loaded: LoadedPdf | null = null;
-    try {
-      loaded = await loadPdfRuntime(recovery.pdfBlob);
-      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
-        await destroyPdf(loaded);
-        return;
-      }
-      if (loaded.document.numPages !== recovery.session.pageCount) {
-        await destroyPdf(loaded);
-        loaded = null;
-        throw new Error("The saved PDF does not match its session metadata.");
-      }
-      // Recovery order: install the validated runtime before publishing the
-      // persistent snapshot, then reset interaction/UI state and enable saves.
-      const installed = await installActivePdf(loaded);
-      if (!installed) return;
-      loaded = null;
-      setPdfBlob(recovery.pdfBlob);
-      loadSession(recovery.session);
-      resetWorkspace();
-      closeAllOverlays();
-      setAutosaveEnabled(true);
-      setRecovery(null);
-      setRecoveryProtected(false);
-    } catch (error) {
-      if (loaded) await destroyPdf(loaded);
-      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
-      console.error("Saved PDF recovery failed.", error);
-      setError("The previous session could not be restored. You can discard it and open a PDF.");
-    } finally {
-      finishPdfLoad(loadGeneration);
-    }
-  }
-
-  async function discardRecovery() {
-    pdfLoadLifecycleRef.current.begin();
-    latestPdfLoadRef.current = null;
-    updateLoadingState();
-    persistenceGenerationRef.current += 1;
-    setAutosaveEnabled(false);
-    cancelWorkspaceCalibration();
-    closeConfirmation();
-    cancelReferenceEdit();
-    try {
-      await saveQueueRef.current.catch(() => undefined);
-      await discardSavedSession();
-      if (disposedRef.current) return;
-      setRecovery(null);
-      setRecoveryIssue(null);
-      setRecoveryProtected(false);
-      setConfirmDiscardRecovery(false);
-      clearSession();
-      resetWorkspace();
-      closeAllOverlays();
-    } catch (error) {
-      console.error("Could not discard the saved session.", error);
-      setError("The saved session could not be discarded.");
-    }
-  }
 
   function handleDragEnter(event: DragEvent<HTMLElement>) {
     event.preventDefault();
@@ -754,20 +430,6 @@ function PlanMeasureApp() {
     closeConfirmation();
   }
 
-  function handleOverlayDialogConfirm(dialog: OverlayDialog) {
-    if (dialog.type !== "replacePdf") return;
-    const candidate = pendingPdfRef.current;
-    if (!candidate || candidate.pdfId !== dialog.payload.pdfId) return;
-    void activatePdf(candidate, true);
-  }
-
-  function handleOverlayDialogCancel(dialog: OverlayDialog) {
-    if (dialog.type !== "replacePdf") return;
-    const candidate = pendingPdfRef.current;
-    if (!candidate || candidate.pdfId !== dialog.payload.pdfId) return;
-    clearPendingPdf(candidate);
-  }
-
   function handleOverlayConfirmationConfirm(confirmation: OverlayConfirmation) {
     if (confirmation.type === "deleteMeasurement") {
       const { pageNumber, measurementId } = confirmation.payload;
@@ -923,7 +585,7 @@ function PlanMeasureApp() {
       statusMessage={autosaveWarning ?? appState.error}
       statusTone={autosaveWarning ? "warning" : "error"}
       onDismissStatus={() => {
-        if (autosaveWarning) setAutosaveWarning(null);
+        if (autosaveWarning) dismissAutosaveWarning();
         else {
           clearError();
         }
@@ -1139,7 +801,7 @@ function PlanMeasureApp() {
                 will be permanently removed.
               </p>
               <div className={styles.modalActions}>
-                <Button variant="secondary" onClick={() => setConfirmDiscardRecovery(false)}>
+                <Button variant="secondary" onClick={hideDiscardRecoveryConfirmation}>
                   Cancel
                 </Button>
                 <Button variant="danger" onClick={() => void discardRecovery()}>
@@ -1154,7 +816,7 @@ function PlanMeasureApp() {
                 saved browser-local session.
               </p>
               <div className={styles.modalActions}>
-                <Button variant="dangerSecondary" onClick={() => setConfirmDiscardRecovery(true)}>
+                <Button variant="dangerSecondary" onClick={showDiscardRecoveryConfirmation}>
                   Discard
                 </Button>
                 <Button onClick={() => void continueRecovery()}>Continue</Button>
@@ -1170,7 +832,7 @@ function PlanMeasureApp() {
             <>
               <p>The unreadable saved session and its local PDF will be permanently removed.</p>
               <div className={styles.modalActions}>
-                <Button variant="secondary" onClick={() => setConfirmDiscardRecovery(false)}>
+                <Button variant="secondary" onClick={hideDiscardRecoveryConfirmation}>
                   Cancel
                 </Button>
                 <Button variant="danger" onClick={() => void discardRecovery()}>
@@ -1182,19 +844,10 @@ function PlanMeasureApp() {
             <>
               <p>{recoveryIssue}</p>
               <div className={styles.modalActions}>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setRecoveryIssue(null);
-                    setAutosaveEnabled(false);
-                    setAutosaveWarning(
-                      "The previous saved session is protected. Opening another PDF will require confirmation.",
-                    );
-                  }}
-                >
+                <Button variant="secondary" onClick={continueWithoutRecovery}>
                   Continue without recovery
                 </Button>
-                <Button variant="dangerSecondary" onClick={() => setConfirmDiscardRecovery(true)}>
+                <Button variant="dangerSecondary" onClick={showDiscardRecoveryConfirmation}>
                   Discard saved session
                 </Button>
               </div>
@@ -1204,8 +857,8 @@ function PlanMeasureApp() {
       )}
 
       <OverlayHost
-        onDialogConfirm={handleOverlayDialogConfirm}
-        onDialogCancel={handleOverlayDialogCancel}
+        onDialogConfirm={confirmPdfReplacement}
+        onDialogCancel={cancelPdfReplacement}
         onConfirmationConfirm={handleOverlayConfirmationConfirm}
       />
 
