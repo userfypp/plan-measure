@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { SessionV5 } from "../types/domain";
-import {
-  createEmptySession,
-  initialSessionState,
-  sessionReducer,
-} from "./sessionState";
+import type { SessionV6 } from "../types/domain";
+import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
 
-function session(): SessionV5 {
+function session(): SessionV6 {
   return createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 2);
 }
 
@@ -15,13 +11,13 @@ describe("SessionState", () => {
     expect(initialSessionState).toEqual({ session: null, error: null });
   });
 
-  it("loads a SessionV5 snapshot and clears the previous command error", () => {
+  it("loads a SessionV6 snapshot and clears the previous command error", () => {
     const loaded = sessionReducer(
       { session: null, error: "stale error" },
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(5);
+    expect(loaded.session?.schemaVersion).toBe(6);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -76,7 +72,130 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(5);
+    expect(state.session?.schemaVersion).toBe(6);
+  });
+
+  it("creates visible measurements and toggles only the requested measurement", () => {
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Main plan",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    for (const id of ["line-1", "line-2"]) {
+      state = sessionReducer(state, {
+        type: "ADD_MEASUREMENT",
+        pageNumber: 1,
+        id,
+        measurementType: "line",
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+      });
+    }
+
+    expect(state.session?.pages[1]?.measurements.map((measurement) => measurement.visible)).toEqual(
+      [true, true],
+    );
+    state = sessionReducer(state, {
+      type: "SET_MEASUREMENT_VISIBILITY",
+      pageNumber: 1,
+      id: "line-1",
+      visible: false,
+    });
+    expect(state.session?.pages[1]?.measurements.map((measurement) => measurement.visible)).toEqual(
+      [false, true],
+    );
+    state = sessionReducer(state, {
+      type: "SET_MEASUREMENT_VISIBILITY",
+      pageNumber: 1,
+      id: "line-1",
+      visible: true,
+    });
+    expect(state.session?.pages[1]?.measurements.map((measurement) => measurement.visible)).toEqual(
+      [true, true],
+    );
+  });
+
+  it("keeps individual visibility preferences when the global master changes", () => {
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Main plan",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "line-1",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
+    state = sessionReducer(state, {
+      type: "SET_MEASUREMENT_VISIBILITY",
+      pageNumber: 1,
+      id: "line-1",
+      visible: false,
+    });
+    state = sessionReducer(state, {
+      type: "UPDATE_SETTINGS",
+      settings: { showMeasurements: false },
+    });
+    state = sessionReducer(state, {
+      type: "UPDATE_SETTINGS",
+      settings: { showMeasurements: true },
+    });
+
+    expect(state.session?.settings.showMeasurements).toBe(true);
+    expect(state.session?.pages[1]?.measurements[0]?.visible).toBe(false);
+  });
+
+  it("does not partially mutate when a visibility target is missing", () => {
+    const state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    const missingMeasurement = sessionReducer(state, {
+      type: "SET_MEASUREMENT_VISIBILITY",
+      pageNumber: 1,
+      id: "missing",
+      visible: false,
+    });
+    const missingPage = sessionReducer(state, {
+      type: "SET_MEASUREMENT_VISIBILITY",
+      pageNumber: 99,
+      id: "missing",
+      visible: false,
+    });
+
+    expect(missingMeasurement.session).toBe(state.session);
+    expect(missingPage.session).toBe(state.session);
+    expect(missingMeasurement.error).toContain("no longer available");
+    expect(missingPage.error).toContain("no longer available");
   });
 
   it("clears the persistent session without restoring interaction state", () => {
@@ -96,11 +215,34 @@ describe("SessionState", () => {
         pageNumber,
         id: `scale-${pageNumber}`,
         name: `Scale ${pageNumber}`,
-        calibration: { mode: "uniform", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 },
+        calibration: {
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
       });
     }
-    state = sessionReducer(state, { type: "ADD_MEASUREMENT", pageNumber: 1, id: "shared-id", measurementType: "line", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] });
-    const rejected = sessionReducer(state, { type: "ADD_MEASUREMENT", pageNumber: 2, id: "shared-id", measurementType: "line", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] });
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "shared-id",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
+    const rejected = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 2,
+      id: "shared-id",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
 
     expect(rejected.session?.pages[2]?.measurements).toHaveLength(0);
     expect(rejected.error).toContain("unique across the session");

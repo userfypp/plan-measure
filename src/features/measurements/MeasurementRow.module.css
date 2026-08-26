@@ -1,7 +1,11 @@
 .row {
+  --measurement-actions-width: calc(
+    var(--control-height-regular) * 3 + var(--control-border-overlap) * 2
+  );
   display: grid;
+  width: 100%;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(var(--measurement-actions-width), 100%));
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8) var(--space-12);
@@ -55,7 +59,12 @@
 
 .actions {
   display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-group-gap);
 }
 
@@ -65,7 +74,12 @@
 
 .actions > * {
   position: relative;
+  flex: 0 0 var(--control-height-regular);
   z-index: 0;
+}
+
+.actions > :first-child {
+  z-index: 1;
 }
 
 .actions > *:hover:not(:disabled),
@@ -150,4 +164,15 @@
 
 .unavailable {
   color: var(--color-warning);
+}
+
+@container (max-width: 280px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .actions {
+    justify-self: end;
+  }
 }

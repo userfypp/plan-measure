@@ -185,10 +185,40 @@ export interface ClassificationCatalog {
   dimensions: ClassificationDimension[];
 }
 
+/** Measurement shape persisted by schema V5, before per-measurement visibility. */
+export interface PathMeasurementV5 extends MeasurementBase {
+  type: MeasurementType;
+  points: Point[];
+  classificationValueIds: string[];
+}
+
+export type MeasurementV5 = PathMeasurementV5;
+
+export interface PageStateV5 {
+  pageNumber: number;
+  calibrations: PageCalibration[];
+  activeCalibrationId: string | null;
+  nextCalibrationNumber: number;
+  measurements: MeasurementV5[];
+  nextMeasurementNumber: MeasurementCounters;
+}
+
+export interface SessionV5 {
+  schemaVersion: 5;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageStateV5>;
+  settings: SessionSettings;
+  classificationCatalog: ClassificationCatalog;
+}
+
+/** Current measurement shape, persisted by schema V6. */
 export interface PathMeasurement extends MeasurementBase {
   type: MeasurementType;
   points: Point[];
   classificationValueIds: string[];
+  visible: boolean;
 }
 
 export type Measurement = PathMeasurement;
@@ -202,8 +232,8 @@ export interface PageState {
   nextMeasurementNumber: MeasurementCounters;
 }
 
-export interface SessionV5 {
-  schemaVersion: 5;
+export interface SessionV6 {
+  schemaVersion: 6;
   pdf: PdfMetadata;
   pageCount: number;
   currentPage: number;

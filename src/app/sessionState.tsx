@@ -15,7 +15,7 @@ import type {
   PdfMetadata,
   Point,
   SessionSettings,
-  SessionV5,
+  SessionV6,
   UniformPageCalibration,
   XyPageCalibration,
 } from "../types/domain";
@@ -33,13 +33,13 @@ import {
 /**
  * Persistent domain state for the currently open plan.
  *
- * The `session` value is the only in-memory source of truth for SessionV5.
+ * The `session` value is the only in-memory source of truth for SessionV6.
  * Runtime PDF resources, interaction state, and overlay descriptors live in
  * their respective coordinators/providers and never become part of this
  * snapshot.
  */
 export interface SessionState {
-  session: SessionV5 | null;
+  session: SessionV6 | null;
 }
 
 export interface SessionCommandResult extends SessionState {
@@ -47,8 +47,7 @@ export interface SessionCommandResult extends SessionState {
 }
 
 export type CalibrationInput =
-  | Omit<UniformPageCalibration, "id" | "name">
-  | Omit<XyPageCalibration, "id" | "name">;
+  Omit<UniformPageCalibration, "id" | "name"> | Omit<XyPageCalibration, "id" | "name">;
 
 export interface AddCalibrationCommand {
   pageNumber: number;
@@ -109,7 +108,7 @@ export interface AssignClassificationValueCommand {
 }
 
 export type SessionAction =
-  | { type: "LOAD_SESSION"; session: SessionV5 }
+  | { type: "LOAD_SESSION"; session: SessionV6 }
   | { type: "CLEAR_SESSION" }
   | { type: "UPDATE_PAGE"; pageNumber: number }
   | ({ type: "ADD_CALIBRATION" } & AddCalibrationCommand)
@@ -122,6 +121,7 @@ export type SessionAction =
   | ({ type: "ADD_MEASUREMENT" } & AddMeasurementCommand)
   | ({ type: "UPDATE_MEASUREMENT" } & UpdateMeasurementCommand)
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
+  | { type: "SET_MEASUREMENT_VISIBILITY"; pageNumber: number; id: string; visible: boolean }
   | { type: "DELETE_MEASUREMENT"; pageNumber: number; id: string }
   | { type: "ADD_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_DIMENSION"; id: string; name: string }
@@ -154,13 +154,13 @@ export function createEmptySession(
   pdf: PdfMetadata,
   pageCount: number,
   settings?: Partial<SessionSettings>,
-): SessionV5 {
+): SessionV6 {
   const pages: Record<number, PageState> = {};
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     pdf,
     pageCount,
     currentPage: 1,
@@ -177,10 +177,10 @@ export function createEmptySession(
 }
 
 function updatePageState(
-  session: SessionV5,
+  session: SessionV6,
   pageNumber: number,
   updater: (page: PageState) => PageState,
-): SessionV5 {
+): SessionV6 {
   const page = session.pages[pageNumber];
   if (!page) return session;
   return {
@@ -250,7 +250,9 @@ export function sessionReducer(
       if (!page || !calibration || !name) {
         return {
           ...state,
-          error: !name ? "Scale name cannot be empty." : "The selected scale is no longer available.",
+          error: !name
+            ? "Scale name cannot be empty."
+            : "The selected scale is no longer available.",
         };
       }
       return {
@@ -299,7 +301,9 @@ export function sessionReducer(
       if (!page || !calibration) {
         return { ...state, error: "The selected scale is no longer available." };
       }
-      if (page.measurements.some((measurement) => measurement.calibrationId === action.calibrationId)) {
+      if (
+        page.measurements.some((measurement) => measurement.calibrationId === action.calibrationId)
+      ) {
         return { ...state, error: "Cannot delete a scale that is used by measurements." };
       }
       return {
@@ -371,6 +375,7 @@ export function sessionReducer(
             points,
             calibrationId: calibration.id,
             classificationValueIds: [],
+            visible: true,
           },
         ],
       }));
@@ -401,6 +406,20 @@ export function sessionReducer(
       }));
       return { ...state, session, error: null };
     }
+    case "SET_MEASUREMENT_VISIBILITY": {
+      if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      if (!page || !page.measurements.some((measurement) => measurement.id === action.id)) {
+        return { ...state, error: "The selected measurement is no longer available." };
+      }
+      const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
+        ...currentPage,
+        measurements: currentPage.measurements.map((measurement) =>
+          measurement.id === action.id ? { ...measurement, visible: action.visible } : measurement,
+        ),
+      }));
+      return { ...state, session, error: null };
+    }
     case "DELETE_MEASUREMENT": {
       if (!state.session) return state;
       const session = updatePageState(state.session, action.pageNumber, (page) => ({
@@ -416,10 +435,14 @@ export function sessionReducer(
       const dimensions = state.session.classificationCatalog.dimensions;
       const normalizedName = name.toLocaleLowerCase();
       const idExists = dimensions.some(
-        (dimension) =>
-          dimension.id === id || dimension.values.some((value) => value.id === id),
+        (dimension) => dimension.id === id || dimension.values.some((value) => value.id === id),
       );
-      if (!id || !name || idExists || dimensions.some((dimension) => dimension.name.toLocaleLowerCase() === normalizedName)) {
+      if (
+        !id ||
+        !name ||
+        idExists ||
+        dimensions.some((dimension) => dimension.name.toLocaleLowerCase() === normalizedName)
+      ) {
         return { ...state, error: "Classification dimensions need unique IDs and names." };
       }
       return {
@@ -471,10 +494,18 @@ export function sessionReducer(
         (candidate) => candidate.id === id || candidate.values.some((value) => value.id === id),
       );
       if (
-        !dimension || !id || !name || idExists ||
-        dimension.values.some((value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase())
+        !dimension ||
+        !id ||
+        !name ||
+        idExists ||
+        dimension.values.some(
+          (value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+        )
       ) {
-        return { ...state, error: "Classification values need unique IDs and names within a dimension." };
+        return {
+          ...state,
+          error: "Classification values need unique IDs and names within a dimension.",
+        };
       }
       return {
         ...state,
@@ -497,10 +528,12 @@ export function sessionReducer(
       const dimensions = state.session.classificationCatalog.dimensions;
       const dimension = dimensions.find((candidate) => candidate.id === action.dimensionId);
       if (
-        !dimension || !name ||
+        !dimension ||
+        !name ||
         !dimension.values.some((value) => value.id === action.id) ||
         dimension.values.some(
-          (value) => value.id !== action.id && value.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+          (value) =>
+            value.id !== action.id && value.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
         )
       ) {
         return { ...state, error: "Classification value names must be unique and non-empty." };
@@ -576,7 +609,8 @@ export function sessionReducer(
                 ...measurement,
                 classificationValueIds: [
                   ...measurement.classificationValueIds.filter(
-                    (valueId) => !dimension!.values.some((dimensionValue) => dimensionValue.id === valueId),
+                    (valueId) =>
+                      !dimension!.values.some((dimensionValue) => dimensionValue.id === valueId),
                   ),
                   action.valueId,
                 ],
@@ -694,7 +728,7 @@ function updateCalibrationReferencePoints(
 
 interface SessionContextValue extends SessionState {
   state: SessionState;
-  loadSession: (session: SessionV5) => void;
+  loadSession: (session: SessionV6) => void;
   clearSession: () => void;
   updatePage: (pageNumber: number) => void;
   addCalibration: (command: AddCalibrationCommand) => void;
@@ -707,6 +741,7 @@ interface SessionContextValue extends SessionState {
   addMeasurement: (command: AddMeasurementCommand) => void;
   updateMeasurement: (command: UpdateMeasurementCommand) => void;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
+  setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
   deleteMeasurement: (pageNumber: number, id: string) => void;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
@@ -723,42 +758,64 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { setError } = useAppState();
-  const [session, setSession] = useState<SessionV5 | null>(null);
-  const sessionRef = useRef<SessionV5 | null>(null);
-  const applyAction = useCallback((action: SessionAction) => {
-    const result = sessionReducer({ session: sessionRef.current, error: null }, action);
-    sessionRef.current = result.session;
-    setSession(result.session);
-    setError(result.error);
-  }, [setError]);
+  const [session, setSession] = useState<SessionV6 | null>(null);
+  const sessionRef = useRef<SessionV6 | null>(null);
+  const applyAction = useCallback(
+    (action: SessionAction) => {
+      const result = sessionReducer({ session: sessionRef.current, error: null }, action);
+      sessionRef.current = result.session;
+      setSession(result.session);
+      setError(result.error);
+    },
+    [setError],
+  );
   const state = useMemo<SessionState>(() => ({ session }), [session]);
-  const value = useMemo<SessionContextValue>(() => ({
-    ...state,
-    state,
-    loadSession: (nextSession) => applyAction({ type: "LOAD_SESSION", session: nextSession }),
-    clearSession: () => applyAction({ type: "CLEAR_SESSION" }),
-    updatePage: (pageNumber) => applyAction({ type: "UPDATE_PAGE", pageNumber }),
-    addCalibration: (command) => applyAction({ type: "ADD_CALIBRATION", ...command }),
-    recalibrateCalibration: (command) => applyAction({ type: "RECALIBRATE_CALIBRATION", ...command }),
-    renameCalibration: (command) => applyAction({ type: "RENAME_CALIBRATION", ...command }),
-    assignMeasurementCalibration: (command) => applyAction({ type: "ASSIGN_MEASUREMENT_CALIBRATION", ...command }),
-    deleteCalibration: (command) => applyAction({ type: "DELETE_CALIBRATION", ...command }),
-    setActiveCalibration: (pageNumber, calibrationId) => applyAction({ type: "SET_ACTIVE_CALIBRATION", pageNumber, calibrationId }),
-    updateCalibration: (command) => applyAction({ type: "UPDATE_CALIBRATION_REFERENCE_POINTS", ...command }),
-    addMeasurement: (command) => applyAction({ type: "ADD_MEASUREMENT", ...command }),
-    updateMeasurement: (command) => applyAction({ type: "UPDATE_MEASUREMENT", ...command }),
-    renameMeasurement: (pageNumber, id, name) => applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
-    deleteMeasurement: (pageNumber, id) => applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
-    addClassificationDimension: (id, name) => applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
-    renameClassificationDimension: (id, name) => applyAction({ type: "RENAME_CLASSIFICATION_DIMENSION", id, name }),
-    addClassificationValue: (dimensionId, id, name) => applyAction({ type: "ADD_CLASSIFICATION_VALUE", dimensionId, id, name }),
-    renameClassificationValue: (dimensionId, id, name) => applyAction({ type: "RENAME_CLASSIFICATION_VALUE", dimensionId, id, name }),
-    archiveClassificationValue: (dimensionId, id) => applyAction({ type: "ARCHIVE_CLASSIFICATION_VALUE", dimensionId, id }),
-    restoreClassificationValue: (dimensionId, id) => applyAction({ type: "RESTORE_CLASSIFICATION_VALUE", dimensionId, id }),
-    assignClassificationValue: (command) => applyAction({ type: "ASSIGN_CLASSIFICATION_VALUE", ...command }),
-    removeClassificationValue: (command) => applyAction({ type: "REMOVE_CLASSIFICATION_VALUE", ...command }),
-    updateSettings: (settings) => applyAction({ type: "UPDATE_SETTINGS", settings }),
-  }), [applyAction, state]);
+  const value = useMemo<SessionContextValue>(
+    () => ({
+      ...state,
+      state,
+      loadSession: (nextSession) => applyAction({ type: "LOAD_SESSION", session: nextSession }),
+      clearSession: () => applyAction({ type: "CLEAR_SESSION" }),
+      updatePage: (pageNumber) => applyAction({ type: "UPDATE_PAGE", pageNumber }),
+      addCalibration: (command) => applyAction({ type: "ADD_CALIBRATION", ...command }),
+      recalibrateCalibration: (command) =>
+        applyAction({ type: "RECALIBRATE_CALIBRATION", ...command }),
+      renameCalibration: (command) => applyAction({ type: "RENAME_CALIBRATION", ...command }),
+      assignMeasurementCalibration: (command) =>
+        applyAction({ type: "ASSIGN_MEASUREMENT_CALIBRATION", ...command }),
+      deleteCalibration: (command) => applyAction({ type: "DELETE_CALIBRATION", ...command }),
+      setActiveCalibration: (pageNumber, calibrationId) =>
+        applyAction({ type: "SET_ACTIVE_CALIBRATION", pageNumber, calibrationId }),
+      updateCalibration: (command) =>
+        applyAction({ type: "UPDATE_CALIBRATION_REFERENCE_POINTS", ...command }),
+      addMeasurement: (command) => applyAction({ type: "ADD_MEASUREMENT", ...command }),
+      updateMeasurement: (command) => applyAction({ type: "UPDATE_MEASUREMENT", ...command }),
+      renameMeasurement: (pageNumber, id, name) =>
+        applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
+      setMeasurementVisibility: (pageNumber, id, visible) =>
+        applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
+      deleteMeasurement: (pageNumber, id) =>
+        applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
+      addClassificationDimension: (id, name) =>
+        applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
+      renameClassificationDimension: (id, name) =>
+        applyAction({ type: "RENAME_CLASSIFICATION_DIMENSION", id, name }),
+      addClassificationValue: (dimensionId, id, name) =>
+        applyAction({ type: "ADD_CLASSIFICATION_VALUE", dimensionId, id, name }),
+      renameClassificationValue: (dimensionId, id, name) =>
+        applyAction({ type: "RENAME_CLASSIFICATION_VALUE", dimensionId, id, name }),
+      archiveClassificationValue: (dimensionId, id) =>
+        applyAction({ type: "ARCHIVE_CLASSIFICATION_VALUE", dimensionId, id }),
+      restoreClassificationValue: (dimensionId, id) =>
+        applyAction({ type: "RESTORE_CLASSIFICATION_VALUE", dimensionId, id }),
+      assignClassificationValue: (command) =>
+        applyAction({ type: "ASSIGN_CLASSIFICATION_VALUE", ...command }),
+      removeClassificationValue: (command) =>
+        applyAction({ type: "REMOVE_CLASSIFICATION_VALUE", ...command }),
+      updateSettings: (settings) => applyAction({ type: "UPDATE_SETTINGS", settings }),
+    }),
+    [applyAction, state],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

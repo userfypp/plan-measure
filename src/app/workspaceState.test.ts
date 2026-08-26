@@ -135,7 +135,7 @@ describe("workspace selection state", () => {
     expect(initialAppState).not.toHaveProperty("calibrationReferenceEdit");
   });
 
-  it("keeps catalog state out of WorkspaceState while SessionV5 owns it", () => {
+  it("keeps catalog state out of WorkspaceState while SessionV6 owns it", () => {
     const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
 
     expect(initialWorkspaceState).not.toHaveProperty("calibrations");
@@ -241,7 +241,9 @@ describe("workspace selection state", () => {
       { x: 10, y: 20 },
       { x: 110, y: 20 },
     ]);
-    expect(workspaceReducer(updated, { type: "CANCEL_REFERENCE_EDIT" }).calibrationReferenceEdit).toBeNull();
+    expect(
+      workspaceReducer(updated, { type: "CANCEL_REFERENCE_EDIT" }).calibrationReferenceEdit,
+    ).toBeNull();
 
     const confirmed = workspaceReducer(started, { type: "CONFIRM_REFERENCE_EDIT" });
     expect(confirmed.calibrationReferenceEdit).toBeNull();

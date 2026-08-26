@@ -8,7 +8,7 @@ import type { DrawingDraft, Point, Tool } from "../types/domain";
 
 /**
  * Interaction state for the current workspace. This state is intentionally not
- * part of the persisted SessionV5 document.
+ * part of the persisted SessionV6 document.
  */
 export interface WorkspaceState {
   activeTool: Tool;
@@ -58,10 +58,7 @@ export const initialWorkspaceState: WorkspaceState = {
   workspaceVersion: 0,
 };
 
-export function workspaceReducer(
-  state: WorkspaceState,
-  action: WorkspaceAction,
-): WorkspaceState {
+export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
     case "RESET_WORKSPACE":
       return { ...initialWorkspaceState, workspaceVersion: state.workspaceVersion + 1 };
@@ -77,7 +74,8 @@ export function workspaceReducer(
       };
     case "CHOOSE_TOOL":
       if (state.activeTool === action.tool) {
-        const draftMatchesTool = state.draft === null ||
+        const draftMatchesTool =
+          state.draft === null ||
           (state.draft.type === "calibrate" && action.tool === "calibrate") ||
           (state.draft.type === "path" && state.draft.measurementType === action.tool);
         if (draftMatchesTool) return state;
@@ -148,7 +146,9 @@ export function workspaceReducer(
         ? state
         : { ...state, calibrationReferenceEdit: null };
     case "SET_SECONDARY_PANEL":
-      return state.secondaryPanel === action.panel ? state : { ...state, secondaryPanel: action.panel };
+      return state.secondaryPanel === action.panel
+        ? state
+        : { ...state, secondaryPanel: action.panel };
   }
 }
 

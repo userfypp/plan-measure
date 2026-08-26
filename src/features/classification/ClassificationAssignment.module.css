@@ -62,11 +62,18 @@
 .field {
   display: grid;
   gap: var(--space-4);
+  min-width: 0;
   justify-items: center;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   text-align: center;
+}
+
+.field > span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .field select {

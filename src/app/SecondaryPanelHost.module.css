@@ -1,9 +1,12 @@
 .secondaryPanelHost {
   grid-area: secondary;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   border-left: var(--border-width) solid var(--color-border);
+  border-right: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
 }
 

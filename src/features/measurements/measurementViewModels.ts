@@ -10,6 +10,7 @@ export interface MeasurementViewModel {
   valueLabel: string;
   calibrationSummary: string;
   hasCalibration: boolean;
+  visible: boolean;
 }
 
 export function createMeasurementViewModel(
@@ -32,8 +33,16 @@ export function createMeasurementViewModel(
       ? `${calibration.name} · ${calibrationMode}`
       : "Scale unavailable",
     hasCalibration: calibration !== null,
+    visible: measurement.visible,
     selected,
   };
+}
+
+export function shouldRenderMeasurement(
+  measurement: Measurement,
+  showMeasurements: boolean,
+): boolean {
+  return showMeasurements && measurement.visible;
 }
 
 export function createMeasurementViewModels(

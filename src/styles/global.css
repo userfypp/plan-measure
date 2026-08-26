@@ -56,6 +56,10 @@ select:disabled {
   opacity: var(--opacity-disabled);
 }
 
+/*
+ * Focus indicators are intentionally disabled globally. Restoring visible
+ * focus rings has caused regressions in the viewer's keyboard-shortcut flow.
+ */
 *:focus-visible {
   outline: none !important;
 }

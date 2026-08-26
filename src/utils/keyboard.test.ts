@@ -19,6 +19,7 @@ class FakeHTMLElement {
     private readonly insideDialog = false,
     private readonly inputType: string | null = null,
     private readonly insideEditable = false,
+    private readonly viewerShortcutsEnabled = false,
   ) {}
 
   get isContentEditable(): boolean {
@@ -30,6 +31,7 @@ class FakeHTMLElement {
   }
 
   matches(selector: string): boolean {
+    if (selector === "[data-viewer-shortcuts]") return this.viewerShortcutsEnabled;
     return selector.split(", ").includes(this.kind);
   }
 
@@ -105,6 +107,31 @@ describe("global viewer keyboard policy", () => {
     },
   );
 
+  it("keeps tool shortcuts available while a measurement action button has focus", () => {
+    const measurementAction = new FakeHTMLElement("button") as unknown as EventTarget;
+
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", measurementAction))).toEqual({
+      type: "choose-tool",
+      tool: "line",
+    });
+  });
+
+  it("keeps tool shortcuts available after a classification assignment", () => {
+    const assignmentSelect = new FakeHTMLElement(
+      "select",
+      false,
+      null,
+      false,
+      true,
+    ) as unknown as EventTarget;
+
+    expect(shouldIgnoreGlobalViewerShortcutTarget(assignmentSelect)).toBe(false);
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", assignmentSelect))).toEqual({
+      type: "choose-tool",
+      tool: "line",
+    });
+  });
+
   it.each(["input", "textarea", "select", "[contenteditable='true']"])(
     "preserves text editing in %s",
     (kind) => {
@@ -139,7 +166,9 @@ describe("global viewer keyboard policy", () => {
     const target = new FakeHTMLElement("button") as unknown as EventTarget;
     expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target, { repeat: true }))).toBeNull();
     expect(getGlobalViewerKeyboardAction(keyboardEvent("o", target, { repeat: true }))).toBeNull();
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("+", target, { repeat: true }))).toBe("zoom-in");
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("+", target, { repeat: true }))).toBe(
+      "zoom-in",
+    );
   });
 
   it.each(["metaKey", "ctrlKey", "altKey"] as const)("preserves %s combinations", (modifier) => {

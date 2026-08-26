@@ -7,6 +7,7 @@ export interface MeasurementCollectionProps {
   emptyMessage: string;
   onSelectMeasurement: (measurementId: string) => void;
   onRenameMeasurement: (measurementId: string, name: string) => void;
+  onToggleVisibility: (measurementId: string, visible: boolean) => void;
   onDeleteMeasurement: (measurementId: string) => void;
 }
 
@@ -15,6 +16,7 @@ export function MeasurementCollection({
   emptyMessage,
   onSelectMeasurement,
   onRenameMeasurement,
+  onToggleVisibility,
   onDeleteMeasurement,
 }: MeasurementCollectionProps) {
   if (measurements.length === 0) {
@@ -34,6 +36,7 @@ export function MeasurementCollection({
             viewModel={measurement}
             onSelectMeasurement={onSelectMeasurement}
             onRenameMeasurement={onRenameMeasurement}
+            onToggleVisibility={onToggleVisibility}
             onDeleteMeasurement={onDeleteMeasurement}
           />
         ))}

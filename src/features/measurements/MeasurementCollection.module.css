@@ -9,6 +9,7 @@
 
 .list {
   display: grid;
+  min-width: 0;
   gap: 1px;
   padding-bottom: 1px;
   background: var(--color-border);

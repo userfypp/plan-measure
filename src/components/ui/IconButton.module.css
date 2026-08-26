@@ -18,7 +18,8 @@
 }
 
 .button:active:not(:disabled),
-.pressed {
+.button.pressed,
+.button.pressed:hover:not(:disabled) {
   color: var(--color-primary);
   background-color: var(--color-selected);
   border-color: var(--color-primary);

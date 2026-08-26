@@ -39,7 +39,7 @@ import type {
   CalibrationReferenceKey,
   PageCalibration,
   Point,
-  SessionV5,
+  SessionV6,
   Tool,
 } from "../types/domain";
 import { downloadCsv } from "../services/csv";
@@ -79,7 +79,7 @@ interface PendingPdf {
   pdfId: string;
   file: File;
   loaded: LoadedPdf;
-  session: SessionV5;
+  session: SessionV6;
   loadGeneration: number;
 }
 
@@ -109,6 +109,7 @@ function PlanMeasureApp() {
     setActiveCalibration,
     updateCalibration,
     renameMeasurement,
+    setMeasurementVisibility,
     deleteMeasurement,
     addClassificationDimension,
     renameClassificationDimension,
@@ -1074,6 +1075,7 @@ function PlanMeasureApp() {
                   page={previewPage}
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onRenameMeasurement={renameMeasurement}
+                  onSetMeasurementVisibility={setMeasurementVisibility}
                   onRequestDelete={requestMeasurementDelete}
                   classificationDock={
                     <MeasurementClassificationDock

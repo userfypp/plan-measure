@@ -64,6 +64,7 @@ import {
   type LabelPlacement,
   type OccupiedLabelRect,
 } from "../../utils/labelLayout";
+import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
@@ -570,10 +571,7 @@ export function PdfViewer({
         workspaceDraftRef.current,
       );
       if (!action) return;
-      if (
-        event.repeat &&
-        (action === "toggle-orthogonal" || typeof action === "object")
-      ) return;
+      if (event.repeat && (action === "toggle-orthogonal" || typeof action === "object")) return;
 
       event.preventDefault();
       if (typeof action === "object" && action.tool === activeToolRef.current) return;
@@ -816,20 +814,31 @@ export function PdfViewer({
     if (showCalibrationLabels) {
       for (const calibration of page.calibrations) {
         const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
-        const references = calibration.mode === "uniform"
-          ? [{ key: "uniform", label: calibration.name, start: calibration.start, end: calibration.end }]
-          : [
-              { key: "x", label: `${calibration.name} · X`, ...calibration.xReference },
-              { key: "y", label: `${calibration.name} · Y`, ...calibration.yReference },
-            ];
+        const references =
+          calibration.mode === "uniform"
+            ? [
+                {
+                  key: "uniform",
+                  label: calibration.name,
+                  start: calibration.start,
+                  end: calibration.end,
+                },
+              ]
+            : [
+                { key: "x", label: `${calibration.name} · X`, ...calibration.xReference },
+                { key: "y", label: `${calibration.name} · Y`, ...calibration.yReference },
+              ];
         for (const reference of references) {
-          const referenceIsEditing = editing && calibrationReferenceEdit?.reference === reference.key;
-          const start = referenceIsEditing && calibrationReferenceEdit
-            ? calibrationReferenceEdit.points[0]
-            : reference.start;
-          const end = referenceIsEditing && calibrationReferenceEdit
-            ? calibrationReferenceEdit.points[1]
-            : reference.end;
+          const referenceIsEditing =
+            editing && calibrationReferenceEdit?.reference === reference.key;
+          const start =
+            referenceIsEditing && calibrationReferenceEdit
+              ? calibrationReferenceEdit.points[0]
+              : reference.start;
+          const end =
+            referenceIsEditing && calibrationReferenceEdit
+              ? calibrationReferenceEdit.points[1]
+              : reference.end;
           const labelText = `${reference.label}${referenceIsEditing ? " · editing" : ""}`;
           reserve(
             `calibration:${calibration.id}:${reference.key}`,
@@ -845,6 +854,7 @@ export function PdfViewer({
         left.id === selectedMeasurementId ? -1 : right.id === selectedMeasurementId ? 1 : 0,
       );
       for (const measurement of orderedMeasurements) {
+        if (!shouldRenderMeasurement(measurement, showMeasurementLabels)) continue;
         const calibration = getMeasurementCalibration(page, measurement);
         if (!calibration) continue;
         const labelText = formatMeasurement(measurement, calibration, displayUnit);
@@ -966,9 +976,16 @@ export function PdfViewer({
                         CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
                         viewTransform.zoom,
                       );
-                      const labelPlacement = plannedLabelPlacements.get(
-                        `calibration:${calibration.id}:${reference.key}`,
-                      ) ?? placeLabelWithinBounds(labelPoint, labelDimensions, bounds, viewTransform.zoom);
+                      const labelPlacement =
+                        plannedLabelPlacements.get(
+                          `calibration:${calibration.id}:${reference.key}`,
+                        ) ??
+                        placeLabelWithinBounds(
+                          labelPoint,
+                          labelDimensions,
+                          bounds,
+                          viewTransform.zoom,
+                        );
                       return (
                         <Group
                           key={`${calibration.id}-${reference.key}`}
@@ -978,7 +995,9 @@ export function PdfViewer({
                           <Line
                             points={pointsToFlat([visibleReference.start, visibleReference.end])}
                             stroke={stroke}
-                            strokeWidth={(referenceIsEditing || active ? 3 : 2) / viewTransform.zoom}
+                            strokeWidth={
+                              (referenceIsEditing || active ? 3 : 2) / viewTransform.zoom
+                            }
                             dash={[8 / viewTransform.zoom, 5 / viewTransform.zoom]}
                           />
                           <CalibrationReferenceMarkers
@@ -1005,8 +1024,14 @@ export function PdfViewer({
                       );
                     });
                   })}
-                {session?.settings.showMeasurements &&
-                  page.measurements.map((measurement) => (
+                {page.measurements
+                  .filter((measurement) =>
+                    shouldRenderMeasurement(
+                      measurement,
+                      Boolean(session?.settings.showMeasurements),
+                    ),
+                  )
+                  .map((measurement) => (
                     <MeasurementShape
                       key={measurement.id}
                       measurement={measurement}
@@ -1059,7 +1084,8 @@ export function PdfViewer({
         {calibrationReferenceEdit && (
           <div className={styles.drawingStatus}>
             <span>
-              Editing {calibrationReferenceEdit.reference === "uniform"
+              Editing{" "}
+              {calibrationReferenceEdit.reference === "uniform"
                 ? "scale reference"
                 : `${calibrationReferenceEdit.reference.toUpperCase()} reference`}
               {calibrationReferenceEdit.valid
@@ -1273,14 +1299,14 @@ const MeasurementShape = memo(function MeasurementShape({
       !dragPoints && plannedLabelPlacement
         ? plannedLabelPlacement
         : labelDimensions
-        ? placeLabelWithinBounds(
-            labelPoint,
-            labelDimensions,
-            bounds,
-            zoom,
-            LABEL_EDGE_MARGIN_SCREEN_PX,
-          )
-        : null,
+          ? placeLabelWithinBounds(
+              labelPoint,
+              labelDimensions,
+              bounds,
+              zoom,
+              LABEL_EDGE_MARGIN_SCREEN_PX,
+            )
+          : null,
     [bounds, dragPoints, labelDimensions, labelPoint, plannedLabelPlacement, zoom],
   );
 

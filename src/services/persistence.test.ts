@@ -1,7 +1,15 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptySession } from "../app/sessionState";
-import type { Point, SessionV1, SessionV2, SessionV3, SessionV5 } from "../types/domain";
+import type {
+  Point,
+  SessionV1,
+  SessionV2,
+  SessionV3,
+  SessionV4,
+  SessionV5,
+  SessionV6,
+} from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
   discardSavedSession,
@@ -68,7 +76,7 @@ function legacySession(withCalibration: boolean): SessionV1 {
   };
 }
 
-function currentMeasuredSession(): SessionV5 {
+function currentMeasuredSession(): SessionV6 {
   const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 2);
   session.settings.displayUnit = "cm";
   session.settings.showLabels = false;
@@ -92,8 +100,44 @@ function currentMeasuredSession(): SessionV5 {
       { x: 9, y: 10 },
     ],
     classificationValueIds: [],
+    visible: true,
   });
   return session;
+}
+
+function v5MeasuredSession(): SessionV5 {
+  const current = currentMeasuredSession();
+  current.classificationCatalog = {
+    dimensions: [
+      {
+        id: "discipline",
+        name: "Discipline",
+        values: [{ id: "electrical", name: "Electrical", archived: false }],
+      },
+    ],
+  };
+  current.pages[2]!.measurements[0]!.classificationValueIds = ["electrical"];
+  const pages: SessionV5["pages"] = {};
+  for (let pageNumber = 1; pageNumber <= current.pageCount; pageNumber += 1) {
+    const page = current.pages[pageNumber]!;
+    pages[pageNumber] = {
+      ...page,
+      measurements: page.measurements.map((measurement) => {
+        const legacyMeasurement = { ...measurement };
+        delete (legacyMeasurement as { visible?: boolean }).visible;
+        return legacyMeasurement;
+      }),
+    };
+  }
+  return {
+    schemaVersion: 5,
+    pdf: { ...current.pdf },
+    pageCount: current.pageCount,
+    currentPage: current.currentPage,
+    pages,
+    settings: { ...current.settings },
+    classificationCatalog: structuredClone(current.classificationCatalog),
+  };
 }
 
 function v2MeasuredSession(): SessionV2 {
@@ -177,12 +221,52 @@ function v3MeasuredSession(): SessionV3 {
   };
 }
 
+function v4MeasuredSession(): SessionV4 {
+  return {
+    schemaVersion: 4,
+    pdf: { name: "v4-plan.pdf", size: 6, lastModified: 4 },
+    pageCount: 1,
+    currentPage: 1,
+    pages: {
+      1: {
+        pageNumber: 1,
+        calibrations: [
+          {
+            id: "v4-scale",
+            name: "V4 scale",
+            mode: "uniform",
+            start: { x: 0, y: 0 },
+            end: { x: 10, y: 0 },
+            referenceDistanceMm: 1000,
+          },
+        ],
+        activeCalibrationId: "v4-scale",
+        nextCalibrationNumber: 2,
+        measurements: [
+          {
+            id: "v4-line",
+            type: "line",
+            name: "V4 line",
+            calibrationId: "v4-scale",
+            points: [
+              { x: 0, y: 0 },
+              { x: 10, y: 0 },
+            ],
+          },
+        ],
+        nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1 },
+      },
+    },
+    settings: { displayUnit: "m", showLabels: true, showMeasurements: true, showCalibration: true },
+  };
+}
+
 describe("session persistence", () => {
-  it("migrates a V1 page without calibration to an empty V5 page", () => {
+  it("migrates a V1 page without calibration to an empty V6 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(page.calibrations).toEqual([]);
     expect(page.activeCalibrationId).toBeNull();
@@ -231,6 +315,7 @@ describe("session persistence", () => {
       "legacy-line",
       "legacy-polygon",
     ]);
+    expect(page.measurements.map((measurement) => measurement.visible)).toEqual([true, true]);
     expect(page.measurements.map((measurement) => measurement.name)).toEqual([
       "Legacy line",
       "Legacy room",
@@ -264,7 +349,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -272,6 +357,7 @@ describe("session persistence", () => {
     });
     expect(page.activeCalibrationId).toBe("v2-scale");
     expect(page.measurements[0]!.calibrationId).toBe("v2-scale");
+    expect(page.measurements[0]!.visible).toBe(true);
     expect(lineLengthMm(page.measurements[0]!.points, page.calibrations[0]!)).toBe(before);
   });
 
@@ -279,11 +365,12 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
         classificationValueIds: [],
+        visible: true,
       })),
     );
     expect(migrated.pages[1]!.nextMeasurementNumber).toEqual({
@@ -293,7 +380,21 @@ describe("session persistence", () => {
     });
   });
 
-  it("serializes V5 and round trips uniform/X/Y calibrations and measurement references", () => {
+  it("migrates V4 measurements to V6 with visibility enabled", () => {
+    const v4 = v4MeasuredSession();
+    const migrated = deserializeSession(JSON.stringify(v4));
+
+    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.pages[1]!.measurements).toEqual([
+      {
+        ...v4.pages[1]!.measurements[0],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ]);
+  });
+
+  it("serializes V6 and round trips visibility with uniform/X/Y calibrations", () => {
     const session = currentMeasuredSession();
     session.pages[1]!.calibrations.push({
       id: "xy-scale",
@@ -314,11 +415,51 @@ describe("session persistence", () => {
         { x: 5, y: 5 },
       ],
       classificationValueIds: [],
+      visible: false,
     });
     const serialized = serializeSession(session);
 
-    expect(JSON.parse(serialized).schemaVersion).toBe(5);
+    expect(JSON.parse(serialized).schemaVersion).toBe(6);
     expect(deserializeSession(serialized)).toEqual(session);
+  });
+
+  it("migrates V5 measurements to visible by default without changing their data", () => {
+    const v5 = v5MeasuredSession();
+    const migrated = deserializeSession(JSON.stringify(v5));
+
+    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.pages[2]!.measurements[0]).toMatchObject({
+      id: "custom",
+      name: "Custom name",
+      calibrationId: "custom-scale",
+      points: v5.pages[2]!.measurements[0]!.points,
+      classificationValueIds: ["electrical"],
+      visible: true,
+    });
+    expect(migrated.pages[2]!.calibrations).toEqual(v5.pages[2]!.calibrations);
+    expect(migrated.classificationCatalog).toEqual(v5.classificationCatalog);
+  });
+
+  it("rejects missing or non-boolean visibility in V6 sessions", () => {
+    const missing = JSON.parse(serializeSession(currentMeasuredSession())) as Record<
+      string,
+      unknown
+    >;
+    const missingPage = (
+      missing.pages as Record<string, { measurements: Array<Record<string, unknown>> }>
+    )["2"];
+    delete missingPage!.measurements[0]!.visible;
+    expect(() => deserializeSession(JSON.stringify(missing))).toThrow("visibility");
+
+    const nonBoolean = JSON.parse(serializeSession(currentMeasuredSession())) as Record<
+      string,
+      unknown
+    >;
+    const nonBooleanPage = (
+      nonBoolean.pages as Record<string, { measurements: Array<Record<string, unknown>> }>
+    )["2"];
+    nonBooleanPage!.measurements[0]!.visible = "yes";
+    expect(() => deserializeSession(JSON.stringify(nonBoolean))).toThrow("visibility");
   });
 
   it("persists classification IDs and rejects references outside the catalog", () => {
@@ -354,7 +495,7 @@ describe("session persistence", () => {
     expect(() => serializeSession(session)).toThrow("multiple values");
   });
 
-  it("round trips confirmed edited reference points without changing V4", () => {
+  it("round trips confirmed edited reference points without changing measurement data", () => {
     const session = currentMeasuredSession();
     const calibration = session.pages[2]!.calibrations[0]!;
     if (calibration.mode !== "uniform") throw new Error("Expected a uniform calibration.");
@@ -365,7 +506,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(5);
+    expect(restored.schemaVersion).toBe(6);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -374,10 +515,12 @@ describe("session persistence", () => {
     expect(restored.pages[2]!.measurements[0]!.calibrationId).toBe("custom-scale");
   });
 
-  it("rejects corrupt V4 measurement IDs and canonicalizes restored session data", () => {
+  it("rejects corrupt measurement IDs and canonicalizes restored session data", () => {
     const duplicate = currentMeasuredSession();
     duplicate.pages[2]!.measurements.push({ ...duplicate.pages[2]!.measurements[0]! });
-    expect(() => deserializeSession(serializeSession(duplicate))).toThrow("duplicate measurement IDs");
+    expect(() => deserializeSession(serializeSession(duplicate))).toThrow(
+      "duplicate measurement IDs",
+    );
 
     const invalidId = currentMeasuredSession();
     invalidId.pages[2]!.measurements[0]!.id = " measurement-id ";
@@ -488,7 +631,9 @@ describe("session persistence", () => {
     await saveSessionMetadata(session);
     const restored = await loadSavedSession();
     expect(restored?.session.settings.showMeasurements).toBe(false);
-    expect(restored?.session.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["kitchen"]);
+    expect(restored?.session.pages[2]!.measurements[0]!.classificationValueIds).toEqual([
+      "kitchen",
+    ]);
     expect(restored?.session.classificationCatalog.dimensions[0]!.values[0]!.name).toBe("Kitchen");
     expect(await restored?.pdfBlob.text()).toBe("pdf");
   });

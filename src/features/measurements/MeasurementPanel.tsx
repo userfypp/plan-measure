@@ -17,6 +17,7 @@ export interface MeasurementPanelProps {
   page: PageState;
   onSelectMeasurement: (measurementId: string) => void;
   onRenameMeasurement: (pageNumber: number, measurementId: string, name: string) => void;
+  onSetMeasurementVisibility: (pageNumber: number, measurementId: string, visible: boolean) => void;
   onRequestDelete: (request: MeasurementDeleteRequest) => void;
   classificationDock?: ReactNode;
 }
@@ -25,6 +26,7 @@ export function MeasurementPanel({
   page,
   onSelectMeasurement,
   onRenameMeasurement,
+  onSetMeasurementVisibility,
   onRequestDelete,
   classificationDock,
 }: MeasurementPanelProps) {
@@ -52,6 +54,9 @@ export function MeasurementPanel({
         onSelectMeasurement={onSelectMeasurement}
         onRenameMeasurement={(measurementId, name) =>
           onRenameMeasurement(page.pageNumber, measurementId, name)
+        }
+        onToggleVisibility={(measurementId, visible) =>
+          onSetMeasurementVisibility(page.pageNumber, measurementId, visible)
         }
         onDeleteMeasurement={requestDelete}
       />

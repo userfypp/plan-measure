@@ -58,6 +58,7 @@ export function ClassificationAssignment({
             <span>{dimension.name}</span>
             <select
               id={fieldId}
+              data-viewer-shortcuts="enabled"
               value={current?.id ?? ""}
               disabled={disabled || options.length === 0}
               onChange={(event) =>

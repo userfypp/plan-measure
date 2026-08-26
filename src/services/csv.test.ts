@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../app/sessionState";
-import type { LinearUnit, SessionV5 } from "../types/domain";
+import type { LinearUnit, SessionV6 } from "../types/domain";
 import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
-function measuredSession(): SessionV5 {
+function measuredSession(): SessionV6 {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
   session.settings.displayUnit = "m";
   session.pages[1]!.calibrations = [
@@ -43,6 +43,7 @@ function measuredSession(): SessionV5 {
       { x: 25, y: 0 },
     ],
     classificationValueIds: [],
+    visible: true,
   });
   session.pages[1]!.measurements.push({
     id: "polygon-id",
@@ -56,6 +57,7 @@ function measuredSession(): SessionV5 {
       { x: 0, y: 10 },
     ],
     classificationValueIds: [],
+    visible: true,
   });
   session.pages[2]!.calibrations = [
     {
@@ -79,11 +81,12 @@ function measuredSession(): SessionV5 {
       { x: 10, y: 0 },
     ],
     classificationValueIds: [],
+    visible: true,
   });
   return session;
 }
 
-function smallMeasuredSession(displayUnit: LinearUnit): SessionV5 {
+function smallMeasuredSession(displayUnit: LinearUnit): SessionV6 {
   const session = createEmptySession({ name: "small.pdf", size: 10, lastModified: 1 }, 1);
   session.settings.displayUnit = displayUnit;
   session.pages[1]!.calibrations = [
@@ -108,6 +111,7 @@ function smallMeasuredSession(displayUnit: LinearUnit): SessionV5 {
         { x: 4, y: 0 },
       ],
       classificationValueIds: [],
+      visible: true,
     },
     {
       id: "small-polygon-id",
@@ -121,6 +125,7 @@ function smallMeasuredSession(displayUnit: LinearUnit): SessionV5 {
         { x: 0, y: 2 },
       ],
       classificationValueIds: [],
+      visible: true,
     },
   );
   return session;
@@ -140,6 +145,7 @@ describe("CSV export", () => {
         { x: 3, y: 4 },
       ],
       classificationValueIds: [],
+      visible: true,
     });
 
     expect(buildCsv(session)).toContain(
@@ -164,6 +170,15 @@ describe("CSV export", () => {
       "2,,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m",
     );
     expect(csv.endsWith("\r\n")).toBe(true);
+  });
+
+  it("exports hidden measurements without adding visibility to the CSV contract", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[1]!.visible = false;
+    const csv = buildCsv(session);
+
+    expect(csv).toContain('1,,polygon-id,"Room\nA",Polygon,scale-2');
+    expect(csv.split("\r\n")[0]).not.toContain("visible");
   });
 
   it("uses each measurement's calibration even after the active scale changes", () => {
@@ -261,6 +276,7 @@ describe("CSV export", () => {
         { x: 1, y: 0 },
       ],
       classificationValueIds: [],
+      visible: true,
     });
 
     expect(() => buildCsv(session)).toThrow("Measurement line-id has a missing calibration.");

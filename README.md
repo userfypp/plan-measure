@@ -29,7 +29,8 @@ The active session is stored only in the browser's IndexedDB so it can be recove
   measurement and survive session recovery.
 - Optional Ortho 90° drawing mode for new Line, Polyline, and Polygon segments.
 - Pan, pointer-centred zoom, keyboard zoom, and fit-to-screen controls.
-- Independent visibility controls for labels, measurements, and calibration references.
+- Global visibility controls for labels, measurements, and calibration references, plus
+  per-measurement visibility preferences.
 - One recoverable, browser-local autosaved session with explicit Continue/Discard recovery.
 - CSV export across every page with page, measurement, and per-measurement calibration
   traceability; measurement values use the current display unit.
@@ -92,10 +93,11 @@ non-linear warping.
   until the current page has an active scale.
 - **Viewer:** use the page controls to move through the PDF, zoom in or out, or fit the page to the
   available space. Measurements and calibration references remain attached to their PDF page.
-- **Measurements tab:** select, rename, or delete a measurement. The **Selection Inspector** stays
-  in the left tool rail and shows the selected object's type, calculated value, scale/calibration,
-  and assigned classifications. The dock at the bottom of the panel contains the assignment
-  controls for the selected measurement.
+- **Measurements tab:** select, rename, show, hide, or delete a measurement. Hidden measurements
+  remain selectable and editable in the panel, while the viewer keeps their geometry and labels
+  out of sight. The **Selection Inspector** stays in the left tool rail and shows the selected
+  object's type, calculated value, scale/calibration, and assigned classifications. The dock at
+  the bottom of the panel contains the assignment controls for the selected measurement.
 - **Classifications tab:** manage the reusable catalog only. Dimensions and values can be created
   and renamed; values can be archived without removing existing assignments and restored later.
   Dimension names are unique, and value names are unique within each dimension.
@@ -156,7 +158,7 @@ memory and displays a warning that reload recovery is unavailable.
 ## Testing and CI
 
 Vitest covers geometry, uniform and X/Y calibration, path measurement flows, classifications,
-units, CSV escaping and all-page export, V1/V2/V3/V4-to-V5 session migration/IndexedDB round trips,
+units, CSV escaping and all-page export, V1/V2/V3/V4/V5-to-V6 session migration/IndexedDB round trips,
 state-boundary and reducer invariants, keyboard policy, label placement, PDF lifecycle/autosave, and
 page/screen transforms across zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub
 Actions installs from

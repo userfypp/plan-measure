@@ -29,6 +29,7 @@ const measurement: Measurement = {
   ],
   calibrationId: "scale-1",
   classificationValueIds: ["electrical"],
+  visible: true,
 };
 
 describe("classification surfaces", () => {

@@ -17,12 +17,16 @@ export function shouldIgnoreGlobalKeyboardShortcut(target: EventTarget | null): 
 
 export function shouldIgnoreGlobalViewerShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
+  // Assignment selects keep focus after a change; only those controls opt
+  // back into viewer shortcuts so ordinary form controls remain protected.
+  if (target.matches("[data-viewer-shortcuts]")) return false;
   if (
     target.isContentEditable ||
     target.closest("[contenteditable]") ||
     target.matches("textarea, select") ||
     target.closest("dialog, [role='dialog']")
-  ) return true;
+  )
+    return true;
   if (!target.matches("input")) return false;
   const inputType = target.getAttribute("type")?.toLocaleLowerCase() ?? "text";
   return !["button", "checkbox", "radio", "range", "reset", "submit"].includes(inputType);
@@ -71,11 +75,7 @@ export const viewerShortcuts: readonly ViewerShortcut[] = [
 ];
 
 export type ViewerKeyboardAction =
-  | DrawingKeyboardAction
-  | "start-pan"
-  | "zoom-in"
-  | "zoom-out"
-  | ShortcutAction;
+  DrawingKeyboardAction | "start-pan" | "zoom-in" | "zoom-out" | ShortcutAction;
 
 function findShortcut(key: string): ViewerShortcut | null {
   return viewerShortcuts.find((shortcut) => shortcut.key === key.toLowerCase()) ?? null;
@@ -162,7 +162,8 @@ export function getGlobalViewerKeyboardAction(
     event.defaultPrevented ||
     hasKeyboardShortcutModifier(event) ||
     shouldIgnoreGlobalViewerShortcutTarget(event.target)
-  ) return null;
+  )
+    return null;
 
   if (event.key === "+" || event.key === "=") return "zoom-in";
   if (event.key === "-") return "zoom-out";

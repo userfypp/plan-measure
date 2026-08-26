@@ -7,6 +7,7 @@ import {
   createMeasurementViewModel,
   getMeasurementClassificationSummary,
   getMeasurementEmptyMessage,
+  shouldRenderMeasurement,
 } from "./measurementViewModels";
 
 const measurement: Measurement = {
@@ -19,6 +20,7 @@ const measurement: Measurement = {
   ],
   calibrationId: "scale-1",
   classificationValueIds: [],
+  visible: true,
 };
 
 const page: PageState = {
@@ -39,8 +41,8 @@ const page: PageState = {
   nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1 },
 };
 
-function viewModel(selected = false) {
-  return createMeasurementViewModel(page, measurement, "m", selected);
+function viewModel(selected = false, candidate = measurement) {
+  return createMeasurementViewModel(page, candidate, "m", selected);
 }
 
 describe("measurement view models", () => {
@@ -52,8 +54,21 @@ describe("measurement view models", () => {
       valueLabel: "1.00 m",
       calibrationSummary: "Main plan · Uniform",
       hasCalibration: true,
+      visible: true,
       selected: true,
     });
+  });
+
+  it("keeps hidden measurements in the collection and only renders visible ones", () => {
+    const hidden = { ...measurement, id: "hidden-line", visible: false };
+    const models = [
+      ...[measurement, hidden].map((candidate) => createMeasurementViewModel(page, candidate, "m")),
+    ];
+
+    expect(models.map((model) => model.id)).toEqual(["line-1", "hidden-line"]);
+    expect(shouldRenderMeasurement(measurement, true)).toBe(true);
+    expect(shouldRenderMeasurement(hidden, true)).toBe(false);
+    expect(shouldRenderMeasurement(measurement, false)).toBe(false);
   });
 
   it("keeps the empty-state guidance local to the current page", () => {
@@ -120,6 +135,7 @@ describe("MeasurementRow accessibility", () => {
         viewModel={viewModel()}
         onSelectMeasurement={() => undefined}
         onRenameMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
         onDeleteMeasurement={() => undefined}
       />,
     );
@@ -132,6 +148,8 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain("Main plan · Uniform");
     expect(markup).toContain('aria-label="Rename Hallway"');
     expect(markup).toContain('aria-label="Delete Hallway"');
+    expect(markup).toContain('aria-label="Hide measurement Hallway"');
+    expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain('aria-label="Name for Hallway"');
   });
 
@@ -141,12 +159,30 @@ describe("MeasurementRow accessibility", () => {
         viewModel={viewModel(true)}
         onSelectMeasurement={() => undefined}
         onRenameMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
         onDeleteMeasurement={() => undefined}
       />,
     );
 
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
     expect(markup).toContain('aria-pressed="true"');
+  });
+
+  it("announces the action to restore a hidden measurement", () => {
+    const hidden = { ...measurement, visible: false };
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={viewModel(false, hidden)}
+        onSelectMeasurement={() => undefined}
+        onRenameMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+        onDeleteMeasurement={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="Show measurement Hallway"');
+    expect(markup).toContain('aria-pressed="false"');
+    expect(markup).toContain('aria-label="Select measurement Hallway"');
   });
 });
 
