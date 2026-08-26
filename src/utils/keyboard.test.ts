@@ -187,7 +187,6 @@ describe("drawing keyboard actions", () => {
     type: "path" as const,
     measurementType: "line" as const,
     points: [{ x: 1, y: 1 }],
-    pointer: null,
   };
   const polygonDraft = {
     type: "path" as const,
@@ -197,7 +196,6 @@ describe("drawing keyboard actions", () => {
       { x: 10, y: 1 },
       { x: 10, y: 10 },
     ],
-    pointer: null,
   };
   const polylineDraft = {
     type: "path" as const,
@@ -206,7 +204,6 @@ describe("drawing keyboard actions", () => {
       { x: 1, y: 1 },
       { x: 10, y: 1 },
     ],
-    pointer: null,
   };
 
   it("completes a polygon with Enter and exits it with the next Enter", () => {
@@ -275,7 +272,6 @@ describe("viewer keyboard policy", () => {
     type: "path" as const,
     measurementType: "line" as const,
     points: [{ x: 1, y: 1 }],
-    pointer: null,
   };
   const polygonDraft = {
     type: "path" as const,
@@ -285,7 +281,6 @@ describe("viewer keyboard policy", () => {
       { x: 10, y: 1 },
       { x: 10, y: 10 },
     ],
-    pointer: null,
   };
 
   it("restores the toolbar → viewer focus → shortcut flow", () => {

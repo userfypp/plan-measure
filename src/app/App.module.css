@@ -50,16 +50,6 @@
   font-size: var(--font-size-xs);
 }
 
-.scaleControlsActions > :first-child:nth-last-child(5),
-.scaleControlsActions > :first-child:nth-last-child(5) ~ * {
-  grid-column: span 2;
-}
-
-.scaleControlsActions > :nth-child(4):nth-last-child(2),
-.scaleControlsActions > :nth-child(4):nth-last-child(2) ~ * {
-  grid-column: span 3;
-}
-
 .scaleControlsHeader > div {
   min-width: 0;
   display: grid;
@@ -70,6 +60,16 @@
   justify-self: end;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+}
+
+@media (min-width: 821px) {
+  .scaleControlsActionsXy > * {
+    grid-column: span 2;
+  }
+
+  .scaleControlsActionsXy > :nth-child(n + 4) {
+    grid-column: span 3;
+  }
 }
 
 .panelTabs button {
@@ -161,12 +161,11 @@
     font-size: 11px;
   }
 
-  .scaleControlsActions > :first-child:nth-last-child(2),
-  .scaleControlsActions > :first-child:nth-last-child(2) ~ *,
-  .scaleControlsActions > :first-child:nth-last-child(4),
-  .scaleControlsActions > :first-child:nth-last-child(4) ~ *,
-  .scaleControlsActions > :nth-child(4):nth-last-child(2),
-  .scaleControlsActions > :nth-child(4):nth-last-child(2) ~ * {
+  .scaleControlsActionsXy > :nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+
+  .scaleControlsActionsXy > :nth-child(n + 4) {
     grid-column: span 3;
   }
 }
@@ -192,6 +191,10 @@
   }
 
   .scaleControlsActions > * {
+    grid-column: auto;
+  }
+
+  .scaleControlsActionsXy > * {
     grid-column: auto;
   }
 }

@@ -149,7 +149,7 @@ describe("CSV export", () => {
     });
 
     expect(buildCsv(session)).toContain(
-      "1,,polyline-id,Service run,Polyline,scale-1,Scale 1,uniform,1000,10,100,100,100,0.70,,,m",
+      "1,,polyline-id,Service run,Polyline,scale-1,Scale 1,uniform,1000,10,100,100,100,0.70,,,m,",
     );
   });
 
@@ -157,17 +157,17 @@ describe("CSV export", () => {
     const csv = buildCsv(measuredSession());
     expect(
       csv.startsWith(
-        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit\r\n",
+        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit,area_unit\r\n",
       ),
     ).toBe(true);
     expect(csv).toContain(
-      '1,,line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,m',
+      '1,,line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,m,',
     );
     expect(csv).toContain(
-      '1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,xy,,,,500,1000,,30.00,50.00,m',
+      '1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,xy,,,,500,1000,,30.00,50.00,m,m²',
     );
     expect(csv).toContain(
-      "2,,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m",
+      "2,,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m,",
     );
     expect(csv.endsWith("\r\n")).toBe(true);
   });
@@ -212,10 +212,10 @@ describe("CSV export", () => {
     const label = 'Cover, "A"\nSheet';
     const csv = buildCsv(measuredSession(), [label, "7"]);
     expect(csv).toContain(
-      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,m',
+      '1,"Cover, ""A""\nSheet",line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2.50,,,m,',
     );
     expect(csv).toContain(
-      "2,7,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m",
+      "2,7,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m,",
     );
   });
 
@@ -223,16 +223,16 @@ describe("CSV export", () => {
     const session = measuredSession();
     session.settings.displayUnit = "cm";
     const csv = buildCsv(session);
-    expect(csv).toContain("Line,scale-1,Scale 1,uniform,1000,10,100,100,100,250.00,,,cm");
-    expect(csv).toContain("Polygon,scale-2,Detail A,xy,,,,500,1000,,3000.00,500000.00,cm");
+    expect(csv).toContain("Line,scale-1,Scale 1,uniform,1000,10,100,100,100,250.00,,,cm,");
+    expect(csv).toContain("Polygon,scale-2,Detail A,xy,,,,500,1000,,3000.00,500000.00,cm,cm²");
 
     session.settings.displayUnit = "mm";
     const millimetreCsv = buildCsv(session);
     expect(millimetreCsv).toContain(
-      "Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2500.00,,,mm",
+      "Line,scale-1,Scale 1,uniform,1000,10,100,100,100,2500.00,,,mm,",
     );
     expect(millimetreCsv).toContain(
-      "Polygon,scale-2,Detail A,xy,,,,500,1000,,30000.00,50000000.00,mm",
+      "Polygon,scale-2,Detail A,xy,,,,500,1000,,30000.00,50000000.00,mm,mm²",
     );
   });
 
@@ -246,10 +246,10 @@ describe("CSV export", () => {
       const csv = buildCsv(smallMeasuredSession(unit));
 
       expect(csv).toContain(
-        `1,,small-line-id,Small line,Line,small-scale,Small scale,uniform,1,1,1,1,1,${length},,,${unit}`,
+        `1,,small-line-id,Small line,Line,small-scale,Small scale,uniform,1,1,1,1,1,${length},,,${unit},`,
       );
       expect(csv).toContain(
-        `1,,small-polygon-id,Small polygon,Polygon,small-scale,Small scale,uniform,1,1,1,1,1,,${perimeter},${area},${unit}`,
+        `1,,small-polygon-id,Small polygon,Polygon,small-scale,Small scale,uniform,1,1,1,1,1,,${perimeter},${area},${unit},${unit}²`,
       );
     },
   );

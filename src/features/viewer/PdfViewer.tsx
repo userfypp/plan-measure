@@ -28,6 +28,7 @@ import type {
   Point,
   Tool,
   ViewTransform,
+  DrawingDraft,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
 import {
@@ -65,6 +66,7 @@ import {
   type OccupiedLabelRect,
 } from "../../utils/labelLayout";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
+import { buildDraftPreviewPoints } from "./draftPreview";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
@@ -160,7 +162,6 @@ export function PdfViewer({
     clearSelection: clearWorkspaceSelection,
     startDraft,
     updateDraft,
-    updateDraftPointer,
     clearDraft,
     completeDraft,
   } = useWorkspaceState();
@@ -170,7 +171,7 @@ export function PdfViewer({
   const renderTaskRef = useRef<RenderTask | null>(null);
   const draftPointerFrameRef = useRef<number | null>(null);
   const pendingDraftPointerRef = useRef<{
-    draftType: "calibrate" | "path";
+    draft: DrawingDraft;
     point: Point;
   } | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
@@ -187,6 +188,7 @@ export function PdfViewer({
   const transformRef = useRef<ViewTransform>(transform);
   const [fitMode, setFitMode] = useState(true);
   const [spacePan, setSpacePan] = useState(false);
+  const [draftPointer, setDraftPointer] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const suppressPanClickRef = useRef(false);
   const suppressPanClickTimerRef = useRef<number | null>(null);
@@ -214,6 +216,7 @@ export function PdfViewer({
         measurementType,
         points,
       });
+      setDraftPointer(null);
       completeDraft();
       selectWorkspaceMeasurement(id);
     },
@@ -635,15 +638,16 @@ export function PdfViewer({
     }
   }
 
-  function queueDraftPointerUpdate(draftType: "calibrate" | "path", point: Point) {
-    pendingDraftPointerRef.current = { draftType, point };
+  function queueDraftPointerUpdate(draft: DrawingDraft, point: Point) {
+    pendingDraftPointerRef.current = { draft, point };
     if (draftPointerFrameRef.current !== null) return;
     draftPointerFrameRef.current = window.requestAnimationFrame(() => {
       draftPointerFrameRef.current = null;
       const pending = pendingDraftPointerRef.current;
       pendingDraftPointerRef.current = null;
       if (!pending) return;
-      updateDraftPointer(pending.draftType, pending.point);
+      if (workspaceDraftRef.current !== pending.draft) return;
+      setDraftPointer(pending.point);
     });
   }
 
@@ -662,7 +666,7 @@ export function PdfViewer({
     if (!bounds || !workspaceDraft) return;
     const pagePoint = screenToPage(pointer, transformRef.current);
     if (!isPointInPage(pagePoint, bounds)) return;
-    queueDraftPointerUpdate(workspaceDraft.type, pagePoint);
+    queueDraftPointerUpdate(workspaceDraft, pagePoint);
   }
 
   function handleMouseUp() {
@@ -697,7 +701,8 @@ export function PdfViewer({
 
     if (activeTool === "calibrate") {
       if (!draft || draft.type !== "calibrate" || draft.points.length === 0) {
-        startDraft({ type: "calibrate", points: [point], pointer: point });
+        setDraftPointer(point);
+        startDraft({ type: "calibrate", points: [point] });
         return;
       }
       const first = draft.points[0]!;
@@ -705,6 +710,7 @@ export function PdfViewer({
         setError("Choose two distinct calibration points.");
         return;
       }
+      setDraftPointer(null);
       clearDraft();
       chooseWorkspaceTool("select");
       setError(null);
@@ -715,7 +721,8 @@ export function PdfViewer({
     if (isMeasurementType(activeTool)) {
       const measurementType = activeTool;
       if (!draft || draft.type !== "path" || draft.measurementType !== measurementType) {
-        startDraft({ type: "path", measurementType, points: [point], pointer: point });
+        setDraftPointer(point);
+        startDraft({ type: "path", measurementType, points: [point] });
         return;
       }
       const first = draft.points[0];
@@ -737,7 +744,8 @@ export function PdfViewer({
         completePath(measurementType, [...draft.points, effectivePoint]);
         return;
       }
-      updateDraft({ ...draft, points: [...draft.points, effectivePoint], pointer: effectivePoint });
+      setDraftPointer(effectivePoint);
+      updateDraft({ ...draft, points: [...draft.points, effectivePoint] });
     }
   }
 
@@ -768,16 +776,10 @@ export function PdfViewer({
         ? styles.cursorDefault
         : styles.cursorCrosshair;
 
-  const draftPoints = useMemo(() => {
-    if (!workspaceDraft) return [];
-    if (!workspaceDraft.pointer) return workspaceDraft.points;
-    const last = workspaceDraft.points.at(-1);
-    const pointer =
-      workspaceDraft.type === "path" && orthogonal && last
-        ? constrainOrthogonal(last, workspaceDraft.pointer)
-        : workspaceDraft.pointer;
-    return [...workspaceDraft.points, pointer];
-  }, [orthogonal, workspaceDraft]);
+  const draftPoints = useMemo(
+    () => buildDraftPreviewPoints(workspaceDraft, draftPointer, orthogonal),
+    [draftPointer, orthogonal, workspaceDraft],
+  );
 
   const showPage = Boolean(
     pageReady &&

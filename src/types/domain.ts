@@ -257,10 +257,9 @@ export interface LogicalPageBounds {
 }
 
 export type DrawingDraft =
-  | { type: "calibrate"; points: Point[]; pointer: Point | null }
+  | { type: "calibrate"; points: Point[] }
   | {
       type: "path";
       measurementType: MeasurementType;
       points: Point[];
-      pointer: Point | null;
     };

@@ -131,8 +131,7 @@ export type SessionAction =
   | { type: "RESTORE_CLASSIFICATION_VALUE"; dimensionId: string; id: string }
   | ({ type: "ASSIGN_CLASSIFICATION_VALUE" } & AssignClassificationValueCommand)
   | ({ type: "REMOVE_CLASSIFICATION_VALUE" } & AssignClassificationValueCommand)
-  | { type: "UPDATE_SETTINGS"; settings: Partial<SessionSettings> }
-  | { type: "SET_ERROR"; message: string | null };
+  | { type: "UPDATE_SETTINGS"; settings: Partial<SessionSettings> };
 
 export const initialSessionState: SessionCommandResult = {
   session: null,
@@ -656,8 +655,6 @@ export function sessionReducer(
         error: null,
       };
     }
-    case "SET_ERROR":
-      return { ...state, error: action.message };
   }
 }
 
@@ -727,7 +724,6 @@ function updateCalibrationReferencePoints(
 }
 
 interface SessionContextValue extends SessionState {
-  state: SessionState;
   loadSession: (session: SessionV6) => void;
   clearSession: () => void;
   updatePage: (pageNumber: number) => void;
@@ -769,11 +765,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     [setError],
   );
-  const state = useMemo<SessionState>(() => ({ session }), [session]);
   const value = useMemo<SessionContextValue>(
     () => ({
-      ...state,
-      state,
+      session,
       loadSession: (nextSession) => applyAction({ type: "LOAD_SESSION", session: nextSession }),
       clearSession: () => applyAction({ type: "CLEAR_SESSION" }),
       updatePage: (pageNumber) => applyAction({ type: "UPDATE_PAGE", pageNumber }),
@@ -814,7 +808,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "REMOVE_CLASSIFICATION_VALUE", ...command }),
       updateSettings: (settings) => applyAction({ type: "UPDATE_SETTINGS", settings }),
     }),
-    [applyAction, state],
+    [applyAction, session],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

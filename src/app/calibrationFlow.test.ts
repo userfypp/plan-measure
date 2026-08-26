@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   beginCalibrationFlow,
-  cancelCalibrationFlow,
   confirmCalibration,
   selectCalibrationReference,
 } from "./calibrationFlow";
 import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
-
-const appReducer = sessionReducer;
-const initialAppState = initialSessionState;
 
 const xPoints = [
   { x: 10, y: 20 },
@@ -22,7 +18,7 @@ const yPoints = [
 
 function loadedState() {
   return {
-    ...initialAppState,
+    ...initialSessionState,
     session: createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1),
   };
 }
@@ -68,7 +64,7 @@ describe("calibration flow", () => {
       },
     });
 
-    const state = appReducer(loadedState(), {
+    const state = sessionReducer(loadedState(), {
       type: "ADD_CALIBRATION",
       pageNumber: 1,
       id: "xy-scale",
@@ -90,34 +86,6 @@ describe("calibration flow", () => {
     expect(loadedState().session!.pages[1]!.calibrations).toHaveLength(0);
   });
 
-  it("cancels and clears every transient phase", () => {
-    const selectX = beginCalibrationFlow(1, null, "xy");
-    const xSelection = selectCalibrationReference(selectX, [xPoints[0], xPoints[1]]);
-    const afterX = confirmCalibration(selectX, xSelection, 1000, "Survey");
-    if (afterX.kind !== "select-y") throw new Error("Expected the Y selection phase.");
-    const ySelection = selectCalibrationReference(afterX.flow, [yPoints[0], yPoints[1]]);
-
-    expect(cancelCalibrationFlow({ flow: selectX, candidate: null })).toEqual({
-      flow: null,
-      candidate: null,
-    });
-    expect(cancelCalibrationFlow({ flow: selectX, candidate: xSelection })).toEqual({
-      flow: null,
-      candidate: null,
-    });
-    expect(cancelCalibrationFlow({ flow: afterX.flow, candidate: null })).toEqual({
-      flow: null,
-      candidate: null,
-    });
-    expect(cancelCalibrationFlow({ flow: afterX.flow, candidate: ySelection })).toEqual({
-      flow: null,
-      candidate: null,
-    });
-    expect(
-      cancelCalibrationFlow({ flow: beginCalibrationFlow(1, null, "uniform"), candidate: null }),
-    ).toEqual({ flow: null, candidate: null });
-  });
-
   it("keeps Uniform as a one-reference flow", () => {
     const started = beginCalibrationFlow(1, null, "uniform");
     expect(started.phase).toBe("uniform");
@@ -130,7 +98,7 @@ describe("calibration flow", () => {
   });
 
   it("recalibrates an X/Y calibration in place after the X→Y transition", () => {
-    const state = appReducer(loadedState(), {
+    const state = sessionReducer(loadedState(), {
       type: "ADD_CALIBRATION",
       pageNumber: 1,
       id: "existing-xy",
@@ -160,7 +128,7 @@ describe("calibration flow", () => {
     expect(completed.kind).toBe("complete");
     if (completed.kind !== "complete") throw new Error("Expected a complete calibration.");
 
-    const recalibrated = appReducer(state, {
+    const recalibrated = sessionReducer(state, {
       type: "RECALIBRATE_CALIBRATION",
       pageNumber: 1,
       calibrationId: "existing-xy",

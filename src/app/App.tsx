@@ -1022,7 +1022,11 @@ function PlanMeasureApp() {
                     {currentPage.calibrations.length === 1 ? "scale" : "scales"}
                   </span>
                 </div>
-                <div className={styles.scaleControlsActions}>
+                <div
+                  className={`${styles.scaleControlsActions} ${
+                    activeCalibration?.mode === "xy" ? styles.scaleControlsActionsXy : ""
+                  }`}
+                >
                   <Button
                     variant="secondary"
                     size="compact"

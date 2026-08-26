@@ -34,7 +34,6 @@ describe("calibration reference edit draft", () => {
       { x: 110, y: 20 },
     ]);
     expect(moved.points).toEqual([{ x: 20, y: 20 }, { x: 110, y: 20 }]);
-    expect(moved.originalPoints).toEqual([{ x: 10, y: 20 }, { x: 110, y: 20 }]);
     expect(uniform.start).toEqual({ x: 10, y: 20 });
     expect(cancelCalibrationReferenceEdit()).toBeNull();
   });

@@ -29,6 +29,7 @@ const HEADER = [
   "perimeter",
   "area",
   "unit",
+  "area_unit",
 ];
 
 function escapeCsv(value: string | number): string {
@@ -83,6 +84,7 @@ function measurementRow(
       "",
       "",
       unit,
+      "",
     ];
   }
   return [
@@ -103,6 +105,7 @@ function measurementRow(
     formatCsvNumber(fromMillimetres(result.perimeterMm ?? 0, unit)),
     formatCsvNumber(fromSquareMillimetres(result.areaMm2 ?? 0, unit)),
     unit,
+    `${unit}²`,
   ];
 }
 

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
+import { createEmptySession } from "./sessionState";
 import { beginCalibrationFlow, selectCalibrationReference } from "./calibrationFlow";
 import { beginCalibrationReferenceEdit } from "./calibrationReferenceEdit";
+import { appReducer, initialAppState } from "./state";
 import { initialWorkspaceState, workspaceReducer } from "./workspaceState";
-
-const appReducer = sessionReducer;
-const initialAppState = initialSessionState;
 
 const uniformCalibration = {
   id: "uniform",
@@ -38,7 +36,6 @@ describe("workspace selection state", () => {
         type: "path" as const,
         measurementType: "polygon" as const,
         points: [{ x: 10, y: 10 }],
-        pointer: { x: 20, y: 20 },
       },
     };
 
@@ -92,7 +89,6 @@ describe("workspace selection state", () => {
         type: "path",
         measurementType: "polygon",
         points: [{ x: 10, y: 10 }],
-        pointer: { x: 20, y: 20 },
       },
       orthogonal: true,
       calibrationFlow: flow,
@@ -209,7 +205,7 @@ describe("workspace selection state", () => {
     });
     const withDraft = workspaceReducer(withCandidate, {
       type: "START_DRAFT",
-      draft: { type: "calibrate", points: [{ x: 1, y: 1 }], pointer: { x: 2, y: 2 } },
+      draft: { type: "calibrate", points: [{ x: 1, y: 1 }] },
     });
     const cancelled = workspaceReducer(withDraft, { type: "CANCEL_CALIBRATION" });
 
@@ -237,10 +233,8 @@ describe("workspace selection state", () => {
       { x: 20, y: 20 },
       { x: 110, y: 20 },
     ]);
-    expect(updated.calibrationReferenceEdit?.originalPoints).toEqual([
-      { x: 10, y: 20 },
-      { x: 110, y: 20 },
-    ]);
+    expect(uniformCalibration.start).toEqual({ x: 10, y: 20 });
+    expect(uniformCalibration.end).toEqual({ x: 110, y: 20 });
     expect(
       workspaceReducer(updated, { type: "CANCEL_REFERENCE_EDIT" }).calibrationReferenceEdit,
     ).toBeNull();
@@ -308,12 +302,9 @@ describe("workspace selection state", () => {
     expect(replacementWorkspace.selectedMeasurementId).toBeNull();
   });
 
-  it("keeps selection in WorkspaceState while SessionState clears its visible error", () => {
+  it("keeps selection in WorkspaceState while AppState clears its visible error", () => {
     const appWithError = appReducer(
-      {
-        ...initialAppState,
-        session: createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1),
-      },
+      initialAppState,
       { type: "SET_ERROR", message: "A visible error" },
     );
     const selectedWorkspace = workspaceReducer(initialWorkspaceState, {
@@ -359,7 +350,6 @@ describe("workspace draft state", () => {
     type: "path" as const,
     measurementType: "line" as const,
     points: [{ x: 10, y: 20 }],
-    pointer: { x: 12, y: 22 },
   };
 
   it("starts a draft", () => {
@@ -371,7 +361,7 @@ describe("workspace draft state", () => {
     expect(state.draft).toEqual(lineDraft);
   });
 
-  it("updates a draft and its pointer", () => {
+  it("updates a draft's confirmed points", () => {
     const started = workspaceReducer(initialWorkspaceState, {
       type: "START_DRAFT",
       draft: lineDraft,
@@ -380,31 +370,10 @@ describe("workspace draft state", () => {
       type: "UPDATE_DRAFT",
       draft: { ...lineDraft, points: [...lineDraft.points, { x: 30, y: 40 }] },
     });
-    const pointerUpdated = workspaceReducer(updated, {
-      type: "UPDATE_DRAFT_POINTER",
-      draftType: "path",
-      pointer: { x: 35, y: 45 },
-    });
-
-    expect(pointerUpdated.draft).toEqual({
+    expect(updated.draft).toEqual({
       ...lineDraft,
       points: [...lineDraft.points, { x: 30, y: 40 }],
-      pointer: { x: 35, y: 45 },
     });
-  });
-
-  it("ignores a stale pointer update after the draft type changed", () => {
-    const state = workspaceReducer(initialWorkspaceState, {
-      type: "START_DRAFT",
-      draft: { type: "calibrate", points: [{ x: 0, y: 0 }], pointer: null },
-    });
-    const result = workspaceReducer(state, {
-      type: "UPDATE_DRAFT_POINTER",
-      draftType: "path",
-      pointer: { x: 20, y: 20 },
-    });
-
-    expect(result).toBe(state);
   });
 
   it("clears and completes a draft", () => {

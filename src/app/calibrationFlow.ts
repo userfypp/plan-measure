@@ -27,11 +27,6 @@ export interface CalibrationSelection {
   xReference?: XyCalibrationReference;
 }
 
-export interface CalibrationTransientState {
-  flow: CalibrationFlow | null;
-  candidate: CalibrationSelection | null;
-}
-
 export type CalibrationInput =
   Omit<UniformPageCalibration, "id" | "name"> | Omit<XyPageCalibration, "id" | "name">;
 
@@ -49,11 +44,6 @@ export function beginCalibrationFlow(
     mode,
     phase: mode === "uniform" ? "uniform" : "x",
   };
-}
-
-export function cancelCalibrationFlow(state: CalibrationTransientState): CalibrationTransientState {
-  if (state.flow === null && state.candidate === null) return state;
-  return { flow: null, candidate: null };
 }
 
 export function selectCalibrationReference(

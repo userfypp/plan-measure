@@ -30,7 +30,6 @@ export type WorkspaceAction =
   | { type: "CLEAR_SELECTION" }
   | { type: "START_DRAFT"; draft: DrawingDraft }
   | { type: "UPDATE_DRAFT"; draft: DrawingDraft }
-  | { type: "UPDATE_DRAFT_POINTER"; draftType: DrawingDraft["type"]; pointer: Point }
   | { type: "CLEAR_DRAFT" }
   | { type: "COMPLETE_DRAFT" }
   | { type: "SET_ORTHOGONAL"; value: boolean }
@@ -93,9 +92,6 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       return { ...state, draft: action.draft };
     case "UPDATE_DRAFT":
       return { ...state, draft: action.draft };
-    case "UPDATE_DRAFT_POINTER":
-      if (!state.draft || state.draft.type !== action.draftType) return state;
-      return { ...state, draft: { ...state.draft, pointer: action.pointer } };
     case "CLEAR_DRAFT":
     case "COMPLETE_DRAFT":
       return state.draft === null ? state : { ...state, draft: null };
@@ -160,7 +156,6 @@ interface WorkspaceContextValue extends WorkspaceState {
   clearSelection: () => void;
   startDraft: (draft: DrawingDraft) => void;
   updateDraft: (draft: DrawingDraft) => void;
-  updateDraftPointer: (draftType: DrawingDraft["type"], pointer: Point) => void;
   clearDraft: () => void;
   completeDraft: () => void;
   setOrthogonal: (value: boolean) => void;
@@ -191,8 +186,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       clearSelection: () => dispatch({ type: "CLEAR_SELECTION" }),
       startDraft: (draft: DrawingDraft) => dispatch({ type: "START_DRAFT", draft }),
       updateDraft: (draft: DrawingDraft) => dispatch({ type: "UPDATE_DRAFT", draft }),
-      updateDraftPointer: (draftType: DrawingDraft["type"], pointer: Point) =>
-        dispatch({ type: "UPDATE_DRAFT_POINTER", draftType, pointer }),
       clearDraft: () => dispatch({ type: "CLEAR_DRAFT" }),
       completeDraft: () => dispatch({ type: "COMPLETE_DRAFT" }),
       setOrthogonal: (value: boolean) => dispatch({ type: "SET_ORTHOGONAL", value }),

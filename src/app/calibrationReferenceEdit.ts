@@ -5,7 +5,6 @@ export interface CalibrationReferenceEdit {
   pageNumber: number;
   calibrationId: string;
   reference: CalibrationReferenceKey;
-  originalPoints: [Point, Point];
   points: [Point, Point];
 }
 
@@ -25,7 +24,6 @@ export function beginCalibrationReferenceEdit(
     pageNumber,
     calibrationId: calibration.id,
     reference,
-    originalPoints: copyPoints(points),
     points,
   };
 }

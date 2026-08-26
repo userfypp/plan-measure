@@ -64,7 +64,7 @@
   /* Focus and flat surfaces */
   --color-focus: #4c8bf5;
   --focus-ring-width: 3px;
-  --focus-ring-offset: 2px;
+  --focus-ring-offset: calc(-1 * var(--focus-ring-width));
   --focus-ring: var(--focus-ring-width) solid var(--color-focus);
   --shadow-tool-hover: 0 1px 3px rgb(15 23 42 / 18%);
   --shadow-none: none;
