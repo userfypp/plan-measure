@@ -53,6 +53,8 @@ interface PdfSessionLifecycleOptions {
   setError: (message: string | null) => void;
 }
 
+type AutosaveStatus = "inactive" | "available" | "unavailable";
+
 export function usePdfSessionLifecycle({
   session,
   loadSession,
@@ -83,7 +85,7 @@ export function usePdfSessionLifecycle({
   const [recoveryProtected, setRecoveryProtected] = useState(false);
   const [confirmDiscardRecovery, setConfirmDiscardRecovery] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [autosaveEnabled, setAutosaveEnabled] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("inactive");
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
 
   const destroyPdf = useCallback(
@@ -194,7 +196,7 @@ export function usePdfSessionLifecycle({
       snapshot: session,
       pdfRuntimeReady: activePdf !== null,
       pdfBlob,
-      enabled: autosaveEnabled,
+      enabled: autosaveStatus === "available",
     };
     if (!isAutosaveReady(autosaveInputs)) return;
     const snapshot = autosaveInputs.snapshot;
@@ -212,15 +214,16 @@ export function usePdfSessionLifecycle({
         })
         .catch((error: unknown) => {
           if (generation !== persistenceGenerationRef.current) return;
+          persistenceGenerationRef.current += 1;
           console.error("IndexedDB autosave failed.", error);
           setAutosaveWarning(
             "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
           );
-          setAutosaveEnabled(false);
+          setAutosaveStatus("unavailable");
         });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [activePdf, autosaveEnabled, pdfBlob, session]);
+  }, [activePdf, autosaveStatus, pdfBlob, session]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
     if (
@@ -246,7 +249,7 @@ export function usePdfSessionLifecycle({
     activatingPdfRef.current = candidate.loaded;
     beginPdfActivation(candidate.loadGeneration);
     persistenceGenerationRef.current += 1;
-    setAutosaveEnabled(false);
+    setAutosaveStatus("inactive");
     try {
       await saveQueueRef.current.catch(() => undefined);
       if (disposedRef.current) return;
@@ -257,7 +260,7 @@ export function usePdfSessionLifecycle({
         saved = true;
       } catch (error) {
         console.error("Could not save the new PDF session.", error);
-        setAutosaveEnabled(false);
+        setAutosaveStatus("unavailable");
         setAutosaveWarning(
           "The PDF is open, but autosave is unavailable. Your work may not survive a reload.",
         );
@@ -271,7 +274,7 @@ export function usePdfSessionLifecycle({
       resetWorkspace();
       closeAllOverlays();
       if (saved) {
-        setAutosaveEnabled(true);
+        setAutosaveStatus("available");
         setAutosaveWarning(null);
       } else {
         setError("Autosave could not be started.");
@@ -358,7 +361,8 @@ export function usePdfSessionLifecycle({
       loadSession(recovery.session);
       resetWorkspace();
       closeAllOverlays();
-      setAutosaveEnabled(true);
+      setAutosaveStatus("available");
+      setAutosaveWarning(null);
       setRecovery(null);
       setRecoveryProtected(false);
     } catch (error) {
@@ -376,7 +380,7 @@ export function usePdfSessionLifecycle({
     latestPdfLoadRef.current = null;
     updateLoadingState();
     persistenceGenerationRef.current += 1;
-    setAutosaveEnabled(false);
+    setAutosaveStatus("inactive");
     cancelWorkspaceCalibration();
     closeConfirmation();
     cancelReferenceEdit();
@@ -399,7 +403,7 @@ export function usePdfSessionLifecycle({
 
   function continueWithoutRecovery() {
     setRecoveryIssue(null);
-    setAutosaveEnabled(false);
+    setAutosaveStatus("inactive");
     setAutosaveWarning(
       "The previous saved session is protected. Opening another PDF will require confirmation.",
     );
@@ -414,6 +418,7 @@ export function usePdfSessionLifecycle({
   }
 
   function dismissAutosaveWarning() {
+    if (autosaveStatus === "unavailable") return;
     setAutosaveWarning(null);
   }
 
@@ -439,6 +444,7 @@ export function usePdfSessionLifecycle({
     confirmDiscardRecovery,
     loading,
     autosaveWarning,
+    autosaveUnavailable: autosaveStatus === "unavailable",
     chooseFile,
     continueRecovery,
     discardRecovery,

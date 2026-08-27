@@ -144,6 +144,7 @@ function PlanMeasureApp() {
     confirmDiscardRecovery,
     loading,
     autosaveWarning,
+    autosaveUnavailable,
     chooseFile,
     continueRecovery,
     discardRecovery,
@@ -585,14 +586,15 @@ function PlanMeasureApp() {
     <AppShell
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={exportMeasurements}
-      statusMessage={autosaveWarning ?? appState.error}
-      statusTone={autosaveWarning ? "warning" : "error"}
-      onDismissStatus={() => {
-        if (autosaveWarning) dismissAutosaveWarning();
-        else {
-          clearError();
-        }
-      }}
+      statusMessage={appState.error ?? autosaveWarning}
+      statusTone={appState.error ? "error" : "warning"}
+      onDismissStatus={
+        appState.error
+          ? clearError
+          : autosaveWarning && !autosaveUnavailable
+            ? dismissAutosaveWarning
+            : undefined
+      }
     >
       <input
         ref={fileInputRef}
