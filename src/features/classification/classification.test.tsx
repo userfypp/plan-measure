@@ -80,10 +80,14 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Trade");
     expect(markup).toContain("Electrical");
     expect(markup).toContain("Archived");
-    expect(markup).toContain("1 active");
+    expect(markup).toContain("1 active value");
+    expect(markup).not.toContain("1 active values");
     expect(markup).toContain("Rename");
     expect(markup).toContain("Archive Trade; existing assignments are preserved");
     expect(markup).toContain("never change measurement scales");
+    expect(markup).not.toContain(">Classifications<");
+    expect(markup).not.toContain("active dimensions");
+    expect(markup).not.toContain("archived dimensions");
   });
 
   it("renders archived dimensions with restore and preserved-assignment guidance only", () => {
@@ -101,7 +105,7 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("0 active");
+    expect(markup).toContain("2 active values");
     expect(markup).toContain("1 archived");
     expect(markup).toContain("Trade");
     expect(markup).toContain("Archived");
@@ -112,6 +116,8 @@ describe("classification surfaces", () => {
     expect(markup).not.toContain("Add value");
     expect(markup).not.toContain(">Rename<");
     expect(markup).not.toContain(">Archive<");
+    expect(markup).not.toContain("active dimensions");
+    expect(markup).not.toContain("archived dimensions");
   });
 
   it("shows one assignment selector per dimension and preserves an archived assignment", () => {
@@ -214,9 +220,13 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="Measurement classification"');
-    expect(markup).toContain("Hallway");
-    expect(markup).toContain("Trade: Electrical");
+    expect(markup).toContain('aria-label="Classifications for Hallway"');
+    expect(markup).not.toContain(">Hallway<");
+    expect(markup).not.toContain("Trade: Electrical");
+    expect(markup).toContain("<select");
+    expect(markup).toContain("Trade");
+    expect(markup).toContain("Electrical");
+    expect(markup).toContain("Unclassified");
     expect(markup).not.toContain("Assigned values");
   });
 

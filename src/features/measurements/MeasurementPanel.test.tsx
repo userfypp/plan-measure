@@ -220,20 +220,19 @@ describe("measurement grouping surfaces", () => {
   it("keeps Group by out of the header when the catalog has no dimensions", () => {
     const markup = renderToStaticMarkup(
       <MeasurementsHeader
-        count={1}
         dimensions={[]}
         groupByDimensionId={null}
         onGroupByDimensionChange={() => undefined}
       />,
     );
 
+    expect(markup).toBe("");
     expect(markup).not.toContain("Group by");
   });
 
   it("renders Group by options, including archived dimensions, with viewer shortcuts enabled", () => {
     const markup = renderToStaticMarkup(
       <MeasurementsHeader
-        count={1}
         dimensions={[
           { id: "trade", name: "Trade", archived: false },
           { id: "legacy", name: "Legacy trade", archived: true },
@@ -243,7 +242,11 @@ describe("measurement grouping surfaces", () => {
       />,
     );
 
+    expect(markup).not.toContain("Measurements");
+    expect(markup).not.toContain("<h2");
+    expect(markup).not.toContain('aria-label="1 measurements"');
     expect(markup).toContain("Group by");
+    expect(markup).toContain("<select");
     expect(markup).toContain('<option value="">None</option>');
     expect(markup).toContain('<option value="trade" selected="">Trade</option>');
     expect(markup).toContain("Legacy trade (archived)");
@@ -328,6 +331,9 @@ describe("measurement grouping surfaces", () => {
     expect(controlledId).toBeTruthy();
     expect(markup).toContain(`id="${controlledId}"`);
     expect(markup).toMatch(new RegExp(`<div id="${controlledId}"[^>]*hidden=""`));
+    expect(markup).toContain('d="m9 5 7 7-7 7"');
+    expect(markup).not.toContain("▸");
+    expect(markup).not.toContain("▾");
   });
 });
 

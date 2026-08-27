@@ -43,6 +43,7 @@ export function MeasurementPanel({
   const [groupByDimensionId, setGroupByDimensionId] = useState<string | null>(null);
   const measurements = createMeasurementViewModels(page, displayUnit, selectedMeasurementId);
   const catalog = session?.classificationCatalog ?? { dimensions: [] };
+  const hasGroupBy = catalog.dimensions.length > 0;
   const groups = groupByDimensionId
     ? createMeasurementGroups(page.measurements, catalog, groupByDimensionId)
     : undefined;
@@ -58,13 +59,17 @@ export function MeasurementPanel({
   }
 
   return (
-    <aside className={styles.panel} aria-label="Measurements on current page">
-      <MeasurementsHeader
-        count={measurements.length}
-        dimensions={catalog.dimensions}
-        groupByDimensionId={groupByDimensionId}
-        onGroupByDimensionChange={setGroupByDimensionId}
-      />
+    <aside
+      className={[styles.panel, hasGroupBy ? "" : styles.withoutGroupBy].filter(Boolean).join(" ")}
+      aria-label="Measurements on current page"
+    >
+      {hasGroupBy && (
+        <MeasurementsHeader
+          dimensions={catalog.dimensions}
+          groupByDimensionId={groupByDimensionId}
+          onGroupByDimensionChange={setGroupByDimensionId}
+        />
+      )}
       <MeasurementCollection
         key={groupByDimensionId ?? "flat"}
         measurements={measurements}

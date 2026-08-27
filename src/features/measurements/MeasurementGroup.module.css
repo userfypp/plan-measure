@@ -14,6 +14,8 @@
 }
 
 .toggle {
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
   width: 24px;
   height: 24px;
@@ -36,6 +38,23 @@
 .toggle:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+.chevron {
+  display: block;
+  width: 16px;
+  height: 16px;
+  transition: transform 120ms ease;
+}
+
+.toggle[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
 }
 
 .title {

@@ -4,32 +4,13 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
   overflow: hidden;
   background: var(--color-surface);
 }
 
-.header {
-  flex: 0 0 auto;
-  min-height: 48px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
-  padding: 7px var(--space-12);
-  border-bottom: var(--border-width) solid var(--color-border);
-}
-
-.header h2 {
-  min-width: 0;
-  flex: 1 1 8rem;
-  margin: 0;
-  color: var(--color-text);
-  font-size: 14px;
-  line-height: 1.2;
-}
-
 .body {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -74,38 +55,16 @@
   background: var(--color-surface-subdued);
 }
 
-.itemHeader,
-.meta {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-8);
-}
-
 .itemHeader {
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.actions {
-  display: flex;
+  display: grid;
   min-width: 0;
-  align-items: center;
-  gap: var(--space-group-gap);
-}
-
-.actions > * + * {
-  margin-inline-start: var(--control-border-overlap);
-}
-
-.itemHeader,
-.meta {
-  justify-content: space-between;
+  gap: var(--space-8);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-start;
 }
 
 .itemText {
   min-width: 0;
-  flex: 1 1 12rem;
   display: grid;
   gap: var(--space-4);
 }
@@ -122,28 +81,32 @@
   font-size: var(--font-size-sm);
 }
 
-.itemText span,
-.meta {
+.itemText span {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
 
-.statuses {
+.actions {
   display: flex;
   min-width: 0;
-  flex: 1 1 10rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
   gap: var(--space-group-gap);
+  flex-wrap: wrap;
+}
+
+.actions > * + * {
+  margin-inline-start: var(--control-border-overlap);
 }
 
 .itemHeader > .actions {
-  flex: 0 1 auto;
-  max-width: 100%;
+  min-width: max-content;
+  max-width: none;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
-.actions {
-  flex-wrap: wrap;
+.itemHeader > .actions > * {
+  flex: 0 0 auto;
 }
 
 .renameForm {
@@ -161,18 +124,12 @@
   list-style: none;
 }
 
-.valueItem,
-.inlineForm {
+.valueItem {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-}
-
-.valueItem {
-  align-items: center;
-  flex-wrap: wrap;
   min-width: 0;
   min-height: 32px;
   padding: var(--space-4) 0;
@@ -207,12 +164,45 @@
 .inlineForm > :first-child,
 .create > :first-child {
   min-width: 0;
-  flex: 1 1 auto;
 }
 
 .inlineForm,
 .create {
   min-width: 0;
+}
+
+.inlineForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-8);
+  row-gap: var(--space-4);
+}
+
+.inlineForm > :first-child {
+  display: contents;
+}
+
+.inlineForm > :first-child > label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.inlineForm > :first-child > input {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.inlineForm > :first-child > p {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.inlineForm > button {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  white-space: nowrap;
 }
 
 .renameOverlay {
@@ -242,8 +232,36 @@
   padding-top: var(--space-4);
 }
 
-@media (max-width: 640px) {
+@container (max-width: 640px) {
   .actions > * {
     flex: 1 1 auto;
+  }
+}
+
+@container (max-width: 300px) {
+  .itemHeader {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .itemHeader > .actions {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .inlineForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inlineForm > button {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
+  }
+
+  .inlineForm > :first-child > p {
+    grid-row: 4;
   }
 }

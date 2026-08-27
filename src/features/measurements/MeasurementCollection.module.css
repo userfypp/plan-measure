@@ -3,7 +3,6 @@
   min-height: 0;
   overflow-x: clip;
   overflow-y: auto;
-  scrollbar-gutter: stable;
   background: var(--color-surface-subdued);
 }
 

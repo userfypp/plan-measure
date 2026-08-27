@@ -131,24 +131,8 @@ export function ClassificationManager({
     setNameError(null);
   }
 
-  const activeDimensionCount = catalog.dimensions.filter((dimension) => !dimension.archived).length;
-  const archivedDimensionCount = catalog.dimensions.filter((dimension) => dimension.archived).length;
-
   return (
     <section className={styles.manager} aria-label="Classification catalog">
-      <header className={styles.header}>
-        <h2>Classifications</h2>
-        <div className={styles.statuses} aria-label="Classification dimension status">
-          <Badge>
-            {activeDimensionCount} active dimension{activeDimensionCount === 1 ? "" : "s"}
-          </Badge>
-          {archivedDimensionCount > 0 && (
-            <Badge variant="neutral">
-              {archivedDimensionCount} archived dimension{archivedDimensionCount === 1 ? "" : "s"}
-            </Badge>
-          )}
-        </div>
-      </header>
       <div className={styles.body}>
         <p className={styles.description}>
           Create reusable values. Classifications never change measurement scales.
@@ -171,7 +155,7 @@ export function ClassificationManager({
                     <div className={styles.itemText}>
                       <strong>{dimension.name}</strong>
                       <span>
-                        {activeValueCount} active values
+                        {activeValueCount} active value{activeValueCount === 1 ? "" : "s"}
                         {archivedValueCount > 0 ? ` · ${archivedValueCount} archived` : ""}
                       </span>
                     </div>

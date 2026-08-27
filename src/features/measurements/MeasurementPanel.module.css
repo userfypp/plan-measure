@@ -9,6 +9,10 @@
   background: var(--color-surface-subdued);
 }
 
+.withoutGroupBy {
+  grid-template-rows: minmax(120px, 1fr) minmax(0, auto);
+}
+
 .classificationSlot,
 .futureSlot {
   min-width: 0;
@@ -29,6 +33,10 @@
   .panel {
     grid-template-rows: auto minmax(0, 1fr) minmax(0, auto);
   }
+
+  .panel.withoutGroupBy {
+    grid-template-rows: minmax(0, 1fr) minmax(0, auto);
+  }
 }
 
 @media (max-height: 500px) {
@@ -38,7 +46,8 @@
     overflow-y: auto;
   }
 
-  .panel > :nth-child(2) {
+  .panel:not(.withoutGroupBy) > :nth-child(2),
+  .panel.withoutGroupBy > :first-child {
     flex: 0 0 180px;
   }
 

@@ -16,19 +16,21 @@ export function MeasurementClassificationDock({
   disabled = false,
 }: MeasurementClassificationDockProps) {
   return (
-    <section className={styles.dock} aria-label="Measurement classification">
+    <section
+      className={styles.dock}
+      aria-label={
+        measurement ? `Classifications for ${measurement.name}` : "Measurement classification"
+      }
+    >
       {measurement ? (
-        <>
-          <h3 className={styles.title}>{measurement.name}</h3>
-          <ClassificationAssignment
-            measurementId={measurement.id}
-            appliedValueIds={measurement.classificationValueIds}
-            catalog={catalog}
-            onAssign={onAssign}
-            disabled={disabled}
-            compact
-          />
-        </>
+        <ClassificationAssignment
+          measurementId={measurement.id}
+          appliedValueIds={measurement.classificationValueIds}
+          catalog={catalog}
+          onAssign={onAssign}
+          disabled={disabled}
+          compact
+        />
       ) : (
         <p className={styles.empty}>Select a measurement to assign classifications.</p>
       )}

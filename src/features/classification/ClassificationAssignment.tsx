@@ -39,7 +39,7 @@ export function ClassificationAssignment({
           <Badge variant={assigned.length ? "success" : "neutral"}>{assigned.length}</Badge>
         </div>
       )}
-      {assigned.length > 0 && (
+      {!compact && assigned.length > 0 && (
         <div className={styles.chips} aria-live="polite">
           {assigned.map(({ dimension, value }) => (
             <Badge key={value.id}>

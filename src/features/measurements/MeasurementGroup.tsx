@@ -29,6 +29,23 @@ const visibilityLabel = {
   mixed: "Mixed",
 } as const;
 
+function ChevronIcon() {
+  return (
+    <svg
+      className={styles.chevron}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m9 5 7 7-7 7" />
+    </svg>
+  );
+}
+
 export function MeasurementGroup({
   group,
   measurements,
@@ -60,7 +77,7 @@ export function MeasurementGroup({
           aria-label={`${collapsed ? "Expand" : "Collapse"} ${group.label} group`}
           onClick={onToggleCollapsed}
         >
-          <span aria-hidden="true">{collapsed ? "▸" : "▾"}</span>
+          <ChevronIcon />
         </button>
         <div className={styles.title}>
           <h3>
