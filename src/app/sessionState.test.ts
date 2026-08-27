@@ -128,6 +128,100 @@ describe("SessionState", () => {
     );
   });
 
+  it("updates a page's measurement visibility atomically in bulk", () => {
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    for (const pageNumber of [1, 2]) {
+      state = sessionReducer(state, {
+        type: "ADD_CALIBRATION",
+        pageNumber,
+        id: `scale-${pageNumber}`,
+        name: `Scale ${pageNumber}`,
+        calibration: {
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      });
+    }
+    for (const [pageNumber, id] of [
+      [1, "line-1"],
+      [1, "line-2"],
+      [1, "line-3"],
+      [2, "line-other-page"],
+    ] as const) {
+      state = sessionReducer(state, {
+        type: "ADD_MEASUREMENT",
+        pageNumber,
+        id,
+        measurementType: "line",
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+      });
+    }
+    const before = state.session;
+    state = sessionReducer(state, {
+      type: "SET_MEASUREMENTS_VISIBILITY",
+      pageNumber: 1,
+      measurementIds: ["line-1", "line-2", "line-1"],
+      visible: false,
+    });
+
+    expect(state.error).toBeNull();
+    expect(state.session?.pages[1]?.measurements.map((measurement) => measurement.visible)).toEqual(
+      [false, false, true],
+    );
+    expect(state.session?.pages[2]?.measurements[0]?.visible).toBe(true);
+    expect(state.session?.pages[1]?.measurements[0]).toMatchObject({
+      points: before?.pages[1]?.measurements[0]?.points,
+      calibrationId: before?.pages[1]?.measurements[0]?.calibrationId,
+      classificationValueIds: before?.pages[1]?.measurements[0]?.classificationValueIds,
+      name: before?.pages[1]?.measurements[0]?.name,
+    });
+
+    const shown = sessionReducer(state, {
+      type: "SET_MEASUREMENTS_VISIBILITY",
+      pageNumber: 1,
+      measurementIds: ["line-1", "line-2"],
+      visible: true,
+    });
+    expect(shown.session?.pages[1]?.measurements.map((measurement) => measurement.visible)).toEqual(
+      [true, true, true],
+    );
+
+    const noOp = sessionReducer(shown, {
+      type: "SET_MEASUREMENTS_VISIBILITY",
+      pageNumber: 1,
+      measurementIds: [],
+      visible: false,
+    });
+    expect(noOp.session).toBe(shown.session);
+    expect(noOp.error).toBeNull();
+
+    const alreadyVisible = sessionReducer(shown, {
+      type: "SET_MEASUREMENTS_VISIBILITY",
+      pageNumber: 1,
+      measurementIds: ["line-1", "line-2"],
+      visible: true,
+    });
+    expect(alreadyVisible.session).toBe(shown.session);
+    expect(alreadyVisible.error).toBeNull();
+
+    const rejected = sessionReducer(shown, {
+      type: "SET_MEASUREMENTS_VISIBILITY",
+      pageNumber: 1,
+      measurementIds: ["line-1", "line-missing"],
+      visible: false,
+    });
+    expect(rejected.session).toBe(shown.session);
+    expect(rejected.error).toBe("One or more selected measurements are no longer available.");
+  });
+
   it("keeps individual visibility preferences when the global master changes", () => {
     let state = sessionReducer(initialSessionState, {
       type: "LOAD_SESSION",

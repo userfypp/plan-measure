@@ -27,6 +27,8 @@ The active session is stored only in the browser's IndexedDB so it can be recove
 - Editable measurement names and draggable vertices for every measurement type.
 - Reusable classification dimensions and values that can be assigned independently to each
   measurement and survive session recovery.
+- Measurements can be grouped by one classification dimension, with collapsible groups and bulk
+  show/hide actions that derive from and update the existing per-measurement visibility preferences.
 - Optional Ortho 90° drawing mode for new Line, Polyline, and Polygon segments.
 - Pan, pointer-centred zoom, keyboard zoom, and fit-to-screen controls.
 - Global visibility controls for labels, measurements, and calibration references, plus
@@ -93,11 +95,13 @@ non-linear warping.
   until the current page has an active scale.
 - **Viewer:** use the page controls to move through the PDF, zoom in or out, or fit the page to the
   available space. Measurements and calibration references remain attached to their PDF page.
-- **Measurements tab:** select, rename, show, hide, or delete a measurement. Hidden measurements
-  remain selectable and editable in the panel, while the viewer keeps their geometry and labels
-  out of sight. The **Selection Inspector** stays in the left tool rail and shows the selected
-  object's type, calculated value, scale/calibration, and assigned classifications. The dock at
-  the bottom of the panel contains the assignment controls for the selected measurement.
+- **Measurements tab:** select, rename, show, hide, or delete a measurement. Use **Group by** to
+  organize the current page by one classification dimension; groups can be expanded or collapsed,
+  and their show/hide action updates the measurements' individual visibility preferences. Hidden
+  measurements remain selectable and editable in the panel, while the viewer keeps their geometry
+  and labels out of sight. The **Selection Inspector** stays in the left tool rail and shows the
+  selected object's type, calculated value, scale/calibration, and assigned classifications. The
+  dock at the bottom of the panel contains the assignment controls for the selected measurement.
 - **Classifications tab:** manage the reusable catalog only. Dimensions and values can be created,
   renamed, archived, and restored. Archiving preserves existing assignments; an archived dimension
   remains available as history until it is restored. Dimension names are unique, and value names

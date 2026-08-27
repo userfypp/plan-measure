@@ -122,6 +122,12 @@ export type SessionAction =
   | ({ type: "UPDATE_MEASUREMENT" } & UpdateMeasurementCommand)
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
   | { type: "SET_MEASUREMENT_VISIBILITY"; pageNumber: number; id: string; visible: boolean }
+  | {
+      type: "SET_MEASUREMENTS_VISIBILITY";
+      pageNumber: number;
+      measurementIds: string[];
+      visible: boolean;
+    }
   | { type: "DELETE_MEASUREMENT"; pageNumber: number; id: string }
   | { type: "ADD_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_DIMENSION"; id: string; name: string }
@@ -417,6 +423,40 @@ export function sessionReducer(
         ...currentPage,
         measurements: currentPage.measurements.map((measurement) =>
           measurement.id === action.id ? { ...measurement, visible: action.visible } : measurement,
+        ),
+      }));
+      return { ...state, session, error: null };
+    }
+    case "SET_MEASUREMENTS_VISIBILITY": {
+      if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      const measurementIds = new Set(action.measurementIds);
+      if (measurementIds.size === 0) return { ...state, error: null };
+      const pageMeasurementIds = new Set(
+        page?.measurements.map((measurement) => measurement.id) ?? [],
+      );
+      if (
+        !page ||
+        ![...measurementIds].every((id) => pageMeasurementIds.has(id))
+      ) {
+        return {
+          ...state,
+          error: "One or more selected measurements are no longer available.",
+        };
+      }
+      if (
+        page.measurements
+          .filter((measurement) => measurementIds.has(measurement.id))
+          .every((measurement) => measurement.visible === action.visible)
+      ) {
+        return { ...state, error: null };
+      }
+      const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
+        ...currentPage,
+        measurements: currentPage.measurements.map((measurement) =>
+          measurementIds.has(measurement.id)
+            ? { ...measurement, visible: action.visible }
+            : measurement,
         ),
       }));
       return { ...state, session, error: null };
@@ -779,6 +819,11 @@ interface SessionContextValue extends SessionState {
   updateMeasurement: (command: UpdateMeasurementCommand) => void;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
+  setMeasurementsVisibility: (
+    pageNumber: number,
+    measurementIds: string[],
+    visible: boolean,
+  ) => void;
   deleteMeasurement: (pageNumber: number, id: string) => void;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
@@ -831,6 +876,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
       setMeasurementVisibility: (pageNumber, id, visible) =>
         applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
+      setMeasurementsVisibility: (pageNumber, measurementIds, visible) =>
+        applyAction({ type: "SET_MEASUREMENTS_VISIBILITY", pageNumber, measurementIds, visible }),
       deleteMeasurement: (pageNumber, id) =>
         applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
       addClassificationDimension: (id, name) =>

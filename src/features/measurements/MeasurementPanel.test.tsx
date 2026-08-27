@@ -1,7 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Measurement, PageState } from "../../types/domain";
+import { MeasurementCollection } from "./MeasurementCollection";
+import { MeasurementGroup } from "./MeasurementGroup";
 import { MeasurementRow } from "./MeasurementRow";
+import { MeasurementsHeader } from "./MeasurementsHeader";
 import { SelectionInspector } from "./SelectionInspector";
 import {
   createMeasurementViewModel,
@@ -210,6 +213,121 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain('aria-label="Show measurement Hallway"');
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-label="Select measurement Hallway"');
+  });
+});
+
+describe("measurement grouping surfaces", () => {
+  it("keeps Group by out of the header when the catalog has no dimensions", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementsHeader
+        count={1}
+        dimensions={[]}
+        groupByDimensionId={null}
+        onGroupByDimensionChange={() => undefined}
+      />,
+    );
+
+    expect(markup).not.toContain("Group by");
+  });
+
+  it("renders Group by options, including archived dimensions, with viewer shortcuts enabled", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementsHeader
+        count={1}
+        dimensions={[
+          { id: "trade", name: "Trade", archived: false },
+          { id: "legacy", name: "Legacy trade", archived: true },
+        ]}
+        groupByDimensionId="trade"
+        onGroupByDimensionChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("Group by");
+    expect(markup).toContain('<option value="">None</option>');
+    expect(markup).toContain('<option value="trade" selected="">Trade</option>');
+    expect(markup).toContain("Legacy trade (archived)");
+    expect(markup).toContain('data-viewer-shortcuts="enabled"');
+  });
+
+  it("retains the flat MeasurementRow markup", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementCollection
+        measurements={[viewModel(true)]}
+        emptyMessage="Empty"
+        onSelectMeasurement={() => undefined}
+        onRenameMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+        onDeleteMeasurement={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('role="list"');
+    expect(markup).toContain('role="listitem"');
+    expect(markup).toContain('aria-label="Selected measurement Hallway"');
+  });
+
+  it("renders accessible grouped rows with the group status and archive label once", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementCollection
+        key="trade"
+        measurements={[viewModel(true)]}
+        emptyMessage="Empty"
+        groups={[
+          {
+            key: "dimension:trade:value:electrical",
+            label: "Electrical",
+            archived: true,
+            measurementIds: ["line-1"],
+            visibility: "mixed",
+          },
+        ]}
+        groupByDimensionId="trade"
+        onSelectMeasurement={() => undefined}
+        onRenameMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+        onDeleteMeasurement={() => undefined}
+        onSetMeasurementsVisibility={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("Electrical (archived)");
+    expect(markup.match(/\(archived\)/g)).toHaveLength(1);
+    expect(markup).toContain("Mixed");
+    expect(markup).toContain('aria-expanded="true"');
+    expect(markup).toMatch(/aria-controls="[^"]+-measurements"/);
+    expect(markup).toContain('aria-label="Show all measurements in Electrical"');
+    expect(markup).toContain('role="listitem"');
+    expect(markup).toContain('aria-label="Selected measurement Hallway"');
+  });
+
+  it("keeps a collapsed group's controlled list mounted and hidden", () => {
+    const markup = renderToStaticMarkup(
+      <MeasurementGroup
+        group={{
+          key: "dimension:trade:value:electrical",
+          label: "Electrical",
+          archived: false,
+          measurementIds: ["line-1"],
+          visibility: "visible",
+        }}
+        measurements={[viewModel(true)]}
+        collapsed
+        onToggleCollapsed={() => undefined}
+        onSelectMeasurement={() => undefined}
+        onRenameMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+        onDeleteMeasurement={() => undefined}
+        onSetMeasurementsVisibility={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('aria-label="Expand Electrical group"');
+    const controlledId = markup.match(/aria-controls="([^"]+-measurements)"/)?.[1];
+    expect(controlledId).toBeTruthy();
+    expect(markup).toContain(`id="${controlledId}"`);
+    expect(markup).toMatch(new RegExp(`<div id="${controlledId}"[^>]*hidden=""`));
   });
 });
 

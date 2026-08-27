@@ -5,12 +5,21 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding: 0 var(--space-16);
+  padding: var(--space-8) var(--space-16);
   background: var(--color-surface);
   border-bottom: var(--border-width) solid var(--color-border);
 }
 
+.summary {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-8);
+}
+
 .title {
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -22,6 +31,7 @@
 }
 
 .count {
+  flex: 0 0 auto;
   min-width: 24px;
   padding: var(--space-4) var(--space-8);
   color: var(--color-text-muted);
@@ -31,4 +41,43 @@
   text-align: center;
   background: var(--color-surface-subdued);
   border-radius: var(--radius-flat);
+}
+
+.groupBy {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.groupBy select {
+  min-width: 0;
+  max-width: 160px;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.groupBy select:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@container (max-width: 360px) {
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .groupBy {
+    width: 100%;
+  }
+
+  .groupBy select {
+    flex: 1 1 auto;
+    max-width: none;
+  }
 }

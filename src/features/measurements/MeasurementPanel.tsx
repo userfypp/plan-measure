@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useSessionState } from "../../app/sessionState";
 import { useWorkspaceState } from "../../app/workspaceState";
 import type { PageState } from "../../types/domain";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementsHeader } from "./MeasurementsHeader";
+import { createMeasurementGroups } from "./measurementGrouping";
 import { getMeasurementEmptyMessage, createMeasurementViewModels } from "./measurementViewModels";
 import styles from "./MeasurementPanel.module.css";
 
@@ -18,6 +19,11 @@ export interface MeasurementPanelProps {
   onSelectMeasurement: (measurementId: string) => void;
   onRenameMeasurement: (pageNumber: number, measurementId: string, name: string) => void;
   onSetMeasurementVisibility: (pageNumber: number, measurementId: string, visible: boolean) => void;
+  onSetMeasurementsVisibility: (
+    pageNumber: number,
+    measurementIds: string[],
+    visible: boolean,
+  ) => void;
   onRequestDelete: (request: MeasurementDeleteRequest) => void;
   classificationDock?: ReactNode;
 }
@@ -27,13 +33,19 @@ export function MeasurementPanel({
   onSelectMeasurement,
   onRenameMeasurement,
   onSetMeasurementVisibility,
+  onSetMeasurementsVisibility,
   onRequestDelete,
   classificationDock,
 }: MeasurementPanelProps) {
   const { session } = useSessionState();
   const { selectedMeasurementId } = useWorkspaceState();
   const displayUnit = session?.settings.displayUnit ?? "m";
+  const [groupByDimensionId, setGroupByDimensionId] = useState<string | null>(null);
   const measurements = createMeasurementViewModels(page, displayUnit, selectedMeasurementId);
+  const catalog = session?.classificationCatalog ?? { dimensions: [] };
+  const groups = groupByDimensionId
+    ? createMeasurementGroups(page.measurements, catalog, groupByDimensionId)
+    : undefined;
 
   function requestDelete(measurementId: string) {
     const measurement = measurements.find((candidate) => candidate.id === measurementId);
@@ -47,8 +59,14 @@ export function MeasurementPanel({
 
   return (
     <aside className={styles.panel} aria-label="Measurements on current page">
-      <MeasurementsHeader count={measurements.length} />
+      <MeasurementsHeader
+        count={measurements.length}
+        dimensions={catalog.dimensions}
+        groupByDimensionId={groupByDimensionId}
+        onGroupByDimensionChange={setGroupByDimensionId}
+      />
       <MeasurementCollection
+        key={groupByDimensionId ?? "flat"}
         measurements={measurements}
         emptyMessage={getMeasurementEmptyMessage(page)}
         onSelectMeasurement={onSelectMeasurement}
@@ -57,6 +75,11 @@ export function MeasurementPanel({
         }
         onToggleVisibility={(measurementId, visible) =>
           onSetMeasurementVisibility(page.pageNumber, measurementId, visible)
+        }
+        groups={groups}
+        groupByDimensionId={groupByDimensionId}
+        onSetMeasurementsVisibility={(measurementIds, visible) =>
+          onSetMeasurementsVisibility(page.pageNumber, measurementIds, visible)
         }
         onDeleteMeasurement={requestDelete}
       />

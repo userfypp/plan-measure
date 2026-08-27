@@ -15,6 +15,11 @@
   background: var(--color-border);
 }
 
+.groups {
+  display: grid;
+  min-width: 0;
+}
+
 .empty {
   margin: 0;
   padding: var(--space-16);

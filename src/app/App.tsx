@@ -85,6 +85,7 @@ function PlanMeasureApp() {
     updateCalibration,
     renameMeasurement,
     setMeasurementVisibility,
+    setMeasurementsVisibility,
     deleteMeasurement,
     addClassificationDimension,
     renameClassificationDimension,
@@ -740,10 +741,12 @@ function PlanMeasureApp() {
               </div>
               <div className={styles.panelContent} hidden={secondaryPanel !== "measurements"}>
                 <MeasurementPanel
+                  key={workspaceVersion}
                   page={previewPage}
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onRenameMeasurement={renameMeasurement}
                   onSetMeasurementVisibility={setMeasurementVisibility}
+                  onSetMeasurementsVisibility={setMeasurementsVisibility}
                   onRequestDelete={requestMeasurementDelete}
                   classificationDock={
                     <MeasurementClassificationDock
