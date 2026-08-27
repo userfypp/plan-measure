@@ -71,7 +71,9 @@ export function getMeasurementClassificationSummary(
       .flatMap((dimension) =>
         dimension.values
           .filter((value) => measurement.classificationValueIds.includes(value.id))
-          .map((value) => `${dimension.name}: ${value.name}${value.archived ? " (archived)" : ""}`),
+          .map((value) =>
+            `${dimension.name}: ${value.name}${value.archived || dimension.archived ? " (archived)" : ""}`,
+          ),
       )
       .join(" · ") || "None assigned"
   );

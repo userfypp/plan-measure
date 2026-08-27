@@ -13,6 +13,8 @@ import type {
   SessionV4,
   SessionV5,
   SessionV6,
+  SessionV7,
+  CurrentSession,
 } from "../types/domain";
 import {
   hasValidMeasurementPoints,
@@ -298,7 +300,10 @@ function assertValidSessionV4(value: Record<string, unknown>): void {
     }
   }
 }
-function assertValidClassificationCatalog(value: unknown): Map<string, string> {
+function assertValidClassificationCatalog(
+  value: unknown,
+  requireDimensionArchived = false,
+): Map<string, string> {
   if (!isObject(value) || !Array.isArray(value.dimensions))
     throw new Error("The saved classification catalog is invalid.");
   const ids = new Set<string>();
@@ -313,6 +318,7 @@ function assertValidClassificationCatalog(value: unknown): Map<string, string> {
       typeof dimension.name !== "string" ||
       !dimension.name.trim() ||
       dimension.name !== dimension.name.trim() ||
+      (requireDimensionArchived && typeof dimension.archived !== "boolean") ||
       !Array.isArray(dimension.values) ||
       ids.has(dimension.id) ||
       dimensionNames.has(dimension.name.toLocaleLowerCase())
@@ -366,6 +372,27 @@ function assertValidSessionV5(value: Record<string, unknown>): void {
 function assertValidSessionV6(value: Record<string, unknown>): void {
   assertValidSessionV4(value);
   const valueDimensions = assertValidClassificationCatalog(value.classificationCatalog);
+  const pages = value.pages as Record<string, { measurements: unknown[] }>;
+  for (const page of Object.values(pages)) {
+    if (!page.measurements.every(isMeasurement))
+      throw new Error("The saved session has an invalid measurement classification or visibility.");
+    for (const measurement of page.measurements as Measurement[]) {
+      if (measurement.classificationValueIds.some((id) => !valueDimensions.has(id)))
+        throw new Error("The saved session has a measurement with a missing classification value.");
+      const assignedDimensions = measurement.classificationValueIds.map((id) =>
+        valueDimensions.get(id)!,
+      );
+      if (new Set(assignedDimensions).size !== assignedDimensions.length)
+        throw new Error(
+          "The saved session assigns multiple values from one classification dimension.",
+        );
+    }
+  }
+}
+function assertValidSessionV7(value: Record<string, unknown>): void {
+  if (value.schemaVersion !== 7) throw new Error("The saved session is invalid.");
+  assertValidSessionV4(value);
+  const valueDimensions = assertValidClassificationCatalog(value.classificationCatalog, true);
   const pages = value.pages as Record<string, { measurements: unknown[] }>;
   for (const page of Object.values(pages)) {
     if (!page.measurements.every(isMeasurement))
@@ -481,8 +508,23 @@ function migrateSessionV5(session: SessionV5): SessionV6 {
   return { ...session, schemaVersion: 6, pages };
 }
 
-function canonicalizeSessionV6(session: SessionV6): SessionV6 {
-  const pages: SessionV6["pages"] = {};
+function migrateSessionV6(session: SessionV6): SessionV7 {
+  return {
+    ...session,
+    schemaVersion: 7,
+    classificationCatalog: {
+      dimensions: session.classificationCatalog.dimensions.map((dimension) => ({
+        id: dimension.id,
+        name: dimension.name,
+        archived: false,
+        values: dimension.values.map((classificationValue) => ({ ...classificationValue })),
+      })),
+    },
+  };
+}
+
+function canonicalizeSessionV7(session: SessionV7): SessionV7 {
+  const pages: SessionV7["pages"] = {};
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber]!;
     pages[pageNumber] = {
@@ -519,7 +561,7 @@ function canonicalizeSessionV6(session: SessionV6): SessionV6 {
     };
   }
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     pdf: { ...session.pdf },
     pageCount: session.pageCount,
     currentPage: session.currentPage,
@@ -529,51 +571,66 @@ function canonicalizeSessionV6(session: SessionV6): SessionV6 {
       dimensions: session.classificationCatalog.dimensions.map((dimension) => ({
         id: dimension.id,
         name: dimension.name,
+        archived: dimension.archived,
         values: dimension.values.map((classificationValue) => ({ ...classificationValue })),
       })),
     },
   };
 }
-export function serializeSession(session: SessionV6): string {
-  assertValidSessionV6(session as unknown as Record<string, unknown>);
+export function serializeSession(session: CurrentSession): string {
+  assertValidSessionV7(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
-export function deserializeSession(serialized: string): SessionV6 {
+export function deserializeSession(serialized: string): CurrentSession {
   const value: unknown = JSON.parse(serialized);
   if (!isObject(value)) throw new Error("The saved session uses an unsupported schema.");
   if (value.schemaVersion === 1) {
     assertValidLegacySession(value);
-    return canonicalizeSessionV6(
-      migrateSessionV5(
-        migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+    return canonicalizeSessionV7(
+      migrateSessionV6(
+        migrateSessionV5(
+          migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+        ),
       ),
     );
   }
   if (value.schemaVersion === 2) {
     assertValidSessionV3(value, isPageCalibrationV2);
-    return canonicalizeSessionV6(
-      migrateSessionV5(
-        migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+    return canonicalizeSessionV7(
+      migrateSessionV6(
+        migrateSessionV5(
+          migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+        ),
       ),
     );
   }
   if (value.schemaVersion === 3) {
     assertValidSessionV3(value, isPageCalibrationV3);
-    return canonicalizeSessionV6(
-      migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+    return canonicalizeSessionV7(
+      migrateSessionV6(
+        migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+      ),
     );
   }
   if (value.schemaVersion === 4) {
     assertValidSessionV4(value);
-    return canonicalizeSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4)));
+    return canonicalizeSessionV7(
+      migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+    );
   }
   if (value.schemaVersion === 5) {
     assertValidSessionV5(value);
-    return canonicalizeSessionV6(migrateSessionV5(value as unknown as SessionV5));
+    return canonicalizeSessionV7(
+      migrateSessionV6(migrateSessionV5(value as unknown as SessionV5)),
+    );
   }
   if (value.schemaVersion === 6) {
     assertValidSessionV6(value);
-    return canonicalizeSessionV6(value as unknown as SessionV6);
+    return canonicalizeSessionV7(migrateSessionV6(value as unknown as SessionV6));
+  }
+  if (value.schemaVersion === 7) {
+    assertValidSessionV7(value);
+    return canonicalizeSessionV7(value as unknown as SessionV7);
   }
   throw new Error("The saved session uses an unsupported schema.");
 }

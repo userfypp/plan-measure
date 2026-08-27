@@ -111,6 +111,7 @@ describe("measurement view models", () => {
             {
               id: "room",
               name: "Room",
+              archived: false,
               values: [
                 { id: "bathroom", name: "Bathroom", archived: false },
                 { id: "kitchen", name: "Kitchen", archived: false },
@@ -119,12 +120,38 @@ describe("measurement view models", () => {
             {
               id: "light",
               name: "Lighting",
+              archived: false,
               values: [{ id: "natural-light", name: "Natural light", archived: true }],
             },
           ],
         },
       ),
     ).toBe("Room: Bathroom · Room: Kitchen · Lighting: Natural light (archived)");
+  });
+
+  it("marks values as archived when their dimension is archived without duplicating the suffix", () => {
+    const archivedDimension = {
+      id: "trade",
+      name: "Trade",
+      archived: true,
+      values: [
+        { id: "electrical", name: "Electrical", archived: false },
+        { id: "legacy-electrical", name: "Electrical", archived: true },
+      ],
+    };
+
+    expect(
+      getMeasurementClassificationSummary(
+        { ...measurement, classificationValueIds: ["electrical"] },
+        { dimensions: [archivedDimension] },
+      ),
+    ).toBe("Trade: Electrical (archived)");
+    expect(
+      getMeasurementClassificationSummary(
+        { ...measurement, classificationValueIds: ["legacy-electrical"] },
+        { dimensions: [archivedDimension] },
+      ),
+    ).toBe("Trade: Electrical (archived)");
   });
 });
 

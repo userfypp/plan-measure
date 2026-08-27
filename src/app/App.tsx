@@ -88,6 +88,8 @@ function PlanMeasureApp() {
     deleteMeasurement,
     addClassificationDimension,
     renameClassificationDimension,
+    archiveClassificationDimension,
+    restoreClassificationDimension,
     addClassificationValue,
     renameClassificationValue,
     archiveClassificationValue,
@@ -766,6 +768,8 @@ function PlanMeasureApp() {
                     addClassificationDimension(crypto.randomUUID(), name)
                   }
                   onRenameDimension={renameClassificationDimension}
+                  onArchiveDimension={archiveClassificationDimension}
+                  onRestoreDimension={restoreClassificationDimension}
                   onCreateValue={(dimensionId, name) =>
                     addClassificationValue(dimensionId, crypto.randomUUID(), name)
                   }

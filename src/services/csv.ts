@@ -1,4 +1,4 @@
-import type { Measurement, PageState, SessionV6 } from "../types/domain";
+import type { CurrentSession, Measurement, PageState } from "../types/domain";
 import { getMeasurementCalibration } from "../utils/calibration";
 import {
   calibrationScaleX,
@@ -43,7 +43,7 @@ function measurementRow(
   pageLabel: string,
   measurement: Measurement,
   page: PageState,
-  session: SessionV6,
+  session: CurrentSession,
 ): string[] {
   const calibration = getMeasurementCalibration(page, measurement);
   if (!calibration) {
@@ -116,7 +116,10 @@ export class NoMeasurementsError extends Error {
   }
 }
 
-export function buildCsv(session: SessionV6, pageLabels: readonly string[] | null = null): string {
+export function buildCsv(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+): string {
   const rows: string[][] = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
@@ -132,7 +135,10 @@ export function buildCsv(session: SessionV6, pageLabels: readonly string[] | nul
   return `\uFEFF${contents}\r\n`;
 }
 
-export function downloadCsv(session: SessionV6, pageLabels: readonly string[] | null = null): void {
+export function downloadCsv(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+): void {
   const csv = buildCsv(session, pageLabels);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../app/sessionState";
-import type { LinearUnit, SessionV6 } from "../types/domain";
+import type { CurrentSession, LinearUnit } from "../types/domain";
 import { buildCsv, downloadCsv, NoMeasurementsError } from "./csv";
 
-function measuredSession(): SessionV6 {
+function measuredSession(): CurrentSession {
   const session = createEmptySession({ name: "sample.pdf", size: 10, lastModified: 1 }, 2);
   session.settings.displayUnit = "m";
   session.pages[1]!.calibrations = [
@@ -86,7 +86,7 @@ function measuredSession(): SessionV6 {
   return session;
 }
 
-function smallMeasuredSession(displayUnit: LinearUnit): SessionV6 {
+function smallMeasuredSession(displayUnit: LinearUnit): CurrentSession {
   const session = createEmptySession({ name: "small.pdf", size: 10, lastModified: 1 }, 1);
   session.settings.displayUnit = displayUnit;
   session.pages[1]!.calibrations = [

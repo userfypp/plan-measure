@@ -26,6 +26,8 @@ export function ClassificationAssignment({
       .filter((value) => appliedValueIds.includes(value.id))
       .map((value) => ({ dimension, value })),
   );
+  const allDimensionsArchived =
+    catalog.dimensions.length > 0 && catalog.dimensions.every((dimension) => dimension.archived);
   return (
     <section
       className={[styles.assignment, compact ? styles.compact : ""].filter(Boolean).join(" ")}
@@ -42,20 +44,26 @@ export function ClassificationAssignment({
           {assigned.map(({ dimension, value }) => (
             <Badge key={value.id}>
               {dimension.name}: {value.name}
-              {value.archived ? " (archived)" : ""}
+              {value.archived || dimension.archived ? " (archived)" : ""}
             </Badge>
           ))}
         </div>
       )}
       {catalog.dimensions.map((dimension) => {
         const current = dimension.values.find((value) => appliedValueIds.includes(value.id));
-        const options = dimension.values.filter(
-          (value) => !value.archived || value.id === current?.id,
-        );
+        if (dimension.archived && !current) return null;
+        const options = dimension.archived
+          ? current
+            ? [current]
+            : []
+          : dimension.values.filter((value) => !value.archived || value.id === current?.id);
         const fieldId = `${fieldIdPrefix}-${measurementId}-${dimension.id}`;
         return (
           <label className={styles.field} key={dimension.id} htmlFor={fieldId}>
-            <span>{dimension.name}</span>
+            <span>
+              {dimension.name}
+              {dimension.archived ? " (archived)" : ""}
+            </span>
             <select
               id={fieldId}
               data-viewer-shortcuts="enabled"
@@ -78,6 +86,11 @@ export function ClassificationAssignment({
       })}
       {catalog.dimensions.length === 0 && (
         <p className={styles.empty}>Create a classification dimension in the catalog first.</p>
+      )}
+      {allDimensionsArchived && assigned.length === 0 && (
+        <p className={styles.empty}>
+          Restore a classification dimension in the catalog to assign classifications.
+        </p>
       )}
     </section>
   );

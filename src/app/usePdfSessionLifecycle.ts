@@ -11,7 +11,7 @@ import type {
   OverlayDialog,
   ReplacePdfPayload,
 } from "./overlayState";
-import type { SessionV6 } from "../types/domain";
+import type { CurrentSession } from "../types/domain";
 import {
   discardSavedSession,
   loadSavedSession,
@@ -31,14 +31,14 @@ interface PendingPdf {
   pdfId: string;
   file: File;
   loaded: LoadedPdf;
-  session: SessionV6;
+  session: CurrentSession;
   loadGeneration: number;
 }
 
 interface PdfSessionLifecycleOptions {
-  session: SessionV6 | null;
+  session: CurrentSession | null;
 
-  loadSession: (session: SessionV6) => void;
+  loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
 
   resetWorkspace: () => void;

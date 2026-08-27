@@ -1,7 +1,7 @@
-import type { SessionV6 } from "../types/domain";
+import type { CurrentSession } from "../types/domain";
 
 export interface AutosaveInputs {
-  snapshot: SessionV6 | null;
+  snapshot: CurrentSession | null;
   pdfRuntimeReady: boolean;
   pdfBlob: Blob | null;
   enabled: boolean;
@@ -13,7 +13,7 @@ export interface AutosaveInputs {
  * inputs to this boundary.
  */
 export function isAutosaveReady(inputs: AutosaveInputs): inputs is AutosaveInputs & {
-  snapshot: SessionV6;
+  snapshot: CurrentSession;
   pdfBlob: Blob;
 } {
   return (
@@ -23,10 +23,10 @@ export function isAutosaveReady(inputs: AutosaveInputs): inputs is AutosaveInput
 
 export function enqueueAutosave(
   previous: Promise<void>,
-  snapshot: SessionV6,
+  snapshot: CurrentSession,
   generation: number,
   isCurrentGeneration: (generation: number) => boolean,
-  save: (snapshot: SessionV6) => Promise<void>,
+  save: (snapshot: CurrentSession) => Promise<void>,
 ): Promise<void> {
   return previous
     .catch(() => undefined)

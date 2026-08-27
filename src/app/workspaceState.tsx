@@ -8,7 +8,7 @@ import type { DrawingDraft, Point, Tool } from "../types/domain";
 
 /**
  * Interaction state for the current workspace. This state is intentionally not
- * part of the persisted SessionV6 document.
+ * part of the persisted session document.
  */
 export interface WorkspaceState {
   activeTool: Tool;

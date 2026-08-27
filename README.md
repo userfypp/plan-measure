@@ -98,9 +98,10 @@ non-linear warping.
   out of sight. The **Selection Inspector** stays in the left tool rail and shows the selected
   object's type, calculated value, scale/calibration, and assigned classifications. The dock at
   the bottom of the panel contains the assignment controls for the selected measurement.
-- **Classifications tab:** manage the reusable catalog only. Dimensions and values can be created
-  and renamed; values can be archived without removing existing assignments and restored later.
-  Dimension names are unique, and value names are unique within each dimension.
+- **Classifications tab:** manage the reusable catalog only. Dimensions and values can be created,
+  renamed, archived, and restored. Archiving preserves existing assignments; an archived dimension
+  remains available as history until it is restored. Dimension names are unique, and value names
+  are unique within each dimension.
 
 Classification assignments are measurement-specific. Selecting another measurement changes the
 assignment controls and inspector without changing the catalog or other measurements.
@@ -158,7 +159,7 @@ memory and displays a warning that reload recovery is unavailable.
 ## Testing and CI
 
 Vitest covers geometry, uniform and X/Y calibration, path measurement flows, classifications,
-units, CSV escaping and all-page export, V1/V2/V3/V4/V5-to-V6 session migration/IndexedDB round trips,
+units, CSV escaping and all-page export, V1/V2/V3/V4/V5/V6-to-V7 session migration/IndexedDB round trips,
 state-boundary and reducer invariants, keyboard policy, label placement, PDF lifecycle/autosave, and
 page/screen transforms across zoom, pan, rotation, fit-to-screen, and device pixel ratios. GitHub
 Actions installs from

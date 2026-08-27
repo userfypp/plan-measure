@@ -12,6 +12,7 @@
   flex: 0 0 auto;
   min-height: 48px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
@@ -20,6 +21,8 @@
 }
 
 .header h2 {
+  min-width: 0;
+  flex: 1 1 8rem;
   margin: 0;
   color: var(--color-text);
   font-size: 14px;
@@ -58,6 +61,7 @@
 
 .item {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-8);
   padding: var(--space-8);
@@ -66,12 +70,21 @@
   background: var(--color-surface);
 }
 
+.archivedItem {
+  background: var(--color-surface-subdued);
+}
+
 .itemHeader,
 .meta {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: var(--space-8);
+}
+
+.itemHeader {
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .actions {
@@ -92,6 +105,7 @@
 
 .itemText {
   min-width: 0;
+  flex: 1 1 12rem;
   display: grid;
   gap: var(--space-4);
 }
@@ -116,10 +130,16 @@
 
 .statuses {
   display: flex;
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 1 1 10rem;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-group-gap);
+}
+
+.itemHeader > .actions {
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 
 .actions {
@@ -133,6 +153,8 @@
 
 .valueList {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: var(--space-4);
   margin: 0;
   padding: 0;
@@ -142,6 +164,7 @@
 .valueItem,
 .inlineForm {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-8);
@@ -149,6 +172,8 @@
 
 .valueItem {
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
   min-height: 32px;
   padding: var(--space-4) 0;
   border-top: var(--border-width) solid var(--color-border);
@@ -165,14 +190,29 @@
 }
 
 .valueItem > .actions {
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  max-width: 100%;
+  flex-wrap: wrap;
   gap: var(--space-group-gap);
+}
+
+.archivedNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  overflow-wrap: anywhere;
 }
 
 .inlineForm > :first-child,
 .create > :first-child {
+  min-width: 0;
   flex: 1 1 auto;
+}
+
+.inlineForm,
+.create {
+  min-width: 0;
 }
 
 .renameOverlay {

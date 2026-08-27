@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useReducer, type ReactNode } from "react";
 
 /**
- * Runtime shell state that is not part of SessionV6.
+ * Runtime shell state that is not part of the persisted session.
  *
  * Persistent domain data belongs to SessionState. This provider only carries
  * transient coordinator feedback such as PDF/runtime errors.

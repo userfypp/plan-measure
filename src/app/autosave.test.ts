@@ -5,7 +5,7 @@ import { enqueueAutosave, isAutosaveReady } from "./autosave";
 const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
 
 describe("autosave boundary", () => {
-  it("requires only a SessionV6 snapshot, a valid PDF runtime, a blob, and persistence availability", () => {
+  it("requires only a CurrentSession snapshot, a valid PDF runtime, a blob, and persistence availability", () => {
     const blob = new Blob(["pdf"], { type: "application/pdf" });
 
     expect(

@@ -10,12 +10,12 @@ import {
 import { useAppState } from "./state";
 import type {
   CalibrationReferenceKey,
+  CurrentSession,
   MeasurementType,
   PageState,
   PdfMetadata,
   Point,
   SessionSettings,
-  SessionV6,
   UniformPageCalibration,
   XyPageCalibration,
 } from "../types/domain";
@@ -33,13 +33,13 @@ import {
 /**
  * Persistent domain state for the currently open plan.
  *
- * The `session` value is the only in-memory source of truth for SessionV6.
+ * The `session` value is the only in-memory source of truth for CurrentSession.
  * Runtime PDF resources, interaction state, and overlay descriptors live in
  * their respective coordinators/providers and never become part of this
  * snapshot.
  */
 export interface SessionState {
-  session: SessionV6 | null;
+  session: CurrentSession | null;
 }
 
 export interface SessionCommandResult extends SessionState {
@@ -108,7 +108,7 @@ export interface AssignClassificationValueCommand {
 }
 
 export type SessionAction =
-  | { type: "LOAD_SESSION"; session: SessionV6 }
+  | { type: "LOAD_SESSION"; session: CurrentSession }
   | { type: "CLEAR_SESSION" }
   | { type: "UPDATE_PAGE"; pageNumber: number }
   | ({ type: "ADD_CALIBRATION" } & AddCalibrationCommand)
@@ -125,6 +125,8 @@ export type SessionAction =
   | { type: "DELETE_MEASUREMENT"; pageNumber: number; id: string }
   | { type: "ADD_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_DIMENSION"; id: string; name: string }
+  | { type: "ARCHIVE_CLASSIFICATION_DIMENSION"; id: string }
+  | { type: "RESTORE_CLASSIFICATION_DIMENSION"; id: string }
   | { type: "ADD_CLASSIFICATION_VALUE"; dimensionId: string; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_VALUE"; dimensionId: string; id: string; name: string }
   | { type: "ARCHIVE_CLASSIFICATION_VALUE"; dimensionId: string; id: string }
@@ -153,13 +155,13 @@ export function createEmptySession(
   pdf: PdfMetadata,
   pageCount: number,
   settings?: Partial<SessionSettings>,
-): SessionV6 {
+): CurrentSession {
   const pages: Record<number, PageState> = {};
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     pdf,
     pageCount,
     currentPage: 1,
@@ -176,10 +178,10 @@ export function createEmptySession(
 }
 
 function updatePageState(
-  session: SessionV6,
+  session: CurrentSession,
   pageNumber: number,
   updater: (page: PageState) => PageState,
-): SessionV6 {
+): CurrentSession {
   const page = session.pages[pageNumber];
   if (!page) return session;
   return {
@@ -449,7 +451,30 @@ export function sessionReducer(
         session: {
           ...state.session,
           classificationCatalog: {
-            dimensions: [...dimensions, { id, name, values: [] }],
+            dimensions: [...dimensions, { id, name, archived: false, values: [] }],
+          },
+        },
+        error: null,
+      };
+    }
+    case "ARCHIVE_CLASSIFICATION_DIMENSION":
+    case "RESTORE_CLASSIFICATION_DIMENSION": {
+      if (!state.session) return state;
+      const dimensions = state.session.classificationCatalog.dimensions;
+      const dimension = dimensions.find((candidate) => candidate.id === action.id);
+      if (!dimension) {
+        return { ...state, error: "The classification dimension is no longer available." };
+      }
+      const archived = action.type === "ARCHIVE_CLASSIFICATION_DIMENSION";
+      if (dimension.archived === archived) return { ...state, error: null };
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          classificationCatalog: {
+            dimensions: dimensions.map((candidate) =>
+              candidate.id === action.id ? { ...candidate, archived } : candidate,
+            ),
           },
         },
         error: null,
@@ -459,9 +484,13 @@ export function sessionReducer(
       if (!state.session) return state;
       const name = action.name.trim();
       const dimensions = state.session.classificationCatalog.dimensions;
+      const dimension = dimensions.find((candidate) => candidate.id === action.id);
+      if (dimension?.archived) {
+        return { ...state, error: "Restore the classification dimension before editing it." };
+      }
       if (
         !name ||
-        !dimensions.some((dimension) => dimension.id === action.id) ||
+        !dimension ||
         dimensions.some(
           (dimension) =>
             dimension.id !== action.id &&
@@ -489,6 +518,9 @@ export function sessionReducer(
       const name = action.name.trim();
       const dimensions = state.session.classificationCatalog.dimensions;
       const dimension = dimensions.find((candidate) => candidate.id === action.dimensionId);
+      if (dimension?.archived) {
+        return { ...state, error: "Restore the classification dimension before editing it." };
+      }
       const idExists = dimensions.some(
         (candidate) => candidate.id === id || candidate.values.some((value) => value.id === id),
       );
@@ -526,6 +558,9 @@ export function sessionReducer(
       const name = action.name.trim();
       const dimensions = state.session.classificationCatalog.dimensions;
       const dimension = dimensions.find((candidate) => candidate.id === action.dimensionId);
+      if (dimension?.archived) {
+        return { ...state, error: "Restore the classification dimension before editing it." };
+      }
       if (
         !dimension ||
         !name ||
@@ -562,6 +597,9 @@ export function sessionReducer(
       if (!state.session) return state;
       const dimensions = state.session.classificationCatalog.dimensions;
       const dimension = dimensions.find((candidate) => candidate.id === action.dimensionId);
+      if (dimension?.archived) {
+        return { ...state, error: "Restore the classification dimension before editing it." };
+      }
       if (!dimension?.values.some((value) => value.id === action.id)) {
         return { ...state, error: "The classification value is no longer available." };
       }
@@ -594,6 +632,9 @@ export function sessionReducer(
       );
       const value = dimension?.values.find((candidate) => candidate.id === action.valueId);
       const page = state.session.pages[action.pageNumber];
+      if (dimension?.archived) {
+        return { ...state, error: "Restore the classification dimension before assigning values." };
+      }
       if (!value || value.archived) {
         return { ...state, error: "The classification value is no longer available." };
       }
@@ -724,7 +765,7 @@ function updateCalibrationReferencePoints(
 }
 
 interface SessionContextValue extends SessionState {
-  loadSession: (session: SessionV6) => void;
+  loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
   updatePage: (pageNumber: number) => void;
   addCalibration: (command: AddCalibrationCommand) => void;
@@ -741,6 +782,8 @@ interface SessionContextValue extends SessionState {
   deleteMeasurement: (pageNumber: number, id: string) => void;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
+  archiveClassificationDimension: (id: string) => void;
+  restoreClassificationDimension: (id: string) => void;
   addClassificationValue: (dimensionId: string, id: string, name: string) => void;
   renameClassificationValue: (dimensionId: string, id: string, name: string) => void;
   archiveClassificationValue: (dimensionId: string, id: string) => void;
@@ -754,8 +797,8 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { setError } = useAppState();
-  const [session, setSession] = useState<SessionV6 | null>(null);
-  const sessionRef = useRef<SessionV6 | null>(null);
+  const [session, setSession] = useState<CurrentSession | null>(null);
+  const sessionRef = useRef<CurrentSession | null>(null);
   const applyAction = useCallback(
     (action: SessionAction) => {
       const result = sessionReducer({ session: sessionRef.current, error: null }, action);
@@ -794,6 +837,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
       renameClassificationDimension: (id, name) =>
         applyAction({ type: "RENAME_CLASSIFICATION_DIMENSION", id, name }),
+      archiveClassificationDimension: (id) =>
+        applyAction({ type: "ARCHIVE_CLASSIFICATION_DIMENSION", id }),
+      restoreClassificationDimension: (id) =>
+        applyAction({ type: "RESTORE_CLASSIFICATION_DIMENSION", id }),
       addClassificationValue: (dimensionId, id, name) =>
         applyAction({ type: "ADD_CLASSIFICATION_VALUE", dimensionId, id, name }),
       renameClassificationValue: (dimensionId, id, name) =>

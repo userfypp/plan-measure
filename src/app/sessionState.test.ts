@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { SessionV6 } from "../types/domain";
+import type { CurrentSession } from "../types/domain";
 import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
 
-function session(): SessionV6 {
+function session(): CurrentSession {
   return createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 2);
 }
 
@@ -11,13 +11,13 @@ describe("SessionState", () => {
     expect(initialSessionState).toEqual({ session: null, error: null });
   });
 
-  it("loads a SessionV6 snapshot and clears the previous command error", () => {
+  it("loads a CurrentSession snapshot and clears the previous command error", () => {
     const loaded = sessionReducer(
       { session: null, error: "stale error" },
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(6);
+    expect(loaded.session?.schemaVersion).toBe(7);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -72,7 +72,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(6);
+    expect(state.session?.schemaVersion).toBe(7);
   });
 
   it("creates visible measurements and toggles only the requested measurement", () => {

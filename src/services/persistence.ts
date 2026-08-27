@@ -1,5 +1,5 @@
 import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { SessionV6 } from "../types/domain";
+import type { CurrentSession } from "../types/domain";
 import { deserializeSession, serializeSession } from "./persistenceCodec";
 
 const DATABASE_NAME = "plan-measure";
@@ -44,7 +44,7 @@ function getDatabase(): Promise<IDBPDatabase<PlanMeasureDb>> {
 }
 
 export interface SavedSession {
-  session: SessionV6;
+  session: CurrentSession;
   pdfBlob: Blob;
 }
 
@@ -64,7 +64,7 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
   };
 }
 
-export async function replaceSavedSession(session: SessionV6, pdfBlob: Blob): Promise<void> {
+export async function replaceSavedSession(session: CurrentSession, pdfBlob: Blob): Promise<void> {
   const serialized = serializeSession(session);
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
@@ -79,7 +79,7 @@ export async function replaceSavedSession(session: SessionV6, pdfBlob: Blob): Pr
   await transaction.done;
 }
 
-export async function saveSessionMetadata(session: SessionV6): Promise<void> {
+export async function saveSessionMetadata(session: CurrentSession): Promise<void> {
   const serialized = serializeSession(session);
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");

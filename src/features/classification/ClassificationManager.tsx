@@ -7,6 +7,8 @@ export interface ClassificationManagerProps {
   catalog: ClassificationCatalog;
   onCreateDimension: (name: string) => void;
   onRenameDimension: (dimensionId: string, name: string) => void;
+  onArchiveDimension: (dimensionId: string) => void;
+  onRestoreDimension: (dimensionId: string) => void;
   onCreateValue: (dimensionId: string, name: string) => void;
   onRenameValue: (dimensionId: string, valueId: string, name: string) => void;
   onArchiveValue: (dimensionId: string, valueId: string) => void;
@@ -22,6 +24,8 @@ export function ClassificationManager({
   catalog,
   onCreateDimension,
   onRenameDimension,
+  onArchiveDimension,
+  onRestoreDimension,
   onCreateValue,
   onRenameValue,
   onArchiveValue,
@@ -58,6 +62,13 @@ export function ClassificationManager({
     const name = (valueNames[dimensionId] ?? "").trim();
     if (!name) return;
     const dimension = catalog.dimensions.find((candidate) => candidate.id === dimensionId);
+    if (dimension?.archived) {
+      setValueErrors((current) => ({
+        ...current,
+        [dimensionId]: "Restore this dimension before editing it.",
+      }));
+      return;
+    }
     if (
       dimension?.values.some((value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase())
     ) {
@@ -94,6 +105,10 @@ export function ClassificationManager({
       setNameError("This classification is no longer available.");
       return;
     }
+    if (dimension.archived) {
+      setNameError("Restore this dimension before editing it.");
+      return;
+    }
     const duplicate =
       editing.type === "dimension"
         ? catalog.dimensions.some(
@@ -116,11 +131,23 @@ export function ClassificationManager({
     setNameError(null);
   }
 
+  const activeDimensionCount = catalog.dimensions.filter((dimension) => !dimension.archived).length;
+  const archivedDimensionCount = catalog.dimensions.filter((dimension) => dimension.archived).length;
+
   return (
     <section className={styles.manager} aria-label="Classification catalog">
       <header className={styles.header}>
         <h2>Classifications</h2>
-        <Badge>{catalog.dimensions.length}</Badge>
+        <div className={styles.statuses} aria-label="Classification dimension status">
+          <Badge>
+            {activeDimensionCount} active dimension{activeDimensionCount === 1 ? "" : "s"}
+          </Badge>
+          {archivedDimensionCount > 0 && (
+            <Badge variant="neutral">
+              {archivedDimensionCount} archived dimension{archivedDimensionCount === 1 ? "" : "s"}
+            </Badge>
+          )}
+        </div>
       </header>
       <div className={styles.body}>
         <p className={styles.description}>
@@ -130,31 +157,73 @@ export function ClassificationManager({
           <p className={styles.empty}>Create a dimension such as Trade, Status, or Area.</p>
         ) : (
           <ul className={styles.list} aria-label="Classification dimensions">
-            {catalog.dimensions.map((dimension) => (
-              <li key={dimension.id} className={styles.item}>
-                <div className={styles.itemHeader}>
-                  <div className={styles.itemText}>
-                    <strong>{dimension.name}</strong>
-                    <span>
-                      {dimension.values.filter((value) => !value.archived).length} active values
-                    </span>
+            {catalog.dimensions.map((dimension) => {
+              const activeValueCount = dimension.values.filter((value) => !value.archived).length;
+              const archivedValueCount = dimension.values.filter((value) => value.archived).length;
+              return (
+                <li
+                  key={dimension.id}
+                  className={[styles.item, dimension.archived ? styles.archivedItem : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <div className={styles.itemHeader}>
+                    <div className={styles.itemText}>
+                      <strong>{dimension.name}</strong>
+                      <span>
+                        {activeValueCount} active values
+                        {archivedValueCount > 0 ? ` · ${archivedValueCount} archived` : ""}
+                      </span>
+                    </div>
+                    {dimension.archived ? (
+                      <div className={styles.actions}>
+                        <Badge variant="neutral">Archived</Badge>
+                        <Button
+                          variant="ghost"
+                          size="compact"
+                          disabled={disabled}
+                          onClick={() => onRestoreDimension(dimension.id)}
+                        >
+                          Restore
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className={styles.actions}>
+                        <Button
+                          variant="ghost"
+                          size="compact"
+                          disabled={disabled}
+                          onClick={() =>
+                            startEditing(
+                              { type: "dimension", dimensionId: dimension.id },
+                              dimension.name,
+                            )
+                          }
+                        >
+                          Rename
+                        </Button>
+                        <Button
+                          variant="dangerSecondary"
+                          size="compact"
+                          disabled={disabled}
+                          aria-label={`Archive ${dimension.name}; existing assignments are preserved`}
+                          title="Existing measurement assignments will be preserved"
+                          onClick={() => onArchiveDimension(dimension.id)}
+                        >
+                          Archive
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="compact"
-                    disabled={disabled}
-                    onClick={() =>
-                      startEditing({ type: "dimension", dimensionId: dimension.id }, dimension.name)
-                    }
-                  >
-                    Rename
-                  </Button>
-                </div>
-                <ul className={styles.valueList} aria-label={`${dimension.name} values`}>
-                  {dimension.values.map((value) => (
-                    <li key={value.id} className={styles.valueItem}>
-                      <span className={styles.valueName}>{value.name}</span>
-                      {value.archived ? (
+                  <ul className={styles.valueList} aria-label={`${dimension.name} values`}>
+                    {dimension.values.map((value) => {
+                      const valueActions = dimension.archived ? (
+                        value.archived ? (
+                          <div className={styles.actions}>
+                            <Badge variant="neutral">Archived</Badge>
+                          </div>
+                        ) : null
+                      ) : value.archived ? (
                         <div className={styles.actions}>
                           <Badge variant="neutral">Archived</Badge>
                           <Button
@@ -192,36 +261,49 @@ export function ClassificationManager({
                             Archive
                           </Button>
                         </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <form
-                  className={styles.inlineForm}
-                  onSubmit={(event) => submitValue(event, dimension.id)}
-                >
-                  <Input
-                    label={`New value for ${dimension.name}`}
-                    value={valueNames[dimension.id] ?? ""}
-                    error={valueErrors[dimension.id]}
-                    disabled={disabled}
-                    onChange={(event) => {
-                      setValueNames((current) => ({
-                        ...current,
-                        [dimension.id]: event.target.value,
-                      }));
-                      setValueErrors((current) => ({ ...current, [dimension.id]: null }));
-                    }}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
-                  >
-                    Add value
-                  </Button>
-                </form>
-              </li>
-            ))}
+                      );
+                      return (
+                        <li key={value.id} className={styles.valueItem}>
+                          <span className={styles.valueName}>{value.name}</span>
+                          {valueActions}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {dimension.archived ? (
+                    <p className={styles.archivedNote}>
+                      Existing measurement assignments are preserved. Restore this dimension to edit
+                      or assign it.
+                    </p>
+                  ) : (
+                    <form
+                      className={styles.inlineForm}
+                      onSubmit={(event) => submitValue(event, dimension.id)}
+                    >
+                      <Input
+                        label={`New value for ${dimension.name}`}
+                        value={valueNames[dimension.id] ?? ""}
+                        error={valueErrors[dimension.id]}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          setValueNames((current) => ({
+                            ...current,
+                            [dimension.id]: event.target.value,
+                          }));
+                          setValueErrors((current) => ({ ...current, [dimension.id]: null }));
+                        }}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
+                      >
+                        Add value
+                      </Button>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         <form className={styles.create} onSubmit={submitDimension}>

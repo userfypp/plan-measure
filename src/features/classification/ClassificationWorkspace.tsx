@@ -6,6 +6,8 @@ export interface ClassificationWorkspaceProps {
   catalog: ClassificationCatalog;
   onCreateDimension: (name: string) => void;
   onRenameDimension: (dimensionId: string, name: string) => void;
+  onArchiveDimension: (dimensionId: string) => void;
+  onRestoreDimension: (dimensionId: string) => void;
   onCreateValue: (dimensionId: string, name: string) => void;
   onRenameValue: (dimensionId: string, valueId: string, name: string) => void;
   onArchiveValue: (dimensionId: string, valueId: string) => void;
@@ -17,6 +19,8 @@ export function ClassificationWorkspace({
   catalog,
   onCreateDimension,
   onRenameDimension,
+  onArchiveDimension,
+  onRestoreDimension,
   onCreateValue,
   onRenameValue,
   onArchiveValue,
@@ -29,6 +33,8 @@ export function ClassificationWorkspace({
         catalog={catalog}
         onCreateDimension={onCreateDimension}
         onRenameDimension={onRenameDimension}
+        onArchiveDimension={onArchiveDimension}
+        onRestoreDimension={onRestoreDimension}
         onCreateValue={onCreateValue}
         onRenameValue={onRenameValue}
         onArchiveValue={onArchiveValue}

@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptySession } from "../app/sessionState";
 import type {
+  CurrentSession,
   Point,
   SessionV1,
   SessionV2,
@@ -76,7 +77,7 @@ function legacySession(withCalibration: boolean): SessionV1 {
   };
 }
 
-function currentMeasuredSession(): SessionV6 {
+function currentMeasuredSession(): CurrentSession {
   const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 2);
   session.settings.displayUnit = "cm";
   session.settings.showLabels = false;
@@ -107,7 +108,7 @@ function currentMeasuredSession(): SessionV6 {
 
 function v5MeasuredSession(): SessionV5 {
   const current = currentMeasuredSession();
-  current.classificationCatalog = {
+  const classificationCatalog: SessionV5["classificationCatalog"] = {
     dimensions: [
       {
         id: "discipline",
@@ -136,8 +137,46 @@ function v5MeasuredSession(): SessionV5 {
     currentPage: current.currentPage,
     pages,
     settings: { ...current.settings },
-    classificationCatalog: structuredClone(current.classificationCatalog),
+    classificationCatalog: structuredClone(classificationCatalog),
   };
+}
+
+function v6MeasuredSession(): SessionV6 {
+  const current = currentMeasuredSession();
+  current.pages[2]!.measurements[0]!.classificationValueIds = ["electrical"];
+  current.pages[2]!.measurements[0]!.visible = false;
+  return {
+    ...current,
+    schemaVersion: 6,
+    classificationCatalog: {
+      dimensions: [
+        {
+          id: "discipline",
+          name: "Discipline",
+          values: [{ id: "electrical", name: "Electrical", archived: true }],
+        },
+      ],
+    },
+  };
+}
+
+function archivedCurrentSession(): CurrentSession {
+  const session = currentMeasuredSession();
+  session.classificationCatalog = {
+    dimensions: [
+      {
+        id: "discipline",
+        name: "Discipline",
+        archived: true,
+        values: [
+          { id: "electrical", name: "Electrical", archived: false },
+          { id: "legacy", name: "Legacy", archived: true },
+        ],
+      },
+    ],
+  };
+  session.pages[2]!.measurements[0]!.classificationValueIds = ["legacy"];
+  return session;
 }
 
 function v2MeasuredSession(): SessionV2 {
@@ -262,11 +301,11 @@ function v4MeasuredSession(): SessionV4 {
 }
 
 describe("session persistence", () => {
-  it("migrates a V1 page without calibration to an empty V6 page", () => {
+  it("migrates a V1 page without calibration to an empty V7 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(page.calibrations).toEqual([]);
     expect(page.activeCalibrationId).toBeNull();
@@ -349,7 +388,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -365,7 +404,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -380,11 +419,11 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates V4 measurements to V6 with visibility enabled", () => {
+  it("migrates V4 measurements to V7 with visibility enabled", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -394,7 +433,7 @@ describe("session persistence", () => {
     ]);
   });
 
-  it("serializes V6 and round trips visibility with uniform/X/Y calibrations", () => {
+  it("serializes V7 and round trips visibility with uniform/X/Y calibrations", () => {
     const session = currentMeasuredSession();
     session.pages[1]!.calibrations.push({
       id: "xy-scale",
@@ -419,7 +458,7 @@ describe("session persistence", () => {
     });
     const serialized = serializeSession(session);
 
-    expect(JSON.parse(serialized).schemaVersion).toBe(6);
+    expect(JSON.parse(serialized).schemaVersion).toBe(7);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -427,7 +466,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -437,10 +476,112 @@ describe("session persistence", () => {
       visible: true,
     });
     expect(migrated.pages[2]!.calibrations).toEqual(v5.pages[2]!.calibrations);
-    expect(migrated.classificationCatalog).toEqual(v5.classificationCatalog);
+    expect(migrated.classificationCatalog).toEqual({
+      dimensions: v5.classificationCatalog.dimensions.map((dimension) => ({
+        ...dimension,
+        archived: false,
+      })),
+    });
   });
 
-  it("rejects missing or non-boolean visibility in V6 sessions", () => {
+  it("migrates a real V6 catalog to V7 without losing historical state", () => {
+    const v6 = v6MeasuredSession();
+    const migrated = deserializeSession(JSON.stringify(v6));
+    const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
+    const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
+
+    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.pdf).toEqual(v6.pdf);
+    expect(migrated.settings).toEqual(v6.settings);
+    expect(migratedDimension).toEqual({
+      id: "discipline",
+      name: "Discipline",
+      archived: false,
+      values: [{ id: "electrical", name: "Electrical", archived: true }],
+    });
+    expect(migratedMeasurement.classificationValueIds).toEqual(["electrical"]);
+    expect(migratedMeasurement.visible).toBe(false);
+    expect(migratedMeasurement.points).toEqual(v6.pages[2]!.measurements[0]!.points);
+    expect(migratedMeasurement.calibrationId).toBe("custom-scale");
+  });
+
+  it("round trips an archived V7 dimension, value flags, and assignments", () => {
+    const session = archivedCurrentSession();
+    const restored = deserializeSession(serializeSession(session));
+
+    expect(restored.schemaVersion).toBe(7);
+    expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
+    expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
+  });
+
+  it("requires a boolean archived flag on every V7 dimension", () => {
+    const missing = JSON.parse(serializeSession(archivedCurrentSession())) as {
+      classificationCatalog: { dimensions: Array<Record<string, unknown>> };
+    };
+    delete missing.classificationCatalog.dimensions[0]!.archived;
+    expect(() =>
+      deserializeSession(
+        JSON.stringify({
+          ...archivedCurrentSession(),
+          classificationCatalog: missing.classificationCatalog,
+        }),
+      ),
+    ).toThrow("classification catalog");
+
+    const nonBoolean = JSON.parse(serializeSession(archivedCurrentSession())) as {
+      classificationCatalog: { dimensions: Array<Record<string, unknown>> };
+    };
+    nonBoolean.classificationCatalog.dimensions[0]!.archived = "yes";
+    expect(() =>
+      deserializeSession(
+        JSON.stringify({
+          ...archivedCurrentSession(),
+          classificationCatalog: nonBoolean.classificationCatalog,
+        }),
+      ),
+    ).toThrow("classification catalog");
+  });
+
+  it("keeps V7 classification reference and uniqueness validation strict", () => {
+    const missingValue = archivedCurrentSession();
+    missingValue.pages[2]!.measurements[0]!.classificationValueIds = ["missing"];
+    expect(() => serializeSession(missingValue)).toThrow("missing classification value");
+
+    const multipleValues = archivedCurrentSession();
+    multipleValues.pages[2]!.measurements[0]!.classificationValueIds = [
+      "electrical",
+      "legacy",
+    ];
+    expect(() => serializeSession(multipleValues)).toThrow("multiple values");
+
+    const duplicateId = archivedCurrentSession();
+    duplicateId.classificationCatalog.dimensions.push({
+      id: "electrical",
+      name: "Other",
+      archived: false,
+      values: [],
+    });
+    expect(() => serializeSession(duplicateId)).toThrow("classification catalog");
+
+    const duplicateDimensionName = archivedCurrentSession();
+    duplicateDimensionName.classificationCatalog.dimensions.push({
+      id: "other-dimension",
+      name: "dIsCiPlInE",
+      archived: false,
+      values: [],
+    });
+    expect(() => serializeSession(duplicateDimensionName)).toThrow("classification catalog");
+
+    const duplicateValueName = archivedCurrentSession();
+    duplicateValueName.classificationCatalog.dimensions[0]!.values.push({
+      id: "other-value",
+      name: "eLeCtRiCaL",
+      archived: false,
+    });
+    expect(() => serializeSession(duplicateValueName)).toThrow("classification catalog");
+  });
+
+  it("rejects missing or non-boolean visibility in V7 sessions", () => {
     const missing = JSON.parse(serializeSession(currentMeasuredSession())) as Record<
       string,
       unknown
@@ -467,6 +608,7 @@ describe("session persistence", () => {
     session.classificationCatalog.dimensions.push({
       id: "room",
       name: "Room",
+      archived: false,
       values: [{ id: "kitchen", name: "Kitchen", archived: true }],
     });
     session.pages[2]!.measurements[0]!.classificationValueIds = ["kitchen"];
@@ -485,6 +627,7 @@ describe("session persistence", () => {
     session.classificationCatalog.dimensions.push({
       id: "room",
       name: "Room",
+      archived: false,
       values: [
         { id: "kitchen", name: "Kitchen", archived: false },
         { id: "bathroom", name: "Bathroom", archived: false },
@@ -506,7 +649,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(6);
+    expect(restored.schemaVersion).toBe(7);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -622,6 +765,7 @@ describe("session persistence", () => {
     session.classificationCatalog.dimensions.push({
       id: "room",
       name: "Room",
+      archived: false,
       values: [{ id: "kitchen", name: "Kitchen", archived: false }],
     });
     session.pages[2]!.measurements[0]!.classificationValueIds = ["kitchen"];

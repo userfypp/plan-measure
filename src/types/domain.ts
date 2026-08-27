@@ -175,9 +175,20 @@ export interface ClassificationValue {
   archived: boolean;
 }
 
+export interface ClassificationDimensionV6 {
+  id: string;
+  name: string;
+  values: ClassificationValue[];
+}
+
+export interface ClassificationCatalogV6 {
+  dimensions: ClassificationDimensionV6[];
+}
+
 export interface ClassificationDimension {
   id: string;
   name: string;
+  archived: boolean;
   values: ClassificationValue[];
 }
 
@@ -210,10 +221,10 @@ export interface SessionV5 {
   currentPage: number;
   pages: Record<number, PageStateV5>;
   settings: SessionSettings;
-  classificationCatalog: ClassificationCatalog;
+  classificationCatalog: ClassificationCatalogV6;
 }
 
-/** Current measurement shape, persisted by schema V6. */
+/** Current measurement shape, shared by schema V6 and V7 sessions. */
 export interface PathMeasurement extends MeasurementBase {
   type: MeasurementType;
   points: Point[];
@@ -239,8 +250,20 @@ export interface SessionV6 {
   currentPage: number;
   pages: Record<number, PageState>;
   settings: SessionSettings;
+  classificationCatalog: ClassificationCatalogV6;
+}
+
+export interface SessionV7 {
+  schemaVersion: 7;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageState>;
+  settings: SessionSettings;
   classificationCatalog: ClassificationCatalog;
 }
+
+export type CurrentSession = SessionV7;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

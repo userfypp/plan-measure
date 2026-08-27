@@ -131,7 +131,7 @@ describe("workspace selection state", () => {
     expect(initialAppState).not.toHaveProperty("calibrationReferenceEdit");
   });
 
-  it("keeps catalog state out of WorkspaceState while SessionV6 owns it", () => {
+  it("keeps catalog state out of WorkspaceState while the current session owns it", () => {
     const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
 
     expect(initialWorkspaceState).not.toHaveProperty("calibrations");

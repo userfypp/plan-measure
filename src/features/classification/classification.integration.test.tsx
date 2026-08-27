@@ -49,6 +49,229 @@ function measuredState() {
 }
 
 describe("classification domain integration", () => {
+  it("creates new dimensions active by default", () => {
+    const state = measuredState();
+
+    expect(state.session!.classificationCatalog.dimensions[0]).toMatchObject({
+      id: "trade",
+      name: "Trade",
+      archived: false,
+    });
+  });
+
+  it("archives a dimension without changing values, assignments, or measurement data", () => {
+    let state = measuredState();
+    state = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+    state = sessionReducer(state, {
+      type: "ARCHIVE_CLASSIFICATION_VALUE",
+      dimensionId: "trade",
+      id: "plumbing",
+    });
+    const beforeMeasurement = state.session!.pages[1]!.measurements[0]!;
+
+    const archived = sessionReducer(state, {
+      type: "ARCHIVE_CLASSIFICATION_DIMENSION",
+      id: "trade",
+    });
+    const dimension = archived.session!.classificationCatalog.dimensions[0]!;
+    const measurement = archived.session!.pages[1]!.measurements[0]!;
+
+    expect(dimension.archived).toBe(true);
+    expect(dimension.values).toEqual([
+      { id: "electrical", name: "Electrical", archived: false },
+      { id: "plumbing", name: "Plumbing", archived: true },
+    ]);
+    expect(measurement.classificationValueIds).toEqual(["electrical"]);
+    expect(measurement.calibrationId).toBe(beforeMeasurement.calibrationId);
+    expect(measurement.points).toEqual(beforeMeasurement.points);
+    expect(measurement.visible).toBe(beforeMeasurement.visible);
+  });
+
+  it("restores a dimension without changing its values or historical assignments", () => {
+    let state = measuredState();
+    state = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const restored = sessionReducer(state, {
+      type: "RESTORE_CLASSIFICATION_DIMENSION",
+      id: "trade",
+    });
+
+    expect(restored.session!.classificationCatalog.dimensions[0]!.archived).toBe(false);
+    expect(restored.session!.pages[1]!.measurements[0]!.classificationValueIds).toEqual([
+      "electrical",
+    ]);
+  });
+
+  it("does not change individual value archive flags when a dimension is archived", () => {
+    let state = measuredState();
+    state = sessionReducer(state, {
+      type: "ARCHIVE_CLASSIFICATION_VALUE",
+      dimensionId: "trade",
+      id: "plumbing",
+    });
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    state = sessionReducer(state, { type: "RESTORE_CLASSIFICATION_DIMENSION", id: "trade" });
+
+    expect(state.session!.classificationCatalog.dimensions[0]!.values).toEqual([
+      { id: "electrical", name: "Electrical", archived: false },
+      { id: "plumbing", name: "Plumbing", archived: true },
+    ]);
+  });
+
+  it("rejects new assignments from an archived dimension without changing history", () => {
+    let state = measuredState();
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const rejected = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+
+    expect(rejected.session).toBe(state.session);
+    expect(rejected.session!.pages[1]!.measurements[0]!.classificationValueIds).toEqual([]);
+    expect(rejected.error).toBe("Restore the classification dimension before assigning values.");
+  });
+
+  it("allows removing a historical assignment from an archived dimension", () => {
+    let state = measuredState();
+    state = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const removed = sessionReducer(state, {
+      type: "REMOVE_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+
+    expect(removed.error).toBeNull();
+    expect(removed.session!.pages[1]!.measurements[0]!.classificationValueIds).toEqual([]);
+  });
+
+  it("allows active values to be assigned again after restoring a dimension", () => {
+    let state = measuredState();
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    state = sessionReducer(state, { type: "RESTORE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const assigned = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+
+    expect(assigned.error).toBeNull();
+    expect(assigned.session!.pages[1]!.measurements[0]!.classificationValueIds).toEqual([
+      "electrical",
+    ]);
+  });
+
+  it("rejects every dimension and value edit while the parent dimension is archived", () => {
+    let state = measuredState();
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const actions = [
+      { type: "RENAME_CLASSIFICATION_DIMENSION", id: "trade", name: "Renamed" } as const,
+      { type: "ADD_CLASSIFICATION_VALUE", dimensionId: "trade", id: "new", name: "New" } as const,
+      {
+        type: "RENAME_CLASSIFICATION_VALUE",
+        dimensionId: "trade",
+        id: "electrical",
+        name: "Renamed",
+      } as const,
+      { type: "ARCHIVE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "electrical" } as const,
+      { type: "RESTORE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "electrical" } as const,
+    ];
+
+    for (const action of actions) {
+      const rejected = sessionReducer(state, action);
+      expect(rejected.session).toBe(state.session);
+      expect(rejected.error).toBe("Restore the classification dimension before editing it.");
+    }
+  });
+
+  it("keeps archived dimension names reserved", () => {
+    let state = measuredState();
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const rejected = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_DIMENSION",
+      id: "trade-copy",
+      name: " trade ",
+    });
+
+    expect(rejected.session).toBe(state.session);
+    expect(rejected.error).toBe("Classification dimensions need unique IDs and names.");
+  });
+
+  it("does not alter assignments from other dimensions when one dimension is archived", () => {
+    let state = measuredState();
+    state = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_DIMENSION",
+      id: "status",
+      name: "Status",
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_VALUE",
+      dimensionId: "status",
+      id: "approved",
+      name: "Approved",
+    });
+    state = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "trade",
+      valueId: "electrical",
+    });
+    state = sessionReducer(state, {
+      type: "ASSIGN_CLASSIFICATION_VALUE",
+      pageNumber: 1,
+      measurementId: "line-1",
+      dimensionId: "status",
+      valueId: "approved",
+    });
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+
+    expect(state.session!.pages[1]!.measurements[0]!.classificationValueIds).toEqual([
+      "electrical",
+      "approved",
+    ]);
+  });
+
+  it("reports the stable error for missing dimension archive targets", () => {
+    const state = measuredState();
+    const archiveResult = sessionReducer(state, {
+      type: "ARCHIVE_CLASSIFICATION_DIMENSION",
+      id: "missing",
+    });
+    const restoreResult = sessionReducer(state, {
+      type: "RESTORE_CLASSIFICATION_DIMENSION",
+      id: "missing",
+    });
+
+    expect(archiveResult.error).toBe("The classification dimension is no longer available.");
+    expect(restoreResult.error).toBe("The classification dimension is no longer available.");
+  });
+
   it("assigns stable value IDs without changing calibration or geometry", () => {
     const before = measuredState();
     const measurement = before.session!.pages[1]!.measurements[0]!;
