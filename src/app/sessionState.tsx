@@ -146,6 +146,13 @@ export const initialSessionState: SessionCommandResult = {
   error: null,
 };
 
+function pointsEqual(left: readonly Point[], right: readonly Point[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((point, index) => point.x === right[index]?.x && point.y === right[index]?.y)
+  );
+}
+
 function createPageState(pageNumber: number): PageState {
   return {
     pageNumber,
@@ -816,7 +823,7 @@ interface SessionContextValue extends SessionState {
   setActiveCalibration: (pageNumber: number, calibrationId: string) => void;
   updateCalibration: (command: UpdateCalibrationReferencePointsCommand) => void;
   addMeasurement: (command: AddMeasurementCommand) => void;
-  updateMeasurement: (command: UpdateMeasurementCommand) => void;
+  updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
   setMeasurementsVisibility: (
@@ -845,11 +852,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<CurrentSession | null>(null);
   const sessionRef = useRef<CurrentSession | null>(null);
   const applyAction = useCallback(
-    (action: SessionAction) => {
+    (action: SessionAction): SessionCommandResult => {
       const result = sessionReducer({ session: sessionRef.current, error: null }, action);
       sessionRef.current = result.session;
       setSession(result.session);
       setError(result.error);
+      return result;
     },
     [setError],
   );
@@ -871,7 +879,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       updateCalibration: (command) =>
         applyAction({ type: "UPDATE_CALIBRATION_REFERENCE_POINTS", ...command }),
       addMeasurement: (command) => applyAction({ type: "ADD_MEASUREMENT", ...command }),
-      updateMeasurement: (command) => applyAction({ type: "UPDATE_MEASUREMENT", ...command }),
+      updateMeasurement: (command) => {
+        const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
+        const measurement = result.session?.pages[command.pageNumber]?.measurements.find(
+          (candidate) => candidate.id === command.id,
+        );
+        return measurement ? pointsEqual(measurement.points, command.points) : false;
+      },
       renameMeasurement: (pageNumber, id, name) =>
         applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
       setMeasurementVisibility: (pageNumber, id, visible) =>

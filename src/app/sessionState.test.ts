@@ -75,6 +75,50 @@ describe("SessionState", () => {
     expect(state.session?.schemaVersion).toBe(7);
   });
 
+  it("keeps the authoritative measurement points when an update is invalid", () => {
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Main plan",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "line-1",
+      measurementType: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
+
+    state = sessionReducer(state, {
+      type: "UPDATE_MEASUREMENT",
+      pageNumber: 1,
+      id: "line-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+      ],
+    });
+
+    expect(state.session?.pages[1]?.measurements[0]?.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ]);
+  });
+
   it("creates visible measurements and toggles only the requested measurement", () => {
     let state = sessionReducer(initialSessionState, {
       type: "LOAD_SESSION",

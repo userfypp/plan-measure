@@ -502,8 +502,8 @@ const MeasurementShape = memo(function MeasurementShape({
     return clampPointToPage(rawPoint, bounds);
   }
 
-  function updateMeasurementPoints(points: Point[]) {
-    updateSessionMeasurement({
+  function updateMeasurementPoints(points: Point[]): boolean {
+    return updateSessionMeasurement({
       pageNumber,
       id: measurement.id,
       points,
@@ -577,7 +577,12 @@ const MeasurementShape = memo(function MeasurementShape({
               const finalPoints = pointsWithVertex(index, finalPoint);
               finalDragPointsRef.current = finalPoints;
               updateDragPoints(finalPoints);
-              updateMeasurementPoints(finalPoints);
+              const accepted = updateMeasurementPoints(finalPoints);
+              if (!accepted) {
+                finalDragPointsRef.current = null;
+                dragPointsRef.current = null;
+                setDragPoints(null);
+              }
             }}
           />
         ))}
