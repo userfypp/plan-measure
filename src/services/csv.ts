@@ -1,9 +1,16 @@
-import type { CurrentSession, Measurement, PageState } from "../types/domain";
+import type {
+  ClassificationValue,
+  CurrentSession,
+  Measurement,
+  PageCalibration,
+  PageState,
+} from "../types/domain";
 import { getMeasurementCalibration } from "../utils/calibration";
 import {
   calibrationScaleX,
   calibrationScaleY,
   distance,
+  type MeasurementPathSpec,
   measurementPathSpecs,
   measurementResultsMm,
   millimetresPerPageUnit,
@@ -11,26 +18,211 @@ import {
 import { formatCsvNumber } from "../utils/format";
 import { fromMillimetres, fromSquareMillimetres } from "../utils/units";
 
-const HEADER = [
-  "page",
-  "page_label",
-  "measurement_id",
-  "name",
-  "type",
-  "calibration_id",
-  "calibration_name",
-  "calibration_mode",
-  "calibration_reference_mm",
-  "calibration_page_distance",
-  "calibration_mm_per_page_unit",
-  "calibration_scale_x_mm_per_page_unit",
-  "calibration_scale_y_mm_per_page_unit",
-  "length",
-  "perimeter",
-  "area",
-  "unit",
-  "area_unit",
+interface CsvRowContext {
+  pageNumber: number;
+  pageLabel: string;
+  measurement: Measurement;
+  page: PageState;
+  session: CurrentSession;
+  calibration: PageCalibration;
+  spec: MeasurementPathSpec;
+  result: ReturnType<typeof measurementResultsMm>;
+  unit: CurrentSession["settings"]["displayUnit"];
+  scaleX: number;
+  scaleY: number;
+  calibrationReferenceMm: string;
+  calibrationPageDistance: string;
+  calibrationMmPerPageUnit: string;
+  classificationValues: ReadonlyMap<string, ClassificationValue | null>;
+}
+
+interface CsvColumnDefinition {
+  id: string;
+  header: string;
+  type: "text" | "number";
+  defaultEnabled: boolean;
+  extract: (context: CsvRowContext) => string | number;
+}
+
+const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
+  {
+    id: "page",
+    header: "page",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) => context.pageNumber,
+  },
+  {
+    id: "page_label",
+    header: "page_label",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.pageLabel,
+  },
+  {
+    id: "measurement_id",
+    header: "measurement_id",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.measurement.id,
+  },
+  {
+    id: "name",
+    header: "name",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.measurement.name,
+  },
+  {
+    id: "type",
+    header: "type",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.spec.label,
+  },
+  {
+    id: "calibration_id",
+    header: "calibration_id",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.calibration.id,
+  },
+  {
+    id: "calibration_name",
+    header: "calibration_name",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.calibration.name,
+  },
+  {
+    id: "calibration_mode",
+    header: "calibration_mode",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.calibration.mode,
+  },
+  {
+    id: "calibration_reference_mm",
+    header: "calibration_reference_mm",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) => context.calibrationReferenceMm,
+  },
+  {
+    id: "calibration_page_distance",
+    header: "calibration_page_distance",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) => context.calibrationPageDistance,
+  },
+  {
+    id: "calibration_mm_per_page_unit",
+    header: "calibration_mm_per_page_unit",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) => context.calibrationMmPerPageUnit,
+  },
+  {
+    id: "calibration_scale_x_mm_per_page_unit",
+    header: "calibration_scale_x_mm_per_page_unit",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) => String(context.scaleX),
+  },
+  {
+    id: "calibration_scale_y_mm_per_page_unit",
+    header: "calibration_scale_y_mm_per_page_unit",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) => String(context.scaleY),
+  },
+  {
+    id: "length",
+    header: "length",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) =>
+      context.spec.closed
+        ? ""
+        : formatCsvNumber(fromMillimetres(context.result.lengthMm ?? 0, context.unit)),
+  },
+  {
+    id: "perimeter",
+    header: "perimeter",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) =>
+      context.spec.closed
+        ? formatCsvNumber(fromMillimetres(context.result.perimeterMm ?? 0, context.unit))
+        : "",
+  },
+  {
+    id: "area",
+    header: "area",
+    type: "number",
+    defaultEnabled: true,
+    extract: (context) =>
+      context.spec.closed
+        ? formatCsvNumber(fromSquareMillimetres(context.result.areaMm2 ?? 0, context.unit))
+        : "",
+  },
+  {
+    id: "unit",
+    header: "unit",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => context.unit,
+  },
+  {
+    id: "area_unit",
+    header: "area_unit",
+    type: "text",
+    defaultEnabled: true,
+    extract: (context) => (context.spec.closed ? `${context.unit}²` : ""),
+  },
 ];
+
+function createClassificationColumns(
+  dimension: CurrentSession["classificationCatalog"]["dimensions"][number],
+): CsvColumnDefinition[] {
+  const valueForDimension = (context: CsvRowContext): ClassificationValue | null =>
+    context.classificationValues.get(dimension.id) ?? null;
+
+  return [
+    {
+      id: `classification:${dimension.id}:value`,
+      header: `classification:${dimension.name}`,
+      type: "text",
+      defaultEnabled: true,
+      extract: (context) => valueForDimension(context)?.name ?? "",
+    },
+    {
+      id: `classification:${dimension.id}:value_id`,
+      header: `classification_value_id:${dimension.name}`,
+      type: "text",
+      defaultEnabled: true,
+      extract: (context) => valueForDimension(context)?.id ?? "",
+    },
+    {
+      id: `classification:${dimension.id}:status`,
+      header: `classification_status:${dimension.name}`,
+      type: "text",
+      defaultEnabled: true,
+      extract: (context) => {
+        const value = valueForDimension(context);
+        if (!value) return "";
+        return value.archived || dimension.archived ? "archived" : "active";
+      },
+    },
+  ];
+}
+
+function createCsvColumns(session: CurrentSession): CsvColumnDefinition[] {
+  return [
+    ...STATIC_CSV_COLUMNS,
+    ...session.classificationCatalog.dimensions.flatMap(createClassificationColumns),
+  ];
+}
 
 function escapeCsv(value: string | number): string {
   const stringValue = String(value);
@@ -38,13 +230,13 @@ function escapeCsv(value: string | number): string {
   return `"${stringValue.replaceAll('"', '""')}"`;
 }
 
-function measurementRow(
+function createCsvRowContext(
   pageNumber: number,
   pageLabel: string,
   measurement: Measurement,
   page: PageState,
   session: CurrentSession,
-): string[] {
+): CsvRowContext {
   const calibration = getMeasurementCalibration(page, measurement);
   if (!calibration) {
     throw new Error(`Measurement ${measurement.id} has a missing calibration.`);
@@ -65,48 +257,31 @@ function measurementRow(
   const unit = session.settings.displayUnit;
   const spec = measurementPathSpecs[measurement.type];
   const result = measurementResultsMm(measurement, calibration);
-  if (!spec.closed) {
-    return [
-      String(pageNumber),
-      pageLabel,
-      measurement.id,
-      measurement.name,
-      spec.label,
-      calibration.id,
-      calibration.name,
-      calibration.mode,
-      calibrationReferenceMm,
-      calibrationPageDistanceValue,
-      calibrationMmPerPageUnitValue,
-      String(scaleX),
-      String(scaleY),
-      formatCsvNumber(fromMillimetres(result.lengthMm ?? 0, unit)),
-      "",
-      "",
-      unit,
-      "",
-    ];
+  const classificationValues = new Map<string, ClassificationValue | null>();
+  for (const dimension of session.classificationCatalog.dimensions) {
+    classificationValues.set(
+      dimension.id,
+      dimension.values.find((value) => measurement.classificationValueIds.includes(value.id)) ??
+        null,
+    );
   }
-  return [
-    String(pageNumber),
+  return {
+    pageNumber,
     pageLabel,
-    measurement.id,
-    measurement.name,
-    spec.label,
-    calibration.id,
-    calibration.name,
-    calibration.mode,
-    calibrationReferenceMm,
-    calibrationPageDistanceValue,
-    calibrationMmPerPageUnitValue,
-    String(scaleX),
-    String(scaleY),
-    "",
-    formatCsvNumber(fromMillimetres(result.perimeterMm ?? 0, unit)),
-    formatCsvNumber(fromSquareMillimetres(result.areaMm2 ?? 0, unit)),
+    measurement,
+    page,
+    session,
+    calibration,
+    spec,
+    result,
     unit,
-    `${unit}²`,
-  ];
+    scaleX,
+    scaleY,
+    calibrationReferenceMm,
+    calibrationPageDistance: calibrationPageDistanceValue,
+    calibrationMmPerPageUnit: calibrationMmPerPageUnitValue,
+    classificationValues,
+  };
 }
 
 export class NoMeasurementsError extends Error {
@@ -120,18 +295,25 @@ export function buildCsv(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
 ): string {
-  const rows: string[][] = [];
+  const columns = createCsvColumns(session).filter((column) => column.defaultEnabled);
+  const rows: Array<Array<string | number>> = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
     if (!page) continue;
     for (const measurement of page.measurements) {
-      rows.push(
-        measurementRow(pageNumber, pageLabels?.[pageNumber - 1] ?? "", measurement, page, session),
+      const context = createCsvRowContext(
+        pageNumber,
+        pageLabels?.[pageNumber - 1] ?? "",
+        measurement,
+        page,
+        session,
       );
+      rows.push(columns.map((column) => column.extract(context)));
     }
   }
   if (rows.length === 0) throw new NoMeasurementsError();
-  const contents = [HEADER, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+  const header = columns.map((column) => column.header);
+  const contents = [header, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
   return `\uFEFF${contents}\r\n`;
 }
 

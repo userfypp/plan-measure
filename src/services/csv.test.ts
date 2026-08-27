@@ -131,6 +131,35 @@ function smallMeasuredSession(displayUnit: LinearUnit): CurrentSession {
   return session;
 }
 
+function classifiedMeasuredSession(): CurrentSession {
+  const session = measuredSession();
+  session.classificationCatalog = {
+    dimensions: [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: false,
+        values: [
+          { id: "electrical-id", name: "Electrical", archived: false },
+          { id: "plumbing-id", name: "Plumbing", archived: false },
+        ],
+      },
+      {
+        id: "status",
+        name: "Status",
+        archived: false,
+        values: [{ id: "approved-id", name: "Approved", archived: false }],
+      },
+    ],
+  };
+  session.pages[1]!.measurements[0]!.classificationValueIds = [
+    "approved-id",
+    "electrical-id",
+  ];
+  session.pages[1]!.measurements[1]!.classificationValueIds = ["electrical-id"];
+  return session;
+}
+
 describe("CSV export", () => {
   it("exports Polyline as an open accumulated length", () => {
     const session = measuredSession();
@@ -170,6 +199,56 @@ describe("CSV export", () => {
       "2,,second-line-id,Second measurement,Line,scale-3,Section,uniform,500,20,25,25,25,0.25,,,m,",
     );
     expect(csv.endsWith("\r\n")).toBe(true);
+  });
+
+  it("exports one ordered classification column group per catalog dimension", () => {
+    const csv = buildCsv(classifiedMeasuredSession());
+    const rows = csv.split("\r\n");
+
+    expect(rows[0]).toBe(
+      "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit,area_unit,classification:Trade,classification_value_id:Trade,classification_status:Trade,classification:Status,classification_value_id:Status,classification_status:Status",
+    );
+    expect(rows.find((row) => row.includes("line-id"))).toContain(
+      ",Electrical,electrical-id,active,Approved,approved-id,active",
+    );
+    expect(rows.find((row) => row.includes("polygon-id"))).toContain(
+      ",Electrical,electrical-id,active,,,",
+    );
+    expect(rows.find((row) => row.includes("polygon-id"))).not.toContain("Unclassified");
+  });
+
+  it("preserves archived classification values with an effective archived status", () => {
+    const session = classifiedMeasuredSession();
+    session.classificationCatalog.dimensions[0]!.values[0]!.archived = true;
+
+    const lineRow = buildCsv(session).split("\r\n").find((row) => row.includes("line-id"));
+
+    expect(lineRow).toContain(",Electrical,electrical-id,archived,Approved,approved-id,active");
+    expect(lineRow).not.toContain("Electrical (archived)");
+  });
+
+  it("marks assignments archived when their dimension is archived", () => {
+    const session = classifiedMeasuredSession();
+    session.classificationCatalog.dimensions[0]!.archived = true;
+
+    const lineRow = buildCsv(session).split("\r\n").find((row) => row.includes("line-id"));
+
+    expect(lineRow).toContain(",Electrical,electrical-id,archived,Approved,approved-id,active");
+  });
+
+  it("escapes dynamic classification headers and values with the shared CSV escaping", () => {
+    const session = classifiedMeasuredSession();
+    const trade = session.classificationCatalog.dimensions[0]!;
+    trade.name = 'Trade, "Zone"';
+    trade.values[0]!.name = 'Electrical, "North"\nBay';
+
+    const csv = buildCsv(session);
+    const header = csv.split("\r\n")[0];
+
+    expect(header).toContain('"classification:Trade, ""Zone"""');
+    expect(header).toContain('"classification_value_id:Trade, ""Zone"""');
+    expect(header).toContain('"classification_status:Trade, ""Zone"""');
+    expect(csv).toContain('"Electrical, ""North""\nBay",electrical-id,active');
   });
 
   it("exports hidden measurements without adding visibility to the CSV contract", () => {
