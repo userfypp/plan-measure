@@ -209,6 +209,30 @@ describe("classification domain integration", () => {
     }
   });
 
+  it("rejects renaming an archived value in an active dimension", () => {
+    let state = measuredState();
+    state = sessionReducer(state, {
+      type: "ARCHIVE_CLASSIFICATION_VALUE",
+      dimensionId: "trade",
+      id: "electrical",
+    });
+    const rejected = sessionReducer(state, {
+      type: "RENAME_CLASSIFICATION_VALUE",
+      dimensionId: "trade",
+      id: "electrical",
+      name: "Renamed",
+    });
+
+    expect(rejected.session).toBe(state.session);
+    expect(rejected.session!.classificationCatalog.dimensions[0]!.archived).toBe(false);
+    expect(rejected.session!.classificationCatalog.dimensions[0]!.values[0]).toEqual({
+      id: "electrical",
+      name: "Electrical",
+      archived: true,
+    });
+    expect(rejected.error).toBe("Restore the classification value before editing it.");
+  });
+
   it("keeps archived dimension names reserved", () => {
     let state = measuredState();
     state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });

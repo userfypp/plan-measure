@@ -605,13 +605,17 @@ export function sessionReducer(
       const name = action.name.trim();
       const dimensions = state.session.classificationCatalog.dimensions;
       const dimension = dimensions.find((candidate) => candidate.id === action.dimensionId);
+      const value = dimension?.values.find((candidate) => candidate.id === action.id);
       if (dimension?.archived) {
         return { ...state, error: "Restore the classification dimension before editing it." };
+      }
+      if (value?.archived) {
+        return { ...state, error: "Restore the classification value before editing it." };
       }
       if (
         !dimension ||
         !name ||
-        !dimension.values.some((value) => value.id === action.id) ||
+        !value ||
         dimension.values.some(
           (value) =>
             value.id !== action.id && value.name.toLocaleLowerCase() === name.toLocaleLowerCase(),

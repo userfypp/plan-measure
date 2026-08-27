@@ -89,6 +89,29 @@ export function ClassificationManager({
     setNameError(null);
   }
 
+  function cancelEditing() {
+    setEditing(null);
+    setNameError(null);
+  }
+
+  function archiveDimension(dimensionId: string) {
+    if (editing?.dimensionId === dimensionId) {
+      cancelEditing();
+    }
+    onArchiveDimension(dimensionId);
+  }
+
+  function archiveValue(dimensionId: string, valueId: string) {
+    if (
+      editing?.type === "value" &&
+      editing.dimensionId === dimensionId &&
+      editing.valueId === valueId
+    ) {
+      cancelEditing();
+    }
+    onArchiveValue(dimensionId, valueId);
+  }
+
   function submitRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = editName.trim();
@@ -107,6 +130,10 @@ export function ClassificationManager({
     }
     if (dimension.archived) {
       setNameError("Restore this dimension before editing it.");
+      return;
+    }
+    if (editing.type === "value" && value?.archived) {
+      setNameError("Restore this value before editing it.");
       return;
     }
     const duplicate =
@@ -192,7 +219,7 @@ export function ClassificationManager({
                           disabled={disabled}
                           aria-label={`Archive ${dimension.name}; existing assignments are preserved`}
                           title="Existing measurement assignments will be preserved"
-                          onClick={() => onArchiveDimension(dimension.id)}
+                          onClick={() => archiveDimension(dimension.id)}
                         >
                           Archive
                         </Button>
@@ -240,7 +267,7 @@ export function ClassificationManager({
                             disabled={disabled}
                             aria-label={`Archive ${value.name}; existing assignments are preserved`}
                             title="Existing measurement assignments will be preserved"
-                            onClick={() => onArchiveValue(dimension.id, value.id)}
+                            onClick={() => archiveValue(dimension.id, value.id)}
                           >
                             Archive
                           </Button>
@@ -320,11 +347,11 @@ export function ClassificationManager({
             autoFocus
             onChange={(event) => setEditName(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Escape") setEditing(null);
+              if (event.key === "Escape") cancelEditing();
             }}
           />
           <div className={styles.actions}>
-            <Button variant="secondary" size="compact" onClick={() => setEditing(null)}>
+            <Button variant="secondary" size="compact" onClick={cancelEditing}>
               Cancel
             </Button>
             <Button type="submit" size="compact" disabled={disabled}>
