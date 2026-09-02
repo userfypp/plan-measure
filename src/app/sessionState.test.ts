@@ -7,6 +7,13 @@ function session(): CurrentSession {
 }
 
 describe("SessionState", () => {
+  it("creates a V8 session with empty CSV column overrides", () => {
+    const created = session();
+
+    expect(created.schemaVersion).toBe(8);
+    expect(created.settings.csvExport).toEqual({ columnOverrides: {} });
+  });
+
   it("starts without a persistent session or command error", () => {
     expect(initialSessionState).toEqual({ session: null, error: null });
   });
@@ -17,7 +24,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(7);
+    expect(loaded.session?.schemaVersion).toBe(8);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -60,7 +67,11 @@ describe("SessionState", () => {
     });
     state = sessionReducer(state, {
       type: "UPDATE_SETTINGS",
-      settings: { displayUnit: "cm", showLabels: false },
+      settings: {
+        displayUnit: "cm",
+        showLabels: false,
+        csvExport: { columnOverrides: { name: false } },
+      },
     });
     state = sessionReducer(state, { type: "UPDATE_PAGE", pageNumber: 2 });
 
@@ -72,7 +83,10 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(7);
+    expect(state.session?.schemaVersion).toBe(8);
+    expect(state.session?.settings.csvExport).toEqual({
+      columnOverrides: { name: false },
+    });
   });
 
   it("keeps the authoritative measurement points when an update is invalid", () => {

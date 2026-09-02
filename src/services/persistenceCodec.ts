@@ -14,6 +14,7 @@ import type {
   SessionV5,
   SessionV6,
   SessionV7,
+  SessionV8,
   CurrentSession,
 } from "../types/domain";
 import {
@@ -25,6 +26,9 @@ import {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && !Array.isArray(value);
 }
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -410,6 +414,24 @@ function assertValidSessionV7(value: Record<string, unknown>): void {
     }
   }
 }
+function assertValidCsvExportSettings(value: Record<string, unknown>): void {
+  const settings = value.settings;
+  if (!isRecord(settings) || !isRecord(settings.csvExport)) {
+    throw new Error("The saved CSV export settings are invalid.");
+  }
+  const columnOverrides = settings.csvExport.columnOverrides;
+  if (
+    !isRecord(columnOverrides) ||
+    Object.values(columnOverrides).some((override) => typeof override !== "boolean")
+  ) {
+    throw new Error("The saved CSV export settings are invalid.");
+  }
+}
+function assertValidSessionV8(value: Record<string, unknown>): void {
+  if (value.schemaVersion !== 8) throw new Error("The saved session is invalid.");
+  assertValidSessionV7({ ...value, schemaVersion: 7 });
+  assertValidCsvExportSettings(value);
+}
 function legacyCalibrationId(pageNumber: number): string {
   return `legacy-page-${pageNumber}-scale-1`;
 }
@@ -523,8 +545,19 @@ function migrateSessionV6(session: SessionV6): SessionV7 {
   };
 }
 
-function canonicalizeSessionV7(session: SessionV7): SessionV7 {
-  const pages: SessionV7["pages"] = {};
+function migrateSessionV7(session: SessionV7): SessionV8 {
+  return {
+    ...session,
+    schemaVersion: 8,
+    settings: {
+      ...session.settings,
+      csvExport: { columnOverrides: {} },
+    },
+  };
+}
+
+function canonicalizeSessionV8(session: SessionV8): SessionV8 {
+  const pages: SessionV8["pages"] = {};
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber]!;
     pages[pageNumber] = {
@@ -561,12 +594,15 @@ function canonicalizeSessionV7(session: SessionV7): SessionV7 {
     };
   }
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     pdf: { ...session.pdf },
     pageCount: session.pageCount,
     currentPage: session.currentPage,
     pages,
-    settings: { ...session.settings },
+    settings: {
+      ...session.settings,
+      csvExport: { columnOverrides: { ...session.settings.csvExport.columnOverrides } },
+    },
     classificationCatalog: {
       dimensions: session.classificationCatalog.dimensions.map((dimension) => ({
         id: dimension.id,
@@ -578,7 +614,7 @@ function canonicalizeSessionV7(session: SessionV7): SessionV7 {
   };
 }
 export function serializeSession(session: CurrentSession): string {
-  assertValidSessionV7(session as unknown as Record<string, unknown>);
+  assertValidSessionV8(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
 export function deserializeSession(serialized: string): CurrentSession {
@@ -586,51 +622,63 @@ export function deserializeSession(serialized: string): CurrentSession {
   if (!isObject(value)) throw new Error("The saved session uses an unsupported schema.");
   if (value.schemaVersion === 1) {
     assertValidLegacySession(value);
-    return canonicalizeSessionV7(
-      migrateSessionV6(
-        migrateSessionV5(
-          migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+    return canonicalizeSessionV8(
+      migrateSessionV7(
+        migrateSessionV6(
+          migrateSessionV5(
+            migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+          ),
         ),
       ),
     );
   }
   if (value.schemaVersion === 2) {
     assertValidSessionV3(value, isPageCalibrationV2);
-    return canonicalizeSessionV7(
-      migrateSessionV6(
-        migrateSessionV5(
-          migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+    return canonicalizeSessionV8(
+      migrateSessionV7(
+        migrateSessionV6(
+          migrateSessionV5(
+            migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+          ),
         ),
       ),
     );
   }
   if (value.schemaVersion === 3) {
     assertValidSessionV3(value, isPageCalibrationV3);
-    return canonicalizeSessionV7(
-      migrateSessionV6(
-        migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+    return canonicalizeSessionV8(
+      migrateSessionV7(
+        migrateSessionV6(
+          migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+        ),
       ),
     );
   }
   if (value.schemaVersion === 4) {
     assertValidSessionV4(value);
-    return canonicalizeSessionV7(
-      migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+    return canonicalizeSessionV8(
+      migrateSessionV7(
+        migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+      ),
     );
   }
   if (value.schemaVersion === 5) {
     assertValidSessionV5(value);
-    return canonicalizeSessionV7(
-      migrateSessionV6(migrateSessionV5(value as unknown as SessionV5)),
+    return canonicalizeSessionV8(
+      migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
     );
   }
   if (value.schemaVersion === 6) {
     assertValidSessionV6(value);
-    return canonicalizeSessionV7(migrateSessionV6(value as unknown as SessionV6));
+    return canonicalizeSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6)));
   }
   if (value.schemaVersion === 7) {
     assertValidSessionV7(value);
-    return canonicalizeSessionV7(value as unknown as SessionV7);
+    return canonicalizeSessionV8(migrateSessionV7(value as unknown as SessionV7));
+  }
+  if (value.schemaVersion === 8) {
+    assertValidSessionV8(value);
+    return canonicalizeSessionV8(value as unknown as SessionV8);
   }
   throw new Error("The saved session uses an unsupported schema.");
 }

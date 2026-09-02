@@ -10,6 +10,7 @@ import type {
   SessionV4,
   SessionV5,
   SessionV6,
+  SessionV7,
 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
@@ -106,6 +107,15 @@ function currentMeasuredSession(): CurrentSession {
   return session;
 }
 
+function legacySettings(session: CurrentSession): SessionV1["settings"] {
+  return {
+    displayUnit: session.settings.displayUnit,
+    showLabels: session.settings.showLabels,
+    showMeasurements: session.settings.showMeasurements,
+    showCalibration: session.settings.showCalibration,
+  };
+}
+
 function v5MeasuredSession(): SessionV5 {
   const current = currentMeasuredSession();
   const classificationCatalog: SessionV5["classificationCatalog"] = {
@@ -136,7 +146,7 @@ function v5MeasuredSession(): SessionV5 {
     pageCount: current.pageCount,
     currentPage: current.currentPage,
     pages,
-    settings: { ...current.settings },
+    settings: legacySettings(current),
     classificationCatalog: structuredClone(classificationCatalog),
   };
 }
@@ -148,6 +158,7 @@ function v6MeasuredSession(): SessionV6 {
   return {
     ...current,
     schemaVersion: 6,
+    settings: legacySettings(current),
     classificationCatalog: {
       dimensions: [
         {
@@ -157,6 +168,15 @@ function v6MeasuredSession(): SessionV6 {
         },
       ],
     },
+  };
+}
+
+function v7MeasuredSession(): SessionV7 {
+  const current = currentMeasuredSession();
+  return {
+    ...current,
+    schemaVersion: 7,
+    settings: legacySettings(current),
   };
 }
 
@@ -301,12 +321,27 @@ function v4MeasuredSession(): SessionV4 {
 }
 
 describe("session persistence", () => {
-  it("migrates a V1 page without calibration to an empty V7 page", () => {
+  it("migrates V7 to V8 with empty CSV overrides without changing other data", () => {
+    const v7 = v7MeasuredSession();
+    const migrated = deserializeSession(JSON.stringify(v7));
+
+    expect(migrated).toEqual({
+      ...v7,
+      schemaVersion: 8,
+      settings: {
+        ...v7.settings,
+        csvExport: { columnOverrides: {} },
+      },
+    });
+  });
+
+  it("migrates a V1 page without calibration to an empty V8 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
+    expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
     expect(page.calibrations).toEqual([]);
     expect(page.activeCalibrationId).toBeNull();
     expect(page.nextCalibrationNumber).toBe(1);
@@ -345,7 +380,10 @@ describe("session persistence", () => {
     });
     expect(migrated.pdf).toEqual(legacy.pdf);
     expect(migrated.currentPage).toBe(legacy.currentPage);
-    expect(migrated.settings).toEqual(legacy.settings);
+    expect(migrated.settings).toEqual({
+      ...legacy.settings,
+      csvExport: { columnOverrides: {} },
+    });
     expect(page.measurements.map((measurement) => measurement.calibrationId)).toEqual([
       calibration.id,
       calibration.id,
@@ -388,7 +426,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -404,7 +442,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -419,11 +457,11 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates V4 measurements to V7 with visibility enabled", () => {
+  it("migrates V4 measurements to V8 with visibility enabled", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -433,7 +471,7 @@ describe("session persistence", () => {
     ]);
   });
 
-  it("serializes V7 and round trips visibility with uniform/X/Y calibrations", () => {
+  it("serializes V8 and round trips settings with uniform/X/Y calibrations", () => {
     const session = currentMeasuredSession();
     session.pages[1]!.calibrations.push({
       id: "xy-scale",
@@ -456,9 +494,13 @@ describe("session persistence", () => {
       classificationValueIds: [],
       visible: false,
     });
+    session.settings.csvExport.columnOverrides = {
+      name: false,
+      calibration_reference_mm: true,
+      "future-column": false,
+    };
     const serialized = serializeSession(session);
-
-    expect(JSON.parse(serialized).schemaVersion).toBe(7);
+    expect(JSON.parse(serialized).schemaVersion).toBe(8);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -466,7 +508,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -484,15 +526,18 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates a real V6 catalog to V7 without losing historical state", () => {
+  it("migrates a real V6 catalog to V8 without losing historical state", () => {
     const v6 = v6MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v6));
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.pdf).toEqual(v6.pdf);
-    expect(migrated.settings).toEqual(v6.settings);
+    expect(migrated.settings).toEqual({
+      ...v6.settings,
+      csvExport: { columnOverrides: {} },
+    });
     expect(migratedDimension).toEqual({
       id: "discipline",
       name: "Discipline",
@@ -505,16 +550,45 @@ describe("session persistence", () => {
     expect(migratedMeasurement.calibrationId).toBe("custom-scale");
   });
 
-  it("round trips an archived V7 dimension, value flags, and assignments", () => {
+  it("round trips an archived V8 dimension, value flags, and assignments", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(7);
+    expect(restored.schemaVersion).toBe(8);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
 
-  it("requires a boolean archived flag on every V7 dimension", () => {
+  it("round trips unknown CSV column overrides without rejecting the session", () => {
+    const session = currentMeasuredSession();
+    session.settings.csvExport.columnOverrides = {
+      "classification:removed-dimension:value": false,
+      "future-column": true,
+    };
+
+    const restored = deserializeSession(serializeSession(session));
+
+    expect(restored.settings.csvExport).toEqual(session.settings.csvExport);
+  });
+
+  it("requires valid V8 CSV export settings", () => {
+    const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
+    const settings = base.settings as Record<string, unknown>;
+    const invalidCases = [
+      { ...base, settings: { ...settings, csvExport: null } },
+      { ...base, settings: { ...settings, csvExport: { columnOverrides: null } } },
+      {
+        ...base,
+        settings: { ...settings, csvExport: { columnOverrides: { name: "yes" } } },
+      },
+    ];
+
+    for (const invalid of invalidCases) {
+      expect(() => deserializeSession(JSON.stringify(invalid))).toThrow("CSV export settings");
+    }
+  });
+
+  it("requires a boolean archived flag on every V8 dimension", () => {
     const missing = JSON.parse(serializeSession(archivedCurrentSession())) as {
       classificationCatalog: { dimensions: Array<Record<string, unknown>> };
     };
@@ -542,16 +616,13 @@ describe("session persistence", () => {
     ).toThrow("classification catalog");
   });
 
-  it("keeps V7 classification reference and uniqueness validation strict", () => {
+  it("keeps V8 classification reference and uniqueness validation strict", () => {
     const missingValue = archivedCurrentSession();
     missingValue.pages[2]!.measurements[0]!.classificationValueIds = ["missing"];
     expect(() => serializeSession(missingValue)).toThrow("missing classification value");
 
     const multipleValues = archivedCurrentSession();
-    multipleValues.pages[2]!.measurements[0]!.classificationValueIds = [
-      "electrical",
-      "legacy",
-    ];
+    multipleValues.pages[2]!.measurements[0]!.classificationValueIds = ["electrical", "legacy"];
     expect(() => serializeSession(multipleValues)).toThrow("multiple values");
 
     const duplicateId = archivedCurrentSession();
@@ -581,7 +652,7 @@ describe("session persistence", () => {
     expect(() => serializeSession(duplicateValueName)).toThrow("classification catalog");
   });
 
-  it("rejects missing or non-boolean visibility in V7 sessions", () => {
+  it("rejects missing or non-boolean visibility in V8 sessions", () => {
     const missing = JSON.parse(serializeSession(currentMeasuredSession())) as Record<
       string,
       unknown
@@ -649,7 +720,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(7);
+    expect(restored.schemaVersion).toBe(8);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },

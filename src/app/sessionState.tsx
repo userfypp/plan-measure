@@ -174,7 +174,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     pdf,
     pageCount,
     currentPage: 1,
@@ -184,6 +184,7 @@ export function createEmptySession(
       showLabels: true,
       showMeasurements: true,
       showCalibration: true,
+      csvExport: { columnOverrides: {} },
       ...settings,
     },
     classificationCatalog: { dimensions: [] },
@@ -442,10 +443,7 @@ export function sessionReducer(
       const pageMeasurementIds = new Set(
         page?.measurements.map((measurement) => measurement.id) ?? [],
       );
-      if (
-        !page ||
-        ![...measurementIds].every((id) => pageMeasurementIds.has(id))
-      ) {
+      if (!page || ![...measurementIds].every((id) => pageMeasurementIds.has(id))) {
         return {
           ...state,
           error: "One or more selected measurements are no longer available.",

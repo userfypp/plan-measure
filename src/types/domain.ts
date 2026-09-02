@@ -66,11 +66,19 @@ export interface PdfMetadata {
   lastModified: number;
 }
 
-export interface SessionSettings {
+export interface CsvExportSettings {
+  columnOverrides: Record<string, boolean>;
+}
+
+export interface LegacySessionSettings {
   displayUnit: LinearUnit;
   showLabels: boolean;
   showMeasurements: boolean;
   showCalibration: boolean;
+}
+
+export interface SessionSettings extends LegacySessionSettings {
+  csvExport: CsvExportSettings;
 }
 
 interface LegacyMeasurementBase {
@@ -104,7 +112,7 @@ export interface SessionV1 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, LegacyPageState>;
-  settings: SessionSettings;
+  settings: LegacySessionSettings;
 }
 
 export interface SessionV2 {
@@ -113,7 +121,7 @@ export interface SessionV2 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageStateV2>;
-  settings: SessionSettings;
+  settings: LegacySessionSettings;
 }
 
 export interface PageCalibrationV2 extends Calibration {
@@ -137,7 +145,7 @@ export interface SessionV3 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageStateV3>;
-  settings: SessionSettings;
+  settings: LegacySessionSettings;
 }
 
 export type MeasurementType = "line" | "polyline" | "polygon";
@@ -166,7 +174,7 @@ export interface SessionV4 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageStateV4>;
-  settings: SessionSettings;
+  settings: LegacySessionSettings;
 }
 
 export interface ClassificationValue {
@@ -220,11 +228,11 @@ export interface SessionV5 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageStateV5>;
-  settings: SessionSettings;
+  settings: LegacySessionSettings;
   classificationCatalog: ClassificationCatalogV6;
 }
 
-/** Current measurement shape, shared by schema V6 and V7 sessions. */
+/** Current measurement shape, shared by schema V6, V7, and V8 sessions. */
 export interface PathMeasurement extends MeasurementBase {
   type: MeasurementType;
   points: Point[];
@@ -249,7 +257,7 @@ export interface SessionV6 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageState>;
-  settings: SessionSettings;
+  settings: LegacySessionSettings;
   classificationCatalog: ClassificationCatalogV6;
 }
 
@@ -259,11 +267,21 @@ export interface SessionV7 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageState>;
+  settings: LegacySessionSettings;
+  classificationCatalog: ClassificationCatalog;
+}
+
+export interface SessionV8 {
+  schemaVersion: 8;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageState>;
   settings: SessionSettings;
   classificationCatalog: ClassificationCatalog;
 }
 
-export type CurrentSession = SessionV7;
+export type CurrentSession = SessionV8;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

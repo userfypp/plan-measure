@@ -2,11 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEven
 import { AppProvider, useAppState } from "./state";
 import { SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
-import {
-  OverlayProvider,
-  useOverlayState,
-  type OverlayConfirmation,
-} from "./overlayState";
+import { OverlayProvider, useOverlayState, type OverlayConfirmation } from "./overlayState";
 import { OverlayHost } from "./OverlayHost";
 import { AppShell, LoadingOverlay } from "./AppShell";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
@@ -18,6 +14,7 @@ import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
 import { MeasurementClassificationDock } from "../features/classification/MeasurementClassificationDock";
+import { CsvExportDialog } from "../features/export/CsvExportDialog";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
@@ -33,13 +30,7 @@ import {
   beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
-import type {
-  CalibrationReferenceKey,
-  PageCalibration,
-  Point,
-  Tool,
-} from "../types/domain";
-import { downloadCsv } from "../services/csv";
+import type { CalibrationReferenceKey, PageCalibration, Point, Tool } from "../types/domain";
 import { shouldIgnoreKeyboardShortcut } from "../utils/keyboard";
 import {
   findPageCalibration,
@@ -135,6 +126,7 @@ function PlanMeasureApp() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const [dragActive, setDragActive] = useState(false);
+  const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
 
   const {
     activePdf,
@@ -463,15 +455,6 @@ function PlanMeasureApp() {
     commitCalibrationReferenceEdit(edit);
   }
 
-  function exportMeasurements() {
-    if (!session) return;
-    try {
-      downloadCsv(session, activePdf?.pageLabels ?? null);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "The CSV could not be exported.");
-    }
-  }
-
   const currentPage = session?.pages[session.currentPage];
   const calibrationCandidatePage = calibrationCandidate
     ? (session?.pages[calibrationCandidate.pageNumber] ?? null)
@@ -585,7 +568,7 @@ function PlanMeasureApp() {
   return (
     <AppShell
       onOpenPdf={() => fileInputRef.current?.click()}
-      onExport={exportMeasurements}
+      onExport={() => setCsvExportDialogOpen(true)}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
       onDismissStatus={
@@ -870,6 +853,14 @@ function PlanMeasureApp() {
         onDialogCancel={cancelPdfReplacement}
         onConfirmationConfirm={handleOverlayConfirmationConfirm}
       />
+
+      {csvExportDialogOpen && session && (
+        <CsvExportDialog
+          session={session}
+          pageLabels={activePdf?.pageLabels ?? null}
+          onClose={() => setCsvExportDialogOpen(false)}
+        />
+      )}
 
       {calibrationCandidate && session && calibrationCandidatePage && (
         <CalibrationDialog
