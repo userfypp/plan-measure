@@ -44,4 +44,5 @@ body:
       description: Include browser, OS, and app version or commit when relevant.
       placeholder: Safari 18, macOS 15, Plan Measure 1.1.0
     validations:
-      required: true
+      required: false
+
