@@ -16,7 +16,7 @@
   "dependencies": {
     "idb": "8.0.3",
     "konva": "10.3.0",
-    "pdfjs-dist": "6.2.108",
+    "pdfjs-dist": "6.3.289",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-konva": "19.2.5"
