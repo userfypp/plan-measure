@@ -1,7 +1,7 @@
 {
   "name": "plan-measure",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "engines": {
     "node": ">=24 <25"
@@ -37,3 +37,4 @@
     "vitest": "4.1.11"
   }
 }
+
