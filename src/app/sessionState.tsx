@@ -824,7 +824,7 @@ interface SessionContextValue extends SessionState {
   deleteCalibration: (command: DeleteCalibrationCommand) => void;
   setActiveCalibration: (pageNumber: number, calibrationId: string) => void;
   updateCalibration: (command: UpdateCalibrationReferencePointsCommand) => void;
-  addMeasurement: (command: AddMeasurementCommand) => void;
+  addMeasurement: (command: AddMeasurementCommand) => boolean;
   updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
@@ -880,7 +880,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "SET_ACTIVE_CALIBRATION", pageNumber, calibrationId }),
       updateCalibration: (command) =>
         applyAction({ type: "UPDATE_CALIBRATION_REFERENCE_POINTS", ...command }),
-      addMeasurement: (command) => applyAction({ type: "ADD_MEASUREMENT", ...command }),
+      addMeasurement: (command) => {
+        const result = applyAction({ type: "ADD_MEASUREMENT", ...command });
+        return (
+          result.error === null &&
+          Boolean(
+            result.session?.pages[command.pageNumber]?.measurements.some(
+              (measurement) => measurement.id === command.id,
+            ),
+          )
+        );
+      },
       updateMeasurement: (command) => {
         const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
         const measurement = result.session?.pages[command.pageNumber]?.measurements.find(

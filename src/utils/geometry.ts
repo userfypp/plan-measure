@@ -28,6 +28,17 @@ export function hasValidMeasurementPoints(
   type: MeasurementType,
   points: readonly Point[],
 ): boolean {
+  const hasValidPath = hasValidMeasurementPointSequence(type, points);
+  if (!hasValidPath || type !== "polygon") return hasValidPath;
+  return (
+    !areEffectivelyIdentical(points[0]!, points.at(-1)!) && hasSimplePolygonRing(points)
+  );
+}
+
+export function hasValidMeasurementPointSequence(
+  type: MeasurementType,
+  points: readonly Point[],
+): boolean {
   const spec = measurementPathSpecs[type];
   return (
     points.length >= spec.minVertices &&
@@ -37,6 +48,67 @@ export function hasValidMeasurementPoints(
       (point, index) => index === 0 || !areEffectivelyIdentical(points[index - 1]!, point),
     )
   );
+}
+
+function orientation(a: Point, b: Point, c: Point): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function isPointOnSegment(point: Point, start: Point, end: Point): boolean {
+  return (
+    orientation(start, end, point) === 0 &&
+    point.x >= Math.min(start.x, end.x) &&
+    point.x <= Math.max(start.x, end.x) &&
+    point.y >= Math.min(start.y, end.y) &&
+    point.y <= Math.max(start.y, end.y)
+  );
+}
+
+function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
+  const abc = orientation(a, b, c);
+  const abd = orientation(a, b, d);
+  const cda = orientation(c, d, a);
+  const cdb = orientation(c, d, b);
+  if (
+    ((abc > 0 && abd < 0) || (abc < 0 && abd > 0)) &&
+    ((cda > 0 && cdb < 0) || (cda < 0 && cdb > 0))
+  ) {
+    return true;
+  }
+  return (
+    (abc === 0 && isPointOnSegment(c, a, b)) ||
+    (abd === 0 && isPointOnSegment(d, a, b)) ||
+    (cda === 0 && isPointOnSegment(a, c, d)) ||
+    (cdb === 0 && isPointOnSegment(b, c, d))
+  );
+}
+
+function adjacentEdgesOverlap(start: Point, shared: Point, end: Point): boolean {
+  return (
+    orientation(start, shared, end) === 0 &&
+    (isPointOnSegment(start, shared, end) || isPointOnSegment(end, start, shared))
+  );
+}
+
+function hasSimplePolygonRing(points: readonly Point[]): boolean {
+  for (let firstEdge = 0; firstEdge < points.length; firstEdge += 1) {
+    const firstStart = points[firstEdge]!;
+    const firstEnd = points[(firstEdge + 1) % points.length]!;
+    for (let secondEdge = firstEdge + 1; secondEdge < points.length; secondEdge += 1) {
+      const secondStart = points[secondEdge]!;
+      const secondEnd = points[(secondEdge + 1) % points.length]!;
+      const consecutive = secondEdge === firstEdge + 1;
+      const firstAndLast = firstEdge === 0 && secondEdge === points.length - 1;
+      if (consecutive) {
+        if (adjacentEdgesOverlap(firstStart, firstEnd, secondEnd)) return false;
+      } else if (firstAndLast) {
+        if (adjacentEdgesOverlap(firstEnd, firstStart, secondStart)) return false;
+      } else if (segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 export function constrainOrthogonal(anchor: Point, candidate: Point): Point {

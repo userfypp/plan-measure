@@ -133,6 +133,52 @@ describe("SessionState", () => {
     ]);
   });
 
+  it("keeps the previous Polygon geometry when a vertex edit would create a crossing", () => {
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Main plan",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    const originalPoints = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "polygon-1",
+      measurementType: "polygon",
+      points: originalPoints,
+    });
+
+    state = sessionReducer(state, {
+      type: "UPDATE_MEASUREMENT",
+      pageNumber: 1,
+      id: "polygon-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: -5, y: 5 },
+        { x: 0, y: 10 },
+      ],
+    });
+
+    expect(state.session?.pages[1]?.measurements[0]?.points).toEqual(originalPoints);
+  });
+
   it("creates visible measurements and toggles only the requested measurement", () => {
     let state = sessionReducer(initialSessionState, {
       type: "LOAD_SESSION",
