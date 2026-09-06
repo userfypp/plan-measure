@@ -3,7 +3,7 @@ import { isMeasurementType, measurementPathSpecs } from "./geometry";
 
 export type KeyboardShortcutEvent = Pick<
   KeyboardEvent,
-  "altKey" | "ctrlKey" | "defaultPrevented" | "key" | "metaKey" | "repeat" | "target"
+  "altKey" | "ctrlKey" | "defaultPrevented" | "key" | "metaKey" | "repeat" | "shiftKey" | "target"
 >;
 
 export function shouldIgnoreGlobalKeyboardShortcut(target: EventTarget | null): boolean {
@@ -46,6 +46,54 @@ export function shouldIgnoreKeyboardShortcut(event: KeyboardShortcutEvent): bool
     hasKeyboardShortcutModifier(event) ||
     shouldIgnoreGlobalKeyboardShortcut(event.target)
   );
+}
+
+export function shouldIgnoreMeasurementClipboardShortcutTarget(
+  target: EventTarget | null,
+): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (
+    target.isContentEditable ||
+    Boolean(target.closest("[contenteditable]")) ||
+    target.matches("textarea, select") ||
+    Boolean(target.closest("dialog, [role='dialog']"))
+  ) {
+    return true;
+  }
+  if (!target.matches("input")) return false;
+  const inputType = target.getAttribute("type")?.toLocaleLowerCase() ?? "text";
+  return !["button", "checkbox", "radio", "range", "reset", "submit"].includes(inputType);
+}
+
+export type MeasurementKeyboardAction =
+  "copy-measurement" | "delete-measurement" | "paste-measurement";
+
+/**
+ * Application-level copy/paste stays available after non-editing application
+ * controls receive focus. Editable controls and dialogs retain native clipboard
+ * behavior, while Delete/Backspace keeps its existing stricter policy.
+ */
+export function getMeasurementKeyboardAction(
+  event: KeyboardShortcutEvent,
+): MeasurementKeyboardAction | null {
+  if (event.key === "Delete" || event.key === "Backspace") {
+    return shouldIgnoreKeyboardShortcut(event) ? null : "delete-measurement";
+  }
+
+  if (
+    event.defaultPrevented ||
+    shouldIgnoreMeasurementClipboardShortcutTarget(event.target) ||
+    event.repeat ||
+    event.altKey ||
+    event.shiftKey ||
+    event.metaKey === event.ctrlKey
+  ) {
+    return null;
+  }
+  const key = event.key.toLowerCase();
+  if (key === "c") return "copy-measurement";
+  if (key === "v") return "paste-measurement";
+  return null;
 }
 
 export type DrawingKeyboardAction =

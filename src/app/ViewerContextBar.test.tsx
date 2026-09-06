@@ -24,5 +24,32 @@ describe("ViewerContextBar", () => {
     expect(markup).not.toContain(">Scale<");
     expect(markup).not.toContain(">Workflow<");
     expect(markup).not.toContain("None selected");
+    expect(markup).not.toContain("Duplicate");
+  });
+
+  it("renders a compact selected-measurement action at the right side of the context bar", () => {
+    const markup = renderToStaticMarkup(
+      <ViewerContextBar
+        context={context}
+        action={{ label: "Duplicate", disabled: false, onClick: () => {} }}
+        onScaleChange={() => {}}
+      />,
+    );
+
+    expect(markup).toContain(">Duplicate<");
+    expect(markup).not.toContain("disabled");
+  });
+
+  it("reflects a disabled selected-measurement action", () => {
+    const markup = renderToStaticMarkup(
+      <ViewerContextBar
+        context={context}
+        action={{ label: "Duplicate", disabled: true, onClick: () => {} }}
+        onScaleChange={() => {}}
+      />,
+    );
+
+    expect(markup).toContain(">Duplicate<");
+    expect(markup).toContain("disabled");
   });
 });

@@ -446,6 +446,388 @@ describe("SessionState", () => {
     expect(rejected.error).toContain("unique across the session");
   });
 
+  it.each([
+    [
+      "line",
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+      ],
+    ],
+    [
+      "polyline",
+      [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    ],
+    [
+      "polygon",
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 3 },
+        { x: 0, y: 3 },
+      ],
+    ],
+  ] as const)("pastes a %s with a new ID while preserving its content", (type, points) => {
+    let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-source",
+      name: "Source scale",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    state.session!.classificationCatalog.dimensions = [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: true,
+        values: [{ id: "electrical", name: "Electrical", archived: true }],
+      },
+    ];
+    const source = {
+      id: `${type}-source`,
+      type,
+      name: "Preserved name",
+      calibrationId: "scale-source",
+      points: points.map((point) => ({ ...point })),
+      classificationValueIds: ["electrical"],
+      visible: false,
+    };
+    state.session!.pages[1]!.measurements.push(source);
+    const sourceBefore = structuredClone(source);
+    const catalogBefore = structuredClone(state.session!.classificationCatalog);
+
+    const pasted = sessionReducer(state, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 1,
+      id: `${type}-copy`,
+      sourcePageNumber: 1,
+      measurement: source,
+    });
+
+    expect(pasted.error).toBeNull();
+    expect(pasted.session!.pages[1]!.measurements.at(-1)).toEqual({
+      ...sourceBefore,
+      id: `${type}-copy`,
+      visible: true,
+    });
+    expect(source).toEqual(sourceBefore);
+    expect(pasted.session!.classificationCatalog).toEqual(catalogBefore);
+    expect(pasted.session!.pages[1]!.nextMeasurementNumber[type]).toBe(1);
+    expect(pasted.session!.pages[1]!.measurements.at(-1)!.visible).toBe(true);
+  });
+
+  it("keeps the source scale on same-page paste even when another scale is active", () => {
+    let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+    for (const [id, distance] of [
+      ["source-scale", 1000],
+      ["active-scale", 5000],
+    ] as const) {
+      state = sessionReducer(state, {
+        type: "ADD_CALIBRATION",
+        pageNumber: 1,
+        id,
+        name: id,
+        calibration: {
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: distance,
+        },
+      });
+    }
+    const source = {
+      id: "source",
+      type: "line" as const,
+      name: "Source",
+      calibrationId: "source-scale",
+      points: [
+        { x: 0, y: 0 },
+        { x: 5, y: 0 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    };
+    state.session!.pages[1]!.measurements.push(source);
+
+    const pasted = sessionReducer(state, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 1,
+      id: "same-page-copy",
+      sourcePageNumber: 1,
+      measurement: source,
+    });
+
+    expect(pasted.session!.pages[1]!.activeCalibrationId).toBe("active-scale");
+    expect(pasted.session!.pages[1]!.measurements.at(-1)!.calibrationId).toBe("source-scale");
+
+    let withoutSourceScale = sessionReducer(state, {
+      type: "DELETE_MEASUREMENT",
+      pageNumber: 1,
+      id: source.id,
+    });
+    withoutSourceScale = sessionReducer(withoutSourceScale, {
+      type: "DELETE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "source-scale",
+    });
+    const rejected = sessionReducer(withoutSourceScale, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 1,
+      id: "missing-source-scale-copy",
+      sourcePageNumber: 1,
+      measurement: source,
+    });
+    expect(rejected.session).toBe(withoutSourceScale.session);
+    expect(rejected.error).toContain("scale is no longer available");
+  });
+
+  it.each([
+    [
+      "line",
+      [
+        { x: 1, y: 2 },
+        { x: 6, y: 2 },
+      ],
+    ],
+    [
+      "polyline",
+      [
+        { x: 1, y: 2 },
+        { x: 6, y: 2 },
+        { x: 6, y: 7 },
+      ],
+    ],
+    [
+      "polygon",
+      [
+        { x: 1, y: 2 },
+        { x: 6, y: 2 },
+        { x: 6, y: 7 },
+        { x: 1, y: 7 },
+      ],
+    ],
+  ] as const)("binds a cross-page %s to the destination active scale", (type, points) => {
+    let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+    for (const [pageNumber, id, distance] of [
+      [1, "source-scale", 1000],
+      [2, "destination-scale", 2500],
+    ] as const) {
+      state = sessionReducer(state, {
+        type: "ADD_CALIBRATION",
+        pageNumber,
+        id,
+        name: id,
+        calibration: {
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: distance,
+        },
+      });
+    }
+    const source = {
+      id: `${type}-source`,
+      type,
+      name: "Cross-page source",
+      calibrationId: "source-scale",
+      points: points.map((point) => ({ ...point })),
+      classificationValueIds: [],
+      visible: true,
+    };
+    state.session!.pages[1]!.measurements.push(source);
+
+    const pasted = sessionReducer(state, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 2,
+      id: `${type}-cross-page-copy`,
+      sourcePageNumber: 1,
+      measurement: source,
+    });
+
+    expect(pasted.error).toBeNull();
+    expect(pasted.session!.pages[2]!.measurements[0]).toMatchObject({
+      id: `${type}-cross-page-copy`,
+      type,
+      calibrationId: "destination-scale",
+      name: "Cross-page source",
+      points: source.points,
+    });
+    expect(pasted.session!.pages[2]!.nextMeasurementNumber[type]).toBe(1);
+  });
+
+  it("rejects cross-page paste when the destination has no active scale", () => {
+    let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+    for (const [pageNumber, id, distance] of [
+      [1, "source-scale", 1000],
+      [2, "destination-scale", 2500],
+    ] as const) {
+      state = sessionReducer(state, {
+        type: "ADD_CALIBRATION",
+        pageNumber,
+        id,
+        name: id,
+        calibration: {
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: distance,
+        },
+      });
+    }
+    const source = {
+      id: "source",
+      type: "line" as const,
+      name: "Cross-page source",
+      calibrationId: "source-scale",
+      points: [
+        { x: 1, y: 2 },
+        { x: 6, y: 2 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    };
+    state.session!.pages[1]!.measurements.push(source);
+
+    const pasted = sessionReducer(state, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 2,
+      id: "cross-page-copy",
+      sourcePageNumber: 1,
+      measurement: source,
+    });
+    expect(pasted.error).toBeNull();
+    expect(pasted.session!.pages[2]!.measurements[0]).toMatchObject({
+      id: "cross-page-copy",
+      calibrationId: "destination-scale",
+      name: "Cross-page source",
+      points: source.points,
+    });
+
+    const withoutDestinationScale = structuredClone(state.session!);
+    withoutDestinationScale.pages[2]!.calibrations = [];
+    withoutDestinationScale.pages[2]!.activeCalibrationId = null;
+    const rejected = sessionReducer(
+      { session: withoutDestinationScale, error: null },
+      {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 2,
+        id: "rejected-copy",
+        sourcePageNumber: 1,
+        measurement: source,
+      },
+    );
+    expect(rejected.session).toBe(withoutDestinationScale);
+    expect(rejected.session!.pages[2]!.measurements).toEqual([]);
+    expect(rejected.error).toContain("valid scale on this page");
+  });
+
+  it("creates independent repeated pastes and rejects duplicate IDs without mutating the source", () => {
+    let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Scale 1",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    const source = {
+      id: "source",
+      type: "polyline" as const,
+      name: "Repeated",
+      calibrationId: "scale-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 3 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    };
+    state.session!.pages[1]!.measurements.push(source);
+    for (const id of ["copy-1", "copy-2"]) {
+      state = sessionReducer(state, {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 1,
+        id,
+        sourcePageNumber: 1,
+        measurement: source,
+      });
+    }
+    const [first, second] = state.session!.pages[1]!.measurements.slice(1);
+    first!.points[0]!.x = 99;
+    first!.classificationValueIds.push("local-only");
+    expect(second!.points[0]!.x).toBe(0);
+    expect(second!.classificationValueIds).toEqual([]);
+    expect(source.points[0]!.x).toBe(0);
+
+    const rejected = sessionReducer(state, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 1,
+      id: "copy-2",
+      sourcePageNumber: 1,
+      measurement: source,
+    });
+    expect(rejected.session).toBe(state.session);
+    expect(rejected.error).toContain("unique across the session");
+  });
+
+  it("does not duplicate repair-only invalid polygon geometry", () => {
+    let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Scale 1",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    const historicalCrossingPolygon = {
+      id: "historical-crossing-polygon",
+      type: "polygon" as const,
+      name: "Historical crossing polygon",
+      calibrationId: "scale-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 4 },
+        { x: 0, y: 4 },
+        { x: 4, y: 0 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    };
+
+    const pasted = sessionReducer(state, {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 1,
+      id: "invalid-copy",
+      sourcePageNumber: 1,
+      measurement: historicalCrossingPolygon,
+    });
+
+    expect(pasted.session).toBe(state.session);
+    expect(pasted.session!.pages[1]!.measurements).toEqual([]);
+    expect(pasted.error).toContain("no longer valid");
+  });
+
   it("renames and reassigns existing calibrations by ID without changing geometry", () => {
     let state = sessionReducer(initialSessionState, {
       type: "LOAD_SESSION",

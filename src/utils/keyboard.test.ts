@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   getDrawingKeyboardAction,
   getGlobalViewerKeyboardAction,
+  getMeasurementKeyboardAction,
   getShortcutLabel,
   getToolShortcut,
   getToolShortcutLabel,
@@ -9,6 +10,7 @@ import {
   shouldIgnoreKeyboardShortcut,
   shouldIgnoreGlobalKeyboardShortcut,
   shouldIgnoreGlobalViewerShortcutTarget,
+  shouldIgnoreMeasurementClipboardShortcutTarget,
   viewerShortcuts,
   type KeyboardShortcutEvent,
 } from "./keyboard";
@@ -62,9 +64,107 @@ function keyboardEvent(
     defaultPrevented: false,
     metaKey: false,
     repeat: false,
+    shiftKey: false,
     ...overrides,
   };
 }
+
+describe("measurement keyboard shortcuts", () => {
+  const canvas = () => new FakeHTMLElement("canvas") as unknown as EventTarget;
+
+  it.each([
+    ["metaKey", "c", "copy-measurement"],
+    ["ctrlKey", "C", "copy-measurement"],
+    ["metaKey", "v", "paste-measurement"],
+    ["ctrlKey", "V", "paste-measurement"],
+  ] as const)("maps %s+%s to %s", (modifier, key, action) => {
+    expect(getMeasurementKeyboardAction(keyboardEvent(key, canvas(), { [modifier]: true }))).toBe(
+      action,
+    );
+  });
+
+  it("keeps Delete and Backspace on the existing unmodified shortcut policy", () => {
+    expect(getMeasurementKeyboardAction(keyboardEvent("Delete", canvas()))).toBe(
+      "delete-measurement",
+    );
+    expect(getMeasurementKeyboardAction(keyboardEvent("Backspace", canvas()))).toBe(
+      "delete-measurement",
+    );
+    expect(
+      getMeasurementKeyboardAction(keyboardEvent("Backspace", canvas(), { metaKey: true })),
+    ).toBeNull();
+  });
+
+  it.each(["input", "textarea", "select", "[contenteditable='true']"])(
+    "leaves native copy and paste untouched in %s",
+    (kind) => {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(
+        getMeasurementKeyboardAction(keyboardEvent("c", target, { metaKey: true })),
+      ).toBeNull();
+      expect(
+        getMeasurementKeyboardAction(keyboardEvent("v", target, { ctrlKey: true })),
+      ).toBeNull();
+    },
+  );
+
+  it("does not claim shortcuts inside dialogs", () => {
+    const dialogTarget = new FakeHTMLElement("span", true) as unknown as EventTarget;
+    expect(
+      getMeasurementKeyboardAction(keyboardEvent("c", dialogTarget, { metaKey: true })),
+    ).toBeNull();
+    expect(shouldIgnoreMeasurementClipboardShortcutTarget(dialogTarget)).toBe(true);
+  });
+
+  it("allows clipboard shortcuts after focus moves to non-editing application controls", () => {
+    for (const kind of ["button", "a", "body"]) {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(shouldIgnoreMeasurementClipboardShortcutTarget(target)).toBe(false);
+      expect(getMeasurementKeyboardAction(keyboardEvent("c", target, { metaKey: true }))).toBe(
+        "copy-measurement",
+      );
+      expect(getMeasurementKeyboardAction(keyboardEvent("v", target, { ctrlKey: true }))).toBe(
+        "paste-measurement",
+      );
+    }
+  });
+
+  it.each(["checkbox", "radio", "range", "button", "submit"])(
+    "allows clipboard shortcuts from non-editing input type %s",
+    (type) => {
+      const target = new FakeHTMLElement("input", false, type) as unknown as EventTarget;
+      expect(shouldIgnoreMeasurementClipboardShortcutTarget(target)).toBe(false);
+      expect(getMeasurementKeyboardAction(keyboardEvent("c", target, { metaKey: true }))).toBe(
+        "copy-measurement",
+      );
+      expect(getMeasurementKeyboardAction(keyboardEvent("v", target, { ctrlKey: true }))).toBe(
+        "paste-measurement",
+      );
+    },
+  );
+
+  it("does not claim modified paste variants, repeats, or unmodified C/V", () => {
+    expect(
+      getMeasurementKeyboardAction(keyboardEvent("v", canvas(), { metaKey: true, shiftKey: true })),
+    ).toBeNull();
+    expect(
+      getMeasurementKeyboardAction(keyboardEvent("v", canvas(), { ctrlKey: true, altKey: true })),
+    ).toBeNull();
+    expect(
+      getMeasurementKeyboardAction(keyboardEvent("c", canvas(), { metaKey: true, repeat: true })),
+    ).toBeNull();
+    expect(
+      getMeasurementKeyboardAction(keyboardEvent("c", canvas(), { metaKey: true, ctrlKey: true })),
+    ).toBeNull();
+    expect(
+      getMeasurementKeyboardAction(
+        keyboardEvent("c", canvas(), { metaKey: true, defaultPrevented: true }),
+      ),
+    ).toBeNull();
+    expect(getMeasurementKeyboardAction(keyboardEvent("c", canvas()))).toBeNull();
+    expect(getMeasurementKeyboardAction(keyboardEvent("v", canvas()))).toBeNull();
+  });
+});
 
 describe("global keyboard shortcut targets", () => {
   it("ignores buttons and other interactive controls", () => {

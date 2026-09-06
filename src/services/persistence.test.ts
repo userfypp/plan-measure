@@ -206,6 +206,42 @@ function archivedCurrentSession(): CurrentSession {
   return session;
 }
 
+it("persists and recovers a pasted measurement as ordinary session data", async () => {
+  const session = archivedCurrentSession();
+  const source = session.pages[2]!.measurements[0]!;
+  const pasted = sessionReducer(
+    { session, error: null },
+    {
+      type: "PASTE_MEASUREMENT",
+      pageNumber: 2,
+      id: "custom-copy",
+      sourcePageNumber: 2,
+      measurement: source,
+    },
+  );
+  expect(pasted.error).toBeNull();
+
+  const revision = await replaceSavedSession(
+    pasted.session!,
+    new Blob(["pdf"], { type: "application/pdf" }),
+    null,
+  );
+  const recovered = await loadSavedSession();
+  const copied = recovered?.session.pages[2]!.measurements.find(
+    (measurement) => measurement.id === "custom-copy",
+  );
+
+  expect(recovered?.revision).toBe(revision);
+  expect(copied).toEqual({
+    ...source,
+    id: "custom-copy",
+    points: source.points.map((point) => ({ ...point })),
+    classificationValueIds: [...source.classificationValueIds],
+    visible: true,
+  });
+  expect(recovered?.session.classificationCatalog).toEqual(pasted.session!.classificationCatalog);
+});
+
 function withMockDefaultLocale<T>(locale: string, run: () => T): T {
   const original = String.prototype.toLocaleLowerCase;
   const mocked = vi.spyOn(String.prototype, "toLocaleLowerCase").mockImplementation(function (

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEmptySession } from "../app/sessionState";
+import { createEmptySession, sessionReducer } from "../app/sessionState";
 import type { CurrentSession, LinearUnit } from "../types/domain";
 import {
   buildCsv,
@@ -425,6 +425,27 @@ describe("CSV export", () => {
     expect(rows.find((row) => row.includes("line-id"))).not.toContain("electrical-id");
     expect(rows.find((row) => row.includes("line-id"))).not.toContain("active");
     expect(rows.find((row) => row.includes("polygon-id"))).not.toContain("Unclassified");
+  });
+
+  it("exports a pasted measurement with its copied name, scale, and classifications", () => {
+    const session = classifiedMeasuredSession();
+    const source = session.pages[1]!.measurements[0]!;
+    const pasted = sessionReducer(
+      { session, error: null },
+      {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 1,
+        id: "pasted-line-id",
+        sourcePageNumber: 1,
+        measurement: source,
+      },
+    );
+    const csv = buildCsv(pasted.session!);
+    const pastedRow = csv.split("\r\n").find((row) => row.includes("pasted-line-id"));
+
+    expect(pasted.error).toBeNull();
+    expect(pastedRow).toContain('pasted-line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform');
+    expect(pastedRow).toContain(",Electrical,Approved");
   });
 
   it("exports classification IDs and status only when explicitly enabled", () => {
