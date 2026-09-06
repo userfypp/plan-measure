@@ -6,6 +6,7 @@ import {
   distance,
   isValidCalibration,
   lineLengthMm,
+  measurementResultsMm,
   millimetresPerPageUnit,
   polygonAreaPageUnitsSquared,
   polygonPerimeterPageUnits,
@@ -275,6 +276,48 @@ describe("geometry", () => {
       { x: 2, y: 5 },
     ];
     expect(polygonAreaPageUnitsSquared(irregular)).toBe(10.5);
+  });
+
+  it("keeps a 0.5 square area stable at large page coordinates through measurement results", () => {
+    const nearOrigin = [
+      { x: 0, y: 0 },
+      { x: 0.5, y: 0 },
+      { x: 0.5, y: 0.5 },
+      { x: 0, y: 0.5 },
+    ];
+    const translated = nearOrigin.map((point) => ({
+      x: point.x + 50_000_000,
+      y: point.y + 50_000_000,
+    }));
+    const originalPoints = translated.map((point) => ({ ...point }));
+
+    expect(polygonAreaPageUnitsSquared(nearOrigin)).toBe(0.25);
+    expect(polygonAreaPageUnitsSquared(translated)).toBe(0.25);
+    expect(measurementResultsMm({ type: "polygon", points: translated }, uniform).areaMm2).toBe(
+      2500,
+    );
+    expect(polygonResultsMm({ points: translated }, xyBase).areaMm2).toBe(50);
+    expect(translated).toEqual(originalPoints);
+  });
+
+  it("preserves concave Polygon area and winding under a large representable translation", () => {
+    const concave = [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+      { x: 6, y: 6 },
+      { x: 3, y: 3 },
+      { x: 0, y: 6 },
+    ];
+    const translated = concave.map((point) => ({
+      x: point.x + 100_000_000.5,
+      y: point.y + 100_000_000.25,
+    }));
+
+    expect(hasValidMeasurementPoints("polygon", concave)).toBe(true);
+    expect(hasValidMeasurementPoints("polygon", translated)).toBe(true);
+    expect(polygonAreaPageUnitsSquared(concave)).toBe(27);
+    expect(polygonAreaPageUnitsSquared(translated)).toBe(27);
+    expect(polygonAreaPageUnitsSquared([...translated].reverse())).toBe(27);
   });
 
   it("uses calibration for physical line length", () => {

@@ -255,9 +255,15 @@ export function polygonPerimeterPageUnits(points: Point[]): number {
 
 export function polygonAreaPageUnitsSquared(points: Point[]): number {
   if (points.length < 3) return 0;
+  const origin = points[0]!;
   const doubledArea = points.reduce((total, point, index) => {
     const next = points[(index + 1) % points.length];
-    return next ? total + point.x * next.y - next.x * point.y : total;
+    if (!next) return total;
+    const pointX = point.x - origin.x;
+    const pointY = point.y - origin.y;
+    const nextX = next.x - origin.x;
+    const nextY = next.y - origin.y;
+    return total + pointX * nextY - nextX * pointY;
   }, 0);
   return Math.abs(doubledArea) / 2;
 }
