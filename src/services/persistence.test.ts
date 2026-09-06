@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave, isSessionPersistable } from "../app/autosave";
 import { createEmptySession, initialSessionState, sessionReducer } from "../app/sessionState";
 import type {
@@ -204,6 +204,21 @@ function archivedCurrentSession(): CurrentSession {
   };
   session.pages[2]!.measurements[0]!.classificationValueIds = ["legacy"];
   return session;
+}
+
+function withMockDefaultLocale<T>(locale: string, run: () => T): T {
+  const original = String.prototype.toLocaleLowerCase;
+  const mocked = vi.spyOn(String.prototype, "toLocaleLowerCase").mockImplementation(function (
+    this: string,
+    locales?: Intl.LocalesArgument,
+  ) {
+    return original.call(this, locales ?? locale);
+  });
+  try {
+    return run();
+  } finally {
+    mocked.mockRestore();
+  }
 }
 
 function v2MeasuredSession(): SessionV2 {
@@ -990,6 +1005,165 @@ describe("session persistence", () => {
     ).toThrow("classification catalog");
   });
 
+  it("keeps the same dotted-I catalog recoverable under en-US and tr-TR", () => {
+    const session = currentMeasuredSession();
+    session.classificationCatalog = {
+      dimensions: [
+        { id: "dotted-dimension", name: "İ", archived: true, values: [] },
+        {
+          id: "latin-dimension",
+          name: "i",
+          archived: false,
+          values: [
+            { id: "dotted-value", name: "İ", archived: true },
+            { id: "latin-value", name: "i", archived: false },
+          ],
+        },
+      ],
+    };
+    session.pages[2]!.measurements[0]!.classificationValueIds = ["dotted-value"];
+    const serializedByLocale = ["en-US", "tr-TR"].map((locale) =>
+      withMockDefaultLocale(locale, () => serializeSession(session)),
+    );
+    expect(new Set(serializedByLocale).size).toBe(1);
+
+    for (const locale of ["en-US", "tr-TR"]) {
+      const decoded = withMockDefaultLocale(locale, () =>
+        deserializeSessionForRecovery(serializedByLocale[0]!),
+      );
+
+      expect(decoded.compatibility).toBe("current");
+      expect(decoded.session).toEqual(session);
+      expect(
+        decoded.session.classificationCatalog.dimensions.map(({ id, name, archived }) => ({
+          id,
+          name,
+          archived,
+        })),
+      ).toEqual([
+        { id: "dotted-dimension", name: "İ", archived: true },
+        { id: "latin-dimension", name: "i", archived: false },
+      ]);
+      expect(decoded.session.classificationCatalog.dimensions[1]!.values).toEqual([
+        { id: "dotted-value", name: "İ", archived: true },
+        { id: "latin-value", name: "i", archived: false },
+      ]);
+      expect(decoded.session.pages[2]!.measurements[0]!.classificationValueIds).toEqual([
+        "dotted-value",
+      ]);
+    }
+  });
+
+  it("recovers deterministic classification conflicts without rewriting data and persists repair", async () => {
+    const historical = currentMeasuredSession();
+    historical.classificationCatalog = {
+      dimensions: [
+        {
+          id: "upper-dimension",
+          name: "I",
+          archived: false,
+          values: [
+            { id: "upper-value", name: "I", archived: true },
+            { id: "lower-value", name: "i", archived: false },
+          ],
+        },
+        { id: "lower-dimension", name: "i", archived: true, values: [] },
+      ],
+    };
+    historical.pages[2]!.measurements[0]!.classificationValueIds = ["upper-value"];
+    expect("I".toLocaleLowerCase("tr-TR")).not.toBe("i".toLocaleLowerCase("tr-TR"));
+    expect(() => serializeSession(historical)).toThrow("classification catalog");
+
+    const originalRevision = await writeRawActiveSession(historical, new Blob(["pdf"]));
+    const recovered = await loadSavedSession();
+    if (!recovered) throw new Error("Expected the classification catalog to be recovered.");
+
+    expect(recovered.compatibility).toBe("classification-repair-required");
+    expect(recovered.incompatibleMeasurementIds).toEqual([]);
+    expect(recovered.revision).toBe(originalRevision);
+    expect(recovered.session).toEqual(historical);
+    expect(isSessionPersistable(recovered.session)).toBe(false);
+    expect(() => deserializeSession(JSON.stringify(historical))).toThrow(
+      "classification names that require repair",
+    );
+
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: recovered.session,
+    });
+    state = sessionReducer(state, {
+      type: "RENAME_CLASSIFICATION_VALUE",
+      dimensionId: "upper-dimension",
+      id: "lower-value",
+      name: "Lowercase",
+    });
+    state = sessionReducer(state, {
+      type: "RESTORE_CLASSIFICATION_DIMENSION",
+      id: "lower-dimension",
+    });
+    state = sessionReducer(state, {
+      type: "RENAME_CLASSIFICATION_DIMENSION",
+      id: "lower-dimension",
+      name: "Area",
+    });
+    state = sessionReducer(state, {
+      type: "ARCHIVE_CLASSIFICATION_DIMENSION",
+      id: "lower-dimension",
+    });
+    if (!state.session) throw new Error("Expected the repaired session to remain loaded.");
+
+    expect(isSessionPersistable(state.session)).toBe(true);
+    expect(state.session.classificationCatalog.dimensions).toEqual([
+      {
+        id: "upper-dimension",
+        name: "I",
+        archived: false,
+        values: [
+          { id: "upper-value", name: "I", archived: true },
+          { id: "lower-value", name: "Lowercase", archived: false },
+        ],
+      },
+      { id: "lower-dimension", name: "Area", archived: true, values: [] },
+    ]);
+    expect(state.session.pages[2]!.measurements[0]!.classificationValueIds).toEqual([
+      "upper-value",
+    ]);
+
+    const savedRevision = await saveSessionMetadata(state.session, recovered.revision);
+    const restored = await loadSavedSession();
+    expect(savedRevision).not.toBe(originalRevision);
+    expect(restored?.compatibility).toBe("current");
+    expect(restored?.session).toEqual(state.session);
+  });
+
+  it("migrates a V5 locale-dependent conflict into the same repair path", () => {
+    const historical = v5MeasuredSession();
+    historical.classificationCatalog.dimensions[0]!.name = "I";
+    historical.classificationCatalog.dimensions.push({
+      id: "area",
+      name: "i",
+      values: [],
+    });
+
+    const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
+
+    expect(recovered.compatibility).toBe("classification-repair-required");
+    expect(recovered.session.schemaVersion).toBe(8);
+    expect(recovered.session.classificationCatalog.dimensions).toEqual([
+      {
+        id: "discipline",
+        name: "I",
+        archived: false,
+        values: [{ id: "electrical", name: "Electrical", archived: false }],
+      },
+      { id: "area", name: "i", archived: false, values: [] },
+    ]);
+    expect(recovered.session.pages[2]!.measurements[0]!.classificationValueIds).toEqual([
+      "electrical",
+    ]);
+    expect(isSessionPersistable(recovered.session)).toBe(false);
+  });
+
   it("keeps V8 classification reference and uniqueness validation strict", () => {
     const missingValue = archivedCurrentSession();
     missingValue.pages[2]!.measurements[0]!.classificationValueIds = ["missing"];
@@ -1016,6 +1190,20 @@ describe("session persistence", () => {
       values: [],
     });
     expect(() => serializeSession(duplicateDimensionName)).toThrow("classification catalog");
+    expect(() => deserializeSession(JSON.stringify(duplicateDimensionName))).toThrow(
+      "require repair",
+    );
+
+    const identicalDimensionName = archivedCurrentSession();
+    identicalDimensionName.classificationCatalog.dimensions.push({
+      id: "identical-dimension",
+      name: "Discipline",
+      archived: false,
+      values: [],
+    });
+    expect(() => deserializeSessionForRecovery(JSON.stringify(identicalDimensionName))).toThrow(
+      "classification catalog",
+    );
 
     const duplicateValueName = archivedCurrentSession();
     duplicateValueName.classificationCatalog.dimensions[0]!.values.push({
@@ -1024,6 +1212,15 @@ describe("session persistence", () => {
       archived: false,
     });
     expect(() => serializeSession(duplicateValueName)).toThrow("classification catalog");
+    expect(() => deserializeSession(JSON.stringify(duplicateValueName))).toThrow("require repair");
+
+    const duplicateArchivedValueName = archivedCurrentSession();
+    duplicateArchivedValueName.classificationCatalog.dimensions[0]!.values.push({
+      id: "other-archived-value",
+      name: "lEgAcY",
+      archived: false,
+    });
+    expect(() => serializeSession(duplicateArchivedValueName)).toThrow("classification catalog");
   });
 
   it("rejects missing or non-boolean visibility in V8 sessions", () => {

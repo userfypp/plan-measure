@@ -29,6 +29,7 @@ import {
   getActiveCalibration,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
+import { classificationNameKey } from "../utils/classificationNames";
 
 /**
  * Persistent domain state for the currently open plan.
@@ -479,7 +480,7 @@ export function sessionReducer(
       const id = action.id.trim();
       const name = action.name.trim();
       const dimensions = state.session.classificationCatalog.dimensions;
-      const normalizedName = name.toLocaleLowerCase();
+      const normalizedName = classificationNameKey(name);
       const idExists = dimensions.some(
         (dimension) => dimension.id === id || dimension.values.some((value) => value.id === id),
       );
@@ -487,7 +488,7 @@ export function sessionReducer(
         !id ||
         !name ||
         idExists ||
-        dimensions.some((dimension) => dimension.name.toLocaleLowerCase() === normalizedName)
+        dimensions.some((dimension) => classificationNameKey(dimension.name) === normalizedName)
       ) {
         return { ...state, error: "Classification dimensions need unique IDs and names." };
       }
@@ -539,7 +540,7 @@ export function sessionReducer(
         dimensions.some(
           (dimension) =>
             dimension.id !== action.id &&
-            dimension.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+            classificationNameKey(dimension.name) === classificationNameKey(name),
         )
       ) {
         return { ...state, error: "Classification dimension names must be unique and non-empty." };
@@ -575,7 +576,7 @@ export function sessionReducer(
         !name ||
         idExists ||
         dimension.values.some(
-          (value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+          (value) => classificationNameKey(value.name) === classificationNameKey(name),
         )
       ) {
         return {
@@ -616,7 +617,8 @@ export function sessionReducer(
         !value ||
         dimension.values.some(
           (value) =>
-            value.id !== action.id && value.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+            value.id !== action.id &&
+            classificationNameKey(value.name) === classificationNameKey(name),
         )
       ) {
         return { ...state, error: "Classification value names must be unique and non-empty." };

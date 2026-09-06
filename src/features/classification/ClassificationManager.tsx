@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Badge, Button, Input } from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
+import { classificationNameKey } from "../../utils/classificationNames";
 import styles from "./ClassificationManager.module.css";
 
 export interface ClassificationManagerProps {
@@ -46,7 +47,7 @@ export function ClassificationManager({
     if (!name) return;
     if (
       catalog.dimensions.some(
-        (dimension) => dimension.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+        (dimension) => classificationNameKey(dimension.name) === classificationNameKey(name),
       )
     ) {
       setCreateError("Dimension names must be unique.");
@@ -70,7 +71,9 @@ export function ClassificationManager({
       return;
     }
     if (
-      dimension?.values.some((value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase())
+      dimension?.values.some(
+        (value) => classificationNameKey(value.name) === classificationNameKey(name),
+      )
     ) {
       setValueErrors((current) => ({
         ...current,
@@ -141,12 +144,12 @@ export function ClassificationManager({
         ? catalog.dimensions.some(
             (candidate) =>
               candidate.id !== editing.dimensionId &&
-              candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+              classificationNameKey(candidate.name) === classificationNameKey(name),
           )
         : dimension.values.some(
             (candidate) =>
               candidate.id !== editing.valueId &&
-              candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+              classificationNameKey(candidate.name) === classificationNameKey(name),
           );
     if (duplicate) {
       setNameError(`${editing.type === "dimension" ? "Dimension" : "Value"} names must be unique.`);
