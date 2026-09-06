@@ -617,68 +617,150 @@ export function serializeSession(session: CurrentSession): string {
   assertValidSessionV8(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
-export function deserializeSession(serialized: string): CurrentSession {
+
+export type SessionCompatibility = "current" | "historical-repair-required";
+
+export interface DecodedSession {
+  session: CurrentSession;
+  compatibility: SessionCompatibility;
+  incompatibleMeasurementIds: string[];
+}
+
+function finalizeDecodedSession(
+  session: CurrentSession,
+  allowHistoricalGeometry: boolean,
+): DecodedSession {
+  const incompatibleMeasurementIds = Object.values(session.pages).flatMap((page) =>
+    page.measurements
+      .filter((measurement) => !hasValidMeasurementPoints(measurement.type, measurement.points))
+      .map((measurement) => measurement.id),
+  );
+  if (!allowHistoricalGeometry || incompatibleMeasurementIds.length === 0) {
+    assertValidSessionV8(session as unknown as Record<string, unknown>);
+    return { session, compatibility: "current", incompatibleMeasurementIds: [] };
+  }
+
+  // Validate every other migrated field without changing the repairable snapshot returned below.
+  const validationProbe = canonicalizeSessionV8(session);
+  for (const page of Object.values(validationProbe.pages)) {
+    page.measurements = page.measurements.map((measurement) =>
+      hasValidMeasurementPoints(measurement.type, measurement.points)
+        ? measurement
+        : {
+            ...measurement,
+            points:
+              measurement.type === "polygon"
+                ? [
+                    { x: 0, y: 0 },
+                    { x: 1, y: 0 },
+                    { x: 0, y: 1 },
+                  ]
+                : [
+                    { x: 0, y: 0 },
+                    { x: 1, y: 0 },
+                  ],
+          },
+    );
+  }
+  assertValidSessionV8(validationProbe as unknown as Record<string, unknown>);
+  return {
+    session,
+    compatibility: "historical-repair-required",
+    incompatibleMeasurementIds,
+  };
+}
+
+export function deserializeSessionForRecovery(serialized: string): DecodedSession {
   const value: unknown = JSON.parse(serialized);
   if (!isObject(value)) throw new Error("The saved session uses an unsupported schema.");
   if (value.schemaVersion === 1) {
     assertValidLegacySession(value);
-    return canonicalizeSessionV8(
-      migrateSessionV7(
-        migrateSessionV6(
-          migrateSessionV5(
-            migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(
+        migrateSessionV7(
+          migrateSessionV6(
+            migrateSessionV5(
+              migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+            ),
           ),
         ),
       ),
+      true,
     );
   }
   if (value.schemaVersion === 2) {
     assertValidSessionV3(value, isPageCalibrationV2);
-    return canonicalizeSessionV8(
-      migrateSessionV7(
-        migrateSessionV6(
-          migrateSessionV5(
-            migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(
+        migrateSessionV7(
+          migrateSessionV6(
+            migrateSessionV5(
+              migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+            ),
           ),
         ),
       ),
+      true,
     );
   }
   if (value.schemaVersion === 3) {
     assertValidSessionV3(value, isPageCalibrationV3);
-    return canonicalizeSessionV8(
-      migrateSessionV7(
-        migrateSessionV6(
-          migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(
+        migrateSessionV7(
+          migrateSessionV6(
+            migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+          ),
         ),
       ),
+      true,
     );
   }
   if (value.schemaVersion === 4) {
     assertValidSessionV4(value);
-    return canonicalizeSessionV8(
-      migrateSessionV7(
-        migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(
+        migrateSessionV7(
+          migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+        ),
       ),
+      false,
     );
   }
   if (value.schemaVersion === 5) {
     assertValidSessionV5(value);
-    return canonicalizeSessionV8(
-      migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(
+        migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
+      ),
+      false,
     );
   }
   if (value.schemaVersion === 6) {
     assertValidSessionV6(value);
-    return canonicalizeSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6)));
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6))),
+      false,
+    );
   }
   if (value.schemaVersion === 7) {
     assertValidSessionV7(value);
-    return canonicalizeSessionV8(migrateSessionV7(value as unknown as SessionV7));
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(migrateSessionV7(value as unknown as SessionV7)),
+      false,
+    );
   }
   if (value.schemaVersion === 8) {
     assertValidSessionV8(value);
-    return canonicalizeSessionV8(value as unknown as SessionV8);
+    return finalizeDecodedSession(canonicalizeSessionV8(value as unknown as SessionV8), false);
   }
   throw new Error("The saved session uses an unsupported schema.");
+}
+
+export function deserializeSession(serialized: string): CurrentSession {
+  const decoded = deserializeSessionForRecovery(serialized);
+  if (decoded.compatibility === "historical-repair-required") {
+    throw new Error("The saved session contains historical measurements that require repair.");
+  }
+  return decoded.session;
 }

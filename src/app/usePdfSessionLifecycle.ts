@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { enqueueAutosave, isAutosaveReady } from "./autosave";
+import { enqueueAutosave, isAutosaveReady, isSessionPersistable } from "./autosave";
 import {
   canActivatePdf,
   PdfLoadLifecycle,
@@ -54,7 +54,10 @@ interface PdfSessionLifecycleOptions {
   setError: (message: string | null) => void;
 }
 
-type AutosaveStatus = "inactive" | "available" | "unavailable";
+type AutosaveStatus = "inactive" | "available" | "repair-required" | "unavailable";
+
+const HISTORICAL_REPAIR_WARNING =
+  "Autosave is paused because one or more measurements from an older version need repair. Edit each invalid measurement to resume autosave automatically.";
 
 export function usePdfSessionLifecycle({
   session,
@@ -198,11 +201,15 @@ export function usePdfSessionLifecycle({
   }, []);
 
   useEffect(() => {
+    const repairedHistoricalSession =
+      autosaveStatus === "repair-required" &&
+      session !== null &&
+      isSessionPersistable(session);
     const autosaveInputs = {
       snapshot: session,
       pdfRuntimeReady: activePdf !== null,
       pdfBlob,
-      enabled: autosaveStatus === "available",
+      enabled: autosaveStatus === "available" || repairedHistoricalSession,
     };
     if (!isAutosaveReady(autosaveInputs)) return;
     const snapshot = autosaveInputs.snapshot;
@@ -225,7 +232,10 @@ export function usePdfSessionLifecycle({
         },
       )
         .then(() => {
-          if (generation === persistenceGenerationRef.current) setAutosaveWarning(null);
+          if (generation === persistenceGenerationRef.current) {
+            if (repairedHistoricalSession) setAutosaveStatus("available");
+            setAutosaveWarning(null);
+          }
         })
         .catch((error: unknown) => {
           if (generation !== persistenceGenerationRef.current) return;
@@ -384,8 +394,13 @@ export function usePdfSessionLifecycle({
       loadSession(recovery.session);
       resetWorkspace();
       closeAllOverlays();
-      setAutosaveStatus("available");
-      setAutosaveWarning(null);
+      if (recovery.compatibility === "historical-repair-required") {
+        setAutosaveStatus("repair-required");
+        setAutosaveWarning(HISTORICAL_REPAIR_WARNING);
+      } else {
+        setAutosaveStatus("available");
+        setAutosaveWarning(null);
+      }
       setRecovery(null);
       setRecoveryProtected(false);
     } catch (error) {
@@ -446,7 +461,7 @@ export function usePdfSessionLifecycle({
   }
 
   function dismissAutosaveWarning() {
-    if (autosaveStatus === "unavailable") return;
+    if (autosaveStatus === "unavailable" || autosaveStatus === "repair-required") return;
     setAutosaveWarning(null);
   }
 
@@ -472,7 +487,7 @@ export function usePdfSessionLifecycle({
     confirmDiscardRecovery,
     loading,
     autosaveWarning,
-    autosaveUnavailable: autosaveStatus === "unavailable",
+    autosaveUnavailable: autosaveStatus === "unavailable" || autosaveStatus === "repair-required",
     chooseFile,
     continueRecovery,
     discardRecovery,
