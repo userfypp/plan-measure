@@ -15,6 +15,7 @@ import type { CurrentSession } from "../types/domain";
 import {
   discardSavedSession,
   loadSavedSession,
+  PersistenceLoadError,
   replaceSavedSession,
   saveSessionMetadata,
   type SavedSession,
@@ -70,6 +71,7 @@ export function usePdfSessionLifecycle({
 }: PdfSessionLifecycleOptions) {
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const persistenceGenerationRef = useRef(0);
+  const persistenceRevisionRef = useRef<string | null | undefined>(undefined);
   const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
   const activePdfRef = useRef<LoadedPdf | null>(null);
   const pendingPdfRef = useRef<PendingPdf | null>(null);
@@ -173,6 +175,7 @@ export function usePdfSessionLifecycle({
     void loadSavedSession()
       .then((saved) => {
         if (cancelled) return;
+        persistenceRevisionRef.current = saved?.revision ?? null;
         setRecovery(saved);
         setRecoveryProtected(Boolean(saved));
         setRecoveryChecked(true);
@@ -180,6 +183,9 @@ export function usePdfSessionLifecycle({
       .catch((error: unknown) => {
         console.error("IndexedDB recovery failed.", error);
         if (cancelled) return;
+        if (error instanceof PersistenceLoadError) {
+          persistenceRevisionRef.current = error.revision;
+        }
         setRecoveryProtected(true);
         setRecoveryIssue(
           "The previous session could not be read. You can try to discard it or continue without browser recovery.",
@@ -207,7 +213,16 @@ export function usePdfSessionLifecycle({
         snapshot,
         generation,
         (candidateGeneration) => candidateGeneration === persistenceGenerationRef.current,
-        saveSessionMetadata,
+        async (currentSnapshot) => {
+          const expectedRevision = persistenceRevisionRef.current;
+          if (expectedRevision === null || expectedRevision === undefined) {
+            throw new Error("Cannot autosave without a persisted session revision.");
+          }
+          persistenceRevisionRef.current = await saveSessionMetadata(
+            currentSnapshot,
+            expectedRevision,
+          );
+        },
       )
         .then(() => {
           if (generation === persistenceGenerationRef.current) setAutosaveWarning(null);
@@ -256,7 +271,15 @@ export function usePdfSessionLifecycle({
 
       let saved = false;
       try {
-        await replaceSavedSession(candidate.session, candidate.file);
+        const expectedRevision = persistenceRevisionRef.current;
+        if (expectedRevision === undefined) {
+          throw new Error("Cannot replace a saved session whose revision is unknown.");
+        }
+        persistenceRevisionRef.current = await replaceSavedSession(
+          candidate.session,
+          candidate.file,
+          expectedRevision,
+        );
         saved = true;
       } catch (error) {
         console.error("Could not save the new PDF session.", error);
@@ -386,7 +409,12 @@ export function usePdfSessionLifecycle({
     cancelReferenceEdit();
     try {
       await saveQueueRef.current.catch(() => undefined);
-      await discardSavedSession();
+      const expectedRevision = persistenceRevisionRef.current;
+      if (expectedRevision === null || expectedRevision === undefined) {
+        throw new Error("Cannot discard a saved session whose revision is unknown.");
+      }
+      await discardSavedSession(expectedRevision);
+      persistenceRevisionRef.current = null;
       if (disposedRef.current) return;
       setRecovery(null);
       setRecoveryIssue(null);

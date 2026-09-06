@@ -17,7 +17,13 @@ describe("IndexedDB opening", () => {
     const database = {
       transaction: vi.fn(() => ({
         done: Promise.resolve(),
-        objectStore: vi.fn(() => ({ get: vi.fn().mockResolvedValue(undefined) })),
+        objectStore: vi.fn((name: string) => ({
+          get: vi
+            .fn()
+            .mockResolvedValue(
+              name === "sessions" ? { key: "persistence-v2", activeRevision: null } : undefined,
+            ),
+        })),
       })),
     };
     openDBMock.mockRejectedValueOnce(new Error("temporary open failure")).mockResolvedValueOnce(database);
