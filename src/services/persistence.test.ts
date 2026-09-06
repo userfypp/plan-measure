@@ -13,9 +13,11 @@ import type {
   SessionV7,
 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
+import { enqueueAutosave } from "../app/autosave";
 import {
   discardSavedSession,
   loadSavedSession,
+  PersistenceConflictError,
   replaceSavedSession,
   resetPersistenceForTests,
   saveSessionMetadata,
@@ -318,6 +320,47 @@ function v4MeasuredSession(): SessionV4 {
     },
     settings: { displayUnit: "m", showLabels: true, showMeasurements: true, showCalibration: true },
   };
+}
+
+function openPersistenceDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("plan-measure", 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore("sessions", { keyPath: "key" });
+      request.result.createObjectStore("pdfs", { keyPath: "key" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function completeTransaction(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+async function writeLegacyActiveSession(session: CurrentSession, pdfBlob: Blob): Promise<void> {
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+  transaction.objectStore("sessions").put({
+    key: "active",
+    serialized: serializeSession(session),
+    savedAt: Date.now(),
+  });
+  transaction.objectStore("pdfs").put({ key: "active", blob: pdfBlob });
+  await completeTransaction(transaction);
+  database.close();
+}
+
+async function deleteProtectedPdf(): Promise<void> {
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction("pdfs", "readwrite");
+  transaction.objectStore("pdfs").delete("active-v2");
+  await completeTransaction(transaction);
+  database.close();
 }
 
 describe("session persistence", () => {
@@ -841,10 +884,11 @@ describe("session persistence", () => {
     });
     session.pages[2]!.measurements[0]!.classificationValueIds = ["kitchen"];
     const blob = new Blob(["pdf"], { type: "application/pdf" });
-    await replaceSavedSession(session, blob);
+    let revision = await replaceSavedSession(session, blob, null);
     session.settings.showMeasurements = false;
-    await saveSessionMetadata(session);
+    revision = await saveSessionMetadata(session, revision);
     const restored = await loadSavedSession();
+    expect(restored?.revision).toBe(revision);
     expect(restored?.session.settings.showMeasurements).toBe(false);
     expect(restored?.session.pages[2]!.measurements[0]!.classificationValueIds).toEqual([
       "kitchen",
@@ -853,17 +897,119 @@ describe("session persistence", () => {
     expect(await restored?.pdfBlob.text()).toBe("pdf");
   });
 
+  it("keeps the revision for an unchanged recovery autosave", async () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
+    const revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
+
+    expect(await saveSessionMetadata(session, revision)).toBe(revision);
+  });
+
   it("does not save orphaned metadata without its PDF record", async () => {
     const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
-    await expect(saveSessionMetadata(session)).rejects.toThrow("without its PDF");
-    expect(await loadSavedSession()).toBeNull();
+    const revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
+    await deleteProtectedPdf();
+
+    await expect(saveSessionMetadata(session, revision)).rejects.toThrow("without its PDF");
+    await expect(loadSavedSession()).rejects.toThrow("incomplete");
   });
 
   it("discards both records", async () => {
     const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
-    await replaceSavedSession(session, new Blob(["pdf"]));
-    await discardSavedSession();
+    const revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
+    await discardSavedSession(revision);
     expect(await loadSavedSession()).toBeNull();
+  });
+
+  it("rejects a pending stale autosave after another tab replaces the active PDF", async () => {
+    const sessionA = createEmptySession({ name: "a.pdf", size: 5, lastModified: 1 }, 1);
+    const sessionB = createEmptySession({ name: "b.pdf", size: 5, lastModified: 2 }, 1);
+    await replaceSavedSession(sessionA, new Blob(["pdf-a"]), null);
+    const tabA = await loadSavedSession();
+    const tabB = await loadSavedSession();
+    if (!tabA || !tabB) throw new Error("Expected both tabs to recover session A.");
+
+    let releaseAutosave!: () => void;
+    const precedingSave = new Promise<void>((resolve) => {
+      releaseAutosave = resolve;
+    });
+    tabA.session.settings.showLabels = false;
+    const staleAutosave = enqueueAutosave(
+      precedingSave,
+      tabA.session,
+      1,
+      () => true,
+      (snapshot) => saveSessionMetadata(snapshot, tabA.revision).then(() => undefined),
+    );
+
+    await replaceSavedSession(sessionB, new Blob(["pdf-b"]), tabB.revision);
+    releaseAutosave();
+
+    await expect(staleAutosave).rejects.toBeInstanceOf(PersistenceConflictError);
+    const restored = await loadSavedSession();
+    expect(restored?.session.pdf.name).toBe("b.pdf");
+    expect(restored?.session.settings.showLabels).toBe(true);
+    expect(await restored?.pdfBlob.text()).toBe("pdf-b");
+  });
+
+  it("rejects divergent metadata from the second writer of one logical session", async () => {
+    const session = createEmptySession({ name: "shared.pdf", size: 3, lastModified: 1 }, 1);
+    await replaceSavedSession(session, new Blob(["shared-pdf"]), null);
+    const tabA = await loadSavedSession();
+    const tabB = await loadSavedSession();
+    if (!tabA || !tabB) throw new Error("Expected both tabs to recover the shared session.");
+
+    tabA.session.settings.showLabels = false;
+    tabB.session.settings.showMeasurements = false;
+    await saveSessionMetadata(tabB.session, tabB.revision);
+
+    await expect(saveSessionMetadata(tabA.session, tabA.revision)).rejects.toBeInstanceOf(
+      PersistenceConflictError,
+    );
+    const restored = await loadSavedSession();
+    expect(restored?.session.settings.showLabels).toBe(true);
+    expect(restored?.session.settings.showMeasurements).toBe(false);
+    expect(await restored?.pdfBlob.text()).toBe("shared-pdf");
+  });
+
+  it("rejects a stale discard after another tab replaces the active session", async () => {
+    const sessionA = createEmptySession({ name: "a.pdf", size: 3, lastModified: 1 }, 1);
+    const sessionB = createEmptySession({ name: "b.pdf", size: 3, lastModified: 2 }, 1);
+    await replaceSavedSession(sessionA, new Blob(["pdf-a"]), null);
+    const tabA = await loadSavedSession();
+    const tabB = await loadSavedSession();
+    if (!tabA || !tabB) throw new Error("Expected both tabs to recover session A.");
+
+    await replaceSavedSession(sessionB, new Blob(["pdf-b"]), tabB.revision);
+
+    await expect(discardSavedSession(tabA.revision)).rejects.toBeInstanceOf(
+      PersistenceConflictError,
+    );
+    const restored = await loadSavedSession();
+    expect(restored?.session.pdf.name).toBe("b.pdf");
+    expect(await restored?.pdfBlob.text()).toBe("pdf-b");
+  });
+
+  it("migrates legacy active records and isolates them from already-open old writers", async () => {
+    const legacy = currentMeasuredSession();
+    await writeLegacyActiveSession(legacy, new Blob(["legacy-pdf"]));
+
+    const migrated = await loadSavedSession();
+    if (!migrated) throw new Error("Expected the legacy session to be recovered.");
+    expect(migrated.session).toEqual(legacy);
+    expect(await migrated.pdfBlob.text()).toBe("legacy-pdf");
+
+    const staleOldSession = createEmptySession(
+      { name: "stale-old-tab.pdf", size: 3, lastModified: 2 },
+      legacy.pageCount,
+    );
+    await writeLegacyActiveSession(staleOldSession, new Blob(["stale-old-pdf"]));
+    migrated.session.settings.showLabels = false;
+    await saveSessionMetadata(migrated.session, migrated.revision);
+
+    const restored = await loadSavedSession();
+    expect(restored?.session.pdf.name).toBe(legacy.pdf.name);
+    expect(restored?.session.settings.showLabels).toBe(false);
+    expect(await restored?.pdfBlob.text()).toBe("legacy-pdf");
   });
 
   it("rejects blank persisted measurement names", () => {
