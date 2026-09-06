@@ -6,7 +6,11 @@ import {
   type IDBPTransaction,
 } from "idb";
 import type { CurrentSession } from "../types/domain";
-import { deserializeSession, serializeSession } from "./persistenceCodec";
+import {
+  deserializeSessionForRecovery,
+  serializeSession,
+  type SessionCompatibility,
+} from "./persistenceCodec";
 
 const DATABASE_NAME = "plan-measure";
 const LEGACY_ACTIVE_KEY = "active";
@@ -85,6 +89,8 @@ export interface SavedSession {
   session: CurrentSession;
   pdfBlob: Blob;
   revision: string;
+  compatibility: SessionCompatibility;
+  incompatibleMeasurementIds: string[];
 }
 
 function isPersistenceStateRecord(
@@ -161,8 +167,9 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
     throw new PersistenceLoadError("The saved session is incomplete.", state.activeRevision);
   }
   try {
+    const decoded = deserializeSessionForRecovery(sessionRecord.serialized);
     return {
-      session: deserializeSession(sessionRecord.serialized),
+      ...decoded,
       pdfBlob: pdfRecord.blob,
       revision: state.activeRevision,
     };

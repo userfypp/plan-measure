@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createEmptySession } from "../app/sessionState";
+import { enqueueAutosave, isSessionPersistable } from "../app/autosave";
+import { createEmptySession, initialSessionState, sessionReducer } from "../app/sessionState";
 import type {
   CurrentSession,
   Point,
@@ -13,16 +14,20 @@ import type {
   SessionV7,
 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
-import { enqueueAutosave } from "../app/autosave";
 import {
   discardSavedSession,
   loadSavedSession,
   PersistenceConflictError,
+  PersistenceLoadError,
   replaceSavedSession,
   resetPersistenceForTests,
   saveSessionMetadata,
 } from "./persistence";
-import { deserializeSession, serializeSession } from "./persistenceCodec";
+import {
+  deserializeSession,
+  deserializeSessionForRecovery,
+  serializeSession,
+} from "./persistenceCodec";
 
 beforeEach(resetPersistenceForTests);
 afterEach(resetPersistenceForTests);
@@ -355,6 +360,28 @@ async function writeLegacyActiveSession(session: CurrentSession, pdfBlob: Blob):
   database.close();
 }
 
+async function writeRawActiveSession(
+  session: SessionV1 | SessionV2 | SessionV3 | SessionV4,
+  pdfBlob: Blob,
+): Promise<string> {
+  const revision = `historical-v${session.schemaVersion}`;
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+  transaction.objectStore("sessions").put({
+    key: "active-v2",
+    serialized: JSON.stringify(session),
+    savedAt: Date.now(),
+    revision,
+  });
+  transaction.objectStore("pdfs").put({ key: "active-v2", blob: pdfBlob, revision });
+  transaction
+    .objectStore("sessions")
+    .put({ key: "persistence-v2", activeRevision: revision });
+  await completeTransaction(transaction);
+  database.close();
+  return revision;
+}
+
 async function deleteProtectedPdf(): Promise<void> {
   const database = await openPersistenceDatabase();
   const transaction = database.transaction("pdfs", "readwrite");
@@ -364,6 +391,223 @@ async function deleteProtectedPdf(): Promise<void> {
 }
 
 describe("session persistence", () => {
+  const incompatibleHistoricalSessions = [
+    {
+      version: 1,
+      create() {
+        const session = legacySession(true);
+        session.pages[1]!.measurements[0]!.points = [
+          { x: 5, y: 5 },
+          { x: 5, y: 5 },
+        ];
+        return session;
+      },
+      incompatibleId: "legacy-line",
+      validId: "legacy-polygon",
+      calibrationId: "legacy-page-1-scale-1",
+    },
+    {
+      version: 2,
+      create() {
+        const session = v2MeasuredSession();
+        session.pages[1]!.measurements[0]!.points = [
+          { x: 5, y: 5 },
+          { x: 5, y: 5 },
+        ];
+        session.pages[1]!.measurements.push({
+          id: "valid-v2-line",
+          type: "line",
+          name: "Valid V2 line",
+          calibrationId: "v2-scale",
+          points: [
+            { x: 1, y: 2 },
+            { x: 3, y: 4 },
+          ],
+        });
+        return session;
+      },
+      incompatibleId: "v2-line",
+      validId: "valid-v2-line",
+      calibrationId: "v2-scale",
+    },
+    {
+      version: 3,
+      create() {
+        const session = v3MeasuredSession();
+        session.pages[1]!.measurements[0]!.points = [
+          { x: 5, y: 5 },
+          { x: 5, y: 5 },
+        ];
+        session.pages[1]!.measurements.push({
+          id: "valid-v3-line",
+          type: "line",
+          name: "Valid V3 line",
+          calibrationId: "v3-scale",
+          points: [
+            { x: 1, y: 2 },
+            { x: 3, y: 4 },
+          ],
+        });
+        return session;
+      },
+      incompatibleId: "v3-line",
+      validId: "valid-v3-line",
+      calibrationId: "v3-scale",
+    },
+  ] as const;
+
+  it.each(incompatibleHistoricalSessions)(
+    "recovers and persists repaired incompatible V$version geometry without data loss",
+    async ({ create, incompatibleId, validId, calibrationId }) => {
+      const historical = create();
+      const historicalPage = historical.pages[1]!;
+      const expectedCalibration =
+        historical.schemaVersion === 1
+          ? {
+              id: calibrationId,
+              name: "Scale 1",
+              mode: "uniform" as const,
+              ...historical.pages[1]!.calibration!,
+            }
+          : historical.schemaVersion === 2
+            ? { ...historical.pages[1]!.calibrations[0]!, mode: "uniform" as const }
+            : structuredClone(historical.pages[1]!.calibrations[0]!);
+      const originalIncompatible = structuredClone(
+        historicalPage.measurements.find((measurement) => measurement.id === incompatibleId)!,
+      );
+      const originalValid = structuredClone(
+        historicalPage.measurements.find((measurement) => measurement.id === validId)!,
+      );
+      const pdfBlob = new Blob([`pdf-v${historical.schemaVersion}`]);
+      const originalRevision = await writeRawActiveSession(historical, pdfBlob);
+
+      const recovered = await loadSavedSession();
+      if (!recovered) throw new Error("Expected the historical session to be recovered.");
+      const recoveredPage = recovered.session.pages[1]!;
+      const incompatible = recoveredPage.measurements.find(
+        (measurement) => measurement.id === incompatibleId,
+      )!;
+      const valid = recoveredPage.measurements.find((measurement) => measurement.id === validId)!;
+
+      expect(recovered.compatibility).toBe("historical-repair-required");
+      expect(recovered.incompatibleMeasurementIds).toEqual([incompatibleId]);
+      expect(recovered.revision).toBe(originalRevision);
+      expect(incompatible).toMatchObject({
+        id: originalIncompatible.id,
+        type: originalIncompatible.type,
+        name: originalIncompatible.name,
+        points: originalIncompatible.points,
+        calibrationId,
+        classificationValueIds: [],
+        visible: true,
+      });
+      expect(valid).toMatchObject({
+        id: originalValid.id,
+        type: originalValid.type,
+        name: originalValid.name,
+        points: originalValid.points,
+        calibrationId,
+        classificationValueIds: [],
+        visible: true,
+      });
+      expect(recoveredPage.calibrations[0]).toEqual(expectedCalibration);
+      expect(recovered.session.classificationCatalog).toEqual({ dimensions: [] });
+      expect(await recovered.pdfBlob.text()).toBe(`pdf-v${historical.schemaVersion}`);
+      expect(isSessionPersistable(recovered.session)).toBe(false);
+      expect(() => serializeSession(recovered.session)).toThrow("invalid");
+      expect(() => deserializeSession(JSON.stringify(historical))).toThrow("require repair");
+
+      let state = sessionReducer(initialSessionState, {
+        type: "LOAD_SESSION",
+        session: recovered.session,
+      });
+      state = sessionReducer(state, {
+        type: "UPDATE_MEASUREMENT",
+        pageNumber: 1,
+        id: incompatibleId,
+        points: [
+          { x: 5, y: 5 },
+          { x: 6, y: 5 },
+        ],
+      });
+      if (!state.session) throw new Error("Expected the repaired session to remain loaded.");
+      expect(state.session.pages[1]!.measurements.map((measurement) => measurement.id)).toEqual(
+        recoveredPage.measurements.map((measurement) => measurement.id),
+      );
+      expect(isSessionPersistable(state.session)).toBe(true);
+
+      let savedRevision = recovered.revision;
+      await enqueueAutosave(Promise.resolve(), state.session, 1, () => true, async (snapshot) => {
+        savedRevision = await saveSessionMetadata(snapshot, savedRevision);
+      });
+      const restored = await loadSavedSession();
+      expect(savedRevision).not.toBe(originalRevision);
+      expect(restored?.compatibility).toBe("current");
+      expect(restored?.session).toEqual(state.session);
+      expect(await restored?.pdfBlob.text()).toBe(`pdf-v${historical.schemaVersion}`);
+    },
+  );
+
+  it("preserves historically producible consecutive Polygon points for repair", () => {
+    const historical = v3MeasuredSession();
+    const points = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 10 },
+    ];
+    historical.pages[1]!.measurements[0] = {
+      id: "historical-polygon",
+      type: "polygon",
+      name: "Historical polygon",
+      calibrationId: "v3-scale",
+      points,
+    };
+
+    const decoded = deserializeSessionForRecovery(JSON.stringify(historical));
+
+    expect(decoded.compatibility).toBe("historical-repair-required");
+    expect(decoded.incompatibleMeasurementIds).toEqual(["historical-polygon"]);
+    expect(decoded.session.pages[1]!.measurements[0]).toMatchObject({
+      id: "historical-polygon",
+      name: "Historical polygon",
+      calibrationId: "v3-scale",
+      points,
+    });
+    expect(isSessionPersistable(decoded.session)).toBe(false);
+  });
+
+  it.each([
+    [1, () => legacySession(true)],
+    [2, v2MeasuredSession],
+    [3, v3MeasuredSession],
+  ] as const)("classifies valid V%d sessions as current and saveable", (_version, create) => {
+    const decoded = deserializeSessionForRecovery(JSON.stringify(create()));
+
+    expect(decoded.compatibility).toBe("current");
+    expect(decoded.incompatibleMeasurementIds).toEqual([]);
+    expect(() => serializeSession(decoded.session)).not.toThrow();
+  });
+
+  it("does not treat invalid current geometry as historical compatibility data", async () => {
+    const invalidV4 = v4MeasuredSession();
+    invalidV4.pages[1]!.measurements[0]!.points = [
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+    ];
+    await writeRawActiveSession(invalidV4, new Blob(["pdf-v4"]));
+
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+
+    const invalidV8 = currentMeasuredSession();
+    invalidV8.pages[2]!.measurements[0]!.points = [
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+    ];
+    expect(() => serializeSession(invalidV8)).toThrow("invalid");
+    expect(() => deserializeSessionForRecovery(JSON.stringify(invalidV8))).toThrow("invalid");
+  });
+
   it("migrates V7 to V8 with empty CSV overrides without changing other data", () => {
     const v7 = v7MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v7));

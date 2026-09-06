@@ -1,4 +1,5 @@
 import type { CurrentSession } from "../types/domain";
+import { serializeSession } from "../services/persistenceCodec";
 
 export interface AutosaveInputs {
   snapshot: CurrentSession | null;
@@ -19,6 +20,15 @@ export function isAutosaveReady(inputs: AutosaveInputs): inputs is AutosaveInput
   return (
     inputs.snapshot !== null && inputs.pdfRuntimeReady && inputs.pdfBlob !== null && inputs.enabled
   );
+}
+
+export function isSessionPersistable(session: CurrentSession): boolean {
+  try {
+    serializeSession(session);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function enqueueAutosave(
