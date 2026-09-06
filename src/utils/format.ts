@@ -1,5 +1,9 @@
 import type { LinearUnit, Measurement, PageCalibration } from "../types/domain";
-import { measurementPathSpecs, measurementResultsMm } from "./geometry";
+import {
+  hasValidMeasurementPoints,
+  measurementPathSpecs,
+  measurementResultsMm,
+} from "./geometry";
 import { fromMillimetres, fromSquareMillimetres } from "./units";
 
 const DEFAULT_DISPLAY_DECIMAL_PLACES = 2;
@@ -60,6 +64,12 @@ export function formatMeasurement(
   calibration: PageCalibration,
   unit: LinearUnit,
 ): string {
+  if (
+    measurement.type === "polygon" &&
+    !hasValidMeasurementPoints(measurement.type, measurement.points)
+  ) {
+    return "Repair required";
+  }
   const result = measurementResultsMm(measurement, calibration);
   if (!measurementPathSpecs[measurement.type].closed && result.lengthMm !== null) {
     return `${formatDisplayNumber(fromMillimetres(result.lengthMm, unit))} ${unit}`;

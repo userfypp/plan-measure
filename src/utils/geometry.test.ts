@@ -12,6 +12,7 @@ import {
   polygonResultsMm,
   calibrationScaleX,
   calibrationScaleY,
+  hasValidMeasurementPoints,
   isPredominantlyHorizontal,
   isPredominantlyVertical,
   isOrthogonalSegment,
@@ -44,6 +45,99 @@ describe("path geometry", () => {
     expect(constrainOrthogonal({ x: 10, y: 20 }, { x: 13, y: 40 })).toEqual({ x: 10, y: 40 });
     expect(isOrthogonalSegment({ x: 0, y: 0 }, { x: 0, y: 9 })).toBe(true);
     expect(isOrthogonalSegment({ x: 0, y: 0 }, { x: 3, y: 9 })).toBe(false);
+  });
+
+  it.each([
+    [
+      "a concave ring",
+      [
+        { x: 0, y: 0 },
+        { x: 6, y: 0 },
+        { x: 6, y: 6 },
+        { x: 3, y: 3 },
+        { x: 0, y: 6 },
+      ],
+    ],
+    [
+      "the opposite winding",
+      [
+        { x: 0, y: 6 },
+        { x: 3, y: 3 },
+        { x: 6, y: 6 },
+        { x: 6, y: 0 },
+        { x: 0, y: 0 },
+      ],
+    ],
+    [
+      "a small ring",
+      [
+        { x: 0, y: 0 },
+        { x: 1e-9, y: 0 },
+        { x: 1e-9, y: 1e-9 },
+        { x: 0, y: 1e-9 },
+      ],
+    ],
+  ])("accepts %s as a simple Polygon", (_name, points) => {
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+  });
+
+  it("rejects a bow-tie whose closing edge crosses a non-adjacent edge", () => {
+    expect(
+      hasValidMeasurementPoints("polygon", [
+        { x: 0, y: 0 },
+        { x: 0, y: 4 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects an asymmetric crossing with a plausible non-zero shoelace area", () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 6, y: 5 },
+      { x: 0, y: 4 },
+      { x: 4, y: 0 },
+    ];
+
+    expect(polygonAreaPageUnitsSquared(points)).toBe(4);
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+  });
+
+  it.each([
+    [
+      "a non-adjacent endpoint touch",
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+        { x: 2, y: 0 },
+        { x: 0, y: 4 },
+      ],
+    ],
+    [
+      "a non-adjacent collinear overlap",
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+        { x: 1, y: 0 },
+        { x: 3, y: 0 },
+        { x: 0, y: 4 },
+      ],
+    ],
+    [
+      "an adjacent edge overlap beyond the shared endpoint",
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 2, y: 0 },
+        { x: 2, y: 2 },
+        { x: 0, y: 2 },
+      ],
+    ],
+  ])("rejects %s", (_name, points) => {
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
   });
 });
 

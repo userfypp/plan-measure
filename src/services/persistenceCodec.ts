@@ -19,6 +19,7 @@ import type {
 } from "../types/domain";
 import {
   hasValidMeasurementPoints,
+  hasValidMeasurementPointSequence,
   isMeasurementType,
   isValidCalibration,
   isValidPageCalibration,
@@ -626,6 +627,45 @@ export interface DecodedSession {
   incompatibleMeasurementIds: string[];
 }
 
+function historicalPolygonValidationProbe(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  const probe = structuredClone(value);
+  if (!isObject(probe.pages)) return probe;
+  for (const page of Object.values(probe.pages)) {
+    if (!isObject(page) || !Array.isArray(page.measurements)) continue;
+    for (const measurement of page.measurements) {
+      if (
+        !isObject(measurement) ||
+        measurement.type !== "polygon" ||
+        !Array.isArray(measurement.points) ||
+        !measurement.points.every(isPoint)
+      ) {
+        continue;
+      }
+      const points = measurement.points as Point[];
+      if (
+        hasValidMeasurementPointSequence("polygon", points) &&
+        !hasValidMeasurementPoints("polygon", points)
+      ) {
+        measurement.points = [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+        ];
+      }
+    }
+  }
+  return probe;
+}
+
+function assertValidSessionWithHistoricalPolygons(
+  value: Record<string, unknown>,
+  assertValid: (candidate: Record<string, unknown>) => void,
+): void {
+  assertValid(historicalPolygonValidationProbe(value));
+}
+
 function finalizeDecodedSession(
   session: CurrentSession,
   allowHistoricalGeometry: boolean,
@@ -717,42 +757,42 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 4) {
-    assertValidSessionV4(value);
+    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV4);
     return finalizeDecodedSession(
       canonicalizeSessionV8(
         migrateSessionV7(
           migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
         ),
       ),
-      false,
+      true,
     );
   }
   if (value.schemaVersion === 5) {
-    assertValidSessionV5(value);
+    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV5);
     return finalizeDecodedSession(
       canonicalizeSessionV8(
         migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
       ),
-      false,
+      true,
     );
   }
   if (value.schemaVersion === 6) {
-    assertValidSessionV6(value);
+    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV6);
     return finalizeDecodedSession(
       canonicalizeSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6))),
-      false,
+      true,
     );
   }
   if (value.schemaVersion === 7) {
-    assertValidSessionV7(value);
+    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV7);
     return finalizeDecodedSession(
       canonicalizeSessionV8(migrateSessionV7(value as unknown as SessionV7)),
-      false,
+      true,
     );
   }
   if (value.schemaVersion === 8) {
-    assertValidSessionV8(value);
-    return finalizeDecodedSession(canonicalizeSessionV8(value as unknown as SessionV8), false);
+    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV8);
+    return finalizeDecodedSession(canonicalizeSessionV8(value as unknown as SessionV8), true);
   }
   throw new Error("The saved session uses an unsupported schema.");
 }

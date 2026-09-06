@@ -167,12 +167,13 @@ export function PdfViewer({
   const completePath = useCallback(
     (measurementType: MeasurementType, points: Point[]) => {
       const id = crypto.randomUUID();
-      addMeasurement({
+      const accepted = addMeasurement({
         pageNumber: page.pageNumber,
         id,
         measurementType,
         points,
       });
+      if (!accepted) return;
       setDraftPointer(null);
       completeDraft();
       selectWorkspaceMeasurement(id);

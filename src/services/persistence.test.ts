@@ -361,7 +361,7 @@ async function writeLegacyActiveSession(session: CurrentSession, pdfBlob: Blob):
 }
 
 async function writeRawActiveSession(
-  session: SessionV1 | SessionV2 | SessionV3 | SessionV4,
+  session: SessionV1 | SessionV2 | SessionV3 | SessionV4 | CurrentSession,
   pdfBlob: Blob,
 ): Promise<string> {
   const revision = `historical-v${session.schemaVersion}`;
@@ -577,6 +577,52 @@ describe("session persistence", () => {
     expect(isSessionPersistable(decoded.session)).toBe(false);
   });
 
+  it("preserves a historical self-intersecting Polygon until it is repaired", () => {
+    const historical = v3MeasuredSession();
+    const points = [
+      { x: 0, y: 0 },
+      { x: 6, y: 5 },
+      { x: 0, y: 4 },
+      { x: 4, y: 0 },
+    ];
+    historical.pages[1]!.measurements[0] = {
+      id: "historical-crossing-polygon",
+      type: "polygon",
+      name: "Historical crossing polygon",
+      calibrationId: "v3-scale",
+      points,
+    };
+
+    const decoded = deserializeSessionForRecovery(JSON.stringify(historical));
+
+    expect(decoded.compatibility).toBe("historical-repair-required");
+    expect(decoded.incompatibleMeasurementIds).toEqual(["historical-crossing-polygon"]);
+    expect(decoded.session.pages[1]!.measurements[0]!.points).toEqual(points);
+    expect(isSessionPersistable(decoded.session)).toBe(false);
+    expect(() => serializeSession(decoded.session)).toThrow("invalid");
+
+    const repaired = sessionReducer(
+      { session: decoded.session, error: null },
+      {
+        type: "UPDATE_MEASUREMENT",
+        pageNumber: 1,
+        id: "historical-crossing-polygon",
+        points: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+          { x: 0, y: 4 },
+        ],
+      },
+    );
+
+    expect(repaired.session?.pages[1]!.measurements[0]!.id).toBe(
+      "historical-crossing-polygon",
+    );
+    expect(isSessionPersistable(repaired.session!)).toBe(true);
+    expect(() => serializeSession(repaired.session!)).not.toThrow();
+  });
+
   it.each([
     [1, () => legacySession(true)],
     [2, v2MeasuredSession],
@@ -606,6 +652,47 @@ describe("session persistence", () => {
     ];
     expect(() => serializeSession(invalidV8)).toThrow("invalid");
     expect(() => deserializeSessionForRecovery(JSON.stringify(invalidV8))).toThrow("invalid");
+
+    const malformedPolygonV8 = currentMeasuredSession();
+    malformedPolygonV8.pages[2]!.measurements[0] = {
+      ...malformedPolygonV8.pages[2]!.measurements[0]!,
+      type: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+      ],
+    };
+    expect(() => deserializeSessionForRecovery(JSON.stringify(malformedPolygonV8))).toThrow(
+      "invalid",
+    );
+  });
+
+  it("recovers a previously saved V8 self-intersecting Polygon for repair", async () => {
+    const crossingV8 = currentMeasuredSession();
+    const points = [
+      { x: 0, y: 0 },
+      { x: 6, y: 5 },
+      { x: 0, y: 4 },
+      { x: 4, y: 0 },
+    ];
+    crossingV8.pages[2]!.measurements[0] = {
+      ...crossingV8.pages[2]!.measurements[0]!,
+      type: "polygon",
+      points,
+    };
+
+    const originalRevision = await writeRawActiveSession(crossingV8, new Blob(["pdf-v8"]));
+    const decoded = await loadSavedSession();
+    if (!decoded) throw new Error("Expected the V8 session to be recovered.");
+
+    expect(() => serializeSession(crossingV8)).toThrow("invalid");
+    expect(() => deserializeSession(JSON.stringify(crossingV8))).toThrow("require repair");
+    expect(decoded.compatibility).toBe("historical-repair-required");
+    expect(decoded.incompatibleMeasurementIds).toEqual(["custom"]);
+    expect(decoded.revision).toBe(originalRevision);
+    expect(decoded.session.pages[2]!.measurements[0]!.points).toEqual(points);
+    expect(await decoded.pdfBlob.text()).toBe("pdf-v8");
   });
 
   it("migrates V7 to V8 with empty CSV overrides without changing other data", () => {

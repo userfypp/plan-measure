@@ -11,6 +11,7 @@ import {
   calibrationScaleX,
   calibrationScaleY,
   distance,
+  hasValidMeasurementPoints,
   type MeasurementPathSpec,
   measurementPathSpecs,
   measurementResultsMm,
@@ -485,6 +486,12 @@ export function buildCsv(
     const page = session.pages[pageNumber];
     if (!page) continue;
     for (const measurement of page.measurements) {
+      if (
+        measurement.type === "polygon" &&
+        !hasValidMeasurementPoints(measurement.type, measurement.points)
+      ) {
+        throw new Error("Repair invalid Polygon measurements before exporting CSV.");
+      }
       const context = createCsvRowContext(
         pageNumber,
         pageLabels?.[pageNumber - 1] ?? "",

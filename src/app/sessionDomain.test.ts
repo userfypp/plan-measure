@@ -148,6 +148,24 @@ describe("session domain reducer", () => {
     expect(page.nextMeasurementNumber.polygon).toBe(3);
   });
 
+  it("rejects completion of a self-intersecting Polygon", () => {
+    const state = sessionReducer(addScale(loadedState(), "scale-1", "Scale 1"), {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "bow-tie",
+      measurementType: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 4 },
+        { x: 0, y: 4 },
+        { x: 4, y: 0 },
+      ],
+    });
+
+    expect(state.session!.pages[1]!.measurements).toEqual([]);
+    expect(state.error).toContain("invalid set of vertices");
+  });
+
   it("accepts Polygon completion with a diagonal closing edge", () => {
     let state = addScale(loadedState(), "scale-1", "Scale 1");
     state = sessionReducer(state, {
@@ -689,4 +707,3 @@ describe("session domain reducer", () => {
     );
   });
 });
-

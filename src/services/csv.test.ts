@@ -219,6 +219,18 @@ describe("CSV export", () => {
     expect(csv).toContain('1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,xy,,30.00,50.00,m,m²');
   });
 
+  it("does not export a self-intersecting Polygon area", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[1]!.points = [
+      { x: 0, y: 0 },
+      { x: 6, y: 5 },
+      { x: 0, y: 4 },
+      { x: 4, y: 0 },
+    ];
+
+    expect(() => buildCsv(session)).toThrow("Repair invalid Polygon measurements");
+  });
+
   it("exports all columns with the established order and calibration metadata", () => {
     const session = measuredSession();
     const csv = buildCsv(session, null, allColumns(session));

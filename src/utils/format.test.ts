@@ -67,4 +67,22 @@ describe("measurement formatting", () => {
   ] as const)("formats small perimeters and areas in %s", (unit, expected) => {
     expect(formatMeasurement(polygon, calibration, unit)).toBe(expected);
   });
+
+  it("does not format a self-intersecting Polygon as a valid area", () => {
+    expect(
+      formatMeasurement(
+        {
+          type: "polygon",
+          points: [
+            { x: 0, y: 0 },
+            { x: 6, y: 5 },
+            { x: 0, y: 4 },
+            { x: 4, y: 0 },
+          ],
+        },
+        calibration,
+        "mm",
+      ),
+    ).toBe("Repair required");
+  });
 });
