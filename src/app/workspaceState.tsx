@@ -4,7 +4,7 @@ import {
   updateCalibrationReferenceEdit as updateCalibrationReferenceEditDraft,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
-import type { DrawingDraft, Point, Tool } from "../types/domain";
+import type { DrawingDraft, Measurement, Point, Tool } from "../types/domain";
 
 /**
  * Interaction state for the current workspace. This state is intentionally not
@@ -13,6 +13,7 @@ import type { DrawingDraft, Point, Tool } from "../types/domain";
 export interface WorkspaceState {
   activeTool: Tool;
   selectedMeasurementId: string | null;
+  measurementClipboard: MeasurementClipboard | null;
   draft: DrawingDraft | null;
   orthogonal: boolean;
   calibrationFlow: CalibrationFlow | null;
@@ -22,12 +23,19 @@ export interface WorkspaceState {
   workspaceVersion: number;
 }
 
+export interface MeasurementClipboard {
+  sourcePageNumber: number;
+  measurement: Measurement;
+}
+
 export type WorkspaceAction =
   | { type: "RESET_WORKSPACE" }
   | { type: "PAGE_CHANGED" }
   | { type: "CHOOSE_TOOL"; tool: Tool }
   | { type: "SELECT_MEASUREMENT"; id: string }
   | { type: "CLEAR_SELECTION" }
+  | { type: "COPY_MEASUREMENT"; pageNumber: number; measurement: Measurement }
+  | { type: "CLEAR_MEASUREMENT_CLIPBOARD" }
   | { type: "START_DRAFT"; draft: DrawingDraft }
   | { type: "UPDATE_DRAFT"; draft: DrawingDraft }
   | { type: "CLEAR_DRAFT" }
@@ -48,6 +56,7 @@ export type WorkspaceAction =
 export const initialWorkspaceState: WorkspaceState = {
   activeTool: "select",
   selectedMeasurementId: null,
+  measurementClipboard: null,
   draft: null,
   orthogonal: false,
   calibrationFlow: null,
@@ -88,6 +97,20 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       return state.selectedMeasurementId === null
         ? state
         : { ...state, selectedMeasurementId: null };
+    case "COPY_MEASUREMENT":
+      return {
+        ...state,
+        measurementClipboard: {
+          sourcePageNumber: action.pageNumber,
+          measurement: {
+            ...action.measurement,
+            points: action.measurement.points.map((point) => ({ ...point })),
+            classificationValueIds: [...action.measurement.classificationValueIds],
+          },
+        },
+      };
+    case "CLEAR_MEASUREMENT_CLIPBOARD":
+      return state.measurementClipboard === null ? state : { ...state, measurementClipboard: null };
     case "START_DRAFT":
       return { ...state, draft: action.draft };
     case "UPDATE_DRAFT":
@@ -154,6 +177,8 @@ interface WorkspaceContextValue extends WorkspaceState {
   chooseTool: (tool: Tool) => void;
   selectMeasurement: (id: string) => void;
   clearSelection: () => void;
+  copyMeasurement: (pageNumber: number, measurement: Measurement) => void;
+  clearMeasurementClipboard: () => void;
   startDraft: (draft: DrawingDraft) => void;
   updateDraft: (draft: DrawingDraft) => void;
   clearDraft: () => void;
@@ -184,6 +209,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       chooseTool: (tool: Tool) => dispatch({ type: "CHOOSE_TOOL", tool }),
       selectMeasurement: (id: string) => dispatch({ type: "SELECT_MEASUREMENT", id }),
       clearSelection: () => dispatch({ type: "CLEAR_SELECTION" }),
+      copyMeasurement: (pageNumber: number, measurement: Measurement) =>
+        dispatch({ type: "COPY_MEASUREMENT", pageNumber, measurement }),
+      clearMeasurementClipboard: () => dispatch({ type: "CLEAR_MEASUREMENT_CLIPBOARD" }),
       startDraft: (draft: DrawingDraft) => dispatch({ type: "START_DRAFT", draft }),
       updateDraft: (draft: DrawingDraft) => dispatch({ type: "UPDATE_DRAFT", draft }),
       clearDraft: () => dispatch({ type: "CLEAR_DRAFT" }),

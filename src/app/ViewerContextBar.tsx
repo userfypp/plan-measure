@@ -1,3 +1,4 @@
+import { Button } from "../components/ui";
 import styles from "./ViewerContextBar.module.css";
 
 export interface ViewerContextAction {
@@ -22,9 +23,11 @@ export interface ViewerContextData {
 
 export function ViewerContextBar({
   context,
+  action = null,
   onScaleChange,
 }: {
   context: ViewerContextData;
+  action?: ViewerContextAction | null;
   onScaleChange: (scaleId: string) => void;
 }) {
   return (
@@ -60,6 +63,19 @@ export function ViewerContextBar({
           <span className={`${styles.value} ${styles[context.workflow.tone]}`} role="status">
             {context.workflow.label}
           </span>
+        </div>
+      )}
+
+      {action && (
+        <div className={styles.contextAction}>
+          <Button
+            variant="secondary"
+            size="compact"
+            disabled={action.disabled}
+            onClick={action.onClick}
+          >
+            {action.label}
+          </Button>
         </div>
       )}
     </div>

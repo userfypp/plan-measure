@@ -79,6 +79,7 @@ interface PdfAnnotationLayerProps {
 
   onSelectMeasurement: (id: string) => void;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
+  onMeasurementEditActiveChange: (active: boolean) => void;
 }
 
 export function PdfAnnotationLayer({
@@ -96,6 +97,7 @@ export function PdfAnnotationLayer({
   showLabels,
   onSelectMeasurement,
   onCalibrationReferencePointsChange,
+  onMeasurementEditActiveChange,
 }: PdfAnnotationLayerProps) {
   const showMeasurementLabels = showMeasurements && showLabels;
   const plannedLabelPlacements = useMemo(() => {
@@ -284,6 +286,7 @@ export function PdfAnnotationLayer({
             displayUnit={displayUnit}
             pageNumber={page.pageNumber}
             onSelectMeasurement={onSelectMeasurement}
+            onMeasurementEditActiveChange={onMeasurementEditActiveChange}
             plannedLabelPlacement={
               plannedLabelPlacements.get(`measurement:${measurement.id}`) ?? null
             }
@@ -408,6 +411,7 @@ interface MeasurementShapeProps {
   editable: boolean;
   showLabel: boolean;
   onSelectMeasurement: (id: string) => void;
+  onMeasurementEditActiveChange: (active: boolean) => void;
   plannedLabelPlacement: LabelPlacement | null;
 }
 
@@ -423,6 +427,7 @@ const MeasurementShape = memo(function MeasurementShape({
   editable,
   showLabel,
   onSelectMeasurement,
+  onMeasurementEditActiveChange,
   plannedLabelPlacement,
 }: MeasurementShapeProps) {
   const { updateMeasurement: updateSessionMeasurement } = useSessionState();
@@ -559,6 +564,7 @@ const MeasurementShape = memo(function MeasurementShape({
             hitStrokeWidth={10 / zoom}
             draggable
             onDragStart={(event) => {
+              onMeasurementEditActiveChange(true);
               finalDragPointsRef.current = null;
               dragPointsRef.current = null;
               const startPoint = pointFromDragEvent(event);
@@ -583,6 +589,7 @@ const MeasurementShape = memo(function MeasurementShape({
                 dragPointsRef.current = null;
                 setDragPoints(null);
               }
+              onMeasurementEditActiveChange(false);
             }}
           />
         ))}

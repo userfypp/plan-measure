@@ -30,13 +30,27 @@ import {
   beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
-import type { CalibrationReferenceKey, PageCalibration, Point, Tool } from "../types/domain";
-import { shouldIgnoreKeyboardShortcut } from "../utils/keyboard";
+import type {
+  CalibrationReferenceKey,
+  LogicalPageBounds,
+  PageCalibration,
+  Point,
+  Tool,
+} from "../types/domain";
+import { getMeasurementKeyboardAction } from "../utils/keyboard";
 import {
   findPageCalibration,
   getActiveCalibration,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
+import {
+  canDuplicateMeasurement,
+  duplicateMeasurement,
+  isMeasurementClipboardActionBlocked,
+  measurementClipboardFitsPage,
+  pasteMeasurementClipboard,
+  registerMeasurementClipboardInvalidation,
+} from "./measurementClipboard";
 import {
   isPredominantlyHorizontal,
   isPredominantlyVertical,
@@ -74,6 +88,7 @@ function PlanMeasureApp() {
     recalibrateCalibration,
     setActiveCalibration,
     updateCalibration,
+    pasteMeasurement,
     renameMeasurement,
     setMeasurementVisibility,
     setMeasurementsVisibility,
@@ -101,6 +116,7 @@ function PlanMeasureApp() {
   const {
     draft,
     selectedMeasurementId,
+    measurementClipboard,
     calibrationFlow,
     calibrationCandidate,
     calibrationReferenceEdit,
@@ -111,6 +127,8 @@ function PlanMeasureApp() {
     chooseTool: chooseWorkspaceTool,
     selectMeasurement: selectWorkspaceMeasurement,
     clearSelection,
+    copyMeasurement,
+    clearMeasurementClipboard,
     clearDraft,
     startCalibration,
     updateCalibrationCandidate,
@@ -124,9 +142,17 @@ function PlanMeasureApp() {
     setSecondaryPanel,
   } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const applicationCopyRef = useRef(false);
+  const measurementEditActiveRef = useRef(false);
+  const viewerPageZoomRef = useRef<{ pageNumber: number; zoom: number } | null>(null);
   const dragDepthRef = useRef(0);
   const [dragActive, setDragActive] = useState(false);
+  const [measurementEditActive, setMeasurementEditActive] = useState(false);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [viewerPageBounds, setViewerPageBounds] = useState<{
+    pageNumber: number;
+    bounds: LogicalPageBounds;
+  } | null>(null);
 
   const {
     activePdf,
@@ -163,6 +189,8 @@ function PlanMeasureApp() {
   const clearDragState = useCallback(() => {
     dragDepthRef.current = 0;
     setDragActive(false);
+    measurementEditActiveRef.current = false;
+    setMeasurementEditActive(false);
   }, []);
 
   const requestMeasurementDelete = useCallback(
@@ -199,21 +227,95 @@ function PlanMeasureApp() {
     [clearError, closeConfirmation, pageChanged, updatePage],
   );
 
+  const handleViewerPageBoundsChange = useCallback(
+    (pageNumber: number, bounds: LogicalPageBounds | null) => {
+      setViewerPageBounds((current) =>
+        bounds ? { pageNumber, bounds } : current?.pageNumber === pageNumber ? null : current,
+      );
+    },
+    [],
+  );
+
+  const handleMeasurementEditActiveChange = useCallback((active: boolean) => {
+    measurementEditActiveRef.current = active;
+    setMeasurementEditActive(active);
+  }, []);
+
+  const handleViewerViewZoomChange = useCallback((pageNumber: number, zoom: number | null) => {
+    if (zoom !== null) {
+      viewerPageZoomRef.current = { pageNumber, zoom };
+      return;
+    }
+    if (viewerPageZoomRef.current?.pageNumber === pageNumber) {
+      viewerPageZoomRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
-    function handleDelete(event: KeyboardEvent) {
+    function handleMeasurementShortcut(event: KeyboardEvent) {
+      const action = getMeasurementKeyboardAction(event);
+      if (!action || !session) return;
+      const page = session.pages[session.currentPage];
+      if (!page) return;
       if (
-        (event.key !== "Delete" && event.key !== "Backspace") ||
-        shouldIgnoreKeyboardShortcut(event) ||
-        !selectedMeasurementId ||
-        !session
+        action !== "delete-measurement" &&
+        isMeasurementClipboardActionBlocked(action, {
+          measurementEditActive: measurementEditActiveRef.current,
+          draftActive: Boolean(draft),
+          calibrationFlowActive: Boolean(calibrationFlow),
+          calibrationCandidateActive: Boolean(calibrationCandidate),
+          calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
+        })
       ) {
         return;
       }
-      const page = session.pages[session.currentPage];
+
+      if (action === "paste-measurement") {
+        if (!measurementClipboard) return;
+        event.preventDefault();
+        const destinationBounds =
+          viewerPageBounds?.pageNumber === page.pageNumber ? viewerPageBounds.bounds : null;
+        const destinationZoom =
+          viewerPageZoomRef.current?.pageNumber === page.pageNumber
+            ? viewerPageZoomRef.current.zoom
+            : null;
+        if (
+          !measurementClipboardFitsPage(measurementClipboard, page.pageNumber, destinationBounds)
+        ) {
+          setError(
+            destinationBounds
+              ? "The copied measurement does not fit within this page without changing its geometry."
+              : "Wait for this page to finish loading before pasting a measurement from another page.",
+          );
+          return;
+        }
+        pasteMeasurementClipboard({
+          clipboard: measurementClipboard,
+          pageNumber: page.pageNumber,
+          destinationBounds,
+          destinationZoom,
+          pasteMeasurement,
+          selectMeasurement: selectWorkspaceMeasurement,
+        });
+        return;
+      }
+
+      if (!selectedMeasurementId) return;
       const measurement = page?.measurements.find(
         (candidate) => candidate.id === selectedMeasurementId,
       );
-      if (!page || !measurement) return;
+      if (!measurement) return;
+      if (action === "copy-measurement") {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) return;
+        applicationCopyRef.current = true;
+        event.preventDefault();
+        copyMeasurement(page.pageNumber, measurement);
+        queueMicrotask(() => {
+          applicationCopyRef.current = false;
+        });
+        return;
+      }
       event.preventDefault();
       requestMeasurementDelete({
         pageNumber: page.pageNumber,
@@ -221,9 +323,32 @@ function PlanMeasureApp() {
         measurementName: measurement.name,
       });
     }
-    window.addEventListener("keydown", handleDelete);
-    return () => window.removeEventListener("keydown", handleDelete);
-  }, [requestMeasurementDelete, selectedMeasurementId, session]);
+    window.addEventListener("keydown", handleMeasurementShortcut);
+    return () => window.removeEventListener("keydown", handleMeasurementShortcut);
+  }, [
+    copyMeasurement,
+    calibrationCandidate,
+    calibrationFlow,
+    calibrationReferenceEdit,
+    draft,
+    measurementClipboard,
+    pasteMeasurement,
+    requestMeasurementDelete,
+    selectWorkspaceMeasurement,
+    selectedMeasurementId,
+    session,
+    setError,
+    viewerPageBounds,
+  ]);
+
+  useEffect(() => {
+    return registerMeasurementClipboardInvalidation({
+      documentTarget: document,
+      windowTarget: window,
+      applicationCopyInProgress: () => applicationCopyRef.current,
+      clearClipboard: clearMeasurementClipboard,
+    });
+  }, [clearMeasurementClipboard]);
 
   useEffect(() => {
     window.addEventListener("blur", clearDragState);
@@ -489,6 +614,51 @@ function PlanMeasureApp() {
   const selectedMeasurement =
     currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
     null;
+  const duplicateDisabled = currentPage && selectedMeasurement
+    ? !canDuplicateMeasurement(currentPage, selectedMeasurement) ||
+      isMeasurementClipboardActionBlocked("paste-measurement", {
+        measurementEditActive,
+        draftActive: Boolean(draft),
+        calibrationFlowActive: Boolean(calibrationFlow),
+        calibrationCandidateActive: Boolean(calibrationCandidate),
+        calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
+      })
+    : true;
+
+  function duplicateSelectedMeasurement(measurementId: string) {
+    if (!currentPage || selectedMeasurementId !== measurementId) return;
+    const measurement = currentPage.measurements.find(
+      (candidate) => candidate.id === measurementId,
+    );
+    if (!measurement) return;
+    if (!canDuplicateMeasurement(currentPage, measurement)) return;
+    if (
+      isMeasurementClipboardActionBlocked("paste-measurement", {
+        measurementEditActive: measurementEditActiveRef.current,
+        draftActive: Boolean(draft),
+        calibrationFlowActive: Boolean(calibrationFlow),
+        calibrationCandidateActive: Boolean(calibrationCandidate),
+        calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
+      })
+    ) {
+      return;
+    }
+
+    const destinationBounds =
+      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
+    const destinationZoom =
+      viewerPageZoomRef.current?.pageNumber === currentPage.pageNumber
+        ? viewerPageZoomRef.current.zoom
+        : null;
+    duplicateMeasurement({
+      measurement,
+      pageNumber: currentPage.pageNumber,
+      destinationBounds,
+      destinationZoom,
+      pasteMeasurement,
+      selectMeasurement: selectWorkspaceMeasurement,
+    });
+  }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
   const activeCalibrationActions = activeCalibration
     ? [
@@ -602,6 +772,15 @@ function PlanMeasureApp() {
           viewerContext={
             <ViewerContextBar
               context={viewerContext}
+              action={
+                selectedMeasurement
+                  ? {
+                      label: "Duplicate",
+                      disabled: duplicateDisabled,
+                      onClick: () => duplicateSelectedMeasurement(selectedMeasurement.id),
+                    }
+                  : null
+              }
               onScaleChange={(calibrationId) => {
                 if (currentPage) setActiveCalibration(currentPage.pageNumber, calibrationId);
               }}
@@ -619,6 +798,9 @@ function PlanMeasureApp() {
                 document={activePdf.document}
                 page={previewPage}
                 onPageChange={handlePageChange}
+                onPageBoundsChange={handleViewerPageBoundsChange}
+                onViewZoomChange={handleViewerViewZoomChange}
+                onMeasurementEditActiveChange={handleMeasurementEditActiveChange}
                 onChooseTool={chooseTool}
                 onCalibrationCandidate={(points) => {
                   const flow = calibrationFlow;

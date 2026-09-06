@@ -59,6 +59,52 @@ describe("workspace selection state", () => {
 
   it("starts with no selected measurement", () => {
     expect(initialWorkspaceState.selectedMeasurementId).toBeNull();
+    expect(initialWorkspaceState.measurementClipboard).toBeNull();
+  });
+
+  it("copies a detached measurement snapshot that survives page changes", () => {
+    const source = {
+      id: "line-1",
+      type: "line" as const,
+      name: "Existing name",
+      calibrationId: "scale-1",
+      points: [
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+      ],
+      classificationValueIds: ["electrical"],
+      visible: true,
+    };
+    const copied = workspaceReducer(initialWorkspaceState, {
+      type: "COPY_MEASUREMENT",
+      pageNumber: 1,
+      measurement: source,
+    });
+
+    source.points[0]!.x = 99;
+    source.classificationValueIds.push("changed-after-copy");
+    expect(copied.measurementClipboard).toEqual({
+      sourcePageNumber: 1,
+      measurement: {
+        id: "line-1",
+        type: "line",
+        name: "Existing name",
+        calibrationId: "scale-1",
+        points: [
+          { x: 1, y: 2 },
+          { x: 3, y: 4 },
+        ],
+        classificationValueIds: ["electrical"],
+        visible: true,
+      },
+    });
+
+    const changedPage = workspaceReducer(copied, { type: "PAGE_CHANGED" });
+    expect(changedPage.measurementClipboard).toEqual(copied.measurementClipboard);
+    expect(
+      workspaceReducer(copied, { type: "CLEAR_MEASUREMENT_CLIPBOARD" }).measurementClipboard,
+    ).toBeNull();
+    expect(workspaceReducer(copied, { type: "RESET_WORKSPACE" }).measurementClipboard).toBeNull();
   });
 
   it("starts with no draft", () => {
@@ -120,10 +166,12 @@ describe("workspace selection state", () => {
     const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
 
     expect(session).not.toHaveProperty("selectedMeasurementId");
+    expect(session).not.toHaveProperty("measurementClipboard");
     expect(session).not.toHaveProperty("activeTool");
     expect(session).not.toHaveProperty("draft");
     expect(session).not.toHaveProperty("orthogonal");
     expect(initialAppState).not.toHaveProperty("activeTool");
+    expect(initialAppState).not.toHaveProperty("measurementClipboard");
     expect(initialAppState).not.toHaveProperty("draft");
     expect(initialAppState).not.toHaveProperty("orthogonal");
     expect(initialAppState).not.toHaveProperty("calibrationFlow");

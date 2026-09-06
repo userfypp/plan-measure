@@ -11,6 +11,7 @@ import { useAppState } from "./state";
 import type {
   CalibrationReferenceKey,
   CurrentSession,
+  Measurement,
   MeasurementType,
   PageState,
   PdfMetadata,
@@ -101,6 +102,13 @@ export interface UpdateMeasurementCommand {
   points: Point[];
 }
 
+export interface PasteMeasurementCommand {
+  pageNumber: number;
+  id: string;
+  sourcePageNumber: number;
+  measurement: Measurement;
+}
+
 export interface AssignClassificationValueCommand {
   pageNumber: number;
   measurementId: string;
@@ -120,6 +128,7 @@ export type SessionAction =
   | { type: "SET_ACTIVE_CALIBRATION"; pageNumber: number; calibrationId: string }
   | ({ type: "UPDATE_CALIBRATION_REFERENCE_POINTS" } & UpdateCalibrationReferencePointsCommand)
   | ({ type: "ADD_MEASUREMENT" } & AddMeasurementCommand)
+  | ({ type: "PASTE_MEASUREMENT" } & PasteMeasurementCommand)
   | ({ type: "UPDATE_MEASUREMENT" } & UpdateMeasurementCommand)
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
   | { type: "SET_MEASUREMENT_VISIBILITY"; pageNumber: number; id: string; visible: boolean }
@@ -391,6 +400,54 @@ export function sessionReducer(
             points,
             calibrationId: calibration.id,
             classificationValueIds: [],
+            visible: true,
+          },
+        ],
+      }));
+      return { ...state, session, error: null };
+    }
+    case "PASTE_MEASUREMENT": {
+      if (!state.session) return state;
+      const { pageNumber, id, sourcePageNumber, measurement } = action;
+      const page = state.session.pages[pageNumber];
+      const calibration =
+        page && sourcePageNumber === pageNumber
+          ? findPageCalibration(page, measurement.calibrationId)
+          : page && getActiveCalibration(page);
+      const duplicateId = Object.values(state.session.pages).some((candidatePage) =>
+        candidatePage.measurements.some((candidate) => candidate.id === id),
+      );
+      if (!page || !calibration) {
+        return {
+          ...state,
+          error:
+            sourcePageNumber === pageNumber
+              ? "The copied measurement's scale is no longer available."
+              : "Select a valid scale on this page before pasting measurements.",
+        };
+      }
+      if (
+        !id.trim() ||
+        duplicateId ||
+        !hasValidMeasurementPoints(measurement.type, measurement.points)
+      ) {
+        return {
+          ...state,
+          error: duplicateId
+            ? "Measurement IDs must be unique across the session."
+            : `The copied ${measurementPathSpecs[measurement.type].label.toLowerCase()} is no longer valid.`,
+        };
+      }
+      const session = updatePageState(state.session, pageNumber, (currentPage) => ({
+        ...currentPage,
+        measurements: [
+          ...currentPage.measurements,
+          {
+            ...measurement,
+            id,
+            calibrationId: calibration.id,
+            points: measurement.points.map((point) => ({ ...point })),
+            classificationValueIds: [...measurement.classificationValueIds],
             visible: true,
           },
         ],
@@ -827,6 +884,7 @@ interface SessionContextValue extends SessionState {
   setActiveCalibration: (pageNumber: number, calibrationId: string) => void;
   updateCalibration: (command: UpdateCalibrationReferencePointsCommand) => void;
   addMeasurement: (command: AddMeasurementCommand) => boolean;
+  pasteMeasurement: (command: PasteMeasurementCommand) => boolean;
   updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
@@ -884,6 +942,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "UPDATE_CALIBRATION_REFERENCE_POINTS", ...command }),
       addMeasurement: (command) => {
         const result = applyAction({ type: "ADD_MEASUREMENT", ...command });
+        return (
+          result.error === null &&
+          Boolean(
+            result.session?.pages[command.pageNumber]?.measurements.some(
+              (measurement) => measurement.id === command.id,
+            ),
+          )
+        );
+      },
+      pasteMeasurement: (command) => {
+        const result = applyAction({ type: "PASTE_MEASUREMENT", ...command });
         return (
           result.error === null &&
           Boolean(

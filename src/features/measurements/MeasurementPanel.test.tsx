@@ -351,6 +351,7 @@ describe("SelectionInspector", () => {
     expect(markup).toContain("Value");
     expect(markup).toContain("Scale / calibration");
     expect(markup).toContain("Trade: Electrical");
+    expect(markup).not.toContain("Duplicate");
     expect(markup).not.toContain("Rename");
     expect(markup).not.toContain("Delete measurement");
     expect(markup).not.toContain("Assigned values");
@@ -360,5 +361,6 @@ describe("SelectionInspector", () => {
     const markup = renderToStaticMarkup(<SelectionInspector measurement={null} />);
 
     expect(markup).toContain("Select a measurement to inspect its details.");
+    expect(markup).not.toContain("Duplicate");
   });
 });

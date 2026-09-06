@@ -62,6 +62,9 @@ interface PdfViewerProps {
   document: PDFDocumentProxy;
   page: PageState;
   onPageChange: (pageNumber: number) => void;
+  onPageBoundsChange: (pageNumber: number, bounds: LogicalPageBounds | null) => void;
+  onViewZoomChange: (pageNumber: number, zoom: number | null) => void;
+  onMeasurementEditActiveChange: (active: boolean) => void;
   onChooseTool: (tool: Tool) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
   calibrationReferenceLabel?: "X" | "Y";
@@ -96,6 +99,9 @@ export function PdfViewer({
   document,
   page,
   onPageChange,
+  onPageBoundsChange,
+  onViewZoomChange,
+  onMeasurementEditActiveChange,
   onChooseTool,
   onCalibrationCandidate,
   calibrationReferenceLabel,
@@ -214,6 +220,20 @@ export function PdfViewer({
 
   const bounds = pageRenderData?.bounds ?? null;
 
+  useEffect(
+    () => () => {
+      onMeasurementEditActiveChange(false);
+    },
+    [onMeasurementEditActiveChange],
+  );
+
+  useEffect(
+    () => () => {
+      onViewZoomChange(page.pageNumber, null);
+    },
+    [onViewZoomChange, page.pageNumber],
+  );
+
   const commitTransform = useCallback((next: ViewTransform) => {
     transformRef.current = next;
     setTransform(next);
@@ -255,6 +275,7 @@ export function PdfViewer({
     }
     // Keep the old canvas pixels detached from the new page until the new raster is ready.
     pageReadyRef.current = false;
+    onPageBoundsChange(page.pageNumber, null);
     // This state transition hides a previous page immediately when the requested page changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPageReady(false);
@@ -268,11 +289,13 @@ export function PdfViewer({
         if (cancelled) return;
         const rotation = normalizeRotation(loadedPage.rotate);
         const logicalViewport = loadedPage.getViewport({ scale: 1, rotation });
+        const nextBounds = logicalPageBoundsFromViewport(logicalViewport);
+        onPageBoundsChange(page.pageNumber, nextBounds);
         setPageRenderData({
           document,
           pageNumber: page.pageNumber,
           pdfPage: loadedPage,
-          bounds: logicalPageBoundsFromViewport(logicalViewport),
+          bounds: nextBounds,
         });
       })
       .catch((error: unknown) => {
@@ -282,11 +305,12 @@ export function PdfViewer({
       });
     return () => {
       cancelled = true;
+      onPageBoundsChange(page.pageNumber, null);
       renderRequestRef.current += 1;
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
     };
-  }, [document, page.pageNumber, setError]);
+  }, [document, onPageBoundsChange, page.pageNumber, setError]);
 
   useEffect(() => {
     if (!bounds || viewerSize.width <= 0 || viewerSize.height <= 0 || !fitMode) return;
@@ -430,6 +454,7 @@ export function PdfViewer({
   }, [bounds, viewerSize, commitTransform]);
 
   useLayoutEffect(() => {
+    onViewZoomChange(page.pageNumber, viewTransform.zoom);
     onNavigationChange?.({
       pageNumber: page.pageNumber,
       pageCount: session?.pageCount ?? 1,
@@ -445,6 +470,7 @@ export function PdfViewer({
     fitPage,
     onNavigationChange,
     onPageChange,
+    onViewZoomChange,
     page.pageNumber,
     session?.pageCount,
     viewTransform.zoom,
@@ -827,6 +853,7 @@ export function PdfViewer({
                   showLabels={showLabels}
                   onSelectMeasurement={selectMeasurement}
                   onCalibrationReferencePointsChange={onCalibrationReferencePointsChange}
+                  onMeasurementEditActiveChange={onMeasurementEditActiveChange}
                 />
                 {workspaceDraft && draftPoints.length >= 2 && (
                   <Line
