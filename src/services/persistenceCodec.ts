@@ -24,6 +24,7 @@ import {
   isValidCalibration,
   isValidPageCalibration,
 } from "../utils/geometry";
+import { classificationNameKey } from "../utils/classificationNames";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -308,6 +309,7 @@ function assertValidSessionV4(value: Record<string, unknown>): void {
 function assertValidClassificationCatalog(
   value: unknown,
   requireDimensionArchived = false,
+  allowNameConflicts = false,
 ): Map<string, string> {
   if (!isObject(value) || !Array.isArray(value.dimensions))
     throw new Error("The saved classification catalog is invalid.");
@@ -326,11 +328,11 @@ function assertValidClassificationCatalog(
       (requireDimensionArchived && typeof dimension.archived !== "boolean") ||
       !Array.isArray(dimension.values) ||
       ids.has(dimension.id) ||
-      dimensionNames.has(dimension.name.toLocaleLowerCase())
+      (!allowNameConflicts && dimensionNames.has(classificationNameKey(dimension.name)))
     )
       throw new Error("The saved classification catalog is invalid.");
     ids.add(dimension.id);
-    dimensionNames.add(dimension.name.toLocaleLowerCase());
+    dimensionNames.add(classificationNameKey(dimension.name));
     const valueNames = new Set<string>();
     for (const classificationValue of dimension.values) {
       if (
@@ -343,20 +345,27 @@ function assertValidClassificationCatalog(
         classificationValue.name !== classificationValue.name.trim() ||
         typeof classificationValue.archived !== "boolean" ||
         ids.has(classificationValue.id) ||
-        valueNames.has(classificationValue.name.toLocaleLowerCase())
+        (!allowNameConflicts && valueNames.has(classificationNameKey(classificationValue.name)))
       )
         throw new Error("The saved classification catalog is invalid.");
       ids.add(classificationValue.id);
       valueDimensions.set(classificationValue.id, dimension.id);
-      valueNames.add(classificationValue.name.toLocaleLowerCase());
+      valueNames.add(classificationNameKey(classificationValue.name));
     }
   }
   return valueDimensions;
 }
 
-function assertValidSessionV5(value: Record<string, unknown>): void {
+function assertValidSessionV5(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
   assertValidSessionV4(value);
-  const valueDimensions = assertValidClassificationCatalog(value.classificationCatalog);
+  const valueDimensions = assertValidClassificationCatalog(
+    value.classificationCatalog,
+    false,
+    allowClassificationNameConflicts,
+  );
   const pages = value.pages as Record<string, { measurements: unknown[] }>;
   for (const page of Object.values(pages)) {
     if (!page.measurements.every(isMeasurementV5))
@@ -374,9 +383,16 @@ function assertValidSessionV5(value: Record<string, unknown>): void {
     }
   }
 }
-function assertValidSessionV6(value: Record<string, unknown>): void {
+function assertValidSessionV6(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
   assertValidSessionV4(value);
-  const valueDimensions = assertValidClassificationCatalog(value.classificationCatalog);
+  const valueDimensions = assertValidClassificationCatalog(
+    value.classificationCatalog,
+    false,
+    allowClassificationNameConflicts,
+  );
   const pages = value.pages as Record<string, { measurements: unknown[] }>;
   for (const page of Object.values(pages)) {
     if (!page.measurements.every(isMeasurement))
@@ -394,10 +410,17 @@ function assertValidSessionV6(value: Record<string, unknown>): void {
     }
   }
 }
-function assertValidSessionV7(value: Record<string, unknown>): void {
+function assertValidSessionV7(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
   if (value.schemaVersion !== 7) throw new Error("The saved session is invalid.");
   assertValidSessionV4(value);
-  const valueDimensions = assertValidClassificationCatalog(value.classificationCatalog, true);
+  const valueDimensions = assertValidClassificationCatalog(
+    value.classificationCatalog,
+    true,
+    allowClassificationNameConflicts,
+  );
   const pages = value.pages as Record<string, { measurements: unknown[] }>;
   for (const page of Object.values(pages)) {
     if (!page.measurements.every(isMeasurement))
@@ -428,9 +451,12 @@ function assertValidCsvExportSettings(value: Record<string, unknown>): void {
     throw new Error("The saved CSV export settings are invalid.");
   }
 }
-function assertValidSessionV8(value: Record<string, unknown>): void {
+function assertValidSessionV8(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
   if (value.schemaVersion !== 8) throw new Error("The saved session is invalid.");
-  assertValidSessionV7({ ...value, schemaVersion: 7 });
+  assertValidSessionV7({ ...value, schemaVersion: 7 }, allowClassificationNameConflicts);
   assertValidCsvExportSettings(value);
 }
 function legacyCalibrationId(pageNumber: number): string {
@@ -619,7 +645,8 @@ export function serializeSession(session: CurrentSession): string {
   return JSON.stringify(session);
 }
 
-export type SessionCompatibility = "current" | "historical-repair-required";
+export type SessionCompatibility =
+  "current" | "historical-repair-required" | "classification-repair-required";
 
 export interface DecodedSession {
   session: CurrentSession;
@@ -666,16 +693,58 @@ function assertValidSessionWithHistoricalPolygons(
   assertValid(historicalPolygonValidationProbe(value));
 }
 
+function classificationCatalogHasNameConflict(
+  value: unknown,
+  nameKey: (name: string) => string,
+): boolean | null {
+  if (!isObject(value) || !Array.isArray(value.dimensions)) return null;
+  let hasConflict = false;
+  const dimensionNames = new Set<string>();
+  for (const dimension of value.dimensions) {
+    if (
+      !isObject(dimension) ||
+      typeof dimension.name !== "string" ||
+      !Array.isArray(dimension.values)
+    ) {
+      return null;
+    }
+    const dimensionName = nameKey(dimension.name);
+    if (dimensionNames.has(dimensionName)) hasConflict = true;
+    dimensionNames.add(dimensionName);
+    const valueNames = new Set<string>();
+    for (const classificationValue of dimension.values) {
+      if (!isObject(classificationValue) || typeof classificationValue.name !== "string") {
+        return null;
+      }
+      const valueName = nameKey(classificationValue.name);
+      if (valueNames.has(valueName)) hasConflict = true;
+      valueNames.add(valueName);
+    }
+  }
+  return hasConflict;
+}
+
+function requiresClassificationNameRepair(value: unknown): boolean {
+  // Historical locale-dependent conflicts always had distinct stored display names.
+  return (
+    classificationCatalogHasNameConflict(value, classificationNameKey) === true &&
+    classificationCatalogHasNameConflict(value, (name) => name) === false
+  );
+}
+
 function finalizeDecodedSession(
   session: CurrentSession,
   allowHistoricalGeometry: boolean,
+  classificationRepairRequired = false,
 ): DecodedSession {
   const incompatibleMeasurementIds = Object.values(session.pages).flatMap((page) =>
     page.measurements
       .filter((measurement) => !hasValidMeasurementPoints(measurement.type, measurement.points))
       .map((measurement) => measurement.id),
   );
-  if (!allowHistoricalGeometry || incompatibleMeasurementIds.length === 0) {
+  const historicalGeometryRepairRequired =
+    allowHistoricalGeometry && incompatibleMeasurementIds.length > 0;
+  if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
     assertValidSessionV8(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
   }
@@ -702,10 +771,15 @@ function finalizeDecodedSession(
           },
     );
   }
-  assertValidSessionV8(validationProbe as unknown as Record<string, unknown>);
+  assertValidSessionV8(
+    validationProbe as unknown as Record<string, unknown>,
+    classificationRepairRequired,
+  );
   return {
     session,
-    compatibility: "historical-repair-required",
+    compatibility: classificationRepairRequired
+      ? "classification-repair-required"
+      : "historical-repair-required",
     incompatibleMeasurementIds,
   };
 }
@@ -768,37 +842,67 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 5) {
-    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV5);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionWithHistoricalPolygons(value, (candidate) =>
+      assertValidSessionV5(candidate, classificationRepairRequired),
+    );
     return finalizeDecodedSession(
       canonicalizeSessionV8(
         migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
       ),
       true,
+      classificationRepairRequired,
     );
   }
   if (value.schemaVersion === 6) {
-    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV6);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionWithHistoricalPolygons(value, (candidate) =>
+      assertValidSessionV6(candidate, classificationRepairRequired),
+    );
     return finalizeDecodedSession(
       canonicalizeSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6))),
       true,
+      classificationRepairRequired,
     );
   }
   if (value.schemaVersion === 7) {
-    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV7);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionWithHistoricalPolygons(value, (candidate) =>
+      assertValidSessionV7(candidate, classificationRepairRequired),
+    );
     return finalizeDecodedSession(
       canonicalizeSessionV8(migrateSessionV7(value as unknown as SessionV7)),
       true,
+      classificationRepairRequired,
     );
   }
   if (value.schemaVersion === 8) {
-    assertValidSessionWithHistoricalPolygons(value, assertValidSessionV8);
-    return finalizeDecodedSession(canonicalizeSessionV8(value as unknown as SessionV8), true);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionWithHistoricalPolygons(value, (candidate) =>
+      assertValidSessionV8(candidate, classificationRepairRequired),
+    );
+    return finalizeDecodedSession(
+      canonicalizeSessionV8(value as unknown as SessionV8),
+      true,
+      classificationRepairRequired,
+    );
   }
   throw new Error("The saved session uses an unsupported schema.");
 }
 
 export function deserializeSession(serialized: string): CurrentSession {
   const decoded = deserializeSessionForRecovery(serialized);
+  if (decoded.compatibility === "classification-repair-required") {
+    throw new Error("The saved session contains classification names that require repair.");
+  }
   if (decoded.compatibility === "historical-repair-required") {
     throw new Error("The saved session contains historical measurements that require repair.");
   }

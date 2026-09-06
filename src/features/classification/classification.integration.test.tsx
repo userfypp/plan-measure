@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createEmptySession, initialSessionState, sessionReducer } from "../../app/sessionState";
+import { classificationNameKey } from "../../utils/classificationNames";
 
 function measuredState() {
   let state = sessionReducer(initialSessionState, {
@@ -49,6 +50,98 @@ function measuredState() {
 }
 
 describe("classification domain integration", () => {
+  function withLocaleDefault(locale: "en-US" | "tr-TR", callback: () => void) {
+    const original = Object.getOwnPropertyDescriptor(String.prototype, "toLocaleLowerCase")!;
+    Object.defineProperty(String.prototype, "toLocaleLowerCase", {
+      configurable: true,
+      value: function (this: string) {
+        return locale === "tr-TR"
+          ? this.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase()
+          : this.toLowerCase();
+      },
+    });
+    try {
+      callback();
+    } finally {
+      Object.defineProperty(String.prototype, "toLocaleLowerCase", original);
+    }
+  }
+
+  it("uses deterministic dimension and value uniqueness independent of locale", () => {
+    for (const locale of ["en-US", "tr-TR"] as const) {
+      withLocaleDefault(locale, () => {
+        let state = sessionReducer(initialSessionState, {
+          type: "LOAD_SESSION",
+          session: createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1),
+        });
+        state = sessionReducer(state, {
+          type: "ADD_CLASSIFICATION_DIMENSION",
+          id: "d1",
+          name: "İ",
+        });
+        const secondDimension = sessionReducer(state, {
+          type: "ADD_CLASSIFICATION_DIMENSION",
+          id: "d2",
+          name: "i",
+        });
+        expect(secondDimension.error).toBeNull();
+        state = sessionReducer(secondDimension, {
+          type: "ADD_CLASSIFICATION_VALUE",
+          dimensionId: "d1",
+          id: "v1",
+          name: "İ",
+        });
+        const secondValue = sessionReducer(state, {
+          type: "ADD_CLASSIFICATION_VALUE",
+          dimensionId: "d1",
+          id: "v2",
+          name: "i",
+        });
+        expect(secondValue.error).toBeNull();
+        state = secondValue;
+        expect(classificationNameKey("İ")).toBe("İ".toLowerCase());
+        expect(state.session!.classificationCatalog.dimensions.map(({ name }) => name)).toEqual([
+          "İ",
+          "i",
+        ]);
+        expect(
+          state.session!.classificationCatalog.dimensions[0]!.values.map(({ name }) => name),
+        ).toEqual(["İ", "i"]);
+      });
+    }
+  });
+
+  it("keeps archived dimension and value names reserved", () => {
+    let state = measuredState();
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const duplicateDimension = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_DIMENSION",
+      id: "trade-copy",
+      name: "trade",
+    });
+    expect(duplicateDimension.error).toBe("Classification dimensions need unique IDs and names.");
+
+    state = sessionReducer(measuredState(), {
+      type: "ARCHIVE_CLASSIFICATION_VALUE",
+      dimensionId: "trade",
+      id: "electrical",
+    });
+    const duplicateValue = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_VALUE",
+      dimensionId: "trade",
+      id: "electrical-copy",
+      name: "electrical",
+    });
+    expect(duplicateValue.error).toBe(
+      "Classification values need unique IDs and names within a dimension.",
+    );
+    expect(duplicateValue.session!.classificationCatalog.dimensions[0]!.values[0]).toEqual({
+      id: "electrical",
+      name: "Electrical",
+      archived: true,
+    });
+  });
+
   it("creates new dimensions active by default", () => {
     const state = measuredState();
 

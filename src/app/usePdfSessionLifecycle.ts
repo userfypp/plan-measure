@@ -58,6 +58,10 @@ type AutosaveStatus = "inactive" | "available" | "repair-required" | "unavailabl
 
 const HISTORICAL_REPAIR_WARNING =
   "Autosave is paused because one or more measurements from an older version need repair. Edit each invalid measurement to resume autosave automatically.";
+const CLASSIFICATION_REPAIR_WARNING =
+  "Autosave is paused because classification names from an older version conflict. Rename each duplicate dimension or value to resume autosave automatically.";
+const COMBINED_REPAIR_WARNING =
+  "Autosave is paused because classification names conflict and one or more measurements need repair. Repair both to resume autosave automatically.";
 
 export function usePdfSessionLifecycle({
   session,
@@ -394,9 +398,15 @@ export function usePdfSessionLifecycle({
       loadSession(recovery.session);
       resetWorkspace();
       closeAllOverlays();
-      if (recovery.compatibility === "historical-repair-required") {
+      if (recovery.compatibility !== "current") {
         setAutosaveStatus("repair-required");
-        setAutosaveWarning(HISTORICAL_REPAIR_WARNING);
+        setAutosaveWarning(
+          recovery.compatibility === "classification-repair-required"
+            ? recovery.incompatibleMeasurementIds.length > 0
+              ? COMBINED_REPAIR_WARNING
+              : CLASSIFICATION_REPAIR_WARNING
+            : HISTORICAL_REPAIR_WARNING,
+        );
       } else {
         setAutosaveStatus("available");
         setAutosaveWarning(null);
