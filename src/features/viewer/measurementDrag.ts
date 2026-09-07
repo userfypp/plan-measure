@@ -187,8 +187,16 @@ export function createWholeMeasurementDragCancellationRegistry() {
 }
 
 interface ListenerTarget {
-  addEventListener(type: string, listener: EventListener): void;
-  removeEventListener(type: string, listener: EventListener): void;
+  addEventListener(
+    type: string,
+    listener: EventListener,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: EventListener,
+    options?: boolean | EventListenerOptions,
+  ): void;
 }
 
 interface VisibilityListenerTarget extends ListenerTarget {
@@ -208,11 +216,16 @@ export function registerWholeMeasurementDragEnvironmentCancellation({
   const handleVisibilityChange = () => {
     if (documentTarget.visibilityState === "hidden") cancel();
   };
+  const handleTouchCancel = () => cancel();
 
   windowTarget.addEventListener("blur", handleBlur);
+  // Konva fires touchcancel dragend during bubble. Cancel ownership in capture
+  // first so that synchronous dragend is stale and cannot commit.
+  windowTarget.addEventListener("touchcancel", handleTouchCancel, { capture: true });
   documentTarget.addEventListener("visibilitychange", handleVisibilityChange);
   return () => {
     windowTarget.removeEventListener("blur", handleBlur);
+    windowTarget.removeEventListener("touchcancel", handleTouchCancel, { capture: true });
     documentTarget.removeEventListener("visibilitychange", handleVisibilityChange);
   };
 }
@@ -229,7 +242,13 @@ export function registerWholeMeasurementDragPointerReleaseCleanup({
   };
 
   windowTarget.addEventListener("mouseup", handleMouseUp);
-  return () => windowTarget.removeEventListener("mouseup", handleMouseUp);
+  windowTarget.addEventListener("touchend", handleMouseUp);
+  windowTarget.addEventListener("touchcancel", handleMouseUp);
+  return () => {
+    windowTarget.removeEventListener("mouseup", handleMouseUp);
+    windowTarget.removeEventListener("touchend", handleMouseUp);
+    windowTarget.removeEventListener("touchcancel", handleMouseUp);
+  };
 }
 
 export function translateMeasurementPoints(points: readonly Point[], delta: Point): Point[] {

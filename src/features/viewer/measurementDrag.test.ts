@@ -212,7 +212,7 @@ describe("whole-measurement drag", () => {
     ).toBe(true);
   });
 
-  it("cancels on window blur and only on hidden document visibility, then unregisters cleanly", () => {
+  it("cancels on blur, touch cancellation, and only hidden document visibility, then unregisters cleanly", () => {
     class VisibilityTarget extends EventTarget {
       visibilityState = "visible";
     }
@@ -229,23 +229,29 @@ describe("whole-measurement drag", () => {
     windowTarget.dispatchEvent(new Event("blur"));
     expect(cancel).toHaveBeenCalledTimes(1);
 
-    documentTarget.dispatchEvent(new Event("visibilitychange"));
-    expect(cancel).toHaveBeenCalledTimes(1);
-    documentTarget.visibilityState = "hidden";
+    windowTarget.dispatchEvent(new Event("touchcancel"));
+    expect(cancel).toHaveBeenCalledTimes(2);
+
     documentTarget.dispatchEvent(new Event("visibilitychange"));
     expect(cancel).toHaveBeenCalledTimes(2);
+    documentTarget.visibilityState = "hidden";
+    documentTarget.dispatchEvent(new Event("visibilitychange"));
+    expect(cancel).toHaveBeenCalledTimes(3);
 
     unregister();
     windowTarget.dispatchEvent(new Event("blur"));
+    windowTarget.dispatchEvent(new Event("touchcancel"));
     documentTarget.dispatchEvent(new Event("visibilitychange"));
-    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(cancel).toHaveBeenCalledTimes(3);
   });
 
-  it("clears a sub-threshold prepared gesture after mouseup without racing a synchronous drag end", async () => {
+  it("clears sub-threshold prepared gestures after mouse/touch release without racing a synchronous drag end", async () => {
     const windowTarget = new EventTarget();
     const registry = createWholeMeasurementDragCancellationRegistry();
     const cancelReady = vi.fn();
     const cancelCompleted = vi.fn();
+    const cancelTouchReady = vi.fn();
+    const cancelTouchCancelled = vi.fn();
     const unregister = registerWholeMeasurementDragPointerReleaseCleanup({
       windowTarget,
       cancelPreparedDrag: () => registry.cancelActive(),
@@ -265,7 +271,26 @@ describe("whole-measurement drag", () => {
     expect(cancelCompleted).not.toHaveBeenCalled();
     expect(registry.activeMeasurementId()).toBeNull();
 
+    registry.set("touch-ready", cancelTouchReady);
+    windowTarget.dispatchEvent(new Event("touchend"));
+    expect(cancelTouchReady).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(cancelTouchReady).toHaveBeenCalledTimes(1);
+    expect(registry.activeMeasurementId()).toBeNull();
+
+    registry.set("touch-cancelled", cancelTouchCancelled);
+    windowTarget.dispatchEvent(new Event("touchcancel"));
+    expect(cancelTouchCancelled).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(cancelTouchCancelled).toHaveBeenCalledTimes(1);
+    expect(registry.activeMeasurementId()).toBeNull();
+
     unregister();
+    registry.set("after-unregister", cancelTouchReady);
+    windowTarget.dispatchEvent(new Event("touchend"));
+    windowTarget.dispatchEvent(new Event("touchcancel"));
+    await Promise.resolve();
+    expect(cancelTouchReady).toHaveBeenCalledTimes(1);
   });
 
   it("starts cleanly after sub-threshold cleanup and still commits the next completed drag once", async () => {
