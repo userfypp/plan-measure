@@ -101,7 +101,10 @@ export type DrawingKeyboardAction =
 
 export type ToolShortcut = Exclude<Tool, "calibrate">;
 
-export type ShortcutAction = "toggle-orthogonal" | { type: "choose-tool"; tool: ToolShortcut };
+export type ShortcutAction =
+  | "toggle-orthogonal"
+  | "toggle-snap"
+  | { type: "choose-tool"; tool: ToolShortcut };
 
 export interface ViewerShortcut {
   key: string;
@@ -120,6 +123,7 @@ export const viewerShortcuts: readonly ViewerShortcut[] = [
   { key: "m", label: "Polyline", action: { type: "choose-tool", tool: "polyline" } },
   { key: "p", label: "Polygon", action: { type: "choose-tool", tool: "polygon" } },
   { key: "o", label: "Ortho 90°", action: "toggle-orthogonal" },
+  { key: "s", label: "Snap", action: "toggle-snap" },
 ];
 
 export type ViewerKeyboardAction =

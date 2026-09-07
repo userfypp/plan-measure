@@ -13,9 +13,8 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--border-width);
   padding: 0;
-  border: var(--border-width) solid var(--color-border);
-  border-right: 0;
-  background: var(--color-border);
+  border: 0;
+  background: transparent;
 }
 
 .toolButton {

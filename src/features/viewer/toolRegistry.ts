@@ -7,10 +7,17 @@ import {
 } from "../../utils/keyboard";
 
 export type ToolIconName =
-  "select" | "hand" | "line" | "polyline" | "polygon" | "calibrate" | "orthogonal";
+  | "select"
+  | "hand"
+  | "line"
+  | "polyline"
+  | "polygon"
+  | "calibrate"
+  | "orthogonal"
+  | "snap";
 
 export interface ToolDefinition {
-  id: Tool | "orthogonal";
+  id: Tool | "orthogonal" | "snap";
   label: string;
   description: string;
   shortcut: string | null;
@@ -94,9 +101,36 @@ export const toolRegistry: readonly ToolDefinition[] = [
     icon: "orthogonal",
     inRail: true,
   },
+  {
+    id: "snap",
+    label: "Snap",
+    description: "Snap new measurement points to visible measurement geometry",
+    shortcut: getShortcutLabel("toggle-snap"),
+    icon: "snap",
+    inRail: true,
+  },
 ];
 
 export const toolRailRegistry = toolRegistry.filter((tool) => tool.inRail);
+
+const toolRailVisualColumns: readonly (readonly ToolDefinition["id"][])[] = [
+  ["select", "polyline", "snap"],
+  ["hand", "polygon"],
+  ["line", "orthogonal"],
+];
+
+export function getToolRailVerticalNeighbor(
+  toolId: ToolDefinition["id"],
+  direction: "up" | "down",
+): ToolDefinition["id"] | null {
+  for (const column of toolRailVisualColumns) {
+    const index = column.indexOf(toolId);
+    if (index < 0) continue;
+    const step = direction === "up" ? -1 : 1;
+    return column[(index + step + column.length) % column.length] ?? null;
+  }
+  return null;
+}
 
 export function getToolAvailabilityState(
   definition: ToolDefinition,

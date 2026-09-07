@@ -27,7 +27,6 @@ import type {
 } from "../../types/domain";
 import {
   areEffectivelyIdentical,
-  constrainOrthogonal,
   isMeasurementType,
   measurementPathSpecs,
 } from "../../utils/geometry";
@@ -59,6 +58,13 @@ import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfA
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
+import {
+  extractSnapTargets,
+  isScreenPointInPage,
+  isSnapPointPlacementActive,
+  resolveDrawingPoint,
+  resolveDrawingPreview,
+} from "./snapping";
 import { useViewerNavigationRegistration } from "./ViewerNavigation";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
@@ -127,7 +133,9 @@ export function PdfViewer({
     activeTool,
     draft: workspaceDraft,
     orthogonal,
+    snap,
     toggleOrthogonal,
+    toggleSnap,
     chooseTool: chooseWorkspaceTool,
     selectedMeasurementId,
     selectMeasurement: selectWorkspaceMeasurement,
@@ -143,8 +151,9 @@ export function PdfViewer({
   const renderTaskRef = useRef<RenderTask | null>(null);
   const draftPointerFrameRef = useRef<number | null>(null);
   const pendingDraftPointerRef = useRef<{
-    draft: DrawingDraft;
-    point: Point;
+    draft: DrawingDraft | null;
+    measurementType: MeasurementType;
+    rawPointerScreen: Point;
   } | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
@@ -165,6 +174,7 @@ export function PdfViewer({
   const [fitMode, setFitMode] = useState(true);
   const [spacePan, setSpacePan] = useState(false);
   const [draftPointer, setDraftPointer] = useState<Point | null>(null);
+  const [placementPointer, setPlacementPointer] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const suppressPanClickRef = useRef(false);
   const suppressPanClickTimerRef = useRef<number | null>(null);
@@ -172,6 +182,11 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+
+  const clearSnapFeedback = useCallback(() => {
+    pendingDraftPointerRef.current = null;
+    setPlacementPointer(null);
+  }, []);
 
   const registerWholeMeasurementDragCancellation = useCallback(
     (measurementId: string, cancel: (() => void) | null) => {
@@ -250,6 +265,11 @@ export function PdfViewer({
   ]);
 
   const bounds = pageRenderData?.bounds ?? null;
+  const showMeasurements = session?.settings.showMeasurements ?? false;
+  const snapTargets = useMemo(
+    () => extractSnapTargets(page.measurements, showMeasurements, bounds ?? undefined),
+    [bounds, page.measurements, showMeasurements],
+  );
 
   useLayoutEffect(
     () => () => {
@@ -469,6 +489,7 @@ export function PdfViewer({
   const zoomAround = useCallback(
     (screenPoint: Point, factor: number) => {
       cancelActiveWholeMeasurementDrag();
+      clearSnapFeedback();
       setFitMode(false);
       const next = zoomViewAtPoint(
         transformRef.current,
@@ -477,22 +498,24 @@ export function PdfViewer({
       );
       commitTransform(next);
     },
-    [cancelActiveWholeMeasurementDrag, commitTransform],
+    [cancelActiveWholeMeasurementDrag, clearSnapFeedback, commitTransform],
   );
 
   const fitPage = useCallback(() => {
     if (!bounds) return;
     cancelActiveWholeMeasurementDrag();
+    clearSnapFeedback();
     setFitMode(true);
     commitTransform(fitToScreen(bounds, viewerSize));
-  }, [bounds, viewerSize, cancelActiveWholeMeasurementDrag, commitTransform]);
+  }, [bounds, viewerSize, cancelActiveWholeMeasurementDrag, clearSnapFeedback, commitTransform]);
 
   const changePage = useCallback(
     (pageNumber: number) => {
       cancelActiveWholeMeasurementDrag();
+      clearSnapFeedback();
       onPageChange(pageNumber);
     },
-    [cancelActiveWholeMeasurementDrag, onPageChange],
+    [cancelActiveWholeMeasurementDrag, clearSnapFeedback, onPageChange],
   );
 
   useLayoutEffect(() => {
@@ -538,6 +561,7 @@ export function PdfViewer({
   const executeKeyboardAction = useCallback(
     (action: ViewerKeyboardAction) => {
       if (action === "start-pan") {
+        clearSnapFeedback();
         setSpacePan(true);
       } else if (action === "zoom-in" || action === "zoom-out") {
         const size = viewerSizeRef.current;
@@ -559,11 +583,13 @@ export function PdfViewer({
         onChooseToolRef.current("select");
       } else if (action === "toggle-orthogonal") {
         toggleOrthogonal();
+      } else if (action === "toggle-snap") {
+        toggleSnap();
       } else {
         onChooseToolRef.current(action.tool);
       }
     },
-    [toggleOrthogonal, zoomAround],
+    [clearSnapFeedback, toggleOrthogonal, toggleSnap, zoomAround],
   );
 
   const finishPan = useCallback(() => {
@@ -600,7 +626,11 @@ export function PdfViewer({
         workspaceDraftRef.current,
       );
       if (!action) return;
-      if (event.repeat && (action === "toggle-orthogonal" || typeof action === "object")) return;
+      if (
+        event.repeat &&
+        (action === "toggle-orthogonal" || action === "toggle-snap" || typeof action === "object")
+      )
+        return;
 
       event.preventDefault();
       if (typeof action === "object" && action.tool === activeToolRef.current) return;
@@ -623,6 +653,7 @@ export function PdfViewer({
     function cancelMeasurementEditForEnvironmentLoss() {
       cancelActiveWholeMeasurementDrag();
       clearActiveMeasurementEdit();
+      clearSnapFeedback();
       releaseSpacePan();
       finishPan();
     }
@@ -646,6 +677,7 @@ export function PdfViewer({
   }, [
     cancelActiveWholeMeasurementDrag,
     clearActiveMeasurementEdit,
+    clearSnapFeedback,
     executeKeyboardAction,
     finishPan,
     releaseSpacePan,
@@ -659,6 +691,7 @@ export function PdfViewer({
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
     if (!startsViewerPan(activeTool, spacePan, event.evt.button)) return;
     cancelActiveWholeMeasurementDrag();
+    clearSnapFeedback();
     const pointer = stagePointer(event);
     if (!pointer) return;
     event.evt.preventDefault();
@@ -682,8 +715,16 @@ export function PdfViewer({
     }
   }
 
-  function queueDraftPointerUpdate(draft: DrawingDraft, point: Point) {
-    pendingDraftPointerRef.current = { draft, point };
+  function queueDraftPointerUpdate(
+    draft: DrawingDraft | null,
+    measurementType: MeasurementType,
+    rawPointerScreen: Point,
+  ) {
+    pendingDraftPointerRef.current = {
+      draft,
+      measurementType,
+      rawPointerScreen,
+    };
     if (draftPointerFrameRef.current !== null) return;
     draftPointerFrameRef.current = window.requestAnimationFrame(() => {
       draftPointerFrameRef.current = null;
@@ -691,7 +732,8 @@ export function PdfViewer({
       pendingDraftPointerRef.current = null;
       if (!pending) return;
       if (workspaceDraftRef.current !== pending.draft) return;
-      setDraftPointer(pending.point);
+      if (activeToolRef.current !== pending.measurementType) return;
+      setPlacementPointer(pending.rawPointerScreen);
     });
   }
 
@@ -707,13 +749,46 @@ export function PdfViewer({
       });
       return;
     }
-    if (!bounds || !workspaceDraft) return;
-    const pagePoint = screenToPage(pointer, transformRef.current);
-    if (!isPointInPage(pagePoint, bounds)) return;
-    queueDraftPointerUpdate(workspaceDraft, pagePoint);
+    if (!bounds) {
+      clearSnapFeedback();
+      return;
+    }
+    if (activeTool === "calibrate") {
+      clearSnapFeedback();
+      if (workspaceDraft?.type !== "calibrate") return;
+      const pagePoint = screenToPage(pointer, viewTransform);
+      if (isPointInPage(pagePoint, bounds)) setDraftPointer(pagePoint);
+      return;
+    }
+    if (
+      !isSnapPointPlacementActive(
+        activeTool,
+        spacePan,
+        isPanning,
+        Boolean(calibrationReferenceEdit),
+        Boolean(activeMeasurementEditId),
+      )
+    ) {
+      clearSnapFeedback();
+      return;
+    }
+    if (!isScreenPointInPage(pointer, viewTransform, bounds)) {
+      clearSnapFeedback();
+      return;
+    }
+    const draft =
+      workspaceDraft?.type === "path" && workspaceDraft.measurementType === activeTool
+        ? workspaceDraft
+        : null;
+    queueDraftPointerUpdate(draft, activeTool, pointer);
   }
 
   function handleMouseUp() {
+    finishPan();
+  }
+
+  function handleMouseLeave() {
+    clearSnapFeedback();
     finishPan();
   }
 
@@ -739,11 +814,15 @@ export function PdfViewer({
     }
     const pointer = stagePointer(event);
     if (!pointer) return;
-    const point = screenToPage(pointer, transformRef.current);
-    if (!isPointInPage(point, bounds)) return;
     const draft = workspaceDraft;
 
+    const point = screenToPage(pointer, viewTransform);
+
     if (activeTool === "calibrate") {
+      if (!isPointInPage(point, bounds)) {
+        clearSnapFeedback();
+        return;
+      }
       if (!draft || draft.type !== "calibrate" || draft.points.length === 0) {
         setDraftPointer(point);
         startDraft({ type: "calibrate", points: [point] });
@@ -763,33 +842,54 @@ export function PdfViewer({
     }
 
     if (isMeasurementType(activeTool)) {
-      const measurementType = activeTool;
-      if (!draft || draft.type !== "path" || draft.measurementType !== measurementType) {
-        setDraftPointer(point);
-        startDraft({ type: "path", measurementType, points: [point] });
+      if (!isScreenPointInPage(pointer, viewTransform, bounds)) {
+        clearSnapFeedback();
         return;
       }
-      const first = draft.points[0];
-      const spec = measurementPathSpecs[measurementType];
+      const measurementType = activeTool;
       if (
-        spec.closed &&
-        first &&
-        Math.hypot(first.x - point.x, first.y - point.y) * transformRef.current.zoom <= 10
-      ) {
-        if (draft.points.length >= spec.minVertices) {
-          completePath(measurementType, draft.points);
+        !isSnapPointPlacementActive(
+          measurementType,
+          spacePan,
+          isPanning,
+          Boolean(calibrationReferenceEdit),
+          Boolean(activeMeasurementEditId),
+        )
+      )
+        return;
+      const pathDraft =
+        draft?.type === "path" && draft.measurementType === measurementType ? draft : null;
+      const resolution = resolveDrawingPoint({
+        measurementType,
+        confirmedPoints: pathDraft?.points ?? [],
+        rawPointerScreen: pointer,
+        transform: viewTransform,
+        bounds,
+        snapEnabled: snap,
+        orthogonal,
+        targets: snapTargets,
+      });
+      if (!resolution) return;
+      clearSnapFeedback();
+      if (!pathDraft) {
+        startDraft({ type: "path", measurementType, points: [resolution.point] });
+        return;
+      }
+      const spec = measurementPathSpecs[measurementType];
+      if (resolution.closesPolygon) {
+        if (pathDraft.points.length >= spec.minVertices) {
+          completePath(measurementType, pathDraft.points);
         }
         return;
       }
-      const last = draft.points.at(-1);
-      const effectivePoint = last && orthogonal ? constrainOrthogonal(last, point) : point;
+      const last = pathDraft.points.at(-1);
+      const effectivePoint = resolution.point;
       if (last && areEffectivelyIdentical(last, effectivePoint)) return;
       if (spec.maxVertices === 2) {
-        completePath(measurementType, [...draft.points, effectivePoint]);
+        completePath(measurementType, [...pathDraft.points, effectivePoint]);
         return;
       }
-      setDraftPointer(effectivePoint);
-      updateDraft({ ...draft, points: [...draft.points, effectivePoint] });
+      updateDraft({ ...pathDraft, points: [...pathDraft.points, effectivePoint] });
     }
   }
 
@@ -820,10 +920,44 @@ export function PdfViewer({
         ? styles.cursorDefault
         : styles.cursorCrosshair;
 
+  const placementResolution = useMemo(() => {
+    return resolveDrawingPreview({
+      tool: activeTool,
+      draft: workspaceDraft,
+      rawPointerScreen: placementPointer,
+      transform: viewTransform,
+      bounds,
+      snapEnabled: snap,
+      orthogonal,
+      targets: snapTargets,
+      spacePan,
+      isPanning,
+      calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
+      measurementEditActive: Boolean(activeMeasurementEditId),
+    });
+  }, [
+    activeMeasurementEditId,
+    activeTool,
+    bounds,
+    calibrationReferenceEdit,
+    isPanning,
+    orthogonal,
+    placementPointer,
+    snap,
+    snapTargets,
+    spacePan,
+    viewTransform,
+    workspaceDraft,
+  ]);
   const draftPoints = useMemo(
-    () => buildDraftPreviewPoints(workspaceDraft, draftPointer, orthogonal),
-    [draftPointer, orthogonal, workspaceDraft],
+    () =>
+      buildDraftPreviewPoints(
+        workspaceDraft,
+        workspaceDraft?.type === "path" ? (placementResolution?.point ?? null) : draftPointer,
+      ),
+    [draftPointer, placementResolution, workspaceDraft],
   );
+  const snapMarker = placementResolution?.snapMatch?.point ?? null;
 
   const showPage = Boolean(
     pageReady &&
@@ -836,8 +970,25 @@ export function PdfViewer({
   const pdfCanvasLayout = bounds ? canvasLayout(bounds, viewTransform, devicePixelRatio) : null;
   const displayUnit = session?.settings.displayUnit ?? "m";
   const showCalibration = session?.settings.showCalibration ?? false;
-  const showMeasurements = session?.settings.showMeasurements ?? false;
   const showLabels = session?.settings.showLabels ?? true;
+
+  useLayoutEffect(() => {
+    pendingDraftPointerRef.current = null;
+    // Snap feedback is viewer-local and must not survive interaction context changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPlacementPointer(null);
+  }, [
+    activeTool,
+    activeMeasurementEditId,
+    calibrationReferenceEdit,
+    isPanning,
+    page.pageNumber,
+    spacePan,
+    viewTransform.panX,
+    viewTransform.panY,
+    viewTransform.zoom,
+    workspaceDraft,
+  ]);
 
   return (
     <div className={styles.viewerShell}>
@@ -876,7 +1027,7 @@ export function PdfViewer({
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
             onClick={handleStageClick}
             onWheel={handleWheel}
           >
@@ -941,6 +1092,21 @@ export function PdfViewer({
                       strokeWidth={3 / viewTransform.zoom}
                     />
                   )}
+                {snapMarker && (
+                  <Rect
+                    x={snapMarker.x}
+                    y={snapMarker.y}
+                    width={5 / viewTransform.zoom}
+                    height={5 / viewTransform.zoom}
+                    offsetX={2.5 / viewTransform.zoom}
+                    offsetY={2.5 / viewTransform.zoom}
+                    rotation={45}
+                    fill="rgba(255,255,255,0.9)"
+                    stroke="#2563eb"
+                    strokeWidth={1.25 / viewTransform.zoom}
+                    listening={false}
+                  />
+                )}
               </Group>
             </Layer>
           </Stage>

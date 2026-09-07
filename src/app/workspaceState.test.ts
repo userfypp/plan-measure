@@ -123,7 +123,7 @@ describe("workspace selection state", () => {
     });
   });
 
-  it("clears page-scoped transient state while preserving Ortho on page change", () => {
+  it("clears page-scoped transient state while preserving drawing aids on page change", () => {
     const flow = beginCalibrationFlow(1, null, "uniform");
     const edit = beginCalibrationReferenceEdit(1, uniformCalibration, "uniform");
     if (!edit) throw new Error("Expected a reference edit draft.");
@@ -137,6 +137,7 @@ describe("workspace selection state", () => {
         points: [{ x: 10, y: 10 }],
       },
       orthogonal: true,
+      snap: true,
       calibrationFlow: flow,
       calibrationCandidate: selectCalibrationReference(flow, [
         { x: 10, y: 20 },
@@ -148,11 +149,16 @@ describe("workspace selection state", () => {
     expect(workspaceReducer(dirty, { type: "PAGE_CHANGED" })).toEqual({
       ...initialWorkspaceState,
       orthogonal: true,
+      snap: true,
     });
   });
 
   it("starts with Ortho disabled", () => {
     expect(initialWorkspaceState.orthogonal).toBe(false);
+  });
+
+  it("starts with Snap disabled", () => {
+    expect(initialWorkspaceState.snap).toBe(false);
   });
 
   it("starts without temporary calibration state", () => {
@@ -170,10 +176,12 @@ describe("workspace selection state", () => {
     expect(session).not.toHaveProperty("activeTool");
     expect(session).not.toHaveProperty("draft");
     expect(session).not.toHaveProperty("orthogonal");
+    expect(session).not.toHaveProperty("snap");
     expect(initialAppState).not.toHaveProperty("activeTool");
     expect(initialAppState).not.toHaveProperty("measurementClipboard");
     expect(initialAppState).not.toHaveProperty("draft");
     expect(initialAppState).not.toHaveProperty("orthogonal");
+    expect(initialAppState).not.toHaveProperty("snap");
     expect(initialAppState).not.toHaveProperty("calibrationFlow");
     expect(initialAppState).not.toHaveProperty("calibrationCandidate");
     expect(initialAppState).not.toHaveProperty("calibrationReferenceEdit");
@@ -320,6 +328,17 @@ describe("workspace selection state", () => {
     expect(workspaceReducer(enabled, { type: "TOGGLE_ORTHOGONAL" }).orthogonal).toBe(false);
   });
 
+  it("toggles Snap atomically", () => {
+    const enabled = workspaceReducer(initialWorkspaceState, { type: "TOGGLE_SNAP" });
+    expect(enabled.snap).toBe(true);
+    expect(workspaceReducer(enabled, { type: "TOGGLE_SNAP" }).snap).toBe(false);
+  });
+
+  it("resets Snap to its default off state with the workspace", () => {
+    const enabled = workspaceReducer(initialWorkspaceState, { type: "SET_SNAP", value: true });
+    expect(workspaceReducer(enabled, { type: "RESET_WORKSPACE" }).snap).toBe(false);
+  });
+
   it("clears the selection when its measurement is deleted", () => {
     const selected = workspaceReducer(initialWorkspaceState, {
       type: "SELECT_MEASUREMENT",
@@ -380,6 +399,20 @@ describe("workspace selection state", () => {
     expect(disabled.orthogonal).toBe(false);
   });
 
+  it("activates and deactivates Snap through the workspace action", () => {
+    const enabled = workspaceReducer(initialWorkspaceState, {
+      type: "SET_SNAP",
+      value: true,
+    });
+    const disabled = workspaceReducer(enabled, {
+      type: "SET_SNAP",
+      value: false,
+    });
+
+    expect(enabled.snap).toBe(true);
+    expect(disabled.snap).toBe(false);
+  });
+
   it("keeps Ortho in the current workspace without adding it to session state", () => {
     const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
     const enabled = workspaceReducer(initialWorkspaceState, {
@@ -390,6 +423,18 @@ describe("workspace selection state", () => {
 
     expect(drawing.orthogonal).toBe(true);
     expect(session).not.toHaveProperty("orthogonal");
+  });
+
+  it("keeps Snap in the current workspace without adding it to session state", () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
+    const enabled = workspaceReducer(initialWorkspaceState, {
+      type: "SET_SNAP",
+      value: true,
+    });
+    const drawing = workspaceReducer(enabled, { type: "CHOOSE_TOOL", tool: "polyline" });
+
+    expect(drawing.snap).toBe(true);
+    expect(session).not.toHaveProperty("snap");
   });
 });
 

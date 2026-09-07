@@ -3,6 +3,7 @@ import { Tooltip } from "../components/ui";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import {
   getToolAvailabilityState,
+  getToolRailVerticalNeighbor,
   toolRailRegistry,
   type ToolAvailabilityMap,
   type ToolDefinition,
@@ -10,8 +11,8 @@ import {
 import { useWorkspaceState } from "./workspaceState";
 import styles from "./ToolRail.module.css";
 
-type RailTool = Exclude<ToolDefinition["id"], "orthogonal">;
-const TOOL_GRID_COLUMNS = 3;
+type DrawingAid = "orthogonal" | "snap";
+type RailTool = Exclude<ToolDefinition["id"], DrawingAid>;
 
 interface ToolRailProps {
   toolAvailability: ToolAvailabilityMap;
@@ -19,7 +20,7 @@ interface ToolRailProps {
 }
 
 export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
-  const { activeTool, orthogonal, toggleOrthogonal } = useWorkspaceState();
+  const { activeTool, orthogonal, snap, toggleOrthogonal, toggleSnap } = useWorkspaceState();
   const [rovingToolId, setRovingToolId] = useState<ToolDefinition["id"]>("select");
   const focusedToolIsAvailable = toolRailRegistry.some(
     (definition) =>
@@ -29,18 +30,10 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const currentRovingToolId = focusedToolIsAvailable ? rovingToolId : "select";
 
   function handleToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const navigationStep =
-      event.key === "ArrowUp"
-        ? -TOOL_GRID_COLUMNS
-        : event.key === "ArrowDown"
-          ? TOOL_GRID_COLUMNS
-          : event.key === "ArrowLeft"
-            ? -1
-            : event.key === "ArrowRight"
-              ? 1
-              : null;
+    const horizontalStep = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : null;
+    const isVerticalNavigation = event.key === "ArrowUp" || event.key === "ArrowDown";
     const isBoundaryNavigation = event.key === "Home" || event.key === "End";
-    if (navigationStep === null && !isBoundaryNavigation) return;
+    if (horizontalStep === null && !isVerticalNavigation && !isBoundaryNavigation) return;
 
     const buttons = Array.from(
       event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]"),
@@ -57,10 +50,33 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
           ? navigableButtons[navigableButtons.length - 1]
           : undefined;
 
-    if (!nextButton && navigationStep !== null) {
+    if (!nextButton && isVerticalNavigation) {
+      const activeToolId = buttons[activeIndex]?.dataset.toolId as ToolDefinition["id"] | undefined;
+      if (activeToolId) {
+        let verticalNeighbor = getToolRailVerticalNeighbor(
+          activeToolId,
+          event.key === "ArrowUp" ? "up" : "down",
+        );
+        while (verticalNeighbor && verticalNeighbor !== activeToolId) {
+          const neighborButton = buttons.find(
+            (button) => button.dataset.toolId === verticalNeighbor,
+          );
+          if (neighborButton && !neighborButton.disabled) {
+            nextButton = neighborButton;
+            break;
+          }
+          verticalNeighbor = getToolRailVerticalNeighbor(
+            verticalNeighbor,
+            event.key === "ArrowUp" ? "up" : "down",
+          );
+        }
+      }
+    }
+
+    if (!nextButton && horizontalStep !== null) {
       let nextIndex = activeIndex;
       do {
-        nextIndex = (nextIndex + navigationStep + buttons.length) % buttons.length;
+        nextIndex = (nextIndex + horizontalStep + buttons.length) % buttons.length;
       } while (buttons[nextIndex]?.disabled && nextIndex !== activeIndex);
       nextButton = buttons[nextIndex];
     }
@@ -81,12 +97,14 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
       >
         {toolRailRegistry.map((definition) => {
           const isOrthogonal = definition.id === "orthogonal";
-          const tool = isOrthogonal ? null : (definition.id as RailTool);
+          const isSnap = definition.id === "snap";
+          const isDrawingAid = isOrthogonal || isSnap;
+          const tool = isDrawingAid ? null : (definition.id as RailTool);
           const { disabled, disabledReason } = getToolAvailabilityState(
             definition,
             toolAvailability,
           );
-          const active = isOrthogonal ? orthogonal : activeTool === tool;
+          const active = isOrthogonal ? orthogonal : isSnap ? snap : activeTool === tool;
           const shortcut = definition.shortcut ? ` (${definition.shortcut})` : "";
 
           return (
@@ -111,6 +129,8 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                 onClick={() => {
                   if (isOrthogonal) {
                     toggleOrthogonal();
+                  } else if (isSnap) {
+                    toggleSnap();
                   } else if (tool) {
                     if (!active) onChooseTool(tool);
                   }
