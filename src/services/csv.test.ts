@@ -595,6 +595,47 @@ describe("CSV export", () => {
     expect(csv).toContain('"Electrical, ""North""\nBay",electrical-id,active');
   });
 
+  it("neutralizes spreadsheet-active prefixes across externally controlled CSV text", () => {
+    const session = classifiedMeasuredSession();
+    const line = session.pages[1]!.measurements[0]!;
+    const scale = session.pages[1]!.calibrations[0]!;
+    const trade = session.classificationCatalog.dimensions[0]!;
+
+    line.name = "+1+1";
+    scale.name = "-1+1";
+    trade.name = "=Trade";
+    trade.values[0]!.name = "@SUM(1,1)";
+
+    const csv = buildCsv(session, ["=1+1", "7"], allColumns(session));
+    const header = csv.split("\r\n")[0]!;
+
+    expect(header).toContain("classification:=Trade");
+    expect(csv).toContain("1,'=1+1,line-id,'+1+1,Line,scale-1,'-1+1,uniform,");
+    expect(csv).toContain('"\'@SUM(1,1)"');
+    expect(csv).toContain(",uniform,1000,10,100,100,100,2.50,,,m,");
+  });
+
+  it.each([" =1+1", "\t=1+1", "\r=1+1", "\n=1+1", "\u0000=1+1"])(
+    "neutralizes a formula prefix after leading whitespace/control characters in %j",
+    (label) => {
+      const csv = buildCsv(measuredSession(), [label, "7"]);
+
+      expect(csv).toContain(`'${label}`);
+    },
+  );
+
+  it("preserves ordinary hyphenated, quoted, multiline, and Unicode text", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[0]!.name = 'North-South, "Δ"\nLevel -1';
+    session.pages[2]!.measurements[0]!.name = "-West";
+
+    const csv = buildCsv(session);
+
+    expect(csv).toContain('"North-South, ""Δ""\nLevel -1"');
+    expect(csv).not.toContain('\'North-South, ""Δ""\nLevel -1');
+    expect(csv).toContain("second-line-id,'-West,Line");
+  });
+
   it("exports hidden measurements without adding visibility to the CSV contract", () => {
     const session = measuredSession();
     session.pages[1]!.measurements[1]!.visible = false;
