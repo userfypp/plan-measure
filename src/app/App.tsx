@@ -143,11 +143,11 @@ function PlanMeasureApp() {
   } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const applicationCopyRef = useRef(false);
-  const measurementEditActiveRef = useRef(false);
+  const activeMeasurementEditIdRef = useRef<string | null>(null);
   const viewerPageZoomRef = useRef<{ pageNumber: number; zoom: number } | null>(null);
   const dragDepthRef = useRef(0);
   const [dragActive, setDragActive] = useState(false);
-  const [measurementEditActive, setMeasurementEditActive] = useState(false);
+  const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
   const [viewerPageBounds, setViewerPageBounds] = useState<{
     pageNumber: number;
@@ -189,8 +189,6 @@ function PlanMeasureApp() {
   const clearDragState = useCallback(() => {
     dragDepthRef.current = 0;
     setDragActive(false);
-    measurementEditActiveRef.current = false;
-    setMeasurementEditActive(false);
   }, []);
 
   const requestMeasurementDelete = useCallback(
@@ -236,9 +234,15 @@ function PlanMeasureApp() {
     [],
   );
 
-  const handleMeasurementEditActiveChange = useCallback((active: boolean) => {
-    measurementEditActiveRef.current = active;
-    setMeasurementEditActive(active);
+  const handleMeasurementEditActiveChange = useCallback((measurementId: string, active: boolean) => {
+    if (active) {
+      activeMeasurementEditIdRef.current = measurementId;
+      setActiveMeasurementEditId(measurementId);
+      return;
+    }
+    if (activeMeasurementEditIdRef.current !== measurementId) return;
+    activeMeasurementEditIdRef.current = null;
+    setActiveMeasurementEditId(null);
   }, []);
 
   const handleViewerViewZoomChange = useCallback((pageNumber: number, zoom: number | null) => {
@@ -260,7 +264,7 @@ function PlanMeasureApp() {
       if (
         action !== "delete-measurement" &&
         isMeasurementClipboardActionBlocked(action, {
-          measurementEditActive: measurementEditActiveRef.current,
+          measurementEditActive: activeMeasurementEditIdRef.current !== null,
           draftActive: Boolean(draft),
           calibrationFlowActive: Boolean(calibrationFlow),
           calibrationCandidateActive: Boolean(calibrationCandidate),
@@ -614,6 +618,7 @@ function PlanMeasureApp() {
   const selectedMeasurement =
     currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
     null;
+  const measurementEditActive = activeMeasurementEditId !== null;
   const duplicateDisabled = currentPage && selectedMeasurement
     ? !canDuplicateMeasurement(currentPage, selectedMeasurement) ||
       isMeasurementClipboardActionBlocked("paste-measurement", {
@@ -634,7 +639,7 @@ function PlanMeasureApp() {
     if (!canDuplicateMeasurement(currentPage, measurement)) return;
     if (
       isMeasurementClipboardActionBlocked("paste-measurement", {
-        measurementEditActive: measurementEditActiveRef.current,
+        measurementEditActive: activeMeasurementEditIdRef.current !== null,
         draftActive: Boolean(draft),
         calibrationFlowActive: Boolean(calibrationFlow),
         calibrationCandidateActive: Boolean(calibrationCandidate),
@@ -800,6 +805,7 @@ function PlanMeasureApp() {
                 onPageChange={handlePageChange}
                 onPageBoundsChange={handleViewerPageBoundsChange}
                 onViewZoomChange={handleViewerViewZoomChange}
+                activeMeasurementEditId={activeMeasurementEditId}
                 onMeasurementEditActiveChange={handleMeasurementEditActiveChange}
                 onChooseTool={chooseTool}
                 onCalibrationCandidate={(points) => {
@@ -836,6 +842,7 @@ function PlanMeasureApp() {
                       }
                     : null
                 }
+                measurementEditingBlocked={Boolean(calibrationFlow || calibrationCandidate)}
                 onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
                 onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
                 onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}

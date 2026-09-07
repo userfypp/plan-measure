@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession, sessionReducer } from "../app/sessionState";
+import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import type { CurrentSession, LinearUnit } from "../types/domain";
 import {
   buildCsv,
@@ -446,6 +447,30 @@ describe("CSV export", () => {
     expect(pasted.error).toBeNull();
     expect(pastedRow).toContain('pasted-line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform');
     expect(pastedRow).toContain(",Electrical,Approved");
+  });
+
+  it("exports a moved measurement through normal session state without changing derived CSV metadata", () => {
+    const session = classifiedMeasuredSession();
+    const source = session.pages[1]!.measurements.find((measurement) => measurement.id === "line-id")!;
+    const sourceBefore = structuredClone(source);
+    const csvBefore = buildCsv(session, null, allColumns(session));
+    const movedPoints = translateMeasurementPoints(source.points, { x: 37.5, y: 18.25 });
+
+    const moved = sessionReducer(
+      { session, error: null },
+      {
+        type: "UPDATE_MEASUREMENT",
+        pageNumber: 1,
+        id: source.id,
+        points: movedPoints,
+      },
+    );
+    const movedMeasurement = moved.session!.pages[1]!.measurements.find(
+      (measurement) => measurement.id === source.id,
+    )!;
+
+    expect(movedMeasurement).toEqual({ ...sourceBefore, points: movedPoints });
+    expect(buildCsv(moved.session!, null, allColumns(moved.session!))).toBe(csvBefore);
   });
 
   it("exports classification IDs and status only when explicitly enabled", () => {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { CurrentSession } from "../types/domain";
+import type { CurrentSession, Measurement, MeasurementType } from "../types/domain";
+import { measurementResultsMm } from "../utils/geometry";
+import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
 
 function session(): CurrentSession {
@@ -177,6 +179,109 @@ describe("SessionState", () => {
     });
 
     expect(state.session?.pages[1]?.measurements[0]?.points).toEqual(originalPoints);
+  });
+
+  it.each([
+    [
+      "line",
+      [
+        { x: 10, y: 15 },
+        { x: 35, y: 28 },
+      ],
+    ],
+    [
+      "polyline",
+      [
+        { x: 10, y: 15 },
+        { x: 35, y: 28 },
+        { x: 44, y: 50 },
+      ],
+    ],
+    [
+      "polygon",
+      [
+        { x: 10, y: 15 },
+        { x: 40, y: 15 },
+        { x: 44, y: 50 },
+        { x: 14, y: 45 },
+      ],
+    ],
+  ] as const)("translates only %s points while preserving metadata and measured values", (type, points) => {
+    const current = session();
+    const calibration = {
+      id: "scale-1",
+      name: "Main plan",
+      mode: "uniform" as const,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 0 },
+      referenceDistanceMm: 1000,
+    };
+    current.pages[1]!.calibrations = [calibration];
+    current.pages[1]!.activeCalibrationId = calibration.id;
+    current.classificationCatalog.dimensions = [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: false,
+        values: [{ id: "electrical", name: "Electrical", archived: false }],
+      },
+    ];
+    const source: Measurement = {
+      id: `${type}-move`,
+      type: type as MeasurementType,
+      name: "Preserved name",
+      calibrationId: calibration.id,
+      points: points.map((point) => ({ ...point })),
+      classificationValueIds: ["electrical"],
+      visible: false,
+    };
+    current.pages[1]!.measurements = [source];
+    const countersBefore = structuredClone(current.pages[1]!.nextMeasurementNumber);
+    const beforeResults = measurementResultsMm(source, calibration);
+    const movedPoints = translateMeasurementPoints(source.points, { x: 17.5, y: 9.25 });
+
+    const result = sessionReducer(
+      { session: current, error: null },
+      { type: "UPDATE_MEASUREMENT", pageNumber: 1, id: source.id, points: movedPoints },
+    );
+    const moved = result.session?.pages[1]?.measurements[0];
+
+    expect(moved).toEqual({ ...source, points: movedPoints });
+    expect(result.session?.pages[1]?.nextMeasurementNumber).toEqual(countersBefore);
+    expect(measurementResultsMm(moved!, calibration)).toEqual(beforeResults);
+  });
+
+  it("does not let rigid translation bypass historical repair-required Polygon validity", () => {
+    const current = session();
+    const invalidPoints = [
+      { x: 10, y: 10 },
+      { x: 30, y: 30 },
+      { x: 10, y: 30 },
+      { x: 30, y: 10 },
+    ];
+    current.pages[1]!.measurements = [
+      {
+        id: "repair-required",
+        type: "polygon",
+        name: "Historical polygon",
+        calibrationId: "legacy-scale",
+        points: invalidPoints,
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    const result = sessionReducer(
+      { session: current, error: null },
+      {
+        type: "UPDATE_MEASUREMENT",
+        pageNumber: 1,
+        id: "repair-required",
+        points: translateMeasurementPoints(invalidPoints, { x: 5, y: 7 }),
+      },
+    );
+
+    expect(result.session?.pages[1]?.measurements[0]?.points).toEqual(invalidPoints);
   });
 
   it("creates visible measurements and toggles only the requested measurement", () => {
