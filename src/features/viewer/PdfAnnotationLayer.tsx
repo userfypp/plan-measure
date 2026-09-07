@@ -40,6 +40,23 @@ import {
   translateMeasurementPoints,
   type WholeMeasurementDragResult,
 } from "./measurementDrag";
+import {
+  beginMeasurementVertexDrag,
+  cancelPreparedMeasurementVertexDrag,
+  cancelMeasurementVertexDrag,
+  clearReadyMeasurementVertexDrag,
+  createMeasurementVertexDragState,
+  finishMeasurementVertexDrag,
+  getActiveMeasurementVertexDrag,
+  matchesPreparedMeasurementVertexDrag,
+  prepareMeasurementVertexDrag,
+  shouldCancelMeasurementVertexDrag,
+  shouldRenderMeasurementVertexHandles,
+  updateMeasurementVertexDrag,
+  type MeasurementVertexDragEffects,
+  type MeasurementVertexDragNode,
+  type MeasurementVertexDragPreparation,
+} from "./measurementVertexDrag";
 
 const LABEL_PADDING_SCREEN_PX = 4;
 const MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX = 12;
@@ -100,6 +117,11 @@ interface PdfAnnotationLayerProps {
     measurementId: string,
     cancel: (() => void) | null,
   ) => void;
+  onVertexDragCancellationChange: (
+    measurementId: string,
+    owner: object,
+    cancel: (() => void) | null,
+  ) => void;
 }
 
 export function PdfAnnotationLayer({
@@ -121,6 +143,7 @@ export function PdfAnnotationLayer({
   onCalibrationReferencePointsChange,
   onMeasurementEditActiveChange,
   onWholeMeasurementDragCancellationChange,
+  onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
   const showMeasurementLabels = showMeasurements && showLabels;
   const plannedLabelPlacements = useMemo(() => {
@@ -314,6 +337,7 @@ export function PdfAnnotationLayer({
             onSelectMeasurement={onSelectMeasurement}
             onMeasurementEditActiveChange={onMeasurementEditActiveChange}
             onWholeMeasurementDragCancellationChange={onWholeMeasurementDragCancellationChange}
+            onVertexDragCancellationChange={onVertexDragCancellationChange}
             plannedLabelPlacement={
               plannedLabelPlacements.get(`measurement:${measurement.id}`) ?? null
             }
@@ -443,6 +467,11 @@ interface MeasurementShapeProps {
     measurementId: string,
     cancel: (() => void) | null,
   ) => void;
+  onVertexDragCancellationChange: (
+    measurementId: string,
+    owner: object,
+    cancel: (() => void) | null,
+  ) => void;
   plannedLabelPlacement: LabelPlacement | null;
 }
 
@@ -460,10 +489,13 @@ const MeasurementShape = memo(function MeasurementShape({
   onSelectMeasurement,
   onMeasurementEditActiveChange,
   onWholeMeasurementDragCancellationChange,
+  onVertexDragCancellationChange,
   plannedLabelPlacement,
 }: MeasurementShapeProps) {
   const { updateMeasurement: updateSessionMeasurement } = useSessionState();
   const wholeDragNodeRef = useRef<KonvaLineNode>(null);
+  const vertexDragStateRef = useRef(createMeasurementVertexDragState());
+  const vertexDragPreparationRef = useRef<MeasurementVertexDragPreparation | null>(null);
   const dragPointsRef = useRef<Point[] | null>(null);
   const finalDragPointsRef = useRef<Point[] | null>(null);
   const wholeDragRef = useRef<{
@@ -475,6 +507,7 @@ const MeasurementShape = memo(function MeasurementShape({
   const rejectedWholeDragRef = useRef(false);
   const cancelledWholeDragRef = useRef(false);
   const [wholeDragPrepared, setWholeDragPrepared] = useState(false);
+  const [vertexDragOwned, setVertexDragOwned] = useState(false);
   const [dragPoints, setDragPoints] = useState<Point[] | null>(null);
   const stroke = selected ? "#c2410c" : "#2563eb";
   const visibleMeasurement = useMemo<Measurement>(() => {
@@ -520,6 +553,40 @@ const MeasurementShape = memo(function MeasurementShape({
     editable,
   );
 
+  const cancelVertexGesture = useCallback(
+    (owner?: object) => {
+      const active = vertexDragStateRef.current.active;
+      const preparation = vertexDragPreparationRef.current;
+      const currentOwner = active?.owner ?? preparation?.owner ?? null;
+      if (!currentOwner || (owner && currentOwner !== owner)) return false;
+
+      finalDragPointsRef.current = null;
+      let cancelled = false;
+      if (active) {
+        cancelled = cancelMeasurementVertexDrag(vertexDragStateRef.current, {
+          preview: (points) => {
+            dragPointsRef.current = points;
+            setDragPoints(points);
+          },
+          setEditing: (active) => onMeasurementEditActiveChange(measurement.id, active),
+        });
+      } else if (preparation) {
+        vertexDragPreparationRef.current = null;
+        cancelPreparedMeasurementVertexDrag(preparation);
+        dragPointsRef.current = null;
+        setDragPoints(null);
+        cancelled = true;
+      }
+
+      if (!cancelled) return false;
+      vertexDragPreparationRef.current = null;
+      setVertexDragOwned(false);
+      onVertexDragCancellationChange(measurement.id, currentOwner, null);
+      return cancelled;
+    },
+    [measurement.id, onMeasurementEditActiveChange, onVertexDragCancellationChange],
+  );
+
   const clearCancelledWholeDrag = useCallback(() => {
     wholeDragRef.current = null;
     setWholeDragPrepared(false);
@@ -558,11 +625,25 @@ const MeasurementShape = memo(function MeasurementShape({
     }
   }, [bounds, cancelWholeDrag, selected, transform]);
 
+  useLayoutEffect(() => {
+    const active = vertexDragStateRef.current.active;
+    const preparation = vertexDragPreparationRef.current;
+    const gesture = active ?? preparation;
+    if (!gesture) return;
+    if (
+      shouldCancelMeasurementVertexDrag(gesture, selected, transform, bounds) ||
+      (preparation && !editable)
+    ) {
+      cancelVertexGesture(gesture.owner);
+    }
+  }, [bounds, cancelVertexGesture, editable, selected, transform]);
+
   useLayoutEffect(
     () => () => {
       cancelWholeDrag();
+      cancelVertexGesture();
     },
-    [cancelWholeDrag],
+    [cancelVertexGesture, cancelWholeDrag],
   );
 
   useEffect(() => {
@@ -581,22 +662,79 @@ const MeasurementShape = memo(function MeasurementShape({
     setDragPoints(null);
   }, [measurement.points]);
 
-  function pointsWithVertex(index: number, point: Point): Point[] {
-    const sourcePoints = dragPointsRef.current ?? measurement.points;
-    return sourcePoints.map((existing, pointIndex) => (pointIndex === index ? point : existing));
-  }
-
   function updateDragPoints(points: Point[]) {
     dragPointsRef.current = points;
     setDragPoints(points);
   }
 
-  function pointFromDragEvent(event: KonvaEventObject<MouseEvent>): Point {
+  function pointFromVertexDragEvent(
+    event: KonvaEventObject<MouseEvent>,
+    dragTransform: ViewTransform,
+    dragBounds: LogicalPageBounds,
+  ): Point {
     const pointer = event.target.getStage()?.getPointerPosition();
     const rawPoint = pointer
-      ? screenToPage({ x: pointer.x, y: pointer.y }, transform)
+      ? screenToPage({ x: pointer.x, y: pointer.y }, dragTransform)
       : { x: event.target.x(), y: event.target.y() };
-    return clampPointToPage(rawPoint, bounds);
+    return clampPointToPage(rawPoint, dragBounds);
+  }
+
+  function vertexDragEffects(): MeasurementVertexDragEffects {
+    return {
+      preview: (points) => {
+        dragPointsRef.current = points;
+        setDragPoints(points);
+      },
+      setEditing: (active) => onMeasurementEditActiveChange(measurement.id, active),
+      commit: updateMeasurementPoints,
+    };
+  }
+
+  function resetStaleVertexTarget(index: number, event: KonvaEventObject<MouseEvent>) {
+    const persistedPoint = measurement.points[index];
+    if (persistedPoint) event.target.position(persistedPoint);
+    if (event.target.isDragging()) event.target.stopDrag();
+  }
+
+  function prepareVertexGesture(
+    node: MeasurementVertexDragNode,
+    index: number,
+    button: number,
+  ): boolean {
+    const clearReadyAfterStartEvent = () => {
+      // Konva's draggable listener may run before or after the React listener
+      // after `draggable` has been toggled. Defer ready-state cleanup until all
+      // listeners for this mouse/touch start event have completed.
+      queueMicrotask(() => {
+        if (!node.isDragging()) clearReadyMeasurementVertexDrag(node);
+      });
+    };
+    const currentOwner =
+      vertexDragStateRef.current.active?.owner ?? vertexDragPreparationRef.current?.owner;
+    if (currentOwner) {
+      cancelVertexGesture(currentOwner);
+      clearReadyAfterStartEvent();
+      return false;
+    }
+
+    const preparation = prepareMeasurementVertexDrag(
+      node,
+      index,
+      button,
+      measurement.points,
+      transform,
+      bounds,
+    );
+    vertexDragPreparationRef.current = preparation;
+    if (!preparation) {
+      clearReadyAfterStartEvent();
+      return false;
+    }
+    setVertexDragOwned(true);
+    onVertexDragCancellationChange(measurement.id, preparation.owner, () =>
+      cancelVertexGesture(preparation.owner),
+    );
+    return true;
   }
 
   function updateMeasurementPoints(points: Point[]): boolean {
@@ -757,8 +895,7 @@ const MeasurementShape = memo(function MeasurementShape({
           />
         </Label>
       )}
-      {selected &&
-        editable &&
+      {shouldRenderMeasurementVertexHandles(selected, vertexDragOwned, editable) &&
         visibleMeasurement.points.map((point, index) => (
           <Circle
             key={index}
@@ -770,33 +907,89 @@ const MeasurementShape = memo(function MeasurementShape({
             strokeWidth={2 / zoom}
             hitStrokeWidth={10 / zoom}
             draggable
+            onMouseDown={(event) => {
+              if (prepareVertexGesture(event.target, index, event.evt.button)) {
+                event.cancelBubble = true;
+              }
+            }}
+            onTouchStart={(event) => {
+              // Touch has no mouse button, but Konva treats touchstart as a
+              // legitimate draggable start. Preserve the pre-#38 behavior by
+              // giving it the same owned preparation as a primary mouse drag.
+              if (prepareVertexGesture(event.target, index, 0)) {
+                event.cancelBubble = true;
+              }
+            }}
             onDragStart={(event) => {
-              onMeasurementEditActiveChange(measurement.id, true);
+              event.cancelBubble = true;
+              const preparation = vertexDragPreparationRef.current;
+              vertexDragPreparationRef.current = null;
+              if (!matchesPreparedMeasurementVertexDrag(preparation, event.target, index)) {
+                event.target.stopDrag();
+                return;
+              }
               finalDragPointsRef.current = null;
               dragPointsRef.current = null;
-              const startPoint = pointFromDragEvent(event);
-              event.target.position(startPoint);
-              updateDragPoints(pointsWithVertex(index, startPoint));
+              const startPoint = pointFromVertexDragEvent(
+                event,
+                preparation.transform,
+                preparation.bounds,
+              );
+              const started = beginMeasurementVertexDrag(
+                vertexDragStateRef.current,
+                preparation,
+                startPoint,
+                vertexDragEffects(),
+              );
+              if (!started) {
+                onVertexDragCancellationChange(measurement.id, preparation.owner, null);
+                setVertexDragOwned(false);
+                resetStaleVertexTarget(index, event);
+                return;
+              }
             }}
             onDragMove={(event) => {
-              const nextPoint = pointFromDragEvent(event);
-              event.target.position(nextPoint);
-              const nextPoints = pointsWithVertex(index, nextPoint);
-              updateDragPoints(nextPoints);
+              event.cancelBubble = true;
+              const drag = getActiveMeasurementVertexDrag(
+                vertexDragStateRef.current,
+                event.target,
+                index,
+              );
+              if (!drag) {
+                resetStaleVertexTarget(index, event);
+                return;
+              }
+              const nextPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
+              updateMeasurementVertexDrag(
+                vertexDragStateRef.current,
+                event.target,
+                index,
+                nextPoint,
+                vertexDragEffects(),
+              );
             }}
             onDragEnd={(event) => {
-              const finalPoint = pointFromDragEvent(event);
-              event.target.position(finalPoint);
-              const finalPoints = pointsWithVertex(index, finalPoint);
-              finalDragPointsRef.current = finalPoints;
-              updateDragPoints(finalPoints);
-              const accepted = updateMeasurementPoints(finalPoints);
-              if (!accepted) {
-                finalDragPointsRef.current = null;
-                dragPointsRef.current = null;
-                setDragPoints(null);
+              event.cancelBubble = true;
+              const drag = getActiveMeasurementVertexDrag(
+                vertexDragStateRef.current,
+                event.target,
+                index,
+              );
+              if (!drag) {
+                resetStaleVertexTarget(index, event);
+                return;
               }
-              onMeasurementEditActiveChange(measurement.id, false);
+              const finalPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
+              const result = finishMeasurementVertexDrag(
+                vertexDragStateRef.current,
+                event.target,
+                index,
+                finalPoint,
+                vertexDragEffects(),
+              );
+              onVertexDragCancellationChange(measurement.id, drag.owner, null);
+              setVertexDragOwned(false);
+              finalDragPointsRef.current = result.outcome === "accepted" ? result.points : null;
             }}
           />
         ))}

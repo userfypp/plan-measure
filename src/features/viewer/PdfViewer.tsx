@@ -54,6 +54,7 @@ import {
   registerWholeMeasurementDragEnvironmentCancellation,
   registerWholeMeasurementDragPointerReleaseCleanup,
 } from "./measurementDrag";
+import { createMeasurementVertexDragCancellationRegistry } from "./measurementVertexDrag";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
@@ -161,6 +162,9 @@ export function PdfViewer({
   const wholeMeasurementDragCancellationRegistryRef = useRef(
     createWholeMeasurementDragCancellationRegistry(),
   );
+  const vertexDragCancellationRegistryRef = useRef(
+    createMeasurementVertexDragCancellationRegistry(),
+  );
   const activeMeasurementEditIdRef = useRef(activeMeasurementEditId);
   const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
   const renderRequestRef = useRef(0);
@@ -197,6 +201,17 @@ export function PdfViewer({
 
   const cancelActiveWholeMeasurementDrag = useCallback(() => {
     wholeMeasurementDragCancellationRegistryRef.current.cancelActive();
+  }, []);
+
+  const registerVertexDragCancellation = useCallback(
+    (measurementId: string, owner: object, cancel: (() => void) | null) => {
+      vertexDragCancellationRegistryRef.current.set(measurementId, owner, cancel);
+    },
+    [],
+  );
+
+  const cancelActiveVertexDrag = useCallback(() => {
+    vertexDragCancellationRegistryRef.current.cancelActive();
   }, []);
 
   const clearActiveMeasurementEdit = useCallback(() => {
@@ -274,9 +289,15 @@ export function PdfViewer({
   useLayoutEffect(
     () => () => {
       cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
       clearActiveMeasurementEdit();
     },
-    [cancelActiveWholeMeasurementDrag, clearActiveMeasurementEdit, page.pageNumber],
+    [
+      cancelActiveVertexDrag,
+      cancelActiveWholeMeasurementDrag,
+      clearActiveMeasurementEdit,
+      page.pageNumber,
+    ],
   );
 
   useEffect(
@@ -489,6 +510,7 @@ export function PdfViewer({
   const zoomAround = useCallback(
     (screenPoint: Point, factor: number) => {
       cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
       clearSnapFeedback();
       setFitMode(false);
       const next = zoomViewAtPoint(
@@ -498,24 +520,33 @@ export function PdfViewer({
       );
       commitTransform(next);
     },
-    [cancelActiveWholeMeasurementDrag, clearSnapFeedback, commitTransform],
+    [cancelActiveVertexDrag, cancelActiveWholeMeasurementDrag, clearSnapFeedback, commitTransform],
   );
 
   const fitPage = useCallback(() => {
     if (!bounds) return;
     cancelActiveWholeMeasurementDrag();
+    cancelActiveVertexDrag();
     clearSnapFeedback();
     setFitMode(true);
     commitTransform(fitToScreen(bounds, viewerSize));
-  }, [bounds, viewerSize, cancelActiveWholeMeasurementDrag, clearSnapFeedback, commitTransform]);
+  }, [
+    bounds,
+    viewerSize,
+    cancelActiveWholeMeasurementDrag,
+    cancelActiveVertexDrag,
+    clearSnapFeedback,
+    commitTransform,
+  ]);
 
   const changePage = useCallback(
     (pageNumber: number) => {
       cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
       clearSnapFeedback();
       onPageChange(pageNumber);
     },
-    [cancelActiveWholeMeasurementDrag, clearSnapFeedback, onPageChange],
+    [cancelActiveVertexDrag, cancelActiveWholeMeasurementDrag, clearSnapFeedback, onPageChange],
   );
 
   useLayoutEffect(() => {
@@ -549,8 +580,13 @@ export function PdfViewer({
   }, []);
 
   const handleViewerPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => focusViewerSurface(event.target),
-    [focusViewerSurface],
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      // A new pointer ownership attempt invalidates any older prepared/active
+      // vertex gesture before Konva can reuse a stale `ready` drag element.
+      cancelActiveVertexDrag();
+      focusViewerSurface(event.target);
+    },
+    [cancelActiveVertexDrag, focusViewerSurface],
   );
 
   const handleViewerWheel = useCallback(
@@ -652,6 +688,7 @@ export function PdfViewer({
     }
     function cancelMeasurementEditForEnvironmentLoss() {
       cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
       clearActiveMeasurementEdit();
       clearSnapFeedback();
       releaseSpacePan();
@@ -666,7 +703,10 @@ export function PdfViewer({
     });
     const unregisterPointerReleaseCleanup = registerWholeMeasurementDragPointerReleaseCleanup({
       windowTarget: window,
-      cancelPreparedDrag: cancelActiveWholeMeasurementDrag,
+      cancelPreparedDrag: () => {
+        cancelActiveWholeMeasurementDrag();
+        cancelActiveVertexDrag();
+      },
     });
     return () => {
       window.removeEventListener("keydown", handleGlobalKeyDown);
@@ -676,6 +716,7 @@ export function PdfViewer({
     };
   }, [
     cancelActiveWholeMeasurementDrag,
+    cancelActiveVertexDrag,
     clearActiveMeasurementEdit,
     clearSnapFeedback,
     executeKeyboardAction,
@@ -691,6 +732,7 @@ export function PdfViewer({
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
     if (!startsViewerPan(activeTool, spacePan, event.evt.button)) return;
     cancelActiveWholeMeasurementDrag();
+    cancelActiveVertexDrag();
     clearSnapFeedback();
     const pointer = stagePointer(event);
     if (!pointer) return;
@@ -1070,6 +1112,7 @@ export function PdfViewer({
                   onWholeMeasurementDragCancellationChange={
                     registerWholeMeasurementDragCancellation
                   }
+                  onVertexDragCancellationChange={registerVertexDragCancellation}
                 />
                 {workspaceDraft && draftPoints.length >= 2 && (
                   <Line
