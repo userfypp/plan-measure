@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave, isSessionPersistable } from "../app/autosave";
 import { createEmptySession, initialSessionState, sessionReducer } from "../app/sessionState";
+import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import type {
   CurrentSession,
   Point,
@@ -240,6 +241,36 @@ it("persists and recovers a pasted measurement as ordinary session data", async 
     visible: true,
   });
   expect(recovered?.session.classificationCatalog).toEqual(pasted.session!.classificationCatalog);
+});
+
+it("persists and recovers a moved measurement as one ordinary points update", async () => {
+  const session = archivedCurrentSession();
+  const source = session.pages[2]!.measurements[0]!;
+  const sourceBefore = structuredClone(source);
+  const movedPoints = translateMeasurementPoints(source.points, { x: 21.5, y: -3.25 });
+  const moved = sessionReducer(
+    { session, error: null },
+    {
+      type: "UPDATE_MEASUREMENT",
+      pageNumber: 2,
+      id: source.id,
+      points: movedPoints,
+    },
+  );
+  const revision = await replaceSavedSession(
+    moved.session!,
+    new Blob(["pdf"], { type: "application/pdf" }),
+    null,
+  );
+  const recovered = await loadSavedSession();
+  const restored = recovered?.session.pages[2]!.measurements.find(
+    (measurement) => measurement.id === source.id,
+  );
+
+  expect(recovered?.revision).toBe(revision);
+  expect(restored).toEqual({ ...sourceBefore, points: movedPoints });
+  expect(recovered?.session.classificationCatalog).toEqual(moved.session!.classificationCatalog);
+  expect(recovered?.session.pages[2]!.calibrations).toEqual(moved.session!.pages[2]!.calibrations);
 });
 
 function withMockDefaultLocale<T>(locale: string, run: () => T): T {

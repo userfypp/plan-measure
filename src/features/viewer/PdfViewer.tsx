@@ -50,6 +50,11 @@ import {
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
 import { buildDraftPreviewPoints } from "./draftPreview";
+import {
+  createWholeMeasurementDragCancellationRegistry,
+  registerWholeMeasurementDragEnvironmentCancellation,
+  registerWholeMeasurementDragPointerReleaseCleanup,
+} from "./measurementDrag";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
@@ -64,12 +69,14 @@ interface PdfViewerProps {
   onPageChange: (pageNumber: number) => void;
   onPageBoundsChange: (pageNumber: number, bounds: LogicalPageBounds | null) => void;
   onViewZoomChange: (pageNumber: number, zoom: number | null) => void;
-  onMeasurementEditActiveChange: (active: boolean) => void;
+  activeMeasurementEditId: string | null;
+  onMeasurementEditActiveChange: (measurementId: string, active: boolean) => void;
   onChooseTool: (tool: Tool) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
   calibrationReferenceLabel?: "X" | "Y";
   onCalibrationCancel: () => void;
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
+  measurementEditingBlocked: boolean;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
   onCalibrationReferenceEditCancel: () => void;
   onCalibrationReferenceEditSave: () => void;
@@ -101,12 +108,14 @@ export function PdfViewer({
   onPageChange,
   onPageBoundsChange,
   onViewZoomChange,
+  activeMeasurementEditId,
   onMeasurementEditActiveChange,
   onChooseTool,
   onCalibrationCandidate,
   calibrationReferenceLabel,
   onCalibrationCancel,
   calibrationReferenceEdit,
+  measurementEditingBlocked,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceEditCancel,
   onCalibrationReferenceEditSave,
@@ -140,6 +149,10 @@ export function PdfViewer({
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
+  const wholeMeasurementDragCancellationRegistryRef = useRef(
+    createWholeMeasurementDragCancellationRegistry(),
+  );
+  const activeMeasurementEditIdRef = useRef(activeMeasurementEditId);
   const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
   const renderRequestRef = useRef(0);
   const pageReadyRef = useRef(false);
@@ -159,6 +172,22 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+
+  const registerWholeMeasurementDragCancellation = useCallback(
+    (measurementId: string, cancel: (() => void) | null) => {
+      wholeMeasurementDragCancellationRegistryRef.current.set(measurementId, cancel);
+    },
+    [],
+  );
+
+  const cancelActiveWholeMeasurementDrag = useCallback(() => {
+    wholeMeasurementDragCancellationRegistryRef.current.cancelActive();
+  }, []);
+
+  const clearActiveMeasurementEdit = useCallback(() => {
+    const measurementId = activeMeasurementEditIdRef.current;
+    if (measurementId) onMeasurementEditActiveChange(measurementId, false);
+  }, [onMeasurementEditActiveChange]);
   const selectMeasurement = useCallback(
     (id: string) => {
       selectWorkspaceMeasurement(id);
@@ -206,7 +235,9 @@ export function PdfViewer({
     completePathRef.current = completePath;
     calibrationReferenceEditRef.current = calibrationReferenceEdit;
     onCalibrationReferenceEditCancelRef.current = onCalibrationReferenceEditCancel;
+    activeMeasurementEditIdRef.current = activeMeasurementEditId;
   }, [
+    activeMeasurementEditId,
     calibrationReferenceEdit,
     clearDraft,
     completePath,
@@ -220,11 +251,12 @@ export function PdfViewer({
 
   const bounds = pageRenderData?.bounds ?? null;
 
-  useEffect(
+  useLayoutEffect(
     () => () => {
-      onMeasurementEditActiveChange(false);
+      cancelActiveWholeMeasurementDrag();
+      clearActiveMeasurementEdit();
     },
-    [onMeasurementEditActiveChange],
+    [cancelActiveWholeMeasurementDrag, clearActiveMeasurementEdit, page.pageNumber],
   );
 
   useEffect(
@@ -436,6 +468,7 @@ export function PdfViewer({
 
   const zoomAround = useCallback(
     (screenPoint: Point, factor: number) => {
+      cancelActiveWholeMeasurementDrag();
       setFitMode(false);
       const next = zoomViewAtPoint(
         transformRef.current,
@@ -444,14 +477,23 @@ export function PdfViewer({
       );
       commitTransform(next);
     },
-    [commitTransform],
+    [cancelActiveWholeMeasurementDrag, commitTransform],
   );
 
   const fitPage = useCallback(() => {
     if (!bounds) return;
+    cancelActiveWholeMeasurementDrag();
     setFitMode(true);
     commitTransform(fitToScreen(bounds, viewerSize));
-  }, [bounds, viewerSize, commitTransform]);
+  }, [bounds, viewerSize, cancelActiveWholeMeasurementDrag, commitTransform]);
+
+  const changePage = useCallback(
+    (pageNumber: number) => {
+      cancelActiveWholeMeasurementDrag();
+      onPageChange(pageNumber);
+    },
+    [cancelActiveWholeMeasurementDrag, onPageChange],
+  );
 
   useLayoutEffect(() => {
     onViewZoomChange(page.pageNumber, viewTransform.zoom);
@@ -459,7 +501,7 @@ export function PdfViewer({
       pageNumber: page.pageNumber,
       pageCount: session?.pageCount ?? 1,
       zoom: viewTransform.zoom,
-      onPageChange,
+      onPageChange: changePage,
       onZoomOut: () =>
         zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP),
       onZoomIn: () =>
@@ -469,7 +511,7 @@ export function PdfViewer({
   }, [
     fitPage,
     onNavigationChange,
-    onPageChange,
+    changePage,
     onViewZoomChange,
     page.pageNumber,
     session?.pageCount,
@@ -578,19 +620,36 @@ export function PdfViewer({
     function handleGlobalKeyUp(event: KeyboardEvent) {
       if (event.key === " ") releaseSpacePan();
     }
-    function handleWindowBlur() {
+    function cancelMeasurementEditForEnvironmentLoss() {
+      cancelActiveWholeMeasurementDrag();
+      clearActiveMeasurementEdit();
       releaseSpacePan();
       finishPan();
     }
     window.addEventListener("keydown", handleGlobalKeyDown);
     window.addEventListener("keyup", handleGlobalKeyUp);
-    window.addEventListener("blur", handleWindowBlur);
+    const unregisterEnvironmentCancellation = registerWholeMeasurementDragEnvironmentCancellation({
+      windowTarget: window,
+      documentTarget: window.document,
+      cancel: cancelMeasurementEditForEnvironmentLoss,
+    });
+    const unregisterPointerReleaseCleanup = registerWholeMeasurementDragPointerReleaseCleanup({
+      windowTarget: window,
+      cancelPreparedDrag: cancelActiveWholeMeasurementDrag,
+    });
     return () => {
       window.removeEventListener("keydown", handleGlobalKeyDown);
       window.removeEventListener("keyup", handleGlobalKeyUp);
-      window.removeEventListener("blur", handleWindowBlur);
+      unregisterEnvironmentCancellation();
+      unregisterPointerReleaseCleanup();
     };
-  }, [executeKeyboardAction, finishPan, releaseSpacePan]);
+  }, [
+    cancelActiveWholeMeasurementDrag,
+    clearActiveMeasurementEdit,
+    executeKeyboardAction,
+    finishPan,
+    releaseSpacePan,
+  ]);
 
   function stagePointer(event: KonvaEventObject<MouseEvent | WheelEvent>): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
@@ -599,6 +658,7 @@ export function PdfViewer({
 
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
     if (!startsViewerPan(activeTool, spacePan, event.evt.button)) return;
+    cancelActiveWholeMeasurementDrag();
     const pointer = stagePointer(event);
     if (!pointer) return;
     event.evt.preventDefault();
@@ -846,7 +906,9 @@ export function PdfViewer({
                   spacePan={spacePan}
                   isPanning={isPanning}
                   selectedMeasurementId={selectedMeasurementId}
+                  activeMeasurementEditId={activeMeasurementEditId}
                   calibrationReferenceEdit={calibrationReferenceEdit}
+                  measurementEditingBlocked={measurementEditingBlocked}
                   displayUnit={displayUnit}
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}
@@ -854,6 +916,9 @@ export function PdfViewer({
                   onSelectMeasurement={selectMeasurement}
                   onCalibrationReferencePointsChange={onCalibrationReferencePointsChange}
                   onMeasurementEditActiveChange={onMeasurementEditActiveChange}
+                  onWholeMeasurementDragCancellationChange={
+                    registerWholeMeasurementDragCancellation
+                  }
                 />
                 {workspaceDraft && draftPoints.length >= 2 && (
                   <Line
