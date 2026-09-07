@@ -315,15 +315,22 @@ export function PdfViewer({
   useEffect(() => {
     const element = viewerRef.current;
     if (!element) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const nextSize = { width: entry.contentRect.width, height: entry.contentRect.height };
+    const updateViewerMetrics = (width: number, height: number) => {
+      const nextSize = { width, height };
       setViewerSize((current) =>
         current.width === nextSize.width && current.height === nextSize.height ? current : nextSize,
       );
       const nextPixelRatio = window.devicePixelRatio || 1;
       setDevicePixelRatio((current) => (current === nextPixelRatio ? current : nextPixelRatio));
+    };
+    const initialRect = element.getBoundingClientRect();
+    // Do not depend on the first ResizeObserver delivery to make the initial
+    // raster eligible. A mounted viewer can already have a valid layout here.
+    updateViewerMetrics(initialRect.width, initialRect.height);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateViewerMetrics(entry.contentRect.width, entry.contentRect.height);
     });
     observer.observe(element);
     const updatePixelRatio = () => {
