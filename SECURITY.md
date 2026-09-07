@@ -4,9 +4,9 @@ Plan Measure processes PDFs and measurement data locally in the browser. Please 
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities through [GitHub private vulnerability reporting](https://github.com/userfypp/plan-measure/security/advisories/new). Do not open a public issue for a security report.
+GitHub private vulnerability reporting is not currently enabled for this repository. Do not post vulnerability details in a public issue.
 
-Include enough detail to reproduce the problem, the affected browser or platform, the expected impact, and any suggested mitigation. If private reporting is unavailable, contact the repository owner privately through GitHub.
+Open a minimal issue asking the maintainer for a private contact method, without including exploit details or sensitive material. Once a private channel is arranged, include enough detail to reproduce the problem, the affected browser or platform, the expected impact, and any suggested mitigation.
 
 ## Response
 

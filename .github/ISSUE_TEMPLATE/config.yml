@@ -1,6 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Open a private security advisory
-    url: https://github.com/userfypp/plan-measure/security/advisories/new
-    about: Report a vulnerability privately to the maintainers.
-
+  - name: Security reporting
+    url: https://github.com/userfypp/plan-measure/security/policy
+    about: Read the security policy before reporting a vulnerability.
