@@ -19,6 +19,6 @@ Plan Measure is maintained as an open source project. We want every contribution
 
 ## Reporting concerns
 
-Please report conduct concerns privately to the repository maintainers through GitHub. Reports will be handled discreetly and reviewed fairly. Public issues are for project work and are not the right place for sensitive reports.
+Do not post sensitive conduct details publicly. Open a minimal issue asking a maintainer for a private contact method without naming people or sharing private information. Once a private channel is arranged, report the concern there.
 
 Contributors who follow this code of conduct help keep Plan Measure a healthy project for everyone.
