@@ -41,6 +41,7 @@ export interface SegmentSnapTarget extends SnapTargetBase {
   kind: "segment";
   start: Point;
   end: Point;
+  endVertexIndex: number;
 }
 
 export type SnapTarget = VertexSnapTarget | SegmentSnapTarget;
@@ -210,6 +211,7 @@ export function extractSnapTargets(
         primitiveIndex,
         start: visibleSegment.start,
         end: visibleSegment.end,
+        endVertexIndex: (primitiveIndex + 1) % measurement.points.length,
       });
     }
   });
@@ -290,6 +292,19 @@ function winsTie(candidate: SnapTarget, current: SnapTarget): boolean {
   return candidate.primitiveIndex < current.primitiveIndex;
 }
 
+function measurementTargetKey(target: SnapTarget): string {
+  return JSON.stringify([target.measurementIndex, target.measurementId]);
+}
+
+function hasEligibleIncidentVertex(
+  segment: SegmentSnapTarget,
+  eligibleVertices: ReadonlyMap<string, ReadonlyMap<number, VertexSnapTarget>>,
+): boolean {
+  const vertices = eligibleVertices.get(measurementTargetKey(segment));
+  if (!vertices) return false;
+  return vertices.has(segment.primitiveIndex) || vertices.has(segment.endVertexIndex);
+}
+
 interface ScreenDistanceContext {
   rawPointerScreen: Point;
   transform: ViewTransform;
@@ -338,7 +353,11 @@ function resolveCandidates(
   excludedPoint?: Point,
   screenDistanceContext?: ScreenDistanceContext,
 ): SnapMatch | null {
-  let best: { point: Point; target: SnapTarget; distanceSquaredScreen: number } | null = null;
+  const candidates: Array<{
+    point: Point;
+    target: SnapTarget;
+    distanceSquaredScreen: number;
+  }> = [];
 
   for (const target of targets) {
     const point = candidatePoint(target);
@@ -363,13 +382,37 @@ function resolveCandidates(
         withinInclusivePageTolerance(dxPage, dyPage, zoom, SNAP_TOLERANCE_SCREEN_PX)
       : withinInclusivePageTolerance(dxPage, dyPage, zoom, SNAP_TOLERANCE_SCREEN_PX);
     if (!insideTolerance) continue;
+    candidates.push({ point, target, distanceSquaredScreen });
+  }
+
+  const eligibleVertices = new Map<string, Map<number, VertexSnapTarget>>();
+  for (const candidate of candidates) {
+    if (candidate.target.kind !== "vertex") continue;
+    const key = measurementTargetKey(candidate.target);
+    let vertices = eligibleVertices.get(key);
+    if (!vertices) {
+      vertices = new Map();
+      eligibleVertices.set(key, vertices);
+    }
+    vertices.set(candidate.target.primitiveIndex, candidate.target);
+  }
+
+  let best: (typeof candidates)[number] | null = null;
+  for (const candidate of candidates) {
+    if (
+      candidate.target.kind === "segment" &&
+      hasEligibleIncidentVertex(candidate.target, eligibleVertices)
+    ) {
+      continue;
+    }
+    const { target, distanceSquaredScreen } = candidate;
     const tiesBest = best ? distanceSquaredScreen === best.distanceSquaredScreen : false;
     if (
       !best ||
       distanceSquaredScreen < best.distanceSquaredScreen ||
       (tiesBest && winsTie(target, best.target))
     ) {
-      best = { point, target, distanceSquaredScreen };
+      best = candidate;
     }
   }
 
