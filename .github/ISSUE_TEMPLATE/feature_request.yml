@@ -1,37 +1,18 @@
 name: Feature request
-description: Suggest a focused improvement to Plan Measure
-title: "[Feature]: "
+description: Suggest an improvement to Plan Measure
 labels:
   - enhancement
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Please describe one focused change that would improve the Plan Measure workflow.
-
   - type: textarea
-    id: problem
+    id: description
     attributes:
-      label: Problem
-      description: What is difficult, slow, or missing today?
-      placeholder: Describe the workflow or limitation.
+      label: What would you like to improve?
+      description: Describe the problem or idea, and how you think it should work.
     validations:
       required: true
 
   - type: textarea
-    id: proposal
+    id: context
     attributes:
-      label: Proposal
-      description: What would you like Plan Measure to do?
-      placeholder: Describe the behavior you have in mind.
-    validations:
-      required: true
-
-  - type: textarea
-    id: use_case
-    attributes:
-      label: Use case
-      description: Who would benefit, and when would they use it?
-      placeholder: Give a concrete example.
-    validations:
-      required: true
+      label: Anything else?
+      description: Add examples, screenshots, alternatives, or other context if useful.
