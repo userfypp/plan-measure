@@ -411,6 +411,23 @@ function escapeCsv(value: string | number): string {
   return `"${stringValue.replaceAll('"', '""')}"`;
 }
 
+const SPREADSHEET_FORMULA_PREFIXES = new Set(["=", "+", "-", "@"]);
+
+function neutralizeSpreadsheetText(value: string): string {
+  let prefixIndex = 0;
+  while (prefixIndex < value.length && value.charCodeAt(prefixIndex) <= 0x20) {
+    prefixIndex += 1;
+  }
+  const prefix = value[prefixIndex];
+  return prefix !== undefined && SPREADSHEET_FORMULA_PREFIXES.has(prefix) ? `'${value}` : value;
+}
+
+function serializeCsvCell(value: string | number, type: CsvColumnType): string {
+  const stringValue = String(value);
+  const safeValue = type === "text" ? neutralizeSpreadsheetText(stringValue) : stringValue;
+  return escapeCsv(safeValue);
+}
+
 function createCsvRowContext(
   pageNumber: number,
   pageLabel: string,
@@ -481,7 +498,7 @@ export function buildCsv(
   const columns = createCsvColumns(session).filter((column) =>
     isCsvColumnEnabled(column, settings),
   );
-  const rows: Array<Array<string | number>> = [];
+  const rows: string[][] = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
     if (!page) continue;
@@ -499,12 +516,12 @@ export function buildCsv(
         page,
         session,
       );
-      rows.push(columns.map((column) => column.extract(context)));
+      rows.push(columns.map((column) => serializeCsvCell(column.extract(context), column.type)));
     }
   }
   if (rows.length === 0) throw new NoMeasurementsError();
-  const header = columns.map((column) => column.header);
-  const contents = [header, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+  const header = columns.map((column) => serializeCsvCell(column.header, "text"));
+  const contents = [header, ...rows].map((row) => row.join(",")).join("\r\n");
   return `\uFEFF${contents}\r\n`;
 }
 
