@@ -16,6 +16,7 @@ export interface WorkspaceState {
   measurementClipboard: MeasurementClipboard | null;
   draft: DrawingDraft | null;
   orthogonal: boolean;
+  snap: boolean;
   calibrationFlow: CalibrationFlow | null;
   calibrationCandidate: CalibrationSelection | null;
   calibrationReferenceEdit: CalibrationReferenceEdit | null;
@@ -42,6 +43,8 @@ export type WorkspaceAction =
   | { type: "COMPLETE_DRAFT" }
   | { type: "SET_ORTHOGONAL"; value: boolean }
   | { type: "TOGGLE_ORTHOGONAL" }
+  | { type: "SET_SNAP"; value: boolean }
+  | { type: "TOGGLE_SNAP" }
   | { type: "START_CALIBRATION"; flow: CalibrationFlow }
   | { type: "UPDATE_CALIBRATION_CANDIDATE"; candidate: CalibrationSelection }
   | { type: "ADVANCE_CALIBRATION_STEP"; flow: CalibrationFlow }
@@ -59,6 +62,7 @@ export const initialWorkspaceState: WorkspaceState = {
   measurementClipboard: null,
   draft: null,
   orthogonal: false,
+  snap: false,
   calibrationFlow: null,
   calibrationCandidate: null,
   calibrationReferenceEdit: null,
@@ -122,6 +126,10 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       return state.orthogonal === action.value ? state : { ...state, orthogonal: action.value };
     case "TOGGLE_ORTHOGONAL":
       return { ...state, orthogonal: !state.orthogonal };
+    case "SET_SNAP":
+      return state.snap === action.value ? state : { ...state, snap: action.value };
+    case "TOGGLE_SNAP":
+      return { ...state, snap: !state.snap };
     case "START_CALIBRATION":
       return { ...state, calibrationFlow: action.flow, calibrationCandidate: null };
     case "UPDATE_CALIBRATION_CANDIDATE":
@@ -185,6 +193,8 @@ interface WorkspaceContextValue extends WorkspaceState {
   completeDraft: () => void;
   setOrthogonal: (value: boolean) => void;
   toggleOrthogonal: () => void;
+  setSnap: (value: boolean) => void;
+  toggleSnap: () => void;
   startCalibration: (flow: CalibrationFlow) => void;
   updateCalibrationCandidate: (candidate: CalibrationSelection) => void;
   advanceCalibrationStep: (flow: CalibrationFlow) => void;
@@ -218,6 +228,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       completeDraft: () => dispatch({ type: "COMPLETE_DRAFT" }),
       setOrthogonal: (value: boolean) => dispatch({ type: "SET_ORTHOGONAL", value }),
       toggleOrthogonal: () => dispatch({ type: "TOGGLE_ORTHOGONAL" }),
+      setSnap: (value: boolean) => dispatch({ type: "SET_SNAP", value }),
+      toggleSnap: () => dispatch({ type: "TOGGLE_SNAP" }),
       startCalibration: (flow: CalibrationFlow) => dispatch({ type: "START_CALIBRATION", flow }),
       updateCalibrationCandidate: (candidate: CalibrationSelection) =>
         dispatch({ type: "UPDATE_CALIBRATION_CANDIDATE", candidate }),

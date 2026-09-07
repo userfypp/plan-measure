@@ -216,6 +216,11 @@ describe("global viewer keyboard policy", () => {
     });
   });
 
+  it("toggles Snap globally from non-editing application chrome", () => {
+    const target = new FakeHTMLElement("button") as unknown as EventTarget;
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target))).toBe("toggle-snap");
+  });
+
   it("keeps tool shortcuts available after a classification assignment", () => {
     const assignmentSelect = new FakeHTMLElement(
       "select",
@@ -237,6 +242,7 @@ describe("global viewer keyboard policy", () => {
     (kind) => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;
       expect(getGlobalViewerKeyboardAction(keyboardEvent("p", target))).toBeNull();
+      expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target))).toBeNull();
       expect(getGlobalViewerKeyboardAction(keyboardEvent("-", target))).toBeNull();
     },
   );
@@ -262,10 +268,11 @@ describe("global viewer keyboard policy", () => {
     expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target))).toBeNull();
   });
 
-  it("ignores repeated tool and Ortho shortcuts without disabling held zoom", () => {
+  it("ignores repeated tool and drawing-aid shortcuts without disabling held zoom", () => {
     const target = new FakeHTMLElement("button") as unknown as EventTarget;
     expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target, { repeat: true }))).toBeNull();
     expect(getGlobalViewerKeyboardAction(keyboardEvent("o", target, { repeat: true }))).toBeNull();
+    expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target, { repeat: true }))).toBeNull();
     expect(getGlobalViewerKeyboardAction(keyboardEvent("+", target, { repeat: true }))).toBe(
       "zoom-in",
     );
@@ -351,6 +358,7 @@ describe("tool keyboard shortcuts", () => {
     expect(getToolShortcutLabel("polyline")).toBe("M");
     expect(getToolShortcutLabel("polygon")).toBe("P");
     expect(getShortcutLabel("toggle-orthogonal")).toBe("O");
+    expect(getShortcutLabel("toggle-snap")).toBe("S");
     expect(viewerShortcuts.map((shortcut) => shortcut.key.toUpperCase())).toEqual([
       "V",
       "H",
@@ -358,6 +366,7 @@ describe("tool keyboard shortcuts", () => {
       "M",
       "P",
       "O",
+      "S",
     ]);
   });
 
@@ -410,6 +419,11 @@ describe("viewer keyboard policy", () => {
     );
   });
 
+  it("toggles Snap from the viewer surface", () => {
+    const canvas = new FakeHTMLElement("canvas") as unknown as EventTarget;
+    expect(getViewerKeyboardAction(keyboardEvent("s", canvas), "line", null)).toBe("toggle-snap");
+  });
+
   it.each([
     ["v", "select"],
     ["H", "hand"],
@@ -428,7 +442,7 @@ describe("viewer keyboard policy", () => {
   it.each(["metaKey", "ctrlKey", "altKey"] as const)(
     "does not claim %s combinations reserved for the browser or operating system",
     (modifier) => {
-      for (const key of ["v", "h", "l", "m", "o", "p", "+", "-"]) {
+      for (const key of ["v", "h", "l", "m", "o", "p", "s", "+", "-"]) {
         const event = keyboardEvent(key, new FakeHTMLElement("canvas") as unknown as EventTarget, {
           [modifier]: true,
         });

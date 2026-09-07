@@ -73,5 +73,12 @@ export function ToolIcon({ name }: ToolIconProps) {
           <circle cx="18" cy="6" r="1.25" fill="var(--color-surface)" />
         </svg>
       );
+    case "snap":
+      return (
+        <svg {...svgProps} aria-hidden="true">
+          <path d="M12 3.5v4m0 9v4M3.5 12h4m9 0h4" />
+          <path d="m12 8.5 3.5 3.5-3.5 3.5L8.5 12 12 8.5Z" />
+        </svg>
+      );
   }
 }

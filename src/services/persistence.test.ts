@@ -1380,8 +1380,10 @@ describe("session persistence", () => {
 
     const raw = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
     raw.orthogonal = true;
+    raw.snap = true;
     const restored = deserializeSession(JSON.stringify(raw));
     expect(restored).not.toHaveProperty("orthogonal");
+    expect(restored).not.toHaveProperty("snap");
     expect(restored).toEqual(currentMeasuredSession());
   });
 
