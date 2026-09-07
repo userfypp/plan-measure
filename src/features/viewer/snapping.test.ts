@@ -69,6 +69,9 @@ describe("snap target extraction", () => {
       ["vertex", 1],
       ["segment", 0],
     ]);
+    expect(targets.find((target) => target.kind === "segment")).toMatchObject({
+      endVertexIndex: 1,
+    });
   });
 
   it("extracts Polyline vertices and only consecutive segments", () => {
@@ -108,6 +111,7 @@ describe("snap target extraction", () => {
       kind: "segment",
       start: { x: 20, y: 20 },
       end: { x: 5, y: 5 },
+      endVertexIndex: 0,
     });
   });
 
@@ -258,6 +262,7 @@ describe("snap candidate geometry", () => {
       measurementId: "fractional-edge",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start,
       end,
     };
@@ -318,6 +323,7 @@ describe("snap candidate geometry", () => {
       measurementId: "nearer",
       measurementIndex: 1,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 14, y: 0 },
       end: { x: 14, y: 20 },
     };
@@ -331,6 +337,7 @@ describe("snap candidate geometry", () => {
       measurementId: "nearer-segment",
       measurementIndex: 1,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 15, y: 0 },
       end: { x: 15, y: 20 },
     };
@@ -355,6 +362,7 @@ describe("snap candidate geometry", () => {
       measurementId: "segment",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 5, y: 8 },
       end: { x: 15, y: 8 },
     };
@@ -403,6 +411,131 @@ describe("snap candidate geometry", () => {
 });
 
 describe("drawing point resolution", () => {
+  it("snaps inward clicks near a Line endpoint to the endpoint instead of its own segment", () => {
+    const line = measurement("existing-line", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+
+    expect(resolveAtPagePoint({ x: 103, y: 100 }, { targets })?.point).toEqual({ x: 100, y: 100 });
+  });
+
+  it("keeps endpoint precedence at non-unit zoom and nonzero pan", () => {
+    const view = transform(2.5, 137, -41);
+    const line = measurement("transformed-line", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+    const rawPoint = { x: 100 + 3 / view.zoom, y: 100 };
+
+    const resolution = resolveAtPagePoint(rawPoint, { transform: view, targets });
+    expect(resolution?.point).toEqual({ x: 100, y: 100 });
+    expect(resolution?.snapMatch?.distanceScreenPx).toBeCloseTo(3, 12);
+
+    const exactBoundary = { x: 100 + SNAP_TOLERANCE_SCREEN_PX / view.zoom, y: 100 };
+    expect(resolveAtPagePoint(exactBoundary, { transform: view, targets })?.point).toEqual({
+      x: 100,
+      y: 100,
+    });
+
+    const justOutside = {
+      x: 100 + (SNAP_TOLERANCE_SCREEN_PX + 0.001) / view.zoom,
+      y: 100,
+    };
+    const outsideResolution = resolveAtPagePoint(justOutside, { transform: view, targets });
+    expect(outsideResolution?.point.x).toBeCloseTo(justOutside.x, 12);
+    expect(outsideResolution?.point.y).toBe(justOutside.y);
+    expect(outsideResolution?.snapMatch?.target.kind).toBe("segment");
+  });
+
+  it("prefers the endpoint near its own segment even when the pointer is off the stroke", () => {
+    const line = measurement("off-stroke-line", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+
+    const resolution = resolveAtPagePoint({ x: 103, y: 104 }, { targets });
+    expect(resolution?.point).toEqual({ x: 100, y: 100 });
+    expect(resolution?.snapMatch?.target.kind).toBe("vertex");
+  });
+
+  it("keeps ordinary segment snapping away from endpoints", () => {
+    const line = measurement("interior-line", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+
+    const resolution = resolveAtPagePoint({ x: 150, y: 104 }, { targets });
+    expect(resolution?.point).toEqual({ x: 150, y: 100 });
+    expect(resolution?.snapMatch?.target).toMatchObject({
+      kind: "segment",
+      measurementId: "interior-line",
+    });
+  });
+
+  it("still lets a genuinely closer unrelated segment beat a nearby vertex", () => {
+    const related = measurement("related", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const unrelated = measurement("unrelated", "line", [
+      { x: 102, y: 50 },
+      { x: 102, y: 150 },
+    ]);
+    const targets = extractSnapTargets([unrelated, related], true, bounds);
+
+    const resolution = resolveAtPagePoint({ x: 103, y: 100 }, { targets });
+    expect(resolution?.point).toEqual({ x: 102, y: 100 });
+    expect(resolution?.snapMatch?.target).toMatchObject({
+      kind: "segment",
+      measurementId: "unrelated",
+    });
+  });
+
+  it.each([
+    {
+      name: "internal vertex from its preceding edge",
+      raw: { x: 147, y: 100 },
+      expected: { x: 150, y: 100 },
+    },
+    {
+      name: "internal vertex from its following edge",
+      raw: { x: 150, y: 103 },
+      expected: { x: 150, y: 100 },
+    },
+    { name: "end vertex", raw: { x: 150, y: 147 }, expected: { x: 150, y: 150 } },
+  ] as const)("snaps near a Polyline $name over its incident segment", ({ raw, expected }) => {
+    const polyline = measurement("polyline-topology", "polyline", [
+      { x: 100, y: 100 },
+      { x: 150, y: 100 },
+      { x: 150, y: 150 },
+    ]);
+    const targets = extractSnapTargets([polyline], true, bounds);
+
+    expect(resolveAtPagePoint(raw, { targets })?.point).toEqual(expected);
+  });
+
+  it("snaps a Polygon vertex over its closing segment", () => {
+    const polygon = measurement("polygon-topology", "polygon", [
+      { x: 100, y: 100 },
+      { x: 160, y: 100 },
+      { x: 160, y: 160 },
+    ]);
+    const targets = extractSnapTargets([polygon], true, bounds);
+
+    const resolution = resolveAtPagePoint({ x: 103, y: 103 }, { targets });
+    expect(resolution?.point).toEqual({ x: 100, y: 100 });
+    expect(resolution?.snapMatch?.target).toMatchObject({
+      kind: "vertex",
+      measurementId: "polygon-topology",
+      primitiveIndex: 0,
+    });
+  });
+
   it("leaves free drawing unchanged when Snap is off", () => {
     const raw = { x: 42, y: 73 };
     expect(resolveAtPagePoint(raw, { snapEnabled: false })?.point).toEqual(raw);
@@ -768,6 +901,39 @@ describe("drawing point resolution", () => {
 describe("Snap + Ortho", () => {
   const anchor = { x: 10, y: 10 };
 
+  it("lets an axis-compatible endpoint beat its own incident segment", () => {
+    const orthoAnchor = { x: 50, y: 100 };
+    const line = measurement("ortho-compatible", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+
+    const resolution = resolveAtPagePoint(
+      { x: 103, y: 103 },
+      { confirmedPoints: [orthoAnchor], orthogonal: true, targets },
+    );
+    expect(resolution?.point).toEqual({ x: 100, y: 100 });
+    expect(resolution?.snapMatch?.target.kind).toBe("vertex");
+  });
+
+  it("does not let an axis-incompatible endpoint suppress its incident segment", () => {
+    const orthoAnchor = { x: 50, y: 100 };
+    const line = measurement("ortho-incompatible", "line", [
+      { x: 100, y: 102 },
+      { x: 200, y: 80 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+
+    const resolution = resolveAtPagePoint(
+      { x: 103, y: 103 },
+      { confirmedPoints: [orthoAnchor], orthogonal: true, targets },
+    );
+    expect(resolution?.point.x).toBeCloseTo(109.0909090909, 10);
+    expect(resolution?.point.y).toBe(100);
+    expect(resolution?.snapMatch?.target.kind).toBe("segment");
+  });
+
   it("snaps to an exactly axis-compatible vertex", () => {
     const target: SnapTarget = {
       kind: "vertex",
@@ -788,6 +954,7 @@ describe("Snap + Ortho", () => {
       measurementId: "crossing",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 28, y: 0 },
       end: { x: 28, y: 20 },
     };
@@ -803,6 +970,7 @@ describe("Snap + Ortho", () => {
       measurementId: "collinear",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 20, y: 10 },
       end: { x: 40, y: 10 },
     };
@@ -822,6 +990,7 @@ describe("Snap + Ortho", () => {
       measurementId: "collinear-edge",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 550, y: 100 },
       end: { x: rightEdge, y: 100 },
     };
@@ -835,6 +1004,7 @@ describe("Snap + Ortho", () => {
       measurementId: "crossing-edge",
       measurementIndex: 0,
       primitiveIndex: 1,
+      endVertexIndex: 2,
       start: { x: rightEdge - 20, y: 80 },
       end: { x: rightEdge, y: 100 },
     };
@@ -869,6 +1039,7 @@ describe("Snap + Ortho", () => {
       measurementId: "far-from-raw",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 25, y: 0 },
       end: { x: 25, y: 20 },
     };
@@ -892,6 +1063,7 @@ describe("Snap + Ortho", () => {
       measurementId: "axis-near-only",
       measurementIndex: 0,
       primitiveIndex: 0,
+      endVertexIndex: 1,
       start: { x: 30, y: 0 },
       end: { x: 30, y: 20 },
     };
@@ -942,6 +1114,41 @@ describe("Snap interaction scope", () => {
     });
     expect(preview?.snapMatch?.point).toEqual(target.point);
     expect(preview?.point).toEqual(target.point);
+  });
+
+  it("keeps preview and committed placement identical for endpoint-over-segment snapping", () => {
+    const view = transform();
+    const line = measurement("preview-line", "line", [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ]);
+    const targets = extractSnapTargets([line], true, bounds);
+    const rawPointerScreen = pageToScreen({ x: 103, y: 100 }, view);
+    const common = {
+      rawPointerScreen,
+      transform: view,
+      bounds,
+      snapEnabled: true,
+      orthogonal: false,
+      targets,
+    };
+    const preview = resolveDrawingPreview({
+      tool: "line",
+      draft: null,
+      ...common,
+      spacePan: false,
+      isPanning: false,
+      calibrationReferenceEditActive: false,
+      measurementEditActive: false,
+    });
+    const committed = resolveDrawingPoint({
+      measurementType: "line",
+      confirmedPoints: [],
+      ...common,
+    });
+
+    expect(preview?.point).toEqual({ x: 100, y: 100 });
+    expect(committed).toEqual(preview);
   });
 
   it("re-resolves a stationary raw pointer when Snap or Ortho changes", () => {
