@@ -429,17 +429,45 @@ function completeTransaction(transaction: IDBTransaction): Promise<void> {
   });
 }
 
-async function writeLegacyActiveSession(session: CurrentSession, pdfBlob: Blob): Promise<void> {
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function writeLegacyActiveSession(
+  session: SessionV1 | CurrentSession,
+  pdfBlob: Blob,
+): Promise<void> {
   const database = await openPersistenceDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
   transaction.objectStore("sessions").put({
     key: "active",
-    serialized: serializeSession(session),
+    serialized: JSON.stringify(session),
     savedAt: Date.now(),
   });
   transaction.objectStore("pdfs").put({ key: "active", blob: pdfBlob });
   await completeTransaction(transaction);
   database.close();
+}
+
+async function readPersistenceRecords() {
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readonly");
+  const done = completeTransaction(transaction);
+  const sessions = transaction.objectStore("sessions");
+  const pdfs = transaction.objectStore("pdfs");
+  const [legacySession, activeSession, state, legacyPdf, activePdf] = await Promise.all([
+    requestResult(sessions.get("active")),
+    requestResult(sessions.get("active-v2")),
+    requestResult(sessions.get("persistence-v2")),
+    requestResult(pdfs.get("active")),
+    requestResult(pdfs.get("active-v2")),
+  ]);
+  await done;
+  database.close();
+  return { legacySession, activeSession, state, legacyPdf, activePdf };
 }
 
 async function writeRawActiveSession(
@@ -1588,25 +1616,197 @@ describe("session persistence", () => {
 
   it("migrates legacy active records and isolates them from already-open old writers", async () => {
     const legacy = currentMeasuredSession();
-    await writeLegacyActiveSession(legacy, new Blob(["legacy-pdf"]));
+    await writeLegacyActiveSession(
+      legacy,
+      new File(["pdf"], legacy.pdf.name, {
+        type: "application/pdf",
+        lastModified: legacy.pdf.lastModified,
+      }),
+    );
 
     const migrated = await loadSavedSession();
     if (!migrated) throw new Error("Expected the legacy session to be recovered.");
     expect(migrated.session).toEqual(legacy);
-    expect(await migrated.pdfBlob.text()).toBe("legacy-pdf");
+    expect(await migrated.pdfBlob.text()).toBe("pdf");
 
     const staleOldSession = createEmptySession(
       { name: "stale-old-tab.pdf", size: 3, lastModified: 2 },
       legacy.pageCount,
     );
-    await writeLegacyActiveSession(staleOldSession, new Blob(["stale-old-pdf"]));
+    await writeLegacyActiveSession(
+      staleOldSession,
+      new File(["old"], staleOldSession.pdf.name, {
+        type: "application/pdf",
+        lastModified: staleOldSession.pdf.lastModified,
+      }),
+    );
     migrated.session.settings.showLabels = false;
     await saveSessionMetadata(migrated.session, migrated.revision);
 
     const restored = await loadSavedSession();
     expect(restored?.session.pdf.name).toBe(legacy.pdf.name);
     expect(restored?.session.settings.showLabels).toBe(false);
-    expect(await restored?.pdfBlob.text()).toBe("legacy-pdf");
+    expect(await restored?.pdfBlob.text()).toBe("pdf");
+  });
+
+  it("recovers a matching historical V1 session from legacy persistence", async () => {
+    const historical = legacySession(true);
+    await writeLegacyActiveSession(
+      historical,
+      new File(["pdf"], historical.pdf.name, {
+        type: "application/pdf",
+        lastModified: historical.pdf.lastModified,
+      }),
+    );
+
+    const recovered = await loadSavedSession();
+
+    expect(recovered?.session.schemaVersion).toBe(8);
+    expect(recovered?.session.pdf).toEqual(historical.pdf);
+    expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
+      "legacy-line",
+      "legacy-polygon",
+    ]);
+    expect(await recovered?.pdfBlob.text()).toBe("pdf");
+  });
+
+  it("does not adopt mismatched legacy PDF/session records with the same page count", async () => {
+    const legacySession = createEmptySession(
+      { name: "session-a.pdf", size: 5, lastModified: 1 },
+      1,
+    );
+    const differentPdf = new File(["pdf-b"], "session-a.pdf", {
+      type: "application/pdf",
+      lastModified: 2,
+    });
+    await writeLegacyActiveSession(legacySession, differentPdf);
+
+    let loadError: PersistenceLoadError | null = null;
+    try {
+      await loadSavedSession();
+    } catch (error) {
+      if (error instanceof PersistenceLoadError) loadError = error;
+      else throw error;
+    }
+    expect(loadError).not.toBeNull();
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+
+    const records = await readPersistenceRecords();
+    expect(records.legacySession).toMatchObject({ key: "active" });
+    expect(records.legacyPdf).toMatchObject({ key: "active" });
+    expect(records.activeSession).toBeUndefined();
+    expect(records.activePdf).toBeUndefined();
+    expect(records.state).toEqual({ key: "persistence-v2", activeRevision: loadError!.revision });
+
+    await discardSavedSession(loadError!.revision);
+    expect(await loadSavedSession()).toBeNull();
+  });
+
+  it("does not adopt a legacy pair when the stored PDF has no original File identity", async () => {
+    const legacy = currentMeasuredSession();
+    await writeLegacyActiveSession(legacy, new Blob(["pdf"], { type: "application/pdf" }));
+
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+    const records = await readPersistenceRecords();
+    expect(records.legacySession).toMatchObject({ key: "active" });
+    expect(records.legacyPdf).toMatchObject({ key: "active" });
+    expect(records.activeSession).toBeUndefined();
+    expect(records.activePdf).toBeUndefined();
+  });
+
+  it("keeps malformed legacy session data quarantined instead of adopting its PDF", async () => {
+    const database = await openPersistenceDatabase();
+    const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+    transaction.objectStore("sessions").put({
+      key: "active",
+      serialized: "{not-json",
+      savedAt: Date.now(),
+    });
+    transaction.objectStore("pdfs").put({
+      key: "active",
+      blob: new File(["pdf"], "legacy-plan.pdf", {
+        type: "application/pdf",
+        lastModified: 1,
+      }),
+    });
+    await completeTransaction(transaction);
+    database.close();
+
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+    const records = await readPersistenceRecords();
+    expect(records.legacySession).toMatchObject({ key: "active" });
+    expect(records.legacyPdf).toMatchObject({ key: "active" });
+    expect(records.activeSession).toBeUndefined();
+    expect(records.activePdf).toBeUndefined();
+  });
+
+  it("keeps current active-v2 recovery independent of legacy File identity checks", async () => {
+    const session = currentMeasuredSession();
+    const revision = await writeRawActiveSession(session, new Blob(["pdf"]));
+
+    const recovered = await loadSavedSession();
+
+    expect(recovered?.revision).toBe(revision);
+    expect(recovered?.session).toEqual(session);
+    expect(await recovered?.pdfBlob.text()).toBe("pdf");
+  });
+
+  it("recovers an active-v2 File when its identity still matches the session", async () => {
+    const session = currentMeasuredSession();
+    const revision = await writeRawActiveSession(
+      session,
+      new File(["pdf"], session.pdf.name, {
+        type: "application/pdf",
+        lastModified: session.pdf.lastModified,
+      }),
+    );
+
+    const recovered = await loadSavedSession();
+
+    expect(recovered?.revision).toBe(revision);
+    expect(recovered?.session).toEqual(session);
+    expect(await recovered?.pdfBlob.text()).toBe("pdf");
+  });
+
+  it("rejects an already-adopted active-v2 pair when File identity contradicts its session", async () => {
+    const session = currentMeasuredSession();
+    const revision = await writeRawActiveSession(
+      session,
+      new File(["pdf"], session.pdf.name, {
+        type: "application/pdf",
+        lastModified: session.pdf.lastModified + 1,
+      }),
+    );
+
+    await expect(loadSavedSession()).rejects.toMatchObject({
+      name: "PersistenceLoadError",
+      revision,
+      message: "The saved PDF does not match its session metadata.",
+    });
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+
+    await discardSavedSession(revision);
+    expect(await loadSavedSession()).toBeNull();
+  });
+
+  it("keeps incomplete legacy data quarantined instead of partially adopting it", async () => {
+    const legacy = currentMeasuredSession();
+    const database = await openPersistenceDatabase();
+    const transaction = database.transaction("sessions", "readwrite");
+    transaction.objectStore("sessions").put({
+      key: "active",
+      serialized: serializeSession(legacy),
+      savedAt: Date.now(),
+    });
+    await completeTransaction(transaction);
+    database.close();
+
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+    const records = await readPersistenceRecords();
+    expect(records.legacySession).toMatchObject({ key: "active" });
+    expect(records.legacyPdf).toBeUndefined();
+    expect(records.activeSession).toBeUndefined();
+    expect(records.activePdf).toBeUndefined();
   });
 
   it("rejects blank persisted measurement names", () => {

@@ -5,7 +5,7 @@ import {
   type IDBPDatabase,
   type IDBPTransaction,
 } from "idb";
-import type { CurrentSession } from "../types/domain";
+import type { CurrentSession, PdfMetadata } from "../types/domain";
 import {
   deserializeSessionForRecovery,
   serializeSession,
@@ -99,6 +99,35 @@ function isPersistenceStateRecord(
   return Boolean(record && "activeRevision" in record);
 }
 
+function readRecoverableSessionPdfMetadata(serialized: string): PdfMetadata | null {
+  try {
+    return deserializeSessionForRecovery(serialized).session.pdf;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredFileMetadata(blob: Blob): PdfMetadata | null {
+  if (typeof File === "undefined" || !(blob instanceof File)) return null;
+  if (!Number.isFinite(blob.lastModified)) return null;
+  return { name: blob.name, size: blob.size, lastModified: blob.lastModified };
+}
+
+function storedFileIdentityMatches(blob: Blob, sessionPdf: PdfMetadata): boolean | null {
+  const storedPdf = readStoredFileMetadata(blob);
+  if (!storedPdf) return null;
+  return (
+    sessionPdf.name === storedPdf.name &&
+    sessionPdf.size === storedPdf.size &&
+    sessionPdf.lastModified === storedPdf.lastModified
+  );
+}
+
+function canAdoptLegacyPair(sessionRecord: SessionRecord, pdfRecord: PdfRecord): boolean {
+  const sessionPdf = readRecoverableSessionPdfMetadata(sessionRecord.serialized);
+  return Boolean(sessionPdf && storedFileIdentityMatches(pdfRecord.blob, sessionPdf) === true);
+}
+
 async function readOrCreatePersistenceState(
   transaction: PersistenceTransaction,
 ): Promise<PersistenceStateRecord> {
@@ -112,16 +141,19 @@ async function readOrCreatePersistenceState(
     pdfs.get(LEGACY_ACTIVE_KEY),
   ]);
   const activeRevision = legacySession || legacyPdf ? crypto.randomUUID() : null;
-  const writes: Array<Promise<unknown>> = [
-    sessions.put({ key: STATE_KEY, activeRevision }),
-    sessions.delete(LEGACY_ACTIVE_KEY),
-    pdfs.delete(LEGACY_ACTIVE_KEY),
-  ];
-  if (legacySession && !isPersistenceStateRecord(legacySession)) {
-    writes.push(sessions.put({ ...legacySession, key: ACTIVE_KEY, revision: activeRevision! }));
-  }
-  if (legacyPdf) {
-    writes.push(pdfs.put({ ...legacyPdf, key: ACTIVE_KEY, revision: activeRevision! }));
+  const writes: Array<Promise<unknown>> = [sessions.put({ key: STATE_KEY, activeRevision })];
+  if (
+    legacySession &&
+    !isPersistenceStateRecord(legacySession) &&
+    legacyPdf &&
+    canAdoptLegacyPair(legacySession, legacyPdf)
+  ) {
+    writes.push(
+      sessions.put({ ...legacySession, key: ACTIVE_KEY, revision: activeRevision! }),
+      pdfs.put({ ...legacyPdf, key: ACTIVE_KEY, revision: activeRevision! }),
+      sessions.delete(LEGACY_ACTIVE_KEY),
+      pdfs.delete(LEGACY_ACTIVE_KEY),
+    );
   }
   await Promise.all(writes);
   return { key: STATE_KEY, activeRevision };
@@ -168,6 +200,9 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
   }
   try {
     const decoded = deserializeSessionForRecovery(sessionRecord.serialized);
+    if (storedFileIdentityMatches(pdfRecord.blob, decoded.session.pdf) === false) {
+      throw new Error("The saved PDF does not match its session metadata.");
+    }
     return {
       ...decoded,
       pdfBlob: pdfRecord.blob,
