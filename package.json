@@ -30,6 +30,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.5",
     "fake-indexeddb": "6.2.5",
+    "jsdom": "29.0.0",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",
@@ -37,4 +38,3 @@
     "vitest": "4.1.11"
   }
 }
-
