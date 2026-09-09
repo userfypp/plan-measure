@@ -1,0 +1,133 @@
+.appBar {
+  min-width: 0;
+  height: var(--geometry-app-bar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--space-16);
+  border-bottom: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-shell);
+  color: var(--color-text-primary);
+}
+
+.identityGroup,
+.actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.identityGroup {
+  flex: 1 1 auto;
+  gap: var(--space-12);
+  overflow: hidden;
+}
+
+.actions {
+  flex: 0 0 auto;
+  gap: var(--space-4);
+}
+
+.brand {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
+.identityDivider {
+  width: var(--border-width);
+  height: 16px;
+  flex: 0 0 auto;
+  background: var(--color-divider);
+}
+
+.documentName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openAction,
+.exportAction,
+.iconTrigger {
+  min-height: var(--target-current);
+}
+
+.openAction {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.exportAction {
+  border-color: transparent;
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+}
+
+.exportAction:hover:not(:disabled),
+.exportAction:active:not(:disabled) {
+  border-color: var(--color-divider);
+  background: var(--color-selection-surface);
+}
+
+.iconTrigger {
+  width: var(--target-current);
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.iconTrigger:hover {
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+}
+
+.iconTrigger[aria-expanded="true"] {
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.iconTrigger svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.iconTrigger svg.moreIcon {
+  fill: currentColor;
+  stroke: none;
+}
+
+@media (any-pointer: coarse) {
+  .appBar {
+    height: var(--geometry-app-bar-height-narrow);
+    padding-inline: var(--space-12);
+  }
+}
+
+@media (max-width: 620px) {
+  .appBar {
+    gap: var(--space-8);
+    padding-inline: var(--space-8);
+  }
+
+  .identityGroup {
+    gap: var(--space-8);
+  }
+}

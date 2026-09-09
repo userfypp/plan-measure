@@ -23,6 +23,7 @@
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
   text-align: left;
+  text-decoration: none;
 }
 
 .item:hover:not([aria-disabled="true"]),

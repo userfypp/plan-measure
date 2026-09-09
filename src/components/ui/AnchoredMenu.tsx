@@ -15,15 +15,30 @@ import styles from "./AnchoredMenu.module.css";
 
 export type AnchoredMenuItemRole = "menuitem" | "menuitemradio";
 
-export interface AnchoredMenuItem {
+interface AnchoredMenuItemBase {
   id: string;
   label: ReactNode;
-  onSelect: () => void;
   role?: AnchoredMenuItemRole;
   checked?: boolean;
   current?: boolean;
   disabled?: boolean;
 }
+
+export type AnchoredMenuItem = AnchoredMenuItemBase &
+  (
+    | {
+        onSelect: () => void;
+        href?: never;
+        target?: never;
+        rel?: never;
+      }
+    | {
+        href: string;
+        target?: string;
+        rel?: string;
+        onSelect?: never;
+      }
+  );
 
 export interface AnchoredMenuProps {
   trigger: ReactNode;
@@ -54,7 +69,7 @@ export function AnchoredMenu({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const isOpen = open ?? uncontrolledOpen;
-  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const initialFocusIndex = useMemo(() => firstInitialFocusIndex(items), [items]);
   const tabbableIndex = focusIndex ?? initialFocusIndex;
 
@@ -92,7 +107,11 @@ export function AnchoredMenu({
   function selectItem(index: number) {
     const item = items[index];
     if (!item || item.disabled) return;
-    item.onSelect();
+    if (item.href) {
+      itemRefs.current[index]?.click();
+      return;
+    }
+    item.onSelect?.();
     setOpen(false);
   }
 
@@ -144,6 +163,44 @@ export function AnchoredMenu({
         {items.map((item, index) => {
           const role = item.role ?? "menuitem";
           const activeState = item.checked || item.current;
+          const content = (
+            <>
+              <span className={styles.marker} aria-hidden="true">
+                {activeState ? "✓" : ""}
+              </span>
+              <span className={styles.label}>{item.label}</span>
+            </>
+          );
+          if (item.href) {
+            return (
+              <a
+                key={item.id}
+                ref={(element) => {
+                  itemRefs.current[index] = element;
+                }}
+                href={item.href}
+                target={item.target}
+                rel={item.rel}
+                role={role}
+                aria-checked={role === "menuitemradio" ? Boolean(item.checked) : undefined}
+                aria-current={item.current ? "true" : undefined}
+                aria-disabled={item.disabled || undefined}
+                tabIndex={index === tabbableIndex ? 0 : -1}
+                data-popover-autofocus={index === initialFocusIndex ? "true" : undefined}
+                className={styles.item}
+                onFocus={() => setFocusIndex(index)}
+                onClick={(event) => {
+                  if (item.disabled) {
+                    event.preventDefault();
+                    return;
+                  }
+                  setOpen(false);
+                }}
+              >
+                {content}
+              </a>
+            );
+          }
           return (
             <button
               key={item.id}
@@ -161,10 +218,7 @@ export function AnchoredMenu({
               onFocus={() => setFocusIndex(index)}
               onClick={() => selectItem(index)}
             >
-              <span className={styles.marker} aria-hidden="true">
-                {activeState ? "✓" : ""}
-              </span>
-              <span className={styles.label}>{item.label}</span>
+              {content}
             </button>
           );
         })}

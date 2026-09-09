@@ -726,6 +726,8 @@ function PlanMeasureApp() {
 
   return (
     <AppShell
+      documentName={session?.pdf.name ?? null}
+      canExport={Boolean(session)}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
       statusMessage={appState.error ?? autosaveWarning}
