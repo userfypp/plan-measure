@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-8);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-flat);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
@@ -15,13 +15,15 @@
 }
 
 .button:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .button:disabled {
   cursor: not-allowed;
-  opacity: var(--opacity-disabled);
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
 }
 
 .compact {
@@ -52,8 +54,8 @@
 
 .secondary {
   color: var(--color-text);
-  background-color: var(--color-surface);
-  border-color: var(--color-border-strong);
+  background-color: var(--color-surface-panel);
+  border-color: var(--color-divider);
 }
 
 .secondary:hover:not(:disabled),
@@ -64,8 +66,8 @@
 
 .ghost {
   color: var(--color-text);
-  background-color: var(--color-surface);
-  border-color: var(--color-surface);
+  background-color: var(--color-surface-panel);
+  border-color: var(--color-surface-panel);
 }
 
 .ghost:hover:not(:disabled) {
@@ -95,7 +97,7 @@
 
 .dangerSecondary {
   color: var(--color-danger);
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-panel);
   border-color: var(--color-danger);
 }
 
@@ -122,7 +124,7 @@
   flex: 0 0 auto;
   border: var(--border-width) solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--radius-flat);
+  border-radius: var(--radius-control);
   animation: button-spin 700ms linear infinite;
 }
 

@@ -5,9 +5,9 @@
   place-items: center;
   padding: 0;
   color: var(--color-text-muted);
-  background-color: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-flat);
+  background-color: var(--color-surface-panel);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -42,19 +42,21 @@
 }
 
 .button:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .button:disabled {
   cursor: not-allowed;
-  opacity: var(--opacity-disabled);
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
 }
 
 .icon {
   display: inline-grid;
-  width: 20px;
-  height: 20px;
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
   place-items: center;
 }
 

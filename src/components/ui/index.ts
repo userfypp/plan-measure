@@ -10,5 +10,17 @@ export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
+export { Popover } from "./Popover";
+export type {
+  PopoverInitialFocus,
+  PopoverPlacement,
+  PopoverProps,
+} from "./Popover";
+export { AnchoredMenu } from "./AnchoredMenu";
+export type {
+  AnchoredMenuItem,
+  AnchoredMenuItemRole,
+  AnchoredMenuProps,
+} from "./AnchoredMenu";
 export { Tooltip } from "./Tooltip";
 export type { TooltipPosition, TooltipProps } from "./Tooltip";
