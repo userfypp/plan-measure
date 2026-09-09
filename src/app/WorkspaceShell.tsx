@@ -1,6 +1,5 @@
 import type { DragEventHandler, ReactNode } from "react";
 import { Button } from "../components/ui";
-import { SecondaryPanelHost } from "./SecondaryPanelHost";
 import { ViewerShell } from "./ViewerShell";
 import styles from "./WorkspaceShell.module.css";
 
@@ -11,11 +10,10 @@ interface WorkspaceShellProps {
   onDragOver: DragEventHandler<HTMLElement>;
   onDragLeave: DragEventHandler<HTMLElement>;
   onDrop: DragEventHandler<HTMLElement>;
+  workspacePanel?: ReactNode;
   toolRail?: ReactNode;
-  leftPanel?: ReactNode;
   viewerContext?: ReactNode;
   viewer?: ReactNode;
-  secondaryPanel?: ReactNode;
   emptyState?: ReactNode;
   dropOverlay?: ReactNode;
 }
@@ -27,11 +25,10 @@ export function WorkspaceShell({
   onDragOver,
   onDragLeave,
   onDrop,
+  workspacePanel,
   toolRail,
-  leftPanel,
   viewerContext,
   viewer,
-  secondaryPanel,
   emptyState,
   dropOverlay = "Drop PDF to replace current session",
 }: WorkspaceShellProps) {
@@ -58,16 +55,13 @@ export function WorkspaceShell({
       className={`${styles.workspace} ${dragActive ? styles.dragActive : ""}`}
       {...dropZoneProps}
     >
+      <div className={styles.workspacePanel} data-layout-slot="workspace-panel-host">
+        {workspacePanel}
+      </div>
       <div className={styles.leftRail} data-layout-slot="left-rail">
         {toolRail}
-        {leftPanel && (
-          <div className={styles.leftInspector} data-layout-slot="selection-inspector">
-            {leftPanel}
-          </div>
-        )}
       </div>
       <ViewerShell contextBar={viewerContext}>{viewer}</ViewerShell>
-      <SecondaryPanelHost>{secondaryPanel}</SecondaryPanelHost>
       {dragActive && <div className={styles.dropOverlay}>{dropOverlay}</div>}
     </main>
   );

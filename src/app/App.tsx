@@ -6,20 +6,21 @@ import { OverlayProvider, useOverlayState, type OverlayConfirmation } from "./ov
 import { OverlayHost } from "./OverlayHost";
 import { AppShell, LoadingOverlay } from "./AppShell";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
+import { WorkspacePanel } from "./WorkspacePanel";
 import { ViewerContextBar, type ViewerContextData } from "./ViewerContextBar";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { Modal } from "../components/Modal";
 import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
+import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
-import { MeasurementClassificationDock } from "../features/classification/MeasurementClassificationDock";
 import { CsvExportDialog } from "../features/export/CsvExportDialog";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
 } from "../features/measurements/MeasurementPanel";
-import { SelectionInspectorPanel } from "../features/measurements/SelectionInspectorPanel";
+import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
 import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
 import {
   beginCalibrationFlow,
@@ -119,7 +120,8 @@ function PlanMeasureApp() {
     calibrationFlow,
     calibrationCandidate,
     calibrationReferenceEdit,
-    secondaryPanel,
+    workspaceModule,
+    measurementDetailsOpen,
     workspaceVersion,
     resetWorkspace,
     pageChanged,
@@ -138,7 +140,8 @@ function PlanMeasureApp() {
     updateReferenceEdit,
     cancelReferenceEdit,
     confirmReferenceEdit,
-    setSecondaryPanel,
+    openMeasurementDetails,
+    closeMeasurementDetails,
   } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const applicationCopyRef = useRef(false);
@@ -617,6 +620,9 @@ function PlanMeasureApp() {
   const selectedMeasurement =
     currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
     null;
+  useEffect(() => {
+    if (measurementDetailsOpen && !selectedMeasurement) closeMeasurementDetails();
+  }, [closeMeasurementDetails, measurementDetailsOpen, selectedMeasurement]);
   const measurementEditActive = activeMeasurementEditId !== null;
   const duplicateDisabled = currentPage && selectedMeasurement
     ? !canDuplicateMeasurement(currentPage, selectedMeasurement) ||
@@ -664,33 +670,6 @@ function PlanMeasureApp() {
     });
   }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
-  const activeCalibrationActions = activeCalibration
-    ? [
-        {
-          label: "Recalibrate",
-          disabled: calibrationActionsDisabled,
-          onClick: () => requestRecalibration(activeCalibration.id),
-        },
-        {
-          label: activeCalibration.mode === "uniform" ? "Edit points" : "Edit X",
-          disabled: calibrationActionsDisabled,
-          onClick: () =>
-            beginCalibrationReferenceEdit(
-              activeCalibration,
-              activeCalibration.mode === "uniform" ? "uniform" : "x",
-            ),
-        },
-        ...(activeCalibration.mode === "xy"
-          ? [
-              {
-                label: "Edit Y",
-                disabled: calibrationActionsDisabled,
-                onClick: () => beginCalibrationReferenceEdit(activeCalibration, "y"),
-              },
-            ]
-          : []),
-      ]
-    : [];
   const workflowContext: ViewerContextData["workflow"] = calibrationReferenceEdit
     ? {
         label:
@@ -758,19 +737,99 @@ function PlanMeasureApp() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          workspacePanel={
+            <WorkspacePanel
+              measurements={
+                <MeasurementPanel
+                  key={workspaceVersion}
+                  page={previewPage}
+                  onSelectMeasurement={selectMeasurementFromPanel}
+                  onSetMeasurementVisibility={setMeasurementVisibility}
+                  onSetMeasurementsVisibility={setMeasurementsVisibility}
+                />
+              }
+              classifications={
+                <ClassificationWorkspace
+                  key={workspaceVersion}
+                  catalog={session.classificationCatalog}
+                  disabled={Boolean(
+                    calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                  )}
+                  onCreateDimension={(name) =>
+                    addClassificationDimension(crypto.randomUUID(), name)
+                  }
+                  onRenameDimension={renameClassificationDimension}
+                  onArchiveDimension={archiveClassificationDimension}
+                  onRestoreDimension={restoreClassificationDimension}
+                  onCreateValue={(dimensionId, name) =>
+                    addClassificationValue(dimensionId, crypto.randomUUID(), name)
+                  }
+                  onRenameValue={renameClassificationValue}
+                  onArchiveValue={archiveClassificationValue}
+                  onRestoreValue={restoreClassificationValue}
+                />
+              }
+              scales={
+                <ScalesWorkspace
+                  page={currentPage}
+                  actionsDisabled={calibrationActionsDisabled}
+                  onAddScale={beginNewCalibration}
+                  onRecalibrate={requestRecalibration}
+                  onEditReference={beginCalibrationReferenceEdit}
+                />
+              }
+              details={
+                selectedMeasurement ? (
+                  <MeasurementDetails
+                    key={selectedMeasurement.id}
+                    page={previewPage}
+                    measurement={selectedMeasurement}
+                    displayUnit={session.settings.displayUnit}
+                    catalog={session.classificationCatalog}
+                    returnModule={workspaceModule}
+                    assignmentDisabled={Boolean(
+                      calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                    )}
+                    onBack={closeMeasurementDetails}
+                    onRename={(name) =>
+                      renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
+                    }
+                    onAssignClassification={assignClassification}
+                    onEditGeometry={() => chooseTool("select")}
+                    onDelete={() =>
+                      requestMeasurementDelete({
+                        pageNumber: currentPage.pageNumber,
+                        measurementId: selectedMeasurement.id,
+                        measurementName: selectedMeasurement.name,
+                      })
+                    }
+                  />
+                ) : null
+              }
+            />
+          }
           toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
-          leftPanel={<SelectionInspectorPanel page={previewPage} />}
           viewerContext={
             <ViewerContextBar
               context={viewerContext}
-              action={
+              actions={
                 selectedMeasurement
-                  ? {
-                      label: "Duplicate",
-                      disabled: duplicateDisabled,
-                      onClick: () => duplicateSelectedMeasurement(selectedMeasurement.id),
-                    }
-                  : null
+                  ? [
+                      ...(measurementDetailsOpen
+                        ? []
+                        : [
+                            {
+                              label: "Details",
+                              onClick: openMeasurementDetails,
+                            },
+                          ]),
+                      {
+                        label: "Duplicate",
+                        disabled: duplicateDisabled,
+                        onClick: () => duplicateSelectedMeasurement(selectedMeasurement.id),
+                      },
+                    ]
+                  : []
               }
             />
           }
@@ -831,114 +890,6 @@ function PlanMeasureApp() {
                 onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
               />
             </Suspense>
-          }
-          secondaryPanel={
-            <div className={styles.secondaryPanelStack}>
-              <section className={styles.scaleControls} aria-label="Scales on current page">
-                <div className={styles.scaleControlsHeader}>
-                  <div>
-                    <strong>Scale tools</strong>
-                  </div>
-                  <span>
-                    {currentPage.calibrations.length}{" "}
-                    {currentPage.calibrations.length === 1 ? "scale" : "scales"}
-                  </span>
-                </div>
-                <div
-                  className={`${styles.scaleControlsActions} ${
-                    activeCalibration?.mode === "xy" ? styles.scaleControlsActionsXy : ""
-                  }`}
-                >
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    disabled={calibrationActionsDisabled}
-                    onClick={() => beginNewCalibration("uniform")}
-                  >
-                    Add uniform
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    disabled={calibrationActionsDisabled}
-                    onClick={() => beginNewCalibration("xy")}
-                  >
-                    Add X/Y
-                  </Button>
-                  {activeCalibrationActions.map((action) => (
-                    <Button
-                      key={action.label}
-                      variant="secondary"
-                      size="compact"
-                      disabled={action.disabled}
-                      onClick={action.onClick}
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-                </div>
-              </section>
-              <div className={styles.panelTabs} role="tablist" aria-label="Workspace data">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={secondaryPanel === "measurements"}
-                  onClick={() => setSecondaryPanel("measurements")}
-                >
-                  Measurements <span>{currentPage.measurements.length}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={secondaryPanel === "classifications"}
-                  onClick={() => setSecondaryPanel("classifications")}
-                >
-                  Classifications <span>{session.classificationCatalog.dimensions.length}</span>
-                </button>
-              </div>
-              <div className={styles.panelContent} hidden={secondaryPanel !== "measurements"}>
-                <MeasurementPanel
-                  key={workspaceVersion}
-                  page={previewPage}
-                  onSelectMeasurement={selectMeasurementFromPanel}
-                  onRenameMeasurement={renameMeasurement}
-                  onSetMeasurementVisibility={setMeasurementVisibility}
-                  onSetMeasurementsVisibility={setMeasurementsVisibility}
-                  onRequestDelete={requestMeasurementDelete}
-                  classificationDock={
-                    <MeasurementClassificationDock
-                      measurement={selectedMeasurement}
-                      catalog={session.classificationCatalog}
-                      onAssign={assignClassification}
-                      disabled={Boolean(
-                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                      )}
-                    />
-                  }
-                />
-              </div>
-              <div className={styles.panelContent} hidden={secondaryPanel !== "classifications"}>
-                <ClassificationWorkspace
-                  key={workspaceVersion}
-                  catalog={session.classificationCatalog}
-                  disabled={Boolean(
-                    calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                  )}
-                  onCreateDimension={(name) =>
-                    addClassificationDimension(crypto.randomUUID(), name)
-                  }
-                  onRenameDimension={renameClassificationDimension}
-                  onArchiveDimension={archiveClassificationDimension}
-                  onRestoreDimension={restoreClassificationDimension}
-                  onCreateValue={(dimensionId, name) =>
-                    addClassificationValue(dimensionId, crypto.randomUUID(), name)
-                  }
-                  onRenameValue={renameClassificationValue}
-                  onArchiveValue={archiveClassificationValue}
-                  onRestoreValue={restoreClassificationValue}
-                />
-              </div>
-            </div>
           }
         />
       ) : (

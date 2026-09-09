@@ -1,58 +1,13 @@
 .panel {
-  --classification-panel-max-height: 252px;
-  display: grid;
   min-width: 0;
   min-height: 0;
-  container-type: inline-size;
-  grid-template-rows: auto minmax(120px, 1fr) minmax(0, auto);
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-panel);
 }
 
 .withoutGroupBy {
-  grid-template-rows: minmax(120px, 1fr) minmax(0, auto);
-}
-
-.classificationSlot,
-.futureSlot {
-  min-width: 0;
-  min-height: 0;
-  max-height: var(--classification-panel-max-height);
-  overflow: hidden;
-  border-top: var(--border-width) solid var(--color-border);
-  background: var(--color-surface-subdued);
-}
-
-.classificationSlot > * {
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-}
-
-@media (max-width: 820px), (max-height: 620px) {
-  .panel {
-    grid-template-rows: auto minmax(0, 1fr) minmax(0, auto);
-  }
-
-  .panel.withoutGroupBy {
-    grid-template-rows: minmax(0, 1fr) minmax(0, auto);
-  }
-}
-
-@media (max-height: 500px) {
-  .panel {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-
-  .panel:not(.withoutGroupBy) > :nth-child(2),
-  .panel.withoutGroupBy > :first-child {
-    flex: 0 0 180px;
-  }
-
-  .panel > .classificationSlot,
-  .panel > .futureSlot {
-    flex: 0 1 auto;
-  }
+  grid-template-rows: minmax(0, 1fr);
 }

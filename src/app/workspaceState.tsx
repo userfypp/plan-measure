@@ -6,6 +6,8 @@ import {
 } from "./calibrationReferenceEdit";
 import type { DrawingDraft, Measurement, Point, Tool } from "../types/domain";
 
+export type WorkspaceModule = "measurements" | "classifications" | "scales";
+
 /**
  * Interaction state for the current workspace. This state is intentionally not
  * part of the persisted session document.
@@ -20,7 +22,8 @@ export interface WorkspaceState {
   calibrationFlow: CalibrationFlow | null;
   calibrationCandidate: CalibrationSelection | null;
   calibrationReferenceEdit: CalibrationReferenceEdit | null;
-  secondaryPanel: "measurements" | "classifications";
+  workspaceModule: WorkspaceModule;
+  measurementDetailsOpen: boolean;
   workspaceVersion: number;
 }
 
@@ -54,7 +57,9 @@ export type WorkspaceAction =
   | { type: "UPDATE_REFERENCE_EDIT"; points: [Point, Point] }
   | { type: "CANCEL_REFERENCE_EDIT" }
   | { type: "CONFIRM_REFERENCE_EDIT" }
-  | { type: "SET_SECONDARY_PANEL"; panel: WorkspaceState["secondaryPanel"] };
+  | { type: "SET_WORKSPACE_MODULE"; module: WorkspaceModule }
+  | { type: "OPEN_MEASUREMENT_DETAILS" }
+  | { type: "CLOSE_MEASUREMENT_DETAILS" };
 
 export const initialWorkspaceState: WorkspaceState = {
   activeTool: "select",
@@ -66,7 +71,8 @@ export const initialWorkspaceState: WorkspaceState = {
   calibrationFlow: null,
   calibrationCandidate: null,
   calibrationReferenceEdit: null,
-  secondaryPanel: "measurements",
+  workspaceModule: "measurements",
+  measurementDetailsOpen: false,
   workspaceVersion: 0,
 };
 
@@ -83,6 +89,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         calibrationFlow: null,
         calibrationCandidate: null,
         calibrationReferenceEdit: null,
+        measurementDetailsOpen: false,
       };
     case "CHOOSE_TOOL":
       if (state.activeTool === action.tool) {
@@ -98,9 +105,9 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         ? state
         : { ...state, selectedMeasurementId: action.id };
     case "CLEAR_SELECTION":
-      return state.selectedMeasurementId === null
+      return state.selectedMeasurementId === null && !state.measurementDetailsOpen
         ? state
-        : { ...state, selectedMeasurementId: null };
+        : { ...state, selectedMeasurementId: null, measurementDetailsOpen: false };
     case "COPY_MEASUREMENT":
       return {
         ...state,
@@ -172,10 +179,15 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       return state.calibrationReferenceEdit === null
         ? state
         : { ...state, calibrationReferenceEdit: null };
-    case "SET_SECONDARY_PANEL":
-      return state.secondaryPanel === action.panel
+    case "SET_WORKSPACE_MODULE":
+      return state.workspaceModule === action.module && !state.measurementDetailsOpen
         ? state
-        : { ...state, secondaryPanel: action.panel };
+        : { ...state, workspaceModule: action.module, measurementDetailsOpen: false };
+    case "OPEN_MEASUREMENT_DETAILS":
+      if (state.selectedMeasurementId === null || state.measurementDetailsOpen) return state;
+      return { ...state, measurementDetailsOpen: true };
+    case "CLOSE_MEASUREMENT_DETAILS":
+      return state.measurementDetailsOpen ? { ...state, measurementDetailsOpen: false } : state;
   }
 }
 
@@ -204,7 +216,9 @@ interface WorkspaceContextValue extends WorkspaceState {
   updateReferenceEdit: (points: [Point, Point]) => void;
   cancelReferenceEdit: () => void;
   confirmReferenceEdit: () => void;
-  setSecondaryPanel: (panel: WorkspaceState["secondaryPanel"]) => void;
+  setWorkspaceModule: (module: WorkspaceModule) => void;
+  openMeasurementDetails: () => void;
+  closeMeasurementDetails: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -243,8 +257,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "UPDATE_REFERENCE_EDIT", points }),
       cancelReferenceEdit: () => dispatch({ type: "CANCEL_REFERENCE_EDIT" }),
       confirmReferenceEdit: () => dispatch({ type: "CONFIRM_REFERENCE_EDIT" }),
-      setSecondaryPanel: (panel: WorkspaceState["secondaryPanel"]) =>
-        dispatch({ type: "SET_SECONDARY_PANEL", panel }),
+      setWorkspaceModule: (module: WorkspaceModule) =>
+        dispatch({ type: "SET_WORKSPACE_MODULE", module }),
+      openMeasurementDetails: () => dispatch({ type: "OPEN_MEASUREMENT_DETAILS" }),
+      closeMeasurementDetails: () => dispatch({ type: "CLOSE_MEASUREMENT_DETAILS" }),
     }),
     [state],
   );

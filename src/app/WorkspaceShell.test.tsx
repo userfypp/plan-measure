@@ -5,7 +5,7 @@ import { WorkspaceShell } from "./WorkspaceShell";
 const noop = () => undefined;
 
 describe("WorkspaceShell layout", () => {
-  it("renders the inspector inside the left rail below the tools", () => {
+  it("renders one Workspace Panel to the left of the existing tool rail and viewer", () => {
     const markup = renderToStaticMarkup(
       <WorkspaceShell
         dragActive={false}
@@ -13,17 +13,18 @@ describe("WorkspaceShell layout", () => {
         onDragOver={noop}
         onDragLeave={noop}
         onDrop={noop}
+        workspacePanel={<div>Workspace panel</div>}
         toolRail={<div>Tools</div>}
-        leftPanel={<div>Inspector</div>}
         viewer={<div>PDF</div>}
-        secondaryPanel={<div>Right panel</div>}
       />,
     );
 
+    expect(markup).toContain('data-layout-slot="workspace-panel-host"');
     expect(markup).toContain('data-layout-slot="left-rail"');
-    expect(markup).toContain('data-layout-slot="selection-inspector"');
+    expect(markup).not.toContain("selection-inspector");
+    expect(markup).not.toContain("secondary-panel");
+    expect(markup).toContain("Workspace panel");
     expect(markup).toContain("Tools");
     expect(markup).toContain("PDF");
-    expect(markup).toContain("Right panel");
   });
 });

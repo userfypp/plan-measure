@@ -9,9 +9,7 @@ export interface MeasurementCollectionProps {
   measurements: readonly (MeasurementViewModel & { selected: boolean })[];
   emptyMessage: string;
   onSelectMeasurement: (measurementId: string) => void;
-  onRenameMeasurement: (measurementId: string, name: string) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
-  onDeleteMeasurement: (measurementId: string) => void;
   groups?: readonly MeasurementGroupModel[];
   groupByDimensionId?: string | null;
   onSetMeasurementsVisibility?: (measurementIds: string[], visible: boolean) => void;
@@ -21,9 +19,7 @@ export function MeasurementCollection({
   measurements,
   emptyMessage,
   onSelectMeasurement,
-  onRenameMeasurement,
   onToggleVisibility,
-  onDeleteMeasurement,
   groups,
   groupByDimensionId = null,
   onSetMeasurementsVisibility,
@@ -83,9 +79,7 @@ export function MeasurementCollection({
               collapsed={collapsedGroupKeys.has(group.key)}
               onToggleCollapsed={() => toggleGroup(group.key)}
               onSelectMeasurement={onSelectMeasurement}
-              onRenameMeasurement={onRenameMeasurement}
               onToggleVisibility={onToggleVisibility}
-              onDeleteMeasurement={onDeleteMeasurement}
               onSetMeasurementsVisibility={(measurementIds, visible) =>
                 onSetMeasurementsVisibility(measurementIds, visible)
               }
@@ -104,9 +98,7 @@ export function MeasurementCollection({
             key={measurement.id}
             viewModel={measurement}
             onSelectMeasurement={onSelectMeasurement}
-            onRenameMeasurement={onRenameMeasurement}
             onToggleVisibility={onToggleVisibility}
-            onDeleteMeasurement={onDeleteMeasurement}
           />
         ))}
       </div>

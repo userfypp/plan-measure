@@ -19,6 +19,11 @@ describe("workspace selection state", () => {
     expect(initialWorkspaceState.activeTool).toBe("select");
   });
 
+  it("starts in the Measurements module with Details closed", () => {
+    expect(initialWorkspaceState.workspaceModule).toBe("measurements");
+    expect(initialWorkspaceState.measurementDetailsOpen).toBe(false);
+  });
+
   it("changes the active tool through the workspace intent action", () => {
     const state = workspaceReducer(initialWorkspaceState, {
       type: "CHOOSE_TOOL",
@@ -308,18 +313,96 @@ describe("workspace selection state", () => {
     expect(state.selectedMeasurementId).toBe("line-1");
   });
 
-  it("keeps the classifications panel open when a canvas measurement is selected", () => {
+  it("keeps the classifications module open when a canvas measurement is selected", () => {
     const catalogOpen = {
       ...initialWorkspaceState,
-      secondaryPanel: "classifications" as const,
+      workspaceModule: "classifications" as const,
     };
     const selected = workspaceReducer(catalogOpen, {
       type: "SELECT_MEASUREMENT",
       id: "line-1",
     });
 
-    expect(selected.secondaryPanel).toBe("classifications");
+    expect(selected.workspaceModule).toBe("classifications");
     expect(selected.selectedMeasurementId).toBe("line-1");
+  });
+
+  it("opens Details only explicitly and uses the active module as the return target", () => {
+    const classifications = workspaceReducer(initialWorkspaceState, {
+      type: "SET_WORKSPACE_MODULE",
+      module: "classifications",
+    });
+    const selected = workspaceReducer(classifications, {
+      type: "SELECT_MEASUREMENT",
+      id: "line-1",
+    });
+    expect(selected.measurementDetailsOpen).toBe(false);
+
+    const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
+    expect(details.measurementDetailsOpen).toBe(true);
+    expect(details.workspaceModule).toBe("classifications");
+
+    const back = workspaceReducer(details, { type: "CLOSE_MEASUREMENT_DETAILS" });
+    expect(back.measurementDetailsOpen).toBe(false);
+    expect(back.workspaceModule).toBe("classifications");
+  });
+
+  it("does not open Details without a selected measurement", () => {
+    expect(workspaceReducer(initialWorkspaceState, { type: "OPEN_MEASUREMENT_DETAILS" })).toBe(
+      initialWorkspaceState,
+    );
+  });
+
+  it("retargets an open Details view through canonical selection without closing it", () => {
+    const selected = workspaceReducer(initialWorkspaceState, {
+      type: "SELECT_MEASUREMENT",
+      id: "line-1",
+    });
+    const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
+    const retargeted = workspaceReducer(details, {
+      type: "SELECT_MEASUREMENT",
+      id: "line-2",
+    });
+
+    expect(retargeted.measurementDetailsOpen).toBe(true);
+    expect(retargeted.selectedMeasurementId).toBe("line-2");
+    expect(retargeted).not.toHaveProperty("detailsMeasurement");
+    expect(retargeted).not.toHaveProperty("selectedMeasurementForDetails");
+  });
+
+  it("closes Details when selection is cleared or the page changes", () => {
+    const selected = workspaceReducer(initialWorkspaceState, {
+      type: "SELECT_MEASUREMENT",
+      id: "line-1",
+    });
+    const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
+
+    const cleared = workspaceReducer(details, { type: "CLEAR_SELECTION" });
+    expect(cleared.measurementDetailsOpen).toBe(false);
+    expect(cleared.workspaceModule).toBe("measurements");
+
+    const changedPage = workspaceReducer(details, { type: "PAGE_CHANGED" });
+    expect(changedPage.measurementDetailsOpen).toBe(false);
+    expect(changedPage.selectedMeasurementId).toBeNull();
+    expect(changedPage.workspaceModule).toBe("measurements");
+  });
+
+  it("explicit module changes close Details while tool changes leave navigation untouched", () => {
+    const selected = workspaceReducer(initialWorkspaceState, {
+      type: "SELECT_MEASUREMENT",
+      id: "line-1",
+    });
+    const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
+    const toolChanged = workspaceReducer(details, { type: "CHOOSE_TOOL", tool: "hand" });
+    expect(toolChanged.measurementDetailsOpen).toBe(true);
+    expect(toolChanged.workspaceModule).toBe("measurements");
+
+    const scales = workspaceReducer(toolChanged, {
+      type: "SET_WORKSPACE_MODULE",
+      module: "scales",
+    });
+    expect(scales.measurementDetailsOpen).toBe(false);
+    expect(scales.workspaceModule).toBe("scales");
   });
 
   it("toggles Ortho atomically", () => {

@@ -19,6 +19,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  gap: var(--space-4);
   padding: var(--space-4) var(--space-12);
 }
 

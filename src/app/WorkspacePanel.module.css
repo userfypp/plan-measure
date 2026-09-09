@@ -1,0 +1,93 @@
+.panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border-right: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
+  color: var(--color-text-primary);
+}
+
+.header {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-8);
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.switcher {
+  min-width: 0;
+  min-height: var(--target-current);
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-8);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.switcher:hover,
+.switcher[aria-expanded="true"] {
+  background: var(--color-surface-field);
+}
+
+.switcherContent {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size);
+  align-items: center;
+  gap: var(--space-8);
+  text-align: left;
+}
+
+.switcherContent > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switcherContent svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.body {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.body > *,
+.modulePane > * {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.modulePane,
+.detailsPane {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modulePane[hidden],
+.detailsPane[hidden] {
+  display: none;
+}

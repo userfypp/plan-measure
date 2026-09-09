@@ -16,12 +16,12 @@ export interface ViewerContextData {
 
 export function ViewerContextBar({
   context,
-  action = null,
+  actions = [],
 }: {
   context: ViewerContextData;
-  action?: ViewerContextAction | null;
+  actions?: readonly ViewerContextAction[];
 }) {
-  if (context.workflow.tone === "neutral" && !action) return null;
+  if (context.workflow.tone === "neutral" && actions.length === 0) return null;
 
   return (
     <div className={styles.contextBar} aria-label="Viewer context">
@@ -33,16 +33,19 @@ export function ViewerContextBar({
         </div>
       )}
 
-      {action && (
+      {actions.length > 0 && (
         <div className={styles.contextAction}>
-          <Button
-            variant="secondary"
-            size="compact"
-            disabled={action.disabled}
-            onClick={action.onClick}
-          >
-            {action.label}
-          </Button>
+          {actions.map((action) => (
+            <Button
+              key={action.label}
+              variant="secondary"
+              size="compact"
+              disabled={action.disabled}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </Button>
+          ))}
         </div>
       )}
     </div>

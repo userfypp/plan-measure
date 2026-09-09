@@ -1,9 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { ClassificationCatalog, Measurement } from "../../types/domain";
+import type { ClassificationCatalog } from "../../types/domain";
 import { ClassificationAssignment } from "./ClassificationAssignment";
 import { ClassificationManager } from "./ClassificationManager";
-import { MeasurementClassificationDock } from "./MeasurementClassificationDock";
 import { ClassificationWorkspace } from "./ClassificationWorkspace";
 
 const catalog: ClassificationCatalog = {
@@ -18,19 +17,6 @@ const catalog: ClassificationCatalog = {
       ],
     },
   ],
-};
-
-const measurement: Measurement = {
-  id: "line-1",
-  type: "line",
-  name: "Hallway",
-  points: [
-    { x: 0, y: 0 },
-    { x: 10, y: 0 },
-  ],
-  calibrationId: "scale-1",
-  classificationValueIds: ["electrical"],
-  visible: true,
 };
 
 const archivedCatalog: ClassificationCatalog = {
@@ -209,25 +195,6 @@ describe("classification surfaces", () => {
     );
 
     expect(markup).toContain("Create a dimension such as Trade, Status, or Area.");
-  });
-
-  it("renders measurement assignment in its own dock", () => {
-    const markup = renderToStaticMarkup(
-      <MeasurementClassificationDock
-        measurement={measurement}
-        catalog={catalog}
-        onAssign={() => undefined}
-      />,
-    );
-
-    expect(markup).toContain('aria-label="Classifications for Hallway"');
-    expect(markup).not.toContain(">Hallway<");
-    expect(markup).not.toContain("Trade: Electrical");
-    expect(markup).toContain("<select");
-    expect(markup).toContain("Trade");
-    expect(markup).toContain("Electrical");
-    expect(markup).toContain("Unclassified");
-    expect(markup).not.toContain("Assigned values");
   });
 
   it("keeps the classifications workspace focused on catalog management", () => {

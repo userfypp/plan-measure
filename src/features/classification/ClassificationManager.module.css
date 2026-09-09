@@ -6,7 +6,7 @@
   flex-direction: column;
   container-type: inline-size;
   overflow: hidden;
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
 }
 
 .body {
@@ -14,17 +14,17 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: var(--space-12);
   overflow-y: auto;
-  padding: var(--space-12);
+  padding: var(--space-8);
 }
 
 .description,
 .empty {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }
 
 .empty {
@@ -34,7 +34,7 @@
 
 .list {
   display: grid;
-  gap: var(--space-8);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -45,14 +45,13 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-8);
-  padding: var(--space-8);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-flat);
-  background: var(--color-surface);
+  padding: var(--space-8) var(--space-4) var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-divider);
+  background: transparent;
 }
 
 .archivedItem {
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-field);
 }
 
 .itemHeader {
@@ -77,13 +76,14 @@
 }
 
 .itemText strong {
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 .itemText span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
 }
 
 .actions {
@@ -120,7 +120,7 @@
   min-width: 0;
   gap: var(--space-4);
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 var(--space-12);
   list-style: none;
 }
 
@@ -133,9 +133,9 @@
   min-width: 0;
   min-height: 32px;
   padding: var(--space-4) 0;
-  border-top: var(--border-width) solid var(--color-border);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  border-top: var(--border-width) solid var(--color-divider);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
 }
 
 .valueName {
@@ -155,9 +155,9 @@
 
 .archivedNote {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
   overflow-wrap: anywhere;
 }
 
@@ -212,10 +212,10 @@
   display: grid;
   gap: var(--space-8);
   padding: var(--space-12);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-flat);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-none);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
 }
 
 .renameOverlay .actions {

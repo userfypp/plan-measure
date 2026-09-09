@@ -11,9 +11,7 @@ export interface MeasurementGroupProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onSelectMeasurement: (measurementId: string) => void;
-  onRenameMeasurement: (measurementId: string, name: string) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
-  onDeleteMeasurement: (measurementId: string) => void;
   onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void;
 }
 
@@ -52,9 +50,7 @@ export function MeasurementGroup({
   collapsed,
   onToggleCollapsed,
   onSelectMeasurement,
-  onRenameMeasurement,
   onToggleVisibility,
-  onDeleteMeasurement,
   onSetMeasurementsVisibility,
 }: MeasurementGroupProps) {
   const generatedId = useId();
@@ -114,9 +110,7 @@ export function MeasurementGroup({
             key={measurement.id}
             viewModel={measurement}
             onSelectMeasurement={onSelectMeasurement}
-            onRenameMeasurement={onRenameMeasurement}
             onToggleVisibility={onToggleVisibility}
-            onDeleteMeasurement={onDeleteMeasurement}
           />
         ))}
       </div>

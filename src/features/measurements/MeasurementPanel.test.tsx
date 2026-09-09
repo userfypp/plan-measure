@@ -5,7 +5,6 @@ import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementGroup } from "./MeasurementGroup";
 import { MeasurementRow } from "./MeasurementRow";
 import { MeasurementsHeader } from "./MeasurementsHeader";
-import { SelectionInspector } from "./SelectionInspector";
 import {
   createMeasurementViewModel,
   getMeasurementClassificationSummary,
@@ -49,9 +48,10 @@ function viewModel(selected = false, candidate = measurement) {
 }
 
 describe("measurement view models", () => {
-  it("keeps the row and inspector presentation independent from domain objects", () => {
+  it("keeps row presentation independent from domain objects", () => {
     expect(viewModel(true)).toEqual({
       id: "line-1",
+      type: "line",
       name: "Hallway",
       typeLabel: "Line",
       valueLabel: "1.00 m",
@@ -159,14 +159,12 @@ describe("measurement view models", () => {
 });
 
 describe("MeasurementRow accessibility", () => {
-  it("exposes selection and an always-discoverable delete action", () => {
+  it("exposes selection and visibility without legacy rename/delete row actions", () => {
     const markup = renderToStaticMarkup(
       <MeasurementRow
         viewModel={viewModel()}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -175,9 +173,9 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain('aria-label="Select measurement Hallway"');
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-describedby="measurement-details-line-1"');
-    expect(markup).toContain("Main plan · Uniform");
-    expect(markup).toContain('aria-label="Rename Hallway"');
-    expect(markup).toContain('aria-label="Delete Hallway"');
+    expect(markup).toContain("Line · Main plan");
+    expect(markup).not.toContain('aria-label="Rename Hallway"');
+    expect(markup).not.toContain('aria-label="Delete Hallway"');
     expect(markup).toContain('aria-label="Hide measurement Hallway"');
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain('aria-label="Name for Hallway"');
@@ -188,9 +186,7 @@ describe("MeasurementRow accessibility", () => {
       <MeasurementRow
         viewModel={viewModel(true)}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -204,9 +200,7 @@ describe("MeasurementRow accessibility", () => {
       <MeasurementRow
         viewModel={viewModel(false, hidden)}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -259,9 +253,7 @@ describe("measurement grouping surfaces", () => {
         measurements={[viewModel(true)]}
         emptyMessage="Empty"
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -287,9 +279,7 @@ describe("measurement grouping surfaces", () => {
         ]}
         groupByDimensionId="trade"
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
         onSetMeasurementsVisibility={() => undefined}
       />,
     );
@@ -318,9 +308,7 @@ describe("measurement grouping surfaces", () => {
         collapsed
         onToggleCollapsed={() => undefined}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
         onSetMeasurementsVisibility={() => undefined}
       />,
     );
@@ -334,33 +322,5 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('d="m9 5 7 7-7 7"');
     expect(markup).not.toContain("▸");
     expect(markup).not.toContain("▾");
-  });
-});
-
-describe("SelectionInspector", () => {
-  it("shows only the selected measurement details", () => {
-    const markup = renderToStaticMarkup(
-      <SelectionInspector
-        measurement={viewModel(true)}
-        classificationSummary="Trade: Electrical"
-      />,
-    );
-
-    expect(markup).not.toContain("Selection inspector");
-    expect(markup).toContain("Type");
-    expect(markup).toContain("Value");
-    expect(markup).toContain("Scale / calibration");
-    expect(markup).toContain("Trade: Electrical");
-    expect(markup).not.toContain("Duplicate");
-    expect(markup).not.toContain("Rename");
-    expect(markup).not.toContain("Delete measurement");
-    expect(markup).not.toContain("Assigned values");
-  });
-
-  it("renders a clear empty state when nothing is selected", () => {
-    const markup = renderToStaticMarkup(<SelectionInspector measurement={null} />);
-
-    expect(markup).toContain("Select a measurement to inspect its details.");
-    expect(markup).not.toContain("Duplicate");
   });
 });

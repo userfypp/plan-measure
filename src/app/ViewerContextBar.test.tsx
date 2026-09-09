@@ -17,7 +17,7 @@ describe("ViewerContextBar", () => {
     const markup = renderToStaticMarkup(
       <ViewerContextBar
         context={context}
-        action={{ label: "Duplicate", disabled: false, onClick: () => {} }}
+        actions={[{ label: "Duplicate", disabled: false, onClick: () => {} }]}
       />,
     );
 
@@ -29,7 +29,7 @@ describe("ViewerContextBar", () => {
     const markup = renderToStaticMarkup(
       <ViewerContextBar
         context={context}
-        action={{ label: "Duplicate", disabled: true, onClick: () => {} }}
+        actions={[{ label: "Duplicate", disabled: true, onClick: () => {} }]}
       />,
     );
 

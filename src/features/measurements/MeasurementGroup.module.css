@@ -17,8 +17,8 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
+  width: var(--target-current);
+  height: var(--target-current);
   padding: 0;
   color: var(--color-text-muted);
   font: inherit;
