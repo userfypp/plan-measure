@@ -12,7 +12,7 @@ interface WorkspaceShellProps {
   onDrop: DragEventHandler<HTMLElement>;
   workspacePanel?: ReactNode;
   toolRail?: ReactNode;
-  viewerContext?: ReactNode;
+  contextToolbar?: ReactNode;
   viewer?: ReactNode;
   emptyState?: ReactNode;
   dropOverlay?: ReactNode;
@@ -27,7 +27,7 @@ export function WorkspaceShell({
   onDrop,
   workspacePanel,
   toolRail,
-  viewerContext,
+  contextToolbar,
   viewer,
   emptyState,
   dropOverlay = "Drop PDF to replace current session",
@@ -58,10 +58,9 @@ export function WorkspaceShell({
       <div className={styles.workspacePanel} data-layout-slot="workspace-panel-host">
         {workspacePanel}
       </div>
-      <div className={styles.leftRail} data-layout-slot="left-rail">
-        {toolRail}
-      </div>
-      <ViewerShell contextBar={viewerContext}>{viewer}</ViewerShell>
+      <ViewerShell toolRail={toolRail} contextToolbar={contextToolbar}>
+        {viewer}
+      </ViewerShell>
       {dragActive && <div className={styles.dropOverlay}>{dropOverlay}</div>}
     </main>
   );

@@ -43,6 +43,7 @@ import {
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
 import {
+  getDrawingKeyboardAction,
   getGlobalViewerKeyboardAction,
   getViewerKeyboardAction,
   shouldIgnoreGlobalKeyboardShortcut,
@@ -67,10 +68,10 @@ import {
   resolveDrawingPreview,
 } from "./snapping";
 import { useViewerNavigationRegistration } from "./ViewerNavigation";
+import { useViewerInteractionCommandRegistration } from "./ViewerInteractionCommands";
 import {
   safeViewerLayout,
   useViewerBottomExclusion,
-  viewerOverlayBottom,
 } from "./viewerLayout";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
@@ -85,13 +86,11 @@ interface PdfViewerProps {
   onMeasurementEditActiveChange: (measurementId: string, active: boolean) => void;
   onChooseTool: (tool: Tool) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
-  calibrationReferenceLabel?: "X" | "Y";
   onCalibrationCancel: () => void;
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
   measurementEditingBlocked: boolean;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
   onCalibrationReferenceEditCancel: () => void;
-  onCalibrationReferenceEditSave: () => void;
 }
 
 function pointsToFlat(points: Point[]): number[] {
@@ -124,16 +123,15 @@ export function PdfViewer({
   onMeasurementEditActiveChange,
   onChooseTool,
   onCalibrationCandidate,
-  calibrationReferenceLabel,
   onCalibrationCancel,
   calibrationReferenceEdit,
   measurementEditingBlocked,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceEditCancel,
-  onCalibrationReferenceEditSave,
 }: PdfViewerProps) {
   const { setError } = useAppState();
   const onNavigationChange = useViewerNavigationRegistration();
+  const registerInteractionCommands = useViewerInteractionCommandRegistration();
   const viewerBottomExclusion = useViewerBottomExclusion();
   const { session, addMeasurement } = useSessionState();
   const {
@@ -196,7 +194,6 @@ export function PdfViewer({
     () => safeViewerLayout(viewerSize, viewerBottomExclusion),
     [viewerBottomExclusion, viewerSize],
   );
-  const transientStatusBottom = viewerOverlayBottom(viewerBottomExclusion, viewerSize.height);
   const safeViewerCenterRef = useRef<Point | null>(safeViewer.center);
 
   const clearSnapFeedback = useCallback(() => {
@@ -241,8 +238,11 @@ export function PdfViewer({
     clearWorkspaceSelection();
     setError(null);
   }, [clearWorkspaceSelection, setError]);
+  const completedDraftCommandRef = useRef<DrawingDraft | null>(null);
   const completePath = useCallback(
-    (measurementType: MeasurementType, points: Point[]) => {
+    (measurementType: MeasurementType, points: Point[], sourceDraft: DrawingDraft | null = null) => {
+      if (sourceDraft && completedDraftCommandRef.current === sourceDraft) return false;
+      if (sourceDraft) completedDraftCommandRef.current = sourceDraft;
       const id = crypto.randomUUID();
       const accepted = addMeasurement({
         pageNumber: page.pageNumber,
@@ -250,10 +250,14 @@ export function PdfViewer({
         measurementType,
         points,
       });
-      if (!accepted) return;
+      if (!accepted) {
+        if (completedDraftCommandRef.current === sourceDraft) completedDraftCommandRef.current = null;
+        return false;
+      }
       setDraftPointer(null);
       completeDraft();
       selectWorkspaceMeasurement(id);
+      return true;
     },
     [addMeasurement, completeDraft, page.pageNumber, selectWorkspaceMeasurement],
   );
@@ -266,6 +270,19 @@ export function PdfViewer({
   const calibrationReferenceEditRef = useRef(calibrationReferenceEdit);
   const onCalibrationReferenceEditCancelRef = useRef(onCalibrationReferenceEditCancel);
 
+  const completeCurrentDraft = useCallback(() => {
+    const draft = workspaceDraftRef.current;
+    if (
+      !draft ||
+      draft.type !== "path" ||
+      getDrawingKeyboardAction("Enter", activeToolRef.current, draft) !== "complete-path" ||
+      completedDraftCommandRef.current === draft
+    ) {
+      return;
+    }
+    completePathRef.current(draft.measurementType, draft.points, draft);
+  }, []);
+
   useLayoutEffect(() => {
     activeToolRef.current = activeTool;
     workspaceDraftRef.current = workspaceDraft;
@@ -277,6 +294,9 @@ export function PdfViewer({
     calibrationReferenceEditRef.current = calibrationReferenceEdit;
     onCalibrationReferenceEditCancelRef.current = onCalibrationReferenceEditCancel;
     activeMeasurementEditIdRef.current = activeMeasurementEditId;
+    if (completedDraftCommandRef.current !== workspaceDraft) {
+      completedDraftCommandRef.current = null;
+    }
   }, [
     activeMeasurementEditId,
     calibrationReferenceEdit,
@@ -290,6 +310,11 @@ export function PdfViewer({
     viewerSize,
     safeViewer.center,
   ]);
+
+  useLayoutEffect(() => {
+    if (!registerInteractionCommands) return;
+    return registerInteractionCommands({ completeCurrentDraft });
+  }, [completeCurrentDraft, registerInteractionCommands]);
 
   const bounds = pageRenderData?.bounds ?? null;
   const showMeasurements = session?.settings.showMeasurements ?? false;
@@ -631,10 +656,7 @@ export function PdfViewer({
         clearDraftRef.current();
         onCalibrationCancelRef.current();
       } else if (action === "complete-path") {
-        const draft = workspaceDraftRef.current;
-        if (draft?.type === "path") {
-          completePathRef.current(draft.measurementType, draft.points);
-        }
+        completeCurrentDraft();
       } else if (action === "cancel-draft") {
         clearDraftRef.current();
       } else if (action === "exit-tool") {
@@ -647,7 +669,7 @@ export function PdfViewer({
         onChooseToolRef.current(action.tool);
       }
     },
-    [clearSnapFeedback, toggleOrthogonal, toggleSnap, zoomAround],
+    [clearSnapFeedback, completeCurrentDraft, toggleOrthogonal, toggleSnap, zoomAround],
   );
 
   const finishPan = useCallback(() => {
@@ -942,7 +964,7 @@ export function PdfViewer({
       const spec = measurementPathSpecs[measurementType];
       if (resolution.closesPolygon) {
         if (pathDraft.points.length >= spec.minVertices) {
-          completePath(measurementType, pathDraft.points);
+          completePath(measurementType, pathDraft.points, pathDraft);
         }
         return;
       }
@@ -950,7 +972,7 @@ export function PdfViewer({
       const effectivePoint = resolution.point;
       if (last && areEffectivelyIdentical(last, effectivePoint)) return;
       if (spec.maxVertices === 2) {
-        completePath(measurementType, [...pathDraft.points, effectivePoint]);
+        completePath(measurementType, [...pathDraft.points, effectivePoint], pathDraft);
         return;
       }
       updateDraft({ ...pathDraft, points: [...pathDraft.points, effectivePoint] });
@@ -1177,55 +1199,6 @@ export function PdfViewer({
           </Stage>
         )}
         {!showPage && <div className={styles.loading}>Rendering page…</div>}
-        {calibrationReferenceEdit && (
-          <div className={styles.drawingStatus} style={{ bottom: transientStatusBottom }}>
-            <span>
-              Editing{" "}
-              {calibrationReferenceEdit.reference === "uniform"
-                ? "scale reference"
-                : `${calibrationReferenceEdit.reference.toUpperCase()} reference`}
-              {calibrationReferenceEdit.valid
-                ? " · Preview updates linked measurements"
-                : " · Points must remain a valid reference before saving"}
-            </span>
-            <button type="button" onClick={onCalibrationReferenceEditCancel}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!calibrationReferenceEdit.valid}
-              onClick={onCalibrationReferenceEditSave}
-            >
-              Save
-            </button>
-          </div>
-        )}
-        {workspaceDraft?.type === "path" && workspaceDraft.measurementType !== "line" && (
-          <div className={styles.drawingStatus} style={{ bottom: transientStatusBottom }}>
-            <span>
-              {workspaceDraft.points.length} vertices ·{" "}
-              {workspaceDraft.measurementType === "polygon"
-                ? "Click the first point or press Enter to finish"
-                : "Press Enter to finish"}
-            </span>
-            <button type="button" onClick={clearDraft}>
-              Cancel
-            </button>
-          </div>
-        )}
-        {activeTool === "calibrate" && workspaceDraft?.type !== "path" && (
-          <div className={styles.drawingStatus} style={{ bottom: transientStatusBottom }}>
-            <span>
-              Select two points for the{" "}
-              {calibrationReferenceLabel
-                ? `${calibrationReferenceLabel} reference`
-                : "scale reference"}
-            </span>
-            <button type="button" onClick={onCalibrationCancel}>
-              Cancel
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

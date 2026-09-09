@@ -1,54 +1,71 @@
 .toolRail {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
+  position: absolute;
+  z-index: 2;
+  top: var(--geometry-context-toolbar-top);
+  left: var(--space-12);
+  width: calc(var(--target-current) + var(--space-8));
+  min-width: calc(var(--target-current) + var(--space-8));
+  max-height: calc(100% - var(--space-24));
   display: flex;
   flex-direction: column;
-  overflow-x: clip;
-  overflow-y: auto;
+  align-items: center;
+  overflow: visible;
+  padding: var(--geometry-context-toolbar-padding);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
 }
 
 .tools {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--border-width);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--geometry-context-toolbar-gap);
+  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
 .toolButton {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
+  position: relative;
+  width: var(--target-current);
+  height: var(--target-current);
   display: grid;
-  grid-template-rows: 24px 10px;
   place-items: center;
-  align-content: center;
-  gap: 2px;
   border: 0;
-  border-radius: var(--radius-flat);
-  padding: 4px;
-  background: var(--color-surface);
-  color: var(--color-tool);
+  border-radius: var(--radius-control);
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
 }
 
 .toolButton:hover:not(:disabled) {
-  position: relative;
-  z-index: 1;
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-tool-hover);
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
 }
 
 .toolButton:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .toolButton.active {
-  background: var(--color-selected);
-  color: var(--color-primary-active);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.toolButton.active::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: currentColor;
 }
 
 .toolButton:disabled {
@@ -56,8 +73,8 @@
 }
 
 .icon {
-  width: 24px;
-  height: 24px;
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
   display: inline-grid;
   place-items: center;
 }
@@ -67,29 +84,8 @@
   height: 100%;
 }
 
-.label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.shortcut {
-  min-width: 16px;
-  color: var(--color-tool);
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  line-height: 1;
-}
-
 .tools > span {
   display: block;
-  width: 100%;
-  max-width: none;
-}
-
-.active .shortcut {
-  color: var(--color-primary-active);
+  width: var(--target-current);
+  max-width: var(--target-current);
 }

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, StrictMode, type ReactNode } from "react";
+import { act, StrictMode, useLayoutEffect, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SessionProvider } from "../../app/sessionState";
+import { createEmptySession, SessionProvider, useSessionState } from "../../app/sessionState";
 import { AppProvider, useAppState } from "../../app/state";
-import { WorkspaceProvider } from "../../app/workspaceState";
+import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
 import type { PageState } from "../../types/domain";
 import { PdfViewer } from "./PdfViewer";
@@ -15,6 +15,10 @@ import {
   type ViewerNavigationModel,
   type ViewerNavigationRegistration,
 } from "./ViewerNavigation";
+import {
+  useViewerInteractionCommands,
+  ViewerInteractionCommandsProvider,
+} from "./ViewerInteractionCommands";
 import { ViewerBottomExclusionProvider } from "./viewerLayout";
 
 const pdfJs = vi.hoisted(() => ({
@@ -46,6 +50,26 @@ const VIEWER_WIDTH = 1000;
 const VIEWER_HEIGHT = 700;
 
 const noop = () => undefined;
+let sessionProbe: ReturnType<typeof useSessionState> | null = null;
+let workspaceProbe: ReturnType<typeof useWorkspaceState> | null = null;
+let interactionProbe: ReturnType<typeof useViewerInteractionCommands> | null = null;
+
+function InteractionProbe() {
+  const session = useSessionState();
+  const workspace = useWorkspaceState();
+  const interaction = useViewerInteractionCommands();
+  useLayoutEffect(() => {
+    sessionProbe = session;
+    workspaceProbe = workspace;
+    interactionProbe = interaction;
+    return () => {
+      if (sessionProbe === session) sessionProbe = null;
+      if (workspaceProbe === workspace) workspaceProbe = null;
+      if (interactionProbe === interaction) interactionProbe = null;
+    };
+  }, [interaction, session, workspace]);
+  return null;
+}
 
 function createPageState(pageNumber: number): PageState {
   return {
@@ -218,27 +242,29 @@ function ViewerHarness({
       <ErrorProbe />
       <SessionProvider>
         <WorkspaceProvider>
-          <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
-            <ViewerNavigationProvider registerNavigation={registerNavigation}>
-              <PdfViewer
-                document={document}
-                page={page}
-                onPageChange={noop}
-                onPageBoundsChange={noop}
-                onViewZoomChange={noop}
-                activeMeasurementEditId={null}
-                onMeasurementEditActiveChange={noop}
-                onChooseTool={noop}
-                onCalibrationCandidate={noop}
-                onCalibrationCancel={noop}
-                calibrationReferenceEdit={null}
-                measurementEditingBlocked={false}
-                onCalibrationReferencePointsChange={noop}
-                onCalibrationReferenceEditCancel={noop}
-                onCalibrationReferenceEditSave={noop}
-              />
-            </ViewerNavigationProvider>
-          </ViewerBottomExclusionProvider>
+          <ViewerInteractionCommandsProvider>
+            <InteractionProbe />
+            <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
+              <ViewerNavigationProvider registerNavigation={registerNavigation}>
+                <PdfViewer
+                  document={document}
+                  page={page}
+                  onPageChange={noop}
+                  onPageBoundsChange={noop}
+                  onViewZoomChange={noop}
+                  activeMeasurementEditId={null}
+                  onMeasurementEditActiveChange={noop}
+                  onChooseTool={noop}
+                  onCalibrationCandidate={noop}
+                  onCalibrationCancel={noop}
+                  calibrationReferenceEdit={null}
+                  measurementEditingBlocked={false}
+                  onCalibrationReferencePointsChange={noop}
+                  onCalibrationReferenceEditCancel={noop}
+                />
+              </ViewerNavigationProvider>
+            </ViewerBottomExclusionProvider>
+          </ViewerInteractionCommandsProvider>
         </WorkspaceProvider>
       </SessionProvider>
     </AppProvider>
@@ -260,6 +286,9 @@ describe("PdfViewer render liveness", () => {
     viewerRect = rect(VIEWER_WIDTH, VIEWER_HEIGHT);
     drawImage = vi.fn();
     ControlledResizeObserver.instances = [];
+    sessionProbe = null;
+    workspaceProbe = null;
+    interactionProbe = null;
     pdfJs.getDocument.mockReset();
     vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
@@ -280,6 +309,9 @@ describe("PdfViewer render liveness", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    sessionProbe = null;
+    workspaceProbe = null;
+    interactionProbe = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -582,5 +614,61 @@ describe("PdfViewer render liveness", () => {
     expect(pdfPage.render).toHaveBeenCalled();
     expect(canvas().style.visibility).toBe("visible");
     expect(container.textContent).not.toContain("Rendering page…");
+  });
+
+  it("finishes a valid path through the canonical viewer command exactly once and ignores incomplete drafts", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      nextCalibrationNumber: 2,
+    };
+
+    await mountViewer(runtime.document, { page: session.pages[1] });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => {
+      workspaceProbe!.chooseTool("polyline");
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polyline",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      });
+    });
+
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+    expect(workspaceProbe?.draft).toBeNull();
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+
+    await act(async () => {
+      workspaceProbe!.chooseTool("polygon");
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polygon",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      });
+    });
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+    expect(workspaceProbe?.draft).not.toBeNull();
   });
 });

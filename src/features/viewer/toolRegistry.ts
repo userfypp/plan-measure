@@ -99,7 +99,7 @@ export const toolRegistry: readonly ToolDefinition[] = [
     description: "Constrain drawing segments to horizontal or vertical",
     shortcut: getShortcutLabel("toggle-orthogonal"),
     icon: "orthogonal",
-    inRail: true,
+    inRail: false,
   },
   {
     id: "snap",
@@ -107,29 +107,20 @@ export const toolRegistry: readonly ToolDefinition[] = [
     description: "Snap new measurement points to visible measurement geometry",
     shortcut: getShortcutLabel("toggle-snap"),
     icon: "snap",
-    inRail: true,
+    inRail: false,
   },
 ];
 
 export const toolRailRegistry = toolRegistry.filter((tool) => tool.inRail);
 
-const toolRailVisualColumns: readonly (readonly ToolDefinition["id"][])[] = [
-  ["select", "polyline", "snap"],
-  ["hand", "polygon"],
-  ["line", "orthogonal"],
-];
-
 export function getToolRailVerticalNeighbor(
   toolId: ToolDefinition["id"],
   direction: "up" | "down",
 ): ToolDefinition["id"] | null {
-  for (const column of toolRailVisualColumns) {
-    const index = column.indexOf(toolId);
-    if (index < 0) continue;
-    const step = direction === "up" ? -1 : 1;
-    return column[(index + step + column.length) % column.length] ?? null;
-  }
-  return null;
+  const index = toolRailRegistry.findIndex((definition) => definition.id === toolId);
+  if (index < 0 || toolRailRegistry.length === 0) return null;
+  const step = direction === "up" ? -1 : 1;
+  return toolRailRegistry[(index + step + toolRailRegistry.length) % toolRailRegistry.length]?.id ?? null;
 }
 
 export function getToolAvailabilityState(

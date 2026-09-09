@@ -16,32 +16,26 @@ describe("viewer tool registry", () => {
       "line",
       "polyline",
       "polygon",
-      "orthogonal",
-      "snap",
     ]);
-    expect(toolRailRegistry.findIndex((tool) => tool.id === "snap") % 3).toBe(0);
     expect(toolRegistry.find((tool) => tool.id === "calibrate")?.inRail).toBe(false);
+    expect(toolRegistry.find((tool) => tool.id === "orthogonal")?.inRail).toBe(false);
+    expect(toolRegistry.find((tool) => tool.id === "snap")?.inRail).toBe(false);
   });
 
   it("derives rail shortcuts from the existing keyboard registry", () => {
     for (const tool of toolRailRegistry) {
-      if (tool.id === "orthogonal" || tool.id === "snap") {
-        expect(tool.shortcut).toBe(tool.id === "orthogonal" ? "O" : "S");
-      } else {
-        expect(tool.shortcut).toBe(getToolShortcutLabel(tool.id as ToolShortcut));
-      }
+      expect(tool.shortcut).toBe(getToolShortcutLabel(tool.id as ToolShortcut));
     }
   });
 
-  it("keeps vertical keyboard navigation aligned with the actual three-column grid", () => {
-    expect(getToolRailVerticalNeighbor("select", "down")).toBe("polyline");
-    expect(getToolRailVerticalNeighbor("polyline", "down")).toBe("snap");
-    expect(getToolRailVerticalNeighbor("snap", "down")).toBe("select");
-    expect(getToolRailVerticalNeighbor("select", "up")).toBe("snap");
-    expect(getToolRailVerticalNeighbor("hand", "down")).toBe("polygon");
-    expect(getToolRailVerticalNeighbor("polygon", "down")).toBe("hand");
-    expect(getToolRailVerticalNeighbor("line", "down")).toBe("orthogonal");
-    expect(getToolRailVerticalNeighbor("orthogonal", "down")).toBe("line");
+  it("keeps vertical keyboard navigation aligned with the compact five-tool rail", () => {
+    expect(getToolRailVerticalNeighbor("select", "down")).toBe("hand");
+    expect(getToolRailVerticalNeighbor("hand", "down")).toBe("line");
+    expect(getToolRailVerticalNeighbor("line", "down")).toBe("polyline");
+    expect(getToolRailVerticalNeighbor("polyline", "down")).toBe("polygon");
+    expect(getToolRailVerticalNeighbor("polygon", "down")).toBe("select");
+    expect(getToolRailVerticalNeighbor("select", "up")).toBe("polygon");
+    expect(getToolRailVerticalNeighbor("snap", "down")).toBeNull();
   });
 
   it("provides context metadata for the temporary calibration tool", () => {

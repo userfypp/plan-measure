@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fitToScreen } from "../../utils/coordinates";
-import { safeViewerLayout, viewerOverlayBottom } from "./viewerLayout";
+import { safeViewerLayout } from "./viewerLayout";
 
 describe("safeViewerLayout", () => {
   it("excludes the dock height and bottom inset without changing the horizontal viewport", () => {
@@ -42,19 +42,5 @@ describe("safeViewerLayout", () => {
     expect(pageBottom).toBeLessThanOrEqual(safe.size.height - 24);
     expect(safe.center).not.toBeNull();
     expect(transform.panY + (900 * transform.zoom) / 2).toBeCloseTo(safe.center!.y);
-  });
-});
-
-describe("viewerOverlayBottom", () => {
-  it("keeps transient viewer controls above the Dock safe zone", () => {
-    expect(viewerOverlayBottom(0, 800)).toBe(14);
-    expect(viewerOverlayBottom(56, 800)).toBe(64);
-    expect(viewerOverlayBottom(68, 800)).toBe(76);
-  });
-
-  it("never positions transient controls beyond an exhausted viewer height", () => {
-    expect(viewerOverlayBottom(40, 40)).toBe(40);
-    expect(viewerOverlayBottom(80, 40)).toBe(40);
-    expect(viewerOverlayBottom(80, 0)).toBe(0);
   });
 });

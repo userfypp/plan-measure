@@ -195,6 +195,36 @@ describe("global keyboard shortcut targets", () => {
 });
 
 describe("global viewer keyboard policy", () => {
+  it.each([
+    ["V", { type: "choose-tool", tool: "select" }],
+    ["H", { type: "choose-tool", tool: "hand" }],
+    ["L", { type: "choose-tool", tool: "line" }],
+    ["M", { type: "choose-tool", tool: "polyline" }],
+    ["P", { type: "choose-tool", tool: "polygon" }],
+    ["O", "toggle-orthogonal"],
+    ["S", "toggle-snap"],
+  ] as const)("keeps %s available after focus moves to App Bar or Workspace chrome", (key, action) => {
+    for (const target of [
+      new FakeHTMLElement("button") as unknown as EventTarget,
+      new FakeHTMLElement("summary") as unknown as EventTarget,
+    ]) {
+      expect(getGlobalViewerKeyboardAction(keyboardEvent(key, target))).toEqual(action);
+    }
+  });
+
+  it.each([
+    ["V", { type: "choose-tool", tool: "select" }],
+    ["H", { type: "choose-tool", tool: "hand" }],
+    ["L", { type: "choose-tool", tool: "line" }],
+    ["M", { type: "choose-tool", tool: "polyline" }],
+    ["P", { type: "choose-tool", tool: "polygon" }],
+    ["O", "toggle-orthogonal"],
+    ["S", "toggle-snap"],
+  ] as const)("keeps %s available after focus moves to a non-textual switch", (key, action) => {
+    const target = new FakeHTMLElement("input", false, "checkbox") as unknown as EventTarget;
+    expect(getGlobalViewerKeyboardAction(keyboardEvent(key, target))).toEqual(action);
+  });
+
   it.each(["button", "a", "summary", "body"])(
     "allows tool shortcuts after focus moves to %s",
     (kind) => {

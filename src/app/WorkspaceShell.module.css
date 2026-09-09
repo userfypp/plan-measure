@@ -1,13 +1,12 @@
 .workspace {
-  --tool-rail-width: 160px;
   position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--geometry-workspace-panel-width) var(--tool-rail-width) minmax(0, 1fr);
-  grid-template-areas: "workspace-panel tool viewer";
+  grid-template-columns: var(--geometry-workspace-panel-width) minmax(0, 1fr);
+  grid-template-areas: "workspace-panel viewer";
   overflow: hidden;
   background: var(--color-surface-viewer);
 }
@@ -17,17 +16,6 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--color-surface-panel);
-}
-
-.leftRail {
-  grid-area: tool;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-right: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
 }
 
@@ -107,17 +95,7 @@
   pointer-events: none;
 }
 
-@media (max-width: 1180px) {
-  .workspace {
-    --tool-rail-width: 152px;
-  }
-}
-
 @media (max-width: 1024px) {
-  .workspace {
-    --tool-rail-width: 144px;
-  }
-
   .emptyState {
     padding: 24px;
   }

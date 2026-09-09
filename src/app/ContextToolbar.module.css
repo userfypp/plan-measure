@@ -1,0 +1,164 @@
+.toolbar {
+  position: absolute;
+  z-index: 2;
+  top: var(--geometry-context-toolbar-top);
+  left: var(--geometry-context-toolbar-left);
+  min-height: var(--geometry-context-toolbar-height);
+  max-width: calc(100% - var(--geometry-context-toolbar-left));
+  display: flex;
+  align-items: center;
+  gap: var(--geometry-context-toolbar-gap);
+  padding: var(--geometry-context-toolbar-padding);
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-overlay);
+}
+
+.status,
+.toolIdentity,
+.selectionIdentity {
+  min-height: var(--geometry-context-control-height);
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-8);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
+.selectionIdentity {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aidIcon {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  display: inline-grid;
+  place-items: center;
+}
+
+.aidIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.divider {
+  width: var(--border-width);
+  height: 20px;
+  flex: 0 0 auto;
+  margin: 0 var(--space-4);
+  background: var(--color-divider);
+}
+
+.aidButton {
+  position: relative;
+  min-width: var(--geometry-context-control-height);
+  min-height: var(--geometry-context-control-height);
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  padding: 0 7px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.aidButton:hover {
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+}
+
+.aidButton:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.aidButton.pressed {
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pressedMark {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  width: 9px;
+  height: 9px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-surface-panel);
+  font-size: 7px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+}
+
+.action {
+  min-height: var(--geometry-context-control-height);
+  flex: 0 0 auto;
+}
+
+.finishAction,
+.finishAction:hover:not(:disabled),
+.finishAction:active:not(:disabled) {
+  border-color: transparent;
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.cancelAction {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.cancelAction:hover:not(:disabled),
+.cancelAction:active:not(:disabled) {
+  border-color: transparent;
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (any-pointer: coarse) {
+  .toolbar {
+    min-height: var(--geometry-context-toolbar-height-coarse);
+  }
+
+  .status,
+  .toolIdentity,
+  .selectionIdentity,
+  .aidButton,
+  .action {
+    min-height: var(--geometry-context-control-height-coarse);
+  }
+
+  .aidButton {
+    min-width: var(--geometry-context-control-height-coarse);
+  }
+}

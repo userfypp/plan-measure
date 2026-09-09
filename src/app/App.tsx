@@ -7,7 +7,7 @@ import { OverlayHost } from "./OverlayHost";
 import { AppShell, LoadingOverlay } from "./AppShell";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { WorkspacePanel } from "./WorkspacePanel";
-import { ViewerContextBar, type ViewerContextData } from "./ViewerContextBar";
+import { ContextToolbar } from "./ContextToolbar";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { Modal } from "../components/Modal";
@@ -393,11 +393,14 @@ function PlanMeasureApp() {
   }
 
   function chooseTool(tool: Tool) {
-    if (calibrationReferenceEdit && tool !== "select" && tool !== "hand") {
+    if (calibrationReferenceEdit && tool !== "calibrate") {
       setError("Finish or cancel the scale reference edit first.");
       return;
     }
-    if (calibrationFlow && tool !== "calibrate") cancelWorkspaceCalibration();
+    if (calibrationFlow && tool !== "calibrate") {
+      setError("Finish or cancel calibration first.");
+      return;
+    }
     const currentPage = session?.pages[session.currentPage];
     const activePageCalibration = currentPage && getActiveCalibration(currentPage);
     if (isMeasurementType(tool) && (!currentPage || !activePageCalibration)) {
@@ -414,7 +417,8 @@ function PlanMeasureApp() {
   function cancelCalibration() {
     cancelWorkspaceCalibration();
     clearDraft();
-    chooseTool("select");
+    chooseWorkspaceTool("select");
+    clearError();
   }
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
@@ -511,6 +515,7 @@ function PlanMeasureApp() {
   function cancelCalibrationReferenceEdit() {
     cancelReferenceEdit();
     closeConfirmation();
+    clearError();
   }
 
   function calibrationReferenceEditPreview(edit: CalibrationReferenceEdit): PageCalibration | null {
@@ -670,34 +675,17 @@ function PlanMeasureApp() {
     });
   }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
-  const workflowContext: ViewerContextData["workflow"] = calibrationReferenceEdit
-    ? {
-        label:
-          calibrationReferenceEdit.reference === "uniform"
-            ? "Editing scale reference"
-            : `Editing ${calibrationReferenceEdit.reference.toUpperCase()} reference`,
-        tone: "active",
-      }
-    : calibrationFlow
-      ? {
-          label:
-            calibrationFlow.mode === "xy"
-              ? `Calibrating ${calibrationFlow.phase.toUpperCase()} reference`
-              : "Calibrating scale",
-          tone: "active",
-        }
-      : draft?.type === "path"
-        ? {
-            label: `Drawing ${draft.measurementType}`,
-            tone: "active",
-          }
-        : { label: "Ready", tone: "neutral" };
-  const viewerContext: ViewerContextData = { workflow: workflowContext };
-  const canCreateMeasurements = Boolean(activeCalibration) && !calibrationReferenceEdit;
-  const measurementToolDisabledReason = calibrationReferenceEdit
+  const primaryToolsLocked = Boolean(calibrationFlow || calibrationReferenceEdit);
+  const primaryToolLockReason = calibrationReferenceEdit
     ? "Finish or cancel the scale reference edit first"
+    : "Finish or cancel calibration first";
+  const canCreateMeasurements = Boolean(activeCalibration) && !primaryToolsLocked;
+  const measurementToolDisabledReason = primaryToolsLocked
+    ? primaryToolLockReason
     : "This tool requires an active scale";
   const toolAvailability: ToolAvailabilityMap = {
+    select: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
+    hand: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
     line: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
@@ -809,28 +797,20 @@ function PlanMeasureApp() {
             />
           }
           toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
-          viewerContext={
-            <ViewerContextBar
-              context={viewerContext}
-              actions={
-                selectedMeasurement
-                  ? [
-                      ...(measurementDetailsOpen
-                        ? []
-                        : [
-                            {
-                              label: "Details",
-                              onClick: openMeasurementDetails,
-                            },
-                          ]),
-                      {
-                        label: "Duplicate",
-                        disabled: duplicateDisabled,
-                        onClick: () => duplicateSelectedMeasurement(selectedMeasurement.id),
-                      },
-                    ]
-                  : []
-              }
+          contextToolbar={
+            <ContextToolbar
+              selectedMeasurementName={selectedMeasurement?.name ?? null}
+              duplicateDisabled={duplicateDisabled}
+              referenceEditValid={calibrationReferenceEditIsValid}
+              measurementEditActive={measurementEditActive}
+              onDuplicateSelectedMeasurement={() => {
+                if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
+              }}
+              onOpenMeasurementDetails={openMeasurementDetails}
+              onExitDrawingTool={() => chooseTool("select")}
+              onCancelCalibration={cancelCalibration}
+              onCancelReferenceEdit={cancelCalibrationReferenceEdit}
+              onSaveReferenceEdit={requestCalibrationReferenceEditSave}
             />
           }
           viewer={
@@ -866,13 +846,6 @@ function PlanMeasureApp() {
                   }
                   updateCalibrationCandidate(selectCalibrationReference(flow, points));
                 }}
-                calibrationReferenceLabel={
-                  calibrationFlow?.mode === "xy"
-                    ? calibrationFlow.phase === "y"
-                      ? "Y"
-                      : "X"
-                    : undefined
-                }
                 onCalibrationCancel={cancelCalibration}
                 calibrationReferenceEdit={
                   calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
@@ -887,7 +860,6 @@ function PlanMeasureApp() {
                 measurementEditingBlocked={Boolean(calibrationFlow || calibrationCandidate)}
                 onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
                 onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
-                onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
               />
             </Suspense>
           }

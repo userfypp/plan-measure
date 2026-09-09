@@ -3,16 +3,18 @@ import {
   ViewerNavigationProvider,
   type ViewerNavigationModel,
 } from "../features/viewer/ViewerNavigation";
+import { ViewerInteractionCommandsProvider } from "../features/viewer/ViewerInteractionCommands";
 import { ViewerBottomExclusionProvider } from "../features/viewer/viewerLayout";
 import { ViewerDockContainer } from "./ViewerDockContainer";
 import styles from "./ViewerShell.module.css";
 
 interface ViewerShellProps {
   children?: ReactNode;
-  contextBar?: ReactNode;
+  toolRail?: ReactNode;
+  contextToolbar?: ReactNode;
 }
 
-export function ViewerShell({ children, contextBar }: ViewerShellProps) {
+export function ViewerShell({ children, toolRail, contextToolbar }: ViewerShellProps) {
   const [navigation, setNavigation] = useState<
     Pick<ViewerNavigationModel, "pageNumber" | "pageCount" | "zoom"> | null
   >(null);
@@ -70,28 +72,31 @@ export function ViewerShell({ children, contextBar }: ViewerShellProps) {
 
   return (
     <section className={styles.viewerShell} aria-label="PDF viewer" data-layout-slot="viewer">
-      <div className={styles.contextBar}>{contextBar}</div>
-      <div className={styles.viewerFrame} ref={viewerFrameRef}>
-        <ViewerBottomExclusionProvider bottomExclusion={dockBottomExclusion}>
-          <ViewerNavigationProvider registerNavigation={registerNavigation}>
-            <div className={styles.viewerSurface}>{children}</div>
-          </ViewerNavigationProvider>
-        </ViewerBottomExclusionProvider>
-        {navigation && (
-          <div className={styles.dock} ref={dockRef}>
-            <ViewerDockContainer
-              navigation={{
-                ...navigation,
-                onPageChange: (pageNumber) =>
-                  navigationActionsRef.current?.onPageChange(pageNumber),
-                onZoomIn: () => navigationActionsRef.current?.onZoomIn(),
-                onZoomOut: () => navigationActionsRef.current?.onZoomOut(),
-                onFit: () => navigationActionsRef.current?.onFit(),
-              }}
-            />
-          </div>
-        )}
-      </div>
+      <ViewerInteractionCommandsProvider>
+        <div className={styles.viewerFrame} ref={viewerFrameRef}>
+          {toolRail}
+          {contextToolbar}
+          <ViewerBottomExclusionProvider bottomExclusion={dockBottomExclusion}>
+            <ViewerNavigationProvider registerNavigation={registerNavigation}>
+              <div className={styles.viewerSurface}>{children}</div>
+            </ViewerNavigationProvider>
+          </ViewerBottomExclusionProvider>
+          {navigation && (
+            <div className={styles.dock} ref={dockRef}>
+              <ViewerDockContainer
+                navigation={{
+                  ...navigation,
+                  onPageChange: (pageNumber) =>
+                    navigationActionsRef.current?.onPageChange(pageNumber),
+                  onZoomIn: () => navigationActionsRef.current?.onZoomIn(),
+                  onZoomOut: () => navigationActionsRef.current?.onZoomOut(),
+                  onFit: () => navigationActionsRef.current?.onFit(),
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </ViewerInteractionCommandsProvider>
     </section>
   );
 }

@@ -11,16 +11,6 @@ export interface SafeViewerLayout {
   center: Point | null;
 }
 
-export function viewerOverlayBottom(
-  bottomExclusion: number,
-  viewerHeight = Number.POSITIVE_INFINITY,
-  defaultBottom = 14,
-  gap = 8,
-): number {
-  const desiredBottom = Math.max(defaultBottom, Math.max(0, bottomExclusion) + gap);
-  return Math.min(Math.max(0, viewerHeight), desiredBottom);
-}
-
 export function safeViewerLayout(
   viewerSize: ViewerSize,
   bottomExclusion: number,

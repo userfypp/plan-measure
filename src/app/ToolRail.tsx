@@ -8,19 +8,19 @@ import {
   type ToolAvailabilityMap,
   type ToolDefinition,
 } from "../features/viewer/toolRegistry";
+import type { Tool } from "../types/domain";
 import { useWorkspaceState } from "./workspaceState";
 import styles from "./ToolRail.module.css";
 
-type DrawingAid = "orthogonal" | "snap";
-type RailTool = Exclude<ToolDefinition["id"], DrawingAid>;
+type PrimaryTool = Exclude<Tool, "calibrate">;
 
 interface ToolRailProps {
   toolAvailability: ToolAvailabilityMap;
-  onChooseTool: (tool: RailTool) => void;
+  onChooseTool: (tool: PrimaryTool) => void;
 }
 
 export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
-  const { activeTool, orthogonal, snap, toggleOrthogonal, toggleSnap } = useWorkspaceState();
+  const { activeTool } = useWorkspaceState();
   const [rovingToolId, setRovingToolId] = useState<ToolDefinition["id"]>("select");
   const focusedToolIsAvailable = toolRailRegistry.some(
     (definition) =>
@@ -30,10 +30,9 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const currentRovingToolId = focusedToolIsAvailable ? rovingToolId : "select";
 
   function handleToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const horizontalStep = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : null;
     const isVerticalNavigation = event.key === "ArrowUp" || event.key === "ArrowDown";
     const isBoundaryNavigation = event.key === "Home" || event.key === "End";
-    if (horizontalStep === null && !isVerticalNavigation && !isBoundaryNavigation) return;
+    if (!isVerticalNavigation && !isBoundaryNavigation) return;
 
     const buttons = Array.from(
       event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]"),
@@ -73,14 +72,6 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
       }
     }
 
-    if (!nextButton && horizontalStep !== null) {
-      let nextIndex = activeIndex;
-      do {
-        nextIndex = (nextIndex + horizontalStep + buttons.length) % buttons.length;
-      } while (buttons[nextIndex]?.disabled && nextIndex !== activeIndex);
-      nextButton = buttons[nextIndex];
-    }
-
     if (!nextButton) return;
     event.preventDefault();
     setRovingToolId(nextButton.dataset.toolId as ToolDefinition["id"]);
@@ -93,18 +84,16 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
         className={styles.tools}
         role="toolbar"
         aria-label="Drawing tools"
+        aria-orientation="vertical"
         onKeyDown={handleToolbarKeyDown}
       >
         {toolRailRegistry.map((definition) => {
-          const isOrthogonal = definition.id === "orthogonal";
-          const isSnap = definition.id === "snap";
-          const isDrawingAid = isOrthogonal || isSnap;
-          const tool = isDrawingAid ? null : (definition.id as RailTool);
+          const tool = definition.id as PrimaryTool;
           const { disabled, disabledReason } = getToolAvailabilityState(
             definition,
             toolAvailability,
           );
-          const active = isOrthogonal ? orthogonal : isSnap ? snap : activeTool === tool;
+          const active = activeTool === tool;
           const shortcut = definition.shortcut ? ` (${definition.shortcut})` : "";
 
           return (
@@ -127,22 +116,12 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                 disabled={disabled}
                 onFocus={() => setRovingToolId(definition.id)}
                 onClick={() => {
-                  if (isOrthogonal) {
-                    toggleOrthogonal();
-                  } else if (isSnap) {
-                    toggleSnap();
-                  } else if (tool) {
-                    if (!active) onChooseTool(tool);
-                  }
+                  if (!active) onChooseTool(tool);
                 }}
               >
                 <span className={styles.icon} aria-hidden="true">
                   <ToolIcon name={definition.icon} />
                 </span>
-                <span className={styles.label}>{definition.label}</span>
-                {definition.shortcut && (
-                  <kbd className={styles.shortcut}>{definition.shortcut}</kbd>
-                )}
               </button>
             </Tooltip>
           );

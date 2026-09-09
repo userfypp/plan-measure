@@ -5,7 +5,7 @@ import { WorkspaceShell } from "./WorkspaceShell";
 const noop = () => undefined;
 
 describe("WorkspaceShell layout", () => {
-  it("renders one Workspace Panel to the left of the existing tool rail and viewer", () => {
+  it("renders one Workspace Panel while the compact tool rail is owned by the viewer", () => {
     const markup = renderToStaticMarkup(
       <WorkspaceShell
         dragActive={false}
@@ -20,7 +20,7 @@ describe("WorkspaceShell layout", () => {
     );
 
     expect(markup).toContain('data-layout-slot="workspace-panel-host"');
-    expect(markup).toContain('data-layout-slot="left-rail"');
+    expect(markup).not.toContain('data-layout-slot="left-rail"');
     expect(markup).not.toContain("selection-inspector");
     expect(markup).not.toContain("secondary-panel");
     expect(markup).toContain("Workspace panel");
