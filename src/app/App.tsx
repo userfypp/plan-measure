@@ -86,7 +86,6 @@ function PlanMeasureApp() {
     updatePage,
     addCalibration,
     recalibrateCalibration,
-    setActiveCalibration,
     updateCalibration,
     pasteMeasurement,
     renameMeasurement,
@@ -714,22 +713,7 @@ function PlanMeasureApp() {
             tone: "active",
           }
         : { label: "Ready", tone: "neutral" };
-  const viewerContext: ViewerContextData = {
-    scale: activeCalibration
-      ? {
-          id: activeCalibration.id,
-          name: activeCalibration.name,
-          modeLabel: activeCalibration.mode === "uniform" ? "Uniform" : "X/Y correction",
-          options:
-            currentPage?.calibrations.map((calibration) => ({
-              id: calibration.id,
-              name: calibration.name,
-            })) ?? [],
-          disabled: calibrationActionsDisabled,
-        }
-      : null,
-    workflow: workflowContext,
-  };
+  const viewerContext: ViewerContextData = { workflow: workflowContext };
   const canCreateMeasurements = Boolean(activeCalibration) && !calibrationReferenceEdit;
   const measurementToolDisabledReason = calibrationReferenceEdit
     ? "Finish or cancel the scale reference edit first"
@@ -786,9 +770,6 @@ function PlanMeasureApp() {
                     }
                   : null
               }
-              onScaleChange={(calibrationId) => {
-                if (currentPage) setActiveCalibration(currentPage.pageNumber, calibrationId);
-              }}
             />
           }
           viewer={

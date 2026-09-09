@@ -15,6 +15,7 @@ import {
   type ViewerNavigationModel,
   type ViewerNavigationRegistration,
 } from "./ViewerNavigation";
+import { ViewerBottomExclusionProvider } from "./viewerLayout";
 
 const pdfJs = vi.hoisted(() => ({
   getDocument: vi.fn(),
@@ -203,37 +204,41 @@ interface ViewerHarnessProps {
   document: PDFDocumentProxy;
   page?: PageState;
   registerNavigation?: ViewerNavigationRegistration;
+  bottomExclusion?: number;
 }
 
 function ViewerHarness({
   document,
   page = createPageState(1),
   registerNavigation = noop,
+  bottomExclusion = 0,
 }: ViewerHarnessProps) {
   return (
     <AppProvider>
       <ErrorProbe />
       <SessionProvider>
         <WorkspaceProvider>
-          <ViewerNavigationProvider registerNavigation={registerNavigation}>
-            <PdfViewer
-              document={document}
-              page={page}
-              onPageChange={noop}
-              onPageBoundsChange={noop}
-              onViewZoomChange={noop}
-              activeMeasurementEditId={null}
-              onMeasurementEditActiveChange={noop}
-              onChooseTool={noop}
-              onCalibrationCandidate={noop}
-              onCalibrationCancel={noop}
-              calibrationReferenceEdit={null}
-              measurementEditingBlocked={false}
-              onCalibrationReferencePointsChange={noop}
-              onCalibrationReferenceEditCancel={noop}
-              onCalibrationReferenceEditSave={noop}
-            />
-          </ViewerNavigationProvider>
+          <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
+            <ViewerNavigationProvider registerNavigation={registerNavigation}>
+              <PdfViewer
+                document={document}
+                page={page}
+                onPageChange={noop}
+                onPageBoundsChange={noop}
+                onViewZoomChange={noop}
+                activeMeasurementEditId={null}
+                onMeasurementEditActiveChange={noop}
+                onChooseTool={noop}
+                onCalibrationCandidate={noop}
+                onCalibrationCancel={noop}
+                calibrationReferenceEdit={null}
+                measurementEditingBlocked={false}
+                onCalibrationReferencePointsChange={noop}
+                onCalibrationReferenceEditCancel={noop}
+                onCalibrationReferenceEditSave={noop}
+              />
+            </ViewerNavigationProvider>
+          </ViewerBottomExclusionProvider>
         </WorkspaceProvider>
       </SessionProvider>
     </AppProvider>
@@ -299,6 +304,7 @@ describe("PdfViewer render liveness", () => {
       page?: PageState;
       registerNavigation?: ViewerNavigationRegistration;
       strict?: boolean;
+      bottomExclusion?: number;
     } = {},
   ) {
     const content = (
@@ -306,6 +312,7 @@ describe("PdfViewer render liveness", () => {
         document={document}
         page={options.page}
         registerNavigation={options.registerNavigation}
+        bottomExclusion={options.bottomExclusion}
       />
     );
     await act(async () => {
@@ -468,6 +475,31 @@ describe("PdfViewer render liveness", () => {
 
     expect(canvas().style.visibility).toBe("visible");
     expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toBe("");
+  });
+
+  it("keeps Fit and programmatic zoom inert when the Dock exclusion leaves no safe viewport", async () => {
+    viewerRect = rect(320, 40);
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    const registerNavigation: ViewerNavigationRegistration = (next) => {
+      navigation = next;
+    };
+
+    await mountViewer(runtime.document, { registerNavigation, bottomExclusion: 40 });
+    expect(pdfPage.render).toHaveBeenCalledTimes(1);
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBe(1);
+
+    await act(async () => navigation?.onFit());
+    await act(async () => navigation?.onZoomIn());
+    await act(async () => navigation?.onZoomOut());
+
+    expect(pdfPage.render).toHaveBeenCalledTimes(1);
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBe(1);
+    expect(canvas().style.left).not.toMatch(/NaN|Infinity/);
+    expect(canvas().style.top).not.toMatch(/NaN|Infinity/);
+    expect(canvas().style.width).not.toMatch(/NaN|Infinity/);
+    expect(canvas().style.height).not.toMatch(/NaN|Infinity/);
   });
 
   it("ignores a stale completion after replacing the document and page while rendering", async () => {

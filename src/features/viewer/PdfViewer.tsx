@@ -67,6 +67,11 @@ import {
   resolveDrawingPreview,
 } from "./snapping";
 import { useViewerNavigationRegistration } from "./ViewerNavigation";
+import {
+  safeViewerLayout,
+  useViewerBottomExclusion,
+  viewerOverlayBottom,
+} from "./viewerLayout";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
 
@@ -129,6 +134,7 @@ export function PdfViewer({
 }: PdfViewerProps) {
   const { setError } = useAppState();
   const onNavigationChange = useViewerNavigationRegistration();
+  const viewerBottomExclusion = useViewerBottomExclusion();
   const { session, addMeasurement } = useSessionState();
   const {
     activeTool,
@@ -186,6 +192,12 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+  const safeViewer = useMemo(
+    () => safeViewerLayout(viewerSize, viewerBottomExclusion),
+    [viewerBottomExclusion, viewerSize],
+  );
+  const transientStatusBottom = viewerOverlayBottom(viewerBottomExclusion, viewerSize.height);
+  const safeViewerCenterRef = useRef<Point | null>(safeViewer.center);
 
   const clearSnapFeedback = useCallback(() => {
     pendingDraftPointerRef.current = null;
@@ -248,7 +260,6 @@ export function PdfViewer({
   const activeToolRef = useRef(activeTool);
   const workspaceDraftRef = useRef(workspaceDraft);
   const clearDraftRef = useRef(clearDraft);
-  const viewerSizeRef = useRef(viewerSize);
   const onCalibrationCancelRef = useRef(onCalibrationCancel);
   const onChooseToolRef = useRef(onChooseTool);
   const completePathRef = useRef(completePath);
@@ -259,7 +270,7 @@ export function PdfViewer({
     activeToolRef.current = activeTool;
     workspaceDraftRef.current = workspaceDraft;
     clearDraftRef.current = clearDraft;
-    viewerSizeRef.current = viewerSize;
+    safeViewerCenterRef.current = safeViewer.center;
     onCalibrationCancelRef.current = onCalibrationCancel;
     onChooseToolRef.current = onChooseTool;
     completePathRef.current = completePath;
@@ -277,6 +288,7 @@ export function PdfViewer({
     activeTool,
     workspaceDraft,
     viewerSize,
+    safeViewer.center,
   ]);
 
   const bounds = pageRenderData?.bounds ?? null;
@@ -393,18 +405,18 @@ export function PdfViewer({
   }, [document, onPageBoundsChange, page.pageNumber, setError]);
 
   useEffect(() => {
-    if (!bounds || viewerSize.width <= 0 || viewerSize.height <= 0 || !fitMode) return;
+    if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0 || !fitMode) return;
     // The view transform intentionally follows ResizeObserver output while fit mode is active.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    commitTransform(fitToScreen(bounds, viewerSize));
-  }, [bounds, viewerSize, fitMode, commitTransform]);
+    commitTransform(fitToScreen(bounds, safeViewer.size));
+  }, [bounds, safeViewer.size, fitMode, commitTransform]);
 
   const viewTransform = useMemo(
     () =>
-      bounds && viewerSize.width > 0 && viewerSize.height > 0 && fitMode
-        ? fitToScreen(bounds, viewerSize)
+      bounds && safeViewer.size.width > 0 && safeViewer.size.height > 0 && fitMode
+        ? fitToScreen(bounds, safeViewer.size)
         : transform,
-    [bounds, fitMode, transform, viewerSize],
+    [bounds, fitMode, safeViewer.size, transform],
   );
 
   useEffect(() => {
@@ -531,15 +543,15 @@ export function PdfViewer({
   );
 
   const fitPage = useCallback(() => {
-    if (!bounds) return;
+    if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0) return;
     cancelActiveWholeMeasurementDrag();
     cancelActiveVertexDrag();
     clearSnapFeedback();
     setFitMode(true);
-    commitTransform(fitToScreen(bounds, viewerSize));
+    commitTransform(fitToScreen(bounds, safeViewer.size));
   }, [
     bounds,
-    viewerSize,
+    safeViewer.size,
     cancelActiveWholeMeasurementDrag,
     cancelActiveVertexDrag,
     clearSnapFeedback,
@@ -563,10 +575,12 @@ export function PdfViewer({
       pageCount: session?.pageCount ?? 1,
       zoom: viewTransform.zoom,
       onPageChange: changePage,
-      onZoomOut: () =>
-        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP),
-      onZoomIn: () =>
-        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, VIEWER_ZOOM_STEP),
+      onZoomOut: () => {
+        if (safeViewer.center) zoomAround(safeViewer.center, 1 / VIEWER_ZOOM_STEP);
+      },
+      onZoomIn: () => {
+        if (safeViewer.center) zoomAround(safeViewer.center, VIEWER_ZOOM_STEP);
+      },
       onFit: fitPage,
     });
   }, [
@@ -577,7 +591,7 @@ export function PdfViewer({
     page.pageNumber,
     session?.pageCount,
     viewTransform.zoom,
-    viewerSize,
+    safeViewer.center,
     zoomAround,
   ]);
 
@@ -607,9 +621,10 @@ export function PdfViewer({
         clearSnapFeedback();
         setSpacePan(true);
       } else if (action === "zoom-in" || action === "zoom-out") {
-        const size = viewerSizeRef.current;
+        const safeCenter = safeViewerCenterRef.current;
+        if (!safeCenter) return;
         zoomAround(
-          { x: size.width / 2, y: size.height / 2 },
+          safeCenter,
           action === "zoom-in" ? VIEWER_ZOOM_STEP : 1 / VIEWER_ZOOM_STEP,
         );
       } else if (action === "cancel-calibration") {
@@ -1163,7 +1178,7 @@ export function PdfViewer({
         )}
         {!showPage && <div className={styles.loading}>Rendering page…</div>}
         {calibrationReferenceEdit && (
-          <div className={styles.drawingStatus}>
+          <div className={styles.drawingStatus} style={{ bottom: transientStatusBottom }}>
             <span>
               Editing{" "}
               {calibrationReferenceEdit.reference === "uniform"
@@ -1186,7 +1201,7 @@ export function PdfViewer({
           </div>
         )}
         {workspaceDraft?.type === "path" && workspaceDraft.measurementType !== "line" && (
-          <div className={styles.drawingStatus}>
+          <div className={styles.drawingStatus} style={{ bottom: transientStatusBottom }}>
             <span>
               {workspaceDraft.points.length} vertices ·{" "}
               {workspaceDraft.measurementType === "polygon"
@@ -1199,7 +1214,7 @@ export function PdfViewer({
           </div>
         )}
         {activeTool === "calibrate" && workspaceDraft?.type !== "path" && (
-          <div className={styles.drawingStatus}>
+          <div className={styles.drawingStatus} style={{ bottom: transientStatusBottom }}>
             <span>
               Select two points for the{" "}
               {calibrationReferenceLabel

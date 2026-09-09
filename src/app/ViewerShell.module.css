@@ -3,15 +3,22 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-viewer);
 }
 
 .contextBar,
+.viewerFrame,
 .viewerSurface {
   min-width: 0;
   min-height: 0;
+}
+
+.viewerFrame {
+  position: relative;
+  display: grid;
+  overflow: hidden;
 }
 
 .viewerSurface {
@@ -24,7 +31,16 @@
   min-height: 0;
 }
 
-.navigation {
-  min-width: 0;
-  min-height: 0;
+.dock {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: var(--geometry-viewer-dock-bottom-inset);
+  width: calc(100% - var(--space-24));
+  max-width: calc(100% - var(--space-24));
+  display: flex;
+  justify-content: center;
+  container-type: inline-size;
+  pointer-events: none;
+  transform: translateX(-50%);
 }

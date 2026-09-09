@@ -1,0 +1,321 @@
+.dock {
+  width: max-content;
+  min-width: 0;
+  min-height: var(--geometry-viewer-dock-height);
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--geometry-viewer-dock-gap);
+  padding: var(--geometry-viewer-dock-padding);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-overlay);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  pointer-events: auto;
+}
+
+.group {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--geometry-viewer-dock-gap);
+}
+
+.iconButton {
+  width: var(--target-current);
+  min-width: var(--target-current);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.iconButton svg,
+.scaleTrigger svg,
+.viewTrigger svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.pageValue,
+.zoomValue {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pageValue {
+  min-width: 48px;
+}
+
+.zoomValue {
+  min-width: 44px;
+}
+
+.separator {
+  width: var(--border-width);
+  height: 20px;
+  flex: 0 0 auto;
+  margin-inline: var(--space-4);
+  background: var(--color-divider);
+}
+
+.scaleTrigger,
+.viewTrigger {
+  min-height: var(--target-current);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.scaleTrigger:hover:not(:disabled),
+.viewTrigger:hover:not(:disabled) {
+  background: var(--color-surface-field);
+}
+
+.scaleTrigger:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.scaleTrigger {
+  min-width: 0;
+  width: min(220px, 30vw);
+  max-width: min(280px, 34vw);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-8);
+  text-align: left;
+}
+
+.scaleTriggerText,
+.scaleMenuLabel,
+.toggleText {
+  min-width: 0;
+  display: grid;
+}
+
+.scaleTriggerText strong,
+.scaleTriggerText small,
+.scaleMenuLabel strong,
+.scaleMenuLabel small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scaleTriggerText strong,
+.scaleMenuLabel strong {
+  color: inherit;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+}
+
+.scaleTriggerText small,
+.scaleMenuLabel small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+}
+
+.scaleMetadata {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.scaleRatio {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.scaleMenuLabel {
+  min-width: 180px;
+  gap: 1px;
+}
+
+.viewTrigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-8);
+}
+
+.viewTriggerContent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.viewPopover {
+  width: min(280px, calc(100vw - var(--space-24)));
+  padding: var(--space-12);
+}
+
+.viewOptions {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.menuHeader {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+
+.menuHeader strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+}
+
+.menuHeader span,
+.toggleText small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.unit,
+.toggle {
+  min-height: var(--target-current);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.unit select {
+  width: 118px;
+  min-height: var(--target-current);
+  padding-inline: var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-panel);
+  color: var(--color-text-primary);
+}
+
+.unit select:focus-visible,
+.toggle input:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.toggle:hover {
+  background: var(--color-surface-field);
+}
+
+.toggleText {
+  gap: 1px;
+}
+
+.toggleText strong {
+  font-size: var(--font-size-secondary);
+}
+
+.toggle input {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin: 0;
+  appearance: none;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+  cursor: pointer;
+}
+
+.toggle input::before {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  content: "";
+}
+
+.toggle input:checked {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.toggle input:checked::before {
+  transform: translateX(16px);
+}
+
+.menuDivider {
+  height: var(--border-width);
+  background: var(--color-divider);
+}
+
+@media (any-pointer: coarse) {
+  .dock {
+    min-height: var(--geometry-viewer-dock-height-coarse);
+  }
+}
+
+@container (max-width: 600px) {
+  .scaleTrigger {
+    width: 128px;
+  }
+
+  .scaleMetadata {
+    display: none;
+  }
+}
+
+@container (max-width: 500px) {
+  .dock,
+  .group {
+    gap: 2px;
+  }
+
+  .separator {
+    margin-inline: 2px;
+  }
+
+  .zoomValue {
+    display: none;
+  }
+
+  .scaleTrigger {
+    width: 104px;
+  }
+
+  .viewLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .viewTrigger {
+    width: var(--target-current);
+    justify-content: center;
+    padding: 0;
+  }
+}

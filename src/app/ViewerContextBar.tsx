@@ -8,13 +8,6 @@ export interface ViewerContextAction {
 }
 
 export interface ViewerContextData {
-  scale: {
-    id: string;
-    name: string;
-    modeLabel: string;
-    options: Array<{ id: string; name: string }>;
-    disabled?: boolean;
-  } | null;
   workflow: {
     label: string;
     tone: "neutral" | "active" | "warning";
@@ -24,40 +17,14 @@ export interface ViewerContextData {
 export function ViewerContextBar({
   context,
   action = null,
-  onScaleChange,
 }: {
   context: ViewerContextData;
   action?: ViewerContextAction | null;
-  onScaleChange: (scaleId: string) => void;
 }) {
+  if (context.workflow.tone === "neutral" && !action) return null;
+
   return (
     <div className={styles.contextBar} aria-label="Viewer context">
-      <div className={styles.contextItem}>
-        {context.scale ? (
-          <div className={styles.scaleValue}>
-            <span className={styles.selectWrapper}>
-              <select
-                aria-label="Active scale"
-                value={context.scale.id}
-                disabled={context.scale.disabled}
-                onChange={(event) => onScaleChange(event.target.value)}
-              >
-                {context.scale.options.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            </span>
-            <small>{context.scale.modeLabel}</small>
-          </div>
-        ) : (
-          <span className={`${styles.value} ${styles.warning}`} role="status">
-            No active scale
-          </span>
-        )}
-      </div>
-
       {context.workflow.tone !== "neutral" && (
         <div className={styles.contextItem}>
           <span className={`${styles.value} ${styles[context.workflow.tone]}`} role="status">
