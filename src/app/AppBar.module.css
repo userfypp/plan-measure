@@ -56,6 +56,7 @@
 
 .openAction,
 .exportAction,
+.feedbackAction,
 .iconTrigger {
   min-height: var(--target-current);
 }
@@ -70,6 +71,36 @@
   border-color: transparent;
   background: var(--color-surface-field);
   color: var(--color-text-primary);
+}
+
+.feedbackAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-12);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.feedbackAction:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.feedbackAction:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.feedbackAction:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .exportAction:hover:not(:disabled) {
@@ -118,11 +149,6 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.5;
-}
-
-.iconTrigger svg.moreIcon {
-  fill: currentColor;
-  stroke: none;
 }
 
 @media (any-pointer: coarse) {

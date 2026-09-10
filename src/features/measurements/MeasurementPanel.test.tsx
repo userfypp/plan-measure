@@ -1,3 +1,5 @@
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Measurement, PageState } from "../../types/domain";
@@ -11,6 +13,10 @@ import {
   getMeasurementEmptyMessage,
   shouldRenderMeasurement,
 } from "./measurementViewModels";
+
+const measurementPanelCss = readFileSync(new URL("./MeasurementPanel.module.css", import.meta.url), "utf8");
+const measurementGroupCss = readFileSync(new URL("./MeasurementGroup.module.css", import.meta.url), "utf8");
+const measurementRowCss = readFileSync(new URL("./MeasurementRow.module.css", import.meta.url), "utf8");
 
 const measurement: Measurement = {
   id: "line-1",
@@ -208,9 +214,48 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-label="Select measurement Hallway"');
   });
+
+  it("keeps Polygon perimeter and area values intact while exposing them as compact quantity lines", () => {
+    const polygon: Measurement = {
+      ...measurement,
+      id: "polygon-1",
+      type: "polygon",
+      name: "Room",
+      points: [...measurement.points, { x: 10, y: 10 }],
+    };
+    const model = createMeasurementViewModel(page, polygon, "m", false);
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={model}
+        onSelectMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+      />,
+    );
+
+    const quantityParts = model.valueLabel.split(" · ");
+    expect(quantityParts).toHaveLength(2);
+    expect(markup).toContain(`>${quantityParts[0]}<`);
+    expect(markup).toContain(`>${quantityParts[1]}<`);
+    expect(markup.indexOf(model.name)).toBeLessThan(markup.indexOf(quantityParts[0]!));
+    expect(markup.indexOf(quantityParts[0]!)).toBeLessThan(markup.indexOf(model.typeLabel));
+  });
+
+  it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
+    expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
+    expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
+    expect(measurementRowCss).toMatch(
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+  });
 });
 
 describe("measurement grouping surfaces", () => {
+  it("binds the existing responsive group rule to a real component-scoped container", () => {
+    expect(measurementPanelCss).toContain("container-name: measurement-panel");
+    expect(measurementPanelCss).toContain("container-type: inline-size");
+    expect(measurementGroupCss).toContain("@container measurement-panel (max-width: 330px)");
+  });
+
   it("keeps Group by out of the header when the catalog has no dimensions", () => {
     const markup = renderToStaticMarkup(
       <MeasurementsHeader

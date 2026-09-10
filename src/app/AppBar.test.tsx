@@ -137,7 +137,16 @@ describe("AppBar", () => {
     expect(callbacks.onOpenPdf).toHaveBeenCalledOnce();
     expect(callbacks.onExport).toHaveBeenCalledOnce();
     expect(buttonByLabel("Settings")).toBeTruthy();
-    expect(buttonByLabel("More actions")).toBeTruthy();
+    expect(document.querySelector('button[aria-label="More actions"]')).toBeNull();
+    expect(
+      Array.from(container!.querySelectorAll<HTMLButtonElement | HTMLAnchorElement>("header button, header a")).map(
+        (action) => action.textContent?.trim() || action.getAttribute("aria-label"),
+      ),
+    ).toEqual(["Open PDF", "Export", "Feedback", "Settings"]);
+    const feedback = container?.querySelector<HTMLAnchorElement>('a[href="https://github.com/userfypp/plan-measure/discussions/1"]');
+    expect(feedback?.textContent).toBe("Feedback");
+    expect(feedback?.target).toBe("_blank");
+    expect(feedback?.rel).toBe("noopener noreferrer");
   });
 
   it("exposes System, Light, and Dark through the ThemeProvider with radio semantics", () => {
@@ -197,33 +206,24 @@ describe("AppBar", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("moves Feedback into the bounded global More menu and keeps its destination", () => {
+  it("keeps Feedback first-level with its destination and removes the empty More menu", () => {
     renderAppBar();
-    const trigger = buttonByLabel("More actions");
-    act(() => trigger.click());
-
-    const moreMenu = document.querySelector('[role="menu"][aria-label="More actions"]');
-    const items = Array.from(moreMenu?.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]') ?? []);
-    expect(items).toHaveLength(1);
-    expect(items[0]?.textContent).toContain("Feedback");
-    expect(items[0]?.href).toBe("https://github.com/userfypp/plan-measure/discussions/1");
-    expect(items[0]?.target).toBe("_blank");
-    expect(items[0]?.rel).toBe("noopener noreferrer");
-
-    items[0]?.addEventListener("click", (event) => event.preventDefault(), { once: true });
-    act(() => {
-      items[0]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    });
-    expect(document.querySelector('[role="menu"][aria-label="More actions"]')).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    const feedback = container?.querySelector<HTMLAnchorElement>("a");
+    expect(feedback?.textContent).toBe("Feedback");
+    expect(feedback?.href).toBe("https://github.com/userfypp/plan-measure/discussions/1");
+    expect(feedback?.target).toBe("_blank");
+    expect(feedback?.rel).toBe("noopener noreferrer");
+    expect(buttonByLabel("Settings")).toBeTruthy();
+    expect(document.querySelector('button[aria-label="More actions"]')).toBeNull();
   });
 
-  it("keeps Export unavailable before a document is open while retaining global Settings and More", () => {
+  it("keeps Export unavailable before a document is open while retaining Feedback and Settings", () => {
     renderAppBar({ documentName: null, canExport: false });
 
     expect(container?.textContent).toContain("No PDF loaded");
     expect(container?.textContent).not.toContain("Export");
+    expect(container?.textContent).toContain("Feedback");
     expect(buttonByLabel("Settings")).toBeTruthy();
-    expect(buttonByLabel("More actions")).toBeTruthy();
+    expect(document.querySelector('button[aria-label="More actions"]')).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 .dock {
-  width: max-content;
+  width: fit-content;
   min-width: 0;
   min-height: var(--geometry-viewer-dock-height);
   max-width: 100%;
@@ -14,14 +14,8 @@
   box-shadow: var(--shadow-overlay);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-secondary);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   pointer-events: auto;
-  scrollbar-width: none;
-}
-
-.dock::-webkit-scrollbar {
-  display: none;
 }
 
 .group {
@@ -115,14 +109,44 @@
 }
 
 .scaleTrigger {
+  position: relative;
   min-width: var(--target-current);
-  width: min(220px, 30vw);
-  max-width: min(280px, 34vw);
+  width: auto;
+  max-width: min(220px, 30vw);
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
   gap: var(--space-8);
   padding: 0 var(--space-8);
   text-align: left;
+}
+
+.scaleFullName {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(100% + var(--space-8));
+  left: 50%;
+  max-width: min(320px, calc(100vw - var(--space-24)));
+  padding: var(--space-4) var(--space-8);
+  visibility: hidden;
+  opacity: 0;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: normal;
+}
+
+.scaleTrigger:not([aria-disabled="true"]):hover .scaleFullName,
+.scaleTrigger:not([aria-disabled="true"]):focus-visible .scaleFullName {
+  visibility: visible;
+  opacity: 1;
 }
 
 .scaleTriggerText,
@@ -301,7 +325,7 @@
 
 @container (max-width: 600px) {
   .scaleTrigger {
-    width: 128px;
+    max-width: 128px;
   }
 
   .scaleMetadata {
@@ -324,7 +348,7 @@
   }
 
   .scaleTrigger {
-    width: 88px;
+    max-width: 88px;
   }
 
   .viewLabel {
@@ -341,5 +365,43 @@
     width: var(--target-current);
     justify-content: center;
     padding: 0;
+  }
+}
+
+@container (max-width: 460px) {
+  .dock,
+  .group {
+    gap: 2px;
+  }
+
+  .pageValue,
+  .separator {
+    display: none;
+  }
+
+  .scaleTrigger {
+    max-width: 72px;
+  }
+}
+
+@container (max-width: 360px) {
+  .dock {
+    gap: 1px;
+    padding-inline: 2px;
+  }
+
+  .group {
+    gap: 0;
+  }
+
+  .scaleTrigger {
+    max-width: var(--target-current);
+    gap: 0;
+    padding-inline: calc((var(--target-current) - var(--geometry-icon-size)) / 2);
+  }
+
+  .scaleTriggerText {
+    width: 0;
+    overflow: hidden;
   }
 }

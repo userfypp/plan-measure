@@ -205,6 +205,11 @@ export function ViewerDock({
               )}
             </span>
             <DisclosureIcon />
+            {activeCalibration && (
+              <span className={styles.scaleFullName} data-scale-full-name aria-hidden="true">
+                {activeCalibration.name}
+              </span>
+            )}
           </>
         }
         triggerProps={{

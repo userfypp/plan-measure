@@ -1,5 +1,7 @@
 /* @vitest-environment jsdom */
 
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +13,8 @@ import {
 } from "../../app/sessionState";
 import type { PageCalibration } from "../../types/domain";
 import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
+
+const dockCss = readFileSync("src/features/viewer/ViewerDock.module.css", "utf8");
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -130,6 +134,10 @@ describe("ViewerDock", () => {
 
     expect(trigger.textContent).toContain("Ground floor");
     expect(trigger.textContent).toContain("1:100 · Uniform");
+    expect(trigger.getAttribute("aria-label")).toContain("Ground floor");
+    expect(trigger.querySelector<HTMLElement>("[data-scale-full-name]")?.textContent).toBe(
+      "Ground floor",
+    );
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
     act(() => trigger.click());
@@ -145,12 +153,40 @@ describe("ViewerDock", () => {
     expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 
+  it("keeps every essential Dock command present for deterministic visual condensation", () => {
+    renderDock(createProps());
+
+    expect(buttonByLabel("Previous page")).toBeTruthy();
+    expect(buttonByLabel("Next page")).toBeTruthy();
+    expect(buttonByLabel("Zoom out")).toBeTruthy();
+    expect(buttonByLabel("Zoom in")).toBeTruthy();
+    expect(buttonByLabel("Fit page to viewer")).toBeTruthy();
+    expect(activeScaleTrigger()).toBeTruthy();
+    expect(buttonByLabel("View options")).toBeTruthy();
+  });
+
+  it("uses bounded content sizing and deterministic condensation instead of hidden scrolling", () => {
+    expect(dockCss).toContain("width: fit-content");
+    expect(dockCss).toContain("width: auto");
+    expect(dockCss).toContain("max-width: min(220px, 30vw)");
+    expect(dockCss).not.toContain("overflow-x: auto");
+    expect(dockCss).not.toContain("scrollbar-width: none");
+    expect(dockCss).toContain("@container (max-width: 600px)");
+    expect(dockCss).toContain("@container (max-width: 500px)");
+    expect(dockCss).toContain("@container (max-width: 460px)");
+    expect(dockCss).toContain("@container (max-width: 360px)");
+  });
+
   it("locks active-scale switching during calibration/reference workflows", () => {
     renderDock(createProps({ scaleSwitchDisabled: true }));
 
     expect(activeScaleTrigger().disabled).toBe(false);
     expect(activeScaleTrigger().getAttribute("aria-disabled")).toBe("true");
     expect(activeScaleTrigger().getAttribute("aria-label")).toContain("Switching unavailable");
+    expect(activeScaleTrigger().title).toBe(
+      "Finish or cancel the current scale workflow before switching active scale.",
+    );
+    expect(activeScaleTrigger().querySelector("strong")?.getAttribute("title")).toBeNull();
     act(() => activeScaleTrigger().click());
     expect(document.querySelector('[role="menu"][aria-label="Active scale"]')).toBeNull();
   });

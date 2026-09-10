@@ -33,7 +33,7 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-@container (max-width: 220px) {
+@container measurement-panel (max-width: 220px) {
   .groupBy {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);

@@ -42,7 +42,7 @@
   min-width: 0;
   min-height: var(--geometry-measurement-row-height);
   display: grid;
-  grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr) auto;
+  grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
   border: 0;
@@ -76,7 +76,11 @@
 .summary {
   min-width: 0;
   display: grid;
-  gap: 1px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: var(--space-8);
+  row-gap: 1px;
 }
 
 .name,
@@ -89,6 +93,8 @@
 }
 
 .name {
+  grid-column: 1;
+  grid-row: 1;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
@@ -98,18 +104,38 @@
 }
 
 .metadata {
+  grid-column: 1;
+  grid-row: 2;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
 
 .value {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
   justify-self: end;
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   font-weight: var(--font-weight-medium);
   text-align: right;
+}
+
+.valueStack {
+  display: grid;
+  gap: 0;
+  justify-items: end;
+  white-space: normal;
+}
+
+.valueStack > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .unavailable {
@@ -129,4 +155,34 @@
   min-height: var(--target-current);
   border: 0;
   background: transparent;
+}
+
+.visibilityButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.actions .visibilityButton {
+  width: var(--target-current);
+  min-width: var(--target-current);
+  height: var(--target-current);
+  min-height: var(--target-current);
+  border: 0;
+}
+
+.actions .visibilityButton[aria-pressed="true"]:not(:hover):not(:active) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+@container measurement-panel (max-width: 304px) {
+  .selection {
+    gap: var(--space-4);
+    padding-left: var(--space-8);
+  }
+
+  .metadata {
+    font-size: var(--font-size-xs);
+  }
 }

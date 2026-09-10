@@ -103,7 +103,7 @@
   display: none;
 }
 
-@container (max-width: 330px) {
+@container measurement-panel (max-width: 330px) {
   .header {
     flex-wrap: wrap;
   }

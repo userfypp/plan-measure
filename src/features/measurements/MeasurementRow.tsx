@@ -34,6 +34,8 @@ export const MeasurementRow = memo(function MeasurementRow({
   visibilityTabIndex = 0,
 }: MeasurementRowProps) {
   const detailsId = `measurement-details-${viewModel.id}`;
+  const quantityLines =
+    viewModel.type === "polygon" ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
 
   return (
     <article
@@ -57,6 +59,11 @@ export const MeasurementRow = memo(function MeasurementRow({
         </span>
         <span className={styles.summary} id={detailsId}>
           <span className={styles.name}>{viewModel.name}</span>
+          <span className={[styles.value, quantityLines.length > 1 ? styles.valueStack : ""].filter(Boolean).join(" ")}>
+            {quantityLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </span>
           <span
             className={[styles.metadata, !viewModel.hasCalibration ? styles.unavailable : ""]
               .filter(Boolean)
@@ -65,11 +72,11 @@ export const MeasurementRow = memo(function MeasurementRow({
             {viewModel.typeLabel} · {viewModel.calibrationSummary.split(" · ")[0]}
           </span>
         </span>
-        <span className={styles.value}>{viewModel.valueLabel}</span>
       </button>
       <div className={styles.actions}>
         <IconButton
           icon={<VisibilityIcon visible={viewModel.visible} />}
+          className={styles.visibilityButton}
           data-measurement-id={viewModel.id}
           data-measurement-control="visibility"
           tabIndex={visibilityTabIndex}

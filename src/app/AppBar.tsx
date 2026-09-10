@@ -21,16 +21,6 @@ function SettingsIcon() {
   );
 }
 
-function MoreIcon() {
-  return (
-    <svg className={styles.moreIcon} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <circle cx="4" cy="10" r="1" />
-      <circle cx="10" cy="10" r="1" />
-      <circle cx="16" cy="10" r="1" />
-    </svg>
-  );
-}
-
 const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
   { id: "system", label: "System" },
   { id: "light", label: "Light" },
@@ -76,6 +66,14 @@ export function AppBar({ documentName, canExport, onOpenPdf, onExport }: AppBarP
             Export
           </Button>
         )}
+        <a
+          className={styles.feedbackAction}
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Feedback
+        </a>
         <AnchoredMenu
           trigger={<SettingsIcon />}
           triggerProps={{
@@ -85,25 +83,6 @@ export function AppBar({ documentName, canExport, onOpenPdf, onExport }: AppBarP
           }}
           label="Settings"
           items={themeItems}
-          placement="bottom-end"
-        />
-        <AnchoredMenu
-          trigger={<MoreIcon />}
-          triggerProps={{
-            className: styles.iconTrigger,
-            "aria-label": "More actions",
-            title: "More",
-          }}
-          label="More actions"
-          items={[
-            {
-              id: "feedback",
-              label: "Feedback",
-              href: FEEDBACK_URL,
-              target: "_blank",
-              rel: "noopener noreferrer",
-            },
-          ]}
           placement="bottom-end"
         />
       </div>
