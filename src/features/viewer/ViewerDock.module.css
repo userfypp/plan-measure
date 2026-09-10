@@ -14,11 +14,19 @@
   box-shadow: var(--shadow-overlay);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-secondary);
+  overflow-x: auto;
+  overflow-y: hidden;
   pointer-events: auto;
+  scrollbar-width: none;
+}
+
+.dock::-webkit-scrollbar {
+  display: none;
 }
 
 .group {
   min-width: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--geometry-viewer-dock-gap);
@@ -91,7 +99,7 @@
 }
 
 .scaleTrigger {
-  min-width: 0;
+  min-width: var(--target-current);
   width: min(220px, 30vw);
   max-width: min(280px, 34vw);
   display: flex;
@@ -269,7 +277,7 @@
   background: var(--color-divider);
 }
 
-@media (any-pointer: coarse) {
+@media (any-pointer: coarse), (max-width: 800px) {
   .dock {
     min-height: var(--geometry-viewer-dock-height-coarse);
   }
@@ -300,7 +308,7 @@
   }
 
   .scaleTrigger {
-    width: 104px;
+    width: 88px;
   }
 
   .viewLabel {

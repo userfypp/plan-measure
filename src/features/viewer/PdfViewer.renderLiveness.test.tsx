@@ -8,8 +8,13 @@ import { createEmptySession, SessionProvider, useSessionState } from "../../app/
 import { AppProvider, useAppState } from "../../app/state";
 import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
-import type { PageState } from "../../types/domain";
+import type { PageState, Tool } from "../../types/domain";
 import { PdfViewer } from "./PdfViewer";
+import {
+  AuthoringCapabilityProvider,
+  computeAuthoringCapability,
+  type AuthoringCapability,
+} from "./AuthoringCapability";
 import {
   ViewerNavigationProvider,
   type ViewerNavigationModel,
@@ -229,6 +234,8 @@ interface ViewerHarnessProps {
   page?: PageState;
   registerNavigation?: ViewerNavigationRegistration;
   bottomExclusion?: number;
+  authoringCapability?: AuthoringCapability;
+  onChooseTool?: (tool: Tool) => void;
 }
 
 function ViewerHarness({
@@ -236,6 +243,13 @@ function ViewerHarness({
   page = createPageState(1),
   registerNavigation = noop,
   bottomExclusion = 0,
+  authoringCapability = computeAuthoringCapability({
+    viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
+    rightObstruction: 0,
+    bottomExclusion: 0,
+    finePointer: true,
+  }),
+  onChooseTool = noop,
 }: ViewerHarnessProps) {
   return (
     <AppProvider>
@@ -244,26 +258,28 @@ function ViewerHarness({
         <WorkspaceProvider>
           <ViewerInteractionCommandsProvider>
             <InteractionProbe />
-            <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
-              <ViewerNavigationProvider registerNavigation={registerNavigation}>
-                <PdfViewer
-                  document={document}
-                  page={page}
-                  onPageChange={noop}
-                  onPageBoundsChange={noop}
-                  onViewZoomChange={noop}
-                  activeMeasurementEditId={null}
-                  onMeasurementEditActiveChange={noop}
-                  onChooseTool={noop}
-                  onCalibrationCandidate={noop}
-                  onCalibrationCancel={noop}
-                  calibrationReferenceEdit={null}
-                  measurementEditingBlocked={false}
-                  onCalibrationReferencePointsChange={noop}
-                  onCalibrationReferenceEditCancel={noop}
-                />
-              </ViewerNavigationProvider>
-            </ViewerBottomExclusionProvider>
+            <AuthoringCapabilityProvider capability={authoringCapability}>
+              <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
+                <ViewerNavigationProvider registerNavigation={registerNavigation}>
+                  <PdfViewer
+                    document={document}
+                    page={page}
+                    onPageChange={noop}
+                    onPageBoundsChange={noop}
+                    onViewZoomChange={noop}
+                    activeMeasurementEditId={null}
+                    onMeasurementEditActiveChange={noop}
+                    onChooseTool={onChooseTool}
+                    onCalibrationCandidate={noop}
+                    onCalibrationCancel={noop}
+                    calibrationReferenceEdit={null}
+                    measurementEditingBlocked={false}
+                    onCalibrationReferencePointsChange={noop}
+                    onCalibrationReferenceEditCancel={noop}
+                  />
+                </ViewerNavigationProvider>
+              </ViewerBottomExclusionProvider>
+            </AuthoringCapabilityProvider>
           </ViewerInteractionCommandsProvider>
         </WorkspaceProvider>
       </SessionProvider>
@@ -337,6 +353,8 @@ describe("PdfViewer render liveness", () => {
       registerNavigation?: ViewerNavigationRegistration;
       strict?: boolean;
       bottomExclusion?: number;
+      authoringCapability?: AuthoringCapability;
+      onChooseTool?: (tool: Tool) => void;
     } = {},
   ) {
     const content = (
@@ -345,6 +363,8 @@ describe("PdfViewer render liveness", () => {
         page={options.page}
         registerNavigation={options.registerNavigation}
         bottomExclusion={options.bottomExclusion}
+        authoringCapability={options.authoringCapability}
+        onChooseTool={options.onChooseTool}
       />
     );
     await act(async () => {
@@ -670,5 +690,90 @@ describe("PdfViewer render liveness", () => {
     await act(async () => interactionProbe!.completeCurrentDraft());
     expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
     expect(workspaceProbe?.draft).not.toBeNull();
+  });
+
+  it("preserves an existing draft across capability loss, blocks new precision shortcuts, and still allows safe Finish", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      nextCalibrationNumber: 2,
+    };
+    const onChooseTool = vi.fn();
+    const available = computeAuthoringCapability({
+      viewerSize: { width: 800, height: 600 },
+      rightObstruction: 0,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+    const gated = computeAuthoringCapability({
+      viewerSize: { width: 768, height: 600 },
+      rightObstruction: 304,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+
+    await mountViewer(runtime.document, {
+      page: session.pages[1],
+      authoringCapability: available,
+      onChooseTool,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => {
+      workspaceProbe!.chooseTool("polyline");
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polyline",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      });
+    });
+
+    await act(async () => {
+      root.render(
+        <ViewerHarness
+          document={runtime.document}
+          page={session.pages[1]}
+          authoringCapability={gated}
+          onChooseTool={onChooseTool}
+        />,
+      );
+    });
+    expect(workspaceProbe?.activeTool).toBe("polyline");
+    expect(workspaceProbe?.draft).toMatchObject({
+      measurementType: "polyline",
+      points: [
+        { x: 1, y: 1 },
+        { x: 10, y: 1 },
+      ],
+    });
+
+    const viewer = container.querySelector<HTMLElement>('[aria-label^="PDF viewer, page"]')!;
+    await act(async () =>
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "l", bubbles: true })),
+    );
+    expect(onChooseTool).not.toHaveBeenCalled();
+    await act(async () =>
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true })),
+    );
+    expect(onChooseTool).toHaveBeenCalledWith("hand");
+
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+    expect(workspaceProbe?.draft).toBeNull();
   });
 });

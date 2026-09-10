@@ -121,6 +121,16 @@
   }
 }
 
+@media (max-width: 800px) {
+  .appBar {
+    --target-current: var(--target-coarse);
+    --control-height-compact: var(--target-coarse);
+    --control-height-regular: var(--target-coarse);
+    height: var(--geometry-app-bar-height-narrow);
+    padding-inline: var(--space-12);
+  }
+}
+
 @media (max-width: 620px) {
   .appBar {
     gap: var(--space-8);

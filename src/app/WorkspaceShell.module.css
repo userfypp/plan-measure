@@ -19,6 +19,14 @@
   background: var(--color-surface-panel);
 }
 
+.workspacePanel[hidden] {
+  display: none;
+}
+
+.workspaceLauncher {
+  display: none;
+}
+
 .workspace > * {
   min-width: 0;
   min-height: 0;
@@ -93,6 +101,69 @@
   font-size: 18px;
   font-weight: var(--font-weight-semibold);
   pointer-events: none;
+}
+
+.workspace[data-responsive-mode="narrow"] {
+  --target-current: var(--target-coarse);
+  --control-height-compact: var(--target-coarse);
+  --control-height-regular: var(--target-coarse);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "viewer";
+}
+
+.workspace[data-responsive-mode="narrow"] .workspacePanel {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--geometry-workspace-drawer-width), 100%);
+  min-width: 0;
+  border-left: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
+  box-shadow: var(--shadow-overlay);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher {
+  position: absolute;
+  z-index: 4;
+  top: var(--space-12);
+  right: var(--space-12);
+  width: var(--target-current);
+  height: var(--target-current);
+  display: inline-grid;
+  place-items: center;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  padding: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-overlay);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[hidden] {
+  display: none;
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:hover,
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"] {
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
 }
 
 @media (max-width: 1024px) {

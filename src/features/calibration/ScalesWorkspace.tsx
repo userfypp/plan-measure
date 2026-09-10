@@ -3,6 +3,7 @@ import { AnchoredMenu, Button } from "../../components/ui";
 import type { CalibrationReferenceKey, PageCalibration, PageState } from "../../types/domain";
 import { formatDisplayNumber } from "../../utils/format";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
+import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
 import styles from "./ScalesWorkspace.module.css";
 
 export interface ScalesWorkspaceProps {
@@ -35,7 +36,15 @@ export function ScalesWorkspace({
   onRecalibrate,
   onEditReference,
 }: ScalesWorkspaceProps) {
+  const workspace = useWorkspaceDrawerPresentation();
   const [inspectedScaleId, setInspectedScaleId] = useState<string | null>(null);
+  const precisionActionsDisabled = !workspace.precisionActionAvailable;
+  const precisionDisabledReason = workspace.precisionDisabledReason;
+  const spatialActionsDisabled = actionsDisabled || precisionActionsDisabled;
+  const spatialDisabledReason = actionsDisabled
+    ? "Finish or cancel the current scale workflow first."
+    : precisionDisabledReason;
+  const disabledReasonId = "scale-spatial-actions-disabled-reason";
 
   return (
     <section className={styles.workspace} aria-label="Scales on current page">
@@ -94,8 +103,12 @@ export function ScalesWorkspace({
                   <Button
                     variant="ghost"
                     size="compact"
-                    disabled={actionsDisabled}
-                    onClick={() => onRecalibrate(calibration.id)}
+                    disabled={spatialActionsDisabled}
+                    aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
+                    title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                    onClick={() =>
+                      workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
+                    }
                   >
                     Recalibrate
                   </Button>
@@ -103,8 +116,14 @@ export function ScalesWorkspace({
                     <Button
                       variant="ghost"
                       size="compact"
-                      disabled={actionsDisabled}
-                      onClick={() => onEditReference(calibration, "uniform")}
+                      disabled={spatialActionsDisabled}
+                      aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
+                      title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                      onClick={() =>
+                        workspace.requestPrecisionAuthoring(() =>
+                          onEditReference(calibration, "uniform"),
+                        )
+                      }
                     >
                       Edit reference
                     </Button>
@@ -113,16 +132,28 @@ export function ScalesWorkspace({
                       <Button
                         variant="ghost"
                         size="compact"
-                        disabled={actionsDisabled}
-                        onClick={() => onEditReference(calibration, "x")}
+                        disabled={spatialActionsDisabled}
+                        aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
+                        title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                        onClick={() =>
+                          workspace.requestPrecisionAuthoring(() =>
+                            onEditReference(calibration, "x"),
+                          )
+                        }
                       >
                         Edit X
                       </Button>
                       <Button
                         variant="ghost"
                         size="compact"
-                        disabled={actionsDisabled}
-                        onClick={() => onEditReference(calibration, "y")}
+                        disabled={spatialActionsDisabled}
+                        aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
+                        title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                        onClick={() =>
+                          workspace.requestPrecisionAuthoring(() =>
+                            onEditReference(calibration, "y"),
+                          )
+                        }
                       >
                         Edit Y
                       </Button>
@@ -141,24 +172,48 @@ export function ScalesWorkspace({
           triggerProps={{
             className: styles.addScaleTrigger,
             "aria-label": "Add scale",
+            "aria-describedby": actionsDisabled ? disabledReasonId : undefined,
             disabled: actionsDisabled,
           }}
           label="Add scale"
           items={[
             {
               id: "uniform",
-              label: <ScaleOptionLabel mode="uniform" />,
-              onSelect: () => onAddScale("uniform"),
+              label: (
+                <>
+                  <ScaleOptionLabel mode="uniform" />
+                  {precisionActionsDisabled && (
+                    <span className={styles.visuallyHidden}>{precisionDisabledReason}</span>
+                  )}
+                </>
+              ),
+              disabled: precisionActionsDisabled,
+              onSelect: () =>
+                workspace.requestPrecisionAuthoring(() => onAddScale("uniform")),
             },
             {
               id: "xy",
-              label: <ScaleOptionLabel mode="xy" />,
-              onSelect: () => onAddScale("xy"),
+              label: (
+                <>
+                  <ScaleOptionLabel mode="xy" />
+                  {precisionActionsDisabled && (
+                    <span className={styles.visuallyHidden}>{precisionDisabledReason}</span>
+                  )}
+                </>
+              ),
+              disabled: precisionActionsDisabled,
+              onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("xy")),
             },
           ]}
           placement="bottom-start"
         />
       </div>
+
+      {spatialActionsDisabled && (
+        <p id={disabledReasonId} className={styles.visuallyHidden}>
+          {spatialDisabledReason}
+        </p>
+      )}
 
       <p className={styles.note}>Changing the active scale does not relink measurements.</p>
     </section>

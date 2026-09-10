@@ -3,6 +3,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkspaceDrawerProvider } from "../../app/WorkspaceDrawerContext";
+import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { Measurement, PageCalibration, PageState } from "../../types/domain";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { ScalesWorkspace, type ScalesWorkspaceProps } from "./ScalesWorkspace";
@@ -69,6 +71,73 @@ function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorks
 
 function renderScales(props: ScalesWorkspaceProps) {
   act(() => root!.render(<ScalesWorkspace {...props} />));
+}
+
+function renderScalesWithUnavailablePrecision(props: ScalesWorkspaceProps, reason: string) {
+  const capability = computeAuthoringCapability({
+    viewerSize: { width: 479, height: 500 },
+    rightObstruction: 0,
+    bottomExclusion: 0,
+    finePointer: true,
+  });
+  act(() =>
+    root!.render(
+      <WorkspaceDrawerProvider
+        value={{
+          isNarrow: true,
+          narrowVersion: 1,
+          open: true,
+          close: () => undefined,
+          currentCapability: capability,
+          capabilityWithoutDrawer: capability,
+          canRecoverAuthoringByClosingWorkspace: false,
+          precisionActionAvailable: false,
+          precisionDisabledReason: reason,
+          requestPrecisionAuthoring: () => false,
+        }}
+      >
+        <ScalesWorkspace {...props} />
+      </WorkspaceDrawerProvider>,
+    ),
+  );
+}
+
+function renderScalesWithRecoverablePrecision(
+  props: ScalesWorkspaceProps,
+  requestPrecisionAuthoring: (start: () => void) => boolean,
+) {
+  const current = computeAuthoringCapability({
+    viewerSize: { width: 768, height: 600 },
+    rightObstruction: 304,
+    bottomExclusion: 0,
+    finePointer: true,
+  });
+  const withoutDrawer = computeAuthoringCapability({
+    viewerSize: { width: 768, height: 600 },
+    rightObstruction: 0,
+    bottomExclusion: 0,
+    finePointer: true,
+  });
+  act(() =>
+    root!.render(
+      <WorkspaceDrawerProvider
+        value={{
+          isNarrow: true,
+          narrowVersion: 1,
+          open: true,
+          close: () => undefined,
+          currentCapability: current,
+          capabilityWithoutDrawer: withoutDrawer,
+          canRecoverAuthoringByClosingWorkspace: true,
+          precisionActionAvailable: true,
+          precisionDisabledReason: current.unavailableReason ?? "Unavailable",
+          requestPrecisionAuthoring,
+        }}
+      >
+        <ScalesWorkspace {...props} />
+      </WorkspaceDrawerProvider>,
+    ),
+  );
 }
 
 function buttonByLabel(label: string): HTMLButtonElement {
@@ -179,5 +248,79 @@ describe("ScalesWorkspace", () => {
     expect(details.textContent).toContain("Reference1.00 m");
     act(() => buttonWithin(details, "Edit reference").click());
     expect(props.onEditReference).toHaveBeenCalledWith(uniform, "uniform");
+  });
+
+  it("keeps scale inspection available while precision actions are disabled with an accessible reason", () => {
+    const reason = "Precision editing needs a fine pointer.";
+    renderScalesWithUnavailablePrecision(createProps(), reason);
+
+    const inspect = buttonByLabel("Inspect scale Ground floor, active");
+    expect(inspect.disabled).toBe(false);
+    act(() => inspect.click());
+    const detailsId = inspect.getAttribute("aria-controls");
+    const details = detailsId ? document.getElementById(detailsId) : null;
+    if (!details) throw new Error("Scale details were not rendered.");
+    const recalibrate = buttonWithin(details, "Recalibrate");
+    const edit = buttonWithin(details, "Edit reference");
+    const add = buttonByLabel("Add scale");
+
+    expect(recalibrate.disabled).toBe(true);
+    expect(edit.disabled).toBe(true);
+    expect(add.disabled).toBe(false);
+    expect(recalibrate.title).toBe(reason);
+    expect(document.getElementById(recalibrate.getAttribute("aria-describedby")!)?.textContent).toBe(
+      reason,
+    );
+    act(() => add.click());
+    const addItems = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    expect(addItems).toHaveLength(2);
+    expect(addItems.every((item) => item.getAttribute("aria-disabled") === "true")).toBe(true);
+    expect(addItems.every((item) => item.textContent?.includes(reason))).toBe(true);
+  });
+
+  it("routes every scale spatial entry through the shared recoverable-authoring handoff", () => {
+    const props = createProps();
+    const pending: Array<() => void> = [];
+    const request = vi.fn((start: () => void) => {
+      pending.push(start);
+      return true;
+    });
+    renderScalesWithRecoverablePrecision(props, request);
+
+    const add = buttonByLabel("Add scale");
+    expect(add.disabled).toBe(false);
+    act(() => add.click());
+    let items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    act(() => items[0]?.click());
+    act(() => add.click());
+    items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    act(() => items[1]?.click());
+
+    const uniformInspect = buttonByLabel("Inspect scale Ground floor, active");
+    act(() => uniformInspect.click());
+    const uniformDetails = document.getElementById(uniformInspect.getAttribute("aria-controls")!);
+    if (!uniformDetails) throw new Error("Uniform details were not rendered.");
+    act(() => buttonWithin(uniformDetails, "Recalibrate").click());
+    act(() => buttonWithin(uniformDetails, "Edit reference").click());
+
+    const xyInspect = buttonByLabel("Inspect scale Survey correction");
+    act(() => xyInspect.click());
+    const xyDetails = document.getElementById(xyInspect.getAttribute("aria-controls")!);
+    if (!xyDetails) throw new Error("X/Y details were not rendered.");
+    act(() => buttonWithin(xyDetails, "Edit X").click());
+    act(() => buttonWithin(xyDetails, "Edit Y").click());
+
+    expect(request).toHaveBeenCalledTimes(6);
+    expect(props.onAddScale).not.toHaveBeenCalled();
+    expect(props.onRecalibrate).not.toHaveBeenCalled();
+    expect(props.onEditReference).not.toHaveBeenCalled();
+
+    pending.forEach((start) => start());
+    expect(props.onAddScale).toHaveBeenNthCalledWith(1, "uniform");
+    expect(props.onAddScale).toHaveBeenNthCalledWith(2, "xy");
+    expect(props.onRecalibrate).toHaveBeenCalledWith("uniform");
+    expect(props.onEditReference).toHaveBeenCalledWith(uniform, "uniform");
+    expect(props.onEditReference).toHaveBeenCalledWith(xy, "x");
+    expect(props.onEditReference).toHaveBeenCalledWith(xy, "y");
   });
 });

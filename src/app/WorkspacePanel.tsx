@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AnchoredMenu } from "../components/ui";
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
+import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import styles from "./WorkspacePanel.module.css";
 
 const MODULES: Array<{ id: WorkspaceModule; label: string }> = [
@@ -21,6 +22,14 @@ function ChevronIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="m5 5 10 10M15 5 5 15" />
+    </svg>
+  );
+}
+
 export interface WorkspacePanelProps {
   measurements: ReactNode;
   classifications: ReactNode;
@@ -34,6 +43,7 @@ export function WorkspacePanel({
   scales,
   details,
 }: WorkspacePanelProps) {
+  const drawer = useWorkspaceDrawerPresentation();
   const {
     workspaceModule,
     measurementDetailsOpen,
@@ -65,6 +75,17 @@ export function WorkspacePanel({
           }))}
           placement="bottom-start"
         />
+        {drawer.isNarrow && (
+          <button
+            type="button"
+            className={styles.drawerClose}
+            aria-label="Close workspace"
+            title="Close workspace"
+            onClick={() => drawer.close(true)}
+          >
+            <CloseIcon />
+          </button>
+        )}
       </header>
       <div className={styles.body}>
         <div

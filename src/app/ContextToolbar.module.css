@@ -4,7 +4,13 @@
   top: var(--geometry-context-toolbar-top);
   left: var(--geometry-context-toolbar-left);
   min-height: var(--geometry-context-toolbar-height);
-  max-width: calc(100% - var(--geometry-context-toolbar-left));
+  max-width: max(
+    0px,
+    calc(
+      100% - var(--geometry-context-toolbar-left) - var(--viewer-right-obstruction, 0px) -
+        var(--space-12)
+    )
+  );
   display: flex;
   align-items: center;
   gap: var(--geometry-context-toolbar-gap);
@@ -145,7 +151,7 @@
   border: 0;
 }
 
-@media (any-pointer: coarse) {
+@media (any-pointer: coarse), (max-width: 800px) {
   .toolbar {
     min-height: var(--geometry-context-toolbar-height-coarse);
   }
@@ -160,5 +166,17 @@
 
   .aidButton {
     min-width: var(--geometry-context-control-height-coarse);
+  }
+}
+
+@media (max-width: 800px) {
+  .toolbar {
+    max-width: max(
+      0px,
+      calc(
+        100% - var(--geometry-context-toolbar-left) - var(--viewer-right-obstruction, 0px) -
+          var(--target-coarse) - var(--space-24)
+      )
+    );
   }
 }

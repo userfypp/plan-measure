@@ -1,10 +1,24 @@
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   ViewerNavigationProvider,
   type ViewerNavigationModel,
 } from "../features/viewer/ViewerNavigation";
 import { ViewerInteractionCommandsProvider } from "../features/viewer/ViewerInteractionCommands";
 import { ViewerBottomExclusionProvider } from "../features/viewer/viewerLayout";
+import {
+  AuthoringCapabilityProvider,
+  computeAuthoringCapability,
+  useFinePointerAvailable,
+  type AuthoringCapability,
+} from "../features/viewer/AuthoringCapability";
 import { ViewerDockContainer } from "./ViewerDockContainer";
 import styles from "./ViewerShell.module.css";
 
@@ -12,18 +26,31 @@ interface ViewerShellProps {
   children?: ReactNode;
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
+  rightObstruction?: number;
+  onAuthoringCapabilityChange?: (
+    capability: AuthoringCapability,
+    capabilityWithoutRightObstruction: AuthoringCapability,
+  ) => void;
 }
 
-export function ViewerShell({ children, toolRail, contextToolbar }: ViewerShellProps) {
+export function ViewerShell({
+  children,
+  toolRail,
+  contextToolbar,
+  rightObstruction = 0,
+  onAuthoringCapabilityChange,
+}: ViewerShellProps) {
   const [navigation, setNavigation] = useState<
     Pick<ViewerNavigationModel, "pageNumber" | "pageCount" | "zoom"> | null
   >(null);
   const [dockBottomExclusion, setDockBottomExclusion] = useState(0);
+  const [viewerFrameSize, setViewerFrameSize] = useState({ width: 0, height: 0 });
   const navigationActionsRef = useRef<
     Pick<ViewerNavigationModel, "onPageChange" | "onZoomIn" | "onZoomOut" | "onFit"> | null
   >(null);
   const viewerFrameRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
+  const finePointer = useFinePointerAvailable();
   const registerNavigation = useCallback((next: ViewerNavigationModel) => {
     navigationActionsRef.current = {
       onPageChange: next.onPageChange,
@@ -44,58 +71,121 @@ export function ViewerShell({ children, toolRail, contextToolbar }: ViewerShellP
   const showDock = Boolean(navigation);
 
   useLayoutEffect(() => {
-    if (!showDock) return;
     const frame = viewerFrameRef.current;
-    const dock = dockRef.current;
-    if (!frame || !dock) return;
+    if (!frame) return;
 
-    const updateExclusion = () => {
+    const updateGeometry = () => {
       const frameRect = frame.getBoundingClientRect();
-      const dockRect = dock.getBoundingClientRect();
-      const nextExclusion = Math.max(0, frameRect.bottom - dockRect.top);
+      setViewerFrameSize((current) =>
+        Math.abs(current.width - frameRect.width) < 0.5 &&
+        Math.abs(current.height - frameRect.height) < 0.5
+          ? current
+          : { width: frameRect.width, height: frameRect.height },
+      );
+      const dock = dockRef.current;
+      const nextExclusion = dock
+        ? Math.max(0, frameRect.bottom - dock.getBoundingClientRect().top)
+        : 0;
       setDockBottomExclusion((current) =>
         Math.abs(current - nextExclusion) < 0.5 ? current : nextExclusion,
       );
     };
 
-    const initialFrame = window.requestAnimationFrame(updateExclusion);
-    const observer = new ResizeObserver(updateExclusion);
+    updateGeometry();
+    const initialFrame = window.requestAnimationFrame(updateGeometry);
+    const observer = new ResizeObserver(updateGeometry);
     observer.observe(frame);
-    observer.observe(dock);
-    window.addEventListener("resize", updateExclusion);
+    const dock = dockRef.current;
+    if (dock) observer.observe(dock);
+    window.addEventListener("resize", updateGeometry);
     return () => {
       window.cancelAnimationFrame(initialFrame);
       observer.disconnect();
-      window.removeEventListener("resize", updateExclusion);
+      window.removeEventListener("resize", updateGeometry);
     };
   }, [showDock]);
+
+  const authoringCapability = useMemo(
+    () =>
+      computeAuthoringCapability({
+        viewerSize: viewerFrameSize,
+        rightObstruction,
+        bottomExclusion: dockBottomExclusion,
+        finePointer,
+      }),
+    [dockBottomExclusion, finePointer, rightObstruction, viewerFrameSize],
+  );
+  const authoringCapabilityWithoutRightObstruction = useMemo(
+    () =>
+      computeAuthoringCapability({
+        viewerSize: viewerFrameSize,
+        rightObstruction: 0,
+        bottomExclusion: dockBottomExclusion,
+        finePointer,
+      }),
+    [dockBottomExclusion, finePointer, viewerFrameSize],
+  );
+  const viewerFrameStyle = {
+    "--viewer-right-obstruction": `${authoringCapability.rightObstruction}px`,
+  } as CSSProperties;
+
+  useLayoutEffect(() => {
+    onAuthoringCapabilityChange?.(
+      authoringCapability,
+      authoringCapabilityWithoutRightObstruction,
+    );
+  }, [
+    authoringCapability,
+    authoringCapabilityWithoutRightObstruction,
+    onAuthoringCapabilityChange,
+  ]);
 
   return (
     <section className={styles.viewerShell} aria-label="PDF viewer" data-layout-slot="viewer">
       <ViewerInteractionCommandsProvider>
-        <div className={styles.viewerFrame} ref={viewerFrameRef}>
-          {toolRail}
-          {contextToolbar}
-          <ViewerBottomExclusionProvider bottomExclusion={dockBottomExclusion}>
-            <ViewerNavigationProvider registerNavigation={registerNavigation}>
-              <div className={styles.viewerSurface}>{children}</div>
-            </ViewerNavigationProvider>
-          </ViewerBottomExclusionProvider>
-          {navigation && (
-            <div className={styles.dock} ref={dockRef}>
-              <ViewerDockContainer
-                navigation={{
-                  ...navigation,
-                  onPageChange: (pageNumber) =>
-                    navigationActionsRef.current?.onPageChange(pageNumber),
-                  onZoomIn: () => navigationActionsRef.current?.onZoomIn(),
-                  onZoomOut: () => navigationActionsRef.current?.onZoomOut(),
-                  onFit: () => navigationActionsRef.current?.onFit(),
-                }}
-              />
-            </div>
-          )}
-        </div>
+        <AuthoringCapabilityProvider capability={authoringCapability}>
+          <div
+            className={styles.viewerFrame}
+            ref={viewerFrameRef}
+            style={viewerFrameStyle}
+            data-authoring-capability={
+              authoringCapability.measured
+                ? authoringCapability.available
+                  ? "available"
+                  : "gated"
+                : "measuring"
+            }
+            data-usable-width={Math.round(authoringCapability.usableSize.width)}
+            data-usable-height={Math.round(authoringCapability.usableSize.height)}
+          >
+            {toolRail}
+            {contextToolbar}
+            {authoringCapability.measured && !authoringCapability.available && (
+              <div className={styles.authoringNotice} role="status">
+                {authoringCapability.unavailableReason}
+              </div>
+            )}
+            <ViewerBottomExclusionProvider bottomExclusion={dockBottomExclusion}>
+              <ViewerNavigationProvider registerNavigation={registerNavigation}>
+                <div className={styles.viewerSurface}>{children}</div>
+              </ViewerNavigationProvider>
+            </ViewerBottomExclusionProvider>
+            {navigation && (
+              <div className={styles.dock} ref={dockRef}>
+                <ViewerDockContainer
+                  navigation={{
+                    ...navigation,
+                    onPageChange: (pageNumber) =>
+                      navigationActionsRef.current?.onPageChange(pageNumber),
+                    onZoomIn: () => navigationActionsRef.current?.onZoomIn(),
+                    onZoomOut: () => navigationActionsRef.current?.onZoomOut(),
+                    onFit: () => navigationActionsRef.current?.onFit(),
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </AuthoringCapabilityProvider>
       </ViewerInteractionCommandsProvider>
     </section>
   );

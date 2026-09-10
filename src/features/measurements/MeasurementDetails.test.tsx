@@ -3,6 +3,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkspaceDrawerProvider } from "../../app/WorkspaceDrawerContext";
+import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { ClassificationCatalog, Measurement, PageState } from "../../types/domain";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { MeasurementDetails, type MeasurementDetailsProps } from "./MeasurementDetails";
@@ -85,6 +87,44 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
 
 function renderDetails(props: MeasurementDetailsProps) {
   act(() => root!.render(<MeasurementDetails key={props.measurement.id} {...props} />));
+}
+
+function renderRecoverableDetails(
+  props: MeasurementDetailsProps,
+  requestPrecisionAuthoring: (start: () => void) => boolean,
+) {
+  const current = computeAuthoringCapability({
+    viewerSize: { width: 768, height: 600 },
+    rightObstruction: 304,
+    bottomExclusion: 0,
+    finePointer: true,
+  });
+  const withoutDrawer = computeAuthoringCapability({
+    viewerSize: { width: 768, height: 600 },
+    rightObstruction: 0,
+    bottomExclusion: 0,
+    finePointer: true,
+  });
+  act(() =>
+    root!.render(
+      <WorkspaceDrawerProvider
+        value={{
+          isNarrow: true,
+          narrowVersion: 1,
+          open: true,
+          close: () => undefined,
+          currentCapability: current,
+          capabilityWithoutDrawer: withoutDrawer,
+          canRecoverAuthoringByClosingWorkspace: true,
+          precisionActionAvailable: true,
+          precisionDisabledReason: current.unavailableReason ?? "Unavailable",
+          requestPrecisionAuthoring,
+        }}
+      >
+        <MeasurementDetails key={props.measurement.id} {...props} />
+      </WorkspaceDrawerProvider>,
+    ),
+  );
 }
 
 function buttonByText(text: string): HTMLButtonElement {
@@ -181,5 +221,59 @@ describe("MeasurementDetails", () => {
     expect(container?.textContent).toContain("Lobby");
     expect(container?.getAttribute("aria-label")).toBeNull();
     expect(container?.querySelector('section[aria-label="Details for Lobby"]')).not.toBeNull();
+  });
+
+  it("routes Edit geometry through the shared recoverable-authoring handoff", () => {
+    const props = createProps();
+    let pending: (() => void) | null = null;
+    const request = vi.fn((start: () => void) => {
+      pending = start;
+      return true;
+    });
+    renderRecoverableDetails(props, request);
+
+    const edit = buttonByText("Edit geometry");
+    expect(edit.disabled).toBe(false);
+    act(() => edit.click());
+    expect(request).toHaveBeenCalledOnce();
+    expect(props.onEditGeometry).not.toHaveBeenCalled();
+
+    act(() => pending?.());
+    expect(props.onEditGeometry).toHaveBeenCalledOnce();
+  });
+
+  it("gates only Edit geometry when precision is impossible", () => {
+    const props = createProps();
+    const capability = computeAuthoringCapability({
+      viewerSize: { width: 479, height: 600 },
+      rightObstruction: 0,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+    const reason = capability.unavailableReason ?? "Unavailable";
+    act(() =>
+      root!.render(
+        <WorkspaceDrawerProvider
+          value={{
+            isNarrow: true,
+            narrowVersion: 1,
+            open: true,
+            close: () => undefined,
+            currentCapability: capability,
+            capabilityWithoutDrawer: capability,
+            canRecoverAuthoringByClosingWorkspace: false,
+            precisionActionAvailable: false,
+            precisionDisabledReason: reason,
+            requestPrecisionAuthoring: () => false,
+          }}
+        >
+          <MeasurementDetails {...props} />
+        </WorkspaceDrawerProvider>,
+      ),
+    );
+
+    expect(buttonByText("Edit geometry").disabled).toBe(true);
+    expect(buttonByText("Rename").disabled).toBe(false);
+    expect(buttonByText("Delete measurement").disabled).toBe(false);
   });
 });

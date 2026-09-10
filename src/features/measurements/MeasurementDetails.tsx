@@ -7,6 +7,7 @@ import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createMeasurementViewModel } from "./measurementViewModels";
 import type { WorkspaceModule } from "../../app/workspaceState";
 import { workspaceModuleLabel } from "../../app/WorkspacePanel";
+import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
 import styles from "./MeasurementDetails.module.css";
 
 export interface MeasurementDetailsProps {
@@ -36,6 +37,7 @@ export function MeasurementDetails({
   onEditGeometry,
   onDelete,
 }: MeasurementDetailsProps) {
+  const workspace = useWorkspaceDrawerPresentation();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -158,9 +160,25 @@ export function MeasurementDetails({
           />
         </section>
 
-        <Button variant="secondary" size="compact" onClick={onEditGeometry}>
+        <Button
+          variant="secondary"
+          size="compact"
+          disabled={!workspace.precisionActionAvailable}
+          aria-describedby={
+            !workspace.precisionActionAvailable ? "measurement-edit-geometry-disabled-reason" : undefined
+          }
+          title={
+            !workspace.precisionActionAvailable ? workspace.precisionDisabledReason : undefined
+          }
+          onClick={() => workspace.requestPrecisionAuthoring(onEditGeometry)}
+        >
           Edit geometry
         </Button>
+        {!workspace.precisionActionAvailable && (
+          <span id="measurement-edit-geometry-disabled-reason" className={styles.visuallyHidden}>
+            {workspace.precisionDisabledReason}
+          </span>
+        )}
       </div>
 
       <div className={styles.dangerZone}>

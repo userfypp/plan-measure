@@ -22,6 +22,7 @@ import {
 } from "../features/measurements/MeasurementPanel";
 import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
 import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
+import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import {
   beginCalibrationFlow,
   confirmCalibration,
@@ -151,6 +152,12 @@ function PlanMeasureApp() {
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [authoringCapability, setAuthoringCapability] = useState<AuthoringCapability | null>(null);
+  const authoringCapabilityRef = useRef<AuthoringCapability | null>(null);
+  const handleAuthoringCapabilityChange = useCallback((capability: AuthoringCapability) => {
+    authoringCapabilityRef.current = capability;
+    setAuthoringCapability(capability);
+  }, []);
   const [viewerPageBounds, setViewerPageBounds] = useState<{
     pageNumber: number;
     bounds: LogicalPageBounds;
@@ -403,6 +410,9 @@ function PlanMeasureApp() {
     }
     const currentPage = session?.pages[session.currentPage];
     const activePageCalibration = currentPage && getActiveCalibration(currentPage);
+    if (isMeasurementType(tool) && precisionAuthoringBlocked) {
+      return;
+    }
     if (isMeasurementType(tool) && (!currentPage || !activePageCalibration)) {
       clearDraft();
       chooseWorkspaceTool("select");
@@ -423,6 +433,7 @@ function PlanMeasureApp() {
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
     if (calibrationReferenceEdit) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     const calibration =
       session?.pages[pageNumber] && findPageCalibration(session.pages[pageNumber], calibrationId);
     if (!calibration) return;
@@ -432,6 +443,7 @@ function PlanMeasureApp() {
 
   function beginNewCalibration(mode: "uniform" | "xy") {
     if (calibrationReferenceEdit) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     if (!currentPage) return;
     startCalibration(beginCalibrationFlow(currentPage.pageNumber, null, mode));
     chooseTool("calibrate");
@@ -439,6 +451,7 @@ function PlanMeasureApp() {
 
   function requestRecalibration(calibrationId?: string) {
     if (calibrationReferenceEdit) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     if (!currentPage) return;
     const calibration = calibrationId
       ? findPageCalibration(currentPage, calibrationId)
@@ -500,6 +513,7 @@ function PlanMeasureApp() {
     reference: CalibrationReferenceKey,
   ) {
     if (!currentPage) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     const edit = createCalibrationReferenceEdit(currentPage.pageNumber, calibration, reference);
     if (!edit) return;
     startReferenceEdit(edit);
@@ -675,13 +689,20 @@ function PlanMeasureApp() {
     });
   }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
+  const precisionAuthoringBlocked = authoringCapability?.available !== true;
+  const precisionAuthoringDisabledReason =
+    authoringCapability?.unavailableReason ??
+    "Precision drawing and editing need more unobscured viewer space and a fine pointer";
   const primaryToolsLocked = Boolean(calibrationFlow || calibrationReferenceEdit);
   const primaryToolLockReason = calibrationReferenceEdit
     ? "Finish or cancel the scale reference edit first"
     : "Finish or cancel calibration first";
-  const canCreateMeasurements = Boolean(activeCalibration) && !primaryToolsLocked;
+  const canCreateMeasurements =
+    Boolean(activeCalibration) && !primaryToolsLocked && !precisionAuthoringBlocked;
   const measurementToolDisabledReason = primaryToolsLocked
     ? primaryToolLockReason
+    : precisionAuthoringBlocked
+      ? precisionAuthoringDisabledReason
     : "This tool requires an active scale";
   const toolAvailability: ToolAvailabilityMap = {
     select: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
@@ -796,6 +817,7 @@ function PlanMeasureApp() {
               }
             />
           }
+          authoringIntentScopeKey={`${currentPage.pageNumber}:${workspaceVersion}:${selectedMeasurementId ?? ""}`}
           toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
           contextToolbar={
             <ContextToolbar
@@ -863,6 +885,7 @@ function PlanMeasureApp() {
               />
             </Suspense>
           }
+          onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
         />
       ) : (
         <WorkspaceShell

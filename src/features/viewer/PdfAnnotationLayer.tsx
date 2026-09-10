@@ -104,6 +104,7 @@ interface PdfAnnotationLayerProps {
 
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
   measurementEditingBlocked: boolean;
+  precisionAuthoringAvailable: boolean;
 
   displayUnit: LinearUnit;
   showCalibration: boolean;
@@ -135,6 +136,7 @@ export function PdfAnnotationLayer({
   activeMeasurementEditId,
   calibrationReferenceEdit,
   measurementEditingBlocked,
+  precisionAuthoringAvailable,
   displayUnit,
   showCalibration,
   showMeasurements,
@@ -291,6 +293,7 @@ export function PdfAnnotationLayer({
                   calibrationId={calibration.id}
                   points={[visibleReference.start, visibleReference.end]}
                   editable={referenceIsEditing}
+                  precisionAuthoringAvailable={precisionAuthoringAvailable}
                   stroke={stroke}
                   zoom={transform.zoom}
                   transform={transform}
@@ -321,12 +324,19 @@ export function PdfAnnotationLayer({
             zoom={transform.zoom}
             transform={transform}
             selected={selectedMeasurementId === measurement.id}
+            selectable={
+              activeTool === "select" &&
+              !spacePan &&
+              !isPanning &&
+              !calibrationReferenceEdit &&
+              !measurementEditingBlocked
+            }
             editable={measurementEditingEnabled(
               activeTool,
               spacePan,
               isPanning,
               Boolean(calibrationReferenceEdit),
-              measurementEditingBlocked,
+              measurementEditingBlocked || !precisionAuthoringAvailable,
               activeMeasurementEditId,
               measurement.id,
             )}
@@ -351,6 +361,7 @@ interface CalibrationReferenceMarkersProps {
   calibrationId: string;
   points: [Point, Point];
   editable: boolean;
+  precisionAuthoringAvailable: boolean;
   stroke: string;
   zoom: number;
   transform: ViewTransform;
@@ -363,6 +374,7 @@ function CalibrationReferenceMarkers({
   calibrationId,
   points,
   editable,
+  precisionAuthoringAvailable,
   stroke,
   zoom,
   transform,
@@ -373,6 +385,7 @@ function CalibrationReferenceMarkers({
   const frameRef = useRef<number | null>(null);
   const pendingPointsRef = useRef<[Point, Point] | null>(null);
   const dragPointsRef = useRef<[Point, Point]>(points);
+  const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     dragPointsRef.current = points;
@@ -430,24 +443,36 @@ function CalibrationReferenceMarkers({
     const nextPoints = pointsWithHandle(index, point);
     dragPointsRef.current = nextPoints;
     onPointsChange(nextPoints);
+    setActiveDragIndex(null);
   }
 
-  return points.map((point, index) => (
-    <Circle
-      key={`${calibrationId}-${index}`}
-      x={point.x}
-      y={point.y}
-      radius={4 / zoom}
-      fill="#fff"
-      stroke={stroke}
-      strokeWidth={(emphasized ? 2 : 1.5) / zoom}
-      draggable={editable}
-      hitStrokeWidth={editable ? 12 / zoom : 0}
-      onDragStart={editable ? (event) => (event.cancelBubble = true) : undefined}
-      onDragMove={editable ? (event) => handleDragMove(index, event) : undefined}
-      onDragEnd={editable ? (event) => handleDragEnd(index, event) : undefined}
-    />
-  ));
+  return points.map((point, index) => {
+    const spatialEditable =
+      editable && (precisionAuthoringAvailable || activeDragIndex === index);
+    return (
+      <Circle
+        key={`${calibrationId}-${index}`}
+        x={point.x}
+        y={point.y}
+        radius={4 / zoom}
+        fill="#fff"
+        stroke={stroke}
+        strokeWidth={(emphasized ? 2 : 1.5) / zoom}
+        draggable={spatialEditable}
+        hitStrokeWidth={spatialEditable ? 12 / zoom : 0}
+        onDragStart={
+          spatialEditable
+            ? (event) => {
+                event.cancelBubble = true;
+                setActiveDragIndex(index);
+              }
+            : undefined
+        }
+        onDragMove={spatialEditable ? (event) => handleDragMove(index, event) : undefined}
+        onDragEnd={spatialEditable ? (event) => handleDragEnd(index, event) : undefined}
+      />
+    );
+  });
 }
 
 interface MeasurementShapeProps {
@@ -459,6 +484,7 @@ interface MeasurementShapeProps {
   zoom: number;
   transform: ViewTransform;
   selected: boolean;
+  selectable: boolean;
   editable: boolean;
   showLabel: boolean;
   onSelectMeasurement: (id: string) => void;
@@ -484,6 +510,7 @@ const MeasurementShape = memo(function MeasurementShape({
   zoom,
   transform,
   selected,
+  selectable,
   editable,
   showLabel,
   onSelectMeasurement,
@@ -854,7 +881,7 @@ const MeasurementShape = memo(function MeasurementShape({
   }
 
   function select(event: KonvaEventObject<MouseEvent>) {
-    if (!editable) return;
+    if (!selectable) return;
     event.cancelBubble = true;
     onSelectMeasurement(measurement.id);
   }

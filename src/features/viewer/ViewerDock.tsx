@@ -13,6 +13,7 @@ export interface ViewerDockProps {
   navigation: ViewerNavigationModel;
   calibrations: readonly PageCalibration[];
   activeCalibrationId: string | null;
+  pageNavigationDisabled?: boolean;
   scaleSwitchDisabled?: boolean;
   settings: ViewerSettings;
   onScaleChange: (calibrationId: string) => void;
@@ -80,6 +81,7 @@ export function ViewerDock({
   navigation,
   calibrations,
   activeCalibrationId,
+  pageNavigationDisabled = false,
   scaleSwitchDisabled = false,
   settings,
   onScaleChange,
@@ -116,8 +118,12 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Previous page"
-          title="Previous page"
-          disabled={navigation.pageNumber <= 1}
+          title={
+            pageNavigationDisabled
+              ? "Finish or cancel the current drawing or scale workflow before changing pages."
+              : "Previous page"
+          }
+          disabled={pageNavigationDisabled || navigation.pageNumber <= 1}
           onClick={() => navigation.onPageChange(navigation.pageNumber - 1)}
         >
           <ChevronLeftIcon />
@@ -130,8 +136,12 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Next page"
-          title="Next page"
-          disabled={navigation.pageNumber >= navigation.pageCount}
+          title={
+            pageNavigationDisabled
+              ? "Finish or cancel the current drawing or scale workflow before changing pages."
+              : "Next page"
+          }
+          disabled={pageNavigationDisabled || navigation.pageNumber >= navigation.pageCount}
           onClick={() => navigation.onPageChange(navigation.pageNumber + 1)}
         >
           <ChevronRightIcon />

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Tooltip } from "../components/ui";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import {
@@ -9,6 +9,9 @@ import {
   type ToolDefinition,
 } from "../features/viewer/toolRegistry";
 import type { Tool } from "../types/domain";
+import { isMeasurementType } from "../utils/geometry";
+import { useAuthoringCapability } from "../features/viewer/AuthoringCapability";
+import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import { useWorkspaceState } from "./workspaceState";
 import styles from "./ToolRail.module.css";
 
@@ -21,18 +24,58 @@ interface ToolRailProps {
 
 export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const { activeTool } = useWorkspaceState();
+  const capability = useAuthoringCapability();
+  const { isNarrow, narrowVersion } = useWorkspaceDrawerPresentation();
   const [rovingToolId, setRovingToolId] = useState<ToolDefinition["id"]>("select");
+  const [narrowOpenVersion, setNarrowOpenVersion] = useState<number | null>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const returnFocusOnCloseRef = useRef(false);
+  const narrowOpen = isNarrow && narrowOpenVersion === narrowVersion;
+  const toolbarId = "viewer-tools-narrow-toolbar";
+
+  const closeNarrowTools = (returnFocus = true) => {
+    returnFocusOnCloseRef.current = returnFocus;
+    setNarrowOpenVersion(null);
+  };
+
+  useLayoutEffect(() => {
+    if (narrowOpen || !returnFocusOnCloseRef.current) return;
+    returnFocusOnCloseRef.current = false;
+    if (isNarrow) launcherRef.current?.focus({ preventScroll: true });
+  }, [isNarrow, narrowOpen]);
+  const availabilityFor = (definition: ToolDefinition) => {
+    const base = getToolAvailabilityState(definition, toolAvailability);
+    if (
+      !base.disabled &&
+      !capability.available &&
+      isMeasurementType(definition.id)
+    ) {
+      return {
+        disabled: true,
+        disabledReason:
+          capability.unavailableReason ??
+          "Precision drawing is available after the Viewer geometry is measured.",
+      };
+    }
+    return base;
+  };
   const focusedToolIsAvailable = toolRailRegistry.some(
     (definition) =>
-      definition.id === rovingToolId &&
-      !getToolAvailabilityState(definition, toolAvailability).disabled,
+      definition.id === rovingToolId && !availabilityFor(definition).disabled,
   );
   const currentRovingToolId = focusedToolIsAvailable ? rovingToolId : "select";
 
   function handleToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const isVerticalNavigation = event.key === "ArrowUp" || event.key === "ArrowDown";
+    const previousKey = "ArrowUp";
+    const nextKey = "ArrowDown";
+    const isDirectionalNavigation = event.key === previousKey || event.key === nextKey;
     const isBoundaryNavigation = event.key === "Home" || event.key === "End";
-    if (!isVerticalNavigation && !isBoundaryNavigation) return;
+    if (event.key === "Escape" && isNarrow) {
+      event.preventDefault();
+      closeNarrowTools(true);
+      return;
+    }
+    if (!isDirectionalNavigation && !isBoundaryNavigation) return;
 
     const buttons = Array.from(
       event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]"),
@@ -49,12 +92,12 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
           ? navigableButtons[navigableButtons.length - 1]
           : undefined;
 
-    if (!nextButton && isVerticalNavigation) {
+    if (!nextButton && isDirectionalNavigation) {
       const activeToolId = buttons[activeIndex]?.dataset.toolId as ToolDefinition["id"] | undefined;
       if (activeToolId) {
         let verticalNeighbor = getToolRailVerticalNeighbor(
           activeToolId,
-          event.key === "ArrowUp" ? "up" : "down",
+          event.key === previousKey ? "up" : "down",
         );
         while (verticalNeighbor && verticalNeighbor !== activeToolId) {
           const neighborButton = buttons.find(
@@ -66,7 +109,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
           }
           verticalNeighbor = getToolRailVerticalNeighbor(
             verticalNeighbor,
-            event.key === "ArrowUp" ? "up" : "down",
+            event.key === previousKey ? "up" : "down",
           );
         }
       }
@@ -79,8 +122,32 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   }
 
   return (
-    <aside className={styles.toolRail} aria-label="Viewer tools" data-layout-slot="tool-rail">
-      <div
+    <aside
+      className={[styles.toolRail, isNarrow ? styles.narrow : ""].filter(Boolean).join(" ")}
+      aria-label="Viewer tools"
+      data-layout-slot="tool-rail"
+    >
+      {isNarrow && (
+        <button
+          ref={launcherRef}
+          type="button"
+          className={styles.launcher}
+          aria-label="Tools"
+          aria-controls={toolbarId}
+          aria-expanded={narrowOpen}
+          title="Tools"
+          onClick={() => {
+            if (narrowOpen) closeNarrowTools(false);
+            else setNarrowOpenVersion(narrowVersion);
+          }}
+        >
+          <span className={styles.icon} aria-hidden="true">
+            <ToolIcon name="select" />
+          </span>
+        </button>
+      )}
+      {(!isNarrow || narrowOpen) && <div
+        id={isNarrow ? toolbarId : undefined}
         className={styles.tools}
         role="toolbar"
         aria-label="Drawing tools"
@@ -89,10 +156,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
       >
         {toolRailRegistry.map((definition) => {
           const tool = definition.id as PrimaryTool;
-          const { disabled, disabledReason } = getToolAvailabilityState(
-            definition,
-            toolAvailability,
-          );
+          const { disabled, disabledReason } = availabilityFor(definition);
           const active = activeTool === tool;
           const shortcut = definition.shortcut ? ` (${definition.shortcut})` : "";
 
@@ -117,6 +181,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                 onFocus={() => setRovingToolId(definition.id)}
                 onClick={() => {
                   if (!active) onChooseTool(tool);
+                  if (isNarrow) closeNarrowTools(true);
                 }}
               >
                 <span className={styles.icon} aria-hidden="true">
@@ -126,7 +191,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
             </Tooltip>
           );
         })}
-      </div>
+      </div>}
     </aside>
   );
 }

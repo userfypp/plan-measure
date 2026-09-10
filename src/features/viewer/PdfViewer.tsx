@@ -69,6 +69,7 @@ import {
 } from "./snapping";
 import { useViewerNavigationRegistration } from "./ViewerNavigation";
 import { useViewerInteractionCommandRegistration } from "./ViewerInteractionCommands";
+import { useAuthoringCapability } from "./AuthoringCapability";
 import {
   safeViewerLayout,
   useViewerBottomExclusion,
@@ -133,6 +134,8 @@ export function PdfViewer({
   const onNavigationChange = useViewerNavigationRegistration();
   const registerInteractionCommands = useViewerInteractionCommandRegistration();
   const viewerBottomExclusion = useViewerBottomExclusion();
+  const authoringCapability = useAuthoringCapability();
+  const precisionAuthoringBlocked = !authoringCapability.available;
   const { session, addMeasurement } = useSessionState();
   const {
     activeTool,
@@ -666,10 +669,18 @@ export function PdfViewer({
       } else if (action === "toggle-snap") {
         toggleSnap();
       } else {
+        if (precisionAuthoringBlocked && isMeasurementType(action.tool)) return;
         onChooseToolRef.current(action.tool);
       }
     },
-    [clearSnapFeedback, completeCurrentDraft, toggleOrthogonal, toggleSnap, zoomAround],
+    [
+      clearSnapFeedback,
+      completeCurrentDraft,
+      precisionAuthoringBlocked,
+      toggleOrthogonal,
+      toggleSnap,
+      zoomAround,
+    ],
   );
 
   const finishPan = useCallback(() => {
@@ -839,6 +850,11 @@ export function PdfViewer({
       clearSnapFeedback();
       return;
     }
+    if (precisionAuthoringBlocked && (activeTool === "calibrate" || isMeasurementType(activeTool))) {
+      setDraftPointer(null);
+      clearSnapFeedback();
+      return;
+    }
     if (activeTool === "calibrate") {
       clearSnapFeedback();
       if (workspaceDraft?.type !== "calibrate") return;
@@ -901,6 +917,11 @@ export function PdfViewer({
     const pointer = stagePointer(event);
     if (!pointer) return;
     const draft = workspaceDraft;
+
+    if (precisionAuthoringBlocked && (activeTool === "calibrate" || isMeasurementType(activeTool))) {
+      clearSnapFeedback();
+      return;
+    }
 
     const point = screenToPage(pointer, viewTransform);
 
@@ -1007,6 +1028,7 @@ export function PdfViewer({
         : styles.cursorCrosshair;
 
   const placementResolution = useMemo(() => {
+    if (precisionAuthoringBlocked) return null;
     return resolveDrawingPreview({
       tool: activeTool,
       draft: workspaceDraft,
@@ -1029,6 +1051,7 @@ export function PdfViewer({
     isPanning,
     orthogonal,
     placementPointer,
+    precisionAuthoringBlocked,
     snap,
     snapTargets,
     spacePan,
@@ -1074,6 +1097,7 @@ export function PdfViewer({
     viewTransform.panY,
     viewTransform.zoom,
     workspaceDraft,
+    precisionAuthoringBlocked,
   ]);
 
   return (
@@ -1146,6 +1170,7 @@ export function PdfViewer({
                   activeMeasurementEditId={activeMeasurementEditId}
                   calibrationReferenceEdit={calibrationReferenceEdit}
                   measurementEditingBlocked={measurementEditingBlocked}
+                  precisionAuthoringAvailable={!precisionAuthoringBlocked}
                   displayUnit={displayUnit}
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}

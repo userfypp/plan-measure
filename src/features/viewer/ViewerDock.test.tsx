@@ -151,6 +151,19 @@ describe("ViewerDock", () => {
     expect(activeScaleTrigger().disabled).toBe(true);
   });
 
+  it("keeps camera controls available while page changes are locked by an in-progress workflow", () => {
+    const props = createProps({ pageNavigationDisabled: true });
+    renderDock(props);
+
+    expect(buttonByLabel("Previous page").disabled).toBe(true);
+    expect(buttonByLabel("Next page").disabled).toBe(true);
+    expect(buttonByLabel("Next page").title).toContain("Finish or cancel");
+    expect(buttonByLabel("Zoom out").disabled).toBe(false);
+    expect(buttonByLabel("Zoom in").disabled).toBe(false);
+    expect(buttonByLabel("Fit page to viewer").disabled).toBe(false);
+    expect(buttonByLabel("View options").disabled).toBe(false);
+  });
+
   it("moves the existing View settings into a Popover without changing their commands", () => {
     const props = createProps();
     renderDock(props);
