@@ -64,6 +64,7 @@ function renderCollection(
 }
 
 function renderGroupedCollection() {
+  const onSetMeasurementsVisibility = vi.fn();
   act(() =>
     root!.render(
       <MeasurementCollection
@@ -88,10 +89,11 @@ function renderGroupedCollection() {
             visibility: "visible",
           },
         ]}
-        onSetMeasurementsVisibility={vi.fn()}
+        onSetMeasurementsVisibility={onSetMeasurementsVisibility}
       />,
     ),
   );
+  return { onSetMeasurementsVisibility };
 }
 
 function control(measurementId: string, kind: "selection" | "visibility"): HTMLButtonElement {
@@ -204,5 +206,24 @@ describe("MeasurementCollection keyboard model", () => {
     expect(visibleRowControls.filter((button) => button.tabIndex === 0)).toEqual([
       control("line-2", "selection"),
     ]);
+  });
+
+  it("keeps one keyboard-focusable bulk visibility control per grouped header", () => {
+    const { onSetMeasurementsVisibility } = renderGroupedCollection();
+    const visibilityControls = Array.from(
+      container!.querySelectorAll<HTMLButtonElement>("button[data-group-visibility]"),
+    );
+
+    expect(visibilityControls).toHaveLength(2);
+    expect(visibilityControls.every((button) => button.tabIndex === 0)).toBe(true);
+    expect(visibilityControls.every((button) => button.tabIndex <= 0)).toBe(true);
+    expect(visibilityControls[0]?.getAttribute("aria-label")).toBe(
+      "Hide all measurements in First; currently all visible",
+    );
+
+    act(() => visibilityControls[0]?.focus());
+    expect(document.activeElement).toBe(visibilityControls[0]);
+    act(() => visibilityControls[0]?.click());
+    expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
   });
 });

@@ -269,10 +269,10 @@ describe("MeasurementRow accessibility", () => {
 });
 
 describe("measurement grouping surfaces", () => {
-  it("binds the existing responsive group rule to a real component-scoped container", () => {
+  it("keeps grouped layout bound to the Measurement Panel container without the old wrap rule", () => {
     expect(measurementPanelCss).toContain("container-name: measurement-panel");
     expect(measurementPanelCss).toContain("container-type: inline-size");
-    expect(measurementGroupCss).toContain("@container measurement-panel (max-width: 330px)");
+    expect(measurementGroupCss).not.toContain("@container measurement-panel (max-width: 330px)");
   });
 
   it("keeps Group by out of the header when the catalog has no dimensions", () => {
@@ -326,7 +326,7 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("renders accessible grouped rows with the group status and archive label once", () => {
+  it("renders a compact accessible grouped header with one bulk visibility control", () => {
     const markup = renderToStaticMarkup(
       <MeasurementCollection
         key="trade"
@@ -350,12 +350,31 @@ describe("measurement grouping surfaces", () => {
 
     expect(markup).toContain("Electrical (archived)");
     expect(markup.match(/\(archived\)/g)).toHaveLength(1);
-    expect(markup).toContain("Mixed");
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).toMatch(/aria-controls="[^"]+-measurements"/);
-    expect(markup).toContain('aria-label="Show all measurements in Electrical"');
+    expect(markup).toContain(
+      'aria-label="Show all measurements in Electrical; currently mixed visibility"',
+    );
+    expect(markup).toContain('data-group-visibility="mixed"');
+    expect(markup).toContain('d="M9.5 12h5"');
+    expect(markup).not.toContain('d="m4 4 16 16"');
+    expect(markup).not.toContain(">Mixed<");
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
+  });
+
+  it("keeps grouped hierarchy compact and removes only the grouped selection marker", () => {
+    expect(measurementGroupCss).toMatch(
+      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding-left:\s*var\(--space-8\);/s,
+    );
+    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
+    expect(measurementRowCss).toMatch(
+      /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, 3px\);/s,
+    );
+    expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
   });
 
   it("keeps a collapsed group's controlled list mounted and hidden", () => {

@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Badge, Button } from "../../components/ui";
+import { IconButton } from "../../components/ui";
 import type { MeasurementGroup as MeasurementGroupModel } from "./measurementGrouping";
 import { MeasurementRow } from "./MeasurementRow";
 import type { MeasurementViewModel } from "./measurementViewModels";
@@ -16,16 +16,10 @@ export interface MeasurementGroupProps {
   rovingCell?: { measurementId: string; control: "selection" | "visibility" } | null;
 }
 
-const visibilityVariant = {
-  visible: "success",
-  hidden: "neutral",
-  mixed: "warning",
-} as const;
-
-const visibilityLabel = {
-  visible: "Visible",
-  hidden: "Hidden",
-  mixed: "Mixed",
+const visibilityStateLabel = {
+  visible: "all visible",
+  hidden: "all hidden",
+  mixed: "mixed visibility",
 } as const;
 
 function ChevronIcon() {
@@ -45,6 +39,24 @@ function ChevronIcon() {
   );
 }
 
+function GroupVisibilityIcon({ state }: { state: "visible" | "hidden" | "mixed" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path
+        d="M2.5 12s3.25-5.25 9.5-5.25S21.5 12 21.5 12 18.25 17.25 12 17.25 2.5 12 2.5 12Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {state === "mixed" ? (
+        <path d="M9.5 12h5" strokeLinecap="round" />
+      ) : (
+        <circle cx="12" cy="12" r="2.5" />
+      )}
+      {state === "hidden" && <path d="m4 4 16 16" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
 export function MeasurementGroup({
   group,
   measurements,
@@ -59,10 +71,11 @@ export function MeasurementGroup({
   const listId = `${generatedId}-measurements`;
   const actionIsHide = group.visibility === "visible";
   const actionLabel = actionIsHide ? "Hide" : "Show";
+  const visibilityState = visibilityStateLabel[group.visibility];
   const bulkActionLabel =
     group.key.endsWith(":unclassified")
-      ? `${actionLabel} all unclassified measurements`
-      : `${actionLabel} all measurements in ${group.label}`;
+      ? `${actionLabel} all unclassified measurements; currently ${visibilityState}`
+      : `${actionLabel} all measurements in ${group.label}; currently ${visibilityState}`;
 
   return (
     <section className={styles.group} aria-label={`${group.label} measurement group`}>
@@ -77,28 +90,21 @@ export function MeasurementGroup({
         >
           <ChevronIcon />
         </button>
-        <div className={styles.title}>
-          <h3>
-            {group.label}
-            {group.archived ? " (archived)" : ""}
-          </h3>
-          <span className={styles.count} aria-label={`${group.measurementIds.length} measurements`}>
-            {group.measurementIds.length}
-          </span>
-        </div>
-        <div className={styles.actions}>
-          <Badge variant={visibilityVariant[group.visibility]}>
-            {visibilityLabel[group.visibility]}
-          </Badge>
-          <Button
-            variant="secondary"
-            size="compact"
-            aria-label={bulkActionLabel}
-            onClick={() => onSetMeasurementsVisibility(group.measurementIds, !actionIsHide)}
-          >
-            {actionIsHide ? "Hide" : "Show"}
-          </Button>
-        </div>
+        <h3 className={styles.title} title={group.label}>
+          {group.label}
+          {group.archived ? " (archived)" : ""}
+        </h3>
+        <span className={styles.count} aria-label={`${group.measurementIds.length} measurements`}>
+          {group.measurementIds.length}
+        </span>
+        <IconButton
+          icon={<GroupVisibilityIcon state={group.visibility} />}
+          className={styles.visibilityControl}
+          data-group-visibility={group.visibility}
+          aria-label={bulkActionLabel}
+          title={`${visibilityState} · ${actionLabel} all`}
+          onClick={() => onSetMeasurementsVisibility(group.measurementIds, !actionIsHide)}
+        />
       </header>
       <div
         id={listId}
