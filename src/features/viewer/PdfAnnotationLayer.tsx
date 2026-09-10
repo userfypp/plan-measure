@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { Context as KonvaContext } from "konva/lib/Context";
+import type { Shape as KonvaShape } from "konva/lib/Shape";
 import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
 import type { Line as KonvaLineNode } from "konva/lib/shapes/Line";
 import { Circle, Group, Label, Line, Tag, Text } from "react-konva";
@@ -57,10 +59,17 @@ import {
   type MeasurementVertexDragNode,
   type MeasurementVertexDragPreparation,
 } from "./measurementVertexDrag";
+import {
+  CANVAS_VISUAL_METRICS,
+  circularHandleHitStrokeWidthScreenPx,
+  type CanvasVisualRoles,
+} from "./canvasVisualRoles";
 
-const LABEL_PADDING_SCREEN_PX = 4;
-const MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX = 12;
-const CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX = 11;
+const LABEL_PADDING_SCREEN_PX = CANVAS_VISUAL_METRICS.labelPaddingScreenPx;
+const MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX =
+  CANVAS_VISUAL_METRICS.measurementLabelFontSizeScreenPx;
+const CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX =
+  CANVAS_VISUAL_METRICS.calibrationLabelFontSizeScreenPx;
 
 export interface CalibrationReferenceEditPreview {
   calibrationId: string;
@@ -71,6 +80,38 @@ export interface CalibrationReferenceEditPreview {
 
 function pointsToFlat(points: Point[]): number[] {
   return points.flatMap((point) => [point.x, point.y]);
+}
+
+/**
+ * Preserve the historical Konva hit geometry while allowing the scene stroke
+ * to use the V2 round cap. Konva otherwise applies the scene lineCap to its hit
+ * stroke too, which would extend open Line/Polyline hit regions past endpoints.
+ */
+function drawMeasurementHit(context: KonvaContext, shape: KonvaShape): void {
+  const line = shape as KonvaLineNode;
+  const points = line.points();
+  if (points.length < 2) return;
+
+  context.beginPath();
+  context.moveTo(points[0]!, points[1]!);
+  for (let index = 2; index < points.length; index += 2) {
+    context.lineTo(points[index]!, points[index + 1]!);
+  }
+
+  if (line.closed()) {
+    context.closePath();
+    context.fillShape(line);
+  }
+
+  if (!line.hasHitStroke()) return;
+  const hitStrokeWidth = line.hitStrokeWidth();
+  const strokeWidth = hitStrokeWidth === "auto" ? line.strokeWidth() : hitStrokeWidth;
+  context.save();
+  context.setAttr("lineCap", "butt");
+  context.setAttr("lineWidth", strokeWidth);
+  context.setAttr("strokeStyle", line.colorKey);
+  context.stroke();
+  context.restore();
 }
 
 function averagePoint(points: Point[]): Point {
@@ -84,6 +125,7 @@ function averagePoint(points: Point[]): Point {
 function measureLabelText(text: string, fontSizeScreenPx: number, zoom: number): LabelDimensions {
   const textNode = new KonvaTextNode({
     text,
+    fontFamily: CANVAS_VISUAL_METRICS.fontFamily,
     fontSize: fontSizeScreenPx / zoom,
     padding: LABEL_PADDING_SCREEN_PX / zoom,
   });
@@ -105,6 +147,8 @@ interface PdfAnnotationLayerProps {
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
   measurementEditingBlocked: boolean;
   precisionAuthoringAvailable: boolean;
+  visualRoles: CanvasVisualRoles;
+  interactionTargetScreenPx: number;
 
   displayUnit: LinearUnit;
   showCalibration: boolean;
@@ -137,6 +181,8 @@ export function PdfAnnotationLayer({
   calibrationReferenceEdit,
   measurementEditingBlocked,
   precisionAuthoringAvailable,
+  visualRoles,
+  interactionTargetScreenPx,
   displayUnit,
   showCalibration,
   showMeasurements,
@@ -238,7 +284,6 @@ export function PdfAnnotationLayer({
         page.calibrations.flatMap((calibration) => {
           const active = calibration.id === page.activeCalibrationId;
           const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
-          const stroke = editing ? "#7c3aed" : active ? "#d97706" : "#52606d";
           const references =
             calibration.mode === "uniform"
               ? [{ key: "uniform", label: calibration.name, ...calibration }]
@@ -257,6 +302,9 @@ export function PdfAnnotationLayer({
           return references.map((reference) => {
             const referenceIsEditing =
               editing && calibrationReferenceEdit?.reference === reference.key;
+            const baseStroke =
+              reference.key === "y" ? visualRoles.referenceStroke : visualRoles.calibrationStroke;
+            const stroke = referenceIsEditing ? visualRoles.measurementSelectedStroke : baseStroke;
             const visibleReference = referenceIsEditing
               ? {
                   ...reference,
@@ -286,8 +334,16 @@ export function PdfAnnotationLayer({
                 <Line
                   points={pointsToFlat([visibleReference.start, visibleReference.end])}
                   stroke={stroke}
-                  strokeWidth={(referenceIsEditing || active ? 3 : 2) / transform.zoom}
-                  dash={[8 / transform.zoom, 5 / transform.zoom]}
+                  strokeWidth={
+                    (referenceIsEditing || active
+                      ? CANVAS_VISUAL_METRICS.calibrationEmphasizedStrokeScreenPx
+                      : CANVAS_VISUAL_METRICS.calibrationStrokeScreenPx) / transform.zoom
+                  }
+                  dash={CANVAS_VISUAL_METRICS.calibrationDashScreenPx.map(
+                    (value) => value / transform.zoom,
+                  )}
+                  lineCap="round"
+                  lineJoin="round"
                 />
                 <CalibrationReferenceMarkers
                   calibrationId={calibration.id}
@@ -295,17 +351,25 @@ export function PdfAnnotationLayer({
                   editable={referenceIsEditing}
                   precisionAuthoringAvailable={precisionAuthoringAvailable}
                   stroke={stroke}
+                  handleFill={visualRoles.handleFill}
+                  interactionTargetScreenPx={interactionTargetScreenPx}
                   zoom={transform.zoom}
                   transform={transform}
                   bounds={bounds}
-                  emphasized={referenceIsEditing || active}
                   onPointsChange={onCalibrationReferencePointsChange}
                 />
                 <Label x={labelPlacement.x} y={labelPlacement.y}>
-                  <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / transform.zoom} />
+                  <Tag
+                    fill={visualRoles.labelBackground}
+                    opacity={referenceIsEditing || active ? 1 : 0.88}
+                    stroke={referenceIsEditing ? visualRoles.measurementSelectedStroke : undefined}
+                    strokeWidth={referenceIsEditing ? 1 / transform.zoom : 0}
+                    cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / transform.zoom}
+                  />
                   <Text
                     text={labelText}
-                    fill="#fff"
+                    fill={visualRoles.labelText}
+                    fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
                     fontSize={CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX / transform.zoom}
                     padding={LABEL_PADDING_SCREEN_PX / transform.zoom}
                   />
@@ -343,6 +407,8 @@ export function PdfAnnotationLayer({
             showLabel={showLabels}
             page={page}
             displayUnit={displayUnit}
+            visualRoles={visualRoles}
+            interactionTargetScreenPx={interactionTargetScreenPx}
             pageNumber={page.pageNumber}
             onSelectMeasurement={onSelectMeasurement}
             onMeasurementEditActiveChange={onMeasurementEditActiveChange}
@@ -363,10 +429,11 @@ interface CalibrationReferenceMarkersProps {
   editable: boolean;
   precisionAuthoringAvailable: boolean;
   stroke: string;
+  handleFill: string;
+  interactionTargetScreenPx: number;
   zoom: number;
   transform: ViewTransform;
   bounds: LogicalPageBounds;
-  emphasized: boolean;
   onPointsChange: (points: [Point, Point]) => void;
 }
 
@@ -376,10 +443,11 @@ function CalibrationReferenceMarkers({
   editable,
   precisionAuthoringAvailable,
   stroke,
+  handleFill,
+  interactionTargetScreenPx,
   zoom,
   transform,
   bounds,
-  emphasized,
   onPointsChange,
 }: CalibrationReferenceMarkersProps) {
   const frameRef = useRef<number | null>(null);
@@ -454,12 +522,16 @@ function CalibrationReferenceMarkers({
         key={`${calibrationId}-${index}`}
         x={point.x}
         y={point.y}
-        radius={4 / zoom}
-        fill="#fff"
+        radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
+        fill={handleFill}
         stroke={stroke}
-        strokeWidth={(emphasized ? 2 : 1.5) / zoom}
+        strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
         draggable={spatialEditable}
-        hitStrokeWidth={spatialEditable ? 12 / zoom : 0}
+        hitStrokeWidth={
+          spatialEditable
+            ? circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom
+            : 0
+        }
         onDragStart={
           spatialEditable
             ? (event) => {
@@ -480,6 +552,8 @@ interface MeasurementShapeProps {
   pageNumber: number;
   page: PageState;
   displayUnit: LinearUnit;
+  visualRoles: CanvasVisualRoles;
+  interactionTargetScreenPx: number;
   bounds: LogicalPageBounds;
   zoom: number;
   transform: ViewTransform;
@@ -506,6 +580,8 @@ const MeasurementShape = memo(function MeasurementShape({
   pageNumber,
   page,
   displayUnit,
+  visualRoles,
+  interactionTargetScreenPx,
   bounds,
   zoom,
   transform,
@@ -536,7 +612,9 @@ const MeasurementShape = memo(function MeasurementShape({
   const [wholeDragPrepared, setWholeDragPrepared] = useState(false);
   const [vertexDragOwned, setVertexDragOwned] = useState(false);
   const [dragPoints, setDragPoints] = useState<Point[] | null>(null);
-  const stroke = selected ? "#c2410c" : "#2563eb";
+  const stroke = selected
+    ? visualRoles.measurementSelectedStroke
+    : visualRoles.measurementDefaultStroke;
   const visibleMeasurement = useMemo<Measurement>(() => {
     if (!dragPoints) return measurement;
     return { ...measurement, points: dragPoints };
@@ -579,6 +657,7 @@ const MeasurementShape = memo(function MeasurementShape({
     selected || wholeDragPrepared,
     editable,
   );
+  const manipulating = dragPoints !== null || vertexDragOwned;
 
   const cancelVertexGesture = useCallback(
     (owner?: object) => {
@@ -895,13 +974,21 @@ const MeasurementShape = memo(function MeasurementShape({
         fill={
           measurementPathSpecs[measurement.type].closed
             ? selected
-              ? "rgba(194,65,12,0.13)"
-              : "rgba(37,99,235,0.10)"
+              ? manipulating
+                ? visualRoles.measurementSelectedSoftFill
+                : visualRoles.measurementSelectedFill
+              : visualRoles.measurementDefaultFill
             : undefined
         }
         stroke={stroke}
-        strokeWidth={(selected ? 3 : 2) / zoom}
-        hitStrokeWidth={12 / zoom}
+        strokeWidth={
+          (selected
+            ? CANVAS_VISUAL_METRICS.measurementSelectedStrokeScreenPx
+            : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) / zoom
+        }
+        hitStrokeWidth={CANVAS_VISUAL_METRICS.measurementHitStrokeScreenPx / zoom}
+        hitFunc={drawMeasurementHit}
+        lineCap="round"
         lineJoin="round"
         draggable={wholeMeasurementDraggable}
         dragDistance={MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX}
@@ -913,10 +1000,17 @@ const MeasurementShape = memo(function MeasurementShape({
       />
       {showLabel && labelText && labelPlacement && (
         <Label x={labelPlacement.x} y={labelPlacement.y} listening={false}>
-          <Tag fill="rgba(15,23,42,0.88)" cornerRadius={3 / zoom} />
+          <Tag
+            fill={visualRoles.labelBackground}
+            opacity={selected ? 1 : 0.88}
+            stroke={selected ? visualRoles.measurementSelectedStroke : undefined}
+            strokeWidth={selected ? 1 / zoom : 0}
+            cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / zoom}
+          />
           <Text
             text={labelText}
-            fill="#fff"
+            fill={visualRoles.labelText}
+            fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
             fontSize={MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX / zoom}
             padding={LABEL_PADDING_SCREEN_PX / zoom}
           />
@@ -928,11 +1022,13 @@ const MeasurementShape = memo(function MeasurementShape({
             key={index}
             x={point.x}
             y={point.y}
-            radius={6 / zoom}
-            fill="#fff"
-            stroke="#c2410c"
-            strokeWidth={2 / zoom}
-            hitStrokeWidth={10 / zoom}
+            radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
+            fill={visualRoles.handleFill}
+            stroke={visualRoles.handleStroke}
+            strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
+            hitStrokeWidth={
+              circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom
+            }
             draggable
             onMouseDown={(event) => {
               if (prepareVertexGesture(event.target, index, event.evt.button)) {

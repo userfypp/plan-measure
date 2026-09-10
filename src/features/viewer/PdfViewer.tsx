@@ -71,6 +71,11 @@ import { useViewerNavigationRegistration } from "./ViewerNavigation";
 import { useViewerInteractionCommandRegistration } from "./ViewerInteractionCommands";
 import { useAuthoringCapability } from "./AuthoringCapability";
 import {
+  CANVAS_VISUAL_METRICS,
+  useCanvasInteractionTargetScreenPx,
+  useCanvasVisualRoles,
+} from "./canvasVisualRoles";
+import {
   safeViewerLayout,
   useViewerBottomExclusion,
 } from "./viewerLayout";
@@ -135,6 +140,8 @@ export function PdfViewer({
   const registerInteractionCommands = useViewerInteractionCommandRegistration();
   const viewerBottomExclusion = useViewerBottomExclusion();
   const authoringCapability = useAuthoringCapability();
+  const canvasVisualRoles = useCanvasVisualRoles();
+  const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
   const precisionAuthoringBlocked = !authoringCapability.available;
   const { session, addMeasurement } = useSessionState();
   const {
@@ -1157,7 +1164,7 @@ export function PdfViewer({
                   name="page-background"
                   width={bounds.width}
                   height={bounds.height}
-                  fill="rgba(255,255,255,0.001)"
+                  fill={canvasVisualRoles.pageHitRegionFill}
                 />
                 <PdfAnnotationLayer
                   page={page}
@@ -1171,6 +1178,8 @@ export function PdfViewer({
                   calibrationReferenceEdit={calibrationReferenceEdit}
                   measurementEditingBlocked={measurementEditingBlocked}
                   precisionAuthoringAvailable={!precisionAuthoringBlocked}
+                  visualRoles={canvasVisualRoles}
+                  interactionTargetScreenPx={canvasInteractionTarget}
                   displayUnit={displayUnit}
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}
@@ -1183,39 +1192,112 @@ export function PdfViewer({
                   }
                   onVertexDragCancellationChange={registerVertexDragCancellation}
                 />
-                {workspaceDraft && draftPoints.length >= 2 && (
+                {workspaceDraft?.type === "path" &&
+                  measurementPathSpecs[workspaceDraft.measurementType].closed &&
+                  draftPoints.length >= 3 && (
+                    <Line
+                      points={pointsToFlat(draftPoints)}
+                      closed
+                      fill={canvasVisualRoles.drawingDraftFill}
+                      strokeEnabled={false}
+                      listening={false}
+                    />
+                  )}
+                {workspaceDraft && workspaceDraft.points.length >= 2 && (
                   <Line
-                    points={pointsToFlat(draftPoints)}
-                    stroke={workspaceDraft.type === "calibrate" ? "#d97706" : "#2563eb"}
-                    strokeWidth={2 / viewTransform.zoom}
-                    dash={[7 / viewTransform.zoom, 5 / viewTransform.zoom]}
+                    points={pointsToFlat(workspaceDraft.points)}
+                    stroke={
+                      workspaceDraft.type === "calibrate"
+                        ? canvasVisualRoles.calibrationStroke
+                        : canvasVisualRoles.drawingDraftStroke
+                    }
+                    strokeWidth={CANVAS_VISUAL_METRICS.draftStrokeScreenPx / viewTransform.zoom}
+                    lineCap="round"
                     lineJoin="round"
+                    listening={false}
                   />
                 )}
+                {workspaceDraft &&
+                  workspaceDraft.points.length >= 1 &&
+                  draftPoints.length > workspaceDraft.points.length && (
+                    <Line
+                      points={pointsToFlat(draftPoints.slice(-2))}
+                      stroke={
+                        workspaceDraft.type === "calibrate"
+                          ? canvasVisualRoles.calibrationStroke
+                          : canvasVisualRoles.drawingDraftStroke
+                      }
+                      strokeWidth={
+                        CANVAS_VISUAL_METRICS.draftPreviewStrokeScreenPx / viewTransform.zoom
+                      }
+                      dash={CANVAS_VISUAL_METRICS.draftPreviewDashScreenPx.map(
+                        (value) => value / viewTransform.zoom,
+                      )}
+                      lineCap="round"
+                      lineJoin="round"
+                      listening={false}
+                    />
+                  )}
+                {workspaceDraft?.type === "path" &&
+                  measurementPathSpecs[workspaceDraft.measurementType].closed &&
+                  workspaceDraft.points.length >= 2 &&
+                  draftPoints.length > workspaceDraft.points.length &&
+                  workspaceDraft.points[0] && (
+                    <Line
+                      points={pointsToFlat([draftPoints.at(-1)!, workspaceDraft.points[0]])}
+                      stroke={canvasVisualRoles.drawingDraftStroke}
+                      strokeWidth={
+                        CANVAS_VISUAL_METRICS.draftPreviewStrokeScreenPx / viewTransform.zoom
+                      }
+                      dash={CANVAS_VISUAL_METRICS.draftPreviewDashScreenPx.map(
+                        (value) => value / viewTransform.zoom,
+                      )}
+                      lineCap="round"
+                      lineJoin="round"
+                      listening={false}
+                    />
+                  )}
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
                   workspaceDraft.points[0] && (
                     <Circle
                       x={workspaceDraft.points[0].x}
                       y={workspaceDraft.points[0].y}
-                      radius={7 / viewTransform.zoom}
-                      fill="#fff"
-                      stroke="#2563eb"
-                      strokeWidth={3 / viewTransform.zoom}
+                      radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / viewTransform.zoom}
+                      fill={canvasVisualRoles.handleFill}
+                      stroke={canvasVisualRoles.handleStroke}
+                      strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / viewTransform.zoom}
                     />
                   )}
+                {workspaceDraft?.type === "path" &&
+                  workspaceDraft.points.slice(1).map((point, index) => (
+                    <Circle
+                      key={`draft-point-${index + 1}`}
+                      x={point.x}
+                      y={point.y}
+                      radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / viewTransform.zoom}
+                      fill={canvasVisualRoles.handleFill}
+                      stroke={canvasVisualRoles.handleStroke}
+                      strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / viewTransform.zoom}
+                      listening={false}
+                    />
+                  ))}
                 {snapMarker && (
                   <Rect
                     x={snapMarker.x}
                     y={snapMarker.y}
-                    width={5 / viewTransform.zoom}
-                    height={5 / viewTransform.zoom}
-                    offsetX={2.5 / viewTransform.zoom}
-                    offsetY={2.5 / viewTransform.zoom}
+                    width={CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / viewTransform.zoom}
+                    height={CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / viewTransform.zoom}
+                    offsetX={
+                      CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / 2 / viewTransform.zoom
+                    }
+                    offsetY={
+                      CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / 2 / viewTransform.zoom
+                    }
                     rotation={45}
-                    fill="rgba(255,255,255,0.9)"
-                    stroke="#2563eb"
-                    strokeWidth={1.25 / viewTransform.zoom}
+                    fill={canvasVisualRoles.handleFill}
+                    stroke={canvasVisualRoles.snapTarget}
+                    strokeWidth={CANVAS_VISUAL_METRICS.snapMarkerStrokeScreenPx / viewTransform.zoom}
                     listening={false}
                   />
                 )}

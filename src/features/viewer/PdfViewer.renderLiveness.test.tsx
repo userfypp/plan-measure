@@ -6,6 +6,7 @@ import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptySession, SessionProvider, useSessionState } from "../../app/sessionState";
 import { AppProvider, useAppState } from "../../app/state";
+import { ThemeProvider } from "../../app/themeState";
 import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
 import type { PageState, Tool } from "../../types/domain";
@@ -31,22 +32,46 @@ const pdfJs = vi.hoisted(() => ({
   workerOptions: {} as { workerSrc?: string },
 }));
 
+type CapturedProps = Record<string, unknown>;
+const konvaCapture = vi.hoisted(() => ({
+  circles: [] as CapturedProps[],
+  lines: [] as CapturedProps[],
+  rects: [] as CapturedProps[],
+  stages: [] as CapturedProps[],
+  annotationLayers: [] as CapturedProps[],
+}));
+
 vi.mock("pdfjs-dist", () => ({
   getDocument: pdfJs.getDocument,
   GlobalWorkerOptions: pdfJs.workerOptions,
 }));
 
 vi.mock("react-konva", () => ({
-  Circle: () => null,
+  Circle: (props: CapturedProps) => {
+    konvaCapture.circles.push(props);
+    return null;
+  },
   Group: ({ children }: { children?: ReactNode }) => <>{children}</>,
   Layer: ({ children }: { children?: ReactNode }) => <>{children}</>,
-  Line: () => null,
-  Rect: () => null,
-  Stage: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  Line: (props: CapturedProps) => {
+    konvaCapture.lines.push(props);
+    return null;
+  },
+  Rect: (props: CapturedProps) => {
+    konvaCapture.rects.push(props);
+    return null;
+  },
+  Stage: (props: CapturedProps & { children?: ReactNode }) => {
+    konvaCapture.stages.push(props);
+    return <>{props.children}</>;
+  },
 }));
 
 vi.mock("./PdfAnnotationLayer", () => ({
-  PdfAnnotationLayer: () => null,
+  PdfAnnotationLayer: (props: CapturedProps) => {
+    konvaCapture.annotationLayers.push(props);
+    return null;
+  },
 }));
 
 const PAGE_WIDTH = 600;
@@ -252,38 +277,40 @@ function ViewerHarness({
   onChooseTool = noop,
 }: ViewerHarnessProps) {
   return (
-    <AppProvider>
-      <ErrorProbe />
-      <SessionProvider>
-        <WorkspaceProvider>
-          <ViewerInteractionCommandsProvider>
-            <InteractionProbe />
-            <AuthoringCapabilityProvider capability={authoringCapability}>
-              <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
-                <ViewerNavigationProvider registerNavigation={registerNavigation}>
-                  <PdfViewer
-                    document={document}
-                    page={page}
-                    onPageChange={noop}
-                    onPageBoundsChange={noop}
-                    onViewZoomChange={noop}
-                    activeMeasurementEditId={null}
-                    onMeasurementEditActiveChange={noop}
-                    onChooseTool={onChooseTool}
-                    onCalibrationCandidate={noop}
-                    onCalibrationCancel={noop}
-                    calibrationReferenceEdit={null}
-                    measurementEditingBlocked={false}
-                    onCalibrationReferencePointsChange={noop}
-                    onCalibrationReferenceEditCancel={noop}
-                  />
-                </ViewerNavigationProvider>
-              </ViewerBottomExclusionProvider>
-            </AuthoringCapabilityProvider>
-          </ViewerInteractionCommandsProvider>
-        </WorkspaceProvider>
-      </SessionProvider>
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <ErrorProbe />
+        <SessionProvider>
+          <WorkspaceProvider>
+            <ViewerInteractionCommandsProvider>
+              <InteractionProbe />
+              <AuthoringCapabilityProvider capability={authoringCapability}>
+                <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
+                  <ViewerNavigationProvider registerNavigation={registerNavigation}>
+                    <PdfViewer
+                      document={document}
+                      page={page}
+                      onPageChange={noop}
+                      onPageBoundsChange={noop}
+                      onViewZoomChange={noop}
+                      activeMeasurementEditId={null}
+                      onMeasurementEditActiveChange={noop}
+                      onChooseTool={onChooseTool}
+                      onCalibrationCandidate={noop}
+                      onCalibrationCancel={noop}
+                      calibrationReferenceEdit={null}
+                      measurementEditingBlocked={false}
+                      onCalibrationReferencePointsChange={noop}
+                      onCalibrationReferenceEditCancel={noop}
+                    />
+                  </ViewerNavigationProvider>
+                </ViewerBottomExclusionProvider>
+              </AuthoringCapabilityProvider>
+            </ViewerInteractionCommandsProvider>
+          </WorkspaceProvider>
+        </SessionProvider>
+      </AppProvider>
+    </ThemeProvider>
   );
 }
 
@@ -299,9 +326,24 @@ describe("PdfViewer render liveness", () => {
         IS_REACT_ACT_ENVIRONMENT: boolean;
       }
     ).IS_REACT_ACT_ENVIRONMENT = true;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }));
     viewerRect = rect(VIEWER_WIDTH, VIEWER_HEIGHT);
     drawImage = vi.fn();
     ControlledResizeObserver.instances = [];
+    konvaCapture.circles.length = 0;
+    konvaCapture.lines.length = 0;
+    konvaCapture.rects.length = 0;
+    konvaCapture.stages.length = 0;
+    konvaCapture.annotationLayers.length = 0;
     sessionProbe = null;
     workspaceProbe = null;
     interactionProbe = null;
@@ -775,5 +817,151 @@ describe("PdfViewer render liveness", () => {
     await act(async () => interactionProbe!.completeCurrentDraft());
     expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
     expect(workspaceProbe?.draft).toBeNull();
+  });
+
+  it("renders V2 draft/Snap semantics and uses coarse hit targets on a hybrid pointer", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(any-pointer: coarse)",
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }));
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.settings.showMeasurements = true;
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      measurements: [
+        {
+          id: "snap-line",
+          name: "Snap line",
+          type: "line",
+          calibrationId: "scale-1",
+          classificationValueIds: [],
+          visible: true,
+          points: [
+            { x: 100, y: 100 },
+            { x: 140, y: 100 },
+          ],
+        },
+      ],
+    };
+    const hybridCapability = computeAuthoringCapability({
+      viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
+      rightObstruction: 0,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+
+    await mountViewer(runtime.document, {
+      page: session.pages[1],
+      authoringCapability: hybridCapability,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => {
+      workspaceProbe!.chooseTool("polygon");
+      workspaceProbe!.setSnap(true);
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polygon",
+        points: [
+          { x: 200, y: 200 },
+          { x: 250, y: 200 },
+          { x: 250, y: 250 },
+        ],
+      });
+    });
+
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    if (!onMouseMove) throw new Error("Stage mouse-move handler was not captured.");
+    konvaCapture.circles.length = 0;
+    konvaCapture.lines.length = 0;
+    konvaCapture.rects.length = 0;
+    konvaCapture.annotationLayers.length = 0;
+
+    await act(async () => {
+      onMouseMove({
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 337, y: 105.5 }),
+          }),
+        },
+      });
+    });
+
+    expect(hybridCapability.available).toBe(true);
+    expect(konvaCapture.annotationLayers.at(-1)?.interactionTargetScreenPx).toBe(44);
+
+    const pageHit = konvaCapture.rects.find((props) => props.name === "page-background");
+    expect(pageHit?.fill).toBe("rgba(255,255,255,0.001)");
+
+    const draftFill = konvaCapture.lines.find(
+      (props) => props.closed === true && props.strokeEnabled === false,
+    );
+    expect(draftFill).toMatchObject({ fill: "#2465c718", listening: false });
+
+    const confirmed = konvaCapture.lines.find(
+      (props) => Array.isArray(props.points) && props.points.length === 6 && props.dash === undefined,
+    );
+    expect(confirmed).toMatchObject({
+      stroke: "#2465c7",
+      lineCap: "round",
+      lineJoin: "round",
+      listening: false,
+    });
+
+    const dashedPreview = konvaCapture.lines.filter((props) => Array.isArray(props.dash));
+    expect(dashedPreview).toHaveLength(2);
+    for (const preview of dashedPreview) {
+      expect(preview).toMatchObject({
+        stroke: "#2465c7",
+        dash: [5 / 0.815, 4 / 0.815],
+        listening: false,
+      });
+    }
+
+    expect(konvaCapture.circles).toHaveLength(3);
+    for (const point of konvaCapture.circles) {
+      expect(point).toMatchObject({
+        radius: 3 / 0.815,
+        fill: "#ffffff",
+        stroke: "#2465c7",
+      });
+    }
+
+    const snapMarker = konvaCapture.rects.find(
+      (props) => props.rotation === 45 && props.listening === false,
+    );
+    expect(snapMarker).toMatchObject({
+      width: 6 / 0.815,
+      height: 6 / 0.815,
+      fill: "#ffffff",
+      stroke: "#2465c7",
+      rotation: 45,
+      listening: false,
+    });
   });
 });

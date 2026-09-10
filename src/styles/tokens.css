@@ -66,16 +66,6 @@
 }
 
 :root {
-  /* Theme-invariant V2 canvas roles. PR1 only exposes them; Konva migration is later. */
-  --color-canvas-selection-stroke: #2465c7;
-  --color-canvas-selection-fill: #2465c718;
-  --color-canvas-selection-fill-soft: #2465c710;
-  --color-measurement-teal: #258a88;
-  --color-measurement-teal-fill-strong: #258a8815;
-  --color-measurement-teal-fill-soft: #258a8810;
-  --color-measurement-ochre: #ac7620;
-  --color-document: #ffffff;
-
   /* Spacing */
   --space-4: 4px;
   --space-8: 8px;
