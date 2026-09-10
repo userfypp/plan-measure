@@ -305,7 +305,15 @@ export function ClassificationManager({
                       onSubmit={(event) => submitValue(event, dimension.id)}
                     >
                       <Input
-                        label={`New value for ${dimension.name}`}
+                        label={
+                          <span
+                            className={styles.inlineLabel}
+                            title={`New value for ${dimension.name}`}
+                          >
+                            New value for {dimension.name}
+                          </span>
+                        }
+                        className={styles.compactInput}
                         value={valueNames[dimension.id] ?? ""}
                         error={valueErrors[dimension.id]}
                         disabled={disabled}
@@ -335,6 +343,7 @@ export function ClassificationManager({
         <form className={styles.create} onSubmit={submitDimension}>
           <Input
             label="New dimension"
+            className={styles.compactInput}
             value={dimensionName}
             error={createError}
             disabled={disabled}

@@ -45,7 +45,7 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-8);
-  padding: var(--space-12) var(--space-4);
+  padding: var(--space-8) var(--space-4);
   border-bottom: var(--border-width) solid var(--color-divider);
   background: transparent;
 }
@@ -198,6 +198,20 @@
   min-width: 0;
 }
 
+.compactInput {
+  min-height: var(--control-height-compact);
+  padding-inline: var(--space-8);
+  font-size: var(--font-size-sm);
+}
+
+.inlineLabel {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .inlineForm {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -216,6 +230,7 @@
 .inlineForm > :first-child > label {
   grid-column: 1;
   grid-row: 1;
+  min-width: 0;
 }
 
 .inlineForm > :first-child > input {
@@ -259,15 +274,15 @@
 .create {
   display: grid;
   gap: var(--space-8);
-  padding: var(--space-12) var(--space-4) var(--space-4);
+  padding: var(--space-8) var(--space-4) var(--space-4);
   border-top: var(--border-width) solid var(--color-divider);
 }
 
 .create > button {
-  justify-self: start;
+  width: 100%;
 }
 
-@container (max-width: 320px) {
+@container (max-width: 248px) {
   .itemHeader {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -92,9 +92,29 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(/\.archiveAction:hover[^}]*color:\s*var\(--color-danger-hover-semantic\)/s);
     expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
     expect(managerCss).not.toContain("@container (max-width: 640px)");
-    expect(managerCss).toContain("@container (max-width: 320px)");
+    expect(managerCss).toContain("@container (max-width: 248px)");
     expect(managerCss).toMatch(/\.inlineForm\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
     expect(managerCss).toMatch(/\.create\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+  });
+
+  it("keeps classification headers and create controls compact at the real panel widths", () => {
+    expect(managerCss).toMatch(
+      /\.itemHeader\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.itemHeader > \.actions\s*\{[^}]*flex-wrap:\s*nowrap;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.inlineForm\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.compactInput\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*padding-inline:\s*var\(--space-8\);/s,
+    );
+    expect(managerCss).toMatch(
+      /\.inlineLabel\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s,
+    );
+    expect(managerCss).toMatch(/\.create > button\s*\{[^}]*width:\s*100%;/s);
+    expect(managerCss).not.toContain("@container (max-width: 320px)");
   });
 
   it("renders archived dimensions with restore and preserved-assignment guidance only", () => {
@@ -288,6 +308,7 @@ describe("classification surfaces", () => {
     const longValue = largeCatalog.dimensions[0]!.values[0]!.name;
     expect(markup).toContain(`title="${longDimension}"`);
     expect(markup).toContain(`aria-label="Rename ${longDimension}"`);
+    expect(markup).toContain(`title="New value for ${longDimension}"`);
     expect(markup).toContain(`title="${longValue}"`);
     expect(markup).toContain(`aria-label="Rename ${longValue}"`);
   });
