@@ -1,9 +1,13 @@
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ClassificationCatalog } from "../../types/domain";
 import { ClassificationAssignment } from "./ClassificationAssignment";
 import { ClassificationManager } from "./ClassificationManager";
 import { ClassificationWorkspace } from "./ClassificationWorkspace";
+
+const managerCss = readFileSync(new URL("./ClassificationManager.module.css", import.meta.url), "utf8");
 
 const catalog: ClassificationCatalog = {
   dimensions: [
@@ -69,11 +73,28 @@ describe("classification surfaces", () => {
     expect(markup).toContain("1 active value");
     expect(markup).not.toContain("1 active values");
     expect(markup).toContain("Rename");
+    expect(markup).toContain('aria-label="Rename Trade"');
     expect(markup).toContain("Archive Trade; existing assignments are preserved");
+    expect(markup).toContain('title="Trade"');
+    expect(markup).toContain('title="Electrical"');
     expect(markup).toContain("never change measurement scales");
     expect(markup).not.toContain(">Classifications<");
     expect(markup).not.toContain("active dimensions");
     expect(markup).not.toContain("archived dimensions");
+  });
+
+  it("keeps catalog hierarchy, secondary archive actions, and contextual creation styling", () => {
+    expect(managerCss).toMatch(/\.itemText strong\s*\{[^}]*font-size:\s*var\(--font-size-heading\)/s);
+    expect(managerCss).toMatch(/\.valueList\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+    expect(managerCss).toMatch(/\.valueItem\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s);
+    expect(managerCss).toMatch(/\.secondaryAction\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s);
+    expect(managerCss).toMatch(/\.archiveAction\s*\{[^}]*color:\s*var\(--color-text-secondary\)/s);
+    expect(managerCss).toMatch(/\.archiveAction:hover[^}]*color:\s*var\(--color-danger-hover-semantic\)/s);
+    expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
+    expect(managerCss).not.toContain("@container (max-width: 640px)");
+    expect(managerCss).toContain("@container (max-width: 320px)");
+    expect(managerCss).toMatch(/\.inlineForm\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+    expect(managerCss).toMatch(/\.create\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s);
   });
 
   it("renders archived dimensions with restore and preserved-assignment guidance only", () => {
@@ -96,6 +117,7 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Trade");
     expect(markup).toContain("Archived");
     expect(markup).toContain("Restore");
+    expect(markup).toContain('aria-label="Restore dimension Trade"');
     expect(markup).toContain("Existing measurement assignments are preserved.");
     expect(markup).toContain("Electrical");
     expect(markup).toContain("Legacy");
@@ -248,8 +270,7 @@ describe("classification surfaces", () => {
   });
 
   it("renders long catalog names and several dimensions without throwing", () => {
-    expect(() =>
-      renderToStaticMarkup(
+    const markup = renderToStaticMarkup(
         <ClassificationManager
           catalog={largeCatalog}
           onCreateDimension={() => undefined}
@@ -261,8 +282,14 @@ describe("classification surfaces", () => {
           onArchiveValue={() => undefined}
           onRestoreValue={() => undefined}
         />,
-      ),
-    ).not.toThrow();
+      );
+
+    const longDimension = largeCatalog.dimensions[0]!.name;
+    const longValue = largeCatalog.dimensions[0]!.values[0]!.name;
+    expect(markup).toContain(`title="${longDimension}"`);
+    expect(markup).toContain(`aria-label="Rename ${longDimension}"`);
+    expect(markup).toContain(`title="${longValue}"`);
+    expect(markup).toContain(`aria-label="Rename ${longValue}"`);
   });
 
   it("generates unique field IDs when multiple assignment instances are mounted", () => {

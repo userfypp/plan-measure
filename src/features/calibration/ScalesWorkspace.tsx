@@ -29,6 +29,14 @@ function ScaleOptionLabel({ mode }: { mode: "uniform" | "xy" }) {
   );
 }
 
+function DisclosureIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+      <path d="m7 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ScalesWorkspace({
   page,
   actionsDisabled = false,
@@ -65,36 +73,39 @@ export function ScalesWorkspace({
                 .join(" ")}
               role="listitem"
             >
-              <button
-                type="button"
-                className={styles.inspectButton}
-                aria-label={`${inspected ? "Collapse" : "Inspect"} scale ${calibration.name}${active ? ", active" : ""}`}
-                aria-expanded={inspected}
-                aria-controls={detailId}
-                onClick={() => setInspectedScaleId(inspected ? null : calibration.id)}
-              >
-                <span className={styles.activeMark} aria-hidden="true">{active ? "✓" : ""}</span>
+              <div className={styles.scaleSummary}>
                 <span className={styles.scaleIdentity}>
-                  <strong>{calibration.name}</strong>
+                  <strong title={calibration.name}>{calibration.name}</strong>
                   <span>{metadata.detailLabel}</span>
                 </span>
                 {active && <span className={styles.activeLabel}>Active</span>}
-                <span className={styles.disclosure} aria-hidden="true">···</span>
-              </button>
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  className={styles.disclosureButton}
+                  aria-label={`${inspected ? "Collapse" : "Inspect"} scale ${calibration.name}${active ? ", active" : ""}`}
+                  aria-expanded={inspected}
+                  aria-controls={detailId}
+                  title={`${inspected ? "Collapse" : "Inspect"} ${calibration.name}`}
+                  onClick={() => setInspectedScaleId(inspected ? null : calibration.id)}
+                >
+                  <DisclosureIcon />
+                </Button>
+              </div>
               <div id={detailId} className={styles.scaleDetails} hidden={!inspected}>
                 {calibration.mode === "uniform" ? (
                   <div className={styles.referenceRow}>
-                    <span>Reference</span>
+                    <span className={styles.referenceLabel}>Reference</span>
                     <strong>{formatReferenceDistance(calibration.referenceDistanceMm)}</strong>
                   </div>
                 ) : (
                   <>
                     <div className={styles.referenceRow}>
-                      <span>X reference</span>
+                      <span className={styles.referenceLabel}>X reference</span>
                       <strong>{formatReferenceDistance(calibration.xReference.referenceDistanceMm)}</strong>
                     </div>
                     <div className={styles.referenceRow}>
-                      <span>Y reference</span>
+                      <span className={styles.referenceLabel}>Y reference</span>
                       <strong>{formatReferenceDistance(calibration.yReference.referenceDistanceMm)}</strong>
                     </div>
                   </>
@@ -188,8 +199,7 @@ export function ScalesWorkspace({
                 </>
               ),
               disabled: precisionActionsDisabled,
-              onSelect: () =>
-                workspace.requestPrecisionAuthoring(() => onAddScale("uniform")),
+              onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("uniform")),
             },
             {
               id: "xy",

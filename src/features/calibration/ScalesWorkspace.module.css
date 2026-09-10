@@ -11,7 +11,7 @@
 .list {
   min-width: 0;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow-y: auto;
   padding: var(--space-4) var(--space-8) 0;
 }
@@ -24,38 +24,32 @@
 }
 
 .active {
+  background: transparent;
+}
+
+.active .scaleSummary {
   background: var(--color-selection-surface);
 }
 
-.inspectButton {
+.scaleSummary {
   width: 100%;
   min-height: var(--geometry-scale-row-height);
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto 18px;
+  grid-template-columns: minmax(0, 1fr) auto var(--target-current);
   align-items: center;
   gap: var(--space-8);
-  border: 0;
-  border-radius: var(--radius-control);
   padding: var(--space-8);
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
 }
 
-.inspectButton:hover,
-.inspectButton:focus-visible {
+.scaleRow:hover .scaleSummary {
   background: var(--color-surface-field);
 }
 
-.active .inspectButton:hover,
-.active .inspectButton:focus-visible {
+.active:hover .scaleSummary {
   background: var(--color-selection-surface);
-}
-
-.activeMark {
-  color: var(--color-accent);
-  font-weight: var(--font-weight-semibold);
-  text-align: center;
 }
 
 .scaleIdentity {
@@ -89,16 +83,39 @@
   font-weight: var(--font-weight-medium);
 }
 
-.disclosure {
+.disclosureButton {
+  width: var(--target-current);
+  min-width: var(--target-current);
+  height: var(--target-current);
+  min-height: var(--target-current);
+  padding: 0;
   color: var(--color-text-secondary);
-  letter-spacing: 1px;
+}
+
+.disclosureButton[aria-expanded="true"] {
+  border-color: transparent;
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.disclosureButton svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+  transition: transform 120ms ease;
+}
+
+.disclosureButton[aria-expanded="true"] svg {
+  transform: rotate(90deg);
 }
 
 .scaleDetails {
   display: grid;
   gap: var(--space-4);
-  padding: 0 var(--space-8) var(--space-8) 34px;
-  background: var(--color-surface-field);
+  margin-inline: var(--space-8);
+  padding: var(--space-8) 0 var(--space-12);
+  border-top: var(--border-width) solid var(--color-divider);
+  background: transparent;
 }
 
 .scaleDetails[hidden] {
@@ -107,16 +124,24 @@
 
 .referenceRow {
   min-width: 0;
-  min-height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
+  display: grid;
+  gap: 2px;
+  padding-block: var(--space-4);
   color: var(--color-text-primary);
   font-size: var(--font-size-secondary);
 }
 
+.referenceLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+}
+
 .referenceRow strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
@@ -124,12 +149,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
+  padding-top: var(--space-4);
 }
 
 .scaleActions button {
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-accent);
   padding-inline: var(--space-8);
 }
 
@@ -202,4 +225,10 @@
 .note {
   flex: 0 0 auto;
   padding: var(--space-8) var(--space-16) var(--space-12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosureButton svg {
+    transition: none;
+  }
 }

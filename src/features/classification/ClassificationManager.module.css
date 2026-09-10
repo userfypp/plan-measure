@@ -45,7 +45,7 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-4) var(--space-12);
+  padding: var(--space-12) var(--space-4);
   border-bottom: var(--border-width) solid var(--color-divider);
   background: transparent;
 }
@@ -77,8 +77,9 @@
 
 .itemText strong {
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }
 
 .itemText span {
@@ -90,12 +91,8 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--space-group-gap);
+  gap: var(--space-4);
   flex-wrap: wrap;
-}
-
-.actions > * + * {
-  margin-inline-start: var(--control-border-overlap);
 }
 
 .itemHeader > .actions {
@@ -109,6 +106,32 @@
   flex: 0 0 auto;
 }
 
+.secondaryAction {
+  min-height: var(--control-height-compact);
+  padding-inline: var(--space-8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.archiveAction {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.archiveAction:hover:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--color-danger-hover-semantic);
+  background: var(--color-danger-hover-surface);
+  color: var(--color-danger-hover-semantic);
+}
+
+.archiveAction:active:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--color-danger-active-semantic);
+  background: var(--color-danger-active-surface);
+  color: var(--color-danger-active-semantic);
+}
+
 .renameForm {
   display: grid;
   gap: var(--space-8);
@@ -119,8 +142,9 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-4);
-  margin: 0;
+  margin: 0 0 0 var(--space-8);
   padding: 0 0 0 var(--space-12);
+  border-left: var(--border-width) solid var(--color-divider);
   list-style: none;
 }
 
@@ -133,9 +157,8 @@
   min-width: 0;
   min-height: 32px;
   padding: var(--space-4) 0;
-  border-top: var(--border-width) solid var(--color-divider);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
 }
 
 .valueName {
@@ -149,8 +172,12 @@
 .valueItem > .actions {
   flex: 0 1 auto;
   max-width: 100%;
-  flex-wrap: wrap;
-  gap: var(--space-group-gap);
+  flex-wrap: nowrap;
+  gap: var(--space-4);
+}
+
+.valueItem > .actions > * {
+  flex: 0 0 auto;
 }
 
 .archivedNote {
@@ -177,6 +204,9 @@
   align-items: start;
   column-gap: var(--space-8);
   row-gap: var(--space-4);
+  margin-left: var(--space-8);
+  padding: var(--space-8) 0 0 var(--space-12);
+  border-left: var(--border-width) solid var(--color-divider);
 }
 
 .inlineForm > :first-child {
@@ -229,16 +259,15 @@
 .create {
   display: grid;
   gap: var(--space-8);
-  padding-top: var(--space-4);
+  padding: var(--space-12) var(--space-4) var(--space-4);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
-@container (max-width: 640px) {
-  .actions > * {
-    flex: 1 1 auto;
-  }
+.create > button {
+  justify-self: start;
 }
 
-@container (max-width: 300px) {
+@container (max-width: 320px) {
   .itemHeader {
     grid-template-columns: minmax(0, 1fr);
   }

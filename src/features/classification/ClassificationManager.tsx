@@ -183,7 +183,7 @@ export function ClassificationManager({
                 >
                   <div className={styles.itemHeader}>
                     <div className={styles.itemText}>
-                      <strong>{dimension.name}</strong>
+                      <strong title={dimension.name}>{dimension.name}</strong>
                       <span>
                         {activeValueCount} active value{activeValueCount === 1 ? "" : "s"}
                         {archivedValueCount > 0 ? ` · ${archivedValueCount} archived` : ""}
@@ -195,7 +195,9 @@ export function ClassificationManager({
                         <Button
                           variant="ghost"
                           size="compact"
+                          className={styles.secondaryAction}
                           disabled={disabled}
+                          aria-label={`Restore dimension ${dimension.name}`}
                           onClick={() => onRestoreDimension(dimension.id)}
                         >
                           Restore
@@ -206,7 +208,9 @@ export function ClassificationManager({
                         <Button
                           variant="ghost"
                           size="compact"
+                          className={styles.secondaryAction}
                           disabled={disabled}
+                          aria-label={`Rename ${dimension.name}`}
                           onClick={() =>
                             startEditing(
                               { type: "dimension", dimensionId: dimension.id },
@@ -217,8 +221,9 @@ export function ClassificationManager({
                           Rename
                         </Button>
                         <Button
-                          variant="dangerSecondary"
+                          variant="ghost"
                           size="compact"
+                          className={[styles.secondaryAction, styles.archiveAction].join(" ")}
                           disabled={disabled}
                           aria-label={`Archive ${dimension.name}; existing assignments are preserved`}
                           title="Existing measurement assignments will be preserved"
@@ -243,7 +248,9 @@ export function ClassificationManager({
                           <Button
                             variant="ghost"
                             size="compact"
+                            className={styles.secondaryAction}
                             disabled={disabled}
+                            aria-label={`Restore value ${value.name}`}
                             onClick={() => onRestoreValue(dimension.id, value.id)}
                           >
                             Restore
@@ -254,7 +261,9 @@ export function ClassificationManager({
                           <Button
                             variant="ghost"
                             size="compact"
+                            className={styles.secondaryAction}
                             disabled={disabled}
+                            aria-label={`Rename ${value.name}`}
                             onClick={() =>
                               startEditing(
                                 { type: "value", dimensionId: dimension.id, valueId: value.id },
@@ -265,8 +274,9 @@ export function ClassificationManager({
                             Rename
                           </Button>
                           <Button
-                            variant="dangerSecondary"
+                            variant="ghost"
                             size="compact"
+                            className={[styles.secondaryAction, styles.archiveAction].join(" ")}
                             disabled={disabled}
                             aria-label={`Archive ${value.name}; existing assignments are preserved`}
                             title="Existing measurement assignments will be preserved"
@@ -278,7 +288,7 @@ export function ClassificationManager({
                       );
                       return (
                         <li key={value.id} className={styles.valueItem}>
-                          <span className={styles.valueName}>{value.name}</span>
+                          <span className={styles.valueName} title={value.name}>{value.name}</span>
                           {valueActions}
                         </li>
                       );
@@ -309,6 +319,8 @@ export function ClassificationManager({
                       />
                       <Button
                         type="submit"
+                        variant="secondary"
+                        size="compact"
                         disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
                       >
                         Add value
@@ -331,7 +343,12 @@ export function ClassificationManager({
               setCreateError(null);
             }}
           />
-          <Button type="submit" disabled={disabled || !dimensionName.trim()}>
+          <Button
+            type="submit"
+            variant="secondary"
+            size="compact"
+            disabled={disabled || !dimensionName.trim()}
+          >
             Add dimension
           </Button>
         </form>

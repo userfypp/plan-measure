@@ -1,5 +1,7 @@
 /* @vitest-environment jsdom */
 
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +10,8 @@ import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { Measurement, PageCalibration, PageState } from "../../types/domain";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { ScalesWorkspace, type ScalesWorkspaceProps } from "./ScalesWorkspace";
+
+const scalesCss = readFileSync("src/features/calibration/ScalesWorkspace.module.css", "utf8");
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -181,13 +185,41 @@ describe("ScalesWorkspace", () => {
 
     const active = buttonByLabel("Inspect scale Ground floor, active");
     const inactive = buttonByLabel("Inspect scale Survey correction");
-    expect(active.textContent).toContain("Active");
-    expect(active.textContent).toContain("Ground floor");
+    const activeRow = active.closest<HTMLElement>('[role="listitem"]');
+    if (!activeRow) throw new Error("Active scale row was not rendered.");
+    expect(activeRow.textContent).toContain("Active");
+    expect(activeRow.textContent).not.toContain("✓");
+    expect(activeRow.textContent).not.toContain("···");
+    expect(activeRow.textContent).toContain("Ground floor");
     expect(inactive.textContent).not.toContain("Active");
     expect(container?.textContent).toContain(scaleDisplayMetadata(uniform).detailLabel);
     expect(container?.textContent).toContain(scaleDisplayMetadata(xy).detailLabel);
     expect(active.getAttribute("aria-expanded")).toBe("false");
     expect(inactive.getAttribute("aria-expanded")).toBe("false");
+    expect(active.querySelector("svg")).toBeTruthy();
+    expect(scalesCss).toMatch(
+      /\.disclosureButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*min-width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);[^}]*min-height:\s*var\(--target-current\);/s,
+    );
+  });
+
+  it("keeps disclosure and long-name recovery on the dedicated governed target", () => {
+    const longName = "Ground floor – north extension with a deliberately long calibration name";
+    renderScales(
+      createProps({
+        page: {
+          ...page,
+          calibrations: [{ ...uniform, name: longName }, xy],
+        },
+      }),
+    );
+
+    const disclosure = buttonByLabel(`Inspect scale ${longName}, active`);
+    const identity = container?.querySelector<HTMLElement>("article strong");
+    expect(identity?.textContent).toBe(longName);
+    expect(identity?.title).toBe(longName);
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    act(() => disclosure.click());
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("expands X/Y administration with separate Edit X and Edit Y commands", () => {
@@ -204,6 +236,9 @@ describe("ScalesWorkspace", () => {
     expect(details.hasAttribute("hidden")).toBe(false);
     expect(details.textContent).toContain("X reference2.50 m");
     expect(details.textContent).toContain("Y reference3.00 m");
+    expect(buttonWithin(details, "Recalibrate").className).toContain("ghost");
+    expect(buttonWithin(details, "Edit X").className).toContain("ghost");
+    expect(buttonWithin(details, "Edit Y").className).toContain("ghost");
 
     act(() => buttonWithin(details, "Recalibrate").click());
     act(() => buttonWithin(details, "Edit X").click());
@@ -218,6 +253,8 @@ describe("ScalesWorkspace", () => {
     const props = createProps();
     renderScales(props);
     const add = buttonByLabel("Add scale");
+    const scaleList = container?.querySelector('[role="list"][aria-label="Page scales"]');
+    expect(scaleList?.nextElementSibling?.contains(add)).toBe(true);
 
     act(() => add.click());
     let items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
@@ -246,6 +283,8 @@ describe("ScalesWorkspace", () => {
     if (!details) throw new Error("Expanded Uniform details were not rendered.");
 
     expect(details.textContent).toContain("Reference1.00 m");
+    expect(buttonWithin(details, "Recalibrate").className).toContain("ghost");
+    expect(buttonWithin(details, "Edit reference").className).toContain("ghost");
     act(() => buttonWithin(details, "Edit reference").click());
     expect(props.onEditReference).toHaveBeenCalledWith(uniform, "uniform");
   });
