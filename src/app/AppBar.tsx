@@ -58,7 +58,7 @@ export function AppBar({ documentName, canExport, onOpenPdf, onExport }: AppBarP
         </Button>
         {canExport && (
           <Button
-            variant="secondary"
+            variant="ghost"
             size="compact"
             className={styles.exportAction}
             onClick={onExport}

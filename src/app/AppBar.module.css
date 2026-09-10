@@ -61,15 +61,10 @@
   min-height: var(--target-current);
 }
 
-.openAction {
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-text-primary);
-}
-
+.openAction,
 .exportAction {
   border-color: transparent;
-  background: var(--color-surface-field);
+  background: transparent;
   color: var(--color-text-primary);
 }
 
@@ -101,16 +96,6 @@
 .feedbackAction:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
-}
-
-.exportAction:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.exportAction:active:not(:disabled) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
 }
 
 .iconTrigger {

@@ -226,8 +226,8 @@ export function PdfAnnotationLayer({
                 },
               ]
             : [
-                { key: "x", label: `${calibration.name} · X`, ...calibration.xReference },
-                { key: "y", label: `${calibration.name} · Y`, ...calibration.yReference },
+                { key: "x", label: "X", ...calibration.xReference },
+                { key: "y", label: "Y", ...calibration.yReference },
               ];
         for (const reference of references) {
           const referenceIsEditing =
@@ -290,12 +290,12 @@ export function PdfAnnotationLayer({
               : [
                   {
                     key: "x",
-                    label: `${calibration.name} · X`,
+                    label: "X",
                     ...calibration.xReference,
                   },
                   {
                     key: "y",
-                    label: `${calibration.name} · Y`,
+                    label: "Y",
                     ...calibration.yReference,
                   },
                 ];

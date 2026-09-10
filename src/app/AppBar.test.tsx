@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import buttonStyles from "../components/ui/Button.module.css";
 import { ThemeProvider, SYSTEM_THEME_QUERY, THEME_STORAGE_KEY } from "./themeState";
 import { AppBar } from "./AppBar";
 
@@ -147,6 +148,19 @@ describe("AppBar", () => {
     expect(feedback?.textContent).toBe("Feedback");
     expect(feedback?.target).toBe("_blank");
     expect(feedback?.rel).toBe("noopener noreferrer");
+  });
+
+  it("uses the same ghost command hierarchy for Open PDF and Export", () => {
+    renderAppBar();
+    const actions = Array.from(container!.querySelectorAll<HTMLButtonElement>("header button"));
+    const open = actions.find((button) => button.textContent === "Open PDF");
+    const exportButton = actions.find((button) => button.textContent === "Export");
+    if (!open || !exportButton) throw new Error("App Bar document actions were not rendered.");
+
+    expect(open.classList.contains(buttonStyles.ghost!)).toBe(true);
+    expect(exportButton.classList.contains(buttonStyles.ghost!)).toBe(true);
+    expect(open.classList.contains(buttonStyles.secondary!)).toBe(false);
+    expect(exportButton.classList.contains(buttonStyles.secondary!)).toBe(false);
   });
 
   it("exposes System, Light, and Dark through the ThemeProvider with radio semantics", () => {

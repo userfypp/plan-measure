@@ -7,6 +7,8 @@
 }
 
 .list {
+  --measurement-row-inline-bleed: var(--space-8);
+
   display: grid;
   min-width: 0;
   gap: 0;

@@ -344,6 +344,22 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     });
   });
 
+  it("labels X/Y references by axis only, independent of the stored scale name", () => {
+    const page = xyPage();
+    page.calibrations[0]!.name = "Nombre extremadamente e innecesariamente largo de prueba";
+
+    renderLayer({ page, showCalibration: true });
+
+    expect(captured.texts.map((text) => text.text)).toEqual(["X", "Y"]);
+    expect(captured.texts.some((text) => String(text.text).includes(page.calibrations[0]!.name))).toBe(false);
+  });
+
+  it("keeps the Uniform calibration canvas label unchanged", () => {
+    renderLayer({ page: uniformPage(), showCalibration: true });
+
+    expect(captured.texts[0]?.text).toBe("Ground floor");
+  });
+
   it("uses selection semantics for active reference editing while preserving reference endpoints", () => {
     const page = xyPage();
     const edit: CalibrationReferenceEditPreview = {

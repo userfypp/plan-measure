@@ -15,6 +15,10 @@ import {
 } from "./measurementViewModels";
 
 const measurementPanelCss = readFileSync(new URL("./MeasurementPanel.module.css", import.meta.url), "utf8");
+const measurementCollectionCss = readFileSync(
+  new URL("./MeasurementCollection.module.css", import.meta.url),
+  "utf8",
+);
 const measurementGroupCss = readFileSync(new URL("./MeasurementGroup.module.css", import.meta.url), "utf8");
 const measurementRowCss = readFileSync(new URL("./MeasurementRow.module.css", import.meta.url), "utf8");
 
@@ -243,6 +247,21 @@ describe("MeasurementRow accessibility", () => {
   it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
     expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
     expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
+    expect(measurementRowCss).toMatch(
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+  });
+
+  it("extends only the ungrouped row state surface without changing row or Eye geometry", () => {
+    expect(measurementCollectionCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--measurement-row-inline-bleed, 0px\)\);[^}]*pointer-events:\s*none;/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--target-current\);/s,
+    );
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );

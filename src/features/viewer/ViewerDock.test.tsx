@@ -15,6 +15,8 @@ import type { PageCalibration } from "../../types/domain";
 import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
 
 const dockCss = readFileSync("src/features/viewer/ViewerDock.module.css", "utf8");
+const buttonCss = readFileSync("src/components/ui/Button.module.css", "utf8");
+const popoverCss = readFileSync("src/components/ui/Popover.module.css", "utf8");
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -163,6 +165,38 @@ describe("ViewerDock", () => {
     expect(buttonByLabel("Fit page to viewer")).toBeTruthy();
     expect(activeScaleTrigger()).toBeTruthy();
     expect(buttonByLabel("View options")).toBeTruthy();
+  });
+
+  it("keeps the Dock in native sequential focus order with shared focus-visible states", () => {
+    renderDock(
+      createProps({
+        navigation: {
+          ...createProps().navigation,
+          pageNumber: 2,
+        },
+      }),
+    );
+
+    const dock = document.querySelector<HTMLElement>('nav[aria-label="Viewer controls"]');
+    if (!dock) throw new Error("Viewer Dock was not rendered.");
+    const controls = Array.from(dock.querySelectorAll<HTMLButtonElement>("button"));
+    expect(controls.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Previous page",
+      "Next page",
+      "Zoom out",
+      "Zoom in",
+      "Fit page to viewer",
+      expect.stringMatching(/^Active scale:/),
+      "View options",
+    ]);
+    expect(controls.every((button) => button.tabIndex === 0)).toBe(true);
+    expect(controls.some((button) => button.tabIndex > 0)).toBe(false);
+    for (const control of controls) {
+      act(() => control.focus());
+      expect(document.activeElement).toBe(control);
+    }
+    expect(buttonCss).toMatch(/\.button:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s);
+    expect(popoverCss).toMatch(/\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s);
   });
 
   it("uses bounded content sizing and deterministic condensation instead of hidden scrolling", () => {

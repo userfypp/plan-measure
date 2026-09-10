@@ -10,15 +10,24 @@
   background: var(--color-surface-panel);
 }
 
-.row:hover {
+.row::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0 calc(-1 * var(--measurement-row-inline-bleed, 0px));
+  background: transparent;
+  content: "";
+  pointer-events: none;
+}
+
+.row:hover::before {
   background: var(--color-surface-field);
 }
 
-.selected {
+.selected::before {
   background: var(--color-selection-surface);
 }
 
-.selected:hover {
+.selected:hover::before {
   background: var(--color-selection-surface);
 }
 
@@ -39,6 +48,8 @@
 }
 
 .selection {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   min-height: var(--geometry-measurement-row-height);
   display: grid;
@@ -143,6 +154,8 @@
 }
 
 .actions {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   min-width: var(--target-current);
