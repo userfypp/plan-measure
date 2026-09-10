@@ -127,6 +127,7 @@ export function ViewerShell({
   );
   const viewerFrameStyle = {
     "--viewer-right-obstruction": `${authoringCapability.rightObstruction}px`,
+    "--viewer-dock-bottom-exclusion": `${dockBottomExclusion}px`,
   } as CSSProperties;
 
   useLayoutEffect(() => {

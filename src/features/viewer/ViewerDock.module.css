@@ -324,6 +324,11 @@
 }
 
 @container (max-width: 600px) {
+  .dock,
+  .group {
+    gap: 2px;
+  }
+
   .scaleTrigger {
     max-width: 128px;
   }
@@ -334,11 +339,6 @@
 }
 
 @container (max-width: 500px) {
-  .dock,
-  .group {
-    gap: 2px;
-  }
-
   .separator {
     margin-inline: 2px;
   }
@@ -386,8 +386,11 @@
 
 @container (max-width: 360px) {
   .dock {
+    width: 100%;
     gap: 1px;
     padding-inline: 2px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .group {

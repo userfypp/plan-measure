@@ -46,9 +46,7 @@
   position: absolute;
   z-index: 2;
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
-  bottom: calc(
-    var(--geometry-viewer-dock-bottom-inset) + var(--geometry-viewer-dock-height) + var(--space-12)
-  );
+  bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
   max-width: min(320px, calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-24)));
   padding: var(--space-8) var(--space-12);
   border: var(--border-width) solid var(--color-divider);
@@ -61,11 +59,6 @@
   pointer-events: none;
 }
 
-@media (any-pointer: coarse), (max-width: 800px) {
-  .authoringNotice {
-    bottom: calc(
-      var(--geometry-viewer-dock-bottom-inset) + var(--geometry-viewer-dock-height-coarse) +
-        var(--space-12)
-    );
-  }
+[data-workspace-drawer-open="true"] .authoringNotice {
+  display: none;
 }

@@ -212,4 +212,29 @@
       )
     );
   }
+
+  [data-workspace-drawer-open="true"] .toolbar {
+    max-width: max(
+      0px,
+      calc(
+        100% - var(--geometry-context-toolbar-left) - var(--viewer-right-obstruction, 0px) -
+          var(--space-12)
+      )
+    );
+  }
+}
+
+@media (max-width: 520px) {
+  [data-workspace-drawer-open="true"] .toolbar {
+    flex-wrap: wrap;
+  }
+
+  [data-workspace-drawer-open="true"] .status {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+
+  [data-workspace-drawer-open="true"] .divider {
+    display: none;
+  }
 }
