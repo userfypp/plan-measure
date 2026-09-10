@@ -154,6 +154,12 @@
   background: var(--color-selection-surface);
 }
 
+.addScaleTrigger[aria-disabled="true"] {
+  background: var(--color-surface-panel);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
 .addOptionLabel {
   display: grid;
   gap: 2px;

@@ -148,16 +148,25 @@ describe("ViewerDock", () => {
   it("locks active-scale switching during calibration/reference workflows", () => {
     renderDock(createProps({ scaleSwitchDisabled: true }));
 
-    expect(activeScaleTrigger().disabled).toBe(true);
+    expect(activeScaleTrigger().disabled).toBe(false);
+    expect(activeScaleTrigger().getAttribute("aria-disabled")).toBe("true");
+    expect(activeScaleTrigger().getAttribute("aria-label")).toContain("Switching unavailable");
+    act(() => activeScaleTrigger().click());
+    expect(document.querySelector('[role="menu"][aria-label="Active scale"]')).toBeNull();
   });
 
   it("keeps camera controls available while page changes are locked by an in-progress workflow", () => {
     const props = createProps({ pageNavigationDisabled: true });
     renderDock(props);
 
-    expect(buttonByLabel("Previous page").disabled).toBe(true);
-    expect(buttonByLabel("Next page").disabled).toBe(true);
-    expect(buttonByLabel("Next page").title).toContain("Finish or cancel");
+    expect(buttonByLabel("Previous page").disabled).toBe(false);
+    expect(buttonByLabel("Next page").disabled).toBe(false);
+    expect(buttonByLabel("Previous page").getAttribute("aria-disabled")).toBe("true");
+    expect(buttonByLabel("Next page").getAttribute("aria-disabled")).toBe("true");
+    const nextReason = buttonByLabel("Next page").getAttribute("aria-describedby");
+    expect(document.getElementById(nextReason!)?.textContent).toContain("Finish or cancel");
+    act(() => buttonByLabel("Next page").click());
+    expect(props.navigation.onPageChange).not.toHaveBeenCalled();
     expect(buttonByLabel("Zoom out").disabled).toBe(false);
     expect(buttonByLabel("Zoom in").disabled).toBe(false);
     expect(buttonByLabel("Fit page to viewer").disabled).toBe(false);
@@ -185,6 +194,34 @@ describe("ViewerDock", () => {
     if (!labelsSwitch) throw new Error("Labels switch was not rendered.");
     act(() => labelsSwitch.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ showLabels: false });
+  });
+
+  it("closes View when focus moves to another Dock control and preserves that focus", () => {
+    renderDock(createProps());
+    const view = buttonByLabel("View options");
+    const zoomIn = buttonByLabel("Zoom in");
+
+    act(() => view.click());
+    expect(view.getAttribute("aria-expanded")).toBe("true");
+
+    act(() => zoomIn.focus());
+
+    expect(document.querySelector('[role="dialog"][aria-label="View options"]')).toBeNull();
+    expect(view.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(zoomIn);
+  });
+
+  it("returns focus to the View trigger when View closes with Escape", () => {
+    renderDock(createProps());
+    const view = buttonByLabel("View options");
+    act(() => view.click());
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(document.querySelector('[role="dialog"][aria-label="View options"]')).toBeNull();
+    expect(document.activeElement).toBe(view);
   });
 
   it("switching the Dock active scale preserves existing measurement calibration links", () => {

@@ -29,12 +29,17 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const [rovingToolId, setRovingToolId] = useState<ToolDefinition["id"]>("select");
   const [narrowOpenVersion, setNarrowOpenVersion] = useState<number | null>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const returnFocusOnCloseRef = useRef(false);
+  const previousIsNarrowRef = useRef(isNarrow);
+  const toolFocusOwnedRef = useRef(false);
+  const launcherFocusOwnedRef = useRef(false);
   const narrowOpen = isNarrow && narrowOpenVersion === narrowVersion;
   const toolbarId = "viewer-tools-narrow-toolbar";
 
   const closeNarrowTools = (returnFocus = true) => {
     returnFocusOnCloseRef.current = returnFocus;
+    toolFocusOwnedRef.current = false;
     setNarrowOpenVersion(null);
   };
 
@@ -59,11 +64,45 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
     }
     return base;
   };
-  const focusedToolIsAvailable = toolRailRegistry.some(
-    (definition) =>
-      definition.id === rovingToolId && !availabilityFor(definition).disabled,
-  );
-  const currentRovingToolId = focusedToolIsAvailable ? rovingToolId : "select";
+  const currentRovingToolId = toolRailRegistry.some((definition) => definition.id === rovingToolId)
+    ? rovingToolId
+    : toolRailRegistry[0]?.id;
+
+  useLayoutEffect(() => {
+    if (!isNarrow || !narrowOpen) return;
+    const toolbar = toolbarRef.current;
+    const preferred = toolbar?.querySelector<HTMLButtonElement>(
+      `button[data-tool-id="${currentRovingToolId}"]`,
+    );
+    const target = preferred ?? toolbar?.querySelector<HTMLButtonElement>("button[data-tool-id]");
+    if (!target) return;
+    setRovingToolId(target.dataset.toolId as ToolDefinition["id"]);
+    target.focus({ preventScroll: true });
+  }, [currentRovingToolId, isNarrow, narrowOpen]);
+
+  useLayoutEffect(() => {
+    const wasNarrow = previousIsNarrowRef.current;
+    previousIsNarrowRef.current = isNarrow;
+    if (wasNarrow === isNarrow) return;
+
+    if (isNarrow) {
+      if (!toolFocusOwnedRef.current) return;
+      toolFocusOwnedRef.current = false;
+      launcherRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (!launcherFocusOwnedRef.current) return;
+    launcherFocusOwnedRef.current = false;
+    const toolbar = toolbarRef.current;
+    const preferred = toolbar?.querySelector<HTMLButtonElement>(
+      `button[data-tool-id="${currentRovingToolId}"]`,
+    );
+    const target = preferred ?? toolbar?.querySelector<HTMLButtonElement>("button[data-tool-id]");
+    if (!target) return;
+    setRovingToolId(target.dataset.toolId as ToolDefinition["id"]);
+    target.focus({ preventScroll: true });
+  }, [currentRovingToolId, isNarrow]);
 
   function handleToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const previousKey = "ArrowUp";
@@ -80,7 +119,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
     const buttons = Array.from(
       event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]"),
     );
-    const navigableButtons = buttons.filter((button) => !button.disabled);
+    const navigableButtons = buttons;
     if (navigableButtons.length === 0) return;
 
     const currentIndex = buttons.findIndex((button) => button === document.activeElement);
@@ -103,7 +142,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
           const neighborButton = buttons.find(
             (button) => button.dataset.toolId === verticalNeighbor,
           );
-          if (neighborButton && !neighborButton.disabled) {
+          if (neighborButton) {
             nextButton = neighborButton;
             break;
           }
@@ -136,6 +175,17 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
           aria-controls={toolbarId}
           aria-expanded={narrowOpen}
           title="Tools"
+          onFocus={() => {
+            launcherFocusOwnedRef.current = true;
+          }}
+          onBlur={() => {
+            launcherFocusOwnedRef.current = false;
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !narrowOpen) return;
+            event.preventDefault();
+            closeNarrowTools(true);
+          }}
           onClick={() => {
             if (narrowOpen) closeNarrowTools(false);
             else setNarrowOpenVersion(narrowVersion);
@@ -147,11 +197,21 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
         </button>
       )}
       {(!isNarrow || narrowOpen) && <div
+        ref={toolbarRef}
         id={isNarrow ? toolbarId : undefined}
         className={styles.tools}
         role="toolbar"
         aria-label="Drawing tools"
         aria-orientation="vertical"
+        onFocusCapture={() => {
+          toolFocusOwnedRef.current = true;
+        }}
+        onBlurCapture={(event) => {
+          const next = event.relatedTarget;
+          if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+            toolFocusOwnedRef.current = false;
+          }
+        }}
         onKeyDown={handleToolbarKeyDown}
       >
         {toolRailRegistry.map((definition) => {
@@ -165,6 +225,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
               key={definition.id}
               content={`${disabled ? disabledReason : definition.description}${shortcut}`}
               position="right"
+              describeTrigger={!disabled}
             >
               <button
                 type="button"
@@ -173,13 +234,19 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                   .join(" ")}
                 aria-label={`${definition.label}${definition.shortcut ? `, shortcut ${definition.shortcut}` : ""}`}
                 aria-pressed={active}
+                aria-disabled={disabled || undefined}
+                aria-describedby={disabled ? `tool-disabled-reason-${definition.id}` : undefined}
                 aria-keyshortcuts={definition.shortcut?.toUpperCase()}
                 data-tool-id={definition.id}
+                data-disabled={disabled || undefined}
                 tabIndex={currentRovingToolId === definition.id ? 0 : -1}
                 title={disabled ? disabledReason : undefined}
-                disabled={disabled}
                 onFocus={() => setRovingToolId(definition.id)}
-                onClick={() => {
+                onClick={(event) => {
+                  if (disabled) {
+                    event.preventDefault();
+                    return;
+                  }
                   if (!active) onChooseTool(tool);
                   if (isNarrow) closeNarrowTools(true);
                 }}
@@ -187,6 +254,11 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                 <span className={styles.icon} aria-hidden="true">
                   <ToolIcon name={definition.icon} />
                 </span>
+                {disabled && (
+                  <span id={`tool-disabled-reason-${definition.id}`} className={styles.visuallyHidden}>
+                    {disabledReason}
+                  </span>
+                )}
               </button>
             </Tooltip>
           );

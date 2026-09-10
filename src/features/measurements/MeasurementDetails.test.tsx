@@ -272,7 +272,11 @@ describe("MeasurementDetails", () => {
       ),
     );
 
-    expect(buttonByText("Edit geometry").disabled).toBe(true);
+    expect(buttonByText("Edit geometry").disabled).toBe(false);
+    expect(buttonByText("Edit geometry").getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(buttonByText("Edit geometry").getAttribute("aria-describedby")!)?.textContent,
+    ).toBe(reason);
     expect(buttonByText("Rename").disabled).toBe(false);
     expect(buttonByText("Delete measurement").disabled).toBe(false);
   });

@@ -88,12 +88,28 @@
   font: inherit;
 }
 
-.scaleTrigger:hover:not(:disabled),
+.scaleTrigger:hover:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger:hover:not(:disabled) {
-  background: var(--color-surface-field);
+  background: var(--color-control-hover-surface);
 }
 
-.scaleTrigger:disabled {
+.scaleTrigger:active:not(:disabled):not([aria-disabled="true"]),
+.viewTrigger:active:not(:disabled) {
+  background: var(--color-control-active-surface);
+}
+
+.scaleTrigger[aria-expanded="true"]:not(:disabled):not([aria-disabled="true"]),
+.viewTrigger[aria-expanded="true"]:not(:disabled),
+.scaleTrigger[aria-expanded="true"]:hover:not(:disabled):not([aria-disabled="true"]),
+.viewTrigger[aria-expanded="true"]:hover:not(:disabled),
+.scaleTrigger[aria-expanded="true"]:active:not(:disabled):not([aria-disabled="true"]),
+.viewTrigger[aria-expanded="true"]:active:not(:disabled) {
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.scaleTrigger:disabled,
+.scaleTrigger[aria-disabled="true"] {
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }

@@ -83,6 +83,16 @@ function contextKind(): string | null {
   return container?.querySelector<HTMLElement>("[data-context-kind]")?.dataset.contextKind ?? null;
 }
 
+function toolbarButtons(): HTMLButtonElement[] {
+  return Array.from(container?.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button') ?? []);
+}
+
+function press(key: string): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+  act(() => document.activeElement?.dispatchEvent(event));
+  return event;
+}
+
 beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
     true;
@@ -144,7 +154,8 @@ describe("ContextToolbar V2", () => {
       }),
     );
 
-    expect(buttonByText("Finish").disabled).toBe(true);
+    expect(buttonByText("Finish").disabled).toBe(false);
+    expect(buttonByText("Finish").getAttribute("aria-disabled")).toBe("true");
     expect(buttonByText("Finish").getAttribute("aria-describedby")).not.toBeNull();
     act(() => buttonByLabel("Snap").click());
     act(() => buttonByLabel("Ortho").click());
@@ -174,6 +185,111 @@ describe("ContextToolbar V2", () => {
     expect(buttonByText("Cancel")).toBeTruthy();
     act(() => buttonByText("Cancel").click());
     expect(workspace?.activeTool).toBe("select");
+  });
+
+  it("uses one horizontal roving Tab stop and keeps contextually disabled actions discoverable", () => {
+    const finishCommand = vi.fn();
+    renderToolbar(props(), finishCommand);
+    act(() => workspace!.chooseTool("polyline"));
+    act(() =>
+      workspace!.startDraft({
+        type: "path",
+        measurementType: "polyline",
+        points: [{ x: 1, y: 1 }],
+      }),
+    );
+
+    const snap = buttonByLabel("Snap");
+    const ortho = buttonByLabel("Ortho");
+    const finish = buttonByText("Finish");
+    const cancel = buttonByText("Cancel");
+    expect(finish.disabled).toBe(false);
+    expect(finish.getAttribute("aria-disabled")).toBe("true");
+    act(() => finish.click());
+    expect(finishCommand).not.toHaveBeenCalled();
+    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([snap]);
+
+    act(() => snap.focus());
+    press("ArrowRight");
+    expect(document.activeElement).toBe(ortho);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(finish);
+    expect(finish.getAttribute("aria-disabled")).toBe("true");
+    press("ArrowRight");
+    expect(document.activeElement).toBe(cancel);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(snap);
+    press("End");
+    expect(document.activeElement).toBe(cancel);
+    press("Home");
+    expect(document.activeElement).toBe(snap);
+    press("ArrowLeft");
+    expect(document.activeElement).toBe(cancel);
+    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([cancel]);
+
+    expect(press("Enter").defaultPrevented).toBe(false);
+    expect(press(" ").defaultPrevented).toBe(false);
+  });
+
+  it("hands focus to the Viewer owner after Finish tears down drawing context", () => {
+    const finish = vi.fn();
+    const viewer = document.createElement("div");
+    viewer.tabIndex = 0;
+    viewer.dataset.dialogFocusFallback = "true";
+    document.body.append(viewer);
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      value: (callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      },
+    });
+
+    try {
+      renderToolbar(props(), finish);
+      act(() => workspace!.chooseTool("polyline"));
+      act(() =>
+        workspace!.startDraft({
+          type: "path",
+          measurementType: "polyline",
+          points: [
+            { x: 1, y: 1 },
+            { x: 2, y: 2 },
+          ],
+        }),
+      );
+      const finishButton = buttonByText("Finish");
+      act(() => {
+        finishButton.focus();
+        finishButton.click();
+      });
+      expect(finish).toHaveBeenCalledOnce();
+      expect(document.activeElement).toBe(viewer);
+    } finally {
+      viewer.remove();
+      Object.defineProperty(window, "requestAnimationFrame", {
+        configurable: true,
+        value: originalRequestAnimationFrame,
+      });
+    }
+  });
+
+  it("repairs the roving Tab stop when the first action is truly disabled", () => {
+    renderToolbar(
+      props({
+        selectedMeasurementName: "Line 1",
+        duplicateDisabled: true,
+      }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    const duplicate = buttonByText("Duplicate");
+    const details = buttonByText("Details");
+    expect(duplicate.disabled).toBe(true);
+    expect(duplicate.tabIndex).toBe(-1);
+    expect(details.tabIndex).toBe(0);
+    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([details]);
   });
 
   it("shows Polygon Finish only after a real draft and enables it at the canonical minimum", () => {
@@ -268,7 +384,9 @@ describe("ContextToolbar V2", () => {
 
     expect(contextKind()).toBe("reference-edit");
     expect(container?.textContent).toContain("Editing X reference");
-    expect(buttonByText("Save").disabled).toBe(true);
+    expect(buttonByText("Save").disabled).toBe(false);
+    expect(buttonByText("Save").getAttribute("aria-disabled")).toBe("true");
+    expect(buttonByText("Save").getAttribute("aria-describedby")).not.toBeNull();
     act(() => buttonByText("Cancel").click());
     expect(cancel).toHaveBeenCalledOnce();
 

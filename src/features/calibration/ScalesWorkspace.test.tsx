@@ -264,10 +264,11 @@ describe("ScalesWorkspace", () => {
     const edit = buttonWithin(details, "Edit reference");
     const add = buttonByLabel("Add scale");
 
-    expect(recalibrate.disabled).toBe(true);
-    expect(edit.disabled).toBe(true);
+    expect(recalibrate.disabled).toBe(false);
+    expect(edit.disabled).toBe(false);
+    expect(recalibrate.getAttribute("aria-disabled")).toBe("true");
+    expect(edit.getAttribute("aria-disabled")).toBe("true");
     expect(add.disabled).toBe(false);
-    expect(recalibrate.title).toBe(reason);
     expect(document.getElementById(recalibrate.getAttribute("aria-describedby")!)?.textContent).toBe(
       reason,
     );

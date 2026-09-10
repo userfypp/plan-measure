@@ -1,13 +1,13 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useId,
   useLayoutEffect,
   useRef,
   useState,
   type AriaRole,
   type ButtonHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -24,12 +24,14 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"]):not([disabled])',
 ].join(", ");
 
-type PopoverDismissReason = "escape" | "outside";
+type PopoverDismissReason = "escape" | "outside" | "focusout";
 
 interface PopoverLayer {
   id: string;
   parentId: string | null;
+  dismissOnFocusLeave: boolean;
   contains: (target: Node) => boolean;
+  containsFocus: (target: Node) => boolean;
   dismiss: (reason: PopoverDismissReason) => void;
 }
 
@@ -55,6 +57,27 @@ function handlePopoverKeyDown(event: KeyboardEvent) {
   layer.dismiss("escape");
 }
 
+function handlePopoverFocusIn(event: FocusEvent) {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+
+  for (let index = popoverLayers.length - 1; index >= 0; index -= 1) {
+    const layer = popoverLayers[index];
+    if (!layer || layer.containsFocus(target)) break;
+    if (layer.dismissOnFocusLeave) layer.dismiss("focusout");
+  }
+}
+
+function documentTabStopsOutside(content: HTMLElement): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) =>
+      element.tabIndex >= 0 &&
+      !content.contains(element) &&
+      !element.closest("[hidden]") &&
+      element.getAttribute("aria-hidden") !== "true",
+  );
+}
+
 function registerPopoverLayer(layer: PopoverLayer): () => void {
   const firstChildIndex = popoverLayers.findIndex((candidate) => candidate.parentId === layer.id);
   if (firstChildIndex >= 0) popoverLayers.splice(firstChildIndex, 0, layer);
@@ -62,6 +85,7 @@ function registerPopoverLayer(layer: PopoverLayer): () => void {
   if (popoverLayers.length === 1) {
     document.addEventListener("pointerdown", handlePopoverPointerDown, true);
     document.addEventListener("keydown", handlePopoverKeyDown, true);
+    document.addEventListener("focusin", handlePopoverFocusIn, true);
   }
 
   return () => {
@@ -70,6 +94,7 @@ function registerPopoverLayer(layer: PopoverLayer): () => void {
     if (popoverLayers.length === 0) {
       document.removeEventListener("pointerdown", handlePopoverPointerDown, true);
       document.removeEventListener("keydown", handlePopoverKeyDown, true);
+      document.removeEventListener("focusin", handlePopoverFocusIn, true);
     }
   };
 }
@@ -97,6 +122,7 @@ interface PopoverBaseProps {
   onOpenChange?: (open: boolean) => void;
   placement?: PopoverPlacement;
   initialFocus?: PopoverInitialFocus;
+  dismissOnFocusLeave?: boolean;
   className?: string;
 }
 
@@ -137,6 +163,7 @@ export function Popover({
   onOpenChange,
   placement = "bottom-start",
   initialFocus = "first",
+  dismissOnFocusLeave = false,
   role,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
@@ -148,19 +175,19 @@ export function Popover({
   const anchorRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const wasOpenRef = useRef(false);
-  const outsideDismissRef = useRef(false);
+  const restoreFocusOnCloseRef = useRef(true);
   const dismissRef = useRef<(reason: PopoverDismissReason) => void>(() => undefined);
   const popoverId = useId();
   const [position, setPosition] = useState<PopoverPosition>({ left: 0, top: 0 });
 
-  function setOpen(nextOpen: boolean, outsideDismiss = false) {
-    outsideDismissRef.current = outsideDismiss;
+  function setOpen(nextOpen: boolean, restoreFocusOnClose = true) {
+    restoreFocusOnCloseRef.current = restoreFocusOnClose;
     if (open === undefined) setUncontrolledOpen(nextOpen);
     onOpenChange?.(nextOpen);
   }
 
   useLayoutEffect(() => {
-    dismissRef.current = (reason) => setOpen(false, reason === "outside");
+    dismissRef.current = (reason) => setOpen(false, reason === "escape");
   });
 
   useLayoutEffect(() => {
@@ -170,8 +197,8 @@ export function Popover({
     }
     if (!wasOpenRef.current) return;
     wasOpenRef.current = false;
-    if (!outsideDismissRef.current) anchorRef.current?.focus({ preventScroll: true });
-    outsideDismissRef.current = false;
+    if (restoreFocusOnCloseRef.current) anchorRef.current?.focus({ preventScroll: true });
+    restoreFocusOnCloseRef.current = true;
   }, [isOpen]);
 
   useLayoutEffect(() => {
@@ -214,6 +241,20 @@ export function Popover({
   }, [isOpen, placement]);
 
   useLayoutEffect(() => {
+    if (!isOpen) return;
+    return registerPopoverLayer({
+      id: popoverId,
+      parentId: parentLayerId,
+      dismissOnFocusLeave,
+      contains: (target) =>
+        Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
+      containsFocus: (target) =>
+        Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
+      dismiss: (reason) => dismissRef.current(reason),
+    });
+  }, [dismissOnFocusLeave, isOpen, parentLayerId, popoverId]);
+
+  useLayoutEffect(() => {
     if (!isOpen || initialFocus === "none") return;
     const content = contentRef.current;
     if (!content) return;
@@ -226,16 +267,36 @@ export function Popover({
     focusPopoverContentElement(first);
   }, [initialFocus, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    return registerPopoverLayer({
-      id: popoverId,
-      parentId: parentLayerId,
-      contains: (target) =>
-        Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
-      dismiss: (reason) => dismissRef.current(reason),
-    });
-  }, [isOpen, parentLayerId, popoverId]);
+  function handleContentKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || !dismissOnFocusLeave || event.key !== "Tab") return;
+    const content = contentRef.current;
+    if (!content) return;
+    const focusables = Array.from(content.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+      (element) => element.tabIndex >= 0 && !element.closest("[hidden]"),
+    );
+    if (focusables.length === 0) return;
+    const current = document.activeElement;
+    const first = focusables[0];
+    const last = focusables.at(-1);
+
+    if (event.shiftKey && current === first) {
+      event.preventDefault();
+      setOpen(false, true);
+      return;
+    }
+    if (event.shiftKey || current !== last) return;
+
+    event.preventDefault();
+    const tabStops = documentTabStopsOutside(content);
+    const anchor = anchorRef.current;
+    const anchorIndex = anchor ? tabStops.indexOf(anchor) : -1;
+    const next =
+      anchorIndex >= 0
+        ? tabStops[(anchorIndex + 1) % tabStops.length]
+        : tabStops[0];
+    setOpen(false, false);
+    next?.focus({ preventScroll: true });
+  }
 
   const { onClick: originalOnClick, className: triggerClassName, ...buttonProps } =
     triggerProps ?? {};
@@ -268,6 +329,7 @@ export function Popover({
               tabIndex={initialFocus === "container" ? -1 : undefined}
               className={[styles.content, className].filter(Boolean).join(" ")}
               style={position}
+              onKeyDown={handleContentKeyDown}
             >
               {children}
             </div>

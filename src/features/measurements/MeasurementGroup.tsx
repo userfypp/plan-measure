@@ -13,6 +13,7 @@ export interface MeasurementGroupProps {
   onSelectMeasurement: (measurementId: string) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
   onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void;
+  rovingCell?: { measurementId: string; control: "selection" | "visibility" } | null;
 }
 
 const visibilityVariant = {
@@ -52,6 +53,7 @@ export function MeasurementGroup({
   onSelectMeasurement,
   onToggleVisibility,
   onSetMeasurementsVisibility,
+  rovingCell,
 }: MeasurementGroupProps) {
   const generatedId = useId();
   const listId = `${generatedId}-measurements`;
@@ -111,6 +113,12 @@ export function MeasurementGroup({
             viewModel={measurement}
             onSelectMeasurement={onSelectMeasurement}
             onToggleVisibility={onToggleVisibility}
+            selectionTabIndex={
+              rovingCell?.measurementId === measurement.id && rovingCell.control === "selection" ? 0 : -1
+            }
+            visibilityTabIndex={
+              rovingCell?.measurementId === measurement.id && rovingCell.control === "visibility" ? 0 : -1
+            }
           />
         ))}
       </div>

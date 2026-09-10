@@ -90,7 +90,6 @@ export function ViewerDock({
   const activeCalibration =
     calibrations.find((calibration) => calibration.id === activeCalibrationId) ?? null;
   const activeMetadata = activeCalibration ? scaleDisplayMetadata(activeCalibration) : null;
-  const scaleTriggerDisabled = scaleSwitchDisabled || calibrations.length === 0;
   const scaleItems = calibrations.map((calibration) => {
     const metadata = scaleDisplayMetadata(calibration);
     const active = calibration.id === activeCalibrationId;
@@ -118,12 +117,13 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Previous page"
-          title={
+          title="Previous page"
+          disabled={pageNavigationDisabled || navigation.pageNumber <= 1}
+          disabledReason={
             pageNavigationDisabled
               ? "Finish or cancel the current drawing or scale workflow before changing pages."
-              : "Previous page"
+              : undefined
           }
-          disabled={pageNavigationDisabled || navigation.pageNumber <= 1}
           onClick={() => navigation.onPageChange(navigation.pageNumber - 1)}
         >
           <ChevronLeftIcon />
@@ -136,12 +136,13 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Next page"
-          title={
+          title="Next page"
+          disabled={pageNavigationDisabled || navigation.pageNumber >= navigation.pageCount}
+          disabledReason={
             pageNavigationDisabled
               ? "Finish or cancel the current drawing or scale workflow before changing pages."
-              : "Next page"
+              : undefined
           }
-          disabled={pageNavigationDisabled || navigation.pageNumber >= navigation.pageCount}
           onClick={() => navigation.onPageChange(navigation.pageNumber + 1)}
         >
           <ChevronRightIcon />
@@ -208,10 +209,14 @@ export function ViewerDock({
         }
         triggerProps={{
           className: styles.scaleTrigger,
-          disabled: scaleTriggerDisabled,
+          disabled: calibrations.length === 0,
+          "aria-disabled": calibrations.length > 0 && scaleSwitchDisabled ? true : undefined,
           title: scaleSwitchDisabled
             ? "Finish or cancel the current scale workflow before switching active scale."
             : undefined,
+          onClick: (event) => {
+            if (scaleSwitchDisabled) event.preventDefault();
+          },
           "aria-label": activeCalibration
             ? `Active scale: ${activeCalibration.name}, ${activeMetadata?.ratioLabel}, ${activeMetadata?.modeLabel}. ${
                 scaleSwitchDisabled
@@ -237,6 +242,7 @@ export function ViewerDock({
         triggerProps={{ className: styles.viewTrigger, "aria-label": "View options" }}
         placement="bottom-end"
         initialFocus="first"
+        dismissOnFocusLeave
         role="dialog"
         aria-label="View options"
         className={styles.viewPopover}

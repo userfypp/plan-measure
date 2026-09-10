@@ -18,13 +18,20 @@ export interface TooltipProps {
   children: ReactElement;
   position?: TooltipPosition;
   delay?: number;
+  describeTrigger?: boolean;
 }
 
 type DescribedTriggerProps = {
   "aria-describedby"?: string;
 };
 
-export function Tooltip({ content, children, position = "top", delay = 300 }: TooltipProps) {
+export function Tooltip({
+  content,
+  children,
+  position = "top",
+  delay = 300,
+  describeTrigger = true,
+}: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0 });
   const timerRef = useRef<number | null>(null);
@@ -88,7 +95,7 @@ export function Tooltip({ content, children, position = "top", delay = 300 }: To
   const describedTrigger = children as ReactElement<DescribedTriggerProps>;
   const existingDescribedBy = describedTrigger.props["aria-describedby"];
   const describedBy =
-    [existingDescribedBy, visible ? tooltipId : ""].filter(Boolean).join(" ") || undefined;
+    [existingDescribedBy, describeTrigger && visible ? tooltipId : ""].filter(Boolean).join(" ") || undefined;
   const trigger = cloneElement(describedTrigger, { "aria-describedby": describedBy });
 
   return (

@@ -17,6 +17,18 @@
   --color-danger-semantic: #ac3540;
   --color-focus-semantic: #185fc7;
 
+  /* Interactive control states. Keep hover, pressed, and selected roles distinct. */
+  --color-control-hover-surface: #eef1f4;
+  --color-control-active-surface: #e1e6ec;
+  --color-control-hover-border: #c5cbd2;
+  --color-control-active-border: #98a2ae;
+  --color-accent-hover-semantic: #1f59b2;
+  --color-accent-active-semantic: #194b99;
+  --color-danger-hover-semantic: #962f39;
+  --color-danger-active-semantic: #7f2831;
+  --color-danger-hover-surface: #fdf0f1;
+  --color-danger-active-surface: #f9e2e5;
+
   --shadow-overlay: 0 2px 10px rgba(24, 32, 42, 0.12);
 
   /* Functional status roles are fallback contracts not redefined by V2. */
@@ -49,6 +61,17 @@
   --color-selection-surface: #303f54;
   --color-danger-semantic: #ee969e;
   --color-focus-semantic: #aacaff;
+
+  --color-control-hover-surface: #343a42;
+  --color-control-active-surface: #3d4651;
+  --color-control-hover-border: #59636f;
+  --color-control-active-border: #748092;
+  --color-accent-hover-semantic: #a7c8f4;
+  --color-accent-active-semantic: #7fa9e4;
+  --color-danger-hover-semantic: #f3a7ae;
+  --color-danger-active-semantic: #dd7f88;
+  --color-danger-hover-surface: #4a1d20;
+  --color-danger-active-surface: #572327;
 
   --shadow-overlay: 0 3px 12px rgba(0, 0, 0, 0.25);
 
@@ -139,16 +162,16 @@
   --color-border-strong: var(--color-text-disabled);
   --color-tool: var(--color-text-secondary);
   --color-primary: var(--color-accent);
-  --color-primary-hover: var(--color-accent);
-  --color-primary-active: var(--color-accent);
+  --color-primary-hover: var(--color-accent-hover-semantic);
+  --color-primary-active: var(--color-accent-active-semantic);
   --color-selected: var(--color-selection-surface);
   --color-info: var(--color-status-info);
   --color-info-subdued: var(--color-status-info-surface);
   --color-warning: var(--color-status-warning);
   --color-warning-subdued: var(--color-status-warning-surface);
   --color-danger: var(--color-danger-semantic);
-  --color-danger-hover: var(--color-danger-semantic);
-  --color-danger-active: var(--color-danger-semantic);
+  --color-danger-hover: var(--color-danger-hover-semantic);
+  --color-danger-active: var(--color-danger-active-semantic);
   --color-danger-subdued: var(--color-status-danger-surface);
   --color-success: var(--color-status-success);
   --color-success-subdued: var(--color-status-success-surface);

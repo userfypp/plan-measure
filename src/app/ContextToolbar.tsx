@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { Button } from "../components/ui";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
@@ -21,6 +22,93 @@ export interface ContextToolbarProps {
 
 function Divider() {
   return <span className={styles.divider} aria-hidden="true" />;
+}
+
+function ToolbarComposite({
+  label,
+  contextKind,
+  drawingTool,
+  children,
+}: {
+  label: string;
+  contextKind: string;
+  drawingTool?: string;
+  children: ReactNode;
+}) {
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const rovingButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  function toolbarButtons(): HTMLButtonElement[] {
+    return Array.from(toolbarRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+  }
+
+  function setRovingButton(button: HTMLButtonElement) {
+    for (const candidate of toolbarButtons()) candidate.tabIndex = candidate === button ? 0 : -1;
+    rovingButtonRef.current = button;
+  }
+
+  useLayoutEffect(() => {
+    const buttons = toolbarButtons();
+    const enabledButtons = buttons.filter((button) => !button.disabled);
+    const focused =
+      document.activeElement instanceof HTMLButtonElement &&
+      toolbarRef.current?.contains(document.activeElement) &&
+      !document.activeElement.disabled
+        ? document.activeElement
+        : null;
+    const remembered =
+      rovingButtonRef.current &&
+      toolbarRef.current?.contains(rovingButtonRef.current) &&
+      !rovingButtonRef.current.disabled
+        ? rovingButtonRef.current
+        : null;
+    const nextRoving = focused ?? remembered ?? enabledButtons[0] ?? null;
+
+    for (const button of buttons) button.tabIndex = button === nextRoving ? 0 : -1;
+    rovingButtonRef.current = nextRoving;
+  });
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const buttons = toolbarButtons().filter((button) => !button.disabled);
+    if (buttons.length === 0) return;
+    const currentIndex = buttons.findIndex((button) => button === document.activeElement);
+    if (currentIndex < 0) return;
+
+    const nextButton =
+      event.key === "Home"
+        ? buttons[0]
+        : event.key === "End"
+          ? buttons[buttons.length - 1]
+          : buttons[
+              (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) %
+                buttons.length
+            ];
+    if (!nextButton) return;
+    event.preventDefault();
+    setRovingButton(nextButton);
+    nextButton.focus();
+  }
+
+  return (
+    <div
+      ref={toolbarRef}
+      className={styles.toolbar}
+      role="toolbar"
+      aria-label={label}
+      aria-orientation="horizontal"
+      data-context-kind={contextKind}
+      data-drawing-tool={drawingTool}
+      onFocusCapture={(event) => {
+        if (event.target instanceof HTMLButtonElement && !event.target.disabled) {
+          setRovingButton(event.target);
+        }
+      }}
+      onKeyDown={handleKeyDown}
+    >
+      {children}
+    </div>
+  );
 }
 
 function DrawingAidButton({
@@ -90,12 +178,7 @@ export function ContextToolbar({
         ? "Scale reference"
         : `${calibrationReferenceEdit.reference.toUpperCase()} reference`;
     return (
-      <div
-        className={styles.toolbar}
-        role="toolbar"
-        aria-label="Scale reference edit controls"
-        data-context-kind="reference-edit"
-      >
+      <ToolbarComposite label="Scale reference edit controls" contextKind="reference-edit">
         <span className={styles.status} role="status">
           Editing {referenceLabel}
           {referenceEditValid
@@ -107,6 +190,9 @@ export function ContextToolbar({
           className={styles.action}
           size="compact"
           disabled={!referenceEditValid}
+          disabledReason={
+            !referenceEditValid ? "Place a valid reference before saving." : undefined
+          }
           onClick={onSaveReferenceEdit}
         >
           Save
@@ -119,7 +205,7 @@ export function ContextToolbar({
         >
           Cancel
         </Button>
-      </div>
+      </ToolbarComposite>
     );
   }
 
@@ -129,12 +215,7 @@ export function ContextToolbar({
         ? `Calibrating ${calibrationFlow.phase.toUpperCase()} reference`
         : "Calibrating scale";
     return (
-      <div
-        className={styles.toolbar}
-        role="toolbar"
-        aria-label="Calibration controls"
-        data-context-kind="calibration"
-      >
+      <ToolbarComposite label="Calibration controls" contextKind="calibration">
         <span className={styles.status} role="status">
           {calibrationLabel} · Select two points
         </span>
@@ -147,7 +228,7 @@ export function ContextToolbar({
         >
           Cancel
         </Button>
-      </div>
+      </ToolbarComposite>
     );
   }
 
@@ -170,14 +251,11 @@ export function ContextToolbar({
     const spec = measurementPathSpecs[activeTool];
     const showFinish = spec.maxVertices === null && pathDraft !== null;
     const canFinish = Boolean(pathDraft && pathDraft.points.length >= spec.minVertices);
-    const finishRequirementId = `drawing-finish-requirement-${activeTool}`;
     return (
-      <div
-        className={styles.toolbar}
-        role="toolbar"
-        aria-label={`${spec.label} drawing controls`}
-        data-context-kind="drawing"
-        data-drawing-tool={activeTool}
+      <ToolbarComposite
+        label={`${spec.label} drawing controls`}
+        contextKind="drawing"
+        drawingTool={activeTool}
       >
         <span className={styles.toolIdentity} role="status">
           {spec.label}
@@ -205,18 +283,24 @@ export function ContextToolbar({
               variant="ghost"
               size="compact"
               disabled={!canFinish}
-              aria-describedby={!canFinish ? finishRequirementId : undefined}
-              onClick={completeCurrentDraft}
+              disabledReason={
+                !canFinish
+                  ? activeTool === "polygon"
+                    ? "Add at least three vertices before finishing the polygon."
+                    : "Add at least two vertices before finishing the polyline."
+                  : undefined
+              }
+              onClick={() => {
+                completeCurrentDraft();
+                window.requestAnimationFrame(() => {
+                  document
+                    .querySelector<HTMLElement>("[data-dialog-focus-fallback]")
+                    ?.focus({ preventScroll: true });
+                });
+              }}
             >
               Finish
             </Button>
-            {!canFinish && (
-              <span id={finishRequirementId} className={styles.visuallyHidden}>
-                {activeTool === "polygon"
-                  ? "Add at least three vertices before finishing the polygon."
-                  : "Add at least two vertices before finishing the polyline."}
-              </span>
-            )}
           </>
         )}
         <Button
@@ -230,19 +314,14 @@ export function ContextToolbar({
         >
           Cancel
         </Button>
-      </div>
+      </ToolbarComposite>
     );
   }
 
   if (activeTool !== "select" || !selectedMeasurementName) return null;
 
   return (
-    <div
-      className={styles.toolbar}
-      role="toolbar"
-      aria-label="Selected measurement controls"
-      data-context-kind="selection"
-    >
+    <ToolbarComposite label="Selected measurement controls" contextKind="selection">
       <span className={styles.selectionIdentity} role="status" title={selectedMeasurementName}>
         {selectedMeasurementName}
       </span>
@@ -266,6 +345,6 @@ export function ContextToolbar({
           Details
         </Button>
       )}
-    </div>
+    </ToolbarComposite>
   );
 }

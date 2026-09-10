@@ -81,7 +81,12 @@
 }
 
 .aidButton:hover {
-  background: var(--color-surface-field);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.aidButton:active {
+  background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }
 
@@ -94,6 +99,12 @@
   background: var(--color-selection-surface);
   color: var(--color-accent);
   font-weight: var(--font-weight-semibold);
+}
+
+.aidButton.pressed:hover,
+.aidButton.pressed:active {
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
 }
 
 .pressedMark {
@@ -117,12 +128,29 @@
   flex: 0 0 auto;
 }
 
-.finishAction,
-.finishAction:hover:not(:disabled),
-.finishAction:active:not(:disabled) {
+.finishAction {
   border-color: transparent;
   background: var(--color-selection-surface);
   color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.finishAction:hover:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.finishAction:active:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.finishAction[data-disabled="true"],
+.finishAction[data-disabled="true"]:hover,
+.finishAction[data-disabled="true"]:active {
+  border-color: var(--color-divider);
+  background: var(--color-surface-panel);
+  color: var(--color-text-disabled);
   font-weight: var(--font-weight-medium);
 }
 
@@ -132,10 +160,15 @@
   color: var(--color-text-secondary);
 }
 
-.cancelAction:hover:not(:disabled),
+.cancelAction:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
 .cancelAction:active:not(:disabled) {
   border-color: transparent;
-  background: var(--color-surface-field);
+  background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }
 

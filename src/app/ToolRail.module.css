@@ -43,7 +43,12 @@
 }
 
 .toolButton:hover:not(:disabled) {
-  background: var(--color-surface-field);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.toolButton:active:not([aria-disabled="true"]) {
+  background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }
 
@@ -55,21 +60,37 @@
 .toolButton.active {
   background: var(--color-selection-surface);
   color: var(--color-accent);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-active-border);
 }
 
-.toolButton.active::before {
-  content: "";
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: currentColor;
+.toolButton.active:hover,
+.toolButton.active:active {
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
 }
 
-.toolButton:disabled {
+.toolButton:disabled,
+.toolButton[aria-disabled="true"] {
   opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+
+.toolButton[aria-disabled="true"]:not(.active):hover,
+.toolButton[aria-disabled="true"]:not(.active):active {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .icon {
@@ -103,8 +124,19 @@
   box-shadow: var(--shadow-overlay);
 }
 
-.launcher:hover,
-.launcher[aria-expanded="true"] {
+.launcher:hover {
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.launcher:active {
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
+}
+
+.launcher[aria-expanded="true"],
+.launcher[aria-expanded="true"]:hover,
+.launcher[aria-expanded="true"]:active {
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }

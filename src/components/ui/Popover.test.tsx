@@ -18,6 +18,7 @@ function renderPopover() {
         <Popover
           trigger="Open disclosure"
           initialFocus="first"
+          dismissOnFocusLeave
           role="dialog"
           aria-label="Example disclosure"
         >
@@ -134,6 +135,63 @@ describe("Popover", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it("dismisses when focus leaves the popover without stealing the new focus", () => {
+    openPopover();
+    const outside = findButton("Outside action");
+
+    act(() => outside.focus());
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it("treats its trigger as part of the disclosure so pointer focus does not close then reopen it", () => {
+    openPopover();
+    const disclosureTrigger = trigger();
+
+    act(() => disclosureTrigger.focus());
+
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(disclosureTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(disclosureTrigger);
+
+    act(() => disclosureTrigger.click());
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(disclosureTrigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes deterministically at the backward Tab boundary and returns to its trigger", () => {
+    openPopover();
+    const inside = findButton("Inside action");
+    expect(document.activeElement).toBe(inside);
+
+    act(() => {
+      inside.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it("closes deterministically at the forward Tab boundary and moves to the next document stop", () => {
+    openPopover();
+    const inside = findButton("Inside action");
+    const outside = findButton("Outside action");
+    expect(document.activeElement).toBe(inside);
+
+    act(() => {
+      inside.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(outside);
+  });
+
   it("lets only the topmost of two open popovers process Escape", () => {
     act(() => {
       root!.render(
@@ -237,6 +295,79 @@ describe("Popover", () => {
     expect(dialog("Parent popover")).not.toBeNull();
     expect(dialog("Child popover")).toBeNull();
     expect(document.activeElement).toBe(findButton("Child trigger"));
+  });
+
+  it("keeps nested focus transitions within the hierarchy deterministic", () => {
+    act(() => {
+      root!.render(
+        <Popover
+          trigger="Parent trigger"
+          dismissOnFocusLeave
+          role="dialog"
+          aria-label="Parent popover"
+        >
+          <button type="button">Parent action</button>
+          <Popover
+            trigger="Child trigger"
+            dismissOnFocusLeave
+            role="dialog"
+            aria-label="Child popover"
+          >
+            <button type="button">Child action</button>
+          </Popover>
+        </Popover>,
+      );
+    });
+    act(() => findButton("Parent trigger").click());
+    act(() => findButton("Child trigger").click());
+
+    expect(dialog("Parent popover")).not.toBeNull();
+    expect(dialog("Child popover")).not.toBeNull();
+    expect(document.activeElement).toBe(findButton("Child action"));
+
+    act(() => findButton("Parent action").focus());
+
+    expect(dialog("Parent popover")).not.toBeNull();
+    expect(dialog("Child popover")).toBeNull();
+    expect(document.activeElement).toBe(findButton("Parent action"));
+  });
+
+  it("lets only the nested child own a handled Tab boundary and preserves the parent's next stop", () => {
+    act(() => {
+      root!.render(
+        <Popover
+          trigger="Parent trigger"
+          dismissOnFocusLeave
+          role="dialog"
+          aria-label="Parent popover"
+        >
+          <button type="button">Before child</button>
+          <Popover
+            trigger="Child trigger"
+            dismissOnFocusLeave
+            role="dialog"
+            aria-label="Child popover"
+          >
+            <button type="button">Child action</button>
+          </Popover>
+          <button type="button">After child</button>
+        </Popover>,
+      );
+    });
+    act(() => findButton("Parent trigger").click());
+    act(() => findButton("Child trigger").click());
+    const childAction = findButton("Child action");
+    expect(document.activeElement).toBe(childAction);
+
+    act(() => {
+      childAction.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(dialog("Child popover")).toBeNull();
+    expect(dialog("Parent popover")).not.toBeNull();
+    expect(document.activeElement).toBe(findButton("After child"));
   });
 
   it("dismisses a nested stack deterministically for pointer interaction outside the hierarchy", () => {

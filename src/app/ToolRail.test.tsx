@@ -134,12 +134,17 @@ describe("ToolRail V2", () => {
     expect(button("polygon").getAttribute("aria-keyshortcuts")).toBe("P");
   });
 
-  it("supports vertical roving focus, Home/End, and skips unavailable tools", () => {
+  it("supports vertical roving focus, Home/End, and keeps unavailable tools focusable for their reason", () => {
     renderRail({ line: { enabled: false, disabledReason: "Unavailable" } });
 
     act(() => button("select").focus());
     press("ArrowDown");
     expect(document.activeElement).toBe(button("hand"));
+    expect(button("select").getAttribute("aria-pressed")).toBe("true");
+    expect(button("hand").getAttribute("aria-pressed")).toBe("false");
+    press("ArrowDown");
+    expect(document.activeElement).toBe(button("line"));
+    expect(button("line").getAttribute("aria-disabled")).toBe("true");
     press("ArrowDown");
     expect(document.activeElement).toBe(button("polyline"));
     press("End");
@@ -147,6 +152,16 @@ describe("ToolRail V2", () => {
     press("Home");
     expect(document.activeElement).toBe(button("select"));
     expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toHaveLength(1);
+  });
+
+  it("retains one roving Tab stop even when that tool is contextually unavailable", () => {
+    renderRail({ select: { enabled: false, disabledReason: "Unavailable" } });
+
+    expect(button("select").disabled).toBe(false);
+    expect(button("select").getAttribute("aria-disabled")).toBe("true");
+    expect(button("select").tabIndex).toBe(0);
+    expect(button("hand").tabIndex).toBe(-1);
+    expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toEqual([button("select")]);
   });
 
   it("uses one Narrow launcher and exposes the same five tools on demand", () => {
@@ -168,6 +183,7 @@ describe("ToolRail V2", () => {
     expect(container?.querySelector('[role="toolbar"]')?.getAttribute("aria-orientation")).toBe(
       "vertical",
     );
+    expect(document.activeElement).toBe(button("select"));
   });
 
   it("keeps navigation tools available while precision tools expose the capability reason", () => {
@@ -175,9 +191,27 @@ describe("ToolRail V2", () => {
     expect(button("select").disabled).toBe(false);
     expect(button("hand").disabled).toBe(false);
     for (const tool of ["line", "polyline", "polygon"]) {
-      expect(button(tool).disabled).toBe(true);
+      expect(button(tool).disabled).toBe(false);
+      expect(button(tool).getAttribute("aria-disabled")).toBe("true");
+      const reasonId = button(tool).getAttribute("aria-describedby");
+      expect(reasonId).not.toBeNull();
+      expect(document.getElementById(reasonId!)?.textContent).toContain("fine pointer");
       expect(button(tool).title).toContain("fine pointer");
     }
+  });
+
+  it("does not activate an aria-disabled tool by click or keyboard-generated click", () => {
+    renderRail({ line: { enabled: false, disabledReason: "Unavailable" } });
+    const line = button("line");
+    act(() => line.click());
+    expect(button("select").getAttribute("aria-pressed")).toBe("true");
+
+    act(() => {
+      line.focus();
+      line.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    expect(button("select").getAttribute("aria-pressed")).toBe("true");
+    expect(line.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("returns focus to the Narrow launcher after choosing a tool", () => {
@@ -194,6 +228,44 @@ describe("ToolRail V2", () => {
     expect(toolButtons()).toHaveLength(0);
     expect(launcher.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(launcher);
+  });
+
+  it("closes the Narrow palette with Escape and returns focus to its launcher", () => {
+    renderRail({}, { narrow: true });
+    const launcher = container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]');
+    if (!launcher) throw new Error("Tools launcher was not rendered.");
+    act(() => launcher.click());
+    expect(document.activeElement).toBe(button("select"));
+
+    press("Escape");
+
+    expect(toolButtons()).toHaveLength(0);
+    expect(launcher.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(launcher);
+  });
+
+  it("preserves roving focus across Wide/Narrow transitions without hidden tabbables", () => {
+    renderRail();
+    act(() => button("hand").focus());
+    expect(document.activeElement).toBe(button("hand"));
+    expect(button("select").getAttribute("aria-pressed")).toBe("true");
+    expect(button("hand").getAttribute("aria-pressed")).toBe("false");
+
+    renderRail({}, { narrow: true, narrowVersion: 1 });
+    const launcher = container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]');
+    if (!launcher) throw new Error("Tools launcher was not rendered.");
+    expect(toolButtons()).toHaveLength(0);
+    expect(document.activeElement).toBe(launcher);
+
+    renderRail({}, { narrow: false, narrowVersion: 1 });
+    expect(document.activeElement).toBe(button("hand"));
+    expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toEqual([button("hand")]);
+
+    renderRail({}, { narrow: true, narrowVersion: 2 });
+    expect(toolButtons()).toHaveLength(0);
+    expect(document.activeElement).toBe(
+      container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]'),
+    );
   });
 
   it("does not reopen a stale tool palette after leaving and re-entering Narrow", () => {

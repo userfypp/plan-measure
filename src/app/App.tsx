@@ -163,6 +163,39 @@ function PlanMeasureApp() {
     bounds: LogicalPageBounds;
   } | null>(null);
 
+  const focusViewer = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>("[data-dialog-focus-fallback]")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const focusMeasurementRow = useCallback((measurementId: string) => {
+    window.requestAnimationFrame(() => {
+      const row = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[data-measurement-id][data-measurement-control="selection"]',
+        ),
+      ).find((candidate) => candidate.dataset.measurementId === measurementId);
+      if (row && !row.closest("[hidden]")) {
+        row.focus({ preventScroll: true });
+        if (document.activeElement === row) return;
+      }
+      document
+        .querySelector<HTMLElement>("[data-dialog-focus-fallback]")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const focusMeasurementDetails = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>("[data-measurement-details-back]")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
   const {
     activePdf,
     recovery,
@@ -429,6 +462,7 @@ function PlanMeasureApp() {
     clearDraft();
     chooseWorkspaceTool("select");
     clearError();
+    focusViewer();
   }
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
@@ -439,6 +473,7 @@ function PlanMeasureApp() {
     if (!calibration) return;
     startCalibration(beginCalibrationFlow(pageNumber, calibrationId, calibration.mode));
     chooseTool("calibrate");
+    focusViewer();
   }
 
   function beginNewCalibration(mode: "uniform" | "xy") {
@@ -520,6 +555,7 @@ function PlanMeasureApp() {
     closeConfirmation();
     clearSelection();
     chooseTool("select");
+    focusViewer();
   }
 
   function updateCalibrationReferenceEdit(points: [Point, Point]) {
@@ -530,6 +566,7 @@ function PlanMeasureApp() {
     cancelReferenceEdit();
     closeConfirmation();
     clearError();
+    focusViewer();
   }
 
   function calibrationReferenceEditPreview(edit: CalibrationReferenceEdit): PageCalibration | null {
@@ -574,6 +611,7 @@ function PlanMeasureApp() {
     });
     confirmReferenceEdit();
     closeConfirmation();
+    focusViewer();
   }
 
   function handleOverlayConfirmationConfirm(confirmation: OverlayConfirmation) {
@@ -584,6 +622,7 @@ function PlanMeasureApp() {
       if (!session || session.currentPage !== pageNumber || !page || !measurement) return;
       deleteMeasurement(pageNumber, measurementId);
       if (selectedMeasurementId === measurementId) clearSelection();
+      focusViewer();
       return;
     }
 
@@ -640,8 +679,10 @@ function PlanMeasureApp() {
     currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
     null;
   useEffect(() => {
-    if (measurementDetailsOpen && !selectedMeasurement) closeMeasurementDetails();
-  }, [closeMeasurementDetails, measurementDetailsOpen, selectedMeasurement]);
+    if (!measurementDetailsOpen || selectedMeasurement) return;
+    closeMeasurementDetails();
+    focusViewer();
+  }, [closeMeasurementDetails, focusViewer, measurementDetailsOpen, selectedMeasurement]);
   const measurementEditActive = activeMeasurementEditId !== null;
   const duplicateDisabled = currentPage && selectedMeasurement
     ? !canDuplicateMeasurement(currentPage, selectedMeasurement) ||
@@ -799,7 +840,10 @@ function PlanMeasureApp() {
                     assignmentDisabled={Boolean(
                       calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
                     )}
-                    onBack={closeMeasurementDetails}
+                    onBack={() => {
+                      closeMeasurementDetails();
+                      focusMeasurementRow(selectedMeasurement.id);
+                    }}
                     onRename={(name) =>
                       renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
                     }
@@ -828,8 +872,14 @@ function PlanMeasureApp() {
               onDuplicateSelectedMeasurement={() => {
                 if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
               }}
-              onOpenMeasurementDetails={openMeasurementDetails}
-              onExitDrawingTool={() => chooseTool("select")}
+              onOpenMeasurementDetails={() => {
+                openMeasurementDetails();
+                focusMeasurementDetails();
+              }}
+              onExitDrawingTool={() => {
+                chooseTool("select");
+                focusViewer();
+              }}
               onCancelCalibration={cancelCalibration}
               onCancelReferenceEdit={cancelCalibrationReferenceEdit}
               onSaveReferenceEdit={requestCalibrationReferenceEditSave}
@@ -1018,6 +1068,7 @@ function PlanMeasureApp() {
             if (confirmation.kind === "select-y") {
               advanceCalibrationStep(confirmation.flow);
               chooseTool("calibrate");
+              focusViewer();
               return;
             }
             const calibration = confirmation.calibration;
@@ -1043,6 +1094,7 @@ function PlanMeasureApp() {
             completeCalibration();
             clearDraft();
             chooseWorkspaceTool("select");
+            focusViewer();
           }}
         />
       )}

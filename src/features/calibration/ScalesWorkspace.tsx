@@ -104,8 +104,7 @@ export function ScalesWorkspace({
                     variant="ghost"
                     size="compact"
                     disabled={spatialActionsDisabled}
-                    aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
-                    title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                    disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
                     onClick={() =>
                       workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
                     }
@@ -117,8 +116,7 @@ export function ScalesWorkspace({
                       variant="ghost"
                       size="compact"
                       disabled={spatialActionsDisabled}
-                      aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
-                      title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                      disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
                       onClick={() =>
                         workspace.requestPrecisionAuthoring(() =>
                           onEditReference(calibration, "uniform"),
@@ -133,8 +131,7 @@ export function ScalesWorkspace({
                         variant="ghost"
                         size="compact"
                         disabled={spatialActionsDisabled}
-                        aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
-                        title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                        disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
                         onClick={() =>
                           workspace.requestPrecisionAuthoring(() =>
                             onEditReference(calibration, "x"),
@@ -147,8 +144,7 @@ export function ScalesWorkspace({
                         variant="ghost"
                         size="compact"
                         disabled={spatialActionsDisabled}
-                        aria-describedby={spatialActionsDisabled ? disabledReasonId : undefined}
-                        title={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                        disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
                         onClick={() =>
                           workspace.requestPrecisionAuthoring(() =>
                             onEditReference(calibration, "y"),
@@ -173,7 +169,11 @@ export function ScalesWorkspace({
             className: styles.addScaleTrigger,
             "aria-label": "Add scale",
             "aria-describedby": actionsDisabled ? disabledReasonId : undefined,
-            disabled: actionsDisabled,
+            "aria-disabled": actionsDisabled || undefined,
+            title: actionsDisabled ? spatialDisabledReason : undefined,
+            onClick: (event) => {
+              if (actionsDisabled) event.preventDefault();
+            },
           }}
           label="Add scale"
           items={[

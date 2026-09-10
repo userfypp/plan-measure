@@ -72,10 +72,14 @@
   color: var(--color-text-primary);
 }
 
-.exportAction:hover:not(:disabled),
+.exportAction:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
 .exportAction:active:not(:disabled) {
-  border-color: var(--color-divider);
-  background: var(--color-selection-surface);
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
 }
 
 .iconTrigger {
@@ -90,11 +94,18 @@
 }
 
 .iconTrigger:hover {
-  background: var(--color-surface-field);
+  background: var(--color-control-hover-surface);
   color: var(--color-text-primary);
 }
 
-.iconTrigger[aria-expanded="true"] {
+.iconTrigger:active {
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
+}
+
+.iconTrigger[aria-expanded="true"],
+.iconTrigger[aria-expanded="true"]:hover,
+.iconTrigger[aria-expanded="true"]:active {
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }

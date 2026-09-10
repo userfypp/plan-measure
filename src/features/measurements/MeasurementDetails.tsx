@@ -61,7 +61,13 @@ export function MeasurementDetails({
   return (
     <section className={styles.details} aria-label={`Details for ${measurement.name}`}>
       <div className={styles.scrollArea}>
-        <Button variant="ghost" size="compact" className={styles.back} onClick={onBack}>
+        <Button
+          variant="ghost"
+          size="compact"
+          className={styles.back}
+          data-measurement-details-back
+          onClick={onBack}
+        >
           ‹ Back to {workspaceModuleLabel(returnModule).toLowerCase()}
         </Button>
 
@@ -164,21 +170,13 @@ export function MeasurementDetails({
           variant="secondary"
           size="compact"
           disabled={!workspace.precisionActionAvailable}
-          aria-describedby={
-            !workspace.precisionActionAvailable ? "measurement-edit-geometry-disabled-reason" : undefined
-          }
-          title={
+          disabledReason={
             !workspace.precisionActionAvailable ? workspace.precisionDisabledReason : undefined
           }
           onClick={() => workspace.requestPrecisionAuthoring(onEditGeometry)}
         >
           Edit geometry
         </Button>
-        {!workspace.precisionActionAvailable && (
-          <span id="measurement-edit-geometry-disabled-reason" className={styles.visuallyHidden}>
-            {workspace.precisionDisabledReason}
-          </span>
-        )}
       </div>
 
       <div className={styles.dangerZone}>

@@ -22,12 +22,16 @@ export interface MeasurementRowProps {
   viewModel: MeasurementViewModel & { selected: boolean };
   onSelectMeasurement: (measurementId: string) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
+  selectionTabIndex?: number;
+  visibilityTabIndex?: number;
 }
 
 export const MeasurementRow = memo(function MeasurementRow({
   viewModel,
   onSelectMeasurement,
   onToggleVisibility,
+  selectionTabIndex = 0,
+  visibilityTabIndex = 0,
 }: MeasurementRowProps) {
   const detailsId = `measurement-details-${viewModel.id}`;
 
@@ -40,6 +44,9 @@ export const MeasurementRow = memo(function MeasurementRow({
       <button
         type="button"
         className={styles.selection}
+        data-measurement-id={viewModel.id}
+        data-measurement-control="selection"
+        tabIndex={selectionTabIndex}
         aria-label={`${viewModel.selected ? "Selected" : "Select"} measurement ${viewModel.name}`}
         aria-pressed={viewModel.selected}
         aria-describedby={detailsId}
@@ -63,6 +70,9 @@ export const MeasurementRow = memo(function MeasurementRow({
       <div className={styles.actions}>
         <IconButton
           icon={<VisibilityIcon visible={viewModel.visible} />}
+          data-measurement-id={viewModel.id}
+          data-measurement-control="visibility"
+          tabIndex={visibilityTabIndex}
           aria-label={`${viewModel.visible ? "Hide" : "Show"} measurement ${viewModel.name}`}
           tooltip={`${viewModel.visible ? "Hide" : "Show"} measurement`}
           pressed={viewModel.visible}
