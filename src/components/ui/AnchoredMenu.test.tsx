@@ -122,6 +122,20 @@ describe("AnchoredMenu", () => {
     expect(buttons()[1]?.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("uses a single SVG check for the selected item without adding glyph text", () => {
+    openMenu();
+    const menuButtons = buttons();
+
+    expect(menuButtons.map((button) => button.textContent?.trim())).toEqual([
+      "Measurements",
+      "Classifications",
+      "Scales",
+    ]);
+    expect(menuButtons[0]?.querySelector("svg")).not.toBeNull();
+    expect(menuButtons[1]?.querySelector("svg")).toBeNull();
+    expect(menuButtons[2]?.querySelector("svg")).toBeNull();
+  });
+
   it("moves focus with ArrowDown and ArrowUp", () => {
     openMenu();
     expect(document.activeElement).toBe(buttons()[0]);

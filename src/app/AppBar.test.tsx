@@ -169,7 +169,10 @@ describe("AppBar", () => {
 
     let items = settingsItems();
     expect(items).toHaveLength(3);
-    expect(items.map((item) => item.textContent?.trim())).toEqual(["✓System", "Light", "Dark"]);
+    expect(items.map((item) => item.textContent?.trim())).toEqual(["System", "Light", "Dark"]);
+    expect(items[0]?.querySelector("svg")).not.toBeNull();
+    expect(items[1]?.querySelector("svg")).toBeNull();
+    expect(items[2]?.querySelector("svg")).toBeNull();
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
 
     chooseTheme("Light");

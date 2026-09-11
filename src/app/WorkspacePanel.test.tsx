@@ -112,10 +112,13 @@ describe("WorkspacePanel", () => {
     const items = menuItems();
     expect(items).toHaveLength(3);
     expect(items.map((item) => item.textContent?.trim())).toEqual([
-      "✓Measurements",
+      "Measurements",
       "Classifications",
       "Scales",
     ]);
+    expect(items[0]?.querySelector("svg")).not.toBeNull();
+    expect(items[1]?.querySelector("svg")).toBeNull();
+    expect(items[2]?.querySelector("svg")).toBeNull();
     expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
     expect(document.body.textContent).not.toContain("Future module");
   });

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const globalCss = readFileSync(new URL("../../styles/global.css", import.meta.url), "utf8");
+const tokensCss = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
 const buttonCss = readFileSync(new URL("./Button.module.css", import.meta.url), "utf8");
 const iconButtonCss = readFileSync(new URL("./IconButton.module.css", import.meta.url), "utf8");
 const menuCss = readFileSync(new URL("./AnchoredMenu.module.css", import.meta.url), "utf8");
@@ -68,6 +69,19 @@ describe("shared interactive-state contract", () => {
     );
     expect(scalesCss).toMatch(
       /\.disclosureButton\[aria-expanded="true"\]:active[^}]*background:\s*var\(--color-selection-surface\);/s,
+    );
+  });
+
+  it("keeps selection menus compact on fine pointers without reducing the coarse target", () => {
+    expect(menuCss).toMatch(/\.item\s*\{[^}]*min-height:\s*var\(--target-current\);/s);
+    expect(menuCss).toMatch(/\.selectionMenu \.items\s*\{[^}]*gap:\s*0;/s);
+    expect(menuCss).toMatch(
+      /\.selectionMenu \.item\s*\{[^}]*grid-template-columns:\s*var\(--space-12\) minmax\(0, 1fr\);[^}]*gap:\s*var\(--space-4\);[^}]*padding-inline:\s*var\(--space-4\);/s,
+    );
+    expect(tokensCss).toMatch(/--target-fine:\s*32px;/);
+    expect(tokensCss).toMatch(/--target-coarse:\s*44px;/);
+    expect(tokensCss).toMatch(
+      /@media \(any-pointer: coarse\)\s*\{[^}]*:root\s*\{[^}]*--target-current:\s*var\(--target-coarse\);/s,
     );
   });
 });

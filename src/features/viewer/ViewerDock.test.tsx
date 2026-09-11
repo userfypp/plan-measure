@@ -147,6 +147,8 @@ describe("ViewerDock", () => {
     expect(items).toHaveLength(2);
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
     expect(items[0]?.getAttribute("aria-current")).toBe("true");
+    expect(items[0]?.querySelector("svg")).not.toBeNull();
+    expect(items[1]?.querySelector("svg")).toBeNull();
     expect(items[1]?.textContent).toContain("Survey correction");
     expect(items[1]?.textContent).toContain("X 1:100 · Y 1:98 · X/Y");
 

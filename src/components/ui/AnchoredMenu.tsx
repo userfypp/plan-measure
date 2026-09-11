@@ -56,6 +56,19 @@ function firstInitialFocusIndex(items: readonly AnchoredMenuItem[]): number {
   return current >= 0 ? current : items.length > 0 ? 0 : -1;
 }
 
+function SelectionCheckIcon() {
+  return (
+    <svg
+      className={styles.selectionCheck}
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="m2 6.25 2.35 2.35L10 3.4" />
+    </svg>
+  );
+}
+
 export function AnchoredMenu({
   trigger,
   triggerProps,
@@ -71,6 +84,9 @@ export function AnchoredMenu({
   const isOpen = open ?? uncontrolledOpen;
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const initialFocusIndex = useMemo(() => firstInitialFocusIndex(items), [items]);
+  const selectionMenu = items.some(
+    (item) => item.role === "menuitemradio" || item.checked !== undefined || item.current !== undefined,
+  );
   const tabbableIndex = focusIndex ?? initialFocusIndex;
 
   function setOpen(nextOpen: boolean) {
@@ -157,7 +173,7 @@ export function AnchoredMenu({
       initialFocus="first"
       role="menu"
       aria-label={label}
-      className={styles.menu}
+      className={[styles.menu, selectionMenu ? styles.selectionMenu : ""].filter(Boolean).join(" ")}
     >
       <div className={styles.items} onKeyDown={handleKeyDown}>
         {items.map((item, index) => {
@@ -166,7 +182,7 @@ export function AnchoredMenu({
           const content = (
             <>
               <span className={styles.marker} aria-hidden="true">
-                {activeState ? "✓" : ""}
+                {selectionMenu ? activeState ? <SelectionCheckIcon /> : null : activeState ? "✓" : ""}
               </span>
               <span className={styles.label}>{item.label}</span>
             </>
