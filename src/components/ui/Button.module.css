@@ -12,6 +12,7 @@
   line-height: var(--line-height-tight);
   white-space: nowrap;
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .button:focus-visible {

@@ -153,6 +153,9 @@
   --focus-offset: 2px;
   --focus-outline: var(--focus-width) solid var(--color-focus-semantic);
 
+  /* Shared button-like interaction motion. */
+  --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+
   /* Transitional V1 aliases. Remove as each surface migrates to V2 semantic roles. */
   --color-surface: var(--color-surface-panel);
   --color-surface-subdued: var(--color-surface-field);
@@ -201,6 +204,12 @@
   --shadow-tool-hover: var(--shadow-overlay);
   --shadow-none: var(--shadow-structural);
   --opacity-disabled: 0.56;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-interactive: none;
+  }
 }
 
 @media (any-pointer: coarse) {

@@ -75,35 +75,50 @@
 .scaleTrigger,
 .viewTrigger {
   min-height: var(--target-current);
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-primary);
   font: inherit;
+  transition: var(--transition-interactive);
 }
 
 .scaleTrigger:hover:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
 }
 
 .scaleTrigger:active:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
 }
 
 .scaleTrigger[aria-expanded="true"]:not(:disabled):not([aria-disabled="true"]),
-.viewTrigger[aria-expanded="true"]:not(:disabled),
+.viewTrigger[aria-expanded="true"]:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
 .scaleTrigger[aria-expanded="true"]:hover:not(:disabled):not([aria-disabled="true"]),
-.viewTrigger[aria-expanded="true"]:hover:not(:disabled),
+.viewTrigger[aria-expanded="true"]:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
 .scaleTrigger[aria-expanded="true"]:active:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger[aria-expanded="true"]:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }
 
 .scaleTrigger:disabled,
 .scaleTrigger[aria-disabled="true"] {
+  border-color: transparent;
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }
@@ -244,11 +259,17 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-12);
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   padding: var(--space-4);
   color: var(--color-text-primary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-semibold);
+}
+
+.toggle {
+  cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .unit select {
@@ -268,7 +289,13 @@
 }
 
 .toggle:hover {
-  background: var(--color-surface-field);
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.toggle:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
 }
 
 .toggleText {

@@ -38,11 +38,28 @@
 .status button {
   flex: 0 0 auto;
   border: 0;
+  border-radius: var(--radius-control);
   background: transparent;
   color: inherit;
   font-weight: var(--font-weight-semibold);
   text-decoration: underline;
   cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+.status button:hover {
+  background: var(--color-control-hover-surface);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-hover-border);
+}
+
+.status button:active {
+  background: var(--color-control-active-surface);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-active-border);
+}
+
+.status button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .error {

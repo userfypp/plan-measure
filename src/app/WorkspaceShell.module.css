@@ -139,14 +139,39 @@
   background: var(--color-surface-raised);
   color: var(--color-text-secondary);
   box-shadow: var(--shadow-overlay);
+  transition: var(--transition-interactive);
 }
 
 .workspace[data-responsive-mode="narrow"] .workspaceLauncher[hidden] {
   display: none;
 }
 
-.workspace[data-responsive-mode="narrow"] .workspaceLauncher:hover,
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
+}
+
 .workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"]:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"]:active {
+  border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }

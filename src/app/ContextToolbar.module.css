@@ -71,21 +71,24 @@
   min-width: var(--geometry-context-control-height);
   min-height: var(--geometry-context-control-height);
   flex: 0 0 auto;
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   padding: 0 7px;
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .aidButton:hover {
+  border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
   color: var(--color-text-primary);
 }
 
 .aidButton:active {
+  border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }
@@ -96,13 +99,20 @@
 }
 
 .aidButton.pressed {
+  border-color: var(--color-accent);
   background: var(--color-selection-surface);
   color: var(--color-accent);
   font-weight: var(--font-weight-semibold);
 }
 
-.aidButton.pressed:hover,
+.aidButton.pressed:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
 .aidButton.pressed:active {
+  border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }
@@ -161,13 +171,13 @@
 }
 
 .cancelAction:hover:not(:disabled) {
-  border-color: transparent;
+  border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
   color: var(--color-text-primary);
 }
 
 .cancelAction:active:not(:disabled) {
-  border-color: transparent;
+  border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }

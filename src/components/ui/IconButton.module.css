@@ -9,6 +9,7 @@
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .button:hover:not(:disabled):not([data-disabled="true"]) {
@@ -23,12 +24,22 @@
   border-color: var(--color-control-active-border);
 }
 
-.button.pressed,
-.button.pressed:hover:not(:disabled):not([data-disabled="true"]),
-.button.pressed:active:not(:disabled):not([data-disabled="true"]) {
+.button.pressed {
   color: var(--color-primary);
   background-color: var(--color-selected);
   border-color: var(--color-primary);
+}
+
+.button.pressed:hover:not(:disabled):not([data-disabled="true"]) {
+  color: var(--color-primary);
+  background-color: var(--color-selected);
+  border-color: var(--color-control-hover-border);
+}
+
+.button.pressed:active:not(:disabled):not([data-disabled="true"]) {
+  color: var(--color-primary);
+  background-color: var(--color-selected);
+  border-color: var(--color-control-active-border);
 }
 
 .danger {

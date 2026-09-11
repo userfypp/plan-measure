@@ -56,12 +56,21 @@
   grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: 0;
   padding: var(--space-4) var(--space-8) var(--space-4) var(--space-12);
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
+  transition: var(--transition-interactive);
+}
+
+.selection:hover {
+  border-color: var(--color-control-hover-border);
+}
+
+.selection:active {
+  border-color: var(--color-control-active-border);
 }
 
 .selection:focus-visible {
@@ -180,7 +189,7 @@
   min-width: var(--target-current);
   height: var(--target-current);
   min-height: var(--target-current);
-  border: 0;
+  border-color: transparent;
 }
 
 .actions .visibilityButton[aria-pressed="true"]:not(:hover):not(:active) {

@@ -44,14 +44,6 @@
   text-align: left;
 }
 
-.scaleRow:hover .scaleSummary {
-  background: var(--color-surface-field);
-}
-
-.active:hover .scaleSummary {
-  background: var(--color-selection-surface);
-}
-
 .scaleIdentity {
   min-width: 0;
   display: grid;
@@ -93,7 +85,19 @@
 }
 
 .disclosureButton[aria-expanded="true"] {
-  border-color: transparent;
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.disclosureButton[aria-expanded="true"]:hover:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.disclosureButton[aria-expanded="true"]:active:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }
@@ -164,20 +168,42 @@
 .addScaleTrigger {
   width: 100%;
   min-height: var(--target-current);
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   padding: 0 var(--space-8);
   background: var(--color-surface-field);
   color: var(--color-text-primary);
   text-align: left;
+  transition: var(--transition-interactive);
 }
 
-.addScaleTrigger:hover,
-.addScaleTrigger[aria-expanded="true"] {
+.addScaleTrigger:hover:not([aria-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.addScaleTrigger:active:not([aria-disabled="true"]) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.addScaleTrigger[aria-expanded="true"]:not([aria-disabled="true"]) {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+}
+
+.addScaleTrigger[aria-expanded="true"]:hover:not([aria-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+}
+
+.addScaleTrigger[aria-expanded="true"]:active:not([aria-disabled="true"]) {
+  border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
 }
 
 .addScaleTrigger[aria-disabled="true"] {
+  border-color: transparent;
   background: var(--color-surface-panel);
   color: var(--color-text-disabled);
   cursor: not-allowed;

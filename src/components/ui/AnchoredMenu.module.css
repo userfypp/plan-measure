@@ -14,7 +14,7 @@
   grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   padding: 0 var(--space-8);
   background: transparent;
@@ -24,22 +24,31 @@
   line-height: var(--line-height-base);
   text-align: left;
   text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
-.item:hover:not([aria-disabled="true"]),
+.item:hover:not([aria-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.item:active:not([aria-disabled="true"]) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
 .item:focus-visible {
   background: var(--color-surface-field);
-}
-
-.item:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
 
 .item[aria-disabled="true"] {
+  border-color: transparent;
   background: transparent;
   color: var(--color-text-disabled);
-  cursor: not-allowed !important;
+  cursor: not-allowed;
 }
 
 .marker {

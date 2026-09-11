@@ -25,18 +25,27 @@
   font: inherit;
   line-height: 1;
   background: transparent;
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-flat);
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
-.toggle:hover,
+.toggle:hover {
+  color: var(--color-text);
+  background: var(--color-control-hover-surface);
+  border-color: var(--color-control-hover-border);
+}
+
+.toggle:active {
+  color: var(--color-text);
+  background: var(--color-control-active-surface);
+  border-color: var(--color-control-active-border);
+}
+
 .toggle:focus-visible {
   color: var(--color-text);
   background: var(--color-surface-subdued);
-}
-
-.toggle:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }

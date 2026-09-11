@@ -63,12 +63,11 @@ select:focus-visible {
   outline-offset: var(--focus-offset);
 }
 
-button:not(:disabled),
-button:not(:disabled) * {
-  cursor: default !important;
+button:not(:disabled):not([aria-disabled="true"]) {
+  cursor: pointer;
 }
 
 button:disabled,
-button:disabled * {
-  cursor: not-allowed !important;
+button[aria-disabled="true"] {
+  cursor: not-allowed;
 }

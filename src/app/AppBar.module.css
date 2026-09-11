@@ -81,6 +81,7 @@
   line-height: var(--line-height-tight);
   text-decoration: none;
   white-space: nowrap;
+  transition: var(--transition-interactive);
 }
 
 .feedbackAction:hover {
@@ -103,25 +104,39 @@
   padding: 0;
   display: inline-grid;
   place-items: center;
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-secondary);
+  transition: var(--transition-interactive);
 }
 
 .iconTrigger:hover {
+  border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
   color: var(--color-text-primary);
 }
 
 .iconTrigger:active {
+  border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }
 
-.iconTrigger[aria-expanded="true"],
-.iconTrigger[aria-expanded="true"]:hover,
+.iconTrigger[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.iconTrigger[aria-expanded="true"]:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
 .iconTrigger[aria-expanded="true"]:active {
+  border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }
