@@ -4,24 +4,45 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-8);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-flat);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   white-space: nowrap;
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .button:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
-.button:disabled {
+.button:disabled,
+.button[data-disabled="true"] {
   cursor: not-allowed;
-  opacity: var(--opacity-disabled);
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.disabledReasonOwner {
+  display: inline-flex;
+  min-width: 0;
 }
 
 .compact {
@@ -40,41 +61,46 @@
   border-color: var(--color-primary);
 }
 
-.primary:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+.primary:hover:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-accent-hover-semantic);
+  border-color: var(--color-accent-hover-semantic);
 }
 
-.primary:active:not(:disabled) {
-  background-color: var(--color-primary-active);
-  border-color: var(--color-primary-active);
+.primary:active:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-accent-active-semantic);
+  border-color: var(--color-accent-active-semantic);
 }
 
 .secondary {
   color: var(--color-text);
-  background-color: var(--color-surface);
-  border-color: var(--color-border-strong);
+  background-color: var(--color-surface-panel);
+  border-color: var(--color-divider);
 }
 
-.secondary:hover:not(:disabled),
-.secondary:active:not(:disabled) {
-  background-color: var(--color-surface-subdued);
-  border-color: var(--color-primary);
+.secondary:hover:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-control-hover-surface);
+  border-color: var(--color-control-hover-border);
+}
+
+.secondary:active:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-control-active-surface);
+  border-color: var(--color-control-active-border);
 }
 
 .ghost {
   color: var(--color-text);
-  background-color: var(--color-surface);
-  border-color: var(--color-surface);
+  background-color: transparent;
+  border-color: transparent;
 }
 
-.ghost:hover:not(:disabled) {
-  background-color: var(--color-surface-subdued);
-  border-color: var(--color-border);
+.ghost:hover:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-control-hover-surface);
+  border-color: var(--color-control-hover-border);
 }
 
-.ghost:active:not(:disabled) {
-  background-color: var(--color-selected);
+.ghost:active:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-control-active-surface);
+  border-color: var(--color-control-active-border);
 }
 
 .danger {
@@ -83,32 +109,32 @@
   border-color: var(--color-danger);
 }
 
-.danger:hover:not(:disabled) {
-  background-color: var(--color-danger-hover);
-  border-color: var(--color-danger-hover);
+.danger:hover:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-danger-hover-semantic);
+  border-color: var(--color-danger-hover-semantic);
 }
 
-.danger:active:not(:disabled) {
-  background-color: var(--color-danger-active);
-  border-color: var(--color-danger-active);
+.danger:active:not(:disabled):not([data-disabled="true"]) {
+  background-color: var(--color-danger-active-semantic);
+  border-color: var(--color-danger-active-semantic);
 }
 
 .dangerSecondary {
   color: var(--color-danger);
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-panel);
   border-color: var(--color-danger);
 }
 
-.dangerSecondary:hover:not(:disabled) {
-  color: var(--color-danger-hover);
-  background-color: var(--color-danger-subdued);
-  border-color: var(--color-danger-hover);
+.dangerSecondary:hover:not(:disabled):not([data-disabled="true"]) {
+  color: var(--color-danger-hover-semantic);
+  background-color: var(--color-danger-hover-surface);
+  border-color: var(--color-danger-hover-semantic);
 }
 
-.dangerSecondary:active:not(:disabled) {
-  color: var(--color-danger-active);
-  background-color: var(--color-danger-subdued);
-  border-color: var(--color-danger-active);
+.dangerSecondary:active:not(:disabled):not([data-disabled="true"]) {
+  color: var(--color-danger-active-semantic);
+  background-color: var(--color-danger-active-surface);
+  border-color: var(--color-danger-active-semantic);
 }
 
 .content {
@@ -122,7 +148,7 @@
   flex: 0 0 auto;
   border: var(--border-width) solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--radius-flat);
+  border-radius: var(--radius-control);
   animation: button-spin 700ms linear infinite;
 }
 

@@ -1,10 +1,13 @@
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { ClassificationCatalog, Measurement } from "../../types/domain";
+import type { ClassificationCatalog } from "../../types/domain";
 import { ClassificationAssignment } from "./ClassificationAssignment";
 import { ClassificationManager } from "./ClassificationManager";
-import { MeasurementClassificationDock } from "./MeasurementClassificationDock";
 import { ClassificationWorkspace } from "./ClassificationWorkspace";
+
+const managerCss = readFileSync(new URL("./ClassificationManager.module.css", import.meta.url), "utf8");
 
 const catalog: ClassificationCatalog = {
   dimensions: [
@@ -18,19 +21,6 @@ const catalog: ClassificationCatalog = {
       ],
     },
   ],
-};
-
-const measurement: Measurement = {
-  id: "line-1",
-  type: "line",
-  name: "Hallway",
-  points: [
-    { x: 0, y: 0 },
-    { x: 10, y: 0 },
-  ],
-  calibrationId: "scale-1",
-  classificationValueIds: ["electrical"],
-  visible: true,
 };
 
 const archivedCatalog: ClassificationCatalog = {
@@ -83,11 +73,48 @@ describe("classification surfaces", () => {
     expect(markup).toContain("1 active value");
     expect(markup).not.toContain("1 active values");
     expect(markup).toContain("Rename");
+    expect(markup).toContain('aria-label="Rename Trade"');
     expect(markup).toContain("Archive Trade; existing assignments are preserved");
+    expect(markup).toContain('title="Trade"');
+    expect(markup).toContain('title="Electrical"');
     expect(markup).toContain("never change measurement scales");
     expect(markup).not.toContain(">Classifications<");
     expect(markup).not.toContain("active dimensions");
     expect(markup).not.toContain("archived dimensions");
+  });
+
+  it("keeps catalog hierarchy, secondary archive actions, and contextual creation styling", () => {
+    expect(managerCss).toMatch(/\.itemText strong\s*\{[^}]*font-size:\s*var\(--font-size-heading\)/s);
+    expect(managerCss).toMatch(/\.valueList\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+    expect(managerCss).toMatch(/\.valueItem\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s);
+    expect(managerCss).toMatch(/\.secondaryAction\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s);
+    expect(managerCss).toMatch(/\.archiveAction\s*\{[^}]*color:\s*var\(--color-text-secondary\)/s);
+    expect(managerCss).toMatch(/\.archiveAction:hover[^}]*color:\s*var\(--color-danger-hover-semantic\)/s);
+    expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
+    expect(managerCss).not.toContain("@container (max-width: 640px)");
+    expect(managerCss).toContain("@container (max-width: 248px)");
+    expect(managerCss).toMatch(/\.inlineForm\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+    expect(managerCss).toMatch(/\.create\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+  });
+
+  it("keeps classification headers and create controls compact at the real panel widths", () => {
+    expect(managerCss).toMatch(
+      /\.itemHeader\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.itemHeader > \.actions\s*\{[^}]*flex-wrap:\s*nowrap;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.inlineForm\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.compactInput\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*padding-inline:\s*var\(--space-8\);/s,
+    );
+    expect(managerCss).toMatch(
+      /\.inlineLabel\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s,
+    );
+    expect(managerCss).toMatch(/\.create > button\s*\{[^}]*width:\s*100%;/s);
+    expect(managerCss).not.toContain("@container (max-width: 320px)");
   });
 
   it("renders archived dimensions with restore and preserved-assignment guidance only", () => {
@@ -110,6 +137,7 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Trade");
     expect(markup).toContain("Archived");
     expect(markup).toContain("Restore");
+    expect(markup).toContain('aria-label="Restore dimension Trade"');
     expect(markup).toContain("Existing measurement assignments are preserved.");
     expect(markup).toContain("Electrical");
     expect(markup).toContain("Legacy");
@@ -211,25 +239,6 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Create a dimension such as Trade, Status, or Area.");
   });
 
-  it("renders measurement assignment in its own dock", () => {
-    const markup = renderToStaticMarkup(
-      <MeasurementClassificationDock
-        measurement={measurement}
-        catalog={catalog}
-        onAssign={() => undefined}
-      />,
-    );
-
-    expect(markup).toContain('aria-label="Classifications for Hallway"');
-    expect(markup).not.toContain(">Hallway<");
-    expect(markup).not.toContain("Trade: Electrical");
-    expect(markup).toContain("<select");
-    expect(markup).toContain("Trade");
-    expect(markup).toContain("Electrical");
-    expect(markup).toContain("Unclassified");
-    expect(markup).not.toContain("Assigned values");
-  });
-
   it("keeps the classifications workspace focused on catalog management", () => {
     const markup = renderToStaticMarkup(
       <ClassificationWorkspace
@@ -281,8 +290,7 @@ describe("classification surfaces", () => {
   });
 
   it("renders long catalog names and several dimensions without throwing", () => {
-    expect(() =>
-      renderToStaticMarkup(
+    const markup = renderToStaticMarkup(
         <ClassificationManager
           catalog={largeCatalog}
           onCreateDimension={() => undefined}
@@ -294,8 +302,15 @@ describe("classification surfaces", () => {
           onArchiveValue={() => undefined}
           onRestoreValue={() => undefined}
         />,
-      ),
-    ).not.toThrow();
+      );
+
+    const longDimension = largeCatalog.dimensions[0]!.name;
+    const longValue = largeCatalog.dimensions[0]!.values[0]!.name;
+    expect(markup).toContain(`title="${longDimension}"`);
+    expect(markup).toContain(`aria-label="Rename ${longDimension}"`);
+    expect(markup).toContain(`title="New value for ${longDimension}"`);
+    expect(markup).toContain(`title="${longValue}"`);
+    expect(markup).toContain(`aria-label="Rename ${longValue}"`);
   });
 
   it("generates unique field IDs when multiple assignment instances are mounted", () => {

@@ -3,15 +3,18 @@
   min-height: 0;
   overflow-x: clip;
   overflow-y: auto;
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-panel);
 }
 
 .list {
+  --measurement-row-inline-bleed: var(--space-8);
+  --measurement-selection-marker-width: 0px;
+
   display: grid;
   min-width: 0;
-  gap: 1px;
-  padding-bottom: 1px;
-  background: var(--color-border);
+  gap: 0;
+  padding: 0 var(--space-8) var(--space-8);
+  background: var(--color-surface-panel);
 }
 
 .groups {

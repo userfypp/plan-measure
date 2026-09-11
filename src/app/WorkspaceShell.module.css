@@ -1,44 +1,30 @@
 .workspace {
-  --tool-rail-width: 160px;
-  --secondary-dock-min-width: calc(288px * 1.12);
-  --secondary-dock-max-width: calc(320px * 1.12);
   position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--tool-rail-width) minmax(0, 1fr) minmax(
-      var(--secondary-dock-min-width),
-      var(--secondary-dock-max-width)
-    );
-  grid-template-areas: "tool viewer secondary";
+  grid-template-columns: var(--geometry-workspace-panel-width) minmax(0, 1fr);
+  grid-template-areas: "workspace-panel viewer";
   overflow: hidden;
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-viewer);
 }
 
-.leftRail {
-  grid-area: tool;
+.workspacePanel {
+  grid-area: workspace-panel;
   min-width: 0;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
-  border-right: var(--border-width) solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
 }
 
-.leftInspector {
-  width: 100%;
-  flex: 0 1 auto;
-  max-height: min(420px, 58vh);
-  overflow: hidden;
-  background: var(--color-surface);
+.workspacePanel[hidden] {
+  display: none;
 }
 
-.leftInspector > * {
-  min-width: 0;
-  min-height: 0;
+.workspaceLauncher {
+  display: none;
 }
 
 .workspace > * {
@@ -54,7 +40,7 @@
   place-items: center;
   padding: 32px;
   overflow: hidden;
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-viewer);
 }
 
 .dropCard {
@@ -62,27 +48,27 @@
   display: grid;
   justify-items: center;
   padding: 58px 40px;
-  border: var(--border-width) dashed var(--color-border-strong);
-  border-radius: var(--radius-flat);
-  background: var(--color-surface);
+  border: var(--border-width) dashed var(--color-text-disabled);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-panel);
   text-align: center;
 }
 
 .dropCard h1 {
   margin: 18px 0 4px;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font-size: 22px;
 }
 
 .dropCard p {
   margin: 4px 0 12px;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
 }
 
 .dropCard small {
   margin-top: 20px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .documentMark {
@@ -90,16 +76,16 @@
   height: 64px;
   display: grid;
   place-items: center;
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-flat);
-  color: var(--color-text-muted);
-  font-size: 13px;
-  font-weight: 800;
+  border: var(--border-width) solid var(--color-text-disabled);
+  border-radius: var(--radius-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 .dragActive .dropCard {
-  border-color: var(--color-primary);
-  background: var(--color-info-subdued);
+  border-color: var(--color-accent);
+  background: var(--color-status-info-surface);
 }
 
 .dropOverlay {
@@ -108,56 +94,106 @@
   inset: 16px;
   display: grid;
   place-items: center;
-  border: var(--border-width) dashed var(--color-primary);
-  border-radius: var(--radius-flat);
-  background: var(--color-info-subdued);
-  color: var(--color-primary-active);
+  border: var(--border-width) dashed var(--color-accent);
+  border-radius: var(--radius-surface);
+  background: var(--color-status-info-surface);
+  color: var(--color-status-info);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: var(--font-weight-semibold);
   pointer-events: none;
 }
 
-@media (max-width: 1180px) {
-  .workspace {
-    --tool-rail-width: 152px;
-    --secondary-dock-min-width: calc(260px * 1.12);
-    --secondary-dock-max-width: calc(292px * 1.12);
-    grid-template-columns: var(--tool-rail-width) minmax(0, 1fr) minmax(
-        var(--secondary-dock-min-width),
-        var(--secondary-dock-max-width)
-      );
-  }
+.workspace[data-responsive-mode="narrow"] {
+  --target-current: var(--target-coarse);
+  --control-height-compact: var(--target-coarse);
+  --control-height-regular: var(--target-coarse);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "viewer";
+}
+
+.workspace[data-responsive-mode="narrow"] .workspacePanel {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--geometry-workspace-drawer-width), 100%);
+  min-width: 0;
+  border-left: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
+  box-shadow: var(--shadow-overlay);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher {
+  position: absolute;
+  z-index: 4;
+  top: var(--space-12);
+  right: var(--space-12);
+  width: var(--target-current);
+  height: var(--target-current);
+  display: inline-grid;
+  place-items: center;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  padding: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-overlay);
+  transition: var(--transition-interactive);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[hidden] {
+  display: none;
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"]:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher[aria-expanded="true"]:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.workspace[data-responsive-mode="narrow"] .workspaceLauncher svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
 }
 
 @media (max-width: 1024px) {
-  .workspace {
-    --tool-rail-width: 144px;
-    --secondary-dock-min-width: calc(240px * 1.12);
-    --secondary-dock-max-width: calc(272px * 1.12);
-    grid-template-columns: var(--tool-rail-width) minmax(0, 1fr) minmax(
-        var(--secondary-dock-min-width),
-        var(--secondary-dock-max-width)
-      );
-  }
-
   .emptyState {
     padding: 24px;
-  }
-}
-
-@media (max-width: 820px), (max-width: 900px) and (max-height: 500px) {
-  .workspace {
-    grid-template-columns: var(--tool-rail-width) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 52fr) minmax(0, 48fr);
-    grid-template-areas:
-      "tool viewer"
-      "tool secondary";
-  }
-}
-
-@media (max-width: 520px) and (max-height: 650px) {
-  .workspace {
-    grid-template-rows: minmax(0, 42fr) minmax(0, 58fr);
   }
 }
 

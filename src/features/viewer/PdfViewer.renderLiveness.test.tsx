@@ -1,24 +1,44 @@
 // @vitest-environment jsdom
 
-import { act, StrictMode, type ReactNode } from "react";
+import { act, StrictMode, useLayoutEffect, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SessionProvider } from "../../app/sessionState";
+import { createEmptySession, SessionProvider, useSessionState } from "../../app/sessionState";
 import { AppProvider, useAppState } from "../../app/state";
-import { WorkspaceProvider } from "../../app/workspaceState";
+import { ThemeProvider } from "../../app/themeState";
+import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
-import type { PageState } from "../../types/domain";
+import type { PageState, Tool } from "../../types/domain";
 import { PdfViewer } from "./PdfViewer";
+import {
+  AuthoringCapabilityProvider,
+  computeAuthoringCapability,
+  type AuthoringCapability,
+} from "./AuthoringCapability";
 import {
   ViewerNavigationProvider,
   type ViewerNavigationModel,
   type ViewerNavigationRegistration,
 } from "./ViewerNavigation";
+import {
+  useViewerInteractionCommands,
+  ViewerInteractionCommandsProvider,
+} from "./ViewerInteractionCommands";
+import { ViewerBottomExclusionProvider } from "./viewerLayout";
 
 const pdfJs = vi.hoisted(() => ({
   getDocument: vi.fn(),
   workerOptions: {} as { workerSrc?: string },
+}));
+
+type CapturedProps = Record<string, unknown>;
+const konvaCapture = vi.hoisted(() => ({
+  circles: [] as CapturedProps[],
+  lines: [] as CapturedProps[],
+  rects: [] as CapturedProps[],
+  stages: [] as CapturedProps[],
+  annotationLayers: [] as CapturedProps[],
 }));
 
 vi.mock("pdfjs-dist", () => ({
@@ -27,16 +47,31 @@ vi.mock("pdfjs-dist", () => ({
 }));
 
 vi.mock("react-konva", () => ({
-  Circle: () => null,
+  Circle: (props: CapturedProps) => {
+    konvaCapture.circles.push(props);
+    return null;
+  },
   Group: ({ children }: { children?: ReactNode }) => <>{children}</>,
   Layer: ({ children }: { children?: ReactNode }) => <>{children}</>,
-  Line: () => null,
-  Rect: () => null,
-  Stage: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  Line: (props: CapturedProps) => {
+    konvaCapture.lines.push(props);
+    return null;
+  },
+  Rect: (props: CapturedProps) => {
+    konvaCapture.rects.push(props);
+    return null;
+  },
+  Stage: (props: CapturedProps & { children?: ReactNode }) => {
+    konvaCapture.stages.push(props);
+    return <>{props.children}</>;
+  },
 }));
 
 vi.mock("./PdfAnnotationLayer", () => ({
-  PdfAnnotationLayer: () => null,
+  PdfAnnotationLayer: (props: CapturedProps) => {
+    konvaCapture.annotationLayers.push(props);
+    return null;
+  },
 }));
 
 const PAGE_WIDTH = 600;
@@ -45,6 +80,26 @@ const VIEWER_WIDTH = 1000;
 const VIEWER_HEIGHT = 700;
 
 const noop = () => undefined;
+let sessionProbe: ReturnType<typeof useSessionState> | null = null;
+let workspaceProbe: ReturnType<typeof useWorkspaceState> | null = null;
+let interactionProbe: ReturnType<typeof useViewerInteractionCommands> | null = null;
+
+function InteractionProbe() {
+  const session = useSessionState();
+  const workspace = useWorkspaceState();
+  const interaction = useViewerInteractionCommands();
+  useLayoutEffect(() => {
+    sessionProbe = session;
+    workspaceProbe = workspace;
+    interactionProbe = interaction;
+    return () => {
+      if (sessionProbe === session) sessionProbe = null;
+      if (workspaceProbe === workspace) workspaceProbe = null;
+      if (interactionProbe === interaction) interactionProbe = null;
+    };
+  }, [interaction, session, workspace]);
+  return null;
+}
 
 function createPageState(pageNumber: number): PageState {
   return {
@@ -203,40 +258,59 @@ interface ViewerHarnessProps {
   document: PDFDocumentProxy;
   page?: PageState;
   registerNavigation?: ViewerNavigationRegistration;
+  bottomExclusion?: number;
+  authoringCapability?: AuthoringCapability;
+  onChooseTool?: (tool: Tool) => void;
 }
 
 function ViewerHarness({
   document,
   page = createPageState(1),
   registerNavigation = noop,
+  bottomExclusion = 0,
+  authoringCapability = computeAuthoringCapability({
+    viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
+    rightObstruction: 0,
+    bottomExclusion: 0,
+    finePointer: true,
+  }),
+  onChooseTool = noop,
 }: ViewerHarnessProps) {
   return (
-    <AppProvider>
-      <ErrorProbe />
-      <SessionProvider>
-        <WorkspaceProvider>
-          <ViewerNavigationProvider registerNavigation={registerNavigation}>
-            <PdfViewer
-              document={document}
-              page={page}
-              onPageChange={noop}
-              onPageBoundsChange={noop}
-              onViewZoomChange={noop}
-              activeMeasurementEditId={null}
-              onMeasurementEditActiveChange={noop}
-              onChooseTool={noop}
-              onCalibrationCandidate={noop}
-              onCalibrationCancel={noop}
-              calibrationReferenceEdit={null}
-              measurementEditingBlocked={false}
-              onCalibrationReferencePointsChange={noop}
-              onCalibrationReferenceEditCancel={noop}
-              onCalibrationReferenceEditSave={noop}
-            />
-          </ViewerNavigationProvider>
-        </WorkspaceProvider>
-      </SessionProvider>
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <ErrorProbe />
+        <SessionProvider>
+          <WorkspaceProvider>
+            <ViewerInteractionCommandsProvider>
+              <InteractionProbe />
+              <AuthoringCapabilityProvider capability={authoringCapability}>
+                <ViewerBottomExclusionProvider bottomExclusion={bottomExclusion}>
+                  <ViewerNavigationProvider registerNavigation={registerNavigation}>
+                    <PdfViewer
+                      document={document}
+                      page={page}
+                      onPageChange={noop}
+                      onPageBoundsChange={noop}
+                      onViewZoomChange={noop}
+                      activeMeasurementEditId={null}
+                      onMeasurementEditActiveChange={noop}
+                      onChooseTool={onChooseTool}
+                      onCalibrationCandidate={noop}
+                      onCalibrationCancel={noop}
+                      calibrationReferenceEdit={null}
+                      measurementEditingBlocked={false}
+                      onCalibrationReferencePointsChange={noop}
+                      onCalibrationReferenceEditCancel={noop}
+                    />
+                  </ViewerNavigationProvider>
+                </ViewerBottomExclusionProvider>
+              </AuthoringCapabilityProvider>
+            </ViewerInteractionCommandsProvider>
+          </WorkspaceProvider>
+        </SessionProvider>
+      </AppProvider>
+    </ThemeProvider>
   );
 }
 
@@ -252,9 +326,27 @@ describe("PdfViewer render liveness", () => {
         IS_REACT_ACT_ENVIRONMENT: boolean;
       }
     ).IS_REACT_ACT_ENVIRONMENT = true;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }));
     viewerRect = rect(VIEWER_WIDTH, VIEWER_HEIGHT);
     drawImage = vi.fn();
     ControlledResizeObserver.instances = [];
+    konvaCapture.circles.length = 0;
+    konvaCapture.lines.length = 0;
+    konvaCapture.rects.length = 0;
+    konvaCapture.stages.length = 0;
+    konvaCapture.annotationLayers.length = 0;
+    sessionProbe = null;
+    workspaceProbe = null;
+    interactionProbe = null;
     pdfJs.getDocument.mockReset();
     vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
@@ -275,6 +367,9 @@ describe("PdfViewer render liveness", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    sessionProbe = null;
+    workspaceProbe = null;
+    interactionProbe = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -299,6 +394,9 @@ describe("PdfViewer render liveness", () => {
       page?: PageState;
       registerNavigation?: ViewerNavigationRegistration;
       strict?: boolean;
+      bottomExclusion?: number;
+      authoringCapability?: AuthoringCapability;
+      onChooseTool?: (tool: Tool) => void;
     } = {},
   ) {
     const content = (
@@ -306,6 +404,9 @@ describe("PdfViewer render liveness", () => {
         document={document}
         page={options.page}
         registerNavigation={options.registerNavigation}
+        bottomExclusion={options.bottomExclusion}
+        authoringCapability={options.authoringCapability}
+        onChooseTool={options.onChooseTool}
       />
     );
     await act(async () => {
@@ -470,6 +571,31 @@ describe("PdfViewer render liveness", () => {
     expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toBe("");
   });
 
+  it("keeps Fit and programmatic zoom inert when the Dock exclusion leaves no safe viewport", async () => {
+    viewerRect = rect(320, 40);
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    const registerNavigation: ViewerNavigationRegistration = (next) => {
+      navigation = next;
+    };
+
+    await mountViewer(runtime.document, { registerNavigation, bottomExclusion: 40 });
+    expect(pdfPage.render).toHaveBeenCalledTimes(1);
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBe(1);
+
+    await act(async () => navigation?.onFit());
+    await act(async () => navigation?.onZoomIn());
+    await act(async () => navigation?.onZoomOut());
+
+    expect(pdfPage.render).toHaveBeenCalledTimes(1);
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBe(1);
+    expect(canvas().style.left).not.toMatch(/NaN|Infinity/);
+    expect(canvas().style.top).not.toMatch(/NaN|Infinity/);
+    expect(canvas().style.width).not.toMatch(/NaN|Infinity/);
+    expect(canvas().style.height).not.toMatch(/NaN|Infinity/);
+  });
+
   it("ignores a stale completion after replacing the document and page while rendering", async () => {
     const stale = controlledRenderTask(false);
     const current = controlledRenderTask();
@@ -550,5 +676,292 @@ describe("PdfViewer render liveness", () => {
     expect(pdfPage.render).toHaveBeenCalled();
     expect(canvas().style.visibility).toBe("visible");
     expect(container.textContent).not.toContain("Rendering page…");
+  });
+
+  it("finishes a valid path through the canonical viewer command exactly once and ignores incomplete drafts", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      nextCalibrationNumber: 2,
+    };
+
+    await mountViewer(runtime.document, { page: session.pages[1] });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => {
+      workspaceProbe!.chooseTool("polyline");
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polyline",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      });
+    });
+
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+    expect(workspaceProbe?.draft).toBeNull();
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+
+    await act(async () => {
+      workspaceProbe!.chooseTool("polygon");
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polygon",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      });
+    });
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+    expect(workspaceProbe?.draft).not.toBeNull();
+  });
+
+  it("preserves an existing draft across capability loss, blocks new precision shortcuts, and still allows safe Finish", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      nextCalibrationNumber: 2,
+    };
+    const onChooseTool = vi.fn();
+    const available = computeAuthoringCapability({
+      viewerSize: { width: 800, height: 600 },
+      rightObstruction: 0,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+    const gated = computeAuthoringCapability({
+      viewerSize: { width: 768, height: 600 },
+      rightObstruction: 304,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+
+    await mountViewer(runtime.document, {
+      page: session.pages[1],
+      authoringCapability: available,
+      onChooseTool,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => {
+      workspaceProbe!.chooseTool("polyline");
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polyline",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      });
+    });
+
+    await act(async () => {
+      root.render(
+        <ViewerHarness
+          document={runtime.document}
+          page={session.pages[1]}
+          authoringCapability={gated}
+          onChooseTool={onChooseTool}
+        />,
+      );
+    });
+    expect(workspaceProbe?.activeTool).toBe("polyline");
+    expect(workspaceProbe?.draft).toMatchObject({
+      measurementType: "polyline",
+      points: [
+        { x: 1, y: 1 },
+        { x: 10, y: 1 },
+      ],
+    });
+
+    const viewer = container.querySelector<HTMLElement>('[aria-label^="PDF viewer, page"]')!;
+    await act(async () =>
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "l", bubbles: true })),
+    );
+    expect(onChooseTool).not.toHaveBeenCalled();
+    await act(async () =>
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true })),
+    );
+    expect(onChooseTool).toHaveBeenCalledWith("hand");
+
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
+    expect(workspaceProbe?.draft).toBeNull();
+  });
+
+  it("renders V2 draft/Snap semantics and uses coarse hit targets on a hybrid pointer", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(any-pointer: coarse)",
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }));
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.settings.showMeasurements = true;
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      measurements: [
+        {
+          id: "snap-line",
+          name: "Snap line",
+          type: "line",
+          calibrationId: "scale-1",
+          classificationValueIds: [],
+          visible: true,
+          points: [
+            { x: 100, y: 100 },
+            { x: 140, y: 100 },
+          ],
+        },
+      ],
+    };
+    const hybridCapability = computeAuthoringCapability({
+      viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
+      rightObstruction: 0,
+      bottomExclusion: 0,
+      finePointer: true,
+    });
+
+    await mountViewer(runtime.document, {
+      page: session.pages[1],
+      authoringCapability: hybridCapability,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => {
+      workspaceProbe!.chooseTool("polygon");
+      workspaceProbe!.setSnap(true);
+      workspaceProbe!.startDraft({
+        type: "path",
+        measurementType: "polygon",
+        points: [
+          { x: 200, y: 200 },
+          { x: 250, y: 200 },
+          { x: 250, y: 250 },
+        ],
+      });
+    });
+
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    if (!onMouseMove) throw new Error("Stage mouse-move handler was not captured.");
+    konvaCapture.circles.length = 0;
+    konvaCapture.lines.length = 0;
+    konvaCapture.rects.length = 0;
+    konvaCapture.annotationLayers.length = 0;
+
+    await act(async () => {
+      onMouseMove({
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 337, y: 105.5 }),
+          }),
+        },
+      });
+    });
+
+    expect(hybridCapability.available).toBe(true);
+    expect(konvaCapture.annotationLayers.at(-1)?.interactionTargetScreenPx).toBe(44);
+
+    const pageHit = konvaCapture.rects.find((props) => props.name === "page-background");
+    expect(pageHit?.fill).toBe("rgba(255,255,255,0.001)");
+
+    const draftFill = konvaCapture.lines.find(
+      (props) => props.closed === true && props.strokeEnabled === false,
+    );
+    expect(draftFill).toMatchObject({ fill: "#2465c718", listening: false });
+
+    const confirmed = konvaCapture.lines.find(
+      (props) => Array.isArray(props.points) && props.points.length === 6 && props.dash === undefined,
+    );
+    expect(confirmed).toMatchObject({
+      stroke: "#2465c7",
+      lineCap: "round",
+      lineJoin: "round",
+      listening: false,
+    });
+
+    const dashedPreview = konvaCapture.lines.filter((props) => Array.isArray(props.dash));
+    expect(dashedPreview).toHaveLength(2);
+    for (const preview of dashedPreview) {
+      expect(preview).toMatchObject({
+        stroke: "#2465c7",
+        dash: [5 / 0.815, 4 / 0.815],
+        listening: false,
+      });
+    }
+
+    expect(konvaCapture.circles).toHaveLength(3);
+    for (const point of konvaCapture.circles) {
+      expect(point).toMatchObject({
+        radius: 3 / 0.815,
+        fill: "#ffffff",
+        stroke: "#2465c7",
+      });
+    }
+
+    const snapMarker = konvaCapture.rects.find(
+      (props) => props.rotation === 45 && props.listening === false,
+    );
+    expect(snapMarker).toMatchObject({
+      width: 6 / 0.815,
+      height: 6 / 0.815,
+      fill: "#ffffff",
+      stroke: "#2465c7",
+      rotation: 45,
+      listening: false,
+    });
   });
 });

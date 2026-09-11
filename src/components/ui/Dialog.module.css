@@ -4,11 +4,11 @@
   margin: auto;
   padding: 0;
   overflow: hidden;
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-flat);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
   color: var(--color-text);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-none);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
 }
 
 .dialog:focus {
@@ -16,8 +16,8 @@
 }
 
 .dialog:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .dialog::backdrop {

@@ -5,19 +5,20 @@
 
 .content {
   position: fixed;
-  z-index: 200;
+  z-index: var(--z-layer-tooltip);
   width: max-content;
   max-width: 240px;
   padding: var(--space-8) var(--space-12);
-  color: var(--color-surface);
+  color: var(--color-text-primary);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
   text-align: start;
   white-space: normal;
-  background-color: var(--color-text);
-  border-radius: var(--radius-flat);
-  box-shadow: var(--shadow-none);
+  background-color: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  box-shadow: var(--shadow-overlay);
   pointer-events: none;
 }
 

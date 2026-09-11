@@ -3,7 +3,7 @@
 :root {
   font-family: var(--font-family-sans);
   color: var(--color-text);
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-shell);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -31,9 +31,9 @@ select {
   min-width: 0;
   min-height: var(--control-height-compact);
   padding: 0 var(--space-16) 0 var(--space-8);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-flat);
-  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-field);
   background-image:
     linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
     linear-gradient(135deg, var(--color-text-muted) 50%, transparent 50%);
@@ -53,15 +53,21 @@ select {
 }
 
 select:disabled {
-  opacity: var(--opacity-disabled);
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
 }
 
-button:not(:disabled),
-button:not(:disabled) * {
-  cursor: default !important;
+select:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+button:not(:disabled):not([aria-disabled="true"]) {
+  cursor: pointer;
 }
 
 button:disabled,
-button:disabled * {
-  cursor: not-allowed !important;
+button[aria-disabled="true"] {
+  cursor: not-allowed;
 }

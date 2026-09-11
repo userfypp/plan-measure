@@ -1,0 +1,180 @@
+.appBar {
+  min-width: 0;
+  height: var(--geometry-app-bar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--space-16);
+  border-bottom: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-shell);
+  color: var(--color-text-primary);
+}
+
+.identityGroup,
+.actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.identityGroup {
+  flex: 1 1 auto;
+  gap: var(--space-12);
+  overflow: hidden;
+}
+
+.actions {
+  flex: 0 0 auto;
+  gap: var(--space-4);
+}
+
+.brand {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
+.identityDivider {
+  width: var(--border-width);
+  height: 16px;
+  flex: 0 0 auto;
+  background: var(--color-divider);
+}
+
+.documentName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openAction,
+.exportAction,
+.feedbackAction,
+.iconTrigger {
+  min-height: var(--target-current);
+}
+
+.openAction,
+.exportAction {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.feedbackAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-12);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: var(--transition-interactive);
+}
+
+.feedbackAction:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.feedbackAction:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.feedbackAction:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.iconTrigger {
+  width: var(--target-current);
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: var(--transition-interactive);
+}
+
+.iconTrigger:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.iconTrigger:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
+}
+
+.iconTrigger[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.iconTrigger[aria-expanded="true"]:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.iconTrigger[aria-expanded="true"]:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.iconTrigger svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+@media (any-pointer: coarse) {
+  .appBar {
+    height: var(--geometry-app-bar-height-narrow);
+    padding-inline: var(--space-12);
+  }
+}
+
+@media (max-width: 800px) {
+  .appBar {
+    --target-current: var(--target-coarse);
+    --control-height-compact: var(--target-coarse);
+    --control-height-regular: var(--target-coarse);
+    height: var(--geometry-app-bar-height-narrow);
+    padding-inline: var(--space-12);
+  }
+}
+
+@media (max-width: 620px) {
+  .appBar {
+    gap: var(--space-8);
+    padding-inline: var(--space-8);
+  }
+
+  .identityGroup {
+    gap: var(--space-8);
+  }
+}

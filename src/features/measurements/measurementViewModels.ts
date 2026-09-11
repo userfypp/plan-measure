@@ -5,6 +5,7 @@ import { measurementPathSpecs } from "../../utils/geometry";
 
 export interface MeasurementViewModel {
   id: string;
+  type: Measurement["type"];
   name: string;
   typeLabel: string;
   valueLabel: string;
@@ -24,6 +25,7 @@ export function createMeasurementViewModel(
 
   return {
     id: measurement.id,
+    type: measurement.type,
     name: measurement.name,
     typeLabel: measurementPathSpecs[measurement.type].label,
     valueLabel: calibration

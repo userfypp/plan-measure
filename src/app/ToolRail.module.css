@@ -1,63 +1,110 @@
 .toolRail {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
+  position: absolute;
+  z-index: 2;
+  top: var(--geometry-context-toolbar-top);
+  left: var(--space-12);
+  width: calc(var(--target-current) + var(--space-8));
+  min-width: calc(var(--target-current) + var(--space-8));
+  max-height: calc(100% - var(--space-24));
   display: flex;
   flex-direction: column;
-  overflow-x: clip;
-  overflow-y: auto;
+  align-items: center;
+  overflow: visible;
+  padding: var(--geometry-context-toolbar-padding);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
 }
 
 .tools {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--border-width);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--geometry-context-toolbar-gap);
+  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
 .toolButton {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
+  position: relative;
+  width: var(--target-current);
+  height: var(--target-current);
   display: grid;
-  grid-template-rows: 24px 10px;
   place-items: center;
-  align-content: center;
-  gap: 2px;
-  border: 0;
-  border-radius: var(--radius-flat);
-  padding: 4px;
-  background: var(--color-surface);
-  color: var(--color-tool);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
-.toolButton:hover:not(:disabled) {
-  position: relative;
-  z-index: 1;
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-tool-hover);
+.toolButton:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.toolButton:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
 }
 
 .toolButton:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .toolButton.active {
-  background: var(--color-selected);
-  color: var(--color-primary-active);
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
 }
 
-.toolButton:disabled {
+.toolButton.active:hover:not([aria-disabled="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.toolButton.active:active:not([aria-disabled="true"]) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.toolButton:disabled,
+.toolButton[aria-disabled="true"] {
   opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+
+.toolButton[aria-disabled="true"]:not(.active):hover,
+.toolButton[aria-disabled="true"]:not(.active):active {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .icon {
-  width: 24px;
-  height: 24px;
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
   display: inline-grid;
   place-items: center;
 }
@@ -67,29 +114,81 @@
   height: 100%;
 }
 
-.label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.shortcut {
-  min-width: 16px;
-  color: var(--color-tool);
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  line-height: 1;
-}
-
 .tools > span {
   display: block;
-  width: 100%;
-  max-width: none;
+  width: var(--target-current);
+  max-width: var(--target-current);
 }
 
-.active .shortcut {
-  color: var(--color-primary-active);
+.launcher {
+  width: var(--target-current);
+  height: var(--target-current);
+  display: grid;
+  place-items: center;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  padding: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-overlay);
+  transition: var(--transition-interactive);
+}
+
+.launcher:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.launcher:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+  color: var(--color-text-primary);
+}
+
+.launcher[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.launcher[aria-expanded="true"]:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.launcher[aria-expanded="true"]:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+}
+
+.launcher:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.toolRail.narrow {
+  width: var(--target-current);
+  min-width: var(--target-current);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.narrow .tools {
+  position: absolute;
+  top: calc(100% + var(--space-8));
+  left: 0;
+  width: calc(var(--target-current) + var(--space-8));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  padding: var(--geometry-context-toolbar-padding);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
 }

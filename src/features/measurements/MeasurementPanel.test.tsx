@@ -1,3 +1,5 @@
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Measurement, PageState } from "../../types/domain";
@@ -5,13 +7,20 @@ import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementGroup } from "./MeasurementGroup";
 import { MeasurementRow } from "./MeasurementRow";
 import { MeasurementsHeader } from "./MeasurementsHeader";
-import { SelectionInspector } from "./SelectionInspector";
 import {
   createMeasurementViewModel,
   getMeasurementClassificationSummary,
   getMeasurementEmptyMessage,
   shouldRenderMeasurement,
 } from "./measurementViewModels";
+
+const measurementPanelCss = readFileSync(new URL("./MeasurementPanel.module.css", import.meta.url), "utf8");
+const measurementCollectionCss = readFileSync(
+  new URL("./MeasurementCollection.module.css", import.meta.url),
+  "utf8",
+);
+const measurementGroupCss = readFileSync(new URL("./MeasurementGroup.module.css", import.meta.url), "utf8");
+const measurementRowCss = readFileSync(new URL("./MeasurementRow.module.css", import.meta.url), "utf8");
 
 const measurement: Measurement = {
   id: "line-1",
@@ -49,9 +58,10 @@ function viewModel(selected = false, candidate = measurement) {
 }
 
 describe("measurement view models", () => {
-  it("keeps the row and inspector presentation independent from domain objects", () => {
+  it("keeps row presentation independent from domain objects", () => {
     expect(viewModel(true)).toEqual({
       id: "line-1",
+      type: "line",
       name: "Hallway",
       typeLabel: "Line",
       valueLabel: "1.00 m",
@@ -159,14 +169,12 @@ describe("measurement view models", () => {
 });
 
 describe("MeasurementRow accessibility", () => {
-  it("exposes selection and an always-discoverable delete action", () => {
+  it("exposes selection and visibility without legacy rename/delete row actions", () => {
     const markup = renderToStaticMarkup(
       <MeasurementRow
         viewModel={viewModel()}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -175,9 +183,9 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain('aria-label="Select measurement Hallway"');
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-describedby="measurement-details-line-1"');
-    expect(markup).toContain("Main plan · Uniform");
-    expect(markup).toContain('aria-label="Rename Hallway"');
-    expect(markup).toContain('aria-label="Delete Hallway"');
+    expect(markup).toContain("Line · Main plan");
+    expect(markup).not.toContain('aria-label="Rename Hallway"');
+    expect(markup).not.toContain('aria-label="Delete Hallway"');
     expect(markup).toContain('aria-label="Hide measurement Hallway"');
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain('aria-label="Name for Hallway"');
@@ -188,9 +196,7 @@ describe("MeasurementRow accessibility", () => {
       <MeasurementRow
         viewModel={viewModel(true)}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -204,9 +210,7 @@ describe("MeasurementRow accessibility", () => {
       <MeasurementRow
         viewModel={viewModel(false, hidden)}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -214,9 +218,63 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-label="Select measurement Hallway"');
   });
+
+  it("keeps Polygon perimeter and area values intact while exposing them as compact quantity lines", () => {
+    const polygon: Measurement = {
+      ...measurement,
+      id: "polygon-1",
+      type: "polygon",
+      name: "Room",
+      points: [...measurement.points, { x: 10, y: 10 }],
+    };
+    const model = createMeasurementViewModel(page, polygon, "m", false);
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={model}
+        onSelectMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+      />,
+    );
+
+    const quantityParts = model.valueLabel.split(" · ");
+    expect(quantityParts).toHaveLength(2);
+    expect(markup).toContain(`>${quantityParts[0]}<`);
+    expect(markup).toContain(`>${quantityParts[1]}<`);
+    expect(markup.indexOf(model.name)).toBeLessThan(markup.indexOf(quantityParts[0]!));
+    expect(markup.indexOf(quantityParts[0]!)).toBeLessThan(markup.indexOf(model.typeLabel));
+  });
+
+  it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
+    expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
+    expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
+    expect(measurementRowCss).toMatch(
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+  });
+
+  it("extends only the ungrouped row state surface without changing row or Eye geometry", () => {
+    expect(measurementCollectionCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--measurement-row-inline-bleed, 0px\)\);[^}]*pointer-events:\s*none;/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--target-current\);/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+  });
 });
 
 describe("measurement grouping surfaces", () => {
+  it("keeps grouped layout bound to the Measurement Panel container without the old wrap rule", () => {
+    expect(measurementPanelCss).toContain("container-name: measurement-panel");
+    expect(measurementPanelCss).toContain("container-type: inline-size");
+    expect(measurementGroupCss).not.toContain("@container measurement-panel (max-width: 330px)");
+  });
+
   it("keeps Group by out of the header when the catalog has no dimensions", () => {
     const markup = renderToStaticMarkup(
       <MeasurementsHeader
@@ -259,9 +317,7 @@ describe("measurement grouping surfaces", () => {
         measurements={[viewModel(true)]}
         emptyMessage="Empty"
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
       />,
     );
 
@@ -270,7 +326,7 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("renders accessible grouped rows with the group status and archive label once", () => {
+  it("renders a compact accessible grouped header with one bulk visibility control", () => {
     const markup = renderToStaticMarkup(
       <MeasurementCollection
         key="trade"
@@ -287,21 +343,38 @@ describe("measurement grouping surfaces", () => {
         ]}
         groupByDimensionId="trade"
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
         onSetMeasurementsVisibility={() => undefined}
       />,
     );
 
     expect(markup).toContain("Electrical (archived)");
     expect(markup.match(/\(archived\)/g)).toHaveLength(1);
-    expect(markup).toContain("Mixed");
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).toMatch(/aria-controls="[^"]+-measurements"/);
-    expect(markup).toContain('aria-label="Show all measurements in Electrical"');
+    expect(markup).toContain(
+      'aria-label="Show all measurements in Electrical; currently mixed visibility"',
+    );
+    expect(markup).toContain('data-group-visibility="mixed"');
+    expect(markup).toContain('d="M9.5 12h5"');
+    expect(markup).not.toContain('d="m4 4 16 16"');
+    expect(markup).not.toContain(">Mixed<");
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
+  });
+
+  it("keeps grouped hierarchy compact and removes only the grouped selection marker", () => {
+    expect(measurementGroupCss).toMatch(
+      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding-left:\s*var\(--space-8\);/s,
+    );
+    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
+    expect(measurementRowCss).toMatch(
+      /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, 3px\);/s,
+    );
+    expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
   });
 
   it("keeps a collapsed group's controlled list mounted and hidden", () => {
@@ -318,9 +391,7 @@ describe("measurement grouping surfaces", () => {
         collapsed
         onToggleCollapsed={() => undefined}
         onSelectMeasurement={() => undefined}
-        onRenameMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
-        onDeleteMeasurement={() => undefined}
         onSetMeasurementsVisibility={() => undefined}
       />,
     );
@@ -334,33 +405,5 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('d="m9 5 7 7-7 7"');
     expect(markup).not.toContain("▸");
     expect(markup).not.toContain("▾");
-  });
-});
-
-describe("SelectionInspector", () => {
-  it("shows only the selected measurement details", () => {
-    const markup = renderToStaticMarkup(
-      <SelectionInspector
-        measurement={viewModel(true)}
-        classificationSummary="Trade: Electrical"
-      />,
-    );
-
-    expect(markup).not.toContain("Selection inspector");
-    expect(markup).toContain("Type");
-    expect(markup).toContain("Value");
-    expect(markup).toContain("Scale / calibration");
-    expect(markup).toContain("Trade: Electrical");
-    expect(markup).not.toContain("Duplicate");
-    expect(markup).not.toContain("Rename");
-    expect(markup).not.toContain("Delete measurement");
-    expect(markup).not.toContain("Assigned values");
-  });
-
-  it("renders a clear empty state when nothing is selected", () => {
-    const markup = renderToStaticMarkup(<SelectionInspector measurement={null} />);
-
-    expect(markup).toContain("Select a measurement to inspect its details.");
-    expect(markup).not.toContain("Duplicate");
   });
 });

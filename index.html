@@ -3,6 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (() => {
+        const key = "plan-measure.theme";
+        const valid = ["system", "light", "dark"];
+        let preference = "system";
+        try {
+          const stored = localStorage.getItem(key);
+          if (stored && valid.includes(stored)) preference = stored;
+        } catch {
+          // Storage can be unavailable in privacy-restricted contexts; System is the safe default.
+        }
+        const resolved =
+          preference === "system"
+            ? window.matchMedia?.("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+            : preference;
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
     <meta
       name="description"
       content="Measure real-world distances, perimeters, and areas on PDF plans entirely in your browser."

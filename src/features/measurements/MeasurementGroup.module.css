@@ -5,11 +5,12 @@
 }
 
 .header {
-  display: flex;
+  display: grid;
   min-width: 0;
+  grid-template-columns: var(--target-current) minmax(0, 1fr) auto var(--target-current);
   align-items: center;
-  gap: var(--space-8);
-  padding: var(--space-8) var(--space-12);
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-8);
   background: var(--color-surface);
 }
 
@@ -17,25 +18,34 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
+  width: var(--target-current);
+  height: var(--target-current);
   padding: 0;
   color: var(--color-text-muted);
   font: inherit;
   line-height: 1;
   background: transparent;
-  border: 0;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-flat);
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
-.toggle:hover,
+.toggle:hover {
+  color: var(--color-text);
+  background: var(--color-control-hover-surface);
+  border-color: var(--color-control-hover-border);
+}
+
+.toggle:active {
+  color: var(--color-text);
+  background: var(--color-control-active-surface);
+  border-color: var(--color-control-active-border);
+}
+
 .toggle:focus-visible {
   color: var(--color-text);
   background: var(--color-surface-subdued);
-}
-
-.toggle:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
@@ -58,14 +68,6 @@
 }
 
 .title {
-  display: flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  align-items: baseline;
-  gap: var(--space-8);
-}
-
-.title h3 {
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -77,40 +79,27 @@
 }
 
 .count {
-  flex: 0 0 auto;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
 
-.actions {
-  display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-4);
+.visibilityControl {
+  width: var(--target-current);
+  height: var(--target-current);
+  border-color: transparent;
+  border-radius: var(--radius-flat);
 }
 
 .list {
+  --measurement-selection-marker-width: 0px;
+
   display: grid;
   min-width: 0;
-  margin-left: var(--space-16);
-  border-left: var(--border-width) solid var(--color-border);
-  background: var(--color-border);
-  gap: 1px;
+  padding-left: var(--space-8);
+  background: var(--color-surface-panel);
+  gap: 0;
 }
 
 .list[hidden] {
   display: none;
-}
-
-@container (max-width: 330px) {
-  .header {
-    flex-wrap: wrap;
-  }
-
-  .actions {
-    width: 100%;
-    margin-left: 32px;
-    justify-content: flex-start;
-  }
 }

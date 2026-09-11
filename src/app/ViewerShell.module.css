@@ -3,15 +3,21 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-viewer);
 }
 
-.contextBar,
+.viewerFrame,
 .viewerSurface {
   min-width: 0;
   min-height: 0;
+}
+
+.viewerFrame {
+  position: relative;
+  display: grid;
+  overflow: hidden;
 }
 
 .viewerSurface {
@@ -24,7 +30,35 @@
   min-height: 0;
 }
 
-.navigation {
-  min-width: 0;
-  min-height: 0;
+.dock {
+  position: absolute;
+  z-index: 1;
+  left: var(--space-12);
+  right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
+  bottom: var(--geometry-viewer-dock-bottom-inset);
+  display: flex;
+  justify-content: center;
+  container-type: inline-size;
+  pointer-events: none;
+}
+
+.authoringNotice {
+  position: absolute;
+  z-index: 2;
+  right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
+  bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
+  max-width: min(320px, calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-24)));
+  padding: var(--space-8) var(--space-12);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  pointer-events: none;
+}
+
+[data-workspace-drawer-open="true"] .authoringNotice {
+  display: none;
 }

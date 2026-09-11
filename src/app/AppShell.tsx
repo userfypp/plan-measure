@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
-import { TopBar } from "./TopBar";
+import { AppBar } from "./AppBar";
 import styles from "./AppShell.module.css";
 
 type StatusTone = "error" | "warning";
 
 interface AppShellProps {
   children: ReactNode;
+  documentName: string | null;
+  canExport: boolean;
   onOpenPdf: () => void;
   onExport: () => void;
   statusMessage?: string | null;
@@ -15,6 +17,8 @@ interface AppShellProps {
 
 export function AppShell({
   children,
+  documentName,
+  canExport,
   onOpenPdf,
   onExport,
   statusMessage,
@@ -23,7 +27,12 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className={styles.appShell}>
-      <TopBar onOpenPdf={onOpenPdf} onExport={onExport} />
+      <AppBar
+        documentName={documentName}
+        canExport={canExport}
+        onOpenPdf={onOpenPdf}
+        onExport={onExport}
+      />
       <div className={styles.statusRow}>
         {statusMessage ? (
           <div className={`${styles.status} ${styles[statusTone]}`} role="alert">

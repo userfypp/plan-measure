@@ -43,6 +43,7 @@ import {
 } from "../../utils/coordinates";
 import { pdfRenderErrorMessage } from "../../services/pdf";
 import {
+  getDrawingKeyboardAction,
   getGlobalViewerKeyboardAction,
   getViewerKeyboardAction,
   shouldIgnoreGlobalKeyboardShortcut,
@@ -67,6 +68,17 @@ import {
   resolveDrawingPreview,
 } from "./snapping";
 import { useViewerNavigationRegistration } from "./ViewerNavigation";
+import { useViewerInteractionCommandRegistration } from "./ViewerInteractionCommands";
+import { useAuthoringCapability } from "./AuthoringCapability";
+import {
+  CANVAS_VISUAL_METRICS,
+  useCanvasInteractionTargetScreenPx,
+  useCanvasVisualRoles,
+} from "./canvasVisualRoles";
+import {
+  safeViewerLayout,
+  useViewerBottomExclusion,
+} from "./viewerLayout";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
 
@@ -80,13 +92,11 @@ interface PdfViewerProps {
   onMeasurementEditActiveChange: (measurementId: string, active: boolean) => void;
   onChooseTool: (tool: Tool) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
-  calibrationReferenceLabel?: "X" | "Y";
   onCalibrationCancel: () => void;
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
   measurementEditingBlocked: boolean;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
   onCalibrationReferenceEditCancel: () => void;
-  onCalibrationReferenceEditSave: () => void;
 }
 
 function pointsToFlat(points: Point[]): number[] {
@@ -119,16 +129,20 @@ export function PdfViewer({
   onMeasurementEditActiveChange,
   onChooseTool,
   onCalibrationCandidate,
-  calibrationReferenceLabel,
   onCalibrationCancel,
   calibrationReferenceEdit,
   measurementEditingBlocked,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceEditCancel,
-  onCalibrationReferenceEditSave,
 }: PdfViewerProps) {
   const { setError } = useAppState();
   const onNavigationChange = useViewerNavigationRegistration();
+  const registerInteractionCommands = useViewerInteractionCommandRegistration();
+  const viewerBottomExclusion = useViewerBottomExclusion();
+  const authoringCapability = useAuthoringCapability();
+  const canvasVisualRoles = useCanvasVisualRoles();
+  const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
+  const precisionAuthoringBlocked = !authoringCapability.available;
   const { session, addMeasurement } = useSessionState();
   const {
     activeTool,
@@ -186,6 +200,11 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+  const safeViewer = useMemo(
+    () => safeViewerLayout(viewerSize, viewerBottomExclusion),
+    [viewerBottomExclusion, viewerSize],
+  );
+  const safeViewerCenterRef = useRef<Point | null>(safeViewer.center);
 
   const clearSnapFeedback = useCallback(() => {
     pendingDraftPointerRef.current = null;
@@ -229,8 +248,11 @@ export function PdfViewer({
     clearWorkspaceSelection();
     setError(null);
   }, [clearWorkspaceSelection, setError]);
+  const completedDraftCommandRef = useRef<DrawingDraft | null>(null);
   const completePath = useCallback(
-    (measurementType: MeasurementType, points: Point[]) => {
+    (measurementType: MeasurementType, points: Point[], sourceDraft: DrawingDraft | null = null) => {
+      if (sourceDraft && completedDraftCommandRef.current === sourceDraft) return false;
+      if (sourceDraft) completedDraftCommandRef.current = sourceDraft;
       const id = crypto.randomUUID();
       const accepted = addMeasurement({
         pageNumber: page.pageNumber,
@@ -238,34 +260,53 @@ export function PdfViewer({
         measurementType,
         points,
       });
-      if (!accepted) return;
+      if (!accepted) {
+        if (completedDraftCommandRef.current === sourceDraft) completedDraftCommandRef.current = null;
+        return false;
+      }
       setDraftPointer(null);
       completeDraft();
       selectWorkspaceMeasurement(id);
+      return true;
     },
     [addMeasurement, completeDraft, page.pageNumber, selectWorkspaceMeasurement],
   );
   const activeToolRef = useRef(activeTool);
   const workspaceDraftRef = useRef(workspaceDraft);
   const clearDraftRef = useRef(clearDraft);
-  const viewerSizeRef = useRef(viewerSize);
   const onCalibrationCancelRef = useRef(onCalibrationCancel);
   const onChooseToolRef = useRef(onChooseTool);
   const completePathRef = useRef(completePath);
   const calibrationReferenceEditRef = useRef(calibrationReferenceEdit);
   const onCalibrationReferenceEditCancelRef = useRef(onCalibrationReferenceEditCancel);
 
+  const completeCurrentDraft = useCallback(() => {
+    const draft = workspaceDraftRef.current;
+    if (
+      !draft ||
+      draft.type !== "path" ||
+      getDrawingKeyboardAction("Enter", activeToolRef.current, draft) !== "complete-path" ||
+      completedDraftCommandRef.current === draft
+    ) {
+      return;
+    }
+    completePathRef.current(draft.measurementType, draft.points, draft);
+  }, []);
+
   useLayoutEffect(() => {
     activeToolRef.current = activeTool;
     workspaceDraftRef.current = workspaceDraft;
     clearDraftRef.current = clearDraft;
-    viewerSizeRef.current = viewerSize;
+    safeViewerCenterRef.current = safeViewer.center;
     onCalibrationCancelRef.current = onCalibrationCancel;
     onChooseToolRef.current = onChooseTool;
     completePathRef.current = completePath;
     calibrationReferenceEditRef.current = calibrationReferenceEdit;
     onCalibrationReferenceEditCancelRef.current = onCalibrationReferenceEditCancel;
     activeMeasurementEditIdRef.current = activeMeasurementEditId;
+    if (completedDraftCommandRef.current !== workspaceDraft) {
+      completedDraftCommandRef.current = null;
+    }
   }, [
     activeMeasurementEditId,
     calibrationReferenceEdit,
@@ -277,7 +318,13 @@ export function PdfViewer({
     activeTool,
     workspaceDraft,
     viewerSize,
+    safeViewer.center,
   ]);
+
+  useLayoutEffect(() => {
+    if (!registerInteractionCommands) return;
+    return registerInteractionCommands({ completeCurrentDraft });
+  }, [completeCurrentDraft, registerInteractionCommands]);
 
   const bounds = pageRenderData?.bounds ?? null;
   const showMeasurements = session?.settings.showMeasurements ?? false;
@@ -393,18 +440,18 @@ export function PdfViewer({
   }, [document, onPageBoundsChange, page.pageNumber, setError]);
 
   useEffect(() => {
-    if (!bounds || viewerSize.width <= 0 || viewerSize.height <= 0 || !fitMode) return;
+    if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0 || !fitMode) return;
     // The view transform intentionally follows ResizeObserver output while fit mode is active.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    commitTransform(fitToScreen(bounds, viewerSize));
-  }, [bounds, viewerSize, fitMode, commitTransform]);
+    commitTransform(fitToScreen(bounds, safeViewer.size));
+  }, [bounds, safeViewer.size, fitMode, commitTransform]);
 
   const viewTransform = useMemo(
     () =>
-      bounds && viewerSize.width > 0 && viewerSize.height > 0 && fitMode
-        ? fitToScreen(bounds, viewerSize)
+      bounds && safeViewer.size.width > 0 && safeViewer.size.height > 0 && fitMode
+        ? fitToScreen(bounds, safeViewer.size)
         : transform,
-    [bounds, fitMode, transform, viewerSize],
+    [bounds, fitMode, safeViewer.size, transform],
   );
 
   useEffect(() => {
@@ -531,15 +578,15 @@ export function PdfViewer({
   );
 
   const fitPage = useCallback(() => {
-    if (!bounds) return;
+    if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0) return;
     cancelActiveWholeMeasurementDrag();
     cancelActiveVertexDrag();
     clearSnapFeedback();
     setFitMode(true);
-    commitTransform(fitToScreen(bounds, viewerSize));
+    commitTransform(fitToScreen(bounds, safeViewer.size));
   }, [
     bounds,
-    viewerSize,
+    safeViewer.size,
     cancelActiveWholeMeasurementDrag,
     cancelActiveVertexDrag,
     clearSnapFeedback,
@@ -563,10 +610,12 @@ export function PdfViewer({
       pageCount: session?.pageCount ?? 1,
       zoom: viewTransform.zoom,
       onPageChange: changePage,
-      onZoomOut: () =>
-        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, 1 / VIEWER_ZOOM_STEP),
-      onZoomIn: () =>
-        zoomAround({ x: viewerSize.width / 2, y: viewerSize.height / 2 }, VIEWER_ZOOM_STEP),
+      onZoomOut: () => {
+        if (safeViewer.center) zoomAround(safeViewer.center, 1 / VIEWER_ZOOM_STEP);
+      },
+      onZoomIn: () => {
+        if (safeViewer.center) zoomAround(safeViewer.center, VIEWER_ZOOM_STEP);
+      },
       onFit: fitPage,
     });
   }, [
@@ -577,7 +626,7 @@ export function PdfViewer({
     page.pageNumber,
     session?.pageCount,
     viewTransform.zoom,
-    viewerSize,
+    safeViewer.center,
     zoomAround,
   ]);
 
@@ -607,19 +656,17 @@ export function PdfViewer({
         clearSnapFeedback();
         setSpacePan(true);
       } else if (action === "zoom-in" || action === "zoom-out") {
-        const size = viewerSizeRef.current;
+        const safeCenter = safeViewerCenterRef.current;
+        if (!safeCenter) return;
         zoomAround(
-          { x: size.width / 2, y: size.height / 2 },
+          safeCenter,
           action === "zoom-in" ? VIEWER_ZOOM_STEP : 1 / VIEWER_ZOOM_STEP,
         );
       } else if (action === "cancel-calibration") {
         clearDraftRef.current();
         onCalibrationCancelRef.current();
       } else if (action === "complete-path") {
-        const draft = workspaceDraftRef.current;
-        if (draft?.type === "path") {
-          completePathRef.current(draft.measurementType, draft.points);
-        }
+        completeCurrentDraft();
       } else if (action === "cancel-draft") {
         clearDraftRef.current();
       } else if (action === "exit-tool") {
@@ -629,10 +676,18 @@ export function PdfViewer({
       } else if (action === "toggle-snap") {
         toggleSnap();
       } else {
+        if (precisionAuthoringBlocked && isMeasurementType(action.tool)) return;
         onChooseToolRef.current(action.tool);
       }
     },
-    [clearSnapFeedback, toggleOrthogonal, toggleSnap, zoomAround],
+    [
+      clearSnapFeedback,
+      completeCurrentDraft,
+      precisionAuthoringBlocked,
+      toggleOrthogonal,
+      toggleSnap,
+      zoomAround,
+    ],
   );
 
   const finishPan = useCallback(() => {
@@ -802,6 +857,11 @@ export function PdfViewer({
       clearSnapFeedback();
       return;
     }
+    if (precisionAuthoringBlocked && (activeTool === "calibrate" || isMeasurementType(activeTool))) {
+      setDraftPointer(null);
+      clearSnapFeedback();
+      return;
+    }
     if (activeTool === "calibrate") {
       clearSnapFeedback();
       if (workspaceDraft?.type !== "calibrate") return;
@@ -865,6 +925,11 @@ export function PdfViewer({
     if (!pointer) return;
     const draft = workspaceDraft;
 
+    if (precisionAuthoringBlocked && (activeTool === "calibrate" || isMeasurementType(activeTool))) {
+      clearSnapFeedback();
+      return;
+    }
+
     const point = screenToPage(pointer, viewTransform);
 
     if (activeTool === "calibrate") {
@@ -927,7 +992,7 @@ export function PdfViewer({
       const spec = measurementPathSpecs[measurementType];
       if (resolution.closesPolygon) {
         if (pathDraft.points.length >= spec.minVertices) {
-          completePath(measurementType, pathDraft.points);
+          completePath(measurementType, pathDraft.points, pathDraft);
         }
         return;
       }
@@ -935,7 +1000,7 @@ export function PdfViewer({
       const effectivePoint = resolution.point;
       if (last && areEffectivelyIdentical(last, effectivePoint)) return;
       if (spec.maxVertices === 2) {
-        completePath(measurementType, [...pathDraft.points, effectivePoint]);
+        completePath(measurementType, [...pathDraft.points, effectivePoint], pathDraft);
         return;
       }
       updateDraft({ ...pathDraft, points: [...pathDraft.points, effectivePoint] });
@@ -970,6 +1035,7 @@ export function PdfViewer({
         : styles.cursorCrosshair;
 
   const placementResolution = useMemo(() => {
+    if (precisionAuthoringBlocked) return null;
     return resolveDrawingPreview({
       tool: activeTool,
       draft: workspaceDraft,
@@ -992,6 +1058,7 @@ export function PdfViewer({
     isPanning,
     orthogonal,
     placementPointer,
+    precisionAuthoringBlocked,
     snap,
     snapTargets,
     spacePan,
@@ -1037,6 +1104,7 @@ export function PdfViewer({
     viewTransform.panY,
     viewTransform.zoom,
     workspaceDraft,
+    precisionAuthoringBlocked,
   ]);
 
   return (
@@ -1096,7 +1164,7 @@ export function PdfViewer({
                   name="page-background"
                   width={bounds.width}
                   height={bounds.height}
-                  fill="rgba(255,255,255,0.001)"
+                  fill={canvasVisualRoles.pageHitRegionFill}
                 />
                 <PdfAnnotationLayer
                   page={page}
@@ -1109,6 +1177,9 @@ export function PdfViewer({
                   activeMeasurementEditId={activeMeasurementEditId}
                   calibrationReferenceEdit={calibrationReferenceEdit}
                   measurementEditingBlocked={measurementEditingBlocked}
+                  precisionAuthoringAvailable={!precisionAuthoringBlocked}
+                  visualRoles={canvasVisualRoles}
+                  interactionTargetScreenPx={canvasInteractionTarget}
                   displayUnit={displayUnit}
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}
@@ -1121,39 +1192,112 @@ export function PdfViewer({
                   }
                   onVertexDragCancellationChange={registerVertexDragCancellation}
                 />
-                {workspaceDraft && draftPoints.length >= 2 && (
+                {workspaceDraft?.type === "path" &&
+                  measurementPathSpecs[workspaceDraft.measurementType].closed &&
+                  draftPoints.length >= 3 && (
+                    <Line
+                      points={pointsToFlat(draftPoints)}
+                      closed
+                      fill={canvasVisualRoles.drawingDraftFill}
+                      strokeEnabled={false}
+                      listening={false}
+                    />
+                  )}
+                {workspaceDraft && workspaceDraft.points.length >= 2 && (
                   <Line
-                    points={pointsToFlat(draftPoints)}
-                    stroke={workspaceDraft.type === "calibrate" ? "#d97706" : "#2563eb"}
-                    strokeWidth={2 / viewTransform.zoom}
-                    dash={[7 / viewTransform.zoom, 5 / viewTransform.zoom]}
+                    points={pointsToFlat(workspaceDraft.points)}
+                    stroke={
+                      workspaceDraft.type === "calibrate"
+                        ? canvasVisualRoles.calibrationStroke
+                        : canvasVisualRoles.drawingDraftStroke
+                    }
+                    strokeWidth={CANVAS_VISUAL_METRICS.draftStrokeScreenPx / viewTransform.zoom}
+                    lineCap="round"
                     lineJoin="round"
+                    listening={false}
                   />
                 )}
+                {workspaceDraft &&
+                  workspaceDraft.points.length >= 1 &&
+                  draftPoints.length > workspaceDraft.points.length && (
+                    <Line
+                      points={pointsToFlat(draftPoints.slice(-2))}
+                      stroke={
+                        workspaceDraft.type === "calibrate"
+                          ? canvasVisualRoles.calibrationStroke
+                          : canvasVisualRoles.drawingDraftStroke
+                      }
+                      strokeWidth={
+                        CANVAS_VISUAL_METRICS.draftPreviewStrokeScreenPx / viewTransform.zoom
+                      }
+                      dash={CANVAS_VISUAL_METRICS.draftPreviewDashScreenPx.map(
+                        (value) => value / viewTransform.zoom,
+                      )}
+                      lineCap="round"
+                      lineJoin="round"
+                      listening={false}
+                    />
+                  )}
+                {workspaceDraft?.type === "path" &&
+                  measurementPathSpecs[workspaceDraft.measurementType].closed &&
+                  workspaceDraft.points.length >= 2 &&
+                  draftPoints.length > workspaceDraft.points.length &&
+                  workspaceDraft.points[0] && (
+                    <Line
+                      points={pointsToFlat([draftPoints.at(-1)!, workspaceDraft.points[0]])}
+                      stroke={canvasVisualRoles.drawingDraftStroke}
+                      strokeWidth={
+                        CANVAS_VISUAL_METRICS.draftPreviewStrokeScreenPx / viewTransform.zoom
+                      }
+                      dash={CANVAS_VISUAL_METRICS.draftPreviewDashScreenPx.map(
+                        (value) => value / viewTransform.zoom,
+                      )}
+                      lineCap="round"
+                      lineJoin="round"
+                      listening={false}
+                    />
+                  )}
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
                   workspaceDraft.points[0] && (
                     <Circle
                       x={workspaceDraft.points[0].x}
                       y={workspaceDraft.points[0].y}
-                      radius={7 / viewTransform.zoom}
-                      fill="#fff"
-                      stroke="#2563eb"
-                      strokeWidth={3 / viewTransform.zoom}
+                      radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / viewTransform.zoom}
+                      fill={canvasVisualRoles.handleFill}
+                      stroke={canvasVisualRoles.handleStroke}
+                      strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / viewTransform.zoom}
                     />
                   )}
+                {workspaceDraft?.type === "path" &&
+                  workspaceDraft.points.slice(1).map((point, index) => (
+                    <Circle
+                      key={`draft-point-${index + 1}`}
+                      x={point.x}
+                      y={point.y}
+                      radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / viewTransform.zoom}
+                      fill={canvasVisualRoles.handleFill}
+                      stroke={canvasVisualRoles.handleStroke}
+                      strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / viewTransform.zoom}
+                      listening={false}
+                    />
+                  ))}
                 {snapMarker && (
                   <Rect
                     x={snapMarker.x}
                     y={snapMarker.y}
-                    width={5 / viewTransform.zoom}
-                    height={5 / viewTransform.zoom}
-                    offsetX={2.5 / viewTransform.zoom}
-                    offsetY={2.5 / viewTransform.zoom}
+                    width={CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / viewTransform.zoom}
+                    height={CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / viewTransform.zoom}
+                    offsetX={
+                      CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / 2 / viewTransform.zoom
+                    }
+                    offsetY={
+                      CANVAS_VISUAL_METRICS.snapMarkerSizeScreenPx / 2 / viewTransform.zoom
+                    }
                     rotation={45}
-                    fill="rgba(255,255,255,0.9)"
-                    stroke="#2563eb"
-                    strokeWidth={1.25 / viewTransform.zoom}
+                    fill={canvasVisualRoles.handleFill}
+                    stroke={canvasVisualRoles.snapTarget}
+                    strokeWidth={CANVAS_VISUAL_METRICS.snapMarkerStrokeScreenPx / viewTransform.zoom}
                     listening={false}
                   />
                 )}
@@ -1162,55 +1306,6 @@ export function PdfViewer({
           </Stage>
         )}
         {!showPage && <div className={styles.loading}>Rendering page…</div>}
-        {calibrationReferenceEdit && (
-          <div className={styles.drawingStatus}>
-            <span>
-              Editing{" "}
-              {calibrationReferenceEdit.reference === "uniform"
-                ? "scale reference"
-                : `${calibrationReferenceEdit.reference.toUpperCase()} reference`}
-              {calibrationReferenceEdit.valid
-                ? " · Preview updates linked measurements"
-                : " · Points must remain a valid reference before saving"}
-            </span>
-            <button type="button" onClick={onCalibrationReferenceEditCancel}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!calibrationReferenceEdit.valid}
-              onClick={onCalibrationReferenceEditSave}
-            >
-              Save
-            </button>
-          </div>
-        )}
-        {workspaceDraft?.type === "path" && workspaceDraft.measurementType !== "line" && (
-          <div className={styles.drawingStatus}>
-            <span>
-              {workspaceDraft.points.length} vertices ·{" "}
-              {workspaceDraft.measurementType === "polygon"
-                ? "Click the first point or press Enter to finish"
-                : "Press Enter to finish"}
-            </span>
-            <button type="button" onClick={clearDraft}>
-              Cancel
-            </button>
-          </div>
-        )}
-        {activeTool === "calibrate" && workspaceDraft?.type !== "path" && (
-          <div className={styles.drawingStatus}>
-            <span>
-              Select two points for the{" "}
-              {calibrationReferenceLabel
-                ? `${calibrationReferenceLabel} reference`
-                : "scale reference"}
-            </span>
-            <button type="button" onClick={onCalibrationCancel}>
-              Cancel
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

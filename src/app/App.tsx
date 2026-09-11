@@ -6,21 +6,23 @@ import { OverlayProvider, useOverlayState, type OverlayConfirmation } from "./ov
 import { OverlayHost } from "./OverlayHost";
 import { AppShell, LoadingOverlay } from "./AppShell";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
-import { ViewerContextBar, type ViewerContextData } from "./ViewerContextBar";
+import { WorkspacePanel } from "./WorkspacePanel";
+import { ContextToolbar } from "./ContextToolbar";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { Modal } from "../components/Modal";
 import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
+import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
-import { MeasurementClassificationDock } from "../features/classification/MeasurementClassificationDock";
 import { CsvExportDialog } from "../features/export/CsvExportDialog";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
 } from "../features/measurements/MeasurementPanel";
-import { SelectionInspectorPanel } from "../features/measurements/SelectionInspectorPanel";
+import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
 import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
+import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import {
   beginCalibrationFlow,
   confirmCalibration,
@@ -86,7 +88,6 @@ function PlanMeasureApp() {
     updatePage,
     addCalibration,
     recalibrateCalibration,
-    setActiveCalibration,
     updateCalibration,
     pasteMeasurement,
     renameMeasurement,
@@ -120,7 +121,8 @@ function PlanMeasureApp() {
     calibrationFlow,
     calibrationCandidate,
     calibrationReferenceEdit,
-    secondaryPanel,
+    workspaceModule,
+    measurementDetailsOpen,
     workspaceVersion,
     resetWorkspace,
     pageChanged,
@@ -139,7 +141,8 @@ function PlanMeasureApp() {
     updateReferenceEdit,
     cancelReferenceEdit,
     confirmReferenceEdit,
-    setSecondaryPanel,
+    openMeasurementDetails,
+    closeMeasurementDetails,
   } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const applicationCopyRef = useRef(false);
@@ -149,10 +152,49 @@ function PlanMeasureApp() {
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [authoringCapability, setAuthoringCapability] = useState<AuthoringCapability | null>(null);
+  const authoringCapabilityRef = useRef<AuthoringCapability | null>(null);
+  const handleAuthoringCapabilityChange = useCallback((capability: AuthoringCapability) => {
+    authoringCapabilityRef.current = capability;
+    setAuthoringCapability(capability);
+  }, []);
   const [viewerPageBounds, setViewerPageBounds] = useState<{
     pageNumber: number;
     bounds: LogicalPageBounds;
   } | null>(null);
+
+  const focusViewer = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>("[data-dialog-focus-fallback]")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const focusMeasurementRow = useCallback((measurementId: string) => {
+    window.requestAnimationFrame(() => {
+      const row = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[data-measurement-id][data-measurement-control="selection"]',
+        ),
+      ).find((candidate) => candidate.dataset.measurementId === measurementId);
+      if (row && !row.closest("[hidden]")) {
+        row.focus({ preventScroll: true });
+        if (document.activeElement === row) return;
+      }
+      document
+        .querySelector<HTMLElement>("[data-dialog-focus-fallback]")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const focusMeasurementDetails = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>("[data-measurement-details-back]")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
 
   const {
     activePdf,
@@ -391,13 +433,19 @@ function PlanMeasureApp() {
   }
 
   function chooseTool(tool: Tool) {
-    if (calibrationReferenceEdit && tool !== "select" && tool !== "hand") {
+    if (calibrationReferenceEdit && tool !== "calibrate") {
       setError("Finish or cancel the scale reference edit first.");
       return;
     }
-    if (calibrationFlow && tool !== "calibrate") cancelWorkspaceCalibration();
+    if (calibrationFlow && tool !== "calibrate") {
+      setError("Finish or cancel calibration first.");
+      return;
+    }
     const currentPage = session?.pages[session.currentPage];
     const activePageCalibration = currentPage && getActiveCalibration(currentPage);
+    if (isMeasurementType(tool) && precisionAuthoringBlocked) {
+      return;
+    }
     if (isMeasurementType(tool) && (!currentPage || !activePageCalibration)) {
       clearDraft();
       chooseWorkspaceTool("select");
@@ -412,20 +460,25 @@ function PlanMeasureApp() {
   function cancelCalibration() {
     cancelWorkspaceCalibration();
     clearDraft();
-    chooseTool("select");
+    chooseWorkspaceTool("select");
+    clearError();
+    focusViewer();
   }
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
     if (calibrationReferenceEdit) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     const calibration =
       session?.pages[pageNumber] && findPageCalibration(session.pages[pageNumber], calibrationId);
     if (!calibration) return;
     startCalibration(beginCalibrationFlow(pageNumber, calibrationId, calibration.mode));
     chooseTool("calibrate");
+    focusViewer();
   }
 
   function beginNewCalibration(mode: "uniform" | "xy") {
     if (calibrationReferenceEdit) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     if (!currentPage) return;
     startCalibration(beginCalibrationFlow(currentPage.pageNumber, null, mode));
     chooseTool("calibrate");
@@ -433,6 +486,7 @@ function PlanMeasureApp() {
 
   function requestRecalibration(calibrationId?: string) {
     if (calibrationReferenceEdit) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     if (!currentPage) return;
     const calibration = calibrationId
       ? findPageCalibration(currentPage, calibrationId)
@@ -494,12 +548,14 @@ function PlanMeasureApp() {
     reference: CalibrationReferenceKey,
   ) {
     if (!currentPage) return;
+    if (authoringCapabilityRef.current?.available !== true) return;
     const edit = createCalibrationReferenceEdit(currentPage.pageNumber, calibration, reference);
     if (!edit) return;
     startReferenceEdit(edit);
     closeConfirmation();
     clearSelection();
     chooseTool("select");
+    focusViewer();
   }
 
   function updateCalibrationReferenceEdit(points: [Point, Point]) {
@@ -509,6 +565,8 @@ function PlanMeasureApp() {
   function cancelCalibrationReferenceEdit() {
     cancelReferenceEdit();
     closeConfirmation();
+    clearError();
+    focusViewer();
   }
 
   function calibrationReferenceEditPreview(edit: CalibrationReferenceEdit): PageCalibration | null {
@@ -553,6 +611,7 @@ function PlanMeasureApp() {
     });
     confirmReferenceEdit();
     closeConfirmation();
+    focusViewer();
   }
 
   function handleOverlayConfirmationConfirm(confirmation: OverlayConfirmation) {
@@ -563,6 +622,7 @@ function PlanMeasureApp() {
       if (!session || session.currentPage !== pageNumber || !page || !measurement) return;
       deleteMeasurement(pageNumber, measurementId);
       if (selectedMeasurementId === measurementId) clearSelection();
+      focusViewer();
       return;
     }
 
@@ -618,6 +678,11 @@ function PlanMeasureApp() {
   const selectedMeasurement =
     currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
     null;
+  useEffect(() => {
+    if (!measurementDetailsOpen || selectedMeasurement) return;
+    closeMeasurementDetails();
+    focusViewer();
+  }, [closeMeasurementDetails, focusViewer, measurementDetailsOpen, selectedMeasurement]);
   const measurementEditActive = activeMeasurementEditId !== null;
   const duplicateDisabled = currentPage && selectedMeasurement
     ? !canDuplicateMeasurement(currentPage, selectedMeasurement) ||
@@ -665,76 +730,24 @@ function PlanMeasureApp() {
     });
   }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
-  const activeCalibrationActions = activeCalibration
-    ? [
-        {
-          label: "Recalibrate",
-          disabled: calibrationActionsDisabled,
-          onClick: () => requestRecalibration(activeCalibration.id),
-        },
-        {
-          label: activeCalibration.mode === "uniform" ? "Edit points" : "Edit X",
-          disabled: calibrationActionsDisabled,
-          onClick: () =>
-            beginCalibrationReferenceEdit(
-              activeCalibration,
-              activeCalibration.mode === "uniform" ? "uniform" : "x",
-            ),
-        },
-        ...(activeCalibration.mode === "xy"
-          ? [
-              {
-                label: "Edit Y",
-                disabled: calibrationActionsDisabled,
-                onClick: () => beginCalibrationReferenceEdit(activeCalibration, "y"),
-              },
-            ]
-          : []),
-      ]
-    : [];
-  const workflowContext: ViewerContextData["workflow"] = calibrationReferenceEdit
-    ? {
-        label:
-          calibrationReferenceEdit.reference === "uniform"
-            ? "Editing scale reference"
-            : `Editing ${calibrationReferenceEdit.reference.toUpperCase()} reference`,
-        tone: "active",
-      }
-    : calibrationFlow
-      ? {
-          label:
-            calibrationFlow.mode === "xy"
-              ? `Calibrating ${calibrationFlow.phase.toUpperCase()} reference`
-              : "Calibrating scale",
-          tone: "active",
-        }
-      : draft?.type === "path"
-        ? {
-            label: `Drawing ${draft.measurementType}`,
-            tone: "active",
-          }
-        : { label: "Ready", tone: "neutral" };
-  const viewerContext: ViewerContextData = {
-    scale: activeCalibration
-      ? {
-          id: activeCalibration.id,
-          name: activeCalibration.name,
-          modeLabel: activeCalibration.mode === "uniform" ? "Uniform" : "X/Y correction",
-          options:
-            currentPage?.calibrations.map((calibration) => ({
-              id: calibration.id,
-              name: calibration.name,
-            })) ?? [],
-          disabled: calibrationActionsDisabled,
-        }
-      : null,
-    workflow: workflowContext,
-  };
-  const canCreateMeasurements = Boolean(activeCalibration) && !calibrationReferenceEdit;
-  const measurementToolDisabledReason = calibrationReferenceEdit
+  const precisionAuthoringBlocked = authoringCapability?.available !== true;
+  const precisionAuthoringDisabledReason =
+    authoringCapability?.unavailableReason ??
+    "Precision drawing and editing need more unobscured viewer space and a fine pointer";
+  const primaryToolsLocked = Boolean(calibrationFlow || calibrationReferenceEdit);
+  const primaryToolLockReason = calibrationReferenceEdit
     ? "Finish or cancel the scale reference edit first"
+    : "Finish or cancel calibration first";
+  const canCreateMeasurements =
+    Boolean(activeCalibration) && !primaryToolsLocked && !precisionAuthoringBlocked;
+  const measurementToolDisabledReason = primaryToolsLocked
+    ? primaryToolLockReason
+    : precisionAuthoringBlocked
+      ? precisionAuthoringDisabledReason
     : "This tool requires an active scale";
   const toolAvailability: ToolAvailabilityMap = {
+    select: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
+    hand: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
     line: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
@@ -742,6 +755,8 @@ function PlanMeasureApp() {
 
   return (
     <AppShell
+      documentName={session?.pdf.name ?? null}
+      canExport={Boolean(session)}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
       statusMessage={appState.error ?? autosaveWarning}
@@ -772,23 +787,102 @@ function PlanMeasureApp() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
-          leftPanel={<SelectionInspectorPanel page={previewPage} />}
-          viewerContext={
-            <ViewerContextBar
-              context={viewerContext}
-              action={
-                selectedMeasurement
-                  ? {
-                      label: "Duplicate",
-                      disabled: duplicateDisabled,
-                      onClick: () => duplicateSelectedMeasurement(selectedMeasurement.id),
-                    }
-                  : null
+          workspacePanel={
+            <WorkspacePanel
+              measurements={
+                <MeasurementPanel
+                  key={workspaceVersion}
+                  page={previewPage}
+                  onSelectMeasurement={selectMeasurementFromPanel}
+                  onSetMeasurementVisibility={setMeasurementVisibility}
+                  onSetMeasurementsVisibility={setMeasurementsVisibility}
+                />
               }
-              onScaleChange={(calibrationId) => {
-                if (currentPage) setActiveCalibration(currentPage.pageNumber, calibrationId);
+              classifications={
+                <ClassificationWorkspace
+                  key={workspaceVersion}
+                  catalog={session.classificationCatalog}
+                  disabled={Boolean(
+                    calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                  )}
+                  onCreateDimension={(name) =>
+                    addClassificationDimension(crypto.randomUUID(), name)
+                  }
+                  onRenameDimension={renameClassificationDimension}
+                  onArchiveDimension={archiveClassificationDimension}
+                  onRestoreDimension={restoreClassificationDimension}
+                  onCreateValue={(dimensionId, name) =>
+                    addClassificationValue(dimensionId, crypto.randomUUID(), name)
+                  }
+                  onRenameValue={renameClassificationValue}
+                  onArchiveValue={archiveClassificationValue}
+                  onRestoreValue={restoreClassificationValue}
+                />
+              }
+              scales={
+                <ScalesWorkspace
+                  page={currentPage}
+                  actionsDisabled={calibrationActionsDisabled}
+                  onAddScale={beginNewCalibration}
+                  onRecalibrate={requestRecalibration}
+                  onEditReference={beginCalibrationReferenceEdit}
+                />
+              }
+              details={
+                selectedMeasurement ? (
+                  <MeasurementDetails
+                    key={selectedMeasurement.id}
+                    page={previewPage}
+                    measurement={selectedMeasurement}
+                    displayUnit={session.settings.displayUnit}
+                    catalog={session.classificationCatalog}
+                    returnModule={workspaceModule}
+                    assignmentDisabled={Boolean(
+                      calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                    )}
+                    onBack={() => {
+                      closeMeasurementDetails();
+                      focusMeasurementRow(selectedMeasurement.id);
+                    }}
+                    onRename={(name) =>
+                      renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
+                    }
+                    onAssignClassification={assignClassification}
+                    onEditGeometry={() => chooseTool("select")}
+                    onDelete={() =>
+                      requestMeasurementDelete({
+                        pageNumber: currentPage.pageNumber,
+                        measurementId: selectedMeasurement.id,
+                        measurementName: selectedMeasurement.name,
+                      })
+                    }
+                  />
+                ) : null
+              }
+            />
+          }
+          authoringIntentScopeKey={`${currentPage.pageNumber}:${workspaceVersion}:${selectedMeasurementId ?? ""}`}
+          toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
+          contextToolbar={
+            <ContextToolbar
+              selectedMeasurementName={selectedMeasurement?.name ?? null}
+              duplicateDisabled={duplicateDisabled}
+              referenceEditValid={calibrationReferenceEditIsValid}
+              measurementEditActive={measurementEditActive}
+              onDuplicateSelectedMeasurement={() => {
+                if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
               }}
+              onOpenMeasurementDetails={() => {
+                openMeasurementDetails();
+                focusMeasurementDetails();
+              }}
+              onExitDrawingTool={() => {
+                chooseTool("select");
+                focusViewer();
+              }}
+              onCancelCalibration={cancelCalibration}
+              onCancelReferenceEdit={cancelCalibrationReferenceEdit}
+              onSaveReferenceEdit={requestCalibrationReferenceEditSave}
             />
           }
           viewer={
@@ -824,13 +918,6 @@ function PlanMeasureApp() {
                   }
                   updateCalibrationCandidate(selectCalibrationReference(flow, points));
                 }}
-                calibrationReferenceLabel={
-                  calibrationFlow?.mode === "xy"
-                    ? calibrationFlow.phase === "y"
-                      ? "Y"
-                      : "X"
-                    : undefined
-                }
                 onCalibrationCancel={cancelCalibration}
                 calibrationReferenceEdit={
                   calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
@@ -845,118 +932,10 @@ function PlanMeasureApp() {
                 measurementEditingBlocked={Boolean(calibrationFlow || calibrationCandidate)}
                 onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
                 onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
-                onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
               />
             </Suspense>
           }
-          secondaryPanel={
-            <div className={styles.secondaryPanelStack}>
-              <section className={styles.scaleControls} aria-label="Scales on current page">
-                <div className={styles.scaleControlsHeader}>
-                  <div>
-                    <strong>Scale tools</strong>
-                  </div>
-                  <span>
-                    {currentPage.calibrations.length}{" "}
-                    {currentPage.calibrations.length === 1 ? "scale" : "scales"}
-                  </span>
-                </div>
-                <div
-                  className={`${styles.scaleControlsActions} ${
-                    activeCalibration?.mode === "xy" ? styles.scaleControlsActionsXy : ""
-                  }`}
-                >
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    disabled={calibrationActionsDisabled}
-                    onClick={() => beginNewCalibration("uniform")}
-                  >
-                    Add uniform
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    disabled={calibrationActionsDisabled}
-                    onClick={() => beginNewCalibration("xy")}
-                  >
-                    Add X/Y
-                  </Button>
-                  {activeCalibrationActions.map((action) => (
-                    <Button
-                      key={action.label}
-                      variant="secondary"
-                      size="compact"
-                      disabled={action.disabled}
-                      onClick={action.onClick}
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-                </div>
-              </section>
-              <div className={styles.panelTabs} role="tablist" aria-label="Workspace data">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={secondaryPanel === "measurements"}
-                  onClick={() => setSecondaryPanel("measurements")}
-                >
-                  Measurements <span>{currentPage.measurements.length}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={secondaryPanel === "classifications"}
-                  onClick={() => setSecondaryPanel("classifications")}
-                >
-                  Classifications <span>{session.classificationCatalog.dimensions.length}</span>
-                </button>
-              </div>
-              <div className={styles.panelContent} hidden={secondaryPanel !== "measurements"}>
-                <MeasurementPanel
-                  key={workspaceVersion}
-                  page={previewPage}
-                  onSelectMeasurement={selectMeasurementFromPanel}
-                  onRenameMeasurement={renameMeasurement}
-                  onSetMeasurementVisibility={setMeasurementVisibility}
-                  onSetMeasurementsVisibility={setMeasurementsVisibility}
-                  onRequestDelete={requestMeasurementDelete}
-                  classificationDock={
-                    <MeasurementClassificationDock
-                      measurement={selectedMeasurement}
-                      catalog={session.classificationCatalog}
-                      onAssign={assignClassification}
-                      disabled={Boolean(
-                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                      )}
-                    />
-                  }
-                />
-              </div>
-              <div className={styles.panelContent} hidden={secondaryPanel !== "classifications"}>
-                <ClassificationWorkspace
-                  key={workspaceVersion}
-                  catalog={session.classificationCatalog}
-                  disabled={Boolean(
-                    calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                  )}
-                  onCreateDimension={(name) =>
-                    addClassificationDimension(crypto.randomUUID(), name)
-                  }
-                  onRenameDimension={renameClassificationDimension}
-                  onArchiveDimension={archiveClassificationDimension}
-                  onRestoreDimension={restoreClassificationDimension}
-                  onCreateValue={(dimensionId, name) =>
-                    addClassificationValue(dimensionId, crypto.randomUUID(), name)
-                  }
-                  onRenameValue={renameClassificationValue}
-                  onArchiveValue={archiveClassificationValue}
-                  onRestoreValue={restoreClassificationValue}
-                />
-              </div>
-            </div>
-          }
+          onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
         />
       ) : (
         <WorkspaceShell
@@ -1089,6 +1068,7 @@ function PlanMeasureApp() {
             if (confirmation.kind === "select-y") {
               advanceCalibrationStep(confirmation.flow);
               chooseTool("calibrate");
+              focusViewer();
               return;
             }
             const calibration = confirmation.calibration;
@@ -1114,6 +1094,7 @@ function PlanMeasureApp() {
             completeCalibration();
             clearDraft();
             chooseWorkspaceTool("select");
+            focusViewer();
           }}
         />
       )}
