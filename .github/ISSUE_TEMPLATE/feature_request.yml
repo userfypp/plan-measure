@@ -4,15 +4,23 @@ labels:
   - enhancement
 body:
   - type: textarea
-    id: description
+    id: problem
     attributes:
-      label: What would you like to improve?
-      description: Describe the problem or idea, and how you think it should work.
+      label: What problem are you trying to solve?
+      description: Describe the limitation or workflow that needs improvement.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you change?
+      description: Describe the result or behavior you would like.
     validations:
       required: true
 
   - type: textarea
     id: context
     attributes:
-      label: Anything else?
-      description: Add examples, screenshots, alternatives, or other context if useful.
+      label: Context
+      description: Add examples, screenshots, alternatives, or other useful context.
