@@ -1,7 +1,11 @@
-## Summary
+## What changed and why?
 
-<!-- What does this change do? -->
+<!-- Briefly explain the change and the reason for it. -->
 
 ## Related issue
 
 <!-- Closes #123 -->
+
+## Validation
+
+<!-- What did you run or check? -->

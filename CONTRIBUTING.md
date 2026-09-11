@@ -1,7 +1,5 @@
 # Contributing to Plan Measure
 
-Thanks for helping improve Plan Measure.
-
 ## Before opening an issue
 
 - Search the open issues first so related work stays together.
@@ -21,7 +19,7 @@ npm ci
 npm run dev
 ```
 
-Before opening a pull request, run the checks that apply to your change:
+Before opening a pull request, run:
 
 ```bash
 npm run lint
@@ -40,4 +38,4 @@ Use `npm run format` when formatting is part of the change. Keep generated or un
 - Update the README or other documentation when behavior or setup changes.
 - Do not commit PDFs, credentials, secrets, or other private files.
 
-All contributions are reviewed through GitHub pull requests. Please be clear about any known limitations or follow-up work.
+Contributions are reviewed through GitHub pull requests. Note any known limitations or follow-up work.
