@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Badge } from "../../components/ui";
+import { AnchoredMenu, Badge } from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
 import styles from "./ClassificationAssignment.module.css";
 
@@ -10,6 +10,14 @@ export interface ClassificationAssignmentProps {
   onAssign: (measurementId: string, dimensionId: string, valueId: string | null) => void;
   disabled?: boolean;
   compact?: boolean;
+}
+
+function SelectChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="m6.5 8 3.5 3.5L13.5 8" />
+    </svg>
+  );
 }
 
 export function ClassificationAssignment({
@@ -58,6 +66,56 @@ export function ClassificationAssignment({
             : []
           : dimension.values.filter((value) => !value.archived || value.id === current?.id);
         const fieldId = `${fieldIdPrefix}-${measurementId}-${dimension.id}`;
+        const fieldLabelId = `${fieldId}-label`;
+        const fieldDisabled = disabled || options.length === 0;
+        const currentLabel = current
+          ? `${current.name}${current.archived ? " (archived)" : ""}`
+          : "Unclassified";
+        if (compact) {
+          return (
+            <div className={styles.field} key={dimension.id}>
+              <span id={fieldLabelId}>
+                {dimension.name}
+                {dimension.archived ? " (archived)" : ""}
+              </span>
+              <AnchoredMenu
+                trigger={
+                  <span className={styles.valueTriggerContent}>
+                    <span title={currentLabel}>{currentLabel}</span>
+                    <SelectChevronIcon />
+                  </span>
+                }
+                triggerProps={{
+                  className: styles.valueTrigger,
+                  "aria-label": `${dimension.name}: ${currentLabel}`,
+                  disabled: fieldDisabled,
+                }}
+                label={`Select ${dimension.name} classification value`}
+                items={[
+                  {
+                    id: "unclassified",
+                    label: "Unclassified",
+                    role: "menuitemradio",
+                    checked: !current,
+                    onSelect: () => {
+                      if (current) onAssign(measurementId, dimension.id, null);
+                    },
+                  },
+                  ...options.map((value) => ({
+                    id: value.id,
+                    label: `${value.name}${value.archived ? " (archived)" : ""}`,
+                    role: "menuitemradio" as const,
+                    checked: value.id === current?.id,
+                    onSelect: () => {
+                      if (value.id !== current?.id) onAssign(measurementId, dimension.id, value.id);
+                    },
+                  })),
+                ]}
+                placement="bottom-start"
+              />
+            </div>
+          );
+        }
         return (
           <label className={styles.field} key={dimension.id} htmlFor={fieldId}>
             <span>
@@ -68,7 +126,7 @@ export function ClassificationAssignment({
               id={fieldId}
               data-viewer-shortcuts="enabled"
               value={current?.id ?? ""}
-              disabled={disabled || options.length === 0}
+              disabled={fieldDisabled}
               onChange={(event) =>
                 onAssign(measurementId, dimension.id, event.target.value || null)
               }

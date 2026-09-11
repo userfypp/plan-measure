@@ -93,6 +93,84 @@
   opacity: var(--opacity-disabled);
 }
 
+.valueTrigger {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target-current);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-8);
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  text-align: left;
+  transition: var(--transition-interactive);
+}
+
+.valueTrigger:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.valueTrigger:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.valueTrigger[aria-expanded="true"]:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+}
+
+.valueTrigger[aria-expanded="true"]:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selection-surface);
+}
+
+.valueTrigger[aria-expanded="true"]:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-selection-surface);
+}
+
+.valueTrigger:disabled {
+  border-color: var(--color-divider);
+  background: var(--color-surface-panel);
+  color: var(--color-text-disabled);
+}
+
+.valueTriggerContent {
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size);
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.valueTriggerContent > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.valueTriggerContent svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 120ms ease;
+}
+
+.valueTrigger[aria-expanded="true"] .valueTriggerContent svg {
+  transform: rotate(180deg);
+}
+
 .empty {
   margin: 0;
   color: var(--color-warning);
@@ -105,4 +183,10 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .valueTriggerContent svg {
+    transition: none;
+  }
 }

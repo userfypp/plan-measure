@@ -183,8 +183,8 @@ describe("ScalesWorkspace", () => {
   it("lists page scales, marks active status structurally, and keeps administration separate from switching", () => {
     renderScales(createProps());
 
-    const active = buttonByLabel("Inspect scale Ground floor, active");
-    const inactive = buttonByLabel("Inspect scale Survey correction");
+    const active = buttonByLabel("Expand scale Ground floor, active");
+    const inactive = buttonByLabel("Expand scale Survey correction");
     const activeRow = active.closest<HTMLElement>('[role="listitem"]');
     if (!activeRow) throw new Error("Active scale row was not rendered.");
     expect(activeRow.textContent).toContain("Active");
@@ -213,7 +213,7 @@ describe("ScalesWorkspace", () => {
       }),
     );
 
-    const disclosure = buttonByLabel(`Inspect scale ${longName}, active`);
+    const disclosure = buttonByLabel(`Expand scale ${longName}, active`);
     const identity = container?.querySelector<HTMLElement>("article strong");
     expect(identity?.textContent).toBe(longName);
     expect(identity?.title).toBe(longName);
@@ -225,7 +225,7 @@ describe("ScalesWorkspace", () => {
   it("expands X/Y administration with separate Edit X and Edit Y commands", () => {
     const props = createProps();
     renderScales(props);
-    const inspect = buttonByLabel("Inspect scale Survey correction");
+    const inspect = buttonByLabel("Expand scale Survey correction");
     const detailsId = inspect.getAttribute("aria-controls");
     if (!detailsId) throw new Error("Scale disclosure did not expose aria-controls.");
     expect(document.getElementById(detailsId)?.hasAttribute("hidden")).toBe(true);
@@ -275,7 +275,7 @@ describe("ScalesWorkspace", () => {
   it("keeps Uniform reference editing explicit", () => {
     const props = createProps();
     renderScales(props);
-    const inspect = buttonByLabel("Inspect scale Ground floor, active");
+    const inspect = buttonByLabel("Expand scale Ground floor, active");
     const detailsId = inspect.getAttribute("aria-controls");
     if (!detailsId) throw new Error("Uniform scale disclosure did not expose aria-controls.");
     act(() => inspect.click());
@@ -293,7 +293,7 @@ describe("ScalesWorkspace", () => {
     const reason = "Precision editing needs a fine pointer.";
     renderScalesWithUnavailablePrecision(createProps(), reason);
 
-    const inspect = buttonByLabel("Inspect scale Ground floor, active");
+    const inspect = buttonByLabel("Expand scale Ground floor, active");
     expect(inspect.disabled).toBe(false);
     act(() => inspect.click());
     const detailsId = inspect.getAttribute("aria-controls");
@@ -336,14 +336,14 @@ describe("ScalesWorkspace", () => {
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
     act(() => items[1]?.click());
 
-    const uniformInspect = buttonByLabel("Inspect scale Ground floor, active");
+    const uniformInspect = buttonByLabel("Expand scale Ground floor, active");
     act(() => uniformInspect.click());
     const uniformDetails = document.getElementById(uniformInspect.getAttribute("aria-controls")!);
     if (!uniformDetails) throw new Error("Uniform details were not rendered.");
     act(() => buttonWithin(uniformDetails, "Recalibrate").click());
     act(() => buttonWithin(uniformDetails, "Edit reference").click());
 
-    const xyInspect = buttonByLabel("Inspect scale Survey correction");
+    const xyInspect = buttonByLabel("Expand scale Survey correction");
     act(() => xyInspect.click());
     const xyDetails = document.getElementById(xyInspect.getAttribute("aria-controls")!);
     if (!xyDetails) throw new Error("X/Y details were not rendered.");

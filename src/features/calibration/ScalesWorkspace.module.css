@@ -13,7 +13,7 @@
   min-height: 0;
   flex: 0 1 auto;
   overflow-y: auto;
-  padding: var(--space-4) var(--space-8) 0;
+  padding: var(--space-4) 0 0;
 }
 
 .scaleRow {
@@ -24,11 +24,11 @@
 }
 
 .active {
-  background: transparent;
+  background: var(--color-selection-surface);
 }
 
 .active .scaleSummary {
-  background: var(--color-selection-surface);
+  background: transparent;
 }
 
 .scaleSummary {
@@ -38,7 +38,7 @@
   grid-template-columns: minmax(0, 1fr) auto var(--target-current);
   align-items: center;
   gap: var(--space-8);
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-16);
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
@@ -48,6 +48,7 @@
   min-width: 0;
   display: grid;
   gap: 2px;
+  overflow: hidden;
 }
 
 .scaleIdentity strong,
@@ -73,9 +74,11 @@
   color: var(--color-accent);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }
 
 .disclosureButton {
+  grid-column: 3;
   width: var(--target-current);
   min-width: var(--target-current);
   height: var(--target-current);
@@ -115,8 +118,8 @@
 
 .scaleDetails {
   display: grid;
-  gap: var(--space-4);
-  margin-inline: var(--space-8);
+  gap: var(--space-8);
+  margin-inline: var(--space-16);
   padding: var(--space-8) 0 var(--space-12);
   border-top: var(--border-width) solid var(--color-divider);
   background: transparent;
@@ -126,11 +129,17 @@
   display: none;
 }
 
+.references {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
 .referenceRow {
   min-width: 0;
   display: grid;
   gap: 2px;
-  padding-block: var(--space-4);
+  padding-block: 2px;
   color: var(--color-text-primary);
   font-size: var(--font-size-secondary);
 }
@@ -152,6 +161,7 @@
 .scaleActions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-4);
   padding-top: var(--space-4);
 }
@@ -162,7 +172,7 @@
 
 .addScale {
   flex: 0 0 auto;
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-16) var(--space-4);
 }
 
 .addScaleTrigger {
@@ -171,7 +181,7 @@
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   padding: 0 var(--space-8);
-  background: var(--color-surface-field);
+  background: transparent;
   color: var(--color-text-primary);
   text-align: left;
   transition: var(--transition-interactive);

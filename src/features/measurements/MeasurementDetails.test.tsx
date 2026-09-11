@@ -135,6 +135,14 @@ function buttonByText(text: string): HTMLButtonElement {
   return button;
 }
 
+function classificationTrigger(): HTMLButtonElement {
+  const trigger = container?.querySelector<HTMLButtonElement>(
+    'section[aria-label="Classification assignment"] button[aria-haspopup="menu"]',
+  );
+  if (!trigger) throw new Error("Classification value trigger was not rendered.");
+  return trigger;
+}
+
 beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -171,9 +179,9 @@ describe("MeasurementDetails", () => {
     );
     expect(summary).toBeTruthy();
     expect(summary?.childElementCount).toBe(2);
-    expect(container?.querySelector<HTMLSelectElement>('select[id*="-line-1-trade"]')?.value).toBe(
-      "electrical",
-    );
+    expect(classificationTrigger().textContent).toContain("Electrical");
+    expect(classificationTrigger().getAttribute("aria-expanded")).toBe("false");
+    expect(container?.querySelector('section[aria-label="Classification assignment"] select')).toBeNull();
     expect(buttonByText("‹ Back to classifications")).toBeTruthy();
   });
 
@@ -203,17 +211,40 @@ describe("MeasurementDetails", () => {
     act(() => buttonByText("‹ Back to classifications").click());
     act(() => buttonByText("Edit geometry").click());
     act(() => buttonByText("Delete measurement").click());
-    const assignment = container?.querySelector<HTMLSelectElement>('select[id*="-line-1-trade"]');
-    if (!assignment) throw new Error("Classification assignment select was not rendered.");
-    act(() => {
-      assignment.value = "";
-      assignment.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    const assignment = classificationTrigger();
+    act(() => assignment.click());
+    const unclassified = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'),
+    ).find((candidate) => candidate.textContent?.trim() === "Unclassified");
+    if (!unclassified) throw new Error("Unclassified assignment option was not rendered.");
+    act(() => unclassified.click());
 
     expect(props.onBack).toHaveBeenCalledOnce();
     expect(props.onEditGeometry).toHaveBeenCalledOnce();
     expect(props.onDelete).toHaveBeenCalledOnce();
     expect(props.onAssignClassification).toHaveBeenCalledWith("line-1", "trade", null);
+  });
+
+  it("uses the shared menu trigger contract for compact classification assignment", () => {
+    const props = createProps();
+    renderDetails(props);
+
+    const trigger = classificationTrigger();
+    expect(trigger.disabled).toBe(false);
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.getAttribute("aria-label")).toBe("Trade: Electrical");
+    expect(trigger.textContent).toContain("Electrical");
+
+    act(() => trigger.click());
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+    expect(items.map((item) => item.textContent?.trim())).toEqual(["Unclassified", "Electrical"]);
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["false", "true"]);
+
+    act(() => items[1]?.click());
+    expect(props.onAssignClassification).not.toHaveBeenCalled();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("renames through the canonical command and trims the submitted name", () => {

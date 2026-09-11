@@ -83,33 +83,35 @@ export function ScalesWorkspace({
                   variant="ghost"
                   size="compact"
                   className={styles.disclosureButton}
-                  aria-label={`${inspected ? "Collapse" : "Inspect"} scale ${calibration.name}${active ? ", active" : ""}`}
+                  aria-label={`${inspected ? "Collapse" : "Expand"} scale ${calibration.name}${active ? ", active" : ""}`}
                   aria-expanded={inspected}
                   aria-controls={detailId}
-                  title={`${inspected ? "Collapse" : "Inspect"} ${calibration.name}`}
+                  title={`${inspected ? "Collapse" : "Expand"} ${calibration.name}`}
                   onClick={() => setInspectedScaleId(inspected ? null : calibration.id)}
                 >
                   <DisclosureIcon />
                 </Button>
               </div>
               <div id={detailId} className={styles.scaleDetails} hidden={!inspected}>
-                {calibration.mode === "uniform" ? (
-                  <div className={styles.referenceRow}>
-                    <span className={styles.referenceLabel}>Reference</span>
-                    <strong>{formatReferenceDistance(calibration.referenceDistanceMm)}</strong>
-                  </div>
-                ) : (
-                  <>
+                <div className={styles.references}>
+                  {calibration.mode === "uniform" ? (
                     <div className={styles.referenceRow}>
-                      <span className={styles.referenceLabel}>X reference</span>
-                      <strong>{formatReferenceDistance(calibration.xReference.referenceDistanceMm)}</strong>
+                      <span className={styles.referenceLabel}>Reference</span>
+                      <strong>{formatReferenceDistance(calibration.referenceDistanceMm)}</strong>
                     </div>
-                    <div className={styles.referenceRow}>
-                      <span className={styles.referenceLabel}>Y reference</span>
-                      <strong>{formatReferenceDistance(calibration.yReference.referenceDistanceMm)}</strong>
-                    </div>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <div className={styles.referenceRow}>
+                        <span className={styles.referenceLabel}>X reference</span>
+                        <strong>{formatReferenceDistance(calibration.xReference.referenceDistanceMm)}</strong>
+                      </div>
+                      <div className={styles.referenceRow}>
+                        <span className={styles.referenceLabel}>Y reference</span>
+                        <strong>{formatReferenceDistance(calibration.yReference.referenceDistanceMm)}</strong>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <div className={styles.scaleActions}>
                   <Button
                     variant="ghost"
