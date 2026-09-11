@@ -254,7 +254,7 @@ describe("MeasurementRow accessibility", () => {
 
   it("extends only the ungrouped row state surface without changing row or Eye geometry", () => {
     expect(measurementCollectionCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);/s,
+      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;/s,
     );
     expect(measurementRowCss).toMatch(
       /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--measurement-row-inline-bleed, 0px\)\);[^}]*pointer-events:\s*none;/s,

@@ -163,10 +163,37 @@ describe("MeasurementDetails", () => {
     expect(container?.textContent).not.toContain("Current active scale");
     expect(container?.textContent).toContain("Uniform");
     expect(container?.textContent).toContain("Page7");
+    const summary = Array.from(container?.querySelectorAll<HTMLDivElement>("div") ?? []).find(
+      (candidate) =>
+        candidate.firstElementChild?.tagName === "STRONG" &&
+        candidate.firstElementChild?.textContent === "Hallway" &&
+        candidate.textContent?.includes("1.00 m"),
+    );
+    expect(summary).toBeTruthy();
+    expect(summary?.childElementCount).toBe(2);
     expect(container?.querySelector<HTMLSelectElement>('select[id*="-line-1-trade"]')?.value).toBe(
       "electrical",
     );
     expect(buttonByText("‹ Back to classifications")).toBeTruthy();
+  });
+
+  it("keeps a long linked scale name recoverable while allowing visual truncation", () => {
+    const longScaleName = "Architectural presentation scale for the complete east wing";
+    const longScalePage: PageState = {
+      ...page,
+      calibrations: page.calibrations.map((calibration) =>
+        calibration.id === "historical" ? { ...calibration, name: longScaleName } : calibration,
+      ),
+    };
+
+    renderDetails(createProps({ page: longScalePage }));
+
+    const scaleValue = Array.from(container?.querySelectorAll<HTMLElement>("strong") ?? []).find(
+      (candidate) => candidate.textContent?.startsWith(longScaleName),
+    );
+    expect(scaleValue?.title).toBe(
+      `${longScaleName} · ${scaleDisplayMetadata(longScalePage.calibrations[0]!).ratioLabel}`,
+    );
   });
 
   it("wires Back, geometry edit, delete, and classification assignment to existing commands", () => {

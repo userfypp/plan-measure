@@ -44,6 +44,10 @@ export function MeasurementDetails({
   const viewModel = createMeasurementViewModel(page, measurement, displayUnit, true);
   const calibration = getMeasurementCalibration(page, measurement);
   const scaleMetadata = calibration ? scaleDisplayMetadata(calibration) : null;
+  const scaleLabel =
+    calibration && scaleMetadata
+      ? `${calibration.name} · ${scaleMetadata.ratioLabel}`
+      : "Scale unavailable";
 
   function submitRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,7 +76,6 @@ export function MeasurementDetails({
         </Button>
 
         <div className={styles.summary}>
-          <span className={styles.selectionMarker} aria-hidden="true" />
           <strong>{measurement.name}</strong>
           <span className={styles.result}>{viewModel.valueLabel}</span>
         </div>
@@ -120,6 +123,7 @@ export function MeasurementDetails({
                 <Button
                   variant="ghost"
                   size="compact"
+                  className={styles.renameAction}
                   aria-label={`Rename ${measurement.name}`}
                   onClick={() => {
                     setName(measurement.name);
@@ -136,13 +140,9 @@ export function MeasurementDetails({
             <span>Type</span>
             <strong>{viewModel.typeLabel}</strong>
           </div>
-          <div className={styles.propertyRow}>
+          <div className={[styles.propertyRow, styles.scaleRow].join(" ")}>
             <span>Scale</span>
-            <strong>
-              {calibration && scaleMetadata
-                ? `${calibration.name} · ${scaleMetadata.ratioLabel}`
-                : "Scale unavailable"}
-            </strong>
+            <strong title={calibration ? scaleLabel : undefined}>{scaleLabel}</strong>
           </div>
           <div className={styles.propertyRow}>
             <span>Mode</span>

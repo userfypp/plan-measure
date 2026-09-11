@@ -31,19 +31,9 @@
   min-width: 0;
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-8) var(--space-12) var(--space-8) var(--space-16);
+  padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-control);
   background: var(--color-selection-surface);
-}
-
-.selectionMarker {
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: 0;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--color-accent);
 }
 
 .summary strong {
@@ -106,14 +96,18 @@
 
 .propertyActionValue {
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-4);
 }
 
-.propertyActionValue button {
-  flex: 0 0 auto;
+.renameAction {
+  padding-inline: var(--space-8);
+}
+
+.scaleRow {
+  grid-template-columns: 48px minmax(0, 1fr);
 }
 
 .renameForm {
@@ -130,6 +124,8 @@
 }
 
 .dangerZone {
+  display: flex;
+  justify-content: flex-end;
   padding: var(--space-8) var(--space-16) var(--space-12);
   border-top: var(--border-width) solid var(--color-divider);
 }

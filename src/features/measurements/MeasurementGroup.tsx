@@ -102,7 +102,7 @@ export function MeasurementGroup({
           className={styles.visibilityControl}
           data-group-visibility={group.visibility}
           aria-label={bulkActionLabel}
-          title={`${visibilityState} · ${actionLabel} all`}
+          tooltip={`${visibilityState} · ${actionLabel} all`}
           onClick={() => onSetMeasurementsVisibility(group.measurementIds, !actionIsHide)}
         />
       </header>
