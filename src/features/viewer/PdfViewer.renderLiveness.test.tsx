@@ -571,6 +571,56 @@ describe("PdfViewer render liveness", () => {
     expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toBe("");
   });
 
+  it("preserves a zoom made during an active pan and continues from the current translation", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    const registerNavigation: ViewerNavigationRegistration = (next) => {
+      navigation = next;
+    };
+
+    await mountViewer(runtime.document, { registerNavigation });
+    const initialZoom = (navigation as ViewerNavigationModel | null)?.zoom;
+    if (initialZoom === undefined) throw new Error("Viewer navigation was not registered.");
+    const initialLeft = Number.parseFloat(canvas().style.left);
+    const initialTop = Number.parseFloat(canvas().style.top);
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseDown = stage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    if (!onMouseDown || !onMouseMove) throw new Error("Stage pan handlers were not captured.");
+    const panEvent = (x: number, y: number, button = 1) => ({
+      target: {
+        getStage: () => ({ getPointerPosition: () => ({ x, y }) }),
+      },
+      evt: { button, preventDefault: vi.fn() },
+    });
+
+    await act(async () => {
+      onMouseDown(panEvent(100, 100));
+      onMouseMove(panEvent(130, 120));
+    });
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(initialTop + 20);
+
+    await act(async () => navigation?.onZoomIn());
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBeCloseTo(initialZoom * 1.25);
+    const zoomedLeft = Number.parseFloat(canvas().style.left);
+    const zoomedTop = Number.parseFloat(canvas().style.top);
+    const currentStage = konvaCapture.stages.at(-1);
+    const continuePan = currentStage?.onMouseMove as ((event: unknown) => void) | undefined;
+    const finishPan = currentStage?.onMouseUp as (() => void) | undefined;
+    if (!continuePan || !finishPan) throw new Error("Updated Stage pan handlers were not captured.");
+
+    await act(async () => continuePan(panEvent(140, 135)));
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft + 10);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
+
+    await act(async () => finishPan());
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBeCloseTo(initialZoom * 1.25);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft + 10);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
+  });
+
   it("keeps Fit and programmatic zoom inert when the Dock exclusion leaves no safe viewport", async () => {
     viewerRect = rect(320, 40);
     const pdfPage = createPdfPage();

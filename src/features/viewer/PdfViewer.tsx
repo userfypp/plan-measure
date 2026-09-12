@@ -592,11 +592,20 @@ export function PdfViewer({
       cancelActiveCalibrationReferenceDrag();
       clearSnapFeedback();
       setFitMode(false);
+      const current = transformRef.current;
       const next = zoomViewAtPoint(
-        transformRef.current,
+        current,
         screenPoint,
-        transformRef.current.zoom * factor,
+        current.zoom * factor,
       );
+      const panDrag = panDragRef.current;
+      if (panDrag) {
+        panDrag.transform = {
+          ...next,
+          panX: panDrag.transform.panX + next.panX - current.panX,
+          panY: panDrag.transform.panY + next.panY - current.panY,
+        };
+      }
       commitTransform(next);
     },
     [
