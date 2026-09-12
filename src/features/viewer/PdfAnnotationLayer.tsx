@@ -212,7 +212,7 @@ export function PdfAnnotationLayer({
       occupied.push({ ...placement, ...dimensions });
     }
 
-    if (showCalibration) {
+    if (showCalibration || calibrationReferenceEdit) {
       for (const calibration of page.calibrations) {
         const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
         const references =
@@ -232,6 +232,7 @@ export function PdfAnnotationLayer({
         for (const reference of references) {
           const referenceIsEditing =
             editing && calibrationReferenceEdit?.reference === reference.key;
+          if (!showCalibration && !referenceIsEditing) continue;
           const start =
             referenceIsEditing && calibrationReferenceEdit
               ? calibrationReferenceEdit.points[0]
@@ -280,7 +281,7 @@ export function PdfAnnotationLayer({
 
   return (
     <>
-      {showCalibration &&
+      {(showCalibration || calibrationReferenceEdit) &&
         page.calibrations.flatMap((calibration) => {
           const active = calibration.id === page.activeCalibrationId;
           const editing = calibrationReferenceEdit?.calibrationId === calibration.id;
@@ -302,6 +303,7 @@ export function PdfAnnotationLayer({
           return references.map((reference) => {
             const referenceIsEditing =
               editing && calibrationReferenceEdit?.reference === reference.key;
+            if (!showCalibration && !referenceIsEditing) return null;
             const baseStroke =
               reference.key === "y" ? visualRoles.referenceStroke : visualRoles.calibrationStroke;
             const stroke = referenceIsEditing ? visualRoles.measurementSelectedStroke : baseStroke;
