@@ -545,8 +545,9 @@ function polygonCloseWillOccur(
   rawPointerScreen: Point,
   transform: ViewTransform,
 ): boolean {
+  const spec = measurementPathSpecs[measurementType];
   const first = confirmedPoints[0];
-  if (!measurementPathSpecs[measurementType].closed || !first) return false;
+  if (!spec.closed || confirmedPoints.length < spec.minVertices || !first) return false;
   const screenDelta = screenDeltaFromPagePoint(first, { rawPointerScreen, transform });
   const distanceScreen = Math.hypot(screenDelta.dx, screenDelta.dy);
   const alternateDistanceScreen = Math.hypot(
@@ -601,7 +602,7 @@ export function resolveDrawingPoint({
   );
   const normalPoint = anchor && orthogonal ? constrainOrthogonal(anchor, rawPoint) : rawPoint;
   if (closesPolygon) {
-    return { point: normalPoint, snapMatch: null, closesPolygon: true };
+    return { point: confirmedPoints[0]!, snapMatch: null, closesPolygon: true };
   }
 
   if (!snapEnabled) {
