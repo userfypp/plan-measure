@@ -2,25 +2,12 @@ name: Feature request
 description: Suggest an improvement to Plan Measure
 labels:
   - enhancement
+
 body:
   - type: textarea
-    id: problem
+    id: description
     attributes:
-      label: What problem are you trying to solve?
-      description: Describe the limitation or workflow that needs improvement.
+      label: Describe the feature
+      description: Explain what you would like to add or improve.
     validations:
       required: true
-
-  - type: textarea
-    id: proposal
-    attributes:
-      label: What would you change?
-      description: Describe the result or behavior you would like.
-    validations:
-      required: true
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Context
-      description: Add examples, screenshots, alternatives, or other useful context.
