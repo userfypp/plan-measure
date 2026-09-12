@@ -1,11 +1,11 @@
-## What changed and why?
+## Summary
 
-<!-- Briefly explain the change and the reason for it. -->
+<!-- What changed and why? -->
+
+## Validation
+
+<!-- What did you test or check? -->
 
 ## Related issue
 
 <!-- Closes #123 -->
-
-## Validation
-
-<!-- What did you run or check? -->
