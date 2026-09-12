@@ -38,6 +38,12 @@ export function MeasurementDetails({
   onDelete,
 }: MeasurementDetailsProps) {
   const workspace = useWorkspaceDrawerPresentation();
+  const editGeometryDisabled = !measurement.visible || !workspace.precisionActionAvailable;
+  const editGeometryDisabledReason = !measurement.visible
+    ? "Show the measurement before editing its geometry."
+    : !workspace.precisionActionAvailable
+      ? workspace.precisionDisabledReason
+      : undefined;
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -169,10 +175,8 @@ export function MeasurementDetails({
         <Button
           variant="secondary"
           size="compact"
-          disabled={!workspace.precisionActionAvailable}
-          disabledReason={
-            !workspace.precisionActionAvailable ? workspace.precisionDisabledReason : undefined
-          }
+          disabled={editGeometryDisabled}
+          disabledReason={editGeometryDisabledReason}
           onClick={() => workspace.requestPrecisionAuthoring(onEditGeometry)}
         >
           Edit geometry

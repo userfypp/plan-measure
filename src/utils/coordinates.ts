@@ -102,7 +102,7 @@ export function fitToScreen(
   page: Pick<LogicalPageBounds, "width" | "height">,
   viewer: ViewerSize,
   padding = 24,
-  minZoom = VIEWER_MIN_ZOOM,
+  minZoom = 0,
   maxZoom = VIEWER_MAX_ZOOM,
 ): ViewTransform {
   const availableWidth = Math.max(1, viewer.width - padding * 2);
