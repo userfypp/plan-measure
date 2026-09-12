@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PageState } from "../../types/domain";
+import type { PageState, Point } from "../../types/domain";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
 
@@ -180,18 +180,27 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     selectedMeasurementId = null,
     calibrationReferenceEdit = null,
     showCalibration = false,
+    transform = { zoom: 2, panX: 0, panY: 0 },
+    onCalibrationReferencePointsChange = noop,
+    onCalibrationReferenceDragCancellationChange = noop,
   }: {
     page?: PageState;
     selectedMeasurementId?: string | null;
     calibrationReferenceEdit?: CalibrationReferenceEditPreview | null;
     showCalibration?: boolean;
+    transform?: { zoom: number; panX: number; panY: number };
+    onCalibrationReferencePointsChange?: (points: [Point, Point]) => void;
+    onCalibrationReferenceDragCancellationChange?: (
+      owner: object,
+      cancel: (() => void) | null,
+    ) => void;
   } = {}) {
     act(() => {
       root.render(
         <PdfAnnotationLayer
           page={page}
           bounds={{ width: 600, height: 800, rotation: 0 }}
-          transform={{ zoom: 2, panX: 0, panY: 0 }}
+          transform={transform}
           activeTool="select"
           spacePan={false}
           isPanning={false}
@@ -207,7 +216,10 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           showMeasurements
           showLabels
           onSelectMeasurement={noop}
-          onCalibrationReferencePointsChange={noop}
+          onCalibrationReferencePointsChange={onCalibrationReferencePointsChange}
+          onCalibrationReferenceDragCancellationChange={
+            onCalibrationReferenceDragCancellationChange
+          }
           onMeasurementEditActiveChange={noop}
           onWholeMeasurementDragCancellationChange={noop}
           onVertexDragCancellationChange={noop}
@@ -430,5 +442,91 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(captured.lines).toHaveLength(0);
     expect(captured.circles).toHaveLength(0);
     expect(captured.texts).toHaveLength(0);
+  });
+
+  it("cancels a reference drag on zoom, restores its source preview, and ignores stale dragend", () => {
+    const source: [Point, Point] = [
+      { x: 20, y: 20 },
+      { x: 220, y: 20 },
+    ];
+    const onPointsChange = vi.fn<(points: [Point, Point]) => void>();
+    const edit: CalibrationReferenceEditPreview = {
+      calibrationId: "scale-1",
+      reference: "uniform",
+      points: source,
+      valid: true,
+    };
+    const node = {
+      x: () => 20,
+      y: () => 20,
+      getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }),
+      position: vi.fn(),
+      isDragging: () => true,
+      stopDrag: vi.fn(),
+    };
+
+    renderLayer({
+      calibrationReferenceEdit: edit,
+      onCalibrationReferencePointsChange: onPointsChange,
+    });
+    const handle = captured.circles[0]!;
+    const start = handle.onDragStart as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    const move = handle.onDragMove as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    const end = handle.onDragEnd as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    act(() => {
+      start({ cancelBubble: false, target: node });
+      move({ cancelBubble: false, target: node });
+    });
+
+    renderLayer({
+      calibrationReferenceEdit: edit,
+      transform: { zoom: 3, panX: 0, panY: 0 },
+      onCalibrationReferencePointsChange: onPointsChange,
+    });
+    act(() => end({ cancelBubble: false, target: node }));
+
+    expect(onPointsChange).toHaveBeenCalledTimes(1);
+    expect(onPointsChange).toHaveBeenLastCalledWith(source);
+    expect(node.position).toHaveBeenCalledWith(source[0]);
+    expect(node.stopDrag).toHaveBeenCalledTimes(1);
+  });
+
+  it("commits a stable reference drag with the drag-start transform", () => {
+    const onPointsChange = vi.fn<(points: [Point, Point]) => void>();
+    const edit: CalibrationReferenceEditPreview = {
+      calibrationId: "scale-1",
+      reference: "uniform",
+      points: [
+        { x: 20, y: 20 },
+        { x: 220, y: 20 },
+      ],
+      valid: true,
+    };
+    const node = {
+      x: () => 20,
+      y: () => 20,
+      getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }),
+      position: vi.fn(),
+      isDragging: () => true,
+      stopDrag: vi.fn(),
+    };
+
+    renderLayer({
+      calibrationReferenceEdit: edit,
+      onCalibrationReferencePointsChange: onPointsChange,
+    });
+    const handle = captured.circles[0]!;
+    const start = handle.onDragStart as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    const end = handle.onDragEnd as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    act(() => {
+      start({ cancelBubble: false, target: node });
+      end({ cancelBubble: false, target: node });
+    });
+
+    expect(onPointsChange).toHaveBeenCalledWith([
+      { x: 50, y: 50 },
+      { x: 220, y: 20 },
+    ]);
+    expect(node.stopDrag).not.toHaveBeenCalled();
   });
 });
