@@ -39,7 +39,7 @@ function measurement(id: string, classificationValueIds: string[], visible = tru
 }
 
 describe("createMeasurementGroups", () => {
-  it("groups by the chosen dimension in catalog and page order, with Unclassified last", () => {
+  it("groups by the chosen dimension in catalog and page order, with None assigned last", () => {
     const groups = createMeasurementGroups(
       [
         measurement("line-1", ["electrical", "approved"]),
@@ -51,7 +51,7 @@ describe("createMeasurementGroups", () => {
       "trade",
     );
 
-    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "Unclassified"]);
+    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "None assigned"]);
     expect(groups.map((group) => group.measurementIds)).toEqual([
       ["line-1", "line-4"],
       ["line-3"],
@@ -78,14 +78,14 @@ describe("createMeasurementGroups", () => {
 
     expect(createMeasurementGroups(measurements, catalog, "trade")).toMatchObject([
       { label: "Electrical", measurementIds: ["line-1"] },
-      { label: "Unclassified", measurementIds: ["line-2"] },
+      { label: "None assigned", measurementIds: ["line-2"] },
     ]);
     expect(createMeasurementGroups(measurements, catalog, "status")).toMatchObject([
       { label: "Approved", measurementIds: ["line-1", "line-2"] },
     ]);
   });
 
-  it("derives archive state and visibility without treating Unclassified as historical", () => {
+  it("derives archive state and visibility without treating None assigned as historical", () => {
     const tradeDimension = catalog.dimensions[0]!;
     const archivedCatalog: ClassificationCatalog = {
       dimensions: [{ ...tradeDimension, archived: true }],
@@ -102,7 +102,7 @@ describe("createMeasurementGroups", () => {
 
     expect(groups).toMatchObject([
       { label: "Electrical", archived: true, visibility: "mixed" },
-      { label: "Unclassified", archived: false, visibility: "visible" },
+      { label: "None assigned", archived: false, visibility: "visible" },
     ]);
     expect(
       createMeasurementGroups(
@@ -127,6 +127,39 @@ describe("createMeasurementGroups", () => {
     expect(
       createMeasurementGroups([measurement("legacy", ["plumbing"])], catalog, "trade")[0],
     ).toMatchObject({ archived: true });
+  });
+
+  it("distinguishes a real Unclassified value from the synthetic unassigned group", () => {
+    const collisionCatalog: ClassificationCatalog = {
+      dimensions: [
+        {
+          id: "status",
+          name: "Status",
+          archived: false,
+          values: [{ id: "unclassified", name: "Unclassified", archived: false }],
+        },
+      ],
+    };
+
+    const groups = createMeasurementGroups(
+      [measurement("assigned", ["unclassified"]), measurement("unassigned", [])],
+      collisionCatalog,
+      "status",
+    );
+
+    expect(groups).toMatchObject([
+      {
+        key: "dimension:status:value:unclassified",
+        label: "Unclassified",
+        measurementIds: ["assigned"],
+      },
+      {
+        key: "dimension:status:unclassified",
+        label: "None assigned",
+        measurementIds: ["unassigned"],
+      },
+    ]);
+    expect(collisionCatalog.dimensions[0]!.values[0]!.name).toBe("Unclassified");
   });
 
   it("returns no groups for an unavailable dimension", () => {
