@@ -62,7 +62,7 @@ export function createMeasurementGroups(
   if (unclassified.length) {
     groups.push({
       key: `dimension:${dimension.id}:unclassified`,
-      label: "Unclassified",
+      label: "None assigned",
       archived: false,
       measurementIds: unclassified.map((measurement) => measurement.id),
       visibility: getVisibility(unclassified),

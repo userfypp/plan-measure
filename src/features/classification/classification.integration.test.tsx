@@ -111,6 +111,66 @@ describe("classification domain integration", () => {
     }
   });
 
+  it("treats canonically equivalent names as duplicates without changing stored names", () => {
+    const decomposedCafe = "Cafe\u0301";
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1),
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_DIMENSION",
+      id: "cafe",
+      name: decomposedCafe,
+    });
+
+    const duplicateDimension = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_DIMENSION",
+      id: "cafe-composed",
+      name: "Café",
+    });
+    expect(duplicateDimension.error).toBe(
+      "Classification dimensions need unique IDs and names.",
+    );
+
+    state = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_DIMENSION",
+      id: "cafe-plain",
+      name: "Cafe",
+    });
+    expect(state.error).toBeNull();
+    expect(state.session!.classificationCatalog.dimensions.map(({ name }) => name)).toEqual([
+      decomposedCafe,
+      "Cafe",
+    ]);
+
+    state = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_VALUE",
+      dimensionId: "cafe",
+      id: "value-cafe",
+      name: decomposedCafe,
+    });
+    const duplicateValue = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_VALUE",
+      dimensionId: "cafe",
+      id: "value-cafe-composed",
+      name: "Café",
+    });
+    expect(duplicateValue.error).toBe(
+      "Classification values need unique IDs and names within a dimension.",
+    );
+
+    const distinctValue = sessionReducer(state, {
+      type: "ADD_CLASSIFICATION_VALUE",
+      dimensionId: "cafe",
+      id: "value-cafe-plain",
+      name: "Cafe",
+    });
+    expect(distinctValue.error).toBeNull();
+    expect(
+      distinctValue.session!.classificationCatalog.dimensions[0]!.values.map(({ name }) => name),
+    ).toEqual([decomposedCafe, "Cafe"]);
+  });
+
   it("keeps archived dimension and value names reserved", () => {
     let state = measuredState();
     state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });

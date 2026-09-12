@@ -300,6 +300,19 @@ describe("MeasurementDetails", () => {
     expect(props.onEditGeometry).toHaveBeenCalledOnce();
   });
 
+  it("disables Edit geometry for a hidden measurement", () => {
+    const props = createProps({ measurement: { ...firstMeasurement, visible: false } });
+    renderDetails(props);
+
+    const edit = buttonByText("Edit geometry");
+    expect(edit.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(edit.getAttribute("aria-describedby")!)?.textContent).toBe(
+      "Show the measurement before editing its geometry.",
+    );
+    act(() => edit.click());
+    expect(props.onEditGeometry).not.toHaveBeenCalled();
+  });
+
   it("gates only Edit geometry when precision is impossible", () => {
     const props = createProps();
     const capability = computeAuthoringCapability({

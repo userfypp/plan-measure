@@ -390,4 +390,45 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(captured.lines[1]?.stroke).toBe(roles.referenceStroke);
     expect(captured.circles.slice(2).every((handle) => handle.hitStrokeWidth === 0)).toBe(true);
   });
+
+  it("keeps only the active reference and handles visible while calibration visibility is off", () => {
+    const page = xyPage();
+    const edit: CalibrationReferenceEditPreview = {
+      calibrationId: "xy-1",
+      reference: "x",
+      points: [
+        { x: 40, y: 40 },
+        { x: 240, y: 40 },
+      ],
+      valid: true,
+    };
+    renderLayer({ page, showCalibration: true, calibrationReferenceEdit: edit });
+
+    captured.lines.length = 0;
+    captured.circles.length = 0;
+    captured.labels.length = 0;
+    captured.tags.length = 0;
+    captured.texts.length = 0;
+    renderLayer({ page, showCalibration: false, calibrationReferenceEdit: edit });
+
+    expect(captured.lines).toHaveLength(1);
+    expect(captured.lines[0]).toMatchObject({
+      points: [40, 40, 240, 40],
+      stroke: roles.measurementSelectedStroke,
+    });
+    expect(captured.circles).toHaveLength(2);
+    expect(captured.circles.every((handle) => handle.draggable === true)).toBe(true);
+    expect(captured.texts.map((text) => text.text)).toEqual(["X · editing"]);
+
+    captured.lines.length = 0;
+    captured.circles.length = 0;
+    captured.labels.length = 0;
+    captured.tags.length = 0;
+    captured.texts.length = 0;
+    renderLayer({ page, showCalibration: false, calibrationReferenceEdit: null });
+
+    expect(captured.lines).toHaveLength(0);
+    expect(captured.circles).toHaveLength(0);
+    expect(captured.texts).toHaveLength(0);
+  });
 });

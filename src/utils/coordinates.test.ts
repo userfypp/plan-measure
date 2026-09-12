@@ -37,6 +37,14 @@ describe("page and screen coordinates", () => {
     expect(result.panY).toBeCloseTo(110);
   });
 
+  it("fits below the manual minimum when the whole page requires it", () => {
+    const result = fitToScreen({ width: 10000, height: 5000 }, { width: 800, height: 600 }, 20);
+    expect(result.zoom).toBeCloseTo(0.076);
+    expect(result.zoom).toBeLessThan(VIEWER_MIN_ZOOM);
+    expect(result.panX).toBeCloseTo(20);
+    expect(result.panY).toBeCloseTo(110);
+  });
+
   it.each([
     { rotation: 0, width: 600, height: 800 },
     { rotation: 90, width: 800, height: 600 },
@@ -102,7 +110,7 @@ describe("page and screen coordinates", () => {
     });
   });
 
-  it("clamps every logical zoom path to the supported 10–800% range", () => {
+  it("clamps manual zoom to the supported 10–800% range", () => {
     expect(clampViewerZoom(0.01)).toBe(VIEWER_MIN_ZOOM);
     expect(clampViewerZoom(4)).toBe(4);
     expect(clampViewerZoom(20)).toBe(VIEWER_MAX_ZOOM);
@@ -110,6 +118,9 @@ describe("page and screen coordinates", () => {
     const initial = { zoom: 4, panX: -100, panY: 60 };
     const anchor = { x: 320, y: 240 };
     const pageBefore = screenToPage(anchor, initial);
+    const zoomedOut = zoomViewAtPoint(initial, anchor, 0.01);
+    expect(zoomedOut.zoom).toBe(VIEWER_MIN_ZOOM);
+    expect(screenToPage(anchor, zoomedOut)).toEqual(pageBefore);
     const zoomed = zoomViewAtPoint(initial, anchor, 10);
     expect(zoomed.zoom).toBe(8);
     expect(screenToPage(anchor, zoomed)).toEqual(pageBefore);
