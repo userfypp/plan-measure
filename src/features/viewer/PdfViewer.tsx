@@ -32,8 +32,8 @@ import {
 } from "../../utils/geometry";
 import {
   canvasLayout,
+  clampPointToPage,
   fitToScreen,
-  isPointInPage,
   logicalPageBoundsFromViewport,
   normalizeRotation,
   pdfRasterLayout,
@@ -918,8 +918,9 @@ export function PdfViewer({
     if (activeTool === "calibrate") {
       clearSnapFeedback();
       if (workspaceDraft?.type !== "calibrate") return;
-      const pagePoint = screenToPage(pointer, viewTransform);
-      if (isPointInPage(pagePoint, bounds)) setDraftPointer(pagePoint);
+      if (isScreenPointInPage(pointer, viewTransform, bounds)) {
+        setDraftPointer(clampPointToPage(screenToPage(pointer, viewTransform), bounds));
+      }
       return;
     }
     if (
@@ -983,13 +984,12 @@ export function PdfViewer({
       return;
     }
 
-    const point = screenToPage(pointer, viewTransform);
-
     if (activeTool === "calibrate") {
-      if (!isPointInPage(point, bounds)) {
+      if (!isScreenPointInPage(pointer, viewTransform, bounds)) {
         clearSnapFeedback();
         return;
       }
+      const point = clampPointToPage(screenToPage(pointer, viewTransform), bounds);
       if (!draft || draft.type !== "calibrate" || draft.points.length === 0) {
         setDraftPointer(point);
         startDraft({ type: "calibrate", points: [point] });
