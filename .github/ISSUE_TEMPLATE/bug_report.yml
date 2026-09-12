@@ -2,20 +2,13 @@ name: Bug report
 description: Report something that is not working correctly
 labels:
   - bug
+
 body:
   - type: textarea
     id: description
     attributes:
-      label: What happened?
-      description: Describe the problem and what you expected instead.
-    validations:
-      required: true
-
-  - type: textarea
-    id: reproduce
-    attributes:
-      label: How can we reproduce it?
-      description: Include the shortest steps you know.
+      label: Describe the bug
+      description: Explain what is wrong and, if useful, how to reproduce it.
     validations:
       required: true
 
@@ -23,4 +16,4 @@ body:
     id: environment
     attributes:
       label: Browser and system
-      placeholder: Safari 18, macOS 15
+      placeholder: Chrome, macOS
