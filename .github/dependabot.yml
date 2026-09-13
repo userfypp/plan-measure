@@ -1,11 +1,46 @@
 version: 2
+
 updates:
   - package-ecosystem: npm
-    directory: "/"
+    directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+
     open-pull-requests-limit: 5
+
+    cooldown:
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+    groups:
+      development-non-major:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+      production-patches:
+        applies-to: version-updates
+        dependency-type: production
+        update-types:
+          - patch
+
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
+      time: "06:15"
+      timezone: Europe/Madrid
+
+    open-pull-requests-limit: 2
+
+    groups:
+      github-actions:
+        patterns:
+          - "*"
