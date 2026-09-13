@@ -9,7 +9,8 @@ import { AppProvider, useAppState } from "../../app/state";
 import { ThemeProvider } from "../../app/themeState";
 import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
-import type { PageState, Tool } from "../../types/domain";
+import type { PageState, Point, Tool, ViewTransform } from "../../types/domain";
+import { pageToScreen, screenToPage } from "../../utils/coordinates";
 import { PdfViewer } from "./PdfViewer";
 import {
   AuthoringCapabilityProvider,
@@ -203,13 +204,16 @@ interface PdfPageDouble {
   render: ReturnType<typeof vi.fn>;
 }
 
-function createPdfPage(renderTaskFactory: () => RenderTask = resolvedRenderTask): PdfPageDouble {
+function createPdfPage(
+  renderTaskFactory: () => RenderTask = resolvedRenderTask,
+  dimensions = { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+): PdfPageDouble {
   const render = vi.fn(() => renderTaskFactory());
   const page = {
     rotate: 0,
     getViewport: ({ scale, rotation = 0 }: { scale: number; rotation?: number }) => ({
-      width: PAGE_WIDTH * scale,
-      height: PAGE_HEIGHT * scale,
+      width: dimensions.width * scale,
+      height: dimensions.height * scale,
       rotation,
     }),
     render,
@@ -261,6 +265,7 @@ interface ViewerHarnessProps {
   bottomExclusion?: number;
   authoringCapability?: AuthoringCapability;
   onChooseTool?: (tool: Tool) => void;
+  onCalibrationCandidate?: (points: [Point, Point]) => void;
 }
 
 function ViewerHarness({
@@ -275,6 +280,7 @@ function ViewerHarness({
     finePointer: true,
   }),
   onChooseTool = noop,
+  onCalibrationCandidate = noop,
 }: ViewerHarnessProps) {
   return (
     <ThemeProvider>
@@ -296,7 +302,7 @@ function ViewerHarness({
                       activeMeasurementEditId={null}
                       onMeasurementEditActiveChange={noop}
                       onChooseTool={onChooseTool}
-                      onCalibrationCandidate={noop}
+                      onCalibrationCandidate={onCalibrationCandidate}
                       onCalibrationCancel={noop}
                       calibrationReferenceEdit={null}
                       measurementEditingBlocked={false}
@@ -397,6 +403,7 @@ describe("PdfViewer render liveness", () => {
       bottomExclusion?: number;
       authoringCapability?: AuthoringCapability;
       onChooseTool?: (tool: Tool) => void;
+      onCalibrationCandidate?: (points: [Point, Point]) => void;
     } = {},
   ) {
     const content = (
@@ -407,6 +414,7 @@ describe("PdfViewer render liveness", () => {
         bottomExclusion={options.bottomExclusion}
         authoringCapability={options.authoringCapability}
         onChooseTool={options.onChooseTool}
+        onCalibrationCandidate={options.onCalibrationCandidate}
       />
     );
     await act(async () => {
@@ -569,6 +577,106 @@ describe("PdfViewer render liveness", () => {
 
     expect(canvas().style.visibility).toBe("visible");
     expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toBe("");
+  });
+
+  it("preserves a zoom made during an active pan and continues from the current translation", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    const registerNavigation: ViewerNavigationRegistration = (next) => {
+      navigation = next;
+    };
+
+    await mountViewer(runtime.document, { registerNavigation });
+    const initialZoom = (navigation as ViewerNavigationModel | null)?.zoom;
+    if (initialZoom === undefined) throw new Error("Viewer navigation was not registered.");
+    const initialLeft = Number.parseFloat(canvas().style.left);
+    const initialTop = Number.parseFloat(canvas().style.top);
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseDown = stage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    if (!onMouseDown || !onMouseMove) throw new Error("Stage pan handlers were not captured.");
+    const panEvent = (x: number, y: number, button = 1) => ({
+      target: {
+        getStage: () => ({ getPointerPosition: () => ({ x, y }) }),
+      },
+      evt: { button, preventDefault: vi.fn() },
+    });
+
+    await act(async () => {
+      onMouseDown(panEvent(100, 100));
+      onMouseMove(panEvent(130, 120));
+    });
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(initialTop + 20);
+
+    await act(async () => navigation?.onZoomIn());
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBeCloseTo(initialZoom * 1.25);
+    const zoomedLeft = Number.parseFloat(canvas().style.left);
+    const zoomedTop = Number.parseFloat(canvas().style.top);
+    const currentStage = konvaCapture.stages.at(-1);
+    const continuePan = currentStage?.onMouseMove as ((event: unknown) => void) | undefined;
+    const finishPan = currentStage?.onMouseUp as (() => void) | undefined;
+    if (!continuePan || !finishPan) throw new Error("Updated Stage pan handlers were not captured.");
+
+    await act(async () => continuePan(panEvent(140, 135)));
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft + 10);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
+
+    await act(async () => finishPan());
+    expect((navigation as ViewerNavigationModel | null)?.zoom).toBeCloseTo(initialZoom * 1.25);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft + 10);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
+  });
+
+  it("accepts calibration points on an exact screen edge without admitting outside pointers", async () => {
+    const dimensions = { width: 595.276, height: 841.89 };
+    const pdfPage = createPdfPage(resolvedRenderTask, dimensions);
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const onCalibrationCandidate = vi.fn<(points: [Point, Point]) => void>();
+    let navigation: ViewerNavigationModel | null = null;
+    const registerNavigation: ViewerNavigationRegistration = (next) => {
+      navigation = next;
+    };
+
+    await mountViewer(runtime.document, { registerNavigation, onCalibrationCandidate });
+    await act(async () => navigation?.onZoomIn());
+    const layer = konvaCapture.annotationLayers.at(-1);
+    const transform = layer?.transform as ViewTransform;
+    const edgePointer = pageToScreen({ x: dimensions.width, y: 100 }, transform);
+    expect(screenToPage(edgePointer, transform).x).toBeGreaterThan(dimensions.width);
+
+    await act(async () => workspaceProbe!.chooseTool("calibrate"));
+    const clickAt = async (point: Point) => {
+      const onClick = konvaCapture.stages.at(-1)?.onClick as
+        | ((event: unknown) => void)
+        | undefined;
+      if (!onClick) throw new Error("Stage click handler was not captured.");
+      await act(async () =>
+        onClick({
+          target: { getStage: () => ({ getPointerPosition: () => point }) },
+          evt: { button: 0 },
+        }),
+      );
+    };
+
+    await clickAt(edgePointer);
+    expect(workspaceProbe?.draft).toMatchObject({
+      type: "calibrate",
+      points: [{ x: dimensions.width, y: 100 }],
+    });
+
+    const interiorPoint = { x: 100, y: 100 };
+    await clickAt(pageToScreen(interiorPoint, transform));
+    const candidate = onCalibrationCandidate.mock.calls[0]?.[0];
+    expect(candidate?.[0]).toEqual({ x: dimensions.width, y: 100 });
+    expect(candidate?.[1]?.x).toBeCloseTo(interiorPoint.x);
+    expect(candidate?.[1]?.y).toBeCloseTo(interiorPoint.y);
+
+    await act(async () => workspaceProbe!.chooseTool("calibrate"));
+    await clickAt({ x: edgePointer.x + 1, y: edgePointer.y });
+    expect(workspaceProbe?.draft).toBeNull();
+    expect(onCalibrationCandidate).toHaveBeenCalledTimes(1);
   });
 
   it("keeps Fit and programmatic zoom inert when the Dock exclusion leaves no safe viewport", async () => {

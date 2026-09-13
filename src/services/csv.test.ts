@@ -747,6 +747,18 @@ describe("CSV export", () => {
     expect(() => buildCsv(session)).toThrow("Measurement line-id has a missing calibration.");
   });
 
+  it("rejects an unrepresentable finite-input measurement instead of exporting Infinity", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[0]!.points = [
+      { x: 0, y: 0 },
+      { x: Number.MAX_VALUE, y: Number.MAX_VALUE },
+    ];
+
+    expect(() => buildCsv(session)).toThrowError(
+      new RangeError("Measurement line-id must produce finite results before exporting CSV."),
+    );
+  });
+
   it("rejects empty exports", () => {
     const session = createEmptySession({ name: "empty.pdf", size: 1, lastModified: 1 }, 1);
     expect(() => buildCsv(session)).toThrow(NoMeasurementsError);

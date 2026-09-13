@@ -17,6 +17,7 @@ import {
   isPredominantlyHorizontal,
   isPredominantlyVertical,
   isOrthogonalSegment,
+  isValidPageCalibration,
   pathLengthMm,
 } from "./geometry";
 
@@ -563,6 +564,161 @@ describe("geometry", () => {
     ).toBe(false);
     expect(() =>
       millimetresPerPageUnit({ ...calibration, referenceDistanceMm: Number.POSITIVE_INFINITY }),
+    ).toThrow(RangeError);
+  });
+
+  it("rejects finite calibrations whose derived scale overflows or underflows", () => {
+    const overflowing = {
+      ...calibration,
+      end: { x: 1e-14, y: 0 },
+      referenceDistanceMm: Number.MAX_VALUE,
+    };
+    const underflowing = {
+      ...calibration,
+      end: { x: Number.MAX_VALUE, y: 0 },
+      referenceDistanceMm: Number.MIN_VALUE,
+    };
+
+    expect(isValidCalibration(overflowing)).toBe(false);
+    expect(isValidCalibration(underflowing)).toBe(false);
+    expect(() => millimetresPerPageUnit(overflowing)).toThrow(RangeError);
+    expect(() => millimetresPerPageUnit(underflowing)).toThrow(RangeError);
+  });
+
+  it("accepts finite X/Y references whose opposite-sign spans overflow subtraction", () => {
+    const extremeXy: PageCalibration = {
+      id: "extreme-xy",
+      name: "Extreme X/Y",
+      mode: "xy",
+      xReference: {
+        start: { x: -Number.MAX_VALUE, y: 0 },
+        end: { x: Number.MAX_VALUE, y: 1 },
+        referenceDistanceMm: Number.MAX_VALUE,
+      },
+      yReference: {
+        start: { x: 0, y: -Number.MAX_VALUE },
+        end: { x: 1, y: Number.MAX_VALUE },
+        referenceDistanceMm: Number.MAX_VALUE,
+      },
+    };
+
+    expect(isPredominantlyHorizontal(extremeXy.xReference.start, extremeXy.xReference.end)).toBe(
+      true,
+    );
+    expect(isPredominantlyVertical(extremeXy.yReference.start, extremeXy.yReference.end)).toBe(
+      true,
+    );
+    expect(isValidPageCalibration(extremeXy)).toBe(true);
+    expect(calibrationScaleX(extremeXy)).toBe(0.5);
+    expect(calibrationScaleY(extremeXy)).toBe(0.5);
+    expect(
+      lineLengthMm(
+        [
+          { x: -Number.MAX_VALUE, y: 0 },
+          { x: Number.MAX_VALUE, y: 0 },
+        ],
+        extremeXy,
+      ),
+    ).toBe(Number.MAX_VALUE);
+  });
+
+  it("rejects X/Y calibrations whose derived axis scale is not finite", () => {
+    const overflowingXy: PageCalibration = {
+      ...xy,
+      xReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 1e-14, y: 0 },
+        referenceDistanceMm: Number.MAX_VALUE,
+      },
+    };
+
+    expect(isValidPageCalibration(overflowingXy)).toBe(false);
+    expect(() => calibrationScaleX(overflowingXy)).toThrow(RangeError);
+  });
+
+  it("reorders X/Y area scaling when the established multiplication order overflows", () => {
+    const offsettingXy: PageCalibration = {
+      ...xy,
+      xReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1e20,
+      },
+      yReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 0, y: 1 },
+        referenceDistanceMm: 1e-20,
+      },
+    };
+    const result = polygonResultsMm(
+      {
+        points: [
+          { x: 0, y: 0 },
+          { x: 1e150, y: 0 },
+          { x: 1e150, y: 1e150 },
+          { x: 0, y: 1e150 },
+        ],
+      },
+      offsettingXy,
+    );
+
+    expect(result.areaMm2 / 1e300).toBeCloseTo(1);
+    expect(Number.isFinite(result.perimeterMm)).toBe(true);
+  });
+
+  it("computes finite physical area when the page-unit shoelace intermediates overflow", () => {
+    const extremeXy: PageCalibration = {
+      ...xy,
+      xReference: {
+        start: { x: -Number.MAX_VALUE, y: 0 },
+        end: { x: Number.MAX_VALUE, y: 0 },
+        referenceDistanceMm: 2,
+      },
+      yReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 0, y: 1 },
+        referenceDistanceMm: 1,
+      },
+    };
+    const result = polygonResultsMm(
+      {
+        points: [
+          { x: -Number.MAX_VALUE, y: 0 },
+          { x: Number.MAX_VALUE, y: 0 },
+          { x: Number.MAX_VALUE, y: 1 },
+          { x: -Number.MAX_VALUE, y: 1 },
+        ],
+      },
+      extremeXy,
+    );
+
+    expect(result.perimeterMm).toBe(6);
+    expect(result.areaMm2).toBeCloseTo(2);
+  });
+
+  it("throws instead of returning an unrepresentable finite-input measurement", () => {
+    expect(() =>
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: Number.MAX_VALUE, y: Number.MAX_VALUE },
+        ],
+        { ...calibration, end: { x: 1, y: 0 }, referenceDistanceMm: 1 },
+      ),
+    ).toThrow(RangeError);
+  });
+
+  it("throws when finite segment lengths overflow during path accumulation", () => {
+    expect(() =>
+      pathLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: Number.MAX_VALUE, y: 0 },
+          { x: 0, y: 0 },
+        ],
+        { ...calibration, end: { x: 4, y: 0 }, referenceDistanceMm: 3 },
+        false,
+      ),
     ).toThrow(RangeError);
   });
 });

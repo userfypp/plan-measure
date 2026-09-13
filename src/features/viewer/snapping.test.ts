@@ -208,6 +208,46 @@ describe("snap target extraction", () => {
     expect(resolveSnapCandidate({ x: 500, y: 200 }, 1, targets, edgeBounds)?.point.x).toBe(500);
   });
 
+  it("retains a page-sized diagonal offset at 1e18 coordinates", () => {
+    const edgeBounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
+    const clipped = clipSegmentToPage(
+      { x: -1e18, y: -1e18 + 128 },
+      { x: 1e18, y: 1e18 + 128 },
+      edgeBounds,
+    );
+
+    expect(clipped).toEqual({
+      start: { x: 0, y: 128 },
+      end: { x: 272, y: 400 },
+    });
+    expect(Object.values(clipped!.start).concat(Object.values(clipped!.end)).every(Number.isFinite)).toBe(
+      true,
+    );
+  });
+
+  it("rejects a very large diagonal that remains outside the page", () => {
+    expect(
+      clipSegmentToPage(
+        { x: -1e18, y: -1e18 + 1024 },
+        { x: 1e18, y: 1e18 + 1024 },
+        { width: 500, height: 400, rotation: 0 },
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps a boundary-only intersection as a zero-length visible segment", () => {
+    expect(
+      clipSegmentToPage(
+        { x: -10, y: 0 },
+        { x: 0, y: 10 },
+        { width: 500, height: 400, rotation: 0 },
+      ),
+    ).toEqual({
+      start: { x: 0, y: 10 },
+      end: { x: 0, y: 10 },
+    });
+  });
+
   it("clips a huge diagonal to the true page edge instead of creating phantom geometry", () => {
     const edgeBounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
     const clipped = clipSegmentToPage(
@@ -810,7 +850,26 @@ describe("drawing point resolution", () => {
       },
     );
     expect(resolution?.closesPolygon).toBe(true);
+    expect(resolution?.point).toEqual(polygonPoints[0]);
     expect(resolution?.snapMatch).toBeNull();
+  });
+
+  it("adds a near-first Polygon point until enough vertices exist to close", () => {
+    const resolution = resolveAtPagePoint(
+      { x: 11, y: 10 },
+      {
+        measurementType: "polygon",
+        confirmedPoints: [
+          { x: 10, y: 10 },
+          { x: 60, y: 10 },
+        ],
+      },
+    );
+
+    expect(resolution).toMatchObject({
+      point: { x: 11, y: 10 },
+      closesPolygon: false,
+    });
   });
 
   it("keeps an exact 10 px Polygon-close gesture inclusive in screen space", () => {
@@ -832,7 +891,29 @@ describe("drawing point resolution", () => {
     });
 
     expect(resolution?.closesPolygon).toBe(true);
+    expect(resolution?.point).toEqual(firstPoint);
     expect(resolution?.snapMatch).toBeNull();
+  });
+
+  it("uses the first Polygon vertex for both closing preview and committed closure", () => {
+    const draft = {
+      type: "path" as const,
+      measurementType: "polygon" as const,
+      points: [
+        { x: 10, y: 10 },
+        { x: 60, y: 10 },
+        { x: 60, y: 60 },
+      ],
+    };
+    const resolution = resolveAtPagePoint(
+      { x: 11, y: 10 },
+      { measurementType: "polygon", confirmedPoints: draft.points },
+    )!;
+    const previewEndpoint = buildDraftPreviewPoints(draft, resolution.point).at(-1);
+    const committedClosingEndpoint = draft.points[0];
+
+    expect(resolution.closesPolygon).toBe(true);
+    expect(previewEndpoint).toEqual(committedClosingEndpoint);
   });
 
   it("uses the same resolved point for preview geometry and click placement", () => {

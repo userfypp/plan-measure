@@ -32,8 +32,8 @@ import {
 } from "../../utils/geometry";
 import {
   canvasLayout,
+  clampPointToPage,
   fitToScreen,
-  isPointInPage,
   logicalPageBoundsFromViewport,
   normalizeRotation,
   pdfRasterLayout,
@@ -179,6 +179,10 @@ export function PdfViewer({
   const vertexDragCancellationRegistryRef = useRef(
     createMeasurementVertexDragCancellationRegistry(),
   );
+  const calibrationReferenceDragCancellationRef = useRef<{
+    owner: object;
+    cancel: () => void;
+  } | null>(null);
   const activeMeasurementEditIdRef = useRef(activeMeasurementEditId);
   const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
   const renderRequestRef = useRef(0);
@@ -231,6 +235,24 @@ export function PdfViewer({
 
   const cancelActiveVertexDrag = useCallback(() => {
     vertexDragCancellationRegistryRef.current.cancelActive();
+  }, []);
+
+  const registerCalibrationReferenceDragCancellation = useCallback(
+    (owner: object, cancel: (() => void) | null) => {
+      if (cancel) {
+        calibrationReferenceDragCancellationRef.current = { owner, cancel };
+      } else if (calibrationReferenceDragCancellationRef.current?.owner === owner) {
+        calibrationReferenceDragCancellationRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const cancelActiveCalibrationReferenceDrag = useCallback(() => {
+    const active = calibrationReferenceDragCancellationRef.current;
+    if (!active) return;
+    calibrationReferenceDragCancellationRef.current = null;
+    active.cancel();
   }, []);
 
   const clearActiveMeasurementEdit = useCallback(() => {
@@ -337,11 +359,13 @@ export function PdfViewer({
     () => () => {
       cancelActiveWholeMeasurementDrag();
       cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
       clearActiveMeasurementEdit();
     },
     [
       cancelActiveVertexDrag,
       cancelActiveWholeMeasurementDrag,
+      cancelActiveCalibrationReferenceDrag,
       clearActiveMeasurementEdit,
       page.pageNumber,
     ],
@@ -565,22 +589,39 @@ export function PdfViewer({
     (screenPoint: Point, factor: number) => {
       cancelActiveWholeMeasurementDrag();
       cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
       clearSnapFeedback();
       setFitMode(false);
+      const current = transformRef.current;
       const next = zoomViewAtPoint(
-        transformRef.current,
+        current,
         screenPoint,
-        transformRef.current.zoom * factor,
+        current.zoom * factor,
       );
+      const panDrag = panDragRef.current;
+      if (panDrag) {
+        panDrag.transform = {
+          ...next,
+          panX: panDrag.transform.panX + next.panX - current.panX,
+          panY: panDrag.transform.panY + next.panY - current.panY,
+        };
+      }
       commitTransform(next);
     },
-    [cancelActiveVertexDrag, cancelActiveWholeMeasurementDrag, clearSnapFeedback, commitTransform],
+    [
+      cancelActiveCalibrationReferenceDrag,
+      cancelActiveVertexDrag,
+      cancelActiveWholeMeasurementDrag,
+      clearSnapFeedback,
+      commitTransform,
+    ],
   );
 
   const fitPage = useCallback(() => {
     if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0) return;
     cancelActiveWholeMeasurementDrag();
     cancelActiveVertexDrag();
+    cancelActiveCalibrationReferenceDrag();
     clearSnapFeedback();
     setFitMode(true);
     commitTransform(fitToScreen(bounds, safeViewer.size));
@@ -589,6 +630,7 @@ export function PdfViewer({
     safeViewer.size,
     cancelActiveWholeMeasurementDrag,
     cancelActiveVertexDrag,
+    cancelActiveCalibrationReferenceDrag,
     clearSnapFeedback,
     commitTransform,
   ]);
@@ -597,10 +639,17 @@ export function PdfViewer({
     (pageNumber: number) => {
       cancelActiveWholeMeasurementDrag();
       cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
       clearSnapFeedback();
       onPageChange(pageNumber);
     },
-    [cancelActiveVertexDrag, cancelActiveWholeMeasurementDrag, clearSnapFeedback, onPageChange],
+    [
+      cancelActiveCalibrationReferenceDrag,
+      cancelActiveVertexDrag,
+      cancelActiveWholeMeasurementDrag,
+      clearSnapFeedback,
+      onPageChange,
+    ],
   );
 
   useLayoutEffect(() => {
@@ -751,6 +800,7 @@ export function PdfViewer({
     function cancelMeasurementEditForEnvironmentLoss() {
       cancelActiveWholeMeasurementDrag();
       cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
       clearActiveMeasurementEdit();
       clearSnapFeedback();
       releaseSpacePan();
@@ -768,6 +818,7 @@ export function PdfViewer({
       cancelPreparedDrag: () => {
         cancelActiveWholeMeasurementDrag();
         cancelActiveVertexDrag();
+        cancelActiveCalibrationReferenceDrag();
       },
     });
     return () => {
@@ -779,6 +830,7 @@ export function PdfViewer({
   }, [
     cancelActiveWholeMeasurementDrag,
     cancelActiveVertexDrag,
+    cancelActiveCalibrationReferenceDrag,
     clearActiveMeasurementEdit,
     clearSnapFeedback,
     executeKeyboardAction,
@@ -795,6 +847,7 @@ export function PdfViewer({
     if (!startsViewerPan(activeTool, spacePan, event.evt.button)) return;
     cancelActiveWholeMeasurementDrag();
     cancelActiveVertexDrag();
+    cancelActiveCalibrationReferenceDrag();
     clearSnapFeedback();
     const pointer = stagePointer(event);
     if (!pointer) return;
@@ -865,8 +918,9 @@ export function PdfViewer({
     if (activeTool === "calibrate") {
       clearSnapFeedback();
       if (workspaceDraft?.type !== "calibrate") return;
-      const pagePoint = screenToPage(pointer, viewTransform);
-      if (isPointInPage(pagePoint, bounds)) setDraftPointer(pagePoint);
+      if (isScreenPointInPage(pointer, viewTransform, bounds)) {
+        setDraftPointer(clampPointToPage(screenToPage(pointer, viewTransform), bounds));
+      }
       return;
     }
     if (
@@ -930,13 +984,12 @@ export function PdfViewer({
       return;
     }
 
-    const point = screenToPage(pointer, viewTransform);
-
     if (activeTool === "calibrate") {
-      if (!isPointInPage(point, bounds)) {
+      if (!isScreenPointInPage(pointer, viewTransform, bounds)) {
         clearSnapFeedback();
         return;
       }
+      const point = clampPointToPage(screenToPage(pointer, viewTransform), bounds);
       if (!draft || draft.type !== "calibrate" || draft.points.length === 0) {
         setDraftPointer(point);
         startDraft({ type: "calibrate", points: [point] });
@@ -1186,6 +1239,9 @@ export function PdfViewer({
                   showLabels={showLabels}
                   onSelectMeasurement={selectMeasurement}
                   onCalibrationReferencePointsChange={onCalibrationReferencePointsChange}
+                  onCalibrationReferenceDragCancellationChange={
+                    registerCalibrationReferenceDragCancellation
+                  }
                   onMeasurementEditActiveChange={onMeasurementEditActiveChange}
                   onWholeMeasurementDragCancellationChange={
                     registerWholeMeasurementDragCancellation

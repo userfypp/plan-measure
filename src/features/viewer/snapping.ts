@@ -62,6 +62,30 @@ function finitePoint(point: Point): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
+const SPLITTER = 134_217_729;
+const MAX_SPLIT_OPERAND = Number.MAX_VALUE / SPLITTER;
+
+/** Returns a * b - c * d with the rounding error of each product restored. */
+function differenceOfProducts(a: number, b: number, c: number, d: number): number {
+  const productError = (left: number, right: number, product: number): number => {
+    const leftSplit = SPLITTER * left;
+    const leftHigh = leftSplit - (leftSplit - left);
+    const leftLow = left - leftHigh;
+    const rightSplit = SPLITTER * right;
+    const rightHigh = rightSplit - (rightSplit - right);
+    const rightLow = right - rightHigh;
+    return (
+      ((leftHigh * rightHigh - product) + leftHigh * rightLow + leftLow * rightHigh) +
+      leftLow * rightLow
+    );
+  };
+
+  const first = a * b;
+  const second = c * d;
+  const difference = first - second;
+  return difference + ((first - difference) - second + productError(a, b, first) - productError(c, d, second));
+}
+
 export function clipSegmentToPage(
   start: Point,
   end: Point,
@@ -114,9 +138,35 @@ export function clipSegmentToPage(
     return isPointInPage(start, bounds) ? { start: { ...start }, end: { ...end } } : null;
   }
 
-  const lineA = dy;
-  const lineB = -dx;
-  const lineC = lineA * normalizedStart.x + lineB * normalizedStart.y;
+  let lineA = dy;
+  let lineB = -dx;
+  let lineC = lineA * normalizedStart.x + lineB * normalizedStart.y;
+  let usesRawLine = false;
+
+  // The normalized determinant above keeps products finite, but can discard a
+  // page-sized offset from an otherwise enormous line before its two terms are
+  // subtracted. When the original products are safe, recover their rounding
+  // errors instead so the implicit line retains that offset. Keep the normalized
+  // form as the fallback for ranges whose original arithmetic could overflow.
+  const rawDx = end.x - start.x;
+  const rawDy = end.y - start.y;
+  const canUseCompensatedLine =
+    Number.isFinite(rawDx) &&
+    Number.isFinite(rawDy) &&
+    [rawDx, rawDy, start.x, start.y].every(
+      (value) => Math.abs(value) <= MAX_SPLIT_OPERAND,
+    ) &&
+    Number.isFinite(rawDy * start.x) &&
+    Number.isFinite(rawDx * start.y);
+  if (canUseCompensatedLine) {
+    const compensatedLineC = differenceOfProducts(rawDy, start.x, rawDx, start.y);
+    if (Number.isFinite(compensatedLineC)) {
+      lineA = rawDy;
+      lineB = -rawDx;
+      lineC = compensatedLineC;
+      usesRawLine = true;
+    }
+  }
   const useXForOrder = Math.abs(dx) >= Math.abs(dy);
   const orderDirection = Math.sign(useXForOrder ? dx : dy);
   const candidates: Array<{ point: Point; order: number }> = [];
@@ -147,8 +197,10 @@ export function clipSegmentToPage(
       [bounds.width, normalizedWidth],
     ] as const) {
       const t = (normalizedX - normalizedStart.x) / dx;
-      const normalizedY = (lineC - lineA * normalizedX) / lineB;
-      addCandidate({ x, y: normalizedY * scale }, t);
+      const y = usesRawLine
+        ? (lineC - lineA * x) / lineB
+        : ((lineC - lineA * normalizedX) / lineB) * scale;
+      addCandidate({ x, y }, t);
     }
   }
 
@@ -158,8 +210,10 @@ export function clipSegmentToPage(
       [bounds.height, normalizedHeight],
     ] as const) {
       const t = (normalizedY - normalizedStart.y) / dy;
-      const normalizedX = (lineC - lineB * normalizedY) / lineA;
-      addCandidate({ x: normalizedX * scale, y }, t);
+      const x = usesRawLine
+        ? (lineC - lineB * y) / lineA
+        : ((lineC - lineB * normalizedY) / lineA) * scale;
+      addCandidate({ x, y }, t);
     }
   }
 
@@ -545,8 +599,9 @@ function polygonCloseWillOccur(
   rawPointerScreen: Point,
   transform: ViewTransform,
 ): boolean {
+  const spec = measurementPathSpecs[measurementType];
   const first = confirmedPoints[0];
-  if (!measurementPathSpecs[measurementType].closed || !first) return false;
+  if (!spec.closed || confirmedPoints.length < spec.minVertices || !first) return false;
   const screenDelta = screenDeltaFromPagePoint(first, { rawPointerScreen, transform });
   const distanceScreen = Math.hypot(screenDelta.dx, screenDelta.dy);
   const alternateDistanceScreen = Math.hypot(
@@ -601,7 +656,7 @@ export function resolveDrawingPoint({
   );
   const normalPoint = anchor && orthogonal ? constrainOrthogonal(anchor, rawPoint) : rawPoint;
   if (closesPolygon) {
-    return { point: normalPoint, snapMatch: null, closesPolygon: true };
+    return { point: confirmedPoints[0]!, snapMatch: null, closesPolygon: true };
   }
 
   if (!snapEnabled) {

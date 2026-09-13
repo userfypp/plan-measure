@@ -85,4 +85,20 @@ describe("measurement formatting", () => {
       ),
     ).toBe("Repair required");
   });
+
+  it("shows repair required instead of an infinite measurement result", () => {
+    expect(
+      formatMeasurement(
+        {
+          type: "line",
+          points: [
+            { x: 0, y: 0 },
+            { x: Number.MAX_VALUE, y: Number.MAX_VALUE },
+          ],
+        },
+        calibration,
+        "mm",
+      ),
+    ).toBe("Repair required");
+  });
 });

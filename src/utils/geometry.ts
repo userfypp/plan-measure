@@ -140,12 +140,58 @@ export function areEffectivelyIdentical(a: Point, b: Point): boolean {
   return dx * dx + dy * dy <= tolerance * tolerance;
 }
 
-export function isValidCalibration(calibration: Calibration): boolean {
+function areCalibrationPointsEffectivelyIdentical(a: Point, b: Point): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const tolerance = calibrationPointTolerance(a, b);
+  const squaredDistance = dx * dx + dy * dy;
+  const squaredTolerance = tolerance * tolerance;
+  return Number.isFinite(squaredDistance) && Number.isFinite(squaredTolerance)
+    ? squaredDistance <= squaredTolerance
+    : Math.hypot(dx, dy) <= tolerance;
+}
+
+function uniformCalibrationScale(calibration: Calibration): number {
+  const dx = calibration.end.x - calibration.start.x;
+  const dy = calibration.end.y - calibration.start.y;
+  const pageDistance = Math.hypot(dx, dy);
+  if (Number.isFinite(pageDistance)) {
+    return calibration.referenceDistanceMm / pageDistance;
+  }
+  if (
+    !Number.isFinite(calibration.start.x) ||
+    !Number.isFinite(calibration.start.y) ||
+    !Number.isFinite(calibration.end.x) ||
+    !Number.isFinite(calibration.end.y)
+  ) {
+    return Number.NaN;
+  }
+  const halfDx = Number.isFinite(dx) ? dx / 2 : calibration.end.x / 2 - calibration.start.x / 2;
+  const halfDy = Number.isFinite(dy) ? dy / 2 : calibration.end.y / 2 - calibration.start.y / 2;
+  return calibration.referenceDistanceMm / Math.hypot(halfDx, halfDy) / 2;
+}
+
+function axisCalibrationScale(calibration: Calibration, axis: "x" | "y"): number {
+  const start = calibration.start[axis];
+  const end = calibration.end[axis];
+  const span = Math.abs(end - start);
+  if (Number.isFinite(span)) return calibration.referenceDistanceMm / span;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return Number.NaN;
+  return calibration.referenceDistanceMm / Math.abs(end / 2 - start / 2) / 2;
+}
+
+function hasValidCalibrationInputs(calibration: Calibration): boolean {
   return (
     Number.isFinite(calibration.referenceDistanceMm) &&
     calibration.referenceDistanceMm > 0 &&
-    !areEffectivelyIdentical(calibration.start, calibration.end)
+    !areCalibrationPointsEffectivelyIdentical(calibration.start, calibration.end)
   );
+}
+
+export function isValidCalibration(calibration: Calibration): boolean {
+  if (!hasValidCalibrationInputs(calibration)) return false;
+  const scale = uniformCalibrationScale(calibration);
+  return Number.isFinite(scale) && scale > 0;
 }
 
 function hasValidAxisComponent(start: Point, end: Point, axis: "x" | "y"): boolean {
@@ -154,28 +200,40 @@ function hasValidAxisComponent(start: Point, end: Point, axis: "x" | "y"): boole
 }
 
 export function isPredominantlyHorizontal(start: Point, end: Point): boolean {
-  return (
-    hasValidAxisComponent(start, end, "x") && Math.abs(end.x - start.x) > Math.abs(end.y - start.y)
-  );
+  if (!hasValidAxisComponent(start, end, "x")) return false;
+  const dx = Math.abs(end.x - start.x);
+  const dy = Math.abs(end.y - start.y);
+  return Number.isFinite(dx) && Number.isFinite(dy)
+    ? dx > dy
+    : Math.abs(end.x / 2 - start.x / 2) > Math.abs(end.y / 2 - start.y / 2);
 }
 
 export function isPredominantlyVertical(start: Point, end: Point): boolean {
-  return (
-    hasValidAxisComponent(start, end, "y") && Math.abs(end.y - start.y) > Math.abs(end.x - start.x)
-  );
+  if (!hasValidAxisComponent(start, end, "y")) return false;
+  const dx = Math.abs(end.x - start.x);
+  const dy = Math.abs(end.y - start.y);
+  return Number.isFinite(dx) && Number.isFinite(dy)
+    ? dy > dx
+    : Math.abs(end.y / 2 - start.y / 2) > Math.abs(end.x / 2 - start.x / 2);
 }
 
 export function isValidXyCalibration(
   calibration: Extract<PageCalibration, { mode: "xy" }>,
 ): boolean {
   const { xReference, yReference } = calibration;
+  const scaleX = axisCalibrationScale(xReference, "x");
+  const scaleY = axisCalibrationScale(yReference, "y");
   return (
-    isValidCalibration(xReference) &&
-    isValidCalibration(yReference) &&
+    hasValidCalibrationInputs(xReference) &&
+    hasValidCalibrationInputs(yReference) &&
     hasValidAxisComponent(xReference.start, xReference.end, "x") &&
     hasValidAxisComponent(yReference.start, yReference.end, "y") &&
     isPredominantlyHorizontal(xReference.start, xReference.end) &&
-    isPredominantlyVertical(yReference.start, yReference.end)
+    isPredominantlyVertical(yReference.start, yReference.end) &&
+    Number.isFinite(scaleX) &&
+    scaleX > 0 &&
+    Number.isFinite(scaleY) &&
+    scaleY > 0
   );
 }
 
@@ -189,8 +247,7 @@ export function millimetresPerPageUnit(calibration: Calibration): number {
   if (!isValidCalibration(calibration)) {
     throw new RangeError("Calibration must have distinct points and a finite positive distance.");
   }
-  const pageDistance = distance(calibration.start, calibration.end);
-  return calibration.referenceDistanceMm / pageDistance;
+  return uniformCalibrationScale(calibration);
 }
 
 export function calibrationScaleX(calibration: Calibration | PageCalibration): number {
@@ -200,10 +257,7 @@ export function calibrationScaleX(calibration: Calibration | PageCalibration): n
   if (!isValidXyCalibration(calibration)) {
     throw new RangeError("X/Y calibration must have valid horizontal and vertical references.");
   }
-  return (
-    calibration.xReference.referenceDistanceMm /
-    Math.abs(calibration.xReference.end.x - calibration.xReference.start.x)
-  );
+  return axisCalibrationScale(calibration.xReference, "x");
 }
 
 export function calibrationScaleY(calibration: Calibration | PageCalibration): number {
@@ -213,10 +267,15 @@ export function calibrationScaleY(calibration: Calibration | PageCalibration): n
   if (!isValidXyCalibration(calibration)) {
     throw new RangeError("X/Y calibration must have valid horizontal and vertical references.");
   }
-  return (
-    calibration.yReference.referenceDistanceMm /
-    Math.abs(calibration.yReference.end.y - calibration.yReference.start.y)
-  );
+  return axisCalibrationScale(calibration.yReference, "y");
+}
+
+function scaledAxisDelta(start: number, end: number, scale: number): number {
+  const scaledDelta = (end - start) * scale;
+  if (Number.isFinite(scaledDelta)) return scaledDelta;
+  const fallback = end * scale - start * scale;
+  if (Number.isFinite(fallback)) return fallback;
+  throw new RangeError("Measurement result must be finite.");
 }
 
 export function lineLengthMm(
@@ -226,9 +285,11 @@ export function lineLengthMm(
   if (points.length !== 2) throw new RangeError("A line measurement must have exactly two points.");
   const start = points[0]!;
   const end = points[1]!;
-  const dxMm = (end.x - start.x) * calibrationScaleX(calibration);
-  const dyMm = (end.y - start.y) * calibrationScaleY(calibration);
-  return Math.hypot(dxMm, dyMm);
+  const dxMm = scaledAxisDelta(start.x, end.x, calibrationScaleX(calibration));
+  const dyMm = scaledAxisDelta(start.y, end.y, calibrationScaleY(calibration));
+  const lengthMm = Math.hypot(dxMm, dyMm);
+  if (!Number.isFinite(lengthMm)) throw new RangeError("Measurement result must be finite.");
+  return lengthMm;
 }
 
 export function pathLengthMm(
@@ -242,7 +303,11 @@ export function pathLengthMm(
     const start = points[index]!;
     const end = points[(index + 1) % points.length]!;
     return lineLengthMm([start, end], calibration);
-  }).reduce((total, length) => total + length, 0);
+  }).reduce((total, length) => {
+    const nextTotal = total + length;
+    if (!Number.isFinite(nextTotal)) throw new RangeError("Measurement result must be finite.");
+    return nextTotal;
+  }, 0);
 }
 
 export function polygonPerimeterPageUnits(points: Point[]): number {
@@ -276,9 +341,32 @@ export function polygonResultsMm(
   const scaleY = calibrationScaleY(calibration);
   const points = measurement.points;
   const perimeterMm = pathLengthMm(points, calibration, true);
+  const pageArea = polygonAreaPageUnitsSquared(points);
+  let areaMm2 = pageArea * scaleX * scaleY;
+  if (!Number.isFinite(areaMm2)) areaMm2 = pageArea * scaleY * scaleX;
+  if (!Number.isFinite(areaMm2)) {
+    const origin = points[0];
+    if (origin) {
+      const doubledAreaMm2 = points.reduce((total, point, index) => {
+        const next = points[(index + 1) % points.length];
+        if (!next) return total;
+        const pointX = scaledAxisDelta(origin.x, point.x, scaleX);
+        const pointY = scaledAxisDelta(origin.y, point.y, scaleY);
+        const nextX = scaledAxisDelta(origin.x, next.x, scaleX);
+        const nextY = scaledAxisDelta(origin.y, next.y, scaleY);
+        const nextTotal = total + pointX * nextY - nextX * pointY;
+        if (!Number.isFinite(nextTotal)) {
+          throw new RangeError("Measurement result must be finite.");
+        }
+        return nextTotal;
+      }, 0);
+      areaMm2 = Math.abs(doubledAreaMm2) / 2;
+    }
+  }
+  if (!Number.isFinite(areaMm2)) throw new RangeError("Measurement result must be finite.");
   return {
     perimeterMm,
-    areaMm2: polygonAreaPageUnitsSquared(points) * scaleX * scaleY,
+    areaMm2,
   };
 }
 
