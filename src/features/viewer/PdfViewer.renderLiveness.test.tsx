@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 
-import { act, StrictMode, useLayoutEffect, type ReactNode } from "react";
+import {
+  act,
+  forwardRef,
+  StrictMode,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +42,10 @@ const pdfJs = vi.hoisted(() => ({
 }));
 
 type CapturedProps = Record<string, unknown>;
+interface MockStageProps {
+  children?: ReactNode;
+  [key: string]: unknown;
+}
 const konvaCapture = vi.hoisted(() => ({
   circles: [] as CapturedProps[],
   lines: [] as CapturedProps[],
@@ -62,10 +74,17 @@ vi.mock("react-konva", () => ({
     konvaCapture.rects.push(props);
     return null;
   },
-  Stage: (props: CapturedProps & { children?: ReactNode }) => {
-    konvaCapture.stages.push(props);
-    return <>{props.children}</>;
-  },
+  Stage: forwardRef<unknown, MockStageProps>(({ children, ...props }, ref) => {
+    const contentRef = useRef<HTMLDivElement>(null);
+    useImperativeHandle(ref, () => ({ getContent: () => contentRef.current }));
+    konvaCapture.stages.push({ ...props, children });
+    const stageChildren = children as ReactNode;
+    return (
+      <div ref={contentRef} data-testid="konva-content">
+        {stageChildren}
+      </div>
+    );
+  }),
 }));
 
 vi.mock("./PdfAnnotationLayer", () => ({
@@ -394,6 +413,16 @@ describe("PdfViewer render liveness", () => {
     return instance;
   }
 
+  function stageContent(): HTMLDivElement {
+    const stageContent = container.querySelector<HTMLDivElement>("[data-testid=konva-content]");
+    if (!stageContent) throw new Error("Konva content was not mounted.");
+    return stageContent;
+  }
+
+  function stageCursor(): string {
+    return stageContent().style.cursor;
+  }
+
   async function mountViewer(
     document: PDFDocumentProxy,
     options: {
@@ -629,6 +658,119 @@ describe("PdfViewer render liveness", () => {
     expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
   });
 
+  it("pans on the first Space-drag after an outside control held focus", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+
+    await mountViewer(runtime.document);
+    const viewer = container.querySelector<HTMLElement>('[role="region"]');
+    if (!viewer) throw new Error("Viewer focus surface was not mounted.");
+
+    const outsideControl = document.createElement("button");
+    document.body.append(outsideControl);
+    outsideControl.focus();
+    await act(async () => {
+      outsideControl.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(konvaCapture.annotationLayers.at(-1)?.spacePan).toBe(true);
+
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseDown = stage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    const onMouseUp = stage?.onMouseUp as (() => void) | undefined;
+    if (!onMouseDown || !onMouseMove || !onMouseUp) {
+      throw new Error("Stage pan handlers were not captured.");
+    }
+    const panEvent = (x: number, y: number) => ({
+      target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) },
+      evt: { button: 0, preventDefault: vi.fn() },
+    });
+    const initialLeft = Number.parseFloat(canvas().style.left);
+    await act(async () => {
+      viewer.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+      onMouseDown(panEvent(100, 100));
+      onMouseMove(panEvent(130, 120));
+    });
+
+    expect(document.activeElement).toBe(viewer);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
+
+    await act(async () => onMouseUp());
+    const updatedStage = konvaCapture.stages.at(-1);
+    const secondMouseDown = updatedStage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const secondMouseMove = updatedStage?.onMouseMove as ((event: unknown) => void) | undefined;
+    const secondMouseUp = updatedStage?.onMouseUp as (() => void) | undefined;
+    if (!secondMouseDown || !secondMouseMove || !secondMouseUp) {
+      throw new Error("Updated Stage pan handlers were not captured.");
+    }
+    await act(async () => {
+      secondMouseDown(panEvent(130, 120));
+      secondMouseMove(panEvent(160, 140));
+    });
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 60);
+
+    await act(async () => {
+      secondMouseUp();
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: " " }));
+    });
+    outsideControl.remove();
+  });
+
+  it("updates the Stage cursor for stationary-pointer viewer state changes", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    const registerNavigation: ViewerNavigationRegistration = (next) => {
+      navigation = next;
+    };
+
+    await mountViewer(runtime.document, { registerNavigation });
+    const initialStageContent = stageContent();
+    expect(stageCursor()).toBe("default");
+
+    // No mousemove: changing tools while the pointer is already over the Stage
+    // must update the cursor property on that existing interaction surface.
+    await act(async () => workspaceProbe!.chooseTool("line"));
+    expect(stageContent()).toBe(initialStageContent);
+    expect(stageCursor()).toBe("crosshair");
+
+    // Snap changes viewer state without changing the selected tool or moving the pointer.
+    await act(async () => workspaceProbe!.toggleSnap());
+    expect(stageContent()).toBe(initialStageContent);
+    expect(stageCursor()).toBe("crosshair");
+
+    // Space-pan is another stationary-pointer transition with a distinct cursor.
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    });
+    expect(stageContent()).toBe(initialStageContent);
+    expect(stageCursor()).toBe("grab");
+
+    // Normal pointer movement remains wired after the state transitions.
+    const onMouseMove = konvaCapture.stages.at(-1)?.onMouseMove as
+      | ((event: unknown) => void)
+      | undefined;
+    if (!onMouseMove) throw new Error("Stage mouse-move handler was not captured.");
+    await act(async () =>
+      onMouseMove({
+        target: { getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }) },
+        evt: { button: 0 },
+      }),
+    );
+    expect(stageContent()).toBe(initialStageContent);
+    expect(stageCursor()).toBe("grab");
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keyup", { key: " " })));
+    expect(stageContent()).toBe(initialStageContent);
+    expect(stageCursor()).toBe("crosshair");
+
+    await act(async () => navigation?.onZoomIn());
+    expect(stageContent()).toBe(initialStageContent);
+    expect(stageCursor()).toBe("crosshair");
+  });
+
   it("accepts calibration points on an exact screen edge without admitting outside pointers", async () => {
     const dimensions = { width: 595.276, height: 841.89 };
     const pdfPage = createPdfPage(resolvedRenderTask, dimensions);
@@ -840,6 +982,40 @@ describe("PdfViewer render liveness", () => {
     await act(async () => interactionProbe!.completeCurrentDraft());
     expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
     expect(workspaceProbe?.draft).not.toBeNull();
+  });
+
+  it("cancels an in-progress Line when Escape reaches the window after canvas drawing", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+
+    await mountViewer(runtime.document);
+    await act(async () => workspaceProbe!.chooseTool("line"));
+
+    const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
+    if (!onClick) throw new Error("Stage click handler was not captured.");
+    const transform = konvaCapture.annotationLayers.at(-1)?.transform as ViewTransform;
+    await act(async () =>
+      onClick({
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => pageToScreen({ x: 100, y: 100 }, transform),
+          }),
+        },
+        evt: { button: 0 },
+      }),
+    );
+    expect(workspaceProbe?.draft).toMatchObject({
+      type: "path",
+      measurementType: "line",
+    });
+    expect(workspaceProbe?.draft?.type === "path" && workspaceProbe.draft.points).toHaveLength(1);
+
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
+
+    expect(workspaceProbe?.activeTool).toBe("line");
+    expect(workspaceProbe?.draft).toBeNull();
   });
 
   it("preserves an existing draft across capability loss, blocks new precision shortcuts, and still allows safe Finish", async () => {

@@ -34,30 +34,6 @@
   inset: 0;
 }
 
-.cursorDefault,
-.cursorDefault .stage,
-.cursorDefault .stage canvas {
-  cursor: default !important;
-}
-
-.cursorCrosshair,
-.cursorCrosshair .stage,
-.cursorCrosshair .stage canvas {
-  cursor: crosshair !important;
-}
-
-.cursorGrab,
-.cursorGrab .stage,
-.cursorGrab .stage canvas {
-  cursor: grab !important;
-}
-
-.cursorGrabbing,
-.cursorGrabbing .stage,
-.cursorGrabbing .stage canvas {
-  cursor: grabbing !important;
-}
-
 .loading {
   position: absolute;
   left: 50%;

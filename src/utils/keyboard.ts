@@ -209,7 +209,7 @@ export function getViewerKeyboardAction(
  */
 export function getGlobalViewerKeyboardAction(
   event: KeyboardShortcutEvent,
-): "zoom-in" | "zoom-out" | ShortcutAction | null {
+): "start-pan" | "zoom-in" | "zoom-out" | ShortcutAction | null {
   if (
     event.defaultPrevented ||
     hasKeyboardShortcutModifier(event) ||
@@ -217,6 +217,7 @@ export function getGlobalViewerKeyboardAction(
   )
     return null;
 
+  if (event.key === " ") return "start-pan";
   if (event.key === "+" || event.key === "=") return "zoom-in";
   if (event.key === "-") return "zoom-out";
   const shortcut = findShortcut(event.key)?.action ?? null;

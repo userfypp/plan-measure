@@ -246,6 +246,18 @@ describe("global viewer keyboard policy", () => {
     });
   });
 
+  it("starts temporary pan while a non-editing application control has focus", () => {
+    const measurementControl = new FakeHTMLElement(
+      "input",
+      false,
+      "checkbox",
+    ) as unknown as EventTarget;
+
+    expect(getGlobalViewerKeyboardAction(keyboardEvent(" ", measurementControl))).toBe(
+      "start-pan",
+    );
+  });
+
   it("toggles Snap globally from non-editing application chrome", () => {
     const target = new FakeHTMLElement("button") as unknown as EventTarget;
     expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target))).toBe("toggle-snap");
@@ -273,6 +285,7 @@ describe("global viewer keyboard policy", () => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;
       expect(getGlobalViewerKeyboardAction(keyboardEvent("p", target))).toBeNull();
       expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target))).toBeNull();
+      expect(getGlobalViewerKeyboardAction(keyboardEvent(" ", target))).toBeNull();
       expect(getGlobalViewerKeyboardAction(keyboardEvent("-", target))).toBeNull();
     },
   );
@@ -296,6 +309,7 @@ describe("global viewer keyboard policy", () => {
   it("does not claim shortcuts inside a dialog", () => {
     const target = new FakeHTMLElement("button", true) as unknown as EventTarget;
     expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target))).toBeNull();
+    expect(getGlobalViewerKeyboardAction(keyboardEvent(" ", target))).toBeNull();
   });
 
   it("ignores repeated tool and drawing-aid shortcuts without disabling held zoom", () => {
@@ -440,6 +454,11 @@ describe("viewer keyboard policy", () => {
     expect(getViewerKeyboardAction(keyboardEvent("Enter", canvas), "polygon", polygonDraft)).toBe(
       "complete-path",
     );
+  });
+
+  it("starts temporary pan when the viewer already has focus", () => {
+    const canvas = new FakeHTMLElement("canvas") as unknown as EventTarget;
+    expect(getViewerKeyboardAction(keyboardEvent(" ", canvas), "select", null)).toBe("start-pan");
   });
 
   it("toggles Ortho from the viewer surface", () => {
