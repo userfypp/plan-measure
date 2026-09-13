@@ -629,6 +629,66 @@ describe("PdfViewer render liveness", () => {
     expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
   });
 
+  it("pans on the first Space-drag after an outside control held focus", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+
+    await mountViewer(runtime.document);
+    const viewer = container.querySelector<HTMLElement>('[role="region"]');
+    if (!viewer) throw new Error("Viewer focus surface was not mounted.");
+
+    const outsideControl = document.createElement("button");
+    document.body.append(outsideControl);
+    outsideControl.focus();
+    await act(async () => {
+      outsideControl.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(konvaCapture.annotationLayers.at(-1)?.spacePan).toBe(true);
+
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseDown = stage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    const onMouseUp = stage?.onMouseUp as (() => void) | undefined;
+    if (!onMouseDown || !onMouseMove || !onMouseUp) {
+      throw new Error("Stage pan handlers were not captured.");
+    }
+    const panEvent = (x: number, y: number) => ({
+      target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) },
+      evt: { button: 0, preventDefault: vi.fn() },
+    });
+    const initialLeft = Number.parseFloat(canvas().style.left);
+    await act(async () => {
+      viewer.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+      onMouseDown(panEvent(100, 100));
+      onMouseMove(panEvent(130, 120));
+    });
+
+    expect(document.activeElement).toBe(viewer);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
+
+    await act(async () => onMouseUp());
+    const updatedStage = konvaCapture.stages.at(-1);
+    const secondMouseDown = updatedStage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const secondMouseMove = updatedStage?.onMouseMove as ((event: unknown) => void) | undefined;
+    const secondMouseUp = updatedStage?.onMouseUp as (() => void) | undefined;
+    if (!secondMouseDown || !secondMouseMove || !secondMouseUp) {
+      throw new Error("Updated Stage pan handlers were not captured.");
+    }
+    await act(async () => {
+      secondMouseDown(panEvent(130, 120));
+      secondMouseMove(panEvent(160, 140));
+    });
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 60);
+
+    await act(async () => {
+      secondMouseUp();
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: " " }));
+    });
+    outsideControl.remove();
+  });
+
   it("accepts calibration points on an exact screen edge without admitting outside pointers", async () => {
     const dimensions = { width: 595.276, height: 841.89 };
     const pdfPage = createPdfPage(resolvedRenderTask, dimensions);
