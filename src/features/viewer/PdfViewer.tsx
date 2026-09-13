@@ -162,6 +162,7 @@ export function PdfViewer({
     completeDraft,
   } = useWorkspaceState();
   const viewerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageGroupRef = useRef<Konva.Group>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
@@ -1092,13 +1093,20 @@ export function PdfViewer({
     });
   }
 
-  const cursorClass = isPanning
-    ? styles.cursorGrabbing
+  const cursor = isPanning
+    ? "grabbing"
     : activeTool === "hand" || spacePan
-      ? styles.cursorGrab
+      ? "grab"
       : activeTool === "select"
-        ? styles.cursorDefault
-        : styles.cursorCrosshair;
+        ? "default"
+        : "crosshair";
+
+  useLayoutEffect(() => {
+    // Konva owns the actual native pointer boundary inside React's Stage wrapper.
+    // Reapply after every commit so state changes that retain the cursor value
+    // also update that boundary.
+    stageRef.current?.getContent().style.setProperty("cursor", cursor);
+  });
 
   const placementResolution = useMemo(() => {
     if (precisionAuthoringBlocked) return null;
@@ -1177,7 +1185,8 @@ export function PdfViewer({
     <div className={styles.viewerShell}>
       <div
         ref={viewerRef}
-        className={`${styles.viewport} ${cursorClass}`}
+        className={styles.viewport}
+        style={{ cursor }}
         role="region"
         tabIndex={0}
         data-dialog-focus-fallback
@@ -1204,6 +1213,7 @@ export function PdfViewer({
         />
         {showPage && bounds && viewerSize.width > 0 && viewerSize.height > 0 && (
           <Stage
+            ref={stageRef}
             width={viewerSize.width}
             height={viewerSize.height}
             className={styles.stage}
