@@ -454,7 +454,27 @@ function createCsvRowContext(
     calibration.mode === "uniform" ? String(millimetresPerPageUnit(calibration)) : "";
   const unit = session.settings.displayUnit;
   const spec = measurementPathSpecs[measurement.type];
-  const result = measurementResultsMm(measurement, calibration);
+  let result: ReturnType<typeof measurementResultsMm>;
+  try {
+    result = measurementResultsMm(measurement, calibration);
+  } catch (error) {
+    if (error instanceof RangeError) {
+      throw new RangeError(
+        `Measurement ${measurement.id} must produce finite results before exporting CSV.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  if (
+    [result.lengthMm, result.perimeterMm, result.areaMm2].some(
+      (value) => value !== null && !Number.isFinite(value),
+    )
+  ) {
+    throw new RangeError(
+      `Measurement ${measurement.id} must produce finite results before exporting CSV.`,
+    );
+  }
   const classificationValues = new Map<string, ClassificationValue | null>();
   for (const dimension of session.classificationCatalog.dimensions) {
     classificationValues.set(

@@ -70,7 +70,13 @@ export function formatMeasurement(
   ) {
     return "Repair required";
   }
-  const result = measurementResultsMm(measurement, calibration);
+  let result: ReturnType<typeof measurementResultsMm>;
+  try {
+    result = measurementResultsMm(measurement, calibration);
+  } catch (error) {
+    if (error instanceof RangeError) return "Repair required";
+    throw error;
+  }
   if (!measurementPathSpecs[measurement.type].closed && result.lengthMm !== null) {
     return `${formatDisplayNumber(fromMillimetres(result.lengthMm, unit))} ${unit}`;
   }
