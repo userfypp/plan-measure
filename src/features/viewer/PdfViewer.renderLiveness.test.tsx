@@ -842,6 +842,40 @@ describe("PdfViewer render liveness", () => {
     expect(workspaceProbe?.draft).not.toBeNull();
   });
 
+  it("cancels an in-progress Line when Escape reaches the window after canvas drawing", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+
+    await mountViewer(runtime.document);
+    await act(async () => workspaceProbe!.chooseTool("line"));
+
+    const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
+    if (!onClick) throw new Error("Stage click handler was not captured.");
+    const transform = konvaCapture.annotationLayers.at(-1)?.transform as ViewTransform;
+    await act(async () =>
+      onClick({
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => pageToScreen({ x: 100, y: 100 }, transform),
+          }),
+        },
+        evt: { button: 0 },
+      }),
+    );
+    expect(workspaceProbe?.draft).toMatchObject({
+      type: "path",
+      measurementType: "line",
+    });
+    expect(workspaceProbe?.draft?.type === "path" && workspaceProbe.draft.points).toHaveLength(1);
+
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
+
+    expect(workspaceProbe?.activeTool).toBe("line");
+    expect(workspaceProbe?.draft).toBeNull();
+  });
+
   it("preserves an existing draft across capability loss, blocks new precision shortcuts, and still allows safe Finish", async () => {
     const pdfPage = createPdfPage();
     const runtime = createPdfDocument({ 1: pdfPage.page });
