@@ -5,16 +5,11 @@ import {
   calibrationScaleY,
   millimetresPerPageUnit,
 } from "../../utils/geometry";
-
-const MILLIMETRES_PER_PDF_POINT = 25.4 / 72;
+import { scaleRatioDenominatorFromMillimetresPerPageUnit } from "../../utils/pdfUnits";
 
 function formatRatioValue(value: number): string {
   const formatted = formatDisplayNumber(value);
   return formatted.includes(".") ? formatted.replace(/0+$/, "").replace(/\.$/, "") : formatted;
-}
-
-function ratioDenominator(millimetresPerPageUnitValue: number): number {
-  return millimetresPerPageUnitValue / MILLIMETRES_PER_PDF_POINT;
 }
 
 export interface ScaleDisplayMetadata {
@@ -26,7 +21,7 @@ export interface ScaleDisplayMetadata {
 export function scaleDisplayMetadata(calibration: PageCalibration): ScaleDisplayMetadata {
   if (calibration.mode === "uniform") {
     const ratioLabel = `1:${formatRatioValue(
-      ratioDenominator(millimetresPerPageUnit(calibration)),
+      scaleRatioDenominatorFromMillimetresPerPageUnit(millimetresPerPageUnit(calibration)),
     )}`;
     return {
       ratioLabel,
@@ -35,8 +30,12 @@ export function scaleDisplayMetadata(calibration: PageCalibration): ScaleDisplay
     };
   }
 
-  const xRatio = `1:${formatRatioValue(ratioDenominator(calibrationScaleX(calibration)))}`;
-  const yRatio = `1:${formatRatioValue(ratioDenominator(calibrationScaleY(calibration)))}`;
+  const xRatio = `1:${formatRatioValue(
+    scaleRatioDenominatorFromMillimetresPerPageUnit(calibrationScaleX(calibration)),
+  )}`;
+  const yRatio = `1:${formatRatioValue(
+    scaleRatioDenominatorFromMillimetresPerPageUnit(calibrationScaleY(calibration)),
+  )}`;
   return {
     ratioLabel: `X ${xRatio} · Y ${yRatio}`,
     modeLabel: "X/Y",

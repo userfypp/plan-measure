@@ -1,8 +1,14 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave, isSessionPersistable } from "../app/autosave";
-import { createEmptySession, initialSessionState, sessionReducer } from "../app/sessionState";
+import {
+  createEmptySession,
+  initialSessionState,
+  sessionReducer,
+  type SessionCommandResult,
+} from "../app/sessionState";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
+import { createStandardScalePreset } from "../features/calibration/standardScalePresets";
 import type {
   CurrentSession,
   Point,
@@ -271,6 +277,43 @@ it("persists and recovers a moved measurement as one ordinary points update", as
   expect(restored).toEqual({ ...sourceBefore, points: movedPoints });
   expect(recovered?.session.classificationCatalog).toEqual(moved.session!.classificationCatalog);
   expect(recovered?.session.pages[2]!.calibrations).toEqual(moved.session!.pages[2]!.calibrations);
+});
+
+it("persists and recovers a standard Uniform scale preset with unchanged measurement results", async () => {
+  let state: SessionCommandResult = {
+    ...initialSessionState,
+    session: createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1),
+  };
+  const calibration = createStandardScalePreset(50);
+  state = sessionReducer(state, {
+    type: "ADD_CALIBRATION",
+    pageNumber: 1,
+    id: "preset-50",
+    name: "Scale 1",
+    calibration,
+  });
+  state = sessionReducer(state, {
+    type: "ADD_MEASUREMENT",
+    pageNumber: 1,
+    id: "line-1",
+    measurementType: "line",
+    points: [
+      { x: 0, y: 0 },
+      { x: 72, y: 0 },
+    ],
+  });
+  expect(state.error).toBeNull();
+
+  await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
+  const recovered = await loadSavedSession();
+  const recoveredPage = recovered?.session.pages[1];
+  const recoveredCalibration = recoveredPage?.calibrations[0];
+  const recoveredMeasurement = recoveredPage?.measurements[0];
+
+  expect(recoveredCalibration).toEqual({ id: "preset-50", name: "Scale 1", ...calibration });
+  expect(recoveredPage?.activeCalibrationId).toBe("preset-50");
+  expect(recoveredMeasurement?.calibrationId).toBe("preset-50");
+  expect(lineLengthMm(recoveredMeasurement!.points, recoveredCalibration!)).toBeCloseTo(1270, 10);
 });
 
 function withMockDefaultLocale<T>(locale: string, run: () => T): T {

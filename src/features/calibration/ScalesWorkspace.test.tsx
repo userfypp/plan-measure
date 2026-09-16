@@ -67,6 +67,7 @@ function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorks
   return {
     page,
     onAddScale: vi.fn(),
+    onAddPresetScale: vi.fn(),
     onRecalibrate: vi.fn(),
     onEditReference: vi.fn(),
     ...overrides,
@@ -280,7 +281,7 @@ describe("ScalesWorkspace", () => {
     expect(page.measurements[0]?.calibrationId).toBe("uniform");
   });
 
-  it("offers exactly Uniform and X/Y from the single Add scale disclosure", () => {
+  it("offers manual Uniform, the three standard ratio presets, and X/Y from one Add scale disclosure", () => {
     const props = createProps();
     renderScales(props);
     const add = buttonByLabel("Add scale");
@@ -289,12 +290,20 @@ describe("ScalesWorkspace", () => {
 
     act(() => add.click());
     let items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(5);
     expect(items.map((item) => item.textContent)).toEqual([
       "UniformOne reference",
+      "1:20Standard ratio · Uniform",
+      "1:50Standard ratio · Uniform",
+      "1:100Standard ratio · Uniform",
       "X/YSeparate X and Y references",
     ]);
-    act(() => items[1]?.click());
+    act(() => items[2]?.click());
+    expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
+
+    act(() => add.click());
+    items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    act(() => items[4]?.click());
     expect(props.onAddScale).toHaveBeenCalledWith("xy");
 
     act(() => add.click());
@@ -344,9 +353,14 @@ describe("ScalesWorkspace", () => {
     );
     act(() => add.click());
     const addItems = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    expect(addItems).toHaveLength(2);
-    expect(addItems.every((item) => item.getAttribute("aria-disabled") === "true")).toBe(true);
-    expect(addItems.every((item) => item.textContent?.includes(reason))).toBe(true);
+    expect(addItems).toHaveLength(5);
+    expect(addItems[0]?.getAttribute("aria-disabled")).toBe("true");
+    expect(addItems[4]?.getAttribute("aria-disabled")).toBe("true");
+    expect(addItems[0]?.textContent).toContain(reason);
+    expect(addItems[4]?.textContent).toContain(reason);
+    expect(addItems.slice(1, 4).every((item) => item.getAttribute("aria-disabled") !== "true")).toBe(
+      true,
+    );
   });
 
   it("routes every scale spatial entry through the shared recoverable-authoring handoff", () => {
@@ -365,7 +379,11 @@ describe("ScalesWorkspace", () => {
     act(() => items[0]?.click());
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    act(() => items[1]?.click());
+    act(() => items[2]?.click());
+    expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
+    act(() => add.click());
+    items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    act(() => items[4]?.click());
 
     const uniformInspect = buttonByLabel("Expand scale Ground floor, active");
     act(() => uniformInspect.click());
@@ -382,6 +400,7 @@ describe("ScalesWorkspace", () => {
     act(() => buttonWithin(xyDetails, "Edit Y").click());
 
     expect(request).toHaveBeenCalledTimes(6);
+    expect(props.onAddPresetScale).toHaveBeenCalledTimes(1);
     expect(props.onAddScale).not.toHaveBeenCalled();
     expect(props.onRecalibrate).not.toHaveBeenCalled();
     expect(props.onEditReference).not.toHaveBeenCalled();

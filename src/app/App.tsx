@@ -29,6 +29,10 @@ import {
   selectCalibrationReference,
 } from "./calibrationFlow";
 import {
+  createStandardScalePreset,
+  type StandardScalePresetRatio,
+} from "../features/calibration/standardScalePresets";
+import {
   beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
@@ -484,6 +488,16 @@ function PlanMeasureApp() {
     chooseTool("calibrate");
   }
 
+  function addStandardScalePreset(ratio: StandardScalePresetRatio) {
+    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    addCalibration({
+      pageNumber: currentPage.pageNumber,
+      id: crypto.randomUUID(),
+      name: `Scale ${currentPage.nextCalibrationNumber}`,
+      calibration: createStandardScalePreset(ratio),
+    });
+  }
+
   function requestRecalibration(calibrationId?: string) {
     if (calibrationReferenceEdit) return;
     if (authoringCapabilityRef.current?.available !== true) return;
@@ -824,6 +838,7 @@ function PlanMeasureApp() {
                   page={currentPage}
                   actionsDisabled={calibrationActionsDisabled}
                   onAddScale={beginNewCalibration}
+                  onAddPresetScale={addStandardScalePreset}
                   onRecalibrate={requestRecalibration}
                   onEditReference={beginCalibrationReferenceEdit}
                 />
