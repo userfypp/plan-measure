@@ -65,7 +65,6 @@ export interface AddCalibrationCommand {
 export interface RecalibrateCalibrationCommand {
   pageNumber: number;
   calibrationId: string;
-  name: string;
   calibration: CalibrationInput;
 }
 
@@ -817,22 +816,18 @@ function updateRecalibration(
   command: RecalibrateCalibrationCommand,
 ): SessionCommandResult {
   if (!state.session) return state;
-  const { pageNumber, calibrationId, name: rawName, calibration } = command;
+  const { pageNumber, calibrationId, calibration } = command;
   const page = state.session.pages[pageNumber];
   const existing = page && findPageCalibration(page, calibrationId);
-  const name = rawName.trim();
   if (
     !page ||
     !existing ||
-    !name ||
     existing.mode !== calibration.mode ||
-    !isValidPageCalibration({ ...calibration, id: existing.id, name })
+    !isValidPageCalibration({ ...calibration, id: existing.id, name: existing.name })
   ) {
     return {
       ...state,
-      error: !name
-        ? "Scale name cannot be empty."
-        : "Scale requires two distinct points and a valid distance greater than zero.",
+      error: "Scale requires two distinct points and a valid distance greater than zero.",
     };
   }
   return {
@@ -841,7 +836,7 @@ function updateRecalibration(
       ...currentPage,
       calibrations: currentPage.calibrations.map((currentCalibration) =>
         currentCalibration.id === existing.id
-          ? { ...calibration, id: existing.id, name }
+          ? { ...calibration, id: existing.id, name: existing.name }
           : currentCalibration,
       ),
     })),

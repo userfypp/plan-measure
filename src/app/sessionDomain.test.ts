@@ -353,7 +353,6 @@ describe("session domain reducer", () => {
       type: "RECALIBRATE_CALIBRATION",
       pageNumber: 1,
       calibrationId: "scale-1",
-      name: "Main plan revised",
       calibration: {
         mode: "uniform",
         start: { x: 0, y: 0 },
@@ -373,7 +372,7 @@ describe("session domain reducer", () => {
     );
     expect(pageAfter.calibrations[0]).toMatchObject({
       id: "scale-1",
-      name: "Main plan revised",
+      name: "Main plan",
     });
     expect(pageAfter.measurements.map((measurement) => measurement.calibrationId)).toEqual([
       "scale-1",
@@ -419,7 +418,6 @@ describe("session domain reducer", () => {
       type: "RECALIBRATE_CALIBRATION",
       pageNumber: 1,
       calibrationId: "xy",
-      name: "Scanned detail revised",
       calibration: {
         mode: "xy",
         xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 1 }, referenceDistanceMm: 200 },
@@ -430,7 +428,7 @@ describe("session domain reducer", () => {
     expect(after.calibrations[1]).toMatchObject({
       id: "xy",
       mode: "xy",
-      name: "Scanned detail revised",
+      name: "Scanned detail",
     });
     expect(
       lineLengthMm(

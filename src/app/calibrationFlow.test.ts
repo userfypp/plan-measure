@@ -132,14 +132,13 @@ describe("calibration flow", () => {
       type: "RECALIBRATE_CALIBRATION",
       pageNumber: 1,
       calibrationId: "existing-xy",
-      name: "Existing XY revised",
       calibration: completed.calibration,
     });
     const page = recalibrated.session!.pages[1]!;
     expect(page.calibrations).toHaveLength(1);
     expect(page.calibrations[0]).toMatchObject({
       id: "existing-xy",
-      name: "Existing XY revised",
+      name: "Existing XY",
       mode: "xy",
     });
   });

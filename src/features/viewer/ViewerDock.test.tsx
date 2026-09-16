@@ -400,4 +400,47 @@ describe("ViewerDock", () => {
       "scale-2",
     ]);
   });
+
+  it("reflects a renamed active scale without changing its calibration ID", () => {
+    let state: SessionCommandResult = {
+      ...initialSessionState,
+      session: createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1),
+    };
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Ground floor",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    const beforeId = state.session!.pages[1]!.activeCalibrationId;
+    renderDock(
+      createProps({
+        calibrations: state.session!.pages[1]!.calibrations,
+        activeCalibrationId: beforeId,
+      }),
+    );
+    expect(activeScaleTrigger().getAttribute("aria-label")).toContain("Ground floor");
+
+    state = sessionReducer(state, {
+      type: "RENAME_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "scale-1",
+      name: "Ground floor revised",
+    });
+    renderDock(
+      createProps({
+        calibrations: state.session!.pages[1]!.calibrations,
+        activeCalibrationId: state.session!.pages[1]!.activeCalibrationId,
+      }),
+    );
+
+    expect(activeScaleTrigger().getAttribute("aria-label")).toContain("Ground floor revised");
+    expect(state.session!.pages[1]!.activeCalibrationId).toBe(beforeId);
+  });
 });

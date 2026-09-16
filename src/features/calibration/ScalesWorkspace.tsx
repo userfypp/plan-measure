@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { AnchoredMenu, Button } from "../../components/ui";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { AnchoredMenu, Button, Input } from "../../components/ui";
 import type { CalibrationReferenceKey, PageCalibration, PageState } from "../../types/domain";
 import { formatDisplayNumber } from "../../utils/format";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
@@ -15,9 +15,19 @@ export interface ScalesWorkspaceProps {
   actionsDisabled?: boolean;
   onAddScale: (mode: "uniform" | "xy") => void;
   onAddPresetScale: (ratio: StandardScalePresetRatio) => void;
+  onRenameScale: (calibrationId: string, name: string) => void;
   onRecalibrate: (calibrationId: string) => void;
   onEditReference: (calibration: PageCalibration, reference: CalibrationReferenceKey) => void;
 }
+
+interface RenameState {
+  calibrationId: string;
+  draftName: string;
+  error: string | null;
+}
+
+const WORKFLOW_DISABLED_REASON = "Finish or cancel the current scale workflow first.";
+const EMPTY_SCALE_NAME_ERROR = "Scale name cannot be empty.";
 
 function formatReferenceDistance(millimetres: number): string {
   return millimetres >= 1000
@@ -55,18 +65,63 @@ export function ScalesWorkspace({
   actionsDisabled = false,
   onAddScale,
   onAddPresetScale,
+  onRenameScale,
   onRecalibrate,
   onEditReference,
 }: ScalesWorkspaceProps) {
   const workspace = useWorkspaceDrawerPresentation();
   const [inspectedScaleId, setInspectedScaleId] = useState<string | null>(null);
+  const [renameState, setRenameState] = useState<RenameState | null>(null);
+  const renameTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
+  const returnFocusScaleIdRef = useRef<string | null>(null);
   const precisionActionsDisabled = !workspace.precisionActionAvailable;
   const precisionDisabledReason = workspace.precisionDisabledReason;
   const spatialActionsDisabled = actionsDisabled || precisionActionsDisabled;
   const spatialDisabledReason = actionsDisabled
-    ? "Finish or cancel the current scale workflow first."
+    ? WORKFLOW_DISABLED_REASON
     : precisionDisabledReason;
   const disabledReasonId = "scale-spatial-actions-disabled-reason";
+
+  useLayoutEffect(() => {
+    if (renameState) return;
+    const scaleId = returnFocusScaleIdRef.current;
+    if (!scaleId) return;
+    returnFocusScaleIdRef.current = null;
+    renameTriggerRefs.current.get(scaleId)?.focus({ preventScroll: true });
+  }, [renameState]);
+
+  function discardRename() {
+    returnFocusScaleIdRef.current = null;
+    setRenameState(null);
+  }
+
+  function cancelRename(calibrationId: string) {
+    returnFocusScaleIdRef.current = calibrationId;
+    setRenameState(null);
+  }
+
+  function commitRename(calibration: PageCalibration) {
+    if (!renameState || renameState.calibrationId !== calibration.id || actionsDisabled) return false;
+    const normalizedName = renameState.draftName.trim();
+    if (!normalizedName) {
+      setRenameState({ ...renameState, error: EMPTY_SCALE_NAME_ERROR });
+      return false;
+    }
+    if (normalizedName !== calibration.name) onRenameScale(calibration.id, normalizedName);
+    returnFocusScaleIdRef.current = calibration.id;
+    setRenameState(null);
+    return true;
+  }
+
+  function submitRename(event: FormEvent<HTMLFormElement>, calibration: PageCalibration) {
+    event.preventDefault();
+    commitRename(calibration);
+  }
+
+  function toggleScale(calibrationId: string, inspected: boolean) {
+    discardRename();
+    setInspectedScaleId(inspected ? null : calibrationId);
+  }
 
   return (
     <section className={styles.workspace} aria-label="Scales on current page">
@@ -101,87 +156,181 @@ export function ScalesWorkspace({
                   aria-expanded={inspected}
                   aria-controls={detailId}
                   title={`${inspected ? "Collapse" : "Expand"} ${calibration.name}`}
-                  onClick={() => setInspectedScaleId(inspected ? null : calibration.id)}
+                  onClick={() => toggleScale(calibration.id, inspected)}
                 >
                   <DisclosureIcon />
                 </Button>
               </div>
               <div id={detailId} className={styles.scaleDetails} hidden={!inspected}>
-                <div className={styles.references}>
+                <section className={styles.detailSection} aria-label="Identity">
+                  <span className={styles.sectionLabel}>Identity</span>
+                  {renameState?.calibrationId === calibration.id ? (
+                    <form
+                      className={styles.renameForm}
+                      onSubmit={(event) => submitRename(event, calibration)}
+                    >
+                      <span className={styles.fieldLabel}>Scale name</span>
+                      <Input
+                        aria-label="Scale name"
+                        value={renameState.draftName}
+                        error={renameState.error}
+                        autoFocus
+                        onFocus={(event) => event.currentTarget.select()}
+                        onChange={(event) =>
+                          setRenameState({
+                            calibrationId: calibration.id,
+                            draftName: event.target.value,
+                            error: null,
+                          })
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitRename(calibration);
+                          } else if (event.key === "Escape") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            cancelRename(calibration.id);
+                          }
+                        }}
+                      />
+                      <div className={styles.renameActions}>
+                        <Button
+                          variant="ghost"
+                          size="compact"
+                          onClick={() => cancelRename(calibration.id)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          variant="secondary"
+                          size="compact"
+                          disabled={actionsDisabled}
+                          disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className={styles.identityField}>
+                      <span className={styles.fieldLabel}>Scale name</span>
+                      <div className={styles.identityValueRow}>
+                        <strong className={styles.scaleNameValue} title={calibration.name}>
+                          {calibration.name}
+                        </strong>
+                        <Button
+                          ref={(node) => {
+                            if (node) renameTriggerRefs.current.set(calibration.id, node);
+                            else renameTriggerRefs.current.delete(calibration.id);
+                          }}
+                          variant="ghost"
+                          size="compact"
+                          aria-label={`Rename scale ${calibration.name}`}
+                          disabled={actionsDisabled}
+                          disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                          onClick={() =>
+                            setRenameState({
+                              calibrationId: calibration.id,
+                              draftName: calibration.name,
+                              error: null,
+                            })
+                          }
+                        >
+                          Rename
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                <section className={styles.detailSection} aria-label="Calibration">
+                  <span className={styles.sectionLabel}>Calibration</span>
                   {calibration.mode === "uniform" ? (
                     <div className={styles.referenceRow}>
-                      <span className={styles.referenceLabel}>Reference</span>
-                      <strong>{formatReferenceDistance(calibration.referenceDistanceMm)}</strong>
+                      <span className={styles.referenceInfo}>
+                        <span className={styles.referenceLabel}>Reference</span>
+                        <strong>{formatReferenceDistance(calibration.referenceDistanceMm)}</strong>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="compact"
+                        aria-label="Edit uniform reference points"
+                        disabled={spatialActionsDisabled}
+                        disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                        onClick={() =>
+                          workspace.requestPrecisionAuthoring(() =>
+                            onEditReference(calibration, "uniform"),
+                          )
+                        }
+                      >
+                        Edit points
+                      </Button>
                     </div>
                   ) : (
                     <>
                       <div className={styles.referenceRow}>
-                        <span className={styles.referenceLabel}>X reference</span>
-                        <strong>{formatReferenceDistance(calibration.xReference.referenceDistanceMm)}</strong>
+                        <span className={styles.referenceInfo}>
+                          <span className={styles.referenceLabel}>X reference</span>
+                          <strong>
+                            {formatReferenceDistance(calibration.xReference.referenceDistanceMm)}
+                          </strong>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="compact"
+                          aria-label="Edit X reference points"
+                          disabled={spatialActionsDisabled}
+                          disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                          onClick={() =>
+                            workspace.requestPrecisionAuthoring(() =>
+                              onEditReference(calibration, "x"),
+                            )
+                          }
+                        >
+                          Edit points
+                        </Button>
                       </div>
                       <div className={styles.referenceRow}>
-                        <span className={styles.referenceLabel}>Y reference</span>
-                        <strong>{formatReferenceDistance(calibration.yReference.referenceDistanceMm)}</strong>
+                        <span className={styles.referenceInfo}>
+                          <span className={styles.referenceLabel}>Y reference</span>
+                          <strong>
+                            {formatReferenceDistance(calibration.yReference.referenceDistanceMm)}
+                          </strong>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="compact"
+                          aria-label="Edit Y reference points"
+                          disabled={spatialActionsDisabled}
+                          disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                          onClick={() =>
+                            workspace.requestPrecisionAuthoring(() =>
+                              onEditReference(calibration, "y"),
+                            )
+                          }
+                        >
+                          Edit points
+                        </Button>
                       </div>
                     </>
                   )}
-                </div>
-                <div className={styles.scaleActions}>
+                </section>
+
+                <div className={styles.recalibrateFooter}>
                   <Button
-                    variant="ghost"
+                    variant="secondary"
                     size="compact"
+                    className={styles.recalibrateButton}
                     disabled={spatialActionsDisabled}
                     disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
                     onClick={() =>
                       workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
                     }
                   >
-                    Recalibrate
+                    Recalibrate scale
                   </Button>
-                  {calibration.mode === "uniform" ? (
-                    <Button
-                      variant="ghost"
-                      size="compact"
-                      disabled={spatialActionsDisabled}
-                      disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                      onClick={() =>
-                        workspace.requestPrecisionAuthoring(() =>
-                          onEditReference(calibration, "uniform"),
-                        )
-                      }
-                    >
-                      Edit reference
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="compact"
-                        disabled={spatialActionsDisabled}
-                        disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                        onClick={() =>
-                          workspace.requestPrecisionAuthoring(() =>
-                            onEditReference(calibration, "x"),
-                          )
-                        }
-                      >
-                        Edit X
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="compact"
-                        disabled={spatialActionsDisabled}
-                        disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                        onClick={() =>
-                          workspace.requestPrecisionAuthoring(() =>
-                            onEditReference(calibration, "y"),
-                          )
-                        }
-                      >
-                        Edit Y
-                      </Button>
-                    </>
-                  )}
                 </div>
               </div>
             </article>

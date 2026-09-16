@@ -1009,6 +1009,70 @@ describe("SessionState", () => {
     ]);
   });
 
+  it("trims scale renames, allows duplicate names, and preserves calibration identity and links", () => {
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: session(),
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-1",
+      name: "Main plan",
+      calibration: {
+        mode: "uniform",
+        start: { x: 1, y: 2 },
+        end: { x: 11, y: 2 },
+        referenceDistanceMm: 1250,
+      },
+    });
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "line-1",
+      measurementType: "line",
+      points: [
+        { x: 1, y: 2 },
+        { x: 6, y: 2 },
+      ],
+    });
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale-2",
+      name: "Detail",
+      calibration: {
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 20, y: 0 },
+        referenceDistanceMm: 5000,
+      },
+    });
+    state = sessionReducer(state, {
+      type: "SET_ACTIVE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "scale-1",
+    });
+    const before = structuredClone(state.session!.pages[1]!.calibrations[0]!);
+
+    state = sessionReducer(state, {
+      type: "RENAME_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "scale-1",
+      name: "  Detail  ",
+    });
+
+    const page = state.session!.pages[1]!;
+    expect(page.calibrations.map((calibration) => calibration.name)).toEqual(["Detail", "Detail"]);
+    expect(page.calibrations[0]).toEqual({ ...before, name: "Detail" });
+    expect(page.activeCalibrationId).toBe("scale-1");
+    expect(page.measurements[0]!.calibrationId).toBe("scale-1");
+    expect(page.measurements[0]!.points).toEqual([
+      { x: 1, y: 2 },
+      { x: 6, y: 2 },
+    ]);
+  });
+
   it("only deletes an unused calibration and keeps the active ID valid", () => {
     let state = sessionReducer(initialSessionState, {
       type: "LOAD_SESSION",

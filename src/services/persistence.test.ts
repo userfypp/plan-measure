@@ -1559,6 +1559,37 @@ describe("session persistence", () => {
     expect(restored.pages[2]!.measurements[0]!.calibrationId).toBe("custom-scale");
   });
 
+  it("persists a renamed scale through autosave and restores its existing links", async () => {
+    const original = currentMeasuredSession();
+    let revision = await writeRawActiveSession(original, new Blob(["pdf"]));
+    const recovered = await loadSavedSession();
+    if (!recovered) throw new Error("Expected the seeded session to load.");
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: recovered.session,
+    });
+    state = sessionReducer(state, {
+      type: "RENAME_CALIBRATION",
+      pageNumber: 2,
+      calibrationId: "custom-scale",
+      name: "  Detail renamed  ",
+    });
+    if (!state.session) throw new Error("Expected the renamed session to remain loaded.");
+
+    await enqueueAutosave(Promise.resolve(), state.session, 1, () => true, async (snapshot) => {
+      revision = await saveSessionMetadata(snapshot, revision);
+    });
+    const restored = await loadSavedSession();
+
+    expect(restored?.compatibility).toBe("current");
+    expect(restored?.session.pages[2]!.calibrations[0]).toMatchObject({
+      id: "custom-scale",
+      name: "Detail renamed",
+    });
+    expect(restored?.session.pages[2]!.activeCalibrationId).toBe("custom-scale");
+    expect(restored?.session.pages[2]!.measurements[0]!.calibrationId).toBe("custom-scale");
+  });
+
   it("rejects corrupt measurement IDs and canonicalizes restored session data", () => {
     const duplicate = currentMeasuredSession();
     duplicate.pages[2]!.measurements.push({ ...duplicate.pages[2]!.measurements[0]! });

@@ -96,6 +96,7 @@ function PlanMeasureApp() {
     updatePage,
     addCalibration,
     recalibrateCalibration,
+    renameCalibration,
     updateCalibration,
     pasteMeasurement,
     renameMeasurement,
@@ -878,6 +879,13 @@ function PlanMeasureApp() {
                   actionsDisabled={calibrationActionsDisabled}
                   onAddScale={beginNewCalibration}
                   onAddPresetScale={addStandardScalePreset}
+                  onRenameScale={(calibrationId, name) =>
+                    renameCalibration({
+                      pageNumber: currentPage.pageNumber,
+                      calibrationId,
+                      name,
+                    })
+                  }
                   onRecalibrate={requestRecalibration}
                   onEditReference={beginCalibrationReferenceEdit}
                 />
@@ -1115,7 +1123,7 @@ function PlanMeasureApp() {
                 ? "vertical Y"
                 : undefined
           }
-          includeName={calibrationCandidate.phase !== "y"}
+          includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
           onCancel={() => {
             cancelCalibration();
           }}
@@ -1128,11 +1136,12 @@ function PlanMeasureApp() {
               cancelCalibration();
               return;
             }
+            const calibrationName = calibrationCandidateTarget?.name ?? name;
             const confirmation = confirmCalibration(
               calibrationFlow,
               calibrationCandidate,
               referenceDistanceMm,
-              name,
+              calibrationName,
             );
             if (confirmation.kind === "select-y") {
               advanceCalibrationStep(confirmation.flow);
@@ -1148,7 +1157,6 @@ function PlanMeasureApp() {
                 recalibrateCalibration({
                   pageNumber: calibrationCandidate.pageNumber,
                   calibrationId: calibrationCandidateTarget.id,
-                  name,
                   calibration,
                 });
               }
@@ -1156,7 +1164,7 @@ function PlanMeasureApp() {
               addCalibration({
                 pageNumber: calibrationCandidate.pageNumber,
                 id: crypto.randomUUID(),
-                name,
+                name: calibrationName,
                 calibration,
               });
             }
