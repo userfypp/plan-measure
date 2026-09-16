@@ -158,7 +158,7 @@
 
 .settingsMenu [role="menuitemradio"] {
   grid-template-columns: 10px minmax(0, 1fr);
-  gap: 2px;
+  gap: var(--space-4);
   padding-inline: var(--space-4);
   line-height: var(--line-height-secondary);
 }
