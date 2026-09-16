@@ -492,6 +492,30 @@ async function writeRawActiveSession(
   return revision;
 }
 
+async function deletePersistenceState(): Promise<void> {
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction("sessions", "readwrite");
+  transaction.objectStore("sessions").delete("persistence-v2");
+  await completeTransaction(transaction);
+  database.close();
+}
+
+async function writeMalformedPersistenceState(): Promise<void> {
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction("sessions", "readwrite");
+  transaction.objectStore("sessions").put({ key: "persistence-v2", activeRevision: 42 });
+  await completeTransaction(transaction);
+  database.close();
+}
+
+async function writeActivePdfRevision(pdfBlob: Blob, revision: string): Promise<void> {
+  const database = await openPersistenceDatabase();
+  const transaction = database.transaction("pdfs", "readwrite");
+  transaction.objectStore("pdfs").put({ key: "active-v2", blob: pdfBlob, revision });
+  await completeTransaction(transaction);
+  database.close();
+}
+
 async function deleteProtectedPdf(): Promise<void> {
   const database = await openPersistenceDatabase();
   const transaction = database.transaction("pdfs", "readwrite");
@@ -1738,6 +1762,96 @@ describe("session persistence", () => {
     expect(records.legacyPdf).toMatchObject({ key: "active" });
     expect(records.activeSession).toBeUndefined();
     expect(records.activePdf).toBeUndefined();
+  });
+
+  it("recovers an intact active-v2 pair without a persistence manifest and keeps its revision protected", async () => {
+    const session = currentMeasuredSession();
+    const revision = await writeRawActiveSession(session, new Blob(["pdf"]));
+    await deletePersistenceState();
+
+    const replacement = createEmptySession(
+      { name: "replacement.pdf", size: 11, lastModified: 2 },
+      1,
+    );
+    await expect(
+      replaceSavedSession(replacement, new Blob(["replacement"]), null),
+    ).rejects.toBeInstanceOf(PersistenceConflictError);
+
+    const recovered = await loadSavedSession();
+    expect(recovered?.revision).toBe(revision);
+    expect(recovered?.session).toEqual(session);
+    expect(await recovered?.pdfBlob.text()).toBe("pdf");
+
+    const records = await readPersistenceRecords();
+    expect(records.state).toEqual({ key: "persistence-v2", activeRevision: revision });
+    expect(records.activeSession).toMatchObject({ revision });
+    expect(records.activePdf).toMatchObject({ revision });
+  });
+
+  it("recovers an intact active-v2 pair from a malformed persistence manifest", async () => {
+    const session = currentMeasuredSession();
+    const revision = await writeRawActiveSession(session, new Blob(["pdf"]));
+    await writeMalformedPersistenceState();
+
+    const recovered = await loadSavedSession();
+
+    expect(recovered?.revision).toBe(revision);
+    expect(recovered?.session).toEqual(session);
+    expect(await recovered?.pdfBlob.text()).toBe("pdf");
+    expect((await readPersistenceRecords()).state).toEqual({
+      key: "persistence-v2",
+      activeRevision: revision,
+    });
+  });
+
+  it("rejects mismatched active-v2 revisions when the persistence manifest is missing", async () => {
+    const session = currentMeasuredSession();
+    const sessionRevision = await writeRawActiveSession(session, new Blob(["pdf-a"]));
+    await writeActivePdfRevision(new Blob(["pdf-b"]), "different-revision");
+    await deletePersistenceState();
+
+    await expect(loadSavedSession()).rejects.toMatchObject({
+      name: "PersistenceLoadError",
+      message: "The saved session is incomplete.",
+    });
+
+    const records = await readPersistenceRecords();
+    expect(records.activeSession).toMatchObject({ revision: sessionRevision });
+    expect(records.activePdf).toMatchObject({ revision: "different-revision" });
+    expect(records.state).toMatchObject({ key: "persistence-v2" });
+    expect(records.state?.activeRevision).not.toBeNull();
+    expect(records.state?.activeRevision).not.toBe(sessionRevision);
+    expect(records.state?.activeRevision).not.toBe("different-revision");
+
+    const replacement = createEmptySession(
+      { name: "replacement.pdf", size: 11, lastModified: 2 },
+      1,
+    );
+    await expect(
+      replaceSavedSession(replacement, new Blob(["replacement"]), null),
+    ).rejects.toBeInstanceOf(PersistenceConflictError);
+  });
+
+  it("does not bypass active-v2 PDF/session identity validation when repairing a missing manifest", async () => {
+    const session = currentMeasuredSession();
+    const revision = await writeRawActiveSession(
+      session,
+      new File(["pdf"], session.pdf.name, {
+        type: "application/pdf",
+        lastModified: session.pdf.lastModified + 1,
+      }),
+    );
+    await deletePersistenceState();
+
+    await expect(loadSavedSession()).rejects.toMatchObject({
+      name: "PersistenceLoadError",
+      revision,
+      message: "The saved PDF does not match its session metadata.",
+    });
+    expect((await readPersistenceRecords()).state).toEqual({
+      key: "persistence-v2",
+      activeRevision: revision,
+    });
   });
 
   it("keeps current active-v2 recovery independent of legacy File identity checks", async () => {

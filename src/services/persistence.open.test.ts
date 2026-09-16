@@ -18,11 +18,13 @@ describe("IndexedDB opening", () => {
       transaction: vi.fn(() => ({
         done: Promise.resolve(),
         objectStore: vi.fn((name: string) => ({
-          get: vi
-            .fn()
-            .mockResolvedValue(
-              name === "sessions" ? { key: "persistence-v2", activeRevision: null } : undefined,
+          get: vi.fn((key: string) =>
+            Promise.resolve(
+              name === "sessions" && key === "persistence-v2"
+                ? { key: "persistence-v2", activeRevision: null }
+                : undefined,
             ),
+          ),
         })),
       })),
     };

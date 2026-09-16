@@ -96,7 +96,23 @@ export interface SavedSession {
 function isPersistenceStateRecord(
   record: SessionRecord | PersistenceStateRecord | undefined,
 ): record is PersistenceStateRecord {
-  return Boolean(record && "activeRevision" in record);
+  return Boolean(
+    record &&
+    "activeRevision" in record &&
+    (record.activeRevision === null ||
+      (typeof record.activeRevision === "string" && record.activeRevision.length > 0)),
+  );
+}
+
+function readMatchingActiveRevision(
+  sessionRecord: SessionRecord | PersistenceStateRecord | undefined,
+  pdfRecord: PdfRecord | undefined,
+): string | null {
+  if (!sessionRecord || isPersistenceStateRecord(sessionRecord) || !pdfRecord) return null;
+  const revision = sessionRecord.revision;
+  return typeof revision === "string" && revision.length > 0 && pdfRecord.revision === revision
+    ? revision
+    : null;
 }
 
 function readRecoverableSessionPdfMetadata(serialized: string): PdfMetadata | null {
@@ -134,14 +150,38 @@ async function readOrCreatePersistenceState(
   const sessions = transaction.objectStore("sessions");
   const pdfs = transaction.objectStore("pdfs");
   const existingState = await sessions.get(STATE_KEY);
+  const [activeSession, activePdf] = await Promise.all([
+    sessions.get(ACTIVE_KEY),
+    pdfs.get(ACTIVE_KEY),
+  ]);
+  const activeRevision = readMatchingActiveRevision(activeSession, activePdf);
+  if (activeRevision !== null) {
+    if (
+      !isPersistenceStateRecord(existingState) ||
+      existingState.activeRevision !== activeRevision
+    ) {
+      await sessions.put({ key: STATE_KEY, activeRevision });
+    }
+    return { key: STATE_KEY, activeRevision };
+  }
+  if (isPersistenceStateRecord(existingState) && existingState.activeRevision !== null) {
+    return existingState;
+  }
+  if (activeSession || activePdf) {
+    const protectedRevision = crypto.randomUUID();
+    await sessions.put({ key: STATE_KEY, activeRevision: protectedRevision });
+    return { key: STATE_KEY, activeRevision: protectedRevision };
+  }
   if (isPersistenceStateRecord(existingState)) return existingState;
 
   const [legacySession, legacyPdf] = await Promise.all([
     sessions.get(LEGACY_ACTIVE_KEY),
     pdfs.get(LEGACY_ACTIVE_KEY),
   ]);
-  const activeRevision = legacySession || legacyPdf ? crypto.randomUUID() : null;
-  const writes: Array<Promise<unknown>> = [sessions.put({ key: STATE_KEY, activeRevision })];
+  const legacyRevision = legacySession || legacyPdf ? crypto.randomUUID() : null;
+  const writes: Array<Promise<unknown>> = [
+    sessions.put({ key: STATE_KEY, activeRevision: legacyRevision }),
+  ];
   if (
     legacySession &&
     !isPersistenceStateRecord(legacySession) &&
@@ -149,14 +189,14 @@ async function readOrCreatePersistenceState(
     canAdoptLegacyPair(legacySession, legacyPdf)
   ) {
     writes.push(
-      sessions.put({ ...legacySession, key: ACTIVE_KEY, revision: activeRevision! }),
-      pdfs.put({ ...legacyPdf, key: ACTIVE_KEY, revision: activeRevision! }),
+      sessions.put({ ...legacySession, key: ACTIVE_KEY, revision: legacyRevision! }),
+      pdfs.put({ ...legacyPdf, key: ACTIVE_KEY, revision: legacyRevision! }),
       sessions.delete(LEGACY_ACTIVE_KEY),
       pdfs.delete(LEGACY_ACTIVE_KEY),
     );
   }
   await Promise.all(writes);
-  return { key: STATE_KEY, activeRevision };
+  return { key: STATE_KEY, activeRevision: legacyRevision };
 }
 
 async function abort(transaction: PersistenceTransaction, error: Error): Promise<never> {
