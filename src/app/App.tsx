@@ -845,6 +845,7 @@ function PlanMeasureApp() {
         ref={fileInputRef}
         className={styles.hiddenInput}
         type="file"
+        tabIndex={-1}
         accept="application/pdf,.pdf"
         onChange={(event) => {
           const file = event.target.files?.[0];

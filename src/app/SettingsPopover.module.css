@@ -1,0 +1,216 @@
+.popover {
+  width: min(360px, calc(100vw - var(--space-16)));
+  max-height: calc(100dvh - var(--space-16));
+  padding: var(--space-16);
+}
+
+.content {
+  min-width: 0;
+}
+
+.title {
+  margin: 0 0 var(--space-16);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+.section {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.sectionHeading {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+}
+
+.settingList {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-12);
+}
+
+.settingRow {
+  min-width: 0;
+  min-height: var(--target-current);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.settingCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.settingLabel {
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-base);
+}
+
+.description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.appearanceGroup {
+  width: 176px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.appearanceOption {
+  position: relative;
+  min-width: 0;
+  min-height: var(--target-current);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: 0;
+  padding: 0 var(--space-8);
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
+  transition: var(--transition-interactive);
+}
+
+.appearanceOption:first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.appearanceOption:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+.appearanceOption + .appearanceOption {
+  margin-left: var(--control-border-overlap);
+}
+
+.appearanceOption:hover {
+  z-index: 1;
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.appearanceOption:active {
+  z-index: 1;
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.appearanceOption[aria-checked="true"] {
+  z-index: 1;
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.appearanceOption:focus-visible,
+.switchInput:focus-visible {
+  z-index: 2;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.recoveredWorkspaceSelect {
+  width: 148px;
+}
+
+.decimalSelect {
+  width: 72px;
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}
+
+.switchTarget {
+  width: 36px;
+  min-height: var(--target-current);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.switchInput {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin: 0;
+  appearance: none;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+  cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+.switchInput::before {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  content: "";
+  transition: transform 120ms ease;
+}
+
+.switchInput:checked {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.switchInput:checked::before {
+  transform: translateX(16px);
+}
+
+.divider {
+  height: var(--border-width);
+  margin: var(--space-16) 0;
+  background: var(--color-divider);
+}
+
+@media (any-pointer: coarse), (max-width: 800px) {
+  .popover {
+    --target-current: var(--target-coarse);
+    --control-height-compact: var(--target-coarse);
+    --control-height-regular: var(--target-coarse);
+  }
+
+  .switchTarget {
+    width: var(--target-coarse);
+  }
+}
+
+@media (max-width: 420px) {
+  .stackOnNarrow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .appearanceGroup,
+  .recoveredWorkspaceSelect {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switchInput::before {
+    transition: none;
+  }
+}

@@ -1,7 +1,7 @@
-import { AnchoredMenu, Button } from "../components/ui";
+import { Button } from "../components/ui";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
-import { useTheme, type ThemePreference } from "./themeState";
+import { SettingsPopover } from "./SettingsPopover";
 import styles from "./AppBar.module.css";
 
 const FEEDBACK_URL = "https://github.com/userfypp/plan-measure/discussions/1";
@@ -29,22 +29,6 @@ function SettingsIcon() {
   );
 }
 
-const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
-  { id: "system", label: "System" },
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
-];
-
-const MEASUREMENT_DECIMAL_OPTIONS: MeasurementDecimalPlaces[] = [0, 1, 2, 3, 4, 5, 6];
-const RECOVERED_PLAN_STARTUP_OPTIONS: Array<{
-  id: RecoveredPlanStartupWorkspace;
-  label: string;
-}> = [
-  { id: "scales", label: "Scales" },
-  { id: "measurements", label: "Measurements" },
-  { id: "classifications", label: "Classifications" },
-];
-
 export function AppBar({
   documentName,
   canExport,
@@ -57,49 +41,6 @@ export function AppBar({
   onConfirmMeasurementDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: AppBarProps) {
-  const { preference, setPreference } = useTheme();
-  const themeItems = THEME_OPTIONS.map((option, index) => ({
-    id: option.id,
-    label: option.label,
-    sectionLabel: index === 0 ? "Appearance" : undefined,
-    role: "menuitemradio" as const,
-    checked: preference === option.id,
-    onSelect: () => setPreference(option.id),
-  }));
-  const measurementDecimalItems =
-    measurementDecimalPlaces === null || !onMeasurementDecimalPlacesChange
-      ? []
-      : MEASUREMENT_DECIMAL_OPTIONS.map((decimalPlaces, index) => ({
-          id: `measurement-decimals-${decimalPlaces}`,
-          label: `${decimalPlaces} decimal${decimalPlaces === 1 ? "" : "s"}`,
-          sectionLabel: index === 0 ? "Measurement decimals" : undefined,
-          role: "menuitemradio" as const,
-          checked: measurementDecimalPlaces === decimalPlaces,
-          onSelect: () => onMeasurementDecimalPlacesChange(decimalPlaces),
-        }));
-  const deletionItems = onConfirmMeasurementDeletionChange
-    ? [
-        {
-          id: "confirm-measurement-deletion",
-          label: "Confirm before deleting measurements",
-          sectionLabel: "Measurement deletion",
-          role: "menuitemcheckbox" as const,
-          checked: confirmMeasurementDeletion,
-          onSelect: () => onConfirmMeasurementDeletionChange(!confirmMeasurementDeletion),
-        },
-      ]
-    : [];
-  const recoveredPlanStartupItems = onRecoveredPlanStartupWorkspaceChange
-    ? RECOVERED_PLAN_STARTUP_OPTIONS.map((option, index) => ({
-        id: `recovered-plan-startup-${option.id}`,
-        label: option.label,
-        sectionLabel: index === 0 ? "Open recovered plans in" : undefined,
-        role: "menuitemradio" as const,
-        checked: recoveredPlanStartupWorkspace === option.id,
-        onSelect: () => onRecoveredPlanStartupWorkspaceChange(option.id),
-      }))
-    : [];
-
   return (
     <header className={styles.appBar} aria-label="Application bar">
       <div className={styles.identityGroup}>
@@ -137,22 +78,15 @@ export function AppBar({
         >
           Feedback
         </a>
-        <AnchoredMenu
+        <SettingsPopover
           trigger={<SettingsIcon />}
-          triggerProps={{
-            className: styles.iconTrigger,
-            "aria-label": "Settings",
-            title: "Settings",
-          }}
-          label="Settings"
-          items={[
-            ...themeItems,
-            ...measurementDecimalItems,
-            ...deletionItems,
-            ...recoveredPlanStartupItems,
-          ]}
-          className={styles.settingsMenu}
-          placement="bottom-end"
+          triggerClassName={styles.iconTrigger}
+          measurementDecimalPlaces={measurementDecimalPlaces}
+          confirmMeasurementDeletion={confirmMeasurementDeletion}
+          recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
+          onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+          onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+          onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
         />
       </div>
     </header>
