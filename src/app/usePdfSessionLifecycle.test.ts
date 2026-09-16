@@ -91,6 +91,35 @@ async function renderLifecycleHarness() {
 }
 
 describe("page-exit autosave", () => {
+  it("flushes the latest completed session from beforeunload without waiting for the debounce", async () => {
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(
+        new File(["pdf"], "plan.pdf", { type: "application/pdf", lastModified: 1 }),
+      );
+    });
+    const activeSession = (await loadSavedSession())!.session;
+    const edited = {
+      ...activeSession,
+      settings: { ...activeSession.settings, displayUnit: "mm" as const },
+    };
+    act(() => setHarnessSession!(edited));
+
+    const clearTimeout = vi.spyOn(window, "clearTimeout");
+    act(() => window.dispatchEvent(new Event("beforeunload")));
+    expect(clearTimeout).toHaveBeenCalled();
+    clearTimeout.mockRestore();
+
+    let savedDisplayUnit: string | undefined;
+    for (let attempt = 0; attempt < 20 && savedDisplayUnit !== "mm"; attempt += 1) {
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        savedDisplayUnit = (await loadSavedSession())?.session.settings.displayUnit;
+      });
+    }
+    expect(savedDisplayUnit).toBe("mm");
+  });
+
   it("flushes the latest completed session when the page becomes hidden", async () => {
     await renderLifecycleHarness();
     await act(async () => {

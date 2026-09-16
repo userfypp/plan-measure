@@ -53,6 +53,7 @@ type PersistenceTransaction = IDBPTransaction<
 >;
 
 let databasePromise: Promise<IDBPDatabase<PlanMeasureDb>> | null = null;
+let databaseInstance: IDBPDatabase<PlanMeasureDb> | null = null;
 
 function getDatabase(): Promise<IDBPDatabase<PlanMeasureDb>> {
   if (databasePromise) return databasePromise;
@@ -61,10 +62,16 @@ function getDatabase(): Promise<IDBPDatabase<PlanMeasureDb>> {
       database.createObjectStore("sessions", { keyPath: "key" });
       database.createObjectStore("pdfs", { keyPath: "key" });
     },
-  }).catch((error: unknown) => {
-    databasePromise = null;
-    throw error;
-  });
+  })
+    .then((database) => {
+      databaseInstance = database;
+      return database;
+    })
+    .catch((error: unknown) => {
+      databasePromise = null;
+      databaseInstance = null;
+      throw error;
+    });
   return databasePromise;
 }
 
@@ -283,9 +290,21 @@ export async function saveSessionMetadata(
   expectedRevision: string,
 ): Promise<string> {
   const serialized = serializeSession(session);
-  const database = await getDatabase();
+  const database = databaseInstance ?? (await getDatabase());
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
-  await requireExpectedRevision(transaction, expectedRevision);
+  return saveSerializedSessionMetadata(serialized, () => expectedRevision, transaction);
+}
+
+async function saveSerializedSessionMetadata(
+  serialized: string,
+  expectedRevision: () => string,
+  transaction: PersistenceTransaction,
+): Promise<string> {
+  const state = await readOrCreatePersistenceState(transaction);
+  const currentExpectedRevision = expectedRevision();
+  if (state.activeRevision !== currentExpectedRevision) {
+    return abort(transaction, new PersistenceConflictError());
+  }
   const [sessionRecord, pdfRecord] = await Promise.all([
     transaction.objectStore("sessions").get(ACTIVE_KEY),
     transaction.objectStore("pdfs").get(ACTIVE_KEY),
@@ -294,14 +313,14 @@ export async function saveSessionMetadata(
     !sessionRecord ||
     isPersistenceStateRecord(sessionRecord) ||
     !pdfRecord ||
-    sessionRecord.revision !== expectedRevision ||
-    pdfRecord.revision !== expectedRevision
+    sessionRecord.revision !== currentExpectedRevision ||
+    pdfRecord.revision !== currentExpectedRevision
   ) {
     return abort(transaction, new Error("Cannot save session metadata without its PDF."));
   }
   if (sessionRecord.serialized === serialized) {
     await transaction.done;
-    return expectedRevision;
+    return currentExpectedRevision;
   }
   const revision = crypto.randomUUID();
   await Promise.all([
@@ -316,6 +335,22 @@ export async function saveSessionMetadata(
   ]);
   await transaction.done;
   return revision;
+}
+
+/**
+ * Starts the IndexedDB transaction synchronously while the page is still in
+ * beforeunload. The revision getter stays live so an already-started save from
+ * this tab can finish first without weakening stale-writer protection.
+ */
+export function beginSessionMetadataSaveOnPageExit(
+  session: CurrentSession,
+  expectedRevision: () => string,
+): Promise<string> | null {
+  const database = databaseInstance;
+  if (!database) return null;
+  const serialized = serializeSession(session);
+  const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+  return saveSerializedSessionMetadata(serialized, expectedRevision, transaction);
 }
 
 export async function discardSavedSession(expectedRevision: string): Promise<void> {
@@ -337,6 +372,7 @@ export async function resetPersistenceForTests(): Promise<void> {
     const database = await databasePromise;
     database.close();
     databasePromise = null;
+    databaseInstance = null;
   }
   await deleteDB(DATABASE_NAME);
 }

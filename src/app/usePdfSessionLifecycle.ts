@@ -13,6 +13,7 @@ import type {
 } from "./overlayState";
 import type { CurrentSession } from "../types/domain";
 import {
+  beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
   loadSavedSession,
   PersistenceLoadError,
@@ -255,14 +256,44 @@ export function usePdfSessionLifecycle({
         });
     };
     const timer = window.setTimeout(queueAutosave, 300);
+    const handleBeforeUnload = () => {
+      window.clearTimeout(timer);
+      if (
+        persistenceRevisionRef.current === null ||
+        persistenceRevisionRef.current === undefined
+      ) {
+        return;
+      }
+      const exitSave = beginSessionMetadataSaveOnPageExit(snapshot, () => {
+        const expectedRevision = persistenceRevisionRef.current;
+        if (expectedRevision === null || expectedRevision === undefined) {
+          throw new Error("Cannot autosave without a persisted session revision.");
+        }
+        return expectedRevision;
+      });
+      if (!exitSave) {
+        queueAutosave();
+        return;
+      }
+      queued = true;
+      saveQueueRef.current = exitSave
+        .then((revision) => {
+          if (generation === persistenceGenerationRef.current) {
+            persistenceRevisionRef.current = revision;
+          }
+        })
+        .catch(() => undefined);
+    };
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "hidden") return;
       window.clearTimeout(timer);
       queueAutosave();
     };
+    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       window.clearTimeout(timer);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [activePdf, autosaveStatus, pdfBlob, session]);

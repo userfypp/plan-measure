@@ -23,6 +23,7 @@ import type {
 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
+  beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
   loadSavedSession,
   PersistenceConflictError,
@@ -1646,6 +1647,42 @@ describe("session persistence", () => {
     expect(await saveSessionMetadata(session, revision)).toBe(revision);
   });
 
+  it("starts a page-exit metadata save from the already-open database", async () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
+    let revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
+    session.settings.showLabels = false;
+
+    const exitSave = beginSessionMetadataSaveOnPageExit(session, () => revision);
+    expect(exitSave).not.toBeNull();
+    revision = await exitSave!;
+
+    const restored = await loadSavedSession();
+    expect(restored?.revision).toBe(revision);
+    expect(restored?.session.settings.showLabels).toBe(false);
+  });
+
+  it("lets a page-exit save follow an already-started save from the same tab", async () => {
+    const initial = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
+    let revision = await replaceSavedSession(initial, new Blob(["pdf"]), null);
+    const first = structuredClone(initial);
+    first.settings.showLabels = false;
+    const latest = structuredClone(first);
+    latest.settings.showMeasurements = false;
+
+    const firstSave = saveSessionMetadata(first, revision).then((nextRevision) => {
+      revision = nextRevision;
+    });
+    const exitSave = beginSessionMetadataSaveOnPageExit(latest, () => revision);
+    expect(exitSave).not.toBeNull();
+    await firstSave;
+    revision = await exitSave!;
+
+    const restored = await loadSavedSession();
+    expect(restored?.revision).toBe(revision);
+    expect(restored?.session.settings.showLabels).toBe(false);
+    expect(restored?.session.settings.showMeasurements).toBe(false);
+  });
+
   it("does not save orphaned metadata without its PDF record", async () => {
     const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
     const revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
@@ -1711,6 +1748,24 @@ describe("session persistence", () => {
     expect(restored?.session.settings.showLabels).toBe(true);
     expect(restored?.session.settings.showMeasurements).toBe(false);
     expect(await restored?.pdfBlob.text()).toBe("shared-pdf");
+  });
+
+  it("keeps page-exit saves behind the same stale-writer revision check", async () => {
+    const session = createEmptySession({ name: "shared.pdf", size: 3, lastModified: 1 }, 1);
+    await replaceSavedSession(session, new Blob(["shared-pdf"]), null);
+    const tabA = await loadSavedSession();
+    const tabB = await loadSavedSession();
+    if (!tabA || !tabB) throw new Error("Expected both tabs to recover the shared session.");
+
+    tabB.session.settings.showMeasurements = false;
+    await saveSessionMetadata(tabB.session, tabB.revision);
+    tabA.session.settings.showLabels = false;
+    const staleExitSave = beginSessionMetadataSaveOnPageExit(tabA.session, () => tabA.revision);
+
+    await expect(staleExitSave).rejects.toBeInstanceOf(PersistenceConflictError);
+    const restored = await loadSavedSession();
+    expect(restored?.session.settings.showLabels).toBe(true);
+    expect(restored?.session.settings.showMeasurements).toBe(false);
   });
 
   it("rejects a stale discard after another tab replaces the active session", async () => {
