@@ -13,7 +13,7 @@
   min-height: 0;
   flex: 0 1 auto;
   overflow-y: auto;
-  padding: var(--space-4) 0 0;
+  padding: 0;
 }
 
 .scaleRow {
