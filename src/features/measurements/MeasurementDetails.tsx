@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { Button, Input } from "../../components/ui";
-import type { ClassificationCatalog, LinearUnit, Measurement, PageState } from "../../types/domain";
+import type {
+  ClassificationCatalog,
+  LinearUnit,
+  Measurement,
+  MeasurementDecimalPlaces,
+  PageState,
+} from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
 import { ClassificationAssignment } from "../classification/ClassificationAssignment";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
@@ -14,6 +20,7 @@ export interface MeasurementDetailsProps {
   page: PageState;
   measurement: Measurement;
   displayUnit: LinearUnit;
+  measurementDecimalPlaces: MeasurementDecimalPlaces;
   catalog: ClassificationCatalog;
   returnModule: WorkspaceModule;
   assignmentDisabled?: boolean;
@@ -28,6 +35,7 @@ export function MeasurementDetails({
   page,
   measurement,
   displayUnit,
+  measurementDecimalPlaces,
   catalog,
   returnModule,
   assignmentDisabled = false,
@@ -47,7 +55,13 @@ export function MeasurementDetails({
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
-  const viewModel = createMeasurementViewModel(page, measurement, displayUnit, true);
+  const viewModel = createMeasurementViewModel(
+    page,
+    measurement,
+    displayUnit,
+    true,
+    measurementDecimalPlaces,
+  );
   const calibration = getMeasurementCalibration(page, measurement);
   const scaleMetadata = calibration ? scaleDisplayMetadata(calibration) : null;
   const scaleLabel =

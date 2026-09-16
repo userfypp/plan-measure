@@ -108,6 +108,7 @@ function PlanMeasureApp() {
     restoreClassificationValue,
     assignClassificationValue,
     removeClassificationValue,
+    updateSettings,
   } = useSessionState();
   const {
     requestReplacePdf,
@@ -771,8 +772,12 @@ function PlanMeasureApp() {
     <AppShell
       documentName={session?.pdf.name ?? null}
       canExport={Boolean(session)}
+      measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
+      onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
+        updateSettings({ measurementDecimalPlaces })
+      }
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
       onDismissStatus={
@@ -850,6 +855,7 @@ function PlanMeasureApp() {
                     page={previewPage}
                     measurement={selectedMeasurement}
                     displayUnit={session.settings.displayUnit}
+                    measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
                     catalog={session.classificationCatalog}
                     returnModule={workspaceModule}
                     assignmentDisabled={Boolean(

@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PageState, Point } from "../../types/domain";
+import type { MeasurementDecimalPlaces, PageState, Point } from "../../types/domain";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
 
@@ -180,6 +180,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     selectedMeasurementId = null,
     calibrationReferenceEdit = null,
     showCalibration = false,
+    measurementDecimalPlaces = 2,
     transform = { zoom: 2, panX: 0, panY: 0 },
     onCalibrationReferencePointsChange = noop,
     onCalibrationReferenceDragCancellationChange = noop,
@@ -188,6 +189,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     selectedMeasurementId?: string | null;
     calibrationReferenceEdit?: CalibrationReferenceEditPreview | null;
     showCalibration?: boolean;
+    measurementDecimalPlaces?: MeasurementDecimalPlaces;
     transform?: { zoom: number; panX: number; panY: number };
     onCalibrationReferencePointsChange?: (points: [Point, Point]) => void;
     onCalibrationReferenceDragCancellationChange?: (
@@ -212,6 +214,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           visualRoles={roles}
           interactionTargetScreenPx={32}
           displayUnit="m"
+          measurementDecimalPlaces={measurementDecimalPlaces}
           showCalibration={showCalibration}
           showMeasurements
           showLabels
@@ -250,6 +253,15 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       fontSize: 6,
       padding: 2,
     });
+  });
+
+  it("updates existing measurement labels when display precision changes", () => {
+    renderLayer({ measurementDecimalPlaces: 2 });
+    expect(captured.texts[0]?.text).toContain("17.50 m²");
+
+    captured.texts.length = 0;
+    renderLayer({ measurementDecimalPlaces: 6 });
+    expect(captured.texts[0]?.text).toContain("17.500000 m²");
   });
 
   it("makes selection structurally stronger with blue fill and 6 px optical / 32 px hit handles", () => {

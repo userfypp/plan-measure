@@ -1,4 +1,5 @@
 import { AnchoredMenu, Button } from "../components/ui";
+import type { MeasurementDecimalPlaces } from "../types/domain";
 import { useTheme, type ThemePreference } from "./themeState";
 import styles from "./AppBar.module.css";
 
@@ -7,8 +8,10 @@ const FEEDBACK_URL = "https://github.com/userfypp/plan-measure/discussions/1";
 interface AppBarProps {
   documentName: string | null;
   canExport: boolean;
+  measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   onOpenPdf: () => void;
   onExport: () => void;
+  onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
 }
 
 function SettingsIcon() {
@@ -27,7 +30,16 @@ const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
   { id: "dark", label: "Dark" },
 ];
 
-export function AppBar({ documentName, canExport, onOpenPdf, onExport }: AppBarProps) {
+const MEASUREMENT_DECIMAL_OPTIONS: MeasurementDecimalPlaces[] = [0, 1, 2, 3, 4, 5, 6];
+
+export function AppBar({
+  documentName,
+  canExport,
+  measurementDecimalPlaces = null,
+  onOpenPdf,
+  onExport,
+  onMeasurementDecimalPlacesChange,
+}: AppBarProps) {
   const { preference, setPreference } = useTheme();
   const themeItems = THEME_OPTIONS.map((option) => ({
     id: option.id,
@@ -36,6 +48,17 @@ export function AppBar({ documentName, canExport, onOpenPdf, onExport }: AppBarP
     checked: preference === option.id,
     onSelect: () => setPreference(option.id),
   }));
+  const measurementDecimalItems =
+    measurementDecimalPlaces === null || !onMeasurementDecimalPlacesChange
+      ? []
+      : MEASUREMENT_DECIMAL_OPTIONS.map((decimalPlaces, index) => ({
+          id: `measurement-decimals-${decimalPlaces}`,
+          label: `${decimalPlaces} decimal${decimalPlaces === 1 ? "" : "s"}`,
+          sectionLabel: index === 0 ? "Measurement decimals" : undefined,
+          role: "menuitemradio" as const,
+          checked: measurementDecimalPlaces === decimalPlaces,
+          onSelect: () => onMeasurementDecimalPlacesChange(decimalPlaces),
+        }));
 
   return (
     <header className={styles.appBar} aria-label="Application bar">
@@ -82,7 +105,7 @@ export function AppBar({ documentName, canExport, onOpenPdf, onExport }: AppBarP
             title: "Settings",
           }}
           label="Settings"
-          items={themeItems}
+          items={[...themeItems, ...measurementDecimalItems]}
           placement="bottom-end"
         />
       </div>

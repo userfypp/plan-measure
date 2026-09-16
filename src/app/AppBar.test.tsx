@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import buttonStyles from "../components/ui/Button.module.css";
+import type { MeasurementDecimalPlaces } from "../types/domain";
 import { ThemeProvider, SYSTEM_THEME_QUERY, THEME_STORAGE_KEY } from "./themeState";
 import { AppBar } from "./AppBar";
 
@@ -67,13 +68,17 @@ function chooseTheme(label: string) {
 function renderAppBar({
   documentName = "North Studio — Level 01.pdf",
   canExport = true,
+  measurementDecimalPlaces,
   onOpenPdf = vi.fn(),
   onExport = vi.fn(),
+  onMeasurementDecimalPlacesChange,
 }: {
   documentName?: string | null;
   canExport?: boolean;
+  measurementDecimalPlaces?: MeasurementDecimalPlaces;
   onOpenPdf?: () => void;
   onExport?: () => void;
+  onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
 } = {}) {
   act(() => {
     root!.render(
@@ -81,8 +86,10 @@ function renderAppBar({
         <AppBar
           documentName={documentName}
           canExport={canExport}
+          measurementDecimalPlaces={measurementDecimalPlaces}
           onOpenPdf={onOpenPdf}
           onExport={onExport}
+          onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
         />
       </ThemeProvider>,
     );
@@ -197,6 +204,34 @@ describe("AppBar", () => {
     openSettings();
     items = settingsItems();
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("exposes persisted measurement decimal places from 0 through 6 in Settings", () => {
+    const onMeasurementDecimalPlacesChange = vi.fn();
+    renderAppBar({
+      measurementDecimalPlaces: 3,
+      onMeasurementDecimalPlacesChange,
+    });
+    openSettings();
+
+    const items = settingsItems();
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      "System",
+      "Light",
+      "Dark",
+      "0 decimals",
+      "1 decimal",
+      "2 decimals",
+      "3 decimals",
+      "4 decimals",
+      "5 decimals",
+      "6 decimals",
+    ]);
+    expect(items[6]?.getAttribute("aria-checked")).toBe("true");
+    expect(document.querySelector('[role="separator"][aria-label="Measurement decimals"]')).not.toBeNull();
+
+    act(() => items[9]?.click());
+    expect(onMeasurementDecimalPlacesChange).toHaveBeenCalledWith(6);
   });
 
   it("supports menu keyboard navigation and Escape focus return", () => {

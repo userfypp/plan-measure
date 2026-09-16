@@ -19,6 +19,7 @@ import type {
   SessionV5,
   SessionV6,
   SessionV7,
+  SessionV8,
 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
@@ -191,6 +192,21 @@ function v7MeasuredSession(): SessionV7 {
     ...current,
     schemaVersion: 7,
     settings: legacySettings(current),
+  };
+}
+
+function v8MeasuredSession(): SessionV8 {
+  const current = currentMeasuredSession();
+  return {
+    ...current,
+    schemaVersion: 8,
+    settings: {
+      displayUnit: current.settings.displayUnit,
+      showLabels: current.settings.showLabels,
+      showMeasurements: current.settings.showMeasurements,
+      showCalibration: current.settings.showCalibration,
+      csvExport: structuredClone(current.settings.csvExport),
+    },
   };
 }
 
@@ -822,17 +838,17 @@ describe("session persistence", () => {
 
     await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
 
-    const invalidV8 = currentMeasuredSession();
-    invalidV8.pages[2]!.measurements[0]!.points = [
+    const invalidV9 = currentMeasuredSession();
+    invalidV9.pages[2]!.measurements[0]!.points = [
       { x: 5, y: 5 },
       { x: 5, y: 5 },
     ];
-    expect(() => serializeSession(invalidV8)).toThrow("invalid");
-    expect(() => deserializeSessionForRecovery(JSON.stringify(invalidV8))).toThrow("invalid");
+    expect(() => serializeSession(invalidV9)).toThrow("invalid");
+    expect(() => deserializeSessionForRecovery(JSON.stringify(invalidV9))).toThrow("invalid");
 
-    const malformedPolygonV8 = currentMeasuredSession();
-    malformedPolygonV8.pages[2]!.measurements[0] = {
-      ...malformedPolygonV8.pages[2]!.measurements[0]!,
+    const malformedPolygonV9 = currentMeasuredSession();
+    malformedPolygonV9.pages[2]!.measurements[0] = {
+      ...malformedPolygonV9.pages[2]!.measurements[0]!,
       type: "polygon",
       points: [
         { x: 0, y: 0 },
@@ -840,59 +856,74 @@ describe("session persistence", () => {
         { x: 4, y: 0 },
       ],
     };
-    expect(() => deserializeSessionForRecovery(JSON.stringify(malformedPolygonV8))).toThrow(
+    expect(() => deserializeSessionForRecovery(JSON.stringify(malformedPolygonV9))).toThrow(
       "invalid",
     );
   });
 
-  it("recovers a previously saved V8 self-intersecting Polygon for repair", async () => {
-    const crossingV8 = currentMeasuredSession();
+  it("recovers a previously saved V9 self-intersecting Polygon for repair", async () => {
+    const crossingV9 = currentMeasuredSession();
     const points = [
       { x: 0, y: 0 },
       { x: 6, y: 5 },
       { x: 0, y: 4 },
       { x: 4, y: 0 },
     ];
-    crossingV8.pages[2]!.measurements[0] = {
-      ...crossingV8.pages[2]!.measurements[0]!,
+    crossingV9.pages[2]!.measurements[0] = {
+      ...crossingV9.pages[2]!.measurements[0]!,
       type: "polygon",
       points,
     };
 
-    const originalRevision = await writeRawActiveSession(crossingV8, new Blob(["pdf-v8"]));
+    const originalRevision = await writeRawActiveSession(crossingV9, new Blob(["pdf-v9"]));
     const decoded = await loadSavedSession();
-    if (!decoded) throw new Error("Expected the V8 session to be recovered.");
+    if (!decoded) throw new Error("Expected the V9 session to be recovered.");
 
-    expect(() => serializeSession(crossingV8)).toThrow("invalid");
-    expect(() => deserializeSession(JSON.stringify(crossingV8))).toThrow("require repair");
+    expect(() => serializeSession(crossingV9)).toThrow("invalid");
+    expect(() => deserializeSession(JSON.stringify(crossingV9))).toThrow("require repair");
     expect(decoded.compatibility).toBe("historical-repair-required");
     expect(decoded.incompatibleMeasurementIds).toEqual(["custom"]);
     expect(decoded.revision).toBe(originalRevision);
     expect(decoded.session.pages[2]!.measurements[0]!.points).toEqual(points);
-    expect(await decoded.pdfBlob.text()).toBe("pdf-v8");
+    expect(await decoded.pdfBlob.text()).toBe("pdf-v9");
   });
 
-  it("migrates V7 to V8 with empty CSV overrides without changing other data", () => {
+  it("migrates V7 to V9 with CSV defaults and two measurement decimals", () => {
     const v7 = v7MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v7));
 
     expect(migrated).toEqual({
       ...v7,
-      schemaVersion: 8,
+      schemaVersion: 9,
       settings: {
         ...v7.settings,
         csvExport: { columnOverrides: {} },
+        measurementDecimalPlaces: 2,
       },
     });
   });
 
-  it("migrates a V1 page without calibration to an empty V8 page", () => {
+  it("migrates V8 sessions to two measurement decimals without changing existing settings", () => {
+    const v8 = v8MeasuredSession();
+    v8.settings.csvExport.columnOverrides = { name: false };
+
+    const migrated = deserializeSession(JSON.stringify(v8));
+
+    expect(migrated.schemaVersion).toBe(9);
+    expect(migrated.settings).toEqual({
+      ...v8.settings,
+      measurementDecimalPlaces: 2,
+    });
+  });
+
+  it("migrates a V1 page without calibration to an empty V9 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
+    expect(migrated.settings.measurementDecimalPlaces).toBe(2);
     expect(page.calibrations).toEqual([]);
     expect(page.activeCalibrationId).toBeNull();
     expect(page.nextCalibrationNumber).toBe(1);
@@ -934,6 +965,7 @@ describe("session persistence", () => {
     expect(migrated.settings).toEqual({
       ...legacy.settings,
       csvExport: { columnOverrides: {} },
+      measurementDecimalPlaces: 2,
     });
     expect(page.measurements.map((measurement) => measurement.calibrationId)).toEqual([
       calibration.id,
@@ -977,7 +1009,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -993,7 +1025,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -1008,11 +1040,11 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates V4 measurements to V8 with visibility enabled", () => {
+  it("migrates V4 measurements to V9 with visibility enabled", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -1022,7 +1054,7 @@ describe("session persistence", () => {
     ]);
   });
 
-  it("serializes V8 and round trips settings with uniform/X/Y calibrations", () => {
+  it("serializes V9 and round trips settings with uniform/X/Y calibrations", () => {
     const session = currentMeasuredSession();
     session.pages[1]!.calibrations.push({
       id: "xy-scale",
@@ -1050,8 +1082,9 @@ describe("session persistence", () => {
       calibration_reference_mm: true,
       "future-column": false,
     };
+    session.settings.measurementDecimalPlaces = 6;
     const serialized = serializeSession(session);
-    expect(JSON.parse(serialized).schemaVersion).toBe(8);
+    expect(JSON.parse(serialized).schemaVersion).toBe(9);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -1059,7 +1092,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -1077,17 +1110,18 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates a real V6 catalog to V8 without losing historical state", () => {
+  it("migrates a real V6 catalog to V9 without losing historical state", () => {
     const v6 = v6MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v6));
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.pdf).toEqual(v6.pdf);
     expect(migrated.settings).toEqual({
       ...v6.settings,
       csvExport: { columnOverrides: {} },
+      measurementDecimalPlaces: 2,
     });
     expect(migratedDimension).toEqual({
       id: "discipline",
@@ -1101,11 +1135,11 @@ describe("session persistence", () => {
     expect(migratedMeasurement.calibrationId).toBe("custom-scale");
   });
 
-  it("round trips an archived V8 dimension, value flags, and assignments", () => {
+  it("round trips an archived V9 dimension, value flags, and assignments", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(8);
+    expect(restored.schemaVersion).toBe(9);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
@@ -1122,7 +1156,7 @@ describe("session persistence", () => {
     expect(restored.settings.csvExport).toEqual(session.settings.csvExport);
   });
 
-  it("requires valid V8 CSV export settings", () => {
+  it("requires valid V9 CSV export settings", () => {
     const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
     const settings = base.settings as Record<string, unknown>;
     const invalidCases = [
@@ -1139,7 +1173,23 @@ describe("session persistence", () => {
     }
   });
 
-  it("requires a boolean archived flag on every V8 dimension", () => {
+  it("requires measurement decimal places to be an integer from 0 through 6", () => {
+    const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
+    const settings = base.settings as Record<string, unknown>;
+
+    for (const measurementDecimalPlaces of [-1, 2.5, 7, null]) {
+      expect(() =>
+        deserializeSession(
+          JSON.stringify({
+            ...base,
+            settings: { ...settings, measurementDecimalPlaces },
+          }),
+        ),
+      ).toThrow("measurement decimal places");
+    }
+  });
+
+  it("requires a boolean archived flag on every V9 dimension", () => {
     const missing = JSON.parse(serializeSession(archivedCurrentSession())) as {
       classificationCatalog: { dimensions: Array<Record<string, unknown>> };
     };
@@ -1310,7 +1360,7 @@ describe("session persistence", () => {
     const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
 
     expect(recovered.compatibility).toBe("classification-repair-required");
-    expect(recovered.session.schemaVersion).toBe(8);
+    expect(recovered.session.schemaVersion).toBe(9);
     expect(recovered.session.classificationCatalog.dimensions).toEqual([
       {
         id: "discipline",
@@ -1326,7 +1376,7 @@ describe("session persistence", () => {
     expect(isSessionPersistable(recovered.session)).toBe(false);
   });
 
-  it("keeps V8 classification reference and uniqueness validation strict", () => {
+  it("keeps V9 classification reference and uniqueness validation strict", () => {
     const missingValue = archivedCurrentSession();
     missingValue.pages[2]!.measurements[0]!.classificationValueIds = ["missing"];
     expect(() => serializeSession(missingValue)).toThrow("missing classification value");
@@ -1385,7 +1435,7 @@ describe("session persistence", () => {
     expect(() => serializeSession(duplicateArchivedValueName)).toThrow("classification catalog");
   });
 
-  it("rejects missing or non-boolean visibility in V8 sessions", () => {
+  it("rejects missing or non-boolean visibility in V9 sessions", () => {
     const missing = JSON.parse(serializeSession(currentMeasuredSession())) as Record<
       string,
       unknown
@@ -1453,7 +1503,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(8);
+    expect(restored.schemaVersion).toBe(9);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -1728,7 +1778,7 @@ describe("session persistence", () => {
 
     const recovered = await loadSavedSession();
 
-    expect(recovered?.session.schemaVersion).toBe(8);
+    expect(recovered?.session.schemaVersion).toBe(9);
     expect(recovered?.session.pdf).toEqual(historical.pdf);
     expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
       "legacy-line",

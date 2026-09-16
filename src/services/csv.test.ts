@@ -704,6 +704,17 @@ describe("CSV export", () => {
     );
   });
 
+  it("keeps CSV output unchanged when measurement display precision changes", () => {
+    const session = measuredSession();
+    session.settings.measurementDecimalPlaces = 2;
+    const before = buildCsv(session, null, allColumns(session));
+
+    session.settings.measurementDecimalPlaces = 6;
+    const after = buildCsv(session, null, allColumns(session));
+
+    expect(after).toBe(before);
+  });
+
   it("exports exact PDF page labels by page number and escapes label values", () => {
     const label = 'Cover, "A"\nSheet';
     const csv = buildCsv(measuredSession(), [label, "7"]);

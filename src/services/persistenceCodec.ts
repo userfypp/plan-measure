@@ -15,6 +15,7 @@ import type {
   SessionV6,
   SessionV7,
   SessionV8,
+  SessionV9,
   CurrentSession,
 } from "../types/domain";
 import {
@@ -459,6 +460,22 @@ function assertValidSessionV8(
   assertValidSessionV7({ ...value, schemaVersion: 7 }, allowClassificationNameConflicts);
   assertValidCsvExportSettings(value);
 }
+function assertValidSessionV9(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
+  if (value.schemaVersion !== 9) throw new Error("The saved session is invalid.");
+  assertValidSessionV8({ ...value, schemaVersion: 8 }, allowClassificationNameConflicts);
+  const settings = value.settings;
+  if (
+    !isRecord(settings) ||
+    !Number.isInteger(settings.measurementDecimalPlaces) ||
+    (settings.measurementDecimalPlaces as number) < 0 ||
+    (settings.measurementDecimalPlaces as number) > 6
+  ) {
+    throw new Error("The saved measurement decimal places setting is invalid.");
+  }
+}
 function legacyCalibrationId(pageNumber: number): string {
   return `legacy-page-${pageNumber}-scale-1`;
 }
@@ -583,8 +600,19 @@ function migrateSessionV7(session: SessionV7): SessionV8 {
   };
 }
 
-function canonicalizeSessionV8(session: SessionV8): SessionV8 {
-  const pages: SessionV8["pages"] = {};
+function migrateSessionV8(session: SessionV8): SessionV9 {
+  return {
+    ...session,
+    schemaVersion: 9,
+    settings: {
+      ...session.settings,
+      measurementDecimalPlaces: 2,
+    },
+  };
+}
+
+function canonicalizeSessionV9(session: SessionV9): SessionV9 {
+  const pages: SessionV9["pages"] = {};
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber]!;
     pages[pageNumber] = {
@@ -621,7 +649,7 @@ function canonicalizeSessionV8(session: SessionV8): SessionV8 {
     };
   }
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     pdf: { ...session.pdf },
     pageCount: session.pageCount,
     currentPage: session.currentPage,
@@ -641,7 +669,7 @@ function canonicalizeSessionV8(session: SessionV8): SessionV8 {
   };
 }
 export function serializeSession(session: CurrentSession): string {
-  assertValidSessionV8(session as unknown as Record<string, unknown>);
+  assertValidSessionV9(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
 
@@ -745,12 +773,12 @@ function finalizeDecodedSession(
   const historicalGeometryRepairRequired =
     allowHistoricalGeometry && incompatibleMeasurementIds.length > 0;
   if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
-    assertValidSessionV8(session as unknown as Record<string, unknown>);
+    assertValidSessionV9(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
   }
 
   // Validate every other migrated field without changing the repairable snapshot returned below.
-  const validationProbe = canonicalizeSessionV8(session);
+  const validationProbe = canonicalizeSessionV9(session);
   for (const page of Object.values(validationProbe.pages)) {
     page.measurements = page.measurements.map((measurement) =>
       hasValidMeasurementPoints(measurement.type, measurement.points)
@@ -771,7 +799,7 @@ function finalizeDecodedSession(
           },
     );
   }
-  assertValidSessionV8(
+  assertValidSessionV9(
     validationProbe as unknown as Record<string, unknown>,
     classificationRepairRequired,
   );
@@ -790,11 +818,13 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
   if (value.schemaVersion === 1) {
     assertValidLegacySession(value);
     return finalizeDecodedSession(
-      canonicalizeSessionV8(
-        migrateSessionV7(
-          migrateSessionV6(
-            migrateSessionV5(
-              migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+      canonicalizeSessionV9(
+        migrateSessionV8(
+          migrateSessionV7(
+            migrateSessionV6(
+              migrateSessionV5(
+                migrateSessionV4(migrateSessionV3(migrateSessionV1(value as unknown as SessionV1))),
+              ),
             ),
           ),
         ),
@@ -805,11 +835,13 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
   if (value.schemaVersion === 2) {
     assertValidSessionV3(value, isPageCalibrationV2);
     return finalizeDecodedSession(
-      canonicalizeSessionV8(
-        migrateSessionV7(
-          migrateSessionV6(
-            migrateSessionV5(
-              migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+      canonicalizeSessionV9(
+        migrateSessionV8(
+          migrateSessionV7(
+            migrateSessionV6(
+              migrateSessionV5(
+                migrateSessionV4(migrateSessionV3(migrateSessionV2(value as unknown as SessionV2))),
+              ),
             ),
           ),
         ),
@@ -820,10 +852,12 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
   if (value.schemaVersion === 3) {
     assertValidSessionV3(value, isPageCalibrationV3);
     return finalizeDecodedSession(
-      canonicalizeSessionV8(
-        migrateSessionV7(
-          migrateSessionV6(
-            migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+      canonicalizeSessionV9(
+        migrateSessionV8(
+          migrateSessionV7(
+            migrateSessionV6(
+              migrateSessionV5(migrateSessionV4(migrateSessionV3(value as unknown as SessionV3))),
+            ),
           ),
         ),
       ),
@@ -833,9 +867,11 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
   if (value.schemaVersion === 4) {
     assertValidSessionWithHistoricalPolygons(value, assertValidSessionV4);
     return finalizeDecodedSession(
-      canonicalizeSessionV8(
-        migrateSessionV7(
-          migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+      canonicalizeSessionV9(
+        migrateSessionV8(
+          migrateSessionV7(
+            migrateSessionV6(migrateSessionV5(migrateSessionV4(value as unknown as SessionV4))),
+          ),
         ),
       ),
       true,
@@ -849,8 +885,10 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       assertValidSessionV5(candidate, classificationRepairRequired),
     );
     return finalizeDecodedSession(
-      canonicalizeSessionV8(
-        migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
+      canonicalizeSessionV9(
+        migrateSessionV8(
+          migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
+        ),
       ),
       true,
       classificationRepairRequired,
@@ -864,7 +902,9 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       assertValidSessionV6(candidate, classificationRepairRequired),
     );
     return finalizeDecodedSession(
-      canonicalizeSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6))),
+      canonicalizeSessionV9(
+        migrateSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6))),
+      ),
       true,
       classificationRepairRequired,
     );
@@ -877,7 +917,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       assertValidSessionV7(candidate, classificationRepairRequired),
     );
     return finalizeDecodedSession(
-      canonicalizeSessionV8(migrateSessionV7(value as unknown as SessionV7)),
+      canonicalizeSessionV9(migrateSessionV8(migrateSessionV7(value as unknown as SessionV7))),
       true,
       classificationRepairRequired,
     );
@@ -890,7 +930,20 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       assertValidSessionV8(candidate, classificationRepairRequired),
     );
     return finalizeDecodedSession(
-      canonicalizeSessionV8(value as unknown as SessionV8),
+      canonicalizeSessionV9(migrateSessionV8(value as unknown as SessionV8)),
+      true,
+      classificationRepairRequired,
+    );
+  }
+  if (value.schemaVersion === 9) {
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionWithHistoricalPolygons(value, (candidate) =>
+      assertValidSessionV9(candidate, classificationRepairRequired),
+    );
+    return finalizeDecodedSession(
+      canonicalizeSessionV9(value as unknown as SessionV9),
       true,
       classificationRepairRequired,
     );

@@ -1,4 +1,9 @@
-import type { LinearUnit, Measurement, PageCalibration } from "../types/domain";
+import type {
+  LinearUnit,
+  Measurement,
+  MeasurementDecimalPlaces,
+  PageCalibration,
+} from "../types/domain";
 import {
   hasValidMeasurementPoints,
   measurementPathSpecs,
@@ -6,7 +11,7 @@ import {
 } from "./geometry";
 import { fromMillimetres, fromSquareMillimetres } from "./units";
 
-const DEFAULT_DISPLAY_DECIMAL_PLACES = 2;
+export const DEFAULT_MEASUREMENT_DECIMAL_PLACES: MeasurementDecimalPlaces = 2;
 const MAX_DISPLAY_DECIMAL_PLACES = 20;
 
 function roundsToZero(value: number, decimalPlaces: number): boolean {
@@ -14,20 +19,24 @@ function roundsToZero(value: number, decimalPlaces: number): boolean {
 }
 
 /**
- * Formats a value for the UI with two decimals by default. If that would hide a
- * finite non-zero value as zero, more decimals are shown until the value is visible.
+ * Formats a value for the UI with the requested fixed precision. If that would
+ * hide a finite non-zero value as zero, more decimals are shown until the value
+ * is visible.
  */
-export function formatDisplayNumber(value: number): string {
-  const rounded = value.toFixed(DEFAULT_DISPLAY_DECIMAL_PLACES);
-  if (!roundsToZero(value, DEFAULT_DISPLAY_DECIMAL_PLACES)) return rounded;
+export function formatDisplayNumber(
+  value: number,
+  decimalPlaces: MeasurementDecimalPlaces = DEFAULT_MEASUREMENT_DECIMAL_PLACES,
+): string {
+  const rounded = value.toFixed(decimalPlaces);
+  if (!roundsToZero(value, decimalPlaces)) return rounded;
 
   for (
-    let decimalPlaces = DEFAULT_DISPLAY_DECIMAL_PLACES + 1;
-    decimalPlaces <= MAX_DISPLAY_DECIMAL_PLACES;
-    decimalPlaces += 1
+    let expandedDecimalPlaces = decimalPlaces + 1;
+    expandedDecimalPlaces <= MAX_DISPLAY_DECIMAL_PLACES;
+    expandedDecimalPlaces += 1
   ) {
-    const expanded = value.toFixed(decimalPlaces);
-    if (!roundsToZero(value, decimalPlaces)) return expanded;
+    const expanded = value.toFixed(expandedDecimalPlaces);
+    if (!roundsToZero(value, expandedDecimalPlaces)) return expanded;
   }
 
   // Extremely small values can be below toFixed's supported precision. String()
@@ -63,6 +72,7 @@ export function formatMeasurement(
   measurement: Pick<Measurement, "type" | "points">,
   calibration: PageCalibration,
   unit: LinearUnit,
+  decimalPlaces: MeasurementDecimalPlaces = DEFAULT_MEASUREMENT_DECIMAL_PLACES,
 ): string {
   if (
     measurement.type === "polygon" &&
@@ -78,7 +88,7 @@ export function formatMeasurement(
     throw error;
   }
   if (!measurementPathSpecs[measurement.type].closed && result.lengthMm !== null) {
-    return `${formatDisplayNumber(fromMillimetres(result.lengthMm, unit))} ${unit}`;
+    return `${formatDisplayNumber(fromMillimetres(result.lengthMm, unit), decimalPlaces)} ${unit}`;
   }
-  return `P ${formatDisplayNumber(fromMillimetres(result.perimeterMm ?? 0, unit))} ${unit} · A ${formatDisplayNumber(fromSquareMillimetres(result.areaMm2 ?? 0, unit))} ${unit}²`;
+  return `P ${formatDisplayNumber(fromMillimetres(result.perimeterMm ?? 0, unit), decimalPlaces)} ${unit} · A ${formatDisplayNumber(fromSquareMillimetres(result.areaMm2 ?? 0, unit), decimalPlaces)} ${unit}²`;
 }

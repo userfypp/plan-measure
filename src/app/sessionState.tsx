@@ -184,7 +184,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     pdf,
     pageCount,
     currentPage: 1,
@@ -195,6 +195,7 @@ export function createEmptySession(
       showMeasurements: true,
       showCalibration: true,
       csvExport: { columnOverrides: {} },
+      measurementDecimalPlaces: 2,
       ...settings,
     },
     classificationCatalog: { dimensions: [] },

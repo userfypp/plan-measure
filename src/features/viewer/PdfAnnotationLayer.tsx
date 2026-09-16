@@ -11,6 +11,7 @@ import type {
   LinearUnit,
   LogicalPageBounds,
   Measurement,
+  MeasurementDecimalPlaces,
   PageState,
   Point,
   Tool,
@@ -151,6 +152,7 @@ interface PdfAnnotationLayerProps {
   interactionTargetScreenPx: number;
 
   displayUnit: LinearUnit;
+  measurementDecimalPlaces: MeasurementDecimalPlaces;
   showCalibration: boolean;
   showMeasurements: boolean;
   showLabels: boolean;
@@ -188,6 +190,7 @@ export function PdfAnnotationLayer({
   visualRoles,
   interactionTargetScreenPx,
   displayUnit,
+  measurementDecimalPlaces,
   showCalibration,
   showMeasurements,
   showLabels,
@@ -264,7 +267,12 @@ export function PdfAnnotationLayer({
         if (!shouldRenderMeasurement(measurement, showMeasurementLabels)) continue;
         const calibration = getMeasurementCalibration(page, measurement);
         if (!calibration) continue;
-        const labelText = formatMeasurement(measurement, calibration, displayUnit);
+        const labelText = formatMeasurement(
+          measurement,
+          calibration,
+          displayUnit,
+          measurementDecimalPlaces,
+        );
         reserve(
           `measurement:${measurement.id}`,
           averagePoint(measurement.points),
@@ -279,6 +287,7 @@ export function PdfAnnotationLayer({
     page,
     selectedMeasurementId,
     displayUnit,
+    measurementDecimalPlaces,
     showCalibration,
     showMeasurementLabels,
     transform.zoom,
@@ -415,6 +424,7 @@ export function PdfAnnotationLayer({
             showLabel={showLabels}
             page={page}
             displayUnit={displayUnit}
+            measurementDecimalPlaces={measurementDecimalPlaces}
             visualRoles={visualRoles}
             interactionTargetScreenPx={interactionTargetScreenPx}
             pageNumber={page.pageNumber}
@@ -633,6 +643,7 @@ interface MeasurementShapeProps {
   pageNumber: number;
   page: PageState;
   displayUnit: LinearUnit;
+  measurementDecimalPlaces: MeasurementDecimalPlaces;
   visualRoles: CanvasVisualRoles;
   interactionTargetScreenPx: number;
   bounds: LogicalPageBounds;
@@ -661,6 +672,7 @@ const MeasurementShape = memo(function MeasurementShape({
   pageNumber,
   page,
   displayUnit,
+  measurementDecimalPlaces,
   visualRoles,
   interactionTargetScreenPx,
   bounds,
@@ -710,8 +722,11 @@ const MeasurementShape = memo(function MeasurementShape({
     [visibleMeasurement.points],
   );
   const labelText = useMemo(
-    () => (calibration ? formatMeasurement(visibleMeasurement, calibration, displayUnit) : null),
-    [calibration, displayUnit, visibleMeasurement],
+    () =>
+      calibration
+        ? formatMeasurement(visibleMeasurement, calibration, displayUnit, measurementDecimalPlaces)
+        : null,
+    [calibration, displayUnit, measurementDecimalPlaces, visibleMeasurement],
   );
   const labelDimensions = useMemo(
     () =>
