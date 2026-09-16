@@ -22,12 +22,12 @@ import { measurementPathSpecs } from "../../utils/geometry";
 import { formatMeasurement } from "../../utils/format";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
 import {
+  createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelAvoidingOverlaps,
   placeLabelWithinBounds,
   type LabelDimensions,
   type LabelPlacement,
-  type OccupiedLabelRect,
 } from "../../utils/labelLayout";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 import {
@@ -204,7 +204,7 @@ export function PdfAnnotationLayer({
   const showMeasurementLabels = showMeasurements && showLabels;
   const plannedLabelPlacements = useMemo(() => {
     const placements = new Map<string, LabelPlacement>();
-    const occupied: OccupiedLabelRect[] = [];
+    const occupied = createLabelCollisionIndex();
     if (!bounds) return placements;
 
     function reserve(key: string, anchor: Point, dimensions: LabelDimensions) {
@@ -217,7 +217,7 @@ export function PdfAnnotationLayer({
         LABEL_EDGE_MARGIN_SCREEN_PX,
       );
       placements.set(key, placement);
-      occupied.push({ ...placement, ...dimensions });
+      occupied.insert({ ...placement, ...dimensions });
     }
 
     if (showCalibration || calibrationReferenceEdit) {

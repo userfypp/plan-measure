@@ -264,6 +264,32 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(captured.texts[0]?.text).toContain("17.500000 m²");
   });
 
+  it("keeps selected-first collision planning deterministic and excludes hidden measurements", () => {
+    const page = uniformPage();
+    const first = page.measurements[0]!;
+    page.measurements = [
+      first,
+      { ...first, id: "polygon-2", name: "Second" },
+      { ...first, id: "polygon-hidden", name: "Hidden", visible: false },
+    ];
+
+    renderLayer({ page, selectedMeasurementId: "polygon-2" });
+    const firstPass = captured.labels.map((label) => ({ x: label.x, y: label.y }));
+
+    expect(firstPass).toHaveLength(2);
+    expect(firstPass[0]?.y).toBe(68);
+    expect(firstPass[1]?.y).toBe(80);
+
+    captured.lines.length = 0;
+    captured.circles.length = 0;
+    captured.labels.length = 0;
+    captured.tags.length = 0;
+    captured.texts.length = 0;
+    renderLayer({ page, selectedMeasurementId: "polygon-2" });
+
+    expect(captured.labels.map((label) => ({ x: label.x, y: label.y }))).toEqual(firstPass);
+  });
+
   it("makes selection structurally stronger with blue fill and 6 px optical / 32 px hit handles", () => {
     renderLayer({ selectedMeasurementId: "polygon-1" });
 
