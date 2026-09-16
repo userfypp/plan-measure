@@ -10,6 +10,8 @@ export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
+export { Switch } from "./Switch";
+export type { SwitchProps } from "./Switch";
 export { Popover } from "./Popover";
 export type {
   PopoverInitialFocus,

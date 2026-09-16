@@ -1,5 +1,5 @@
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
-import { Popover } from "../components/ui";
+import { Popover, Switch } from "../components/ui";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useTheme, type ThemePreference } from "./themeState";
@@ -198,14 +198,11 @@ export function SettingsPopover({
                   Confirm before deleting
                 </label>
                 <label className={styles.switchTarget}>
-                  <input
+                  <Switch
                     id={deleteConfirmationId}
-                    className={styles.switchInput}
-                    type="checkbox"
-                    role="switch"
                     aria-label="Confirm before deleting measurements"
                     checked={confirmMeasurementDeletion}
-                    onChange={(event) => onConfirmMeasurementDeletionChange(event.target.checked)}
+                    onChange={onConfirmMeasurementDeletionChange}
                   />
                 </label>
               </div>

@@ -50,12 +50,28 @@ select {
   text-align-last: center;
   appearance: none;
   -webkit-appearance: none;
+  transition: var(--transition-interactive);
+}
+
+select:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background-color: var(--color-control-hover-surface);
+}
+
+select:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background-color: var(--color-control-active-surface);
+}
+
+select:not(:disabled) {
+  cursor: pointer;
 }
 
 select:disabled {
   border-color: var(--color-divider);
   background-color: var(--color-surface-panel);
   color: var(--color-text-disabled);
+  cursor: not-allowed;
 }
 
 select:focus-visible {
