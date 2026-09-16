@@ -81,7 +81,7 @@
   opacity: var(--opacity-disabled);
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .target {
     width: var(--target-coarse);
     height: var(--target-coarse);

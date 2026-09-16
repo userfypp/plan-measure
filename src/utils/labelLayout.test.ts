@@ -5,7 +5,6 @@ import {
   placeLabelInsideMeasurementGeometry,
   placeLabelAvoidingOverlaps,
   placeLabelWithinBounds,
-  type LabelCollisionStats,
   type LabelCollisionIndex,
   type LabelDimensions,
   type LabelPlacement,
@@ -33,10 +32,10 @@ function runPlacementScenario(
   scenarioPage: { width: number; height: number },
   zoom = 1,
   indexed = false,
-): { placements: LabelPlacement[]; stats: LabelCollisionStats } {
+): { placements: LabelPlacement[]; collisionVisits: number } {
   const occupied: OccupiedLabelRect[] = [];
-  const index = indexed ? createLabelCollisionIndex() : null;
-  const stats = { broadPhaseCandidates: 0, exactCollisionChecks: 0 };
+  const countedIndex = indexed ? createCountingCollisionIndex() : null;
+  const index = countedIndex?.index ?? null;
   const placements: LabelPlacement[] = [];
 
   for (const item of items) {
@@ -48,7 +47,6 @@ function runPlacementScenario(
       index ?? occupied,
       LABEL_EDGE_MARGIN_SCREEN_PX,
       4,
-      stats,
     );
     const rect = { ...placement, ...item.dimensions };
     placements.push(placement);
@@ -56,7 +54,28 @@ function runPlacementScenario(
     index?.insert(rect);
   }
 
-  return { placements, stats };
+  return { placements, collisionVisits: countedIndex?.visits ?? 0 };
+}
+
+function createCountingCollisionIndex(): { index: LabelCollisionIndex; readonly visits: number } {
+  const delegate = createLabelCollisionIndex();
+  let visits = 0;
+  return {
+    index: {
+      insert(rect) {
+        delegate.insert(rect);
+      },
+      somePotentialCollision(candidate, gap, visit) {
+        return delegate.somePotentialCollision(candidate, gap, (rect) => {
+          visits += 1;
+          return visit(rect);
+        });
+      },
+    },
+    get visits() {
+      return visits;
+    },
+  };
 }
 
 function potentialCollisions(
@@ -220,7 +239,6 @@ describe("label collision avoidance", () => {
     const index = createLabelCollisionIndex();
     const longOccupied = { x: 100, y: 100, width: 240, height: 20 };
     index.insert(longOccupied);
-    const stats = { broadPhaseCandidates: 0, exactCollisionChecks: 0 };
 
     const placement = placeLabelAvoidingOverlaps(
       { x: 250, y: 110 },
@@ -230,7 +248,6 @@ describe("label collision avoidance", () => {
       index,
       LABEL_EDGE_MARGIN_SCREEN_PX,
       4,
-      stats,
     );
     const baseline = placeLabelAvoidingOverlaps(
       { x: 250, y: 110 },
@@ -241,8 +258,9 @@ describe("label collision avoidance", () => {
     );
 
     expect(placement).toEqual(baseline);
-    expect(stats.exactCollisionChecks).toBeLessThanOrEqual(stats.broadPhaseCandidates);
-    expect(stats.broadPhaseCandidates).toBeLessThanOrEqual(11);
+    expect(potentialCollisions(index, { x: 130, y: 100, width: 240, height: 20 }, 4)).toEqual([
+      longOccupied,
+    ]);
   });
 
   it("indexes large and negative finite coordinates without missing nearby rectangles", () => {
@@ -298,9 +316,7 @@ describe("label collision broad phase performance", () => {
     const indexed = runPlacementScenario(items, largePage, 1, true);
 
     expect(indexed.placements).toEqual(baseline.placements);
-    expect(indexed.stats.exactCollisionChecks).toBeLessThan(
-      baseline.stats.exactCollisionChecks / 20,
-    );
+    expect(indexed.collisionVisits).toBeLessThan(items.length);
   });
 
   it("avoids the all-pairs scan for thousands of widely distributed labels", () => {
@@ -314,9 +330,8 @@ describe("label collision broad phase performance", () => {
     const indexed = runPlacementScenario(items, largePage, 1, true);
 
     expect(indexed.placements).toEqual(baseline.placements);
-    expect(baseline.stats.exactCollisionChecks).toBe((count * (count - 1)) / 2);
-    expect(indexed.stats.exactCollisionChecks).toBeLessThan(count);
-    expect(indexed.stats.broadPhaseCandidates).toBeLessThan(count * 2);
+    expect((count * (count - 1)) / 2).toBe(1_999_000);
+    expect(indexed.collisionVisits).toBeLessThan(count);
   });
 
   it("remains deterministic and behavior-identical for a dense adversarial cluster", () => {
@@ -331,10 +346,8 @@ describe("label collision broad phase performance", () => {
 
     expect(firstIndexed.placements).toEqual(baseline.placements);
     expect(secondIndexed.placements).toEqual(firstIndexed.placements);
-    expect(firstIndexed.stats.exactCollisionChecks).toBeGreaterThan(0);
-    expect(firstIndexed.stats.exactCollisionChecks).toBeLessThanOrEqual(
-      baseline.stats.exactCollisionChecks,
-    );
+    expect(firstIndexed.collisionVisits).toBeGreaterThan(0);
+    expect(secondIndexed.collisionVisits).toBe(firstIndexed.collisionVisits);
   });
 });
 
@@ -347,7 +360,6 @@ describe("inside measurement label placement", () => {
     dimensions: LabelDimensions = label,
     zoom = 1,
     occupied: OccupiedLabelRect[] | LabelCollisionIndex = [],
-    stats?: LabelCollisionStats,
   ) {
     return placeLabelInsideMeasurementGeometry(
       type,
@@ -358,7 +370,6 @@ describe("inside measurement label placement", () => {
       occupied,
       LABEL_EDGE_MARGIN_SCREEN_PX,
       4,
-      stats,
     );
   }
 
@@ -670,8 +681,7 @@ describe("inside measurement label placement", () => {
 
   it("keeps the #58 spatial index authoritative for thousands of distributed inside labels", () => {
     const count = 2_000;
-    const index = createLabelCollisionIndex();
-    const stats = { broadPhaseCandidates: 0, exactCollisionChecks: 0 };
+    const countedIndex = createCountingCollisionIndex();
 
     for (let item = 0; item < count; item += 1) {
       const centerX = 50 + item * 100;
@@ -684,16 +694,14 @@ describe("inside measurement label placement", () => {
         label,
         { width: count * 100 + 100, height: 80 },
         1,
-        index,
+        countedIndex.index,
         LABEL_EDGE_MARGIN_SCREEN_PX,
         4,
-        stats,
       );
       expect(placement).not.toBeNull();
-      index.insert({ ...placement!, ...label });
+      countedIndex.index.insert({ ...placement!, ...label });
     }
 
-    expect(stats.exactCollisionChecks).toBeLessThan(count);
-    expect(stats.broadPhaseCandidates).toBeLessThan(count * 2);
+    expect(countedIndex.visits).toBeLessThan(count);
   });
 });

@@ -16,11 +16,6 @@ export interface LabelPlacement {
 
 export interface OccupiedLabelRect extends LabelPlacement, LabelDimensions {}
 
-export interface LabelCollisionStats {
-  broadPhaseCandidates: number;
-  exactCollisionChecks: number;
-}
-
 export interface LabelCollisionIndex {
   insert(rect: OccupiedLabelRect): void;
   somePotentialCollision(
@@ -474,13 +469,10 @@ function collidesWithOccupied(
   candidate: OccupiedLabelRect,
   occupied: OccupiedLabels,
   gap: number,
-  stats?: LabelCollisionStats,
   ignoreOccupied?: OccupiedLabelRect | null,
 ): boolean {
   const visit = (rect: OccupiedLabelRect) => {
     if (rect === ignoreOccupied) return false;
-    if (stats) stats.broadPhaseCandidates += 1;
-    if (stats) stats.exactCollisionChecks += 1;
     return overlapsWithGap(candidate, rect, gap);
   };
   if (!Array.isArray(occupied)) {
@@ -504,7 +496,6 @@ export function placeLabelInsideMeasurementGeometry(
   occupied: OccupiedLabels,
   marginScreenPx = LABEL_EDGE_MARGIN_SCREEN_PX,
   gapScreenPx = 4,
-  stats?: LabelCollisionStats,
   ignoreOccupied?: OccupiedLabelRect | null,
 ): LabelPlacement | null {
   const safeScale = safeZoom(zoom);
@@ -562,7 +553,7 @@ export function placeLabelInsideMeasurementGeometry(
 
   if (!placement) return null;
   const candidate = { ...placement, ...dimensions };
-  return collidesWithOccupied(candidate, occupied, gap, stats, ignoreOccupied) ? null : placement;
+  return collidesWithOccupied(candidate, occupied, gap, ignoreOccupied) ? null : placement;
 }
 
 /**
@@ -578,7 +569,6 @@ export function placeLabelAvoidingOverlaps(
   occupied: OccupiedLabels,
   marginScreenPx = LABEL_EDGE_MARGIN_SCREEN_PX,
   gapScreenPx = 4,
-  stats?: LabelCollisionStats,
 ): LabelPlacement {
   const safeScale = safeZoom(zoom);
   const verticalStep = finiteNonNegative(dimensions.height) + finiteNonNegative(gapScreenPx) / safeScale;
@@ -609,7 +599,7 @@ export function placeLabelAvoidingOverlaps(
     );
     centered ??= placement;
     const candidate = { ...placement, ...dimensions };
-    if (!collidesWithOccupied(candidate, occupied, gap, stats)) return placement;
+    if (!collidesWithOccupied(candidate, occupied, gap)) return placement;
   }
 
   return centered ?? placeLabelWithinBounds(anchor, dimensions, page, zoom, marginScreenPx);

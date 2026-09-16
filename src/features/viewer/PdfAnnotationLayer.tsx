@@ -784,7 +784,6 @@ const MeasurementShape = memo(function MeasurementShape({
       labelCollisionIndex,
       LABEL_EDGE_MARGIN_SCREEN_PX,
       4,
-      undefined,
       plannedOccupiedLabelRect,
     );
     return (

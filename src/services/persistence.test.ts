@@ -863,6 +863,38 @@ describe("session persistence", () => {
     },
   );
 
+  it.each([
+    [1, () => legacySession(true)],
+    [2, v2MeasuredSession],
+    [3, v3MeasuredSession],
+    [4, v4MeasuredSession],
+    [5, v5MeasuredSession],
+    [6, v6MeasuredSession],
+    [7, v7MeasuredSession],
+    [8, v8MeasuredSession],
+    [9, currentMeasuredSession],
+  ] as const)("rejects noncanonical V%d page keys before migration or canonicalization", (_version, create) => {
+    for (const pageKey of ["0", "-1", "1.5", "01", "+1", "1e0", " 1", "1 ", "NaN", "Infinity"]) {
+      const raw = JSON.parse(JSON.stringify(create())) as {
+        pages: Record<string, { pageNumber: number }>;
+      };
+      const canonicalPage = raw.pages["1"];
+      if (!canonicalPage) throw new Error("Expected a canonical page 1 entry.");
+      raw.pages[pageKey] = structuredClone(canonicalPage);
+
+      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).toThrow("invalid page key");
+    }
+  });
+
+  it("accepts a canonical persisted page key", () => {
+    const raw = JSON.parse(JSON.stringify(legacySession(true))) as {
+      pages: Record<string, { pageNumber: number }>;
+    };
+
+    expect(Object.keys(raw.pages)).toEqual(["1"]);
+    expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).not.toThrow();
+  });
+
   it("rejects persisted recovery instead of silently dropping a page above pageCount", async () => {
     const session = currentMeasuredSession();
     const outOfRangePageNumber = session.pageCount + 1;

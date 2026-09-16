@@ -70,8 +70,9 @@ describe("shared interactive-state contract", () => {
     expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
     expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
     expect(switchCss).toMatch(
-      /@media \(pointer: coarse\)\s*\{[^}]*\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
+      /@media \(any-pointer: coarse\)\s*\{[^}]*\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
     );
+    expect(switchCss).not.toContain("@media (pointer: coarse)");
     expect(switchCss).not.toMatch(/\.target[^}]*cursor:\s*pointer;/s);
     expect(switchCss).not.toMatch(/\.input:hover/);
   });
