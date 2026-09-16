@@ -13,7 +13,7 @@
   min-height: 0;
   flex: 0 1 auto;
   overflow-y: auto;
-  padding: var(--space-4) 0 0;
+  padding: 0;
 }
 
 .scaleRow {
@@ -217,6 +217,25 @@
   background: var(--color-surface-panel);
   color: var(--color-text-disabled);
   cursor: not-allowed;
+}
+
+.addScaleMenu[role="menu"] {
+  width: max-content;
+  max-width: min(224px, calc(100vw - var(--space-16)));
+}
+
+.addScaleMenu [role="menuitem"] {
+  padding-block: var(--space-4);
+}
+
+.addScaleMenu [data-menu-section-label="true"] {
+  margin-top: var(--space-8);
+  padding: var(--space-4) var(--space-8) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+  text-transform: uppercase;
 }
 
 .addOptionLabel {

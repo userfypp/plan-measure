@@ -41,9 +41,24 @@ describe("measurement formatting", () => {
     expect(formatNumber(12.345)).toBe("12.35");
   });
 
+  it.each([
+    [0, "12"],
+    [2, "12.35"],
+    [3, "12.346"],
+    [6, "12.345670"],
+  ] as const)("formats ordinary UI values with %d decimal places", (decimalPlaces, expected) => {
+    expect(formatDisplayNumber(12.34567, decimalPlaces)).toBe(expected);
+  });
+
   it("shows additional UI decimals when two decimals would produce zero", () => {
     expect(formatDisplayNumber(0.004)).toBe("0.004");
     expect(formatDisplayNumber(0.000004)).toBe("0.000004");
+  });
+
+  it("preserves a finite non-zero value when the selected precision would display zero", () => {
+    expect(formatDisplayNumber(0.4, 0)).toBe("0.4");
+    expect(formatDisplayNumber(0.004, 2)).toBe("0.004");
+    expect(formatDisplayNumber(0.0000004, 6)).toBe("0.0000004");
   });
 
   it("preserves CSV precision while keeping two decimals for ordinary values", () => {
@@ -66,6 +81,14 @@ describe("measurement formatting", () => {
     ["m", "P 0.01 m · A 0.000004 m²"],
   ] as const)("formats small perimeters and areas in %s", (unit, expected) => {
     expect(formatMeasurement(polygon, calibration, unit)).toBe(expected);
+  });
+
+  it("applies the selected precision to metre lengths, perimeter, and area", () => {
+    expect(formatMeasurement(line, calibration, "m", 6)).toBe("0.004000 m");
+    expect(formatMeasurement(polygon, calibration, "m", 3)).toBe(
+      "P 0.008 m · A 0.000004 m²",
+    );
+    expect(formatMeasurement(polygon, calibration, "mm", 0)).toBe("P 8 mm · A 4 mm²");
   });
 
   it("does not format a self-intersecting Polygon as a valid area", () => {

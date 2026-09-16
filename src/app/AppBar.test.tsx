@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import buttonStyles from "../components/ui/Button.module.css";
+import type { MeasurementDecimalPlaces } from "../types/domain";
 import { ThemeProvider, SYSTEM_THEME_QUERY, THEME_STORAGE_KEY } from "./themeState";
 import { AppBar } from "./AppBar";
 
@@ -54,6 +55,14 @@ function settingsItems(): HTMLButtonElement[] {
   );
 }
 
+function settingsCheckboxItems(): HTMLButtonElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      '[role="menu"][aria-label="Settings"] [role="menuitemcheckbox"]',
+    ),
+  );
+}
+
 function openSettings() {
   act(() => buttonByLabel("Settings").click());
 }
@@ -67,13 +76,21 @@ function chooseTheme(label: string) {
 function renderAppBar({
   documentName = "North Studio — Level 01.pdf",
   canExport = true,
+  measurementDecimalPlaces,
   onOpenPdf = vi.fn(),
   onExport = vi.fn(),
+  onMeasurementDecimalPlacesChange,
+  confirmMeasurementDeletion,
+  onConfirmMeasurementDeletionChange,
 }: {
   documentName?: string | null;
   canExport?: boolean;
+  measurementDecimalPlaces?: MeasurementDecimalPlaces;
   onOpenPdf?: () => void;
   onExport?: () => void;
+  onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  confirmMeasurementDeletion?: boolean;
+  onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
 } = {}) {
   act(() => {
     root!.render(
@@ -81,8 +98,12 @@ function renderAppBar({
         <AppBar
           documentName={documentName}
           canExport={canExport}
+          measurementDecimalPlaces={measurementDecimalPlaces}
           onOpenPdf={onOpenPdf}
           onExport={onExport}
+          onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+          confirmMeasurementDeletion={confirmMeasurementDeletion}
+          onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
         />
       </ThemeProvider>,
     );
@@ -197,6 +218,105 @@ describe("AppBar", () => {
     openSettings();
     items = settingsItems();
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("groups Appearance and measurement decimals while preserving checked radio options", () => {
+    const onMeasurementDecimalPlacesChange = vi.fn();
+    renderAppBar({
+      measurementDecimalPlaces: 2,
+      onMeasurementDecimalPlacesChange,
+    });
+    openSettings();
+
+    const items = settingsItems();
+    const sectionLabels = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[role="menu"][aria-label="Settings"] [data-menu-section-label="true"]',
+      ),
+    );
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      "System",
+      "Light",
+      "Dark",
+      "0 decimals",
+      "1 decimal",
+      "2 decimals",
+      "3 decimals",
+      "4 decimals",
+      "5 decimals",
+      "6 decimals",
+    ]);
+    expect(sectionLabels.map((label) => label.textContent)).toEqual([
+      "Appearance",
+      "Measurement decimals",
+    ]);
+    expect(sectionLabels.every((label) => label.getAttribute("role") === "separator")).toBe(true);
+    expect(sectionLabels.every((label) => label.getAttribute("tabindex") === null)).toBe(true);
+    expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(items[0]?.querySelector("svg")).not.toBeNull();
+    expect(items[5]?.getAttribute("aria-checked")).toBe("true");
+    expect(items[5]?.querySelector("svg")).not.toBeNull();
+
+    act(() => items[9]?.click());
+    expect(onMeasurementDecimalPlacesChange).toHaveBeenCalledWith(6);
+  });
+
+  it("navigates all Settings options in order while skipping both section labels", () => {
+    renderAppBar({
+      measurementDecimalPlaces: 2,
+      onMeasurementDecimalPlacesChange: vi.fn(),
+    });
+    openSettings();
+
+    const items = settingsItems();
+    const sectionLabels = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[role="menu"][aria-label="Settings"] [data-menu-section-label="true"]',
+      ),
+    );
+    expect(document.activeElement).toBe(items[0]);
+
+    for (let index = 1; index < items.length; index += 1) {
+      act(() =>
+        document.activeElement?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+        ),
+      );
+      expect(document.activeElement).toBe(items[index]);
+      expect(sectionLabels).not.toContain(document.activeElement);
+    }
+    expect(items.map((item) => item.tabIndex)).toEqual([
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+    ]);
+  });
+
+  it("exposes the reversible measurement deletion confirmation preference as a checkbox item", () => {
+    const onConfirmMeasurementDeletionChange = vi.fn();
+    renderAppBar({
+      confirmMeasurementDeletion: false,
+      onConfirmMeasurementDeletionChange,
+    });
+    openSettings();
+
+    const checkboxItems = settingsCheckboxItems();
+    expect(checkboxItems).toHaveLength(1);
+    expect(checkboxItems[0]?.textContent?.trim()).toBe("Confirm before deleting measurements");
+    expect(checkboxItems[0]?.getAttribute("aria-checked")).toBe("false");
+    expect(
+      document.querySelector('[role="separator"][aria-label="Measurement deletion"]'),
+    ).not.toBeNull();
+
+    act(() => checkboxItems[0]?.click());
+    expect(onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(true);
   });
 
   it("supports menu keyboard navigation and Escape focus return", () => {

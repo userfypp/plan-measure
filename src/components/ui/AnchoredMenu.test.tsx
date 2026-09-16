@@ -122,6 +122,31 @@ describe("AnchoredMenu", () => {
     expect(buttons()[1]?.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("supports checkbox menu semantics without changing selection markers", () => {
+    act(() => {
+      root!.render(
+        <AnchoredMenu
+          trigger="Settings"
+          label="Settings"
+          items={[
+            {
+              id: "confirm-delete",
+              label: "Confirm before deleting measurements",
+              role: "menuitemcheckbox",
+              checked: false,
+              onSelect: vi.fn(),
+            },
+          ]}
+        />,
+      );
+    });
+    openMenu();
+
+    expect(buttons()[0]?.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(buttons()[0]?.getAttribute("aria-checked")).toBe("false");
+    expect(buttons()[0]?.querySelector("svg")).toBeNull();
+  });
+
   it("uses a single SVG check for the selected item without adding glyph text", () => {
     openMenu();
     const menuButtons = buttons();
@@ -134,6 +159,38 @@ describe("AnchoredMenu", () => {
     expect(menuButtons[0]?.querySelector("svg")).not.toBeNull();
     expect(menuButtons[1]?.querySelector("svg")).toBeNull();
     expect(menuButtons[2]?.querySelector("svg")).toBeNull();
+  });
+
+  it("can omit reserved marker space and render a non-focusable section separator", () => {
+    act(() => {
+      root!.render(
+        <AnchoredMenu
+          trigger="Add scale"
+          label="Add scale"
+          showMarkerColumn={false}
+          items={[
+            { id: "uniform", label: "Uniform", onSelect: vi.fn() },
+            {
+              id: "preset",
+              sectionLabel: "Standard ratios",
+              label: "1:20",
+              onSelect: vi.fn(),
+            },
+          ]}
+        />,
+      );
+    });
+    openMenu();
+
+    const menuButtons = buttons();
+    expect(menuButtons).toHaveLength(2);
+    expect(menuButtons[0]?.querySelector('[aria-hidden="true"]')).toBeNull();
+    const separator = document.querySelector('[role="separator"][aria-label="Standard ratios"]');
+    expect(separator).not.toBeNull();
+    expect(separator?.getAttribute("tabindex")).toBeNull();
+
+    press("ArrowDown");
+    expect(document.activeElement).toBe(menuButtons[1]);
   });
 
   it("moves focus with ArrowDown and ArrowUp", () => {

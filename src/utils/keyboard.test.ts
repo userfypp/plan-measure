@@ -96,6 +96,15 @@ describe("measurement keyboard shortcuts", () => {
   });
 
   it.each(["input", "textarea", "select", "[contenteditable='true']"])(
+    "does not delete a measurement while %s is editing text",
+    (kind) => {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(getMeasurementKeyboardAction(keyboardEvent("Delete", target))).toBeNull();
+      expect(getMeasurementKeyboardAction(keyboardEvent("Backspace", target))).toBeNull();
+    },
+  );
+
+  it.each(["input", "textarea", "select", "[contenteditable='true']"])(
     "leaves native copy and paste untouched in %s",
     (kind) => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;

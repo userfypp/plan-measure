@@ -1,4 +1,5 @@
 export type LinearUnit = "mm" | "cm" | "m";
+export type MeasurementDecimalPlaces = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface Point {
   x: number;
@@ -77,8 +78,12 @@ export interface LegacySessionSettings {
   showCalibration: boolean;
 }
 
-export interface SessionSettings extends LegacySessionSettings {
+export interface SessionSettingsV8 extends LegacySessionSettings {
   csvExport: CsvExportSettings;
+}
+
+export interface SessionSettings extends SessionSettingsV8 {
+  measurementDecimalPlaces: MeasurementDecimalPlaces;
 }
 
 interface LegacyMeasurementBase {
@@ -277,11 +282,21 @@ export interface SessionV8 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageState>;
+  settings: SessionSettingsV8;
+  classificationCatalog: ClassificationCatalog;
+}
+
+export interface SessionV9 {
+  schemaVersion: 9;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageState>;
   settings: SessionSettings;
   classificationCatalog: ClassificationCatalog;
 }
 
-export type CurrentSession = SessionV8;
+export type CurrentSession = SessionV9;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

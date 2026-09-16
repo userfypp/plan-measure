@@ -13,6 +13,7 @@ import type {
 } from "./overlayState";
 import type { CurrentSession } from "../types/domain";
 import {
+  beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
   loadSavedSession,
   PersistenceLoadError,
@@ -79,6 +80,7 @@ export function usePdfSessionLifecycle({
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const persistenceGenerationRef = useRef(0);
   const persistenceRevisionRef = useRef<string | null | undefined>(undefined);
+  const persistedSessionRef = useRef<CurrentSession | null>(null);
   const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
   const activePdfRef = useRef<LoadedPdf | null>(null);
   const pendingPdfRef = useRef<PendingPdf | null>(null);
@@ -218,7 +220,16 @@ export function usePdfSessionLifecycle({
     if (!isAutosaveReady(autosaveInputs)) return;
     const snapshot = autosaveInputs.snapshot;
     const generation = persistenceGenerationRef.current;
-    const timer = window.setTimeout(() => {
+    let queued = false;
+    let beforeUnloadRegistered = false;
+    const removeBeforeUnload = () => {
+      if (!beforeUnloadRegistered) return;
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      beforeUnloadRegistered = false;
+    };
+    const queueAutosave = () => {
+      if (queued) return;
+      queued = true;
       saveQueueRef.current = enqueueAutosave(
         saveQueueRef.current,
         snapshot,
@@ -237,6 +248,7 @@ export function usePdfSessionLifecycle({
       )
         .then(() => {
           if (generation === persistenceGenerationRef.current) {
+            persistedSessionRef.current = snapshot;
             if (repairedHistoricalSession) setAutosaveStatus("available");
             setAutosaveWarning(null);
           }
@@ -249,9 +261,55 @@ export function usePdfSessionLifecycle({
             "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
           );
           setAutosaveStatus("unavailable");
-        });
-    }, 300);
-    return () => window.clearTimeout(timer);
+        })
+        .finally(removeBeforeUnload);
+    };
+    const timer = window.setTimeout(queueAutosave, 300);
+    const handleBeforeUnload = () => {
+      window.clearTimeout(timer);
+      if (
+        persistenceRevisionRef.current === null ||
+        persistenceRevisionRef.current === undefined
+      ) {
+        return;
+      }
+      const exitSave = beginSessionMetadataSaveOnPageExit(snapshot, () => {
+        const expectedRevision = persistenceRevisionRef.current;
+        if (expectedRevision === null || expectedRevision === undefined) {
+          throw new Error("Cannot autosave without a persisted session revision.");
+        }
+        return expectedRevision;
+      });
+      if (!exitSave) {
+        queueAutosave();
+        return;
+      }
+      queued = true;
+      saveQueueRef.current = exitSave
+        .then((revision) => {
+          if (generation === persistenceGenerationRef.current) {
+            persistenceRevisionRef.current = revision;
+            persistedSessionRef.current = snapshot;
+          }
+        })
+        .catch(() => undefined)
+        .finally(removeBeforeUnload);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "hidden") return;
+      window.clearTimeout(timer);
+      queueAutosave();
+    };
+    if (snapshot !== persistedSessionRef.current) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      beforeUnloadRegistered = true;
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearTimeout(timer);
+      removeBeforeUnload();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [activePdf, autosaveStatus, pdfBlob, session]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
@@ -294,6 +352,7 @@ export function usePdfSessionLifecycle({
           candidate.file,
           expectedRevision,
         );
+        persistedSessionRef.current = candidate.session;
         saved = true;
       } catch (error) {
         console.error("Could not save the new PDF session.", error);
@@ -395,6 +454,7 @@ export function usePdfSessionLifecycle({
       if (!installed) return;
       loaded = null;
       setPdfBlob(recovery.pdfBlob);
+      persistedSessionRef.current = recovery.session;
       loadSession(recovery.session);
       resetWorkspace();
       closeAllOverlays();
@@ -440,6 +500,7 @@ export function usePdfSessionLifecycle({
       }
       await discardSavedSession(expectedRevision);
       persistenceRevisionRef.current = null;
+      persistedSessionRef.current = null;
       if (disposedRef.current) return;
       setRecovery(null);
       setRecoveryIssue(null);

@@ -32,6 +32,10 @@
   transition: var(--transition-interactive);
 }
 
+.menu.markerlessMenu .item {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .item:hover:not([aria-disabled="true"]) {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);

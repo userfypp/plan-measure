@@ -1,4 +1,10 @@
-import type { ClassificationCatalog, LinearUnit, Measurement, PageState } from "../../types/domain";
+import type {
+  ClassificationCatalog,
+  LinearUnit,
+  Measurement,
+  MeasurementDecimalPlaces,
+  PageState,
+} from "../../types/domain";
 import { getActiveCalibration, getMeasurementCalibration } from "../../utils/calibration";
 import { formatMeasurement } from "../../utils/format";
 import { measurementPathSpecs } from "../../utils/geometry";
@@ -19,6 +25,7 @@ export function createMeasurementViewModel(
   measurement: Measurement,
   displayUnit: LinearUnit,
   selected = false,
+  measurementDecimalPlaces: MeasurementDecimalPlaces = 2,
 ): MeasurementViewModel & { selected: boolean } {
   const calibration = getMeasurementCalibration(page, measurement);
   const calibrationMode = calibration?.mode === "xy" ? "X/Y correction" : "Uniform";
@@ -29,7 +36,7 @@ export function createMeasurementViewModel(
     name: measurement.name,
     typeLabel: measurementPathSpecs[measurement.type].label,
     valueLabel: calibration
-      ? formatMeasurement(measurement, calibration, displayUnit)
+      ? formatMeasurement(measurement, calibration, displayUnit, measurementDecimalPlaces)
       : "Scale unavailable",
     calibrationSummary: calibration
       ? `${calibration.name} · ${calibrationMode}`
@@ -51,6 +58,7 @@ export function createMeasurementViewModels(
   page: PageState,
   displayUnit: LinearUnit,
   selectedMeasurementId: string | null,
+  measurementDecimalPlaces: MeasurementDecimalPlaces = 2,
 ): Array<MeasurementViewModel & { selected: boolean }> {
   return page.measurements.map((measurement) =>
     createMeasurementViewModel(
@@ -58,6 +66,7 @@ export function createMeasurementViewModels(
       measurement,
       displayUnit,
       measurement.id === selectedMeasurementId,
+      measurementDecimalPlaces,
     ),
   );
 }

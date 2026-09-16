@@ -74,6 +74,7 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
     page,
     measurement: firstMeasurement,
     displayUnit: "m",
+    measurementDecimalPlaces: 2,
     catalog,
     returnModule: "classifications",
     onBack: vi.fn(),
@@ -183,6 +184,14 @@ describe("MeasurementDetails", () => {
     expect(classificationTrigger().getAttribute("aria-expanded")).toBe("false");
     expect(container?.querySelector('section[aria-label="Classification assignment"] select')).toBeNull();
     expect(buttonByText("‹ Back to classifications")).toBeTruthy();
+  });
+
+  it("updates an existing measurement value when display precision changes", () => {
+    renderDetails(createProps({ measurementDecimalPlaces: 2 }));
+    expect(container?.textContent).toContain("1.00 m");
+
+    renderDetails(createProps({ measurementDecimalPlaces: 3 }));
+    expect(container?.textContent).toContain("1.000 m");
   });
 
   it("keeps a long linked scale name recoverable while allowing visual truncation", () => {

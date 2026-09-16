@@ -8,6 +8,7 @@ export interface ConfirmationDialogProps {
   open: boolean;
   title: ReactNode;
   description: ReactNode;
+  children?: ReactNode;
   confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -21,6 +22,7 @@ export function ConfirmationDialog({
   open,
   title,
   description,
+  children,
   confirmLabel,
   onConfirm,
   onCancel,
@@ -51,6 +53,7 @@ export function ConfirmationDialog({
       }
     >
       <p id={descriptionId}>{description}</p>
+      {children}
     </Dialog>
   );
 }

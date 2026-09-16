@@ -72,6 +72,17 @@ describe("measurement view models", () => {
     });
   });
 
+  it("reformats an existing measurement immediately when display precision changes", () => {
+    expect(createMeasurementViewModel(page, measurement, "m", false, 2).valueLabel).toBe("1.00 m");
+    expect(createMeasurementViewModel(page, measurement, "m", false, 6).valueLabel).toBe(
+      "1.000000 m",
+    );
+    expect(measurement.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ]);
+  });
+
   it("keeps hidden measurements in the collection and only renders visible ones", () => {
     const hidden = { ...measurement, id: "hidden-line", visible: false };
     const models = [

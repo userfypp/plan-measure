@@ -4,12 +4,17 @@ import type { CalibrationReferenceKey, PageCalibration, PageState } from "../../
 import { formatDisplayNumber } from "../../utils/format";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
+import {
+  STANDARD_SCALE_PRESET_RATIOS,
+  type StandardScalePresetRatio,
+} from "./standardScalePresets";
 import styles from "./ScalesWorkspace.module.css";
 
 export interface ScalesWorkspaceProps {
   page: PageState;
   actionsDisabled?: boolean;
   onAddScale: (mode: "uniform" | "xy") => void;
+  onAddPresetScale: (ratio: StandardScalePresetRatio) => void;
   onRecalibrate: (calibrationId: string) => void;
   onEditReference: (calibration: PageCalibration, reference: CalibrationReferenceKey) => void;
 }
@@ -29,6 +34,14 @@ function ScaleOptionLabel({ mode }: { mode: "uniform" | "xy" }) {
   );
 }
 
+function PresetScaleOptionLabel({ ratio }: { ratio: StandardScalePresetRatio }) {
+  return (
+    <span className={styles.addOptionLabel}>
+      <strong>1:{ratio}</strong>
+    </span>
+  );
+}
+
 function DisclosureIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
@@ -41,6 +54,7 @@ export function ScalesWorkspace({
   page,
   actionsDisabled = false,
   onAddScale,
+  onAddPresetScale,
   onRecalibrate,
   onEditReference,
 }: ScalesWorkspaceProps) {
@@ -188,7 +202,9 @@ export function ScalesWorkspace({
               if (actionsDisabled) event.preventDefault();
             },
           }}
+          className={styles.addScaleMenu}
           label="Add scale"
+          showMarkerColumn={false}
           items={[
             {
               id: "uniform",
@@ -216,6 +232,12 @@ export function ScalesWorkspace({
               disabled: precisionActionsDisabled,
               onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("xy")),
             },
+            ...STANDARD_SCALE_PRESET_RATIOS.map((ratio, index) => ({
+              id: `preset-${ratio}`,
+              sectionLabel: index === 0 ? "Standard ratios" : undefined,
+              label: <PresetScaleOptionLabel ratio={ratio} />,
+              onSelect: () => onAddPresetScale(ratio),
+            })),
           ]}
           placement="bottom-start"
         />
@@ -227,7 +249,13 @@ export function ScalesWorkspace({
         </p>
       )}
 
-      <p className={styles.note}>Changing the active scale does not relink measurements.</p>
+      {page.calibrations.length > 0 && (
+        <p className={styles.note}>
+          {page.calibrations.length > 1
+            ? "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements."
+            : "Changing the active scale does not relink measurements."}
+        </p>
+      )}
     </section>
   );
 }

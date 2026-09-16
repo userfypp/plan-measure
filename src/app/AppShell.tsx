@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { MeasurementDecimalPlaces } from "../types/domain";
 import { AppBar } from "./AppBar";
 import styles from "./AppShell.module.css";
 
@@ -8,8 +9,12 @@ interface AppShellProps {
   children: ReactNode;
   documentName: string | null;
   canExport: boolean;
+  measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  confirmMeasurementDeletion?: boolean;
   onOpenPdf: () => void;
   onExport: () => void;
+  onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   statusMessage?: string | null;
   statusTone?: StatusTone;
   onDismissStatus?: () => void;
@@ -19,8 +24,12 @@ export function AppShell({
   children,
   documentName,
   canExport,
+  measurementDecimalPlaces = null,
+  confirmMeasurementDeletion = true,
   onOpenPdf,
   onExport,
+  onMeasurementDecimalPlacesChange,
+  onConfirmMeasurementDeletionChange,
   statusMessage,
   statusTone = "error",
   onDismissStatus,
@@ -30,8 +39,12 @@ export function AppShell({
       <AppBar
         documentName={documentName}
         canExport={canExport}
+        measurementDecimalPlaces={measurementDecimalPlaces}
+        confirmMeasurementDeletion={confirmMeasurementDeletion}
         onOpenPdf={onOpenPdf}
         onExport={onExport}
+        onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+        onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
       />
       <div className={styles.statusRow}>
         {statusMessage ? (

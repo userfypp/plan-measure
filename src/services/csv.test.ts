@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession, sessionReducer } from "../app/sessionState";
+import { createStandardScalePreset } from "../features/calibration/standardScalePresets";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import type { CurrentSession, LinearUnit } from "../types/domain";
 import {
@@ -656,6 +657,37 @@ describe("CSV export", () => {
     expect(after).toContain(",scale-2,Detail A,xy,,,,500,1000,,30.00,50.00,");
   });
 
+  it("exports a standard ratio preset through the existing Uniform calibration columns", () => {
+    const session = createEmptySession({ name: "preset.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = { id: "preset-50", name: "Scale 1", ...createStandardScalePreset(50) };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    session.pages[1]!.measurements.push({
+      id: "preset-line",
+      type: "line",
+      name: "Preset line",
+      calibrationId: calibration.id,
+      points: [
+        { x: 0, y: 0 },
+        { x: 72, y: 0 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    });
+
+    const csv = buildCsv(session, null, allColumns(session));
+    const row = csv.split("\r\n")[1]!.split(",");
+
+    expect(csv).toContain("preset-line,Preset line,Line,preset-50,Scale 1,uniform");
+    expect(Number(row[8])).toBeCloseTo(1270, 10);
+    expect(Number(row[9])).toBe(72);
+    expect(Number(row[10])).toBeCloseTo((50 * 25.4) / 72, 12);
+    expect(Number(row[11])).toBeCloseTo((50 * 25.4) / 72, 12);
+    expect(Number(row[12])).toBeCloseTo((50 * 25.4) / 72, 12);
+    expect(Number(row[13])).toBeCloseTo(1.27, 12);
+    expect(row[16]).toBe("m");
+  });
+
   it("preserves calibration metadata precision beyond two decimals", () => {
     const session = measuredSession();
     const calibration = session.pages[1]!.calibrations[0]!;
@@ -670,6 +702,17 @@ describe("CSV export", () => {
     expect(firstRow).toContain(
       ",scale-1,Scale 1,uniform,1000,3,333.3333333333333,333.3333333333333,333.3333333333333,",
     );
+  });
+
+  it("keeps CSV output unchanged when measurement display precision changes", () => {
+    const session = measuredSession();
+    session.settings.measurementDecimalPlaces = 2;
+    const before = buildCsv(session, null, allColumns(session));
+
+    session.settings.measurementDecimalPlaces = 6;
+    const after = buildCsv(session, null, allColumns(session));
+
+    expect(after).toBe(before);
   });
 
   it("exports exact PDF page labels by page number and escapes label values", () => {

@@ -19,8 +19,8 @@ describe("workspace selection state", () => {
     expect(initialWorkspaceState.activeTool).toBe("select");
   });
 
-  it("starts in the Measurements module with Details closed", () => {
-    expect(initialWorkspaceState.workspaceModule).toBe("measurements");
+  it("starts in the Scales module with Details closed", () => {
+    expect(initialWorkspaceState.workspaceModule).toBe("scales");
     expect(initialWorkspaceState.measurementDetailsOpen).toBe(false);
   });
 
@@ -118,7 +118,13 @@ describe("workspace selection state", () => {
 
   it("resets all interaction state when a session is installed", () => {
     const dirty = workspaceReducer(
-      workspaceReducer(initialWorkspaceState, { type: "CHOOSE_TOOL", tool: "polygon" }),
+      workspaceReducer(
+        workspaceReducer(initialWorkspaceState, {
+          type: "SET_WORKSPACE_MODULE",
+          module: "measurements",
+        }),
+        { type: "CHOOSE_TOOL", tool: "polygon" },
+      ),
       { type: "SELECT_MEASUREMENT", id: "stale-measurement" },
     );
 
@@ -379,12 +385,12 @@ describe("workspace selection state", () => {
 
     const cleared = workspaceReducer(details, { type: "CLEAR_SELECTION" });
     expect(cleared.measurementDetailsOpen).toBe(false);
-    expect(cleared.workspaceModule).toBe("measurements");
+    expect(cleared.workspaceModule).toBe("scales");
 
     const changedPage = workspaceReducer(details, { type: "PAGE_CHANGED" });
     expect(changedPage.measurementDetailsOpen).toBe(false);
     expect(changedPage.selectedMeasurementId).toBeNull();
-    expect(changedPage.workspaceModule).toBe("measurements");
+    expect(changedPage.workspaceModule).toBe("scales");
   });
 
   it("explicit module changes close Details while tool changes leave navigation untouched", () => {
@@ -395,7 +401,7 @@ describe("workspace selection state", () => {
     const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
     const toolChanged = workspaceReducer(details, { type: "CHOOSE_TOOL", tool: "hand" });
     expect(toolChanged.measurementDetailsOpen).toBe(true);
-    expect(toolChanged.workspaceModule).toBe("measurements");
+    expect(toolChanged.workspaceModule).toBe("scales");
 
     const scales = workspaceReducer(toolChanged, {
       type: "SET_WORKSPACE_MODULE",

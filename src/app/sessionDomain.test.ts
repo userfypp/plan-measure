@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { lineLengthMm } from "../utils/geometry";
 import { getDrawingKeyboardAction } from "../utils/keyboard";
+import { deserializeSessionForRecovery, serializeSession } from "../services/persistenceCodec";
 import {
   createEmptySession,
   initialSessionState,
@@ -499,6 +500,8 @@ describe("session domain reducer", () => {
     });
     expect(state.session?.pages[1]?.measurements[0]?.name).toBe("Hallway");
     expect(state.error).toContain("cannot be empty");
+    const recovered = deserializeSessionForRecovery(serializeSession(state.session!)).session;
+    expect(recovered.pages[1]?.measurements[0]?.name).toBe("Hallway");
   });
 
   it("rejects invalid calibration data and duplicate calibration IDs in domain state", () => {

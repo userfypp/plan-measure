@@ -29,6 +29,10 @@ import {
   selectCalibrationReference,
 } from "./calibrationFlow";
 import {
+  createStandardScalePreset,
+  type StandardScalePresetRatio,
+} from "../features/calibration/standardScalePresets";
+import {
   beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
@@ -59,6 +63,10 @@ import {
   isMeasurementType,
   isValidPageCalibration,
 } from "../utils/geometry";
+import {
+  readMeasurementDeleteConfirmationPreference,
+  writeMeasurementDeleteConfirmationPreference,
+} from "./measurementDeletePreference";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
@@ -104,6 +112,7 @@ function PlanMeasureApp() {
     restoreClassificationValue,
     assignClassificationValue,
     removeClassificationValue,
+    updateSettings,
   } = useSessionState();
   const {
     requestReplacePdf,
@@ -152,6 +161,9 @@ function PlanMeasureApp() {
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
+    readMeasurementDeleteConfirmationPreference,
+  );
   const [authoringCapability, setAuthoringCapability] = useState<AuthoringCapability | null>(null);
   const authoringCapabilityRef = useRef<AuthoringCapability | null>(null);
   const handleAuthoringCapabilityChange = useCallback((capability: AuthoringCapability) => {
@@ -233,6 +245,25 @@ function PlanMeasureApp() {
     setDragActive(false);
   }, []);
 
+  const setConfirmMeasurementDeletion = useCallback((enabled: boolean) => {
+    setConfirmMeasurementDeletionState(enabled);
+    writeMeasurementDeleteConfirmationPreference(enabled);
+  }, []);
+
+  const performMeasurementDelete = useCallback(
+    (request: MeasurementDeleteRequest) => {
+      const page = session?.pages[request.pageNumber];
+      const measurement = page?.measurements.find(
+        (candidate) => candidate.id === request.measurementId,
+      );
+      if (!session || session.currentPage !== request.pageNumber || !page || !measurement) return;
+      deleteMeasurement(page.pageNumber, measurement.id);
+      if (selectedMeasurementId === measurement.id) clearSelection();
+      focusViewer();
+    },
+    [clearSelection, deleteMeasurement, focusViewer, selectedMeasurementId, session],
+  );
+
   const requestMeasurementDelete = useCallback(
     (request: MeasurementDeleteRequest) => {
       const page = session?.pages[request.pageNumber];
@@ -240,13 +271,21 @@ function PlanMeasureApp() {
         (candidate) => candidate.id === request.measurementId,
       );
       if (!page || !measurement) return;
+      if (!confirmMeasurementDeletion) {
+        performMeasurementDelete({
+          pageNumber: page.pageNumber,
+          measurementId: measurement.id,
+          measurementName: measurement.name,
+        });
+        return;
+      }
       openDeleteMeasurementConfirmation({
         pageNumber: page.pageNumber,
         measurementId: measurement.id,
         measurementName: measurement.name,
       });
     },
-    [openDeleteMeasurementConfirmation, session],
+    [confirmMeasurementDeletion, openDeleteMeasurementConfirmation, performMeasurementDelete, session],
   );
 
   const selectMeasurementFromPanel = useCallback(
@@ -484,6 +523,16 @@ function PlanMeasureApp() {
     chooseTool("calibrate");
   }
 
+  function addStandardScalePreset(ratio: StandardScalePresetRatio) {
+    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    addCalibration({
+      pageNumber: currentPage.pageNumber,
+      id: crypto.randomUUID(),
+      name: `Scale ${currentPage.nextCalibrationNumber}`,
+      calibration: createStandardScalePreset(ratio),
+    });
+  }
+
   function requestRecalibration(calibrationId?: string) {
     if (calibrationReferenceEdit) return;
     if (authoringCapabilityRef.current?.available !== true) return;
@@ -614,15 +663,13 @@ function PlanMeasureApp() {
     focusViewer();
   }
 
-  function handleOverlayConfirmationConfirm(confirmation: OverlayConfirmation) {
+  function handleOverlayConfirmationConfirm(
+    confirmation: OverlayConfirmation,
+    options?: { dontAskAgain?: boolean },
+  ) {
     if (confirmation.type === "deleteMeasurement") {
-      const { pageNumber, measurementId } = confirmation.payload;
-      const page = session?.pages[pageNumber];
-      const measurement = page?.measurements.find((candidate) => candidate.id === measurementId);
-      if (!session || session.currentPage !== pageNumber || !page || !measurement) return;
-      deleteMeasurement(pageNumber, measurementId);
-      if (selectedMeasurementId === measurementId) clearSelection();
-      focusViewer();
+      if (options?.dontAskAgain) setConfirmMeasurementDeletion(false);
+      performMeasurementDelete(confirmation.payload);
       return;
     }
 
@@ -757,8 +804,14 @@ function PlanMeasureApp() {
     <AppShell
       documentName={session?.pdf.name ?? null}
       canExport={Boolean(session)}
+      measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
+      confirmMeasurementDeletion={confirmMeasurementDeletion}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
+      onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
+        updateSettings({ measurementDecimalPlaces })
+      }
+      onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
       onDismissStatus={
@@ -824,6 +877,7 @@ function PlanMeasureApp() {
                   page={currentPage}
                   actionsDisabled={calibrationActionsDisabled}
                   onAddScale={beginNewCalibration}
+                  onAddPresetScale={addStandardScalePreset}
                   onRecalibrate={requestRecalibration}
                   onEditReference={beginCalibrationReferenceEdit}
                 />
@@ -835,6 +889,7 @@ function PlanMeasureApp() {
                     page={previewPage}
                     measurement={selectedMeasurement}
                     displayUnit={session.settings.displayUnit}
+                    measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
                     catalog={session.classificationCatalog}
                     returnModule={workspaceModule}
                     assignmentDisabled={Boolean(
@@ -865,12 +920,26 @@ function PlanMeasureApp() {
           toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
           contextToolbar={
             <ContextToolbar
+              selectedMeasurementId={selectedMeasurement?.id ?? null}
               selectedMeasurementName={selectedMeasurement?.name ?? null}
               duplicateDisabled={duplicateDisabled}
               referenceEditValid={calibrationReferenceEditIsValid}
               measurementEditActive={measurementEditActive}
+              onDeleteSelectedMeasurement={() => {
+                if (!selectedMeasurement) return;
+                requestMeasurementDelete({
+                  pageNumber: currentPage.pageNumber,
+                  measurementId: selectedMeasurement.id,
+                  measurementName: selectedMeasurement.name,
+                });
+              }}
               onDuplicateSelectedMeasurement={() => {
                 if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
+              }}
+              onRenameSelectedMeasurement={(name) => {
+                if (selectedMeasurement) {
+                  renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name);
+                }
               }}
               onOpenMeasurementDetails={() => {
                 openMeasurementDetails();
