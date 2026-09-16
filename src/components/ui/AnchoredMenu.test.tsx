@@ -136,6 +136,38 @@ describe("AnchoredMenu", () => {
     expect(menuButtons[2]?.querySelector("svg")).toBeNull();
   });
 
+  it("can omit reserved marker space and render a non-focusable section separator", () => {
+    act(() => {
+      root!.render(
+        <AnchoredMenu
+          trigger="Add scale"
+          label="Add scale"
+          showMarkerColumn={false}
+          items={[
+            { id: "uniform", label: "Uniform", onSelect: vi.fn() },
+            {
+              id: "preset",
+              sectionLabel: "Standard ratios",
+              label: "1:20",
+              onSelect: vi.fn(),
+            },
+          ]}
+        />,
+      );
+    });
+    openMenu();
+
+    const menuButtons = buttons();
+    expect(menuButtons).toHaveLength(2);
+    expect(menuButtons[0]?.querySelector('[aria-hidden="true"]')).toBeNull();
+    const separator = document.querySelector('[role="separator"][aria-label="Standard ratios"]');
+    expect(separator).not.toBeNull();
+    expect(separator?.getAttribute("tabindex")).toBeNull();
+
+    press("ArrowDown");
+    expect(document.activeElement).toBe(menuButtons[1]);
+  });
+
   it("moves focus with ArrowDown and ArrowUp", () => {
     openMenu();
     expect(document.activeElement).toBe(buttons()[0]);

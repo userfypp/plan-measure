@@ -18,6 +18,7 @@ export type AnchoredMenuItemRole = "menuitem" | "menuitemradio";
 interface AnchoredMenuItemBase {
   id: string;
   label: ReactNode;
+  sectionLabel?: string;
   role?: AnchoredMenuItemRole;
   checked?: boolean;
   current?: boolean;
@@ -43,8 +44,10 @@ export type AnchoredMenuItem = AnchoredMenuItemBase &
 export interface AnchoredMenuProps {
   trigger: ReactNode;
   triggerProps?: PopoverTriggerProps;
+  className?: string;
   label: string;
   items: readonly AnchoredMenuItem[];
+  showMarkerColumn?: boolean;
   placement?: PopoverPlacement;
   open?: boolean;
   defaultOpen?: boolean;
@@ -72,8 +75,10 @@ function SelectionCheckIcon() {
 export function AnchoredMenu({
   trigger,
   triggerProps,
+  className,
   label,
   items,
+  showMarkerColumn = true,
   placement = "bottom-start",
   open,
   defaultOpen = false,
@@ -173,7 +178,14 @@ export function AnchoredMenu({
       initialFocus="first"
       role="menu"
       aria-label={label}
-      className={[styles.menu, selectionMenu ? styles.selectionMenu : ""].filter(Boolean).join(" ")}
+      className={[
+        styles.menu,
+        selectionMenu ? styles.selectionMenu : "",
+        !showMarkerColumn ? styles.markerlessMenu : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <div className={styles.items} onKeyDown={handleKeyDown}>
         {items.map((item, index) => {
@@ -181,14 +193,33 @@ export function AnchoredMenu({
           const activeState = item.checked || item.current;
           const content = (
             <>
-              <span className={styles.marker} aria-hidden="true">
-                {selectionMenu ? activeState ? <SelectionCheckIcon /> : null : activeState ? "✓" : ""}
-              </span>
+              {showMarkerColumn && (
+                <span className={styles.marker} aria-hidden="true">
+                  {selectionMenu
+                    ? activeState
+                      ? <SelectionCheckIcon />
+                      : null
+                    : activeState
+                      ? "✓"
+                      : ""}
+                </span>
+              )}
               <span className={styles.label}>{item.label}</span>
             </>
           );
+          const sectionLabel = item.sectionLabel ? (
+            <div
+              key={`${item.id}-section`}
+              role="separator"
+              aria-label={item.sectionLabel}
+              data-menu-section-label="true"
+            >
+              {item.sectionLabel}
+            </div>
+          ) : null;
           if (item.href) {
-            return (
+            return [
+              sectionLabel,
               <a
                 key={item.id}
                 ref={(element) => {
@@ -214,10 +245,11 @@ export function AnchoredMenu({
                 }}
               >
                 {content}
-              </a>
-            );
+              </a>,
+            ];
           }
-          return (
+          return [
+            sectionLabel,
             <button
               key={item.id}
               ref={(element) => {
@@ -235,8 +267,8 @@ export function AnchoredMenu({
               onClick={() => selectItem(index)}
             >
               {content}
-            </button>
-          );
+            </button>,
+          ];
         })}
       </div>
     </Popover>

@@ -38,7 +38,6 @@ function PresetScaleOptionLabel({ ratio }: { ratio: StandardScalePresetRatio }) 
   return (
     <span className={styles.addOptionLabel}>
       <strong>1:{ratio}</strong>
-      <span>Standard ratio · Uniform</span>
     </span>
   );
 }
@@ -203,7 +202,9 @@ export function ScalesWorkspace({
               if (actionsDisabled) event.preventDefault();
             },
           }}
+          className={styles.addScaleMenu}
           label="Add scale"
+          showMarkerColumn={false}
           items={[
             {
               id: "uniform",
@@ -218,11 +219,6 @@ export function ScalesWorkspace({
               disabled: precisionActionsDisabled,
               onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("uniform")),
             },
-            ...STANDARD_SCALE_PRESET_RATIOS.map((ratio) => ({
-              id: `preset-${ratio}`,
-              label: <PresetScaleOptionLabel ratio={ratio} />,
-              onSelect: () => onAddPresetScale(ratio),
-            })),
             {
               id: "xy",
               label: (
@@ -236,6 +232,12 @@ export function ScalesWorkspace({
               disabled: precisionActionsDisabled,
               onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("xy")),
             },
+            ...STANDARD_SCALE_PRESET_RATIOS.map((ratio, index) => ({
+              id: `preset-${ratio}`,
+              sectionLabel: index === 0 ? "Standard ratios" : undefined,
+              label: <PresetScaleOptionLabel ratio={ratio} />,
+              onSelect: () => onAddPresetScale(ratio),
+            })),
           ]}
           placement="bottom-start"
         />

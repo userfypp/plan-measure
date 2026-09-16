@@ -281,7 +281,7 @@ describe("ScalesWorkspace", () => {
     expect(page.measurements[0]?.calibrationId).toBe("uniform");
   });
 
-  it("offers manual Uniform, the three standard ratio presets, and X/Y from one Add scale disclosure", () => {
+  it("groups compact manual modes before a Standard ratios section", () => {
     const props = createProps();
     renderScales(props);
     const add = buttonByLabel("Add scale");
@@ -293,23 +293,52 @@ describe("ScalesWorkspace", () => {
     expect(items).toHaveLength(5);
     expect(items.map((item) => item.textContent)).toEqual([
       "UniformOne reference",
-      "1:20Standard ratio · Uniform",
-      "1:50Standard ratio · Uniform",
-      "1:100Standard ratio · Uniform",
       "X/YSeparate X and Y references",
+      "1:20",
+      "1:50",
+      "1:100",
     ]);
-    act(() => items[2]?.click());
+    const sectionLabel = document.querySelector<HTMLElement>('[data-menu-section-label="true"]');
+    expect(sectionLabel?.textContent).toBe("Standard ratios");
+    expect(sectionLabel?.getAttribute("role")).toBe("separator");
+    expect(sectionLabel?.getAttribute("aria-label")).toBe("Standard ratios");
+    expect(scalesCss).toMatch(
+      /\.addScaleMenu\[role="menu"\]\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*min\(224px,\s*calc\(100vw\s*-\s*var\(--space-16\)\)\);/s,
+    );
+    expect(scalesCss).toMatch(
+      /\.addScaleMenu \[data-menu-section-label="true"\]\s*\{[^}]*padding:\s*var\(--space-4\) var\(--space-8\) 0;/s,
+    );
+    act(() => items[3]?.click());
     expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
 
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    act(() => items[4]?.click());
+    act(() => items[1]?.click());
     expect(props.onAddScale).toHaveBeenCalledWith("xy");
 
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
     act(() => items[0]?.click());
     expect(props.onAddScale).toHaveBeenCalledWith("uniform");
+  });
+
+  it("keeps the section heading out of keyboard navigation and visits all five options", () => {
+    renderScales(createProps());
+    act(() => buttonByLabel("Add scale").click());
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    expect(document.activeElement).toBe(items[0]);
+
+    for (let index = 1; index < items.length; index += 1) {
+      act(() =>
+        document.activeElement?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+        ),
+      );
+      expect(document.activeElement).toBe(items[index]);
+    }
+
+    expect(document.querySelector('[data-menu-section-label="true"]')).not.toBe(document.activeElement);
+    expect(items.map((item) => item.tabIndex)).toEqual([-1, -1, -1, -1, 0]);
   });
 
   it("keeps Uniform reference editing explicit", () => {
@@ -355,10 +384,10 @@ describe("ScalesWorkspace", () => {
     const addItems = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
     expect(addItems).toHaveLength(5);
     expect(addItems[0]?.getAttribute("aria-disabled")).toBe("true");
-    expect(addItems[4]?.getAttribute("aria-disabled")).toBe("true");
+    expect(addItems[1]?.getAttribute("aria-disabled")).toBe("true");
     expect(addItems[0]?.textContent).toContain(reason);
-    expect(addItems[4]?.textContent).toContain(reason);
-    expect(addItems.slice(1, 4).every((item) => item.getAttribute("aria-disabled") !== "true")).toBe(
+    expect(addItems[1]?.textContent).toContain(reason);
+    expect(addItems.slice(2).every((item) => item.getAttribute("aria-disabled") !== "true")).toBe(
       true,
     );
   });
@@ -379,11 +408,11 @@ describe("ScalesWorkspace", () => {
     act(() => items[0]?.click());
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    act(() => items[2]?.click());
+    act(() => items[3]?.click());
     expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    act(() => items[4]?.click());
+    act(() => items[1]?.click());
 
     const uniformInspect = buttonByLabel("Expand scale Ground floor, active");
     act(() => uniformInspect.click());
