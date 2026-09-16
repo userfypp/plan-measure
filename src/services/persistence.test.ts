@@ -829,6 +829,52 @@ describe("session persistence", () => {
     expect(() => serializeSession(decoded.session)).not.toThrow();
   });
 
+  it.each([
+    [1, () => legacySession(true)],
+    [2, v2MeasuredSession],
+    [3, v3MeasuredSession],
+    [4, v4MeasuredSession],
+    [5, v5MeasuredSession],
+    [6, v6MeasuredSession],
+    [7, v7MeasuredSession],
+    [8, v8MeasuredSession],
+    [9, currentMeasuredSession],
+  ] as const)(
+    "rejects V%d page entries above pageCount before migration or canonicalization",
+    (_version, create) => {
+      const raw = JSON.parse(JSON.stringify(create())) as {
+        pageCount: number;
+        pages: Record<string, { pageNumber: number }>;
+      };
+      const boundaryPage = raw.pages[String(raw.pageCount)];
+      if (!boundaryPage) throw new Error("Expected a page at the pageCount boundary.");
+
+      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).not.toThrow();
+
+      const outOfRangePageNumber = raw.pageCount + 1;
+      raw.pages[String(outOfRangePageNumber)] = {
+        ...structuredClone(boundaryPage),
+        pageNumber: outOfRangePageNumber,
+      };
+
+      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).toThrow(
+        "outside the declared page count",
+      );
+    },
+  );
+
+  it("rejects persisted recovery instead of silently dropping a page above pageCount", async () => {
+    const session = currentMeasuredSession();
+    const outOfRangePageNumber = session.pageCount + 1;
+    session.pages[outOfRangePageNumber] = {
+      ...structuredClone(session.pages[session.pageCount]!),
+      pageNumber: outOfRangePageNumber,
+    };
+    await writeRawActiveSession(session, new Blob(["pdf"]));
+
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+  });
+
   it("does not treat invalid current geometry as historical compatibility data", async () => {
     const invalidV4 = v4MeasuredSession();
     invalidV4.pages[1]!.measurements[0]!.points = [
