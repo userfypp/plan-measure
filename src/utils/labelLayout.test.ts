@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
+  placeLabelInsideMeasurementGeometry,
   placeLabelAvoidingOverlaps,
   placeLabelWithinBounds,
   type LabelCollisionStats,
@@ -334,5 +335,365 @@ describe("label collision broad phase performance", () => {
     expect(firstIndexed.stats.exactCollisionChecks).toBeLessThanOrEqual(
       baseline.stats.exactCollisionChecks,
     );
+  });
+});
+
+describe("inside measurement label placement", () => {
+  const insidePage = { width: 140, height: 120 };
+
+  function inside(
+    type: "line" | "polyline" | "polygon",
+    points: Array<{ x: number; y: number }>,
+    dimensions: LabelDimensions = label,
+    zoom = 1,
+    occupied: OccupiedLabelRect[] | LabelCollisionIndex = [],
+    stats?: LabelCollisionStats,
+  ) {
+    return placeLabelInsideMeasurementGeometry(
+      type,
+      points,
+      dimensions,
+      insidePage,
+      zoom,
+      occupied,
+      LABEL_EDGE_MARGIN_SCREEN_PX,
+      4,
+      stats,
+    );
+  }
+
+  describe("Line", () => {
+    it.each([
+      [
+        "horizontal",
+        [
+          { x: 20, y: 40 },
+          { x: 100, y: 40 },
+        ],
+        { x: 50, y: 35 },
+      ],
+      [
+        "vertical",
+        [
+          { x: 60, y: 15 },
+          { x: 60, y: 105 },
+        ],
+        { x: 50, y: 55 },
+      ],
+      [
+        "diagonal",
+        [
+          { x: 10, y: 10 },
+          { x: 110, y: 90 },
+        ],
+        { x: 50, y: 45 },
+      ],
+    ] as const)(
+      "centers an unrotated label inside a long %s segment",
+      (_name, points, expected) => {
+        expect(
+          inside(
+            "line",
+            points.map((point) => ({ ...point })),
+          ),
+        ).toEqual(expected);
+        expect(
+          inside(
+            "line",
+            [...points].reverse().map((point) => ({ ...point })),
+          ),
+        ).toEqual(expected);
+      },
+    );
+
+    it("requires projected label footprint plus endpoint clearance", () => {
+      const short = [
+        { x: 40, y: 40 },
+        { x: 65, y: 40 },
+      ];
+
+      expect(inside("line", short, { width: 20, height: 10 }, 1)).toBeNull();
+      expect(inside("line", short, { width: 10, height: 5 }, 2)).toEqual({
+        x: 47.5,
+        y: 37.5,
+      });
+    });
+
+    it("rejects an otherwise fitting inside center when page bounds would clamp it", () => {
+      expect(
+        inside("line", [
+          { x: 0, y: 15 },
+          { x: 0, y: 105 },
+        ]),
+      ).toBeNull();
+    });
+  });
+
+  describe("Polyline", () => {
+    it("uses the longest eligible segment instead of the whole-path center", () => {
+      expect(
+        inside("polyline", [
+          { x: 10, y: 20 },
+          { x: 100, y: 20 },
+          { x: 100, y: 70 },
+        ]),
+      ).toEqual({ x: 45, y: 15 });
+    });
+
+    it("selects equal-length eligible segments deterministically under reversal", () => {
+      const points = [
+        { x: 10, y: 10 },
+        { x: 50, y: 10 },
+        { x: 50, y: 50 },
+      ];
+
+      expect(inside("polyline", points)).toEqual({ x: 20, y: 5 });
+      expect(inside("polyline", [...points].reverse())).toEqual({ x: 20, y: 5 });
+    });
+
+    it("supports a diagonal dominant segment and rejects a path with no eligible segment", () => {
+      expect(
+        inside("polyline", [
+          { x: 10, y: 10 },
+          { x: 110, y: 90 },
+          { x: 115, y: 95 },
+        ]),
+      ).toEqual({ x: 50, y: 45 });
+      expect(
+        inside("polyline", [
+          { x: 40, y: 40 },
+          { x: 55, y: 40 },
+          { x: 55, y: 50 },
+        ]),
+      ).toBeNull();
+    });
+
+    it("tries the next eligible segment when the longest segment would clip the page", () => {
+      expect(
+        inside("polyline", [
+          { x: 0, y: 10 },
+          { x: 0, y: 110 },
+          { x: 80, y: 110 },
+        ]),
+      ).toEqual({ x: 30, y: 105 });
+    });
+  });
+
+  describe("Polygon", () => {
+    it("centers the label inside a large convex polygon with stroke clearance", () => {
+      expect(
+        inside("polygon", [
+          { x: 10, y: 10 },
+          { x: 120, y: 10 },
+          { x: 120, y: 100 },
+          { x: 10, y: 100 },
+        ]),
+      ).toEqual({ x: 55, y: 50 });
+    });
+
+    it("finds bounded-grid interior space when centroid, bounds center, and vertex average are invalid", () => {
+      const cShape = [
+        { x: 0, y: 0 },
+        { x: 120, y: 0 },
+        { x: 120, y: 30 },
+        { x: 40, y: 30 },
+        { x: 40, y: 90 },
+        { x: 120, y: 90 },
+        { x: 120, y: 120 },
+        { x: 0, y: 120 },
+      ];
+
+      const placement = inside("polygon", cShape);
+      expect(placement).not.toBeNull();
+      expect(placement!.x + label.width).toBeLessThan(40);
+      expect(inside("polygon", [...cShape].reverse())).toEqual(placement);
+    });
+
+    it("uses a long polygon edge to find a roomy concave arm missed by central anchors", () => {
+      const cShape = [
+        { x: 20, y: 20 },
+        { x: 255, y: 20 },
+        { x: 255, y: 60 },
+        { x: 95, y: 60 },
+        { x: 95, y: 120 },
+        { x: 255, y: 120 },
+        { x: 255, y: 160 },
+        { x: 20, y: 160 },
+      ];
+      const dimensions = { width: 140, height: 20 };
+      const scenarioPage = { width: 300, height: 200 };
+
+      const placement = placeLabelInsideMeasurementGeometry(
+        "polygon",
+        cShape,
+        dimensions,
+        scenarioPage,
+        1,
+        [],
+      );
+
+      expect(placement).toEqual({ x: 67.5, y: 24.5 });
+      expect(
+        placeLabelInsideMeasurementGeometry(
+          "polygon",
+          [...cShape].reverse(),
+          dimensions,
+          scenarioPage,
+          1,
+          [],
+        ),
+      ).toEqual(placement);
+    });
+
+    it("falls back safely for narrow and tiny polygons", () => {
+      expect(
+        inside("polygon", [
+          { x: 10, y: 10 },
+          { x: 35, y: 10 },
+          { x: 35, y: 100 },
+          { x: 10, y: 100 },
+        ]),
+      ).toBeNull();
+      expect(
+        inside("polygon", [
+          { x: 10, y: 10 },
+          { x: 25, y: 10 },
+          { x: 25, y: 20 },
+          { x: 10, y: 20 },
+        ]),
+      ).toBeNull();
+    });
+
+    it("rejects a polygon candidate whose label rectangle cannot stay within the page margin", () => {
+      expect(
+        inside("polygon", [
+          { x: 0, y: 10 },
+          { x: 24, y: 10 },
+          { x: 24, y: 110 },
+          { x: 0, y: 110 },
+        ]),
+      ).toBeNull();
+    });
+  });
+
+  it("rejects an occupied inside candidate so the existing fallback sequence can take over", () => {
+    const points = [
+      { x: 20, y: 40 },
+      { x: 100, y: 40 },
+    ];
+    const occupied = { x: 50, y: 35, width: 20, height: 10 };
+    const index = createLabelCollisionIndex();
+    index.insert(occupied);
+    const fallbackAnchor = { x: 60, y: 40 };
+
+    expect(inside("line", points, label, 1, index)).toBeNull();
+    expect(placeLabelAvoidingOverlaps(fallbackAnchor, label, insidePage, 1, index)).toEqual({
+      x: 50,
+      y: 21,
+    });
+  });
+
+  it("preserves exact legacy fallback placements when inside geometry does not fit", () => {
+    const cases = [
+      {
+        type: "line" as const,
+        points: [
+          { x: 50, y: 50 },
+          { x: 70, y: 50 },
+        ],
+        expected: { x: 35, y: 45 },
+      },
+      {
+        type: "polyline" as const,
+        points: [
+          { x: 50, y: 50 },
+          { x: 70, y: 50 },
+          { x: 70, y: 60 },
+        ],
+        expected: { x: 38.333333333333336, y: 48.333333333333336 },
+      },
+      {
+        type: "polygon" as const,
+        points: [
+          { x: 50, y: 50 },
+          { x: 80, y: 50 },
+          { x: 80, y: 65 },
+          { x: 50, y: 65 },
+        ],
+        expected: { x: 40, y: 52.5 },
+      },
+      {
+        type: "polygon" as const,
+        points: [
+          { x: 50, y: 50 },
+          { x: 120, y: 50 },
+          { x: 120, y: 60 },
+          { x: 60, y: 60 },
+          { x: 60, y: 120 },
+          { x: 50, y: 120 },
+        ],
+        expected: null,
+      },
+      {
+        type: "line" as const,
+        points: [
+          { x: 0, y: 20 },
+          { x: 0, y: 80 },
+        ],
+        expected: { x: 2, y: 45 },
+      },
+    ];
+    const dimensions = { width: 50, height: 10 };
+    const scenarioPage = { width: 600, height: 800 };
+
+    for (const scenario of cases) {
+      const anchor = {
+        x: scenario.points.reduce((sum, point) => sum + point.x, 0) / scenario.points.length,
+        y: scenario.points.reduce((sum, point) => sum + point.y, 0) / scenario.points.length,
+      };
+      const baseline = placeLabelAvoidingOverlaps(anchor, dimensions, scenarioPage, 2, []);
+      const insidePlacement = placeLabelInsideMeasurementGeometry(
+        scenario.type,
+        scenario.points,
+        dimensions,
+        scenarioPage,
+        2,
+        [],
+      );
+      const withInsideFallback = insidePlacement ?? baseline;
+
+      expect(insidePlacement).toBeNull();
+      expect(withInsideFallback).toEqual(baseline);
+      if (scenario.expected) expect(withInsideFallback).toEqual(scenario.expected);
+    }
+  });
+
+  it("keeps the #58 spatial index authoritative for thousands of distributed inside labels", () => {
+    const count = 2_000;
+    const index = createLabelCollisionIndex();
+    const stats = { broadPhaseCandidates: 0, exactCollisionChecks: 0 };
+
+    for (let item = 0; item < count; item += 1) {
+      const centerX = 50 + item * 100;
+      const placement = placeLabelInsideMeasurementGeometry(
+        "line",
+        [
+          { x: centerX - 30, y: 40 },
+          { x: centerX + 30, y: 40 },
+        ],
+        label,
+        { width: count * 100 + 100, height: 80 },
+        1,
+        index,
+        LABEL_EDGE_MARGIN_SCREEN_PX,
+        4,
+        stats,
+      );
+      expect(placement).not.toBeNull();
+      index.insert({ ...placement!, ...label });
+    }
+
+    expect(stats.exactCollisionChecks).toBeLessThan(count);
+    expect(stats.broadPhaseCandidates).toBeLessThan(count * 2);
   });
 });

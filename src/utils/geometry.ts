@@ -14,6 +14,13 @@ export interface MeasurementPathSpec {
   closed: boolean;
 }
 
+export interface AxisAlignedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export const measurementPathSpecs: Record<MeasurementType, MeasurementPathSpec> = {
   line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false },
   polyline: { label: "Polyline", minVertices: 2, maxVertices: null, closed: false },
@@ -222,6 +229,82 @@ function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
     (cda === 0 && isPointOnSegment(a, c, d)) ||
     (cdb === 0 && isPointOnSegment(b, c, d))
   );
+}
+
+/**
+ * Tests strict interior membership for a simple polygon. Points on the polygon
+ * boundary are intentionally rejected so callers can enforce visual clearance
+ * without introducing an arbitrary floating-point epsilon.
+ */
+export function isPointStrictlyInsidePolygon(point: Point, polygon: readonly Point[]): boolean {
+  if (
+    polygon.length < 3 ||
+    !Number.isFinite(point.x) ||
+    !Number.isFinite(point.y) ||
+    polygon.some((vertex) => !Number.isFinite(vertex.x) || !Number.isFinite(vertex.y))
+  ) {
+    return false;
+  }
+
+  let windingNumber = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const start = polygon[index]!;
+    const end = polygon[(index + 1) % polygon.length]!;
+    if (isPointOnSegment(point, start, end)) return false;
+
+    if (start.y <= point.y) {
+      if (end.y > point.y && orientation(start, end, point) > 0) windingNumber += 1;
+    } else if (end.y <= point.y && orientation(start, end, point) < 0) {
+      windingNumber -= 1;
+    }
+  }
+  return windingNumber !== 0;
+}
+
+/**
+ * Requires the complete axis-aligned rectangle to lie strictly inside a simple
+ * polygon. Corner membership alone is insufficient for concave polygons, so
+ * every rectangle edge is also checked against every polygon edge.
+ */
+export function isAxisAlignedRectStrictlyInsidePolygon(
+  rect: AxisAlignedRect,
+  polygon: readonly Point[],
+): boolean {
+  if (
+    !Number.isFinite(rect.x) ||
+    !Number.isFinite(rect.y) ||
+    !Number.isFinite(rect.width) ||
+    !Number.isFinite(rect.height) ||
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    polygon.length < 3
+  ) {
+    return false;
+  }
+
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+  if (!Number.isFinite(right) || !Number.isFinite(bottom)) return false;
+
+  const corners: [Point, Point, Point, Point] = [
+    { x: rect.x, y: rect.y },
+    { x: right, y: rect.y },
+    { x: right, y: bottom },
+    { x: rect.x, y: bottom },
+  ];
+  if (!corners.every((corner) => isPointStrictlyInsidePolygon(corner, polygon))) return false;
+
+  for (let polygonEdge = 0; polygonEdge < polygon.length; polygonEdge += 1) {
+    const polygonStart = polygon[polygonEdge]!;
+    const polygonEnd = polygon[(polygonEdge + 1) % polygon.length]!;
+    for (let rectEdge = 0; rectEdge < corners.length; rectEdge += 1) {
+      const rectStart = corners[rectEdge]!;
+      const rectEnd = corners[(rectEdge + 1) % corners.length]!;
+      if (segmentsIntersect(polygonStart, polygonEnd, rectStart, rectEnd)) return false;
+    }
+  }
+
+  return true;
 }
 
 function adjacentEdgesOverlap(start: Point, shared: Point, end: Point): boolean {

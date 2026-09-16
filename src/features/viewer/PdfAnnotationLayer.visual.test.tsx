@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MeasurementDecimalPlaces, PageState, Point } from "../../types/domain";
+import { isAxisAlignedRectStrictlyInsidePolygon } from "../../utils/geometry";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
 
@@ -180,7 +181,10 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     selectedMeasurementId = null,
     calibrationReferenceEdit = null,
     showCalibration = false,
+    showMeasurements = true,
+    showLabels = true,
     measurementDecimalPlaces = 2,
+    bounds = { width: 600, height: 800, rotation: 0 },
     transform = { zoom: 2, panX: 0, panY: 0 },
     onCalibrationReferencePointsChange = noop,
     onCalibrationReferenceDragCancellationChange = noop,
@@ -189,7 +193,10 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     selectedMeasurementId?: string | null;
     calibrationReferenceEdit?: CalibrationReferenceEditPreview | null;
     showCalibration?: boolean;
+    showMeasurements?: boolean;
+    showLabels?: boolean;
     measurementDecimalPlaces?: MeasurementDecimalPlaces;
+    bounds?: { width: number; height: number; rotation: 0 | 90 | 180 | 270 };
     transform?: { zoom: number; panX: number; panY: number };
     onCalibrationReferencePointsChange?: (points: [Point, Point]) => void;
     onCalibrationReferenceDragCancellationChange?: (
@@ -201,7 +208,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       root.render(
         <PdfAnnotationLayer
           page={page}
-          bounds={{ width: 600, height: 800, rotation: 0 }}
+          bounds={bounds}
           transform={transform}
           activeTool="select"
           spacePan={false}
@@ -216,8 +223,8 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           displayUnit="m"
           measurementDecimalPlaces={measurementDecimalPlaces}
           showCalibration={showCalibration}
-          showMeasurements
-          showLabels
+          showMeasurements={showMeasurements}
+          showLabels={showLabels}
           onSelectMeasurement={noop}
           onCalibrationReferencePointsChange={onCalibrationReferencePointsChange}
           onCalibrationReferenceDragCancellationChange={
@@ -288,6 +295,65 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     renderLayer({ page, selectedMeasurementId: "polygon-2" });
 
     expect(captured.labels.map((label) => ({ x: label.x, y: label.y }))).toEqual(firstPass);
+  });
+
+  it("anchors a Polyline label to its longest fitting segment rather than the whole-path average", () => {
+    renderLayer({ page: pageWithMeasurement("polyline") });
+
+    expect(captured.labels).toHaveLength(1);
+    expect(captured.labels[0]).toMatchObject({ x: 87.2, y: 45 });
+  });
+
+  it("places a concave Polygon label in contained interior space instead of an invalid naive center", () => {
+    const page = uniformPage();
+    page.measurements[0] = {
+      ...page.measurements[0]!,
+      points: [
+        { x: 20, y: 20 },
+        { x: 260, y: 20 },
+        { x: 260, y: 80 },
+        { x: 100, y: 80 },
+        { x: 100, y: 200 },
+        { x: 260, y: 200 },
+        { x: 260, y: 260 },
+        { x: 20, y: 260 },
+      ],
+    };
+
+    renderLayer({ page });
+
+    expect(captured.labels).toHaveLength(1);
+    const label = captured.labels[0]!;
+    const text = captured.texts[0]!;
+    const labelWidth = String(text.text).length * 6 * 0.6 + 4;
+    const labelHeight = 10;
+    const clearance = 2;
+    expect(
+      isAxisAlignedRectStrictlyInsidePolygon(
+        {
+          x: Number(label.x) - clearance,
+          y: Number(label.y) - clearance,
+          width: labelWidth + clearance * 2,
+          height: labelHeight + clearance * 2,
+        },
+        page.measurements[0]!.points,
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps measurement label visibility controls unchanged", () => {
+    renderLayer({ showLabels: false });
+    expect(captured.lines).toHaveLength(1);
+    expect(captured.labels).toHaveLength(0);
+    expect(captured.texts).toHaveLength(0);
+
+    captured.lines.length = 0;
+    captured.labels.length = 0;
+    captured.texts.length = 0;
+    renderLayer({ showMeasurements: false });
+    expect(captured.lines).toHaveLength(0);
+    expect(captured.labels).toHaveLength(0);
+    expect(captured.texts).toHaveLength(0);
   });
 
   it("makes selection structurally stronger with blue fill and 6 px optical / 32 px hit handles", () => {
@@ -401,7 +467,9 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     renderLayer({ page, showCalibration: true });
 
     expect(captured.texts.map((text) => text.text)).toEqual(["X", "Y"]);
-    expect(captured.texts.some((text) => String(text.text).includes(page.calibrations[0]!.name))).toBe(false);
+    expect(
+      captured.texts.some((text) => String(text.text).includes(page.calibrations[0]!.name)),
+    ).toBe(false);
   });
 
   it("keeps the Uniform calibration canvas label unchanged", () => {
@@ -508,8 +576,14 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       onCalibrationReferencePointsChange: onPointsChange,
     });
     const handle = captured.circles[0]!;
-    const start = handle.onDragStart as (event: { cancelBubble: boolean; target: typeof node }) => void;
-    const move = handle.onDragMove as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    const start = handle.onDragStart as (event: {
+      cancelBubble: boolean;
+      target: typeof node;
+    }) => void;
+    const move = handle.onDragMove as (event: {
+      cancelBubble: boolean;
+      target: typeof node;
+    }) => void;
     const end = handle.onDragEnd as (event: { cancelBubble: boolean; target: typeof node }) => void;
     act(() => {
       start({ cancelBubble: false, target: node });
@@ -554,7 +628,10 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       onCalibrationReferencePointsChange: onPointsChange,
     });
     const handle = captured.circles[0]!;
-    const start = handle.onDragStart as (event: { cancelBubble: boolean; target: typeof node }) => void;
+    const start = handle.onDragStart as (event: {
+      cancelBubble: boolean;
+      target: typeof node;
+    }) => void;
     const end = handle.onDragEnd as (event: { cancelBubble: boolean; target: typeof node }) => void;
     act(() => {
       start({ cancelBubble: false, target: node });

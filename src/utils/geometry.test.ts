@@ -14,6 +14,8 @@ import {
   calibrationScaleX,
   calibrationScaleY,
   hasValidMeasurementPoints,
+  isAxisAlignedRectStrictlyInsidePolygon,
+  isPointStrictlyInsidePolygon,
   isPredominantlyHorizontal,
   isPredominantlyVertical,
   isOrthogonalSegment,
@@ -181,6 +183,74 @@ describe("path geometry", () => {
 
     expect(hasValidMeasurementPoints("polygon", crossing)).toBe(false);
     expect(hasValidMeasurementPoints("polygon", simple)).toBe(true);
+  });
+
+  describe("strict polygon containment", () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 20, y: 20 },
+      { x: 0, y: 20 },
+    ];
+
+    it("accepts a rectangle fully inside a convex polygon in either winding", () => {
+      const rect = { x: 5, y: 6, width: 7, height: 4 };
+
+      expect(isAxisAlignedRectStrictlyInsidePolygon(rect, square)).toBe(true);
+      expect(isAxisAlignedRectStrictlyInsidePolygon(rect, [...square].reverse())).toBe(true);
+      expect(isPointStrictlyInsidePolygon({ x: 8, y: 8 }, square)).toBe(true);
+    });
+
+    it("rejects boundary crossing, an outside corner, and boundary touching", () => {
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: 18, y: 5, width: 4, height: 4 }, square),
+      ).toBe(false);
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: -1, y: 5, width: 3, height: 3 }, square),
+      ).toBe(false);
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: 0, y: 5, width: 3, height: 3 }, square),
+      ).toBe(false);
+      expect(isPointStrictlyInsidePolygon({ x: 0, y: 10 }, square)).toBe(false);
+    });
+
+    it("rejects a rectangle whose corners are inside but an edge crosses a concavity", () => {
+      const notched = [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+        { x: 6, y: 10 },
+        { x: 6, y: 4 },
+        { x: 4, y: 4 },
+        { x: 4, y: 10 },
+        { x: 0, y: 10 },
+      ];
+      const rect = { x: 3, y: 3, width: 4, height: 6 };
+      const corners = [
+        { x: rect.x, y: rect.y },
+        { x: rect.x + rect.width, y: rect.y },
+        { x: rect.x + rect.width, y: rect.y + rect.height },
+        { x: rect.x, y: rect.y + rect.height },
+      ];
+
+      expect(corners.every((corner) => isPointStrictlyInsidePolygon(corner, notched))).toBe(true);
+      expect(isAxisAlignedRectStrictlyInsidePolygon(rect, notched)).toBe(false);
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: 4.5, y: 5, width: 1, height: 3 }, notched),
+      ).toBe(false);
+    });
+
+    it("remains correct for large finite coordinates", () => {
+      const offset = 1_000_000_000;
+      const translated = square.map((point) => ({ x: point.x + offset, y: point.y + offset }));
+
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon(
+          { x: offset + 5, y: offset + 6, width: 7, height: 4 },
+          translated,
+        ),
+      ).toBe(true);
+    });
   });
 });
 
