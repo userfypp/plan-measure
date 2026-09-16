@@ -141,6 +141,47 @@ describe("path geometry", () => {
   ])("rejects %s", (_name, points) => {
     expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
   });
+
+  it("keeps near-collinear extreme Polygon vertices distinct in both windings", () => {
+    const points = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 2_000_000_000, y: 1_999_999_999 },
+      { x: 1_999_999_999, y: 1_999_999_998 },
+    ];
+
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+    expect(hasValidMeasurementPoints("polygon", [...points].reverse())).toBe(true);
+  });
+
+  it("still rejects exact large-coordinate collinear overlap", () => {
+    expect(
+      hasValidMeasurementPoints("polygon", [
+        { x: 1_000_000_000, y: 1_000_000_000 },
+        { x: 3_000_000_000, y: 3_000_000_000 },
+        { x: 2_000_000_000, y: 2_000_000_000 },
+        { x: 2_000_000_000, y: 4_000_000_000 },
+        { x: 1_000_000_000, y: 4_000_000_000 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects a large-coordinate self-intersection and accepts a large simple ring", () => {
+    const crossing = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 3_000_000_000, y: 3_000_000_000 },
+      { x: 1_000_000_000, y: 3_000_000_000 },
+      { x: 3_000_000_000, y: 1_000_000_000 },
+    ];
+    const simple = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 2_000_000_000, y: 1_999_999_999 },
+      { x: 1_999_999_999, y: 1_999_999_998 },
+      { x: 1_500_000_000, y: 1_000_000_000 },
+    ];
+
+    expect(hasValidMeasurementPoints("polygon", crossing)).toBe(false);
+    expect(hasValidMeasurementPoints("polygon", simple)).toBe(true);
+  });
 });
 
 const uniform: PageCalibration = {
@@ -277,6 +318,23 @@ describe("geometry", () => {
       { x: 2, y: 5 },
     ];
     expect(polygonAreaPageUnitsSquared(irregular)).toBe(10.5);
+  });
+
+  it("preserves a 0.5 area when extreme products cancel in Number arithmetic", () => {
+    const points = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 2_000_000_000, y: 1_999_999_999 },
+      { x: 1_999_999_999, y: 1_999_999_998 },
+    ];
+    const reversed = [...points].reverse();
+    const nearOrigin = points.map((point) => ({
+      x: point.x - points[0]!.x,
+      y: point.y - points[0]!.y,
+    }));
+
+    expect(polygonAreaPageUnitsSquared(points)).toBe(0.5);
+    expect(polygonAreaPageUnitsSquared(reversed)).toBe(0.5);
+    expect(polygonAreaPageUnitsSquared(nearOrigin)).toBe(0.5);
   });
 
   it("keeps a 0.5 square area stable at large page coordinates through measurement results", () => {
