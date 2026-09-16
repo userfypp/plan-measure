@@ -41,9 +41,10 @@ export function AppBar({
   onMeasurementDecimalPlacesChange,
 }: AppBarProps) {
   const { preference, setPreference } = useTheme();
-  const themeItems = THEME_OPTIONS.map((option) => ({
+  const themeItems = THEME_OPTIONS.map((option, index) => ({
     id: option.id,
     label: option.label,
+    sectionLabel: index === 0 ? "Appearance" : undefined,
     role: "menuitemradio" as const,
     checked: preference === option.id,
     onSelect: () => setPreference(option.id),
@@ -106,6 +107,7 @@ export function AppBar({
           }}
           label="Settings"
           items={[...themeItems, ...measurementDecimalItems]}
+          className={styles.settingsMenu}
           placement="bottom-end"
         />
       </div>

@@ -151,6 +151,40 @@
   stroke-width: 1.5;
 }
 
+.settingsMenu[role="menu"] {
+  width: max-content;
+  max-width: min(188px, calc(100vw - var(--space-16)));
+}
+
+.settingsMenu [role="menuitemradio"] {
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 2px;
+  padding-inline: var(--space-4);
+  line-height: var(--line-height-secondary);
+}
+
+.settingsMenu [role="menuitemradio"] > span[aria-hidden="true"] {
+  width: 10px;
+}
+
+.settingsMenu [role="menuitemradio"] > span[aria-hidden="true"] svg {
+  width: 10px;
+  height: 10px;
+}
+
+.settingsMenu [data-menu-section-label="true"] {
+  padding: var(--space-4) var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+  text-transform: uppercase;
+}
+
+.settingsMenu [data-menu-section-label="true"]:not(:first-child) {
+  margin-top: var(--space-8);
+}
+
 @media (any-pointer: coarse) {
   .appBar {
     height: var(--geometry-app-bar-height-narrow);

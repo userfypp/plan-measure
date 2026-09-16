@@ -206,15 +206,20 @@ describe("AppBar", () => {
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("exposes persisted measurement decimal places from 0 through 6 in Settings", () => {
+  it("groups Appearance and measurement decimals while preserving checked radio options", () => {
     const onMeasurementDecimalPlacesChange = vi.fn();
     renderAppBar({
-      measurementDecimalPlaces: 3,
+      measurementDecimalPlaces: 2,
       onMeasurementDecimalPlacesChange,
     });
     openSettings();
 
     const items = settingsItems();
+    const sectionLabels = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[role="menu"][aria-label="Settings"] [data-menu-section-label="true"]',
+      ),
+    );
     expect(items.map((item) => item.textContent?.trim())).toEqual([
       "System",
       "Light",
@@ -227,11 +232,57 @@ describe("AppBar", () => {
       "5 decimals",
       "6 decimals",
     ]);
-    expect(items[6]?.getAttribute("aria-checked")).toBe("true");
-    expect(document.querySelector('[role="separator"][aria-label="Measurement decimals"]')).not.toBeNull();
+    expect(sectionLabels.map((label) => label.textContent)).toEqual([
+      "Appearance",
+      "Measurement decimals",
+    ]);
+    expect(sectionLabels.every((label) => label.getAttribute("role") === "separator")).toBe(true);
+    expect(sectionLabels.every((label) => label.getAttribute("tabindex") === null)).toBe(true);
+    expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(items[0]?.querySelector("svg")).not.toBeNull();
+    expect(items[5]?.getAttribute("aria-checked")).toBe("true");
+    expect(items[5]?.querySelector("svg")).not.toBeNull();
 
     act(() => items[9]?.click());
     expect(onMeasurementDecimalPlacesChange).toHaveBeenCalledWith(6);
+  });
+
+  it("navigates all Settings options in order while skipping both section labels", () => {
+    renderAppBar({
+      measurementDecimalPlaces: 2,
+      onMeasurementDecimalPlacesChange: vi.fn(),
+    });
+    openSettings();
+
+    const items = settingsItems();
+    const sectionLabels = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[role="menu"][aria-label="Settings"] [data-menu-section-label="true"]',
+      ),
+    );
+    expect(document.activeElement).toBe(items[0]);
+
+    for (let index = 1; index < items.length; index += 1) {
+      act(() =>
+        document.activeElement?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+        ),
+      );
+      expect(document.activeElement).toBe(items[index]);
+      expect(sectionLabels).not.toContain(document.activeElement);
+    }
+    expect(items.map((item) => item.tabIndex)).toEqual([
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+    ]);
   });
 
   it("supports menu keyboard navigation and Escape focus return", () => {
