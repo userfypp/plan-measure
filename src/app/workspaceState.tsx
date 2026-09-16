@@ -71,7 +71,7 @@ export const initialWorkspaceState: WorkspaceState = {
   calibrationFlow: null,
   calibrationCandidate: null,
   calibrationReferenceEdit: null,
-  workspaceModule: "measurements",
+  workspaceModule: "scales",
   measurementDetailsOpen: false,
   workspaceVersion: 0,
 };

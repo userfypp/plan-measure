@@ -102,11 +102,11 @@ afterEach(() => {
 });
 
 describe("WorkspacePanel", () => {
-  it("starts in Measurements and exposes exactly the three V2 modules as radio menu items", () => {
-    expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Measurements");
-    expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).toBeNull();
+  it("starts in Scales and exposes exactly the three V2 modules as radio menu items", () => {
+    expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Scales");
+    expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).not.toBeNull();
     expect(container?.querySelector('[data-testid="classifications-pane"]')?.closest("[hidden]")).not.toBeNull();
-    expect(container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]")).not.toBeNull();
+    expect(container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]")).toBeNull();
 
     act(() => trigger().click());
     const items = menuItems();
@@ -116,27 +116,27 @@ describe("WorkspacePanel", () => {
       "Classifications",
       "Scales",
     ]);
-    expect(items[0]?.querySelector("svg")).not.toBeNull();
+    expect(items[0]?.querySelector("svg")).toBeNull();
     expect(items[1]?.querySelector("svg")).toBeNull();
-    expect(items[2]?.querySelector("svg")).toBeNull();
-    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
+    expect(items[2]?.querySelector("svg")).not.toBeNull();
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["false", "false", "true"]);
     expect(document.body.textContent).not.toContain("Future module");
   });
 
   it("switches modules with composite keyboard navigation and restores focus to the trigger", () => {
     const workspaceTrigger = trigger();
     act(() => workspaceTrigger.click());
-    expect(document.activeElement).toBe(menuItems()[0]);
-
-    press("End");
     expect(document.activeElement).toBe(menuItems()[2]);
+
+    press("Home");
+    expect(document.activeElement).toBe(menuItems()[0]);
     press("Enter");
 
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(workspaceTrigger);
-    expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Scales");
-    expect(container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]")).toBeNull();
-    expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).not.toBeNull();
+    expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Measurements");
+    expect(container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]")).not.toBeNull();
+    expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).toBeNull();
   });
 
   it("supports Arrow navigation, Home, and Escape without changing the active module", () => {
@@ -144,14 +144,14 @@ describe("WorkspacePanel", () => {
     act(() => workspaceTrigger.click());
 
     press("ArrowDown");
-    expect(document.activeElement).toBe(menuItems()[1]);
+    expect(document.activeElement).toBe(menuItems()[0]);
     press("Home");
     expect(document.activeElement).toBe(menuItems()[0]);
     press("Escape");
 
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(workspaceTrigger);
-    expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Measurements");
+    expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Scales");
   });
 
   it("keeps module-local UI state mounted through explicit Details lifecycle and closes safely on selection invalidation", () => {

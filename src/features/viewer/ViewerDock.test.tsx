@@ -157,6 +157,26 @@ describe("ViewerDock", () => {
     expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 
+  it("handles zero and one scale without changing the active-scale selector semantics", () => {
+    renderDock(createProps({ calibrations: [], activeCalibrationId: null }));
+    let trigger = activeScaleTrigger();
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.textContent).toContain("No active scale");
+    expect(trigger.textContent).toContain("Create a scale to measure");
+    expect(trigger.getAttribute("aria-label")).toBe("Active scale: none. Create a scale to measure.");
+
+    renderDock(createProps({ calibrations: [uniform], activeCalibrationId: uniform.id }));
+    trigger = activeScaleTrigger();
+    expect(trigger.disabled).toBe(false);
+    expect(trigger.textContent).toContain("Ground floor");
+    expect(trigger.textContent).toContain("1:100 · Uniform");
+    act(() => trigger.click());
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+    expect(items).toHaveLength(1);
+    expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(items[0]?.getAttribute("aria-current")).toBe("true");
+  });
+
   it("keeps every essential Dock command present for deterministic visual condensation", () => {
     renderDock(createProps());
 

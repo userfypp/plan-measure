@@ -197,9 +197,40 @@ describe("ScalesWorkspace", () => {
     expect(active.getAttribute("aria-expanded")).toBe("false");
     expect(inactive.getAttribute("aria-expanded")).toBe("false");
     expect(active.querySelector("svg")).toBeTruthy();
+    expect(container?.textContent).toContain(
+      "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements.",
+    );
     expect(scalesCss).toMatch(
       /\.disclosureButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*min-width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);[^}]*min-height:\s*var\(--target-current\);/s,
     );
+  });
+
+  it("keeps zero- and one-scale pages clear without suggesting a switch that is not available", () => {
+    renderScales(
+      createProps({
+        page: {
+          ...page,
+          calibrations: [],
+          activeCalibrationId: null,
+        },
+      }),
+    );
+    expect(container?.textContent).toContain("Add a scale to begin measuring.");
+    expect(container?.textContent).not.toContain("Viewer Dock");
+    expect(container?.textContent).not.toContain("Changing the active scale");
+
+    renderScales(
+      createProps({
+        page: {
+          ...page,
+          calibrations: [uniform],
+          activeCalibrationId: uniform.id,
+        },
+      }),
+    );
+    expect(buttonByLabel("Expand scale Ground floor, active")).toBeTruthy();
+    expect(container?.textContent).toContain("Changing the active scale does not relink measurements.");
+    expect(container?.textContent).not.toContain("Viewer Dock");
   });
 
   it("keeps disclosure and long-name recovery on the dedicated governed target", () => {

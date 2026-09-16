@@ -227,7 +227,13 @@ export function ScalesWorkspace({
         </p>
       )}
 
-      <p className={styles.note}>Changing the active scale does not relink measurements.</p>
+      {page.calibrations.length > 0 && (
+        <p className={styles.note}>
+          {page.calibrations.length > 1
+            ? "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements."
+            : "Changing the active scale does not relink measurements."}
+        </p>
+      )}
     </section>
   );
 }
