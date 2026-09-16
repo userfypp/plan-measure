@@ -31,6 +31,10 @@ import {
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
 import { classificationNameKey } from "../utils/classificationNames";
+import {
+  MEASUREMENT_NAME_EMPTY_ERROR,
+  normalizeMeasurementName,
+} from "../utils/measurementName";
 
 /**
  * Persistent domain state for the currently open plan.
@@ -470,8 +474,8 @@ export function sessionReducer(
     }
     case "RENAME_MEASUREMENT": {
       if (!state.session) return state;
-      const name = action.name.trim();
-      if (!name) return { ...state, error: "Measurement name cannot be empty." };
+      const name = normalizeMeasurementName(action.name);
+      if (!name) return { ...state, error: MEASUREMENT_NAME_EMPTY_ERROR };
       const session = updatePageState(state.session, action.pageNumber, (page) => ({
         ...page,
         measurements: page.measurements.map((measurement) =>

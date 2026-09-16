@@ -965,6 +965,9 @@ describe("PdfViewer render liveness", () => {
     await act(async () => interactionProbe!.completeCurrentDraft());
     expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
     expect(workspaceProbe?.draft).toBeNull();
+    const polyline = sessionProbe?.session?.pages[1]?.measurements[0];
+    expect(polyline?.name).toBe("Polyline 1");
+    expect(workspaceProbe?.selectedMeasurementId).toBe(polyline?.id);
     await act(async () => interactionProbe!.completeCurrentDraft());
     expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
 
@@ -982,6 +985,71 @@ describe("PdfViewer render liveness", () => {
     await act(async () => interactionProbe!.completeCurrentDraft());
     expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(1);
     expect(workspaceProbe?.draft).not.toBeNull();
+
+    await act(async () =>
+      workspaceProbe!.updateDraft({
+        type: "path",
+        measurementType: "polygon",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+          { x: 10, y: 10 },
+        ],
+      }),
+    );
+    await act(async () => interactionProbe!.completeCurrentDraft());
+    expect(sessionProbe?.session?.pages[1]?.measurements).toHaveLength(2);
+    const polygon = sessionProbe?.session?.pages[1]?.measurements[1];
+    expect(polygon?.name).toBe("Polygon 1");
+    expect(workspaceProbe?.selectedMeasurementId).toBe(polygon?.id);
+  });
+
+  it("selects a newly completed Line while keeping the Line tool armed", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      nextCalibrationNumber: 2,
+    };
+
+    await mountViewer(runtime.document, { page: session.pages[1] });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => workspaceProbe!.chooseTool("line"));
+
+    const clickPagePoint = async (point: Point) => {
+      const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
+      const transform = konvaCapture.annotationLayers.at(-1)?.transform as ViewTransform;
+      if (!onClick || !transform) throw new Error("Drawing stage was not ready.");
+      await act(async () =>
+        onClick({
+          target: {
+            getStage: () => ({ getPointerPosition: () => pageToScreen(point, transform) }),
+          },
+          evt: { button: 0 },
+        }),
+      );
+    };
+
+    await clickPagePoint({ x: 20, y: 20 });
+    await clickPagePoint({ x: 80, y: 20 });
+
+    const line = sessionProbe?.session?.pages[1]?.measurements[0];
+    expect(line?.name).toBe("Line 1");
+    expect(workspaceProbe?.selectedMeasurementId).toBe(line?.id);
+    expect(workspaceProbe?.activeTool).toBe("line");
+    expect(workspaceProbe?.draft).toBeNull();
   });
 
   it("cancels an in-progress Line when Escape reaches the window after canvas drawing", async () => {

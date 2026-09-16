@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { beginCalibrationFlow } from "./calibrationFlow";
 import { ContextToolbar, type ContextToolbarProps } from "./ContextToolbar";
+import { getGlobalViewerKeyboardAction } from "../utils/keyboard";
 import {
   useViewerInteractionCommandRegistration,
   ViewerInteractionCommandsProvider,
@@ -33,12 +34,15 @@ function CommandRegistration({ onFinish }: { onFinish: () => void }) {
 }
 
 function props(overrides: Partial<ContextToolbarProps> = {}): ContextToolbarProps {
+  const selectedMeasurementName = overrides.selectedMeasurementName ?? null;
   return {
-    selectedMeasurementName: null,
+    selectedMeasurementId: selectedMeasurementName ? "line-1" : null,
+    selectedMeasurementName,
     duplicateDisabled: false,
     referenceEditValid: true,
     measurementEditActive: false,
     onDuplicateSelectedMeasurement: vi.fn(),
+    onRenameSelectedMeasurement: vi.fn(),
     onOpenMeasurementDetails: () => workspace?.openMeasurementDetails(),
     onExitDrawingTool: () => workspace?.chooseTool("select"),
     onCancelCalibration: vi.fn(),
@@ -91,6 +95,24 @@ function press(key: string): KeyboardEvent {
   const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
   act(() => document.activeElement?.dispatchEvent(event));
   return event;
+}
+
+function renameTrigger(name: string): HTMLButtonElement {
+  return buttonByLabel(`Rename selected measurement ${name}`);
+}
+
+function renameInput(name: string): HTMLInputElement {
+  const input = container?.querySelector<HTMLInputElement>(`input[aria-label="Name for ${name}"]`);
+  if (!input) throw new Error(`Rename input for ${name} was not rendered.`);
+  return input;
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  act(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 }
 
 beforeEach(() => {
@@ -286,10 +308,142 @@ describe("ContextToolbar V2", () => {
 
     const duplicate = buttonByText("Duplicate");
     const details = buttonByText("Details");
+    const rename = renameTrigger("Line 1");
     expect(duplicate.disabled).toBe(true);
     expect(duplicate.tabIndex).toBe(-1);
-    expect(details.tabIndex).toBe(0);
-    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([details]);
+    expect(rename.tabIndex).toBe(0);
+    expect(details.tabIndex).toBe(-1);
+    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([rename]);
+  });
+
+  it.each([
+    ["line", "Line 1"],
+    ["polyline", "Polyline 1"],
+    ["polygon", "Polygon 1"],
+  ] as const)(
+    "renames a newly completed %s inline without leaving the drawing tool",
+    (tool, name) => {
+      const rename = vi.fn();
+      renderToolbar(
+        props({
+          selectedMeasurementId: `${tool}-1`,
+          selectedMeasurementName: name,
+          onRenameSelectedMeasurement: rename,
+        }),
+      );
+      act(() => workspace!.chooseTool(tool));
+
+      expect(contextKind()).toBe("drawing");
+      act(() => renameTrigger(name).click());
+      const input = renameInput(name);
+      setInputValue(input, `${name} renamed`);
+      act(() =>
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+      );
+
+      expect(rename).toHaveBeenCalledWith(`${name} renamed`);
+      expect(workspace?.activeTool).toBe(tool);
+    },
+  );
+
+  it("renames an existing selected measurement with Enter, trims it, and returns focus", () => {
+    const rename = vi.fn();
+    renderToolbar(
+      props({ selectedMeasurementName: "Line 1", onRenameSelectedMeasurement: rename }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    const trigger = renameTrigger("Line 1");
+    act(() => trigger.focus());
+    act(() => trigger.click());
+    const input = renameInput("Line 1");
+    expect(document.activeElement).toBe(input);
+    expect(input.tabIndex).toBe(0);
+    expect(toolbarButtons().every((button) => button.tabIndex === -1)).toBe(true);
+    setInputValue(input, "  Main hallway  ");
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    act(() => input.dispatchEvent(enter));
+
+    expect(rename).toHaveBeenCalledWith("Main hallway");
+    expect(container?.querySelector("input")).toBeNull();
+    expect(document.activeElement).toBe(renameTrigger("Line 1"));
+  });
+
+  it("supports pointer confirmation through the inline Save action", () => {
+    const rename = vi.fn();
+    renderToolbar(
+      props({ selectedMeasurementName: "Line 1", onRenameSelectedMeasurement: rename }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    act(() => renameTrigger("Line 1").click());
+    setInputValue(renameInput("Line 1"), "Pointer name");
+    act(() => buttonByText("Save").click());
+
+    expect(rename).toHaveBeenCalledWith("Pointer name");
+    expect(container?.querySelector("input")).toBeNull();
+    expect(document.activeElement).toBe(renameTrigger("Line 1"));
+  });
+
+  it("cancels inline rename with Escape and restores focus without renaming", () => {
+    const rename = vi.fn();
+    renderToolbar(
+      props({ selectedMeasurementName: "Line 1", onRenameSelectedMeasurement: rename }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    act(() => renameTrigger("Line 1").click());
+    const input = renameInput("Line 1");
+    setInputValue(input, "Temporary name");
+    const escape = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => input.dispatchEvent(escape));
+
+    expect(escape.defaultPrevented).toBe(true);
+    expect(rename).not.toHaveBeenCalled();
+    expect(container?.querySelector("input")).toBeNull();
+    expect(document.activeElement).toBe(renameTrigger("Line 1"));
+  });
+
+  it("keeps blank names in edit mode under the canonical validation rule", () => {
+    const rename = vi.fn();
+    renderToolbar(
+      props({ selectedMeasurementName: "Line 1", onRenameSelectedMeasurement: rename }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    act(() => renameTrigger("Line 1").click());
+    const input = renameInput("Line 1");
+    setInputValue(input, "   ");
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+
+    expect(rename).not.toHaveBeenCalled();
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(input.getAttribute("aria-describedby")!)?.textContent).toBe(
+      "Measurement name cannot be empty.",
+    );
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("does not expose viewer shortcuts while the measurement name field is active", () => {
+    renderToolbar(props({ selectedMeasurementName: "Line 1" }));
+    act(() => workspace!.selectMeasurement("line-1"));
+    act(() => renameTrigger("Line 1").click());
+    const input = renameInput("Line 1");
+
+    for (const key of ["l", "p", "s", " "]) {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      let action: ReturnType<typeof getGlobalViewerKeyboardAction> = null;
+      const listener = (keyboardEvent: KeyboardEvent) => {
+        action = getGlobalViewerKeyboardAction(keyboardEvent);
+      };
+      window.addEventListener("keydown", listener, { once: true });
+      act(() => input.dispatchEvent(event));
+      expect(action).toBeNull();
+    }
   });
 
   it("shows Polygon Finish only after a real draft and enables it at the canonical minimum", () => {

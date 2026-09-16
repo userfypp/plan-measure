@@ -8,6 +8,10 @@ import type {
   PageState,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
+import {
+  MEASUREMENT_NAME_EMPTY_ERROR,
+  normalizeMeasurementName,
+} from "../../utils/measurementName";
 import { ClassificationAssignment } from "../classification/ClassificationAssignment";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createMeasurementViewModel } from "./measurementViewModels";
@@ -71,9 +75,9 @@ export function MeasurementDetails({
 
   function submitRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = name.trim();
+    const trimmed = normalizeMeasurementName(name);
     if (!trimmed) {
-      setNameError("Measurement name cannot be empty.");
+      setNameError(MEASUREMENT_NAME_EMPTY_ERROR);
       return;
     }
     onRename(trimmed);

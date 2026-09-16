@@ -886,12 +886,18 @@ function PlanMeasureApp() {
           toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
           contextToolbar={
             <ContextToolbar
+              selectedMeasurementId={selectedMeasurement?.id ?? null}
               selectedMeasurementName={selectedMeasurement?.name ?? null}
               duplicateDisabled={duplicateDisabled}
               referenceEditValid={calibrationReferenceEditIsValid}
               measurementEditActive={measurementEditActive}
               onDuplicateSelectedMeasurement={() => {
                 if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
+              }}
+              onRenameSelectedMeasurement={(name) => {
+                if (selectedMeasurement) {
+                  renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name);
+                }
               }}
               onOpenMeasurementDetails={() => {
                 openMeasurementDetails();

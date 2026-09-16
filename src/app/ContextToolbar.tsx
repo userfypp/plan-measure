@@ -1,18 +1,32 @@
-import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "../components/ui";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
 import { getShortcutLabel } from "../utils/keyboard";
+import {
+  MEASUREMENT_NAME_EMPTY_ERROR,
+  normalizeMeasurementName,
+} from "../utils/measurementName";
 import { useWorkspaceState } from "./workspaceState";
 import styles from "./ContextToolbar.module.css";
 
 export interface ContextToolbarProps {
+  selectedMeasurementId: string | null;
   selectedMeasurementName: string | null;
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
   onDuplicateSelectedMeasurement: () => void;
+  onRenameSelectedMeasurement: (name: string) => void;
   onOpenMeasurementDetails: () => void;
   onExitDrawingTool: () => void;
   onCancelCalibration: () => void;
@@ -38,8 +52,12 @@ function ToolbarComposite({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const rovingButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  function toolbarButtons(): HTMLButtonElement[] {
+  function allToolbarButtons(): HTMLButtonElement[] {
     return Array.from(toolbarRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+  }
+
+  function toolbarButtons(): HTMLButtonElement[] {
+    return allToolbarButtons().filter((button) => !button.closest("[data-toolbar-inline-editor]"));
   }
 
   function setRovingButton(button: HTMLButtonElement) {
@@ -48,6 +66,11 @@ function ToolbarComposite({
   }
 
   useLayoutEffect(() => {
+    if (toolbarRef.current?.querySelector("[data-toolbar-inline-editor]")) {
+      for (const button of allToolbarButtons()) button.tabIndex = -1;
+      rovingButtonRef.current = null;
+      return;
+    }
     const buttons = toolbarButtons();
     const enabledButtons = buttons.filter((button) => !button.disabled);
     const focused =
@@ -100,7 +123,11 @@ function ToolbarComposite({
       data-context-kind={contextKind}
       data-drawing-tool={drawingTool}
       onFocusCapture={(event) => {
-        if (event.target instanceof HTMLButtonElement && !event.target.disabled) {
+        if (
+          event.target instanceof HTMLButtonElement &&
+          !event.target.disabled &&
+          !event.target.closest("[data-toolbar-inline-editor]")
+        ) {
           setRovingButton(event.target);
         }
       }}
@@ -146,12 +173,139 @@ function DrawingAidButton({
   );
 }
 
+function MeasurementNameEditor({
+  name,
+  onRename,
+}: {
+  name: string;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState(name);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const returnFocusRef = useRef(false);
+  const errorId = useId();
+
+  useLayoutEffect(() => {
+    if (editing) {
+      inputRef.current?.focus({ preventScroll: true });
+      inputRef.current?.select();
+      return;
+    }
+    if (!returnFocusRef.current) return;
+    returnFocusRef.current = false;
+    triggerRef.current?.focus({ preventScroll: true });
+  }, [editing]);
+
+  function finishEditing() {
+    returnFocusRef.current = true;
+    setEditing(false);
+  }
+
+  function cancelEditing() {
+    setDraftName(name);
+    setNameError(null);
+    finishEditing();
+  }
+
+  function commitRename() {
+    const normalized = normalizeMeasurementName(draftName);
+    if (!normalized) {
+      setNameError(MEASUREMENT_NAME_EMPTY_ERROR);
+      return false;
+    }
+    if (normalized !== name) onRename(normalized);
+    setDraftName(normalized);
+    setNameError(null);
+    finishEditing();
+    return true;
+  }
+
+  function submitRename(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    commitRename();
+  }
+
+  if (!editing) {
+    return (
+      <button
+        ref={triggerRef}
+        type="button"
+        className={styles.measurementNameTrigger}
+        aria-label={`Rename selected measurement ${name}`}
+        title={`Rename ${name}`}
+        onClick={() => {
+          setDraftName(name);
+          setNameError(null);
+          setEditing(true);
+        }}
+      >
+        <span>{name}</span>
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className={styles.renameForm}
+      aria-label={`Rename ${name}`}
+      data-toolbar-inline-editor
+      onSubmit={submitRename}
+    >
+      <input
+        ref={inputRef}
+        className={styles.renameInput}
+        value={draftName}
+        aria-label={`Name for ${name}`}
+        aria-invalid={nameError ? true : undefined}
+        aria-describedby={nameError ? errorId : undefined}
+        onChange={(event) => {
+          setDraftName(event.target.value);
+          setNameError(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commitRename();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            cancelEditing();
+          }
+        }}
+      />
+      {nameError && (
+        <span id={errorId} className={styles.visuallyHidden} role="alert">
+          {nameError}
+        </span>
+      )}
+      <Button type="submit" className={styles.renameAction} size="compact" tabIndex={-1}>
+        Save
+      </Button>
+      <Button
+        type="button"
+        className={styles.renameAction}
+        variant="ghost"
+        size="compact"
+        tabIndex={-1}
+        onClick={cancelEditing}
+      >
+        Cancel
+      </Button>
+    </form>
+  );
+}
+
 export function ContextToolbar({
+  selectedMeasurementId,
   selectedMeasurementName,
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
   onDuplicateSelectedMeasurement,
+  onRenameSelectedMeasurement,
   onOpenMeasurementDetails,
   onExitDrawingTool,
   onCancelCalibration,
@@ -260,6 +414,13 @@ export function ContextToolbar({
         <span className={styles.toolIdentity} role="status">
           {spec.label}
         </span>
+        {!pathDraft && selectedMeasurementName && (
+          <MeasurementNameEditor
+            key={selectedMeasurementId ?? "none"}
+            name={selectedMeasurementName}
+            onRename={onRenameSelectedMeasurement}
+          />
+        )}
         <Divider />
         <DrawingAidButton
           label="Snap"
@@ -322,9 +483,11 @@ export function ContextToolbar({
 
   return (
     <ToolbarComposite label="Selected measurement controls" contextKind="selection">
-      <span className={styles.selectionIdentity} role="status" title={selectedMeasurementName}>
-        {selectedMeasurementName}
-      </span>
+      <MeasurementNameEditor
+        key={selectedMeasurementId ?? "none"}
+        name={selectedMeasurementName}
+        onRename={onRenameSelectedMeasurement}
+      />
       <Divider />
       <Button
         className={styles.action}
