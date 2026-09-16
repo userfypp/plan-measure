@@ -91,6 +91,39 @@ async function renderLifecycleHarness() {
 }
 
 describe("page-exit autosave", () => {
+  it("registers beforeunload only while a changed snapshot still needs autosave protection", async () => {
+    await renderLifecycleHarness();
+    const addEventListener = vi.spyOn(window, "addEventListener");
+    const removeEventListener = vi.spyOn(window, "removeEventListener");
+
+    await act(async () => {
+      await lifecycle!.chooseFile(
+        new File(["pdf"], "plan.pdf", { type: "application/pdf", lastModified: 1 }),
+      );
+    });
+    expect(addEventListener.mock.calls.filter(([type]) => type === "beforeunload")).toHaveLength(0);
+
+    const activeSession = (await loadSavedSession())!.session;
+    const edited = {
+      ...activeSession,
+      settings: { ...activeSession.settings, displayUnit: "mm" as const },
+    };
+    act(() => setHarnessSession!(edited));
+
+    const beforeUnloadCalls = addEventListener.mock.calls.filter(([type]) => type === "beforeunload");
+    expect(beforeUnloadCalls).toHaveLength(1);
+    const beforeUnloadHandler = beforeUnloadCalls[0]![1];
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect((await loadSavedSession())?.session.settings.displayUnit).toBe("mm");
+    expect(removeEventListener).toHaveBeenCalledWith("beforeunload", beforeUnloadHandler);
+
+    addEventListener.mockRestore();
+    removeEventListener.mockRestore();
+  });
+
   it("flushes the latest completed session from beforeunload without waiting for the debounce", async () => {
     await renderLifecycleHarness();
     await act(async () => {
@@ -106,8 +139,12 @@ describe("page-exit autosave", () => {
     act(() => setHarnessSession!(edited));
 
     const clearTimeout = vi.spyOn(window, "clearTimeout");
-    act(() => window.dispatchEvent(new Event("beforeunload")));
+    const beforeUnload = new Event("beforeunload", { cancelable: true });
+    const preventDefault = vi.spyOn(beforeUnload, "preventDefault");
+    act(() => window.dispatchEvent(beforeUnload));
     expect(clearTimeout).toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(beforeUnload.defaultPrevented).toBe(false);
     clearTimeout.mockRestore();
 
     let savedDisplayUnit: string | undefined;
