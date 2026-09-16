@@ -67,6 +67,10 @@ import {
   readMeasurementDeleteConfirmationPreference,
   writeMeasurementDeleteConfirmationPreference,
 } from "./measurementDeletePreference";
+import {
+  readRecoveredPlanStartupWorkspacePreference,
+  writeRecoveredPlanStartupWorkspacePreference,
+} from "./recoveredPlanStartupPreference";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
@@ -165,6 +169,9 @@ function PlanMeasureApp() {
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
   );
+  const [recoveredPlanStartupWorkspace, setRecoveredPlanStartupWorkspaceState] = useState(
+    readRecoveredPlanStartupWorkspacePreference,
+  );
   const [authoringCapability, setAuthoringCapability] = useState<AuthoringCapability | null>(null);
   const authoringCapabilityRef = useRef<AuthoringCapability | null>(null);
   const handleAuthoringCapabilityChange = useCallback((capability: AuthoringCapability) => {
@@ -232,6 +239,7 @@ function PlanMeasureApp() {
     loadSession,
     clearSession,
     resetWorkspace,
+    recoveredStartupWorkspace: recoveredPlanStartupWorkspace,
     cancelWorkspaceCalibration,
     cancelReferenceEdit,
     requestReplacePdf,
@@ -250,6 +258,14 @@ function PlanMeasureApp() {
     setConfirmMeasurementDeletionState(enabled);
     writeMeasurementDeleteConfirmationPreference(enabled);
   }, []);
+
+  const setRecoveredPlanStartupWorkspace = useCallback(
+    (workspace: typeof recoveredPlanStartupWorkspace) => {
+      setRecoveredPlanStartupWorkspaceState(workspace);
+      writeRecoveredPlanStartupWorkspacePreference(workspace);
+    },
+    [],
+  );
 
   const performMeasurementDelete = useCallback(
     (request: MeasurementDeleteRequest) => {
@@ -807,12 +823,14 @@ function PlanMeasureApp() {
       canExport={Boolean(session)}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
+      recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }
       onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
+      onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
       onDismissStatus={

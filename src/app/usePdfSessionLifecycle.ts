@@ -23,6 +23,8 @@ import {
 } from "../services/persistence";
 import type { LoadedPdf } from "../services/pdf";
 import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
+import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
+import type { WorkspaceModule } from "./workspaceState";
 
 async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
   const { loadPdf } = await import("../services/pdf");
@@ -43,7 +45,8 @@ interface PdfSessionLifecycleOptions {
   loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
 
-  resetWorkspace: () => void;
+  resetWorkspace: (module?: WorkspaceModule) => void;
+  recoveredStartupWorkspace: RecoveredPlanStartupWorkspace;
   cancelWorkspaceCalibration: () => void;
   cancelReferenceEdit: () => void;
 
@@ -69,6 +72,7 @@ export function usePdfSessionLifecycle({
   loadSession,
   clearSession,
   resetWorkspace,
+  recoveredStartupWorkspace,
   cancelWorkspaceCalibration,
   cancelReferenceEdit,
   requestReplacePdf,
@@ -456,7 +460,7 @@ export function usePdfSessionLifecycle({
       setPdfBlob(recovery.pdfBlob);
       persistedSessionRef.current = recovery.session;
       loadSession(recovery.session);
-      resetWorkspace();
+      resetWorkspace(recoveredStartupWorkspace);
       closeAllOverlays();
       if (recovery.compatibility !== "current") {
         setAutosaveStatus("repair-required");

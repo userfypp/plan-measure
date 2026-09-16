@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import buttonStyles from "../components/ui/Button.module.css";
 import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { ThemeProvider, SYSTEM_THEME_QUERY, THEME_STORAGE_KEY } from "./themeState";
 import { AppBar } from "./AppBar";
 
@@ -82,6 +83,8 @@ function renderAppBar({
   onMeasurementDecimalPlacesChange,
   confirmMeasurementDeletion,
   onConfirmMeasurementDeletionChange,
+  recoveredPlanStartupWorkspace,
+  onRecoveredPlanStartupWorkspaceChange,
 }: {
   documentName?: string | null;
   canExport?: boolean;
@@ -91,6 +94,8 @@ function renderAppBar({
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   confirmMeasurementDeletion?: boolean;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
+  onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 } = {}) {
   act(() => {
     root!.render(
@@ -104,6 +109,8 @@ function renderAppBar({
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
           onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+          recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
+          onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
         />
       </ThemeProvider>,
     );
@@ -317,6 +324,57 @@ describe("AppBar", () => {
 
     act(() => checkboxItems[0]?.click());
     expect(onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(true);
+  });
+
+  it("exposes the recovered-plan startup workspace as a checked radio group", () => {
+    const onRecoveredPlanStartupWorkspaceChange = vi.fn();
+    renderAppBar({
+      recoveredPlanStartupWorkspace: "measurements",
+      onRecoveredPlanStartupWorkspaceChange,
+    });
+    openSettings();
+
+    const items = settingsItems();
+    const startupItems = items.filter((item) =>
+      ["Scales", "Measurements", "Classifications"].includes(item.textContent?.trim() ?? ""),
+    );
+    expect(startupItems.map((item) => item.textContent?.trim())).toEqual([
+      "Scales",
+      "Measurements",
+      "Classifications",
+    ]);
+    expect(startupItems.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ]);
+    expect(
+      document.querySelector('[role="separator"][aria-label="Open recovered plans in"]'),
+    ).not.toBeNull();
+
+    act(() => startupItems[2]?.click());
+    expect(onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("classifications");
+  });
+
+  it("supports keyboard selection for the recovered-plan startup workspace", () => {
+    const onRecoveredPlanStartupWorkspaceChange = vi.fn();
+    renderAppBar({
+      recoveredPlanStartupWorkspace: "scales",
+      onRecoveredPlanStartupWorkspaceChange,
+    });
+    openSettings();
+
+    const classifications = settingsItems().find(
+      (item) => item.textContent?.trim() === "Classifications",
+    );
+    if (!classifications) throw new Error("Classifications startup option was not rendered.");
+    act(() => classifications.focus());
+    act(() =>
+      classifications.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+    );
+
+    expect(onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("classifications");
+    expect(document.querySelector('[role="menu"][aria-label="Settings"]')).toBeNull();
   });
 
   it("supports menu keyboard navigation and Escape focus return", () => {

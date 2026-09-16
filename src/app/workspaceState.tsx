@@ -33,7 +33,7 @@ export interface MeasurementClipboard {
 }
 
 export type WorkspaceAction =
-  | { type: "RESET_WORKSPACE" }
+  | { type: "RESET_WORKSPACE"; module?: WorkspaceModule }
   | { type: "PAGE_CHANGED" }
   | { type: "CHOOSE_TOOL"; tool: Tool }
   | { type: "SELECT_MEASUREMENT"; id: string }
@@ -79,7 +79,11 @@ export const initialWorkspaceState: WorkspaceState = {
 export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
     case "RESET_WORKSPACE":
-      return { ...initialWorkspaceState, workspaceVersion: state.workspaceVersion + 1 };
+      return {
+        ...initialWorkspaceState,
+        workspaceModule: action.module ?? initialWorkspaceState.workspaceModule,
+        workspaceVersion: state.workspaceVersion + 1,
+      };
     case "PAGE_CHANGED":
       return {
         ...state,
@@ -192,7 +196,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
-  resetWorkspace: () => void;
+  resetWorkspace: (module?: WorkspaceModule) => void;
   pageChanged: () => void;
   chooseTool: (tool: Tool) => void;
   selectMeasurement: (id: string) => void;
@@ -228,7 +232,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       ...state,
-      resetWorkspace: () => dispatch({ type: "RESET_WORKSPACE" }),
+      resetWorkspace: (module?: WorkspaceModule) => dispatch({ type: "RESET_WORKSPACE", module }),
       pageChanged: () => dispatch({ type: "PAGE_CHANGED" }),
       chooseTool: (tool: Tool) => dispatch({ type: "CHOOSE_TOOL", tool }),
       selectMeasurement: (id: string) => dispatch({ type: "SELECT_MEASUREMENT", id }),

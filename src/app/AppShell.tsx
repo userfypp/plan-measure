@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import { AppBar } from "./AppBar";
+import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import styles from "./AppShell.module.css";
 
 type StatusTone = "error" | "warning";
@@ -11,10 +12,12 @@ interface AppShellProps {
   canExport: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
+  recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onOpenPdf: () => void;
   onExport: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
   statusMessage?: string | null;
   statusTone?: StatusTone;
   onDismissStatus?: () => void;
@@ -26,10 +29,12 @@ export function AppShell({
   canExport,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
+  recoveredPlanStartupWorkspace = "scales",
   onOpenPdf,
   onExport,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
+  onRecoveredPlanStartupWorkspaceChange,
   statusMessage,
   statusTone = "error",
   onDismissStatus,
@@ -41,10 +46,12 @@ export function AppShell({
         canExport={canExport}
         measurementDecimalPlaces={measurementDecimalPlaces}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
+        recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onOpenPdf={onOpenPdf}
         onExport={onExport}
         onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
         onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+        onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
       />
       <div className={styles.statusRow}>
         {statusMessage ? (

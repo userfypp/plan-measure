@@ -134,6 +134,26 @@ describe("workspace selection state", () => {
     });
   });
 
+  it.each(["scales", "measurements", "classifications"] as const)(
+    "can reset all interaction state directly into the %s module",
+    (module) => {
+      const dirty = {
+        ...initialWorkspaceState,
+        activeTool: "polygon" as const,
+        selectedMeasurementId: "stale-measurement",
+        snap: true,
+        orthogonal: true,
+        measurementDetailsOpen: true,
+      };
+
+      expect(workspaceReducer(dirty, { type: "RESET_WORKSPACE", module })).toEqual({
+        ...initialWorkspaceState,
+        workspaceModule: module,
+        workspaceVersion: dirty.workspaceVersion + 1,
+      });
+    },
+  );
+
   it("clears page-scoped transient state while preserving drawing aids on page change", () => {
     const flow = beginCalibrationFlow(1, null, "uniform");
     const edit = beginCalibrationReferenceEdit(1, uniformCalibration, "uniform");

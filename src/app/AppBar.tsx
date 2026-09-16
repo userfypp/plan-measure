@@ -1,5 +1,6 @@
 import { AnchoredMenu, Button } from "../components/ui";
 import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useTheme, type ThemePreference } from "./themeState";
 import styles from "./AppBar.module.css";
 
@@ -10,10 +11,12 @@ interface AppBarProps {
   canExport: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
+  recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onOpenPdf: () => void;
   onExport: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
 function SettingsIcon() {
@@ -33,16 +36,26 @@ const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
 ];
 
 const MEASUREMENT_DECIMAL_OPTIONS: MeasurementDecimalPlaces[] = [0, 1, 2, 3, 4, 5, 6];
+const RECOVERED_PLAN_STARTUP_OPTIONS: Array<{
+  id: RecoveredPlanStartupWorkspace;
+  label: string;
+}> = [
+  { id: "scales", label: "Scales" },
+  { id: "measurements", label: "Measurements" },
+  { id: "classifications", label: "Classifications" },
+];
 
 export function AppBar({
   documentName,
   canExport,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
+  recoveredPlanStartupWorkspace = "scales",
   onOpenPdf,
   onExport,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
+  onRecoveredPlanStartupWorkspaceChange,
 }: AppBarProps) {
   const { preference, setPreference } = useTheme();
   const themeItems = THEME_OPTIONS.map((option, index) => ({
@@ -75,6 +88,16 @@ export function AppBar({
           onSelect: () => onConfirmMeasurementDeletionChange(!confirmMeasurementDeletion),
         },
       ]
+    : [];
+  const recoveredPlanStartupItems = onRecoveredPlanStartupWorkspaceChange
+    ? RECOVERED_PLAN_STARTUP_OPTIONS.map((option, index) => ({
+        id: `recovered-plan-startup-${option.id}`,
+        label: option.label,
+        sectionLabel: index === 0 ? "Open recovered plans in" : undefined,
+        role: "menuitemradio" as const,
+        checked: recoveredPlanStartupWorkspace === option.id,
+        onSelect: () => onRecoveredPlanStartupWorkspaceChange(option.id),
+      }))
     : [];
 
   return (
@@ -122,7 +145,12 @@ export function AppBar({
             title: "Settings",
           }}
           label="Settings"
-          items={[...themeItems, ...measurementDecimalItems, ...deletionItems]}
+          items={[
+            ...themeItems,
+            ...measurementDecimalItems,
+            ...deletionItems,
+            ...recoveredPlanStartupItems,
+          ]}
           className={styles.settingsMenu}
           placement="bottom-end"
         />
