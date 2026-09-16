@@ -197,14 +197,12 @@ export function SettingsPopover({
                 <label className={styles.settingLabel} htmlFor={deleteConfirmationId}>
                   Confirm before deleting
                 </label>
-                <label className={styles.switchTarget}>
-                  <Switch
-                    id={deleteConfirmationId}
-                    aria-label="Confirm before deleting measurements"
-                    checked={confirmMeasurementDeletion}
-                    onChange={onConfirmMeasurementDeletionChange}
-                  />
-                </label>
+                <Switch
+                  id={deleteConfirmationId}
+                  aria-label="Confirm before deleting measurements"
+                  checked={confirmMeasurementDeletion}
+                  onChange={onConfirmMeasurementDeletionChange}
+                />
               </div>
             )}
           </div>

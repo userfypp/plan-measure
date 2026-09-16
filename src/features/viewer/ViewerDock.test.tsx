@@ -284,7 +284,11 @@ describe("ViewerDock", () => {
 
     const labelsSwitch = Array.from(document.querySelectorAll<HTMLInputElement>('[role="switch"]'))[0];
     if (!labelsSwitch) throw new Error("Labels switch was not rendered.");
-    act(() => labelsSwitch.click());
+    const labelsText = Array.from(labelsSwitch.labels ?? []).find((label) =>
+      label.textContent?.includes("Labels"),
+    );
+    if (!labelsText) throw new Error("Labels text label was not rendered.");
+    act(() => labelsText.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ showLabels: false });
   });
 

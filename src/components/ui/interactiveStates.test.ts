@@ -54,12 +54,26 @@ describe("shared interactive-state contract", () => {
   it("keeps OFF switches visibly bounded and gives both switch states transient feedback", () => {
     expect(tokensCss).toContain("--color-switch-off-border:");
     expect(switchCss).toContain("border: var(--border-width) solid var(--color-switch-off-border)");
-    expect(switchCss).toContain(".switch:hover:not(:disabled)");
-    expect(switchCss).toContain(".switch:active:not(:disabled)");
-    expect(switchCss).toContain(".switch:checked:hover:not(:disabled)");
-    expect(switchCss).toContain(".switch:checked:active:not(:disabled)");
-    expect(switchCss).toContain(".switch:focus-visible");
-    expect(switchCss).toContain(".switch:disabled");
+    expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:hover');
+    expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:active');
+    expect(switchCss).toContain(
+      '.target:not([data-disabled="true"]) .input:checked + .track:hover',
+    );
+    expect(switchCss).toContain(
+      '.target:not([data-disabled="true"]) .input:checked + .track:active',
+    );
+    expect(switchCss).toContain(".input:focus-visible + .track");
+    expect(switchCss).toContain('.target[data-disabled="true"] .track');
+  });
+
+  it("keeps fine-pointer switch feedback on the visible track while preserving a coarse target", () => {
+    expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
+    expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
+    expect(switchCss).toMatch(
+      /@media \(pointer: coarse\)\s*\{[^}]*\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
+    );
+    expect(switchCss).not.toMatch(/\.target[^}]*cursor:\s*pointer;/s);
+    expect(switchCss).not.toMatch(/\.input:hover/);
   });
 
   it("keeps the selected Appearance segment distinct while still reacting to hover and active", () => {

@@ -9,15 +9,19 @@ export interface SwitchProps extends Omit<
   onChange: (checked: boolean) => void;
 }
 
-export function Switch({ checked, onChange, className, ...inputProps }: SwitchProps) {
+export function Switch({ checked, onChange, className, disabled, ...inputProps }: SwitchProps) {
   return (
-    <input
-      {...inputProps}
-      type="checkbox"
-      role="switch"
-      checked={checked}
-      className={[styles.switch, className].filter(Boolean).join(" ")}
-      onChange={(event) => onChange(event.target.checked)}
-    />
+    <label className={styles.target} data-disabled={disabled || undefined} data-switch-target>
+      <input
+        {...inputProps}
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        disabled={disabled}
+        className={[styles.input, className].filter(Boolean).join(" ")}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className={styles.track} data-switch-track aria-hidden="true" />
+    </label>
   );
 }

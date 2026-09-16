@@ -1,10 +1,25 @@
-.switch {
+.target {
   position: relative;
   width: 36px;
   height: 20px;
   flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  appearance: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.track {
+  position: relative;
+  width: 36px;
+  height: 20px;
   border: var(--border-width) solid var(--color-switch-off-border);
   border-radius: var(--radius-control);
   background-color: var(--color-surface-field);
@@ -12,7 +27,7 @@
   transition: var(--transition-interactive);
 }
 
-.switch::before {
+.track::before {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -26,48 +41,55 @@
     background-color 120ms ease;
 }
 
-.switch:hover:not(:disabled) {
+.target:not([data-disabled="true"]) .track:hover {
   border-color: var(--color-control-active-border);
   background-color: var(--color-control-hover-surface);
 }
 
-.switch:active:not(:disabled) {
+.target:not([data-disabled="true"]) .track:active {
   border-color: var(--color-text-secondary);
   background-color: var(--color-control-active-surface);
 }
 
-.switch:focus-visible {
+.input:focus-visible + .track {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
 
-.switch:checked {
+.input:checked + .track {
   border-color: var(--color-accent);
   background-color: var(--color-accent);
 }
 
-.switch:checked::before {
+.input:checked + .track::before {
   background: var(--color-on-primary);
   transform: translateX(16px);
 }
 
-.switch:checked:hover:not(:disabled) {
+.target:not([data-disabled="true"]) .input:checked + .track:hover {
   border-color: var(--color-accent-hover-semantic);
   background-color: var(--color-accent-hover-semantic);
 }
 
-.switch:checked:active:not(:disabled) {
+.target:not([data-disabled="true"]) .input:checked + .track:active {
   border-color: var(--color-accent-active-semantic);
   background-color: var(--color-accent-active-semantic);
 }
 
-.switch:disabled {
+.target[data-disabled="true"] .track {
   cursor: not-allowed;
   opacity: var(--opacity-disabled);
 }
 
+@media (pointer: coarse) {
+  .target {
+    width: var(--target-coarse);
+    height: var(--target-coarse);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .switch::before {
+  .track::before {
     transition: none;
   }
 }

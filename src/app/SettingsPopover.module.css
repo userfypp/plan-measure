@@ -147,14 +147,6 @@
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
-.switchTarget {
-  width: 36px;
-  min-height: var(--target-current);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-
 .divider {
   height: var(--border-width);
   margin: var(--space-16) 0;
@@ -166,10 +158,6 @@
     --target-current: var(--target-coarse);
     --control-height-compact: var(--target-coarse);
     --control-height-regular: var(--target-coarse);
-  }
-
-  .switchTarget {
-    width: var(--target-coarse);
   }
 }
 

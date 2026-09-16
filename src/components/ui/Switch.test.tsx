@@ -30,6 +30,12 @@ function control(): HTMLInputElement {
   return input;
 }
 
+function target(): HTMLLabelElement {
+  const label = container?.querySelector<HTMLLabelElement>("[data-switch-target]");
+  if (!label) throw new Error("Switch target was not rendered.");
+  return label;
+}
+
 describe("Switch", () => {
   it("exposes switch semantics, checked state, and accessible naming", () => {
     act(() => {
@@ -52,6 +58,17 @@ describe("Switch", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
+  it("keeps the label target activatable while separating the visual track from the input", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root!.render(<Switch aria-label="Example setting" checked={false} onChange={onChange} />);
+    });
+
+    expect(target().querySelector("[data-switch-track]")).not.toBeNull();
+    act(() => target().click());
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
   it("preserves native disabled behavior", () => {
     const onChange = vi.fn();
     act(() => {
@@ -61,7 +78,8 @@ describe("Switch", () => {
     });
 
     expect(control().disabled).toBe(true);
-    act(() => control().click());
+    expect(target().getAttribute("data-disabled")).toBe("true");
+    act(() => target().click());
     expect(onChange).not.toHaveBeenCalled();
   });
 });

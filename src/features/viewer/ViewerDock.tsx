@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
 import { AnchoredMenu, Button, Popover, Switch } from "../../components/ui";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
@@ -306,13 +307,14 @@ function ViewToggle({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const switchId = useId();
   return (
-    <label className={styles.toggle}>
-      <span className={styles.toggleText}>
+    <div className={styles.toggle}>
+      <label className={styles.toggleText} htmlFor={switchId}>
         <strong>{label}</strong>
         <small>{description}</small>
-      </span>
-      <Switch checked={checked} onChange={onChange} />
-    </label>
+      </label>
+      <Switch id={switchId} checked={checked} onChange={onChange} />
+    </div>
   );
 }

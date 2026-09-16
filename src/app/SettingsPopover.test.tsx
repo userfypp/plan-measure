@@ -250,11 +250,13 @@ describe("SettingsPopover", () => {
     const callbacks = renderSettings({ confirmMeasurementDeletion: false });
     openSettings();
     const control = switchControl();
+    const visibleLabel = dialog().querySelector<HTMLLabelElement>(`label[for="${control.id}"]`);
 
     expect(control.checked).toBe(false);
     expect(control.getAttribute("aria-label")).toBe("Confirm before deleting measurements");
+    expect(visibleLabel?.textContent).toBe("Confirm before deleting");
 
-    act(() => control.click());
+    act(() => visibleLabel?.click());
     expect(callbacks.onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(true);
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   });

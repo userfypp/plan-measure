@@ -267,11 +267,6 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.toggle {
-  cursor: pointer;
-  transition: var(--transition-interactive);
-}
-
 .unit select {
   width: 118px;
   min-height: var(--target-current);
@@ -285,16 +280,6 @@
 .unit select:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
-}
-
-.toggle:hover {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.toggle:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
 }
 
 .toggleText {
