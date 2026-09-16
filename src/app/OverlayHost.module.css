@@ -1,0 +1,22 @@
+.deletePreference {
+  min-height: var(--target-current);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  cursor: pointer;
+}
+
+.deletePreference input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.deletePreference input:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}

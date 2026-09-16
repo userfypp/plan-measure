@@ -55,6 +55,14 @@ function settingsItems(): HTMLButtonElement[] {
   );
 }
 
+function settingsCheckboxItems(): HTMLButtonElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      '[role="menu"][aria-label="Settings"] [role="menuitemcheckbox"]',
+    ),
+  );
+}
+
 function openSettings() {
   act(() => buttonByLabel("Settings").click());
 }
@@ -72,6 +80,8 @@ function renderAppBar({
   onOpenPdf = vi.fn(),
   onExport = vi.fn(),
   onMeasurementDecimalPlacesChange,
+  confirmMeasurementDeletion,
+  onConfirmMeasurementDeletionChange,
 }: {
   documentName?: string | null;
   canExport?: boolean;
@@ -79,6 +89,8 @@ function renderAppBar({
   onOpenPdf?: () => void;
   onExport?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  confirmMeasurementDeletion?: boolean;
+  onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
 } = {}) {
   act(() => {
     root!.render(
@@ -90,6 +102,8 @@ function renderAppBar({
           onOpenPdf={onOpenPdf}
           onExport={onExport}
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+          confirmMeasurementDeletion={confirmMeasurementDeletion}
+          onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
         />
       </ThemeProvider>,
     );
@@ -283,6 +297,26 @@ describe("AppBar", () => {
       -1,
       0,
     ]);
+  });
+
+  it("exposes the reversible measurement deletion confirmation preference as a checkbox item", () => {
+    const onConfirmMeasurementDeletionChange = vi.fn();
+    renderAppBar({
+      confirmMeasurementDeletion: false,
+      onConfirmMeasurementDeletionChange,
+    });
+    openSettings();
+
+    const checkboxItems = settingsCheckboxItems();
+    expect(checkboxItems).toHaveLength(1);
+    expect(checkboxItems[0]?.textContent?.trim()).toBe("Confirm before deleting measurements");
+    expect(checkboxItems[0]?.getAttribute("aria-checked")).toBe("false");
+    expect(
+      document.querySelector('[role="separator"][aria-label="Measurement deletion"]'),
+    ).not.toBeNull();
+
+    act(() => checkboxItems[0]?.click());
+    expect(onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(true);
   });
 
   it("supports menu keyboard navigation and Escape focus return", () => {

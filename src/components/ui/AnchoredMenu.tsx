@@ -13,7 +13,7 @@ import {
 } from "./Popover";
 import styles from "./AnchoredMenu.module.css";
 
-export type AnchoredMenuItemRole = "menuitem" | "menuitemradio";
+export type AnchoredMenuItemRole = "menuitem" | "menuitemcheckbox" | "menuitemradio";
 
 interface AnchoredMenuItemBase {
   id: string;
@@ -90,7 +90,11 @@ export function AnchoredMenu({
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const initialFocusIndex = useMemo(() => firstInitialFocusIndex(items), [items]);
   const selectionMenu = items.some(
-    (item) => item.role === "menuitemradio" || item.checked !== undefined || item.current !== undefined,
+    (item) =>
+      item.role === "menuitemcheckbox" ||
+      item.role === "menuitemradio" ||
+      item.checked !== undefined ||
+      item.current !== undefined,
   );
   const tabbableIndex = focusIndex ?? initialFocusIndex;
 
@@ -229,7 +233,11 @@ export function AnchoredMenu({
                 target={item.target}
                 rel={item.rel}
                 role={role}
-                aria-checked={role === "menuitemradio" ? Boolean(item.checked) : undefined}
+                aria-checked={
+                  role === "menuitemradio" || role === "menuitemcheckbox"
+                    ? Boolean(item.checked)
+                    : undefined
+                }
                 aria-current={item.current ? "true" : undefined}
                 aria-disabled={item.disabled || undefined}
                 tabIndex={index === tabbableIndex ? 0 : -1}
@@ -257,7 +265,11 @@ export function AnchoredMenu({
               }}
               type="button"
               role={role}
-              aria-checked={role === "menuitemradio" ? Boolean(item.checked) : undefined}
+              aria-checked={
+                role === "menuitemradio" || role === "menuitemcheckbox"
+                  ? Boolean(item.checked)
+                  : undefined
+              }
               aria-current={item.current ? "true" : undefined}
               aria-disabled={item.disabled || undefined}
               tabIndex={index === tabbableIndex ? 0 : -1}

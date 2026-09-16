@@ -156,18 +156,21 @@
   max-width: min(188px, calc(100vw - var(--space-16)));
 }
 
-.settingsMenu [role="menuitemradio"] {
+.settingsMenu [role="menuitemradio"],
+.settingsMenu [role="menuitemcheckbox"] {
   grid-template-columns: 10px minmax(0, 1fr);
   gap: var(--space-4);
   padding-inline: var(--space-4);
   line-height: var(--line-height-secondary);
 }
 
-.settingsMenu [role="menuitemradio"] > span[aria-hidden="true"] {
+.settingsMenu [role="menuitemradio"] > span[aria-hidden="true"],
+.settingsMenu [role="menuitemcheckbox"] > span[aria-hidden="true"] {
   width: 10px;
 }
 
-.settingsMenu [role="menuitemradio"] > span[aria-hidden="true"] svg {
+.settingsMenu [role="menuitemradio"] > span[aria-hidden="true"] svg,
+.settingsMenu [role="menuitemcheckbox"] > span[aria-hidden="true"] svg {
   width: 10px;
   height: 10px;
 }

@@ -9,9 +9,11 @@ interface AppBarProps {
   documentName: string | null;
   canExport: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  confirmMeasurementDeletion?: boolean;
   onOpenPdf: () => void;
   onExport: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
 }
 
 function SettingsIcon() {
@@ -36,9 +38,11 @@ export function AppBar({
   documentName,
   canExport,
   measurementDecimalPlaces = null,
+  confirmMeasurementDeletion = true,
   onOpenPdf,
   onExport,
   onMeasurementDecimalPlacesChange,
+  onConfirmMeasurementDeletionChange,
 }: AppBarProps) {
   const { preference, setPreference } = useTheme();
   const themeItems = THEME_OPTIONS.map((option, index) => ({
@@ -60,6 +64,18 @@ export function AppBar({
           checked: measurementDecimalPlaces === decimalPlaces,
           onSelect: () => onMeasurementDecimalPlacesChange(decimalPlaces),
         }));
+  const deletionItems = onConfirmMeasurementDeletionChange
+    ? [
+        {
+          id: "confirm-measurement-deletion",
+          label: "Confirm before deleting measurements",
+          sectionLabel: "Measurement deletion",
+          role: "menuitemcheckbox" as const,
+          checked: confirmMeasurementDeletion,
+          onSelect: () => onConfirmMeasurementDeletionChange(!confirmMeasurementDeletion),
+        },
+      ]
+    : [];
 
   return (
     <header className={styles.appBar} aria-label="Application bar">
@@ -106,7 +122,7 @@ export function AppBar({
             title: "Settings",
           }}
           label="Settings"
-          items={[...themeItems, ...measurementDecimalItems]}
+          items={[...themeItems, ...measurementDecimalItems, ...deletionItems]}
           className={styles.settingsMenu}
           placement="bottom-end"
         />

@@ -63,6 +63,10 @@ import {
   isMeasurementType,
   isValidPageCalibration,
 } from "../utils/geometry";
+import {
+  readMeasurementDeleteConfirmationPreference,
+  writeMeasurementDeleteConfirmationPreference,
+} from "./measurementDeletePreference";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
@@ -157,6 +161,9 @@ function PlanMeasureApp() {
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
+    readMeasurementDeleteConfirmationPreference,
+  );
   const [authoringCapability, setAuthoringCapability] = useState<AuthoringCapability | null>(null);
   const authoringCapabilityRef = useRef<AuthoringCapability | null>(null);
   const handleAuthoringCapabilityChange = useCallback((capability: AuthoringCapability) => {
@@ -238,6 +245,25 @@ function PlanMeasureApp() {
     setDragActive(false);
   }, []);
 
+  const setConfirmMeasurementDeletion = useCallback((enabled: boolean) => {
+    setConfirmMeasurementDeletionState(enabled);
+    writeMeasurementDeleteConfirmationPreference(enabled);
+  }, []);
+
+  const performMeasurementDelete = useCallback(
+    (request: MeasurementDeleteRequest) => {
+      const page = session?.pages[request.pageNumber];
+      const measurement = page?.measurements.find(
+        (candidate) => candidate.id === request.measurementId,
+      );
+      if (!session || session.currentPage !== request.pageNumber || !page || !measurement) return;
+      deleteMeasurement(page.pageNumber, measurement.id);
+      if (selectedMeasurementId === measurement.id) clearSelection();
+      focusViewer();
+    },
+    [clearSelection, deleteMeasurement, focusViewer, selectedMeasurementId, session],
+  );
+
   const requestMeasurementDelete = useCallback(
     (request: MeasurementDeleteRequest) => {
       const page = session?.pages[request.pageNumber];
@@ -245,13 +271,21 @@ function PlanMeasureApp() {
         (candidate) => candidate.id === request.measurementId,
       );
       if (!page || !measurement) return;
+      if (!confirmMeasurementDeletion) {
+        performMeasurementDelete({
+          pageNumber: page.pageNumber,
+          measurementId: measurement.id,
+          measurementName: measurement.name,
+        });
+        return;
+      }
       openDeleteMeasurementConfirmation({
         pageNumber: page.pageNumber,
         measurementId: measurement.id,
         measurementName: measurement.name,
       });
     },
-    [openDeleteMeasurementConfirmation, session],
+    [confirmMeasurementDeletion, openDeleteMeasurementConfirmation, performMeasurementDelete, session],
   );
 
   const selectMeasurementFromPanel = useCallback(
@@ -629,15 +663,13 @@ function PlanMeasureApp() {
     focusViewer();
   }
 
-  function handleOverlayConfirmationConfirm(confirmation: OverlayConfirmation) {
+  function handleOverlayConfirmationConfirm(
+    confirmation: OverlayConfirmation,
+    options?: { dontAskAgain?: boolean },
+  ) {
     if (confirmation.type === "deleteMeasurement") {
-      const { pageNumber, measurementId } = confirmation.payload;
-      const page = session?.pages[pageNumber];
-      const measurement = page?.measurements.find((candidate) => candidate.id === measurementId);
-      if (!session || session.currentPage !== pageNumber || !page || !measurement) return;
-      deleteMeasurement(pageNumber, measurementId);
-      if (selectedMeasurementId === measurementId) clearSelection();
-      focusViewer();
+      if (options?.dontAskAgain) setConfirmMeasurementDeletion(false);
+      performMeasurementDelete(confirmation.payload);
       return;
     }
 
@@ -773,11 +805,13 @@ function PlanMeasureApp() {
       documentName={session?.pdf.name ?? null}
       canExport={Boolean(session)}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
+      confirmMeasurementDeletion={confirmMeasurementDeletion}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }
+      onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
       onDismissStatus={
@@ -888,9 +922,23 @@ function PlanMeasureApp() {
             <ContextToolbar
               selectedMeasurementId={selectedMeasurement?.id ?? null}
               selectedMeasurementName={selectedMeasurement?.name ?? null}
+              selectedMeasurementVisible={selectedMeasurement?.visible ?? false}
               duplicateDisabled={duplicateDisabled}
               referenceEditValid={calibrationReferenceEditIsValid}
               measurementEditActive={measurementEditActive}
+              onEditSelectedMeasurement={() => {
+                if (!selectedMeasurement?.visible) return;
+                chooseTool("select");
+                focusViewer();
+              }}
+              onDeleteSelectedMeasurement={() => {
+                if (!selectedMeasurement) return;
+                requestMeasurementDelete({
+                  pageNumber: currentPage.pageNumber,
+                  measurementId: selectedMeasurement.id,
+                  measurementName: selectedMeasurement.name,
+                });
+              }}
               onDuplicateSelectedMeasurement={() => {
                 if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
               }}

@@ -38,9 +38,12 @@ function props(overrides: Partial<ContextToolbarProps> = {}): ContextToolbarProp
   return {
     selectedMeasurementId: selectedMeasurementName ? "line-1" : null,
     selectedMeasurementName,
+    selectedMeasurementVisible: true,
     duplicateDisabled: false,
     referenceEditValid: true,
     measurementEditActive: false,
+    onEditSelectedMeasurement: vi.fn(),
+    onDeleteSelectedMeasurement: vi.fn(),
     onDuplicateSelectedMeasurement: vi.fn(),
     onRenameSelectedMeasurement: vi.fn(),
     onOpenMeasurementDetails: () => workspace?.openMeasurementDetails(),
@@ -467,21 +470,78 @@ describe("ContextToolbar V2", () => {
   });
 
   it("shows selection actions only in Select and suppresses redundant Details while Details is open", () => {
+    const edit = vi.fn();
+    const remove = vi.fn();
     const duplicate = vi.fn();
-    renderToolbar(props({ selectedMeasurementName: "Line 1", onDuplicateSelectedMeasurement: duplicate }));
+    renderToolbar(
+      props({
+        selectedMeasurementName: "Line 1",
+        onEditSelectedMeasurement: edit,
+        onDeleteSelectedMeasurement: remove,
+        onDuplicateSelectedMeasurement: duplicate,
+      }),
+    );
     act(() => workspace!.selectMeasurement("line-1"));
 
     expect(contextKind()).toBe("selection");
+    act(() => buttonByText("Edit").click());
+    expect(edit).toHaveBeenCalledOnce();
     act(() => buttonByText("Duplicate").click());
     expect(duplicate).toHaveBeenCalledOnce();
     expect(buttonByText("Details")).toBeTruthy();
+    act(() => buttonByText("Delete").click());
+    expect(remove).toHaveBeenCalledOnce();
     act(() => buttonByText("Details").click());
     expect(workspace?.measurementDetailsOpen).toBe(true);
     expect(container?.textContent).not.toContain("Details");
+    expect(buttonByText("Edit")).toBeTruthy();
     expect(buttonByText("Duplicate")).toBeTruthy();
+    expect(buttonByText("Delete")).toBeTruthy();
 
     act(() => workspace!.chooseTool("hand"));
     expect(contextKind()).toBeNull();
+  });
+
+  it("includes Edit and Delete in the selected-measurement roving keyboard order", () => {
+    renderToolbar(props({ selectedMeasurementName: "Line 1" }));
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    const rename = renameTrigger("Line 1");
+    const edit = buttonByText("Edit");
+    const duplicate = buttonByText("Duplicate");
+    const details = buttonByText("Details");
+    const remove = buttonByText("Delete");
+    act(() => rename.focus());
+
+    press("ArrowRight");
+    expect(document.activeElement).toBe(edit);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(duplicate);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(details);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(remove);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(rename);
+    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([rename]);
+  });
+
+  it("keeps Edit discoverable but unavailable when the selected measurement is hidden", () => {
+    renderToolbar(
+      props({
+        selectedMeasurementName: "Line 1",
+        selectedMeasurementVisible: false,
+      }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    const edit = buttonByText("Edit");
+    expect(edit.disabled).toBe(false);
+    expect(edit.getAttribute("aria-disabled")).toBe("true");
+    expect(edit.getAttribute("aria-describedby")).not.toBeNull();
+    expect(document.getElementById(edit.getAttribute("aria-describedby")!)?.textContent).toBe(
+      "Show the measurement before editing its geometry.",
+    );
   });
 
   it("gives direct manipulation priority over ordinary selection actions", () => {
@@ -497,6 +557,7 @@ describe("ContextToolbar V2", () => {
     expect(container?.textContent).toContain("Editing geometry");
     expect(container?.textContent).not.toContain("Duplicate");
     expect(container?.textContent).not.toContain("Details");
+    expect(container?.textContent).not.toContain("Delete");
   });
 
   it("distinguishes Uniform, X, and Y calibration contexts and routes only calibration Cancel", () => {

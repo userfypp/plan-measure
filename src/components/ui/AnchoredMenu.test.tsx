@@ -122,6 +122,31 @@ describe("AnchoredMenu", () => {
     expect(buttons()[1]?.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("supports checkbox menu semantics without changing selection markers", () => {
+    act(() => {
+      root!.render(
+        <AnchoredMenu
+          trigger="Settings"
+          label="Settings"
+          items={[
+            {
+              id: "confirm-delete",
+              label: "Confirm before deleting measurements",
+              role: "menuitemcheckbox",
+              checked: false,
+              onSelect: vi.fn(),
+            },
+          ]}
+        />,
+      );
+    });
+    openMenu();
+
+    expect(buttons()[0]?.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(buttons()[0]?.getAttribute("aria-checked")).toBe("false");
+    expect(buttons()[0]?.querySelector("svg")).toBeNull();
+  });
+
   it("uses a single SVG check for the selected item without adding glyph text", () => {
     openMenu();
     const menuButtons = buttons();
