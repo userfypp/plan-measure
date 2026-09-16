@@ -922,15 +922,9 @@ function PlanMeasureApp() {
             <ContextToolbar
               selectedMeasurementId={selectedMeasurement?.id ?? null}
               selectedMeasurementName={selectedMeasurement?.name ?? null}
-              selectedMeasurementVisible={selectedMeasurement?.visible ?? false}
               duplicateDisabled={duplicateDisabled}
               referenceEditValid={calibrationReferenceEditIsValid}
               measurementEditActive={measurementEditActive}
-              onEditSelectedMeasurement={() => {
-                if (!selectedMeasurement?.visible) return;
-                chooseTool("select");
-                focusViewer();
-              }}
               onDeleteSelectedMeasurement={() => {
                 if (!selectedMeasurement) return;
                 requestMeasurementDelete({

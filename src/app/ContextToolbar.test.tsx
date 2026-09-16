@@ -38,11 +38,9 @@ function props(overrides: Partial<ContextToolbarProps> = {}): ContextToolbarProp
   return {
     selectedMeasurementId: selectedMeasurementName ? "line-1" : null,
     selectedMeasurementName,
-    selectedMeasurementVisible: true,
     duplicateDisabled: false,
     referenceEditValid: true,
     measurementEditActive: false,
-    onEditSelectedMeasurement: vi.fn(),
     onDeleteSelectedMeasurement: vi.fn(),
     onDuplicateSelectedMeasurement: vi.fn(),
     onRenameSelectedMeasurement: vi.fn(),
@@ -470,13 +468,11 @@ describe("ContextToolbar V2", () => {
   });
 
   it("shows selection actions only in Select and suppresses redundant Details while Details is open", () => {
-    const edit = vi.fn();
     const remove = vi.fn();
     const duplicate = vi.fn();
     renderToolbar(
       props({
         selectedMeasurementName: "Line 1",
-        onEditSelectedMeasurement: edit,
         onDeleteSelectedMeasurement: remove,
         onDuplicateSelectedMeasurement: duplicate,
       }),
@@ -484,8 +480,7 @@ describe("ContextToolbar V2", () => {
     act(() => workspace!.selectMeasurement("line-1"));
 
     expect(contextKind()).toBe("selection");
-    act(() => buttonByText("Edit").click());
-    expect(edit).toHaveBeenCalledOnce();
+    expect(container?.textContent).not.toContain("Edit");
     act(() => buttonByText("Duplicate").click());
     expect(duplicate).toHaveBeenCalledOnce();
     expect(buttonByText("Details")).toBeTruthy();
@@ -494,7 +489,7 @@ describe("ContextToolbar V2", () => {
     act(() => buttonByText("Details").click());
     expect(workspace?.measurementDetailsOpen).toBe(true);
     expect(container?.textContent).not.toContain("Details");
-    expect(buttonByText("Edit")).toBeTruthy();
+    expect(container?.textContent).not.toContain("Edit");
     expect(buttonByText("Duplicate")).toBeTruthy();
     expect(buttonByText("Delete")).toBeTruthy();
 
@@ -502,19 +497,16 @@ describe("ContextToolbar V2", () => {
     expect(contextKind()).toBeNull();
   });
 
-  it("includes Edit and Delete in the selected-measurement roving keyboard order", () => {
+  it("keeps the remaining selected-measurement actions in roving keyboard order", () => {
     renderToolbar(props({ selectedMeasurementName: "Line 1" }));
     act(() => workspace!.selectMeasurement("line-1"));
 
     const rename = renameTrigger("Line 1");
-    const edit = buttonByText("Edit");
     const duplicate = buttonByText("Duplicate");
     const details = buttonByText("Details");
     const remove = buttonByText("Delete");
     act(() => rename.focus());
 
-    press("ArrowRight");
-    expect(document.activeElement).toBe(edit);
     press("ArrowRight");
     expect(document.activeElement).toBe(duplicate);
     press("ArrowRight");
@@ -524,24 +516,6 @@ describe("ContextToolbar V2", () => {
     press("ArrowRight");
     expect(document.activeElement).toBe(rename);
     expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([rename]);
-  });
-
-  it("keeps Edit discoverable but unavailable when the selected measurement is hidden", () => {
-    renderToolbar(
-      props({
-        selectedMeasurementName: "Line 1",
-        selectedMeasurementVisible: false,
-      }),
-    );
-    act(() => workspace!.selectMeasurement("line-1"));
-
-    const edit = buttonByText("Edit");
-    expect(edit.disabled).toBe(false);
-    expect(edit.getAttribute("aria-disabled")).toBe("true");
-    expect(edit.getAttribute("aria-describedby")).not.toBeNull();
-    expect(document.getElementById(edit.getAttribute("aria-describedby")!)?.textContent).toBe(
-      "Show the measurement before editing its geometry.",
-    );
   });
 
   it("gives direct manipulation priority over ordinary selection actions", () => {

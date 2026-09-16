@@ -17,17 +17,14 @@ import {
   normalizeMeasurementName,
 } from "../utils/measurementName";
 import { useWorkspaceState } from "./workspaceState";
-import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import styles from "./ContextToolbar.module.css";
 
 export interface ContextToolbarProps {
   selectedMeasurementId: string | null;
   selectedMeasurementName: string | null;
-  selectedMeasurementVisible: boolean;
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
-  onEditSelectedMeasurement: () => void;
   onDeleteSelectedMeasurement: () => void;
   onDuplicateSelectedMeasurement: () => void;
   onRenameSelectedMeasurement: (name: string) => void;
@@ -305,11 +302,9 @@ function MeasurementNameEditor({
 export function ContextToolbar({
   selectedMeasurementId,
   selectedMeasurementName,
-  selectedMeasurementVisible,
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
-  onEditSelectedMeasurement,
   onDeleteSelectedMeasurement,
   onDuplicateSelectedMeasurement,
   onRenameSelectedMeasurement,
@@ -331,7 +326,6 @@ export function ContextToolbar({
     toggleSnap,
     clearDraft,
   } = useWorkspaceState();
-  const workspace = useWorkspaceDrawerPresentation();
   const { completeCurrentDraft } = useViewerInteractionCommands();
 
   if (calibrationReferenceEdit) {
@@ -488,12 +482,6 @@ export function ContextToolbar({
   }
 
   if (activeTool !== "select" || !selectedMeasurementName) return null;
-  const editDisabled = !selectedMeasurementVisible || !workspace.precisionActionAvailable;
-  const editDisabledReason = !selectedMeasurementVisible
-    ? "Show the measurement before editing its geometry."
-    : !workspace.precisionActionAvailable
-      ? workspace.precisionDisabledReason
-      : undefined;
 
   return (
     <ToolbarComposite label="Selected measurement controls" contextKind="selection">
@@ -503,16 +491,6 @@ export function ContextToolbar({
         onRename={onRenameSelectedMeasurement}
       />
       <Divider />
-      <Button
-        className={styles.action}
-        variant="secondary"
-        size="compact"
-        disabled={editDisabled}
-        disabledReason={editDisabledReason}
-        onClick={() => workspace.requestPrecisionAuthoring(onEditSelectedMeasurement)}
-      >
-        Edit
-      </Button>
       <Button
         className={styles.action}
         variant="secondary"

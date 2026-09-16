@@ -49,12 +49,24 @@ function measurement(type: MeasurementType, points: Point[]): Measurement {
 
 describe("whole-measurement drag", () => {
   it("is available only for valid selected measurements in the normal Select edit workflow", () => {
-    const valid = measurement("polygon", [
-      { x: 10, y: 10 },
-      { x: 30, y: 10 },
-      { x: 30, y: 25 },
-      { x: 10, y: 25 },
-    ]);
+    const validMeasurements = [
+      measurement("line", [
+        { x: 10, y: 10 },
+        { x: 30, y: 25 },
+      ]),
+      measurement("polyline", [
+        { x: 10, y: 10 },
+        { x: 30, y: 10 },
+        { x: 30, y: 25 },
+      ]),
+      measurement("polygon", [
+        { x: 10, y: 10 },
+        { x: 30, y: 10 },
+        { x: 30, y: 25 },
+        { x: 10, y: 25 },
+      ]),
+    ];
+    const valid = validMeasurements[2]!;
     const crossing = measurement("polygon", [
       { x: 10, y: 10 },
       { x: 30, y: 30 },
@@ -62,10 +74,12 @@ describe("whole-measurement drag", () => {
       { x: 30, y: 10 },
     ]);
 
-    expect(measurementEditingEnabled("select", false, false, false, false, null, valid.id)).toBe(
-      true,
-    );
-    expect(canDragWholeMeasurement(valid, true, true)).toBe(true);
+    for (const measurement of validMeasurements) {
+      expect(
+        measurementEditingEnabled("select", false, false, false, false, null, measurement.id),
+      ).toBe(true);
+      expect(canDragWholeMeasurement(measurement, true, true)).toBe(true);
+    }
     expect(canDragWholeMeasurement(valid, false, true)).toBe(false);
     expect(canDragWholeMeasurement(crossing, true, true)).toBe(false);
 
