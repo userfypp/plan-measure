@@ -221,6 +221,7 @@ function resolvedRenderTask(): RenderTask {
 interface PdfPageDouble {
   page: PDFPageProxy;
   render: ReturnType<typeof vi.fn>;
+  cleanup: ReturnType<typeof vi.fn>;
 }
 
 function createPdfPage(
@@ -228,6 +229,7 @@ function createPdfPage(
   dimensions = { width: PAGE_WIDTH, height: PAGE_HEIGHT },
 ): PdfPageDouble {
   const render = vi.fn(() => renderTaskFactory());
+  const cleanup = vi.fn(() => true);
   const page = {
     rotate: 0,
     getViewport: ({ scale, rotation = 0 }: { scale: number; rotation?: number }) => ({
@@ -236,8 +238,9 @@ function createPdfPage(
       rotation,
     }),
     render,
+    cleanup,
   } as unknown as PDFPageProxy;
-  return { page, render };
+  return { page, render, cleanup };
 }
 
 function createPdfDocument(pages: Record<number, PDFPageProxy>): {
@@ -545,6 +548,132 @@ describe("PdfViewer render liveness", () => {
     expect(canvas(2).style.visibility).toBe("visible");
   });
 
+  it("waits for an in-flight render to settle before cleaning an inactive page", async () => {
+    const firstRender = controlledRenderTask(false);
+    const page1 = createPdfPage(() => firstRender.task);
+    const page2 = createPdfPage();
+    const runtime = createPdfDocument({ 1: page1.page, 2: page2.page });
+
+    await mountViewer(runtime.document);
+    expect(page1.render).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(2)} />);
+    });
+
+    expect(firstRender.cancel).toHaveBeenCalledTimes(1);
+    expect(page1.cleanup).not.toHaveBeenCalled();
+    expect(page2.render).toHaveBeenCalledTimes(1);
+    expect(page2.cleanup).not.toHaveBeenCalled();
+
+    await act(async () => firstRender.resolve());
+
+    expect(page1.cleanup).toHaveBeenCalledTimes(1);
+    expect(page2.cleanup).not.toHaveBeenCalled();
+  });
+
+  it("does not clean a page that becomes active again before its cancelled render settles", async () => {
+    const staleRender = controlledRenderTask(false);
+    const resumedRender = controlledRenderTask();
+    const page1Tasks = [staleRender, resumedRender];
+    const page1 = createPdfPage(() => {
+      const task = page1Tasks.shift();
+      if (!task) throw new Error("Unexpected extra page 1 render task.");
+      return task.task;
+    });
+    const page2 = createPdfPage();
+    const runtime = createPdfDocument({ 1: page1.page, 2: page2.page });
+
+    await mountViewer(runtime.document);
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(2)} />);
+    });
+    expect(staleRender.cancel).toHaveBeenCalledTimes(1);
+    expect(page1.cleanup).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(1)} />);
+    });
+    expect(page1.render).toHaveBeenCalledTimes(2);
+
+    await act(async () => staleRender.resolve());
+
+    expect(page1.cleanup).not.toHaveBeenCalled();
+
+    await act(async () => resumedRender.resolve());
+    expect(canvas(1).style.visibility).toBe("visible");
+    expect(page1.cleanup).not.toHaveBeenCalled();
+  });
+
+  it("leaves pending page cleanup to document teardown after the viewer unmounts", async () => {
+    const staleRender = controlledRenderTask(false);
+    const page1 = createPdfPage(() => staleRender.task);
+    const page2 = createPdfPage();
+    const runtime = createPdfDocument({ 1: page1.page, 2: page2.page });
+
+    await mountViewer(runtime.document);
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(2)} />);
+    });
+    expect(staleRender.cancel).toHaveBeenCalledTimes(1);
+    expect(page1.cleanup).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+    await act(async () => staleRender.resolve());
+
+    expect(page1.cleanup).not.toHaveBeenCalled();
+  });
+
+  it("keeps cached rasters reusable after cleaning an inactive PDF page", async () => {
+    const page1 = createPdfPage();
+    const page2 = createPdfPage();
+    const runtime = createPdfDocument({ 1: page1.page, 2: page2.page });
+
+    await mountViewer(runtime.document);
+    expect(page1.render).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(2)} />);
+    });
+    expect(page1.cleanup).toHaveBeenCalledTimes(1);
+    expect(page2.render).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(1)} />);
+    });
+
+    expect(page2.cleanup).toHaveBeenCalledTimes(1);
+    expect(page1.render).toHaveBeenCalledTimes(1);
+    expect(canvas(1).style.visibility).toBe("visible");
+  });
+
+  it("renders a cleaned page again after its raster has been evicted", async () => {
+    const page1 = createPdfPage();
+    const page2 = createPdfPage();
+    const page3 = createPdfPage();
+    const runtime = createPdfDocument({ 1: page1.page, 2: page2.page, 3: page3.page });
+
+    await mountViewer(runtime.document);
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(2)} />);
+    });
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(3)} />);
+    });
+
+    expect(page1.cleanup).toHaveBeenCalledTimes(1);
+    expect(page2.cleanup).toHaveBeenCalledTimes(1);
+    expect(page1.render).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(1)} />);
+    });
+
+    expect(page3.cleanup).toHaveBeenCalledTimes(1);
+    expect(page1.render).toHaveBeenCalledTimes(2);
+    expect(canvas(1).style.visibility).toBe("visible");
+  });
+
   it("cancels a pending raster on resize and lets the successor reveal the page", async () => {
     const first = controlledRenderTask();
     const second = controlledRenderTask();
@@ -596,16 +725,19 @@ describe("PdfViewer render liveness", () => {
     await act(async () => navigation?.onZoomIn());
     expect(first.cancel).toHaveBeenCalledTimes(1);
     expect(pdfPage.render).toHaveBeenCalledTimes(2);
+    expect(pdfPage.cleanup).not.toHaveBeenCalled();
 
     await act(async () => navigation?.onFit());
     expect(second.cancel).toHaveBeenCalledTimes(1);
     expect(pdfPage.render).toHaveBeenCalledTimes(3);
+    expect(pdfPage.cleanup).not.toHaveBeenCalled();
     expect(canvas().style.visibility).toBe("hidden");
 
     await act(async () => third.resolve());
 
     expect(canvas().style.visibility).toBe("visible");
     expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toBe("");
+    expect(pdfPage.cleanup).not.toHaveBeenCalled();
   });
 
   it("preserves a zoom made during an active pan and continues from the current translation", async () => {
@@ -868,6 +1000,7 @@ describe("PdfViewer render liveness", () => {
     await act(async () => stale.resolve());
     expect(drawImage).not.toHaveBeenCalled();
     expect(canvas(2).style.visibility).toBe("hidden");
+    expect(firstPage.cleanup).not.toHaveBeenCalled();
 
     await act(async () => current.resolve());
 

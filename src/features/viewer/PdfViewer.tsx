@@ -166,6 +166,9 @@ export function PdfViewer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageGroupRef = useRef<Konva.Group>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
+  const activePageRequestRef = useRef({ document, pageNumber: page.pageNumber });
+  const viewerMountedRef = useRef(false);
+  const pageRenderTasksRef = useRef(new WeakMap<PDFPageProxy, Set<RenderTask>>());
   const draftPointerFrameRef = useRef<number | null>(null);
   const pendingDraftPointerRef = useRef<{
     draft: DrawingDraft | null;
@@ -211,6 +214,48 @@ export function PdfViewer({
     [viewerBottomExclusion, viewerSize],
   );
   const safeViewerCenterRef = useRef<Point | null>(safeViewer.center);
+
+  useLayoutEffect(() => {
+    viewerMountedRef.current = true;
+    return () => {
+      viewerMountedRef.current = false;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    activePageRequestRef.current = { document, pageNumber: page.pageNumber };
+  }, [document, page.pageNumber]);
+
+  const trackPageRenderTask = useCallback((pdfPage: PDFPageProxy, renderTask: RenderTask) => {
+    let tasks = pageRenderTasksRef.current.get(pdfPage);
+    if (!tasks) {
+      tasks = new Set();
+      pageRenderTasksRef.current.set(pdfPage, tasks);
+    }
+    tasks.add(renderTask);
+    const forgetTask = () => {
+      tasks.delete(renderTask);
+    };
+    void renderTask.promise.then(forgetTask, forgetTask);
+  }, []);
+
+  const cleanupInactivePage = useCallback(
+    (pageDocument: PDFDocumentProxy, pageNumber: number, pdfPage: PDFPageProxy) => {
+      const cleanup = () => {
+        if (!viewerMountedRef.current) return;
+        const activePage = activePageRequestRef.current;
+        if (activePage.document !== pageDocument || activePage.pageNumber === pageNumber) return;
+        pdfPage.cleanup();
+      };
+      const renderTasks = pageRenderTasksRef.current.get(pdfPage);
+      if (!renderTasks?.size) {
+        cleanup();
+        return;
+      }
+      void Promise.allSettled(Array.from(renderTasks, (renderTask) => renderTask.promise)).then(cleanup);
+    },
+    [],
+  );
 
   const clearSnapFeedback = useCallback(() => {
     pendingDraftPointerRef.current = null;
@@ -419,6 +464,7 @@ export function PdfViewer({
 
   useEffect(() => {
     let cancelled = false;
+    let loadedPageForCleanup: PDFPageProxy | null = null;
     renderRequestRef.current += 1;
     renderTaskRef.current?.cancel();
     renderTaskRef.current = null;
@@ -439,7 +485,11 @@ export function PdfViewer({
     void document
       .getPage(page.pageNumber)
       .then((loadedPage) => {
-        if (cancelled) return;
+        loadedPageForCleanup = loadedPage;
+        if (cancelled) {
+          cleanupInactivePage(document, page.pageNumber, loadedPage);
+          return;
+        }
         const rotation = normalizeRotation(loadedPage.rotate);
         const logicalViewport = loadedPage.getViewport({ scale: 1, rotation });
         const nextBounds = logicalPageBoundsFromViewport(logicalViewport);
@@ -462,8 +512,11 @@ export function PdfViewer({
       renderRequestRef.current += 1;
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
+      if (loadedPageForCleanup) {
+        cleanupInactivePage(document, page.pageNumber, loadedPageForCleanup);
+      }
     };
-  }, [document, onPageBoundsChange, page.pageNumber, setError]);
+  }, [cleanupInactivePage, document, onPageBoundsChange, page.pageNumber, setError]);
 
   useEffect(() => {
     if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0 || !fitMode) return;
@@ -531,6 +584,7 @@ export function PdfViewer({
         canvasContext: context,
         viewport: renderViewport,
       });
+      trackPageRenderTask(loadedPage.pdfPage, renderTask);
       renderTaskRef.current = renderTask;
       void renderTask.promise
         .then(() => {
@@ -566,7 +620,7 @@ export function PdfViewer({
         renderTaskRef.current = null;
       }
     };
-  }, [devicePixelRatio, pageRenderData, setError, viewTransform.zoom, viewerSize]);
+  }, [devicePixelRatio, pageRenderData, setError, trackPageRenderTask, viewTransform.zoom, viewerSize]);
 
   useEffect(
     () => () => {
