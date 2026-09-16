@@ -218,7 +218,10 @@ export function usePdfSessionLifecycle({
     if (!isAutosaveReady(autosaveInputs)) return;
     const snapshot = autosaveInputs.snapshot;
     const generation = persistenceGenerationRef.current;
-    const timer = window.setTimeout(() => {
+    let queued = false;
+    const queueAutosave = () => {
+      if (queued) return;
+      queued = true;
       saveQueueRef.current = enqueueAutosave(
         saveQueueRef.current,
         snapshot,
@@ -250,8 +253,18 @@ export function usePdfSessionLifecycle({
           );
           setAutosaveStatus("unavailable");
         });
-    }, 300);
-    return () => window.clearTimeout(timer);
+    };
+    const timer = window.setTimeout(queueAutosave, 300);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "hidden") return;
+      window.clearTimeout(timer);
+      queueAutosave();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [activePdf, autosaveStatus, pdfBlob, session]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
