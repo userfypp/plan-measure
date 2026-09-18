@@ -22,9 +22,12 @@ import { measurementPathSpecs } from "../../utils/geometry";
 import { formatMeasurement } from "../../utils/format";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
 import {
+  createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
+  placeLabelInsideMeasurementGeometry,
   placeLabelAvoidingOverlaps,
   placeLabelWithinBounds,
+  type LabelCollisionIndex,
   type LabelDimensions,
   type LabelPlacement,
   type OccupiedLabelRect,
@@ -202,10 +205,18 @@ export function PdfAnnotationLayer({
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
   const showMeasurementLabels = showMeasurements && showLabels;
-  const plannedLabelPlacements = useMemo(() => {
+  const plannedLabelLayout = useMemo(() => {
     const placements = new Map<string, LabelPlacement>();
-    const occupied: OccupiedLabelRect[] = [];
-    if (!bounds) return placements;
+    const occupiedRects = new Map<string, OccupiedLabelRect>();
+    const occupied = createLabelCollisionIndex();
+    if (!bounds) return { placements, occupiedRects, occupied };
+
+    function store(key: string, placement: LabelPlacement, dimensions: LabelDimensions) {
+      const rect = { ...placement, ...dimensions };
+      placements.set(key, placement);
+      occupiedRects.set(key, rect);
+      occupied.insert(rect);
+    }
 
     function reserve(key: string, anchor: Point, dimensions: LabelDimensions) {
       const placement = placeLabelAvoidingOverlaps(
@@ -216,8 +227,7 @@ export function PdfAnnotationLayer({
         occupied,
         LABEL_EDGE_MARGIN_SCREEN_PX,
       );
-      placements.set(key, placement);
-      occupied.push({ ...placement, ...dimensions });
+      store(key, placement, dimensions);
     }
 
     if (showCalibration || calibrationReferenceEdit) {
@@ -273,14 +283,35 @@ export function PdfAnnotationLayer({
           displayUnit,
           measurementDecimalPlaces,
         );
-        reserve(
-          `measurement:${measurement.id}`,
-          averagePoint(measurement.points),
-          measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, transform.zoom),
+        const key = `measurement:${measurement.id}`;
+        const dimensions = measureLabelText(
+          labelText,
+          MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX,
+          transform.zoom,
         );
+        const fallbackAnchor = averagePoint(measurement.points);
+        const placement =
+          placeLabelInsideMeasurementGeometry(
+            measurement.type,
+            measurement.points,
+            dimensions,
+            bounds,
+            transform.zoom,
+            occupied,
+            LABEL_EDGE_MARGIN_SCREEN_PX,
+          ) ??
+          placeLabelAvoidingOverlaps(
+            fallbackAnchor,
+            dimensions,
+            bounds,
+            transform.zoom,
+            occupied,
+            LABEL_EDGE_MARGIN_SCREEN_PX,
+          );
+        store(key, placement, dimensions);
       }
     }
-    return placements;
+    return { placements, occupiedRects, occupied };
   }, [
     bounds,
     calibrationReferenceEdit,
@@ -339,7 +370,7 @@ export function PdfAnnotationLayer({
               transform.zoom,
             );
             const labelPlacement =
-              plannedLabelPlacements.get(`calibration:${calibration.id}:${reference.key}`) ??
+              plannedLabelLayout.placements.get(`calibration:${calibration.id}:${reference.key}`) ??
               placeLabelWithinBounds(labelPoint, labelDimensions, bounds, transform.zoom);
             return (
               <Group
@@ -433,8 +464,12 @@ export function PdfAnnotationLayer({
             onWholeMeasurementDragCancellationChange={onWholeMeasurementDragCancellationChange}
             onVertexDragCancellationChange={onVertexDragCancellationChange}
             plannedLabelPlacement={
-              plannedLabelPlacements.get(`measurement:${measurement.id}`) ?? null
+              plannedLabelLayout.placements.get(`measurement:${measurement.id}`) ?? null
             }
+            plannedOccupiedLabelRect={
+              plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`) ?? null
+            }
+            labelCollisionIndex={plannedLabelLayout.occupied}
           />
         ))}
     </>
@@ -665,6 +700,8 @@ interface MeasurementShapeProps {
     cancel: (() => void) | null,
   ) => void;
   plannedLabelPlacement: LabelPlacement | null;
+  plannedOccupiedLabelRect: OccupiedLabelRect | null;
+  labelCollisionIndex: LabelCollisionIndex;
 }
 
 const MeasurementShape = memo(function MeasurementShape({
@@ -687,6 +724,8 @@ const MeasurementShape = memo(function MeasurementShape({
   onWholeMeasurementDragCancellationChange,
   onVertexDragCancellationChange,
   plannedLabelPlacement,
+  plannedOccupiedLabelRect,
+  labelCollisionIndex,
 }: MeasurementShapeProps) {
   const { updateMeasurement: updateSessionMeasurement } = useSessionState();
   const wholeDragNodeRef = useRef<KonvaLineNode>(null);
@@ -733,21 +772,35 @@ const MeasurementShape = memo(function MeasurementShape({
       labelText ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom) : null,
     [labelText, zoom],
   );
-  const labelPlacement = useMemo(
-    () =>
-      !dragPoints && plannedLabelPlacement
-        ? plannedLabelPlacement
-        : labelDimensions
-          ? placeLabelWithinBounds(
-              labelPoint,
-              labelDimensions,
-              bounds,
-              zoom,
-              LABEL_EDGE_MARGIN_SCREEN_PX,
-            )
-          : null,
-    [bounds, dragPoints, labelDimensions, labelPoint, plannedLabelPlacement, zoom],
-  );
+  const labelPlacement = useMemo(() => {
+    if (!dragPoints && plannedLabelPlacement) return plannedLabelPlacement;
+    if (!labelDimensions) return null;
+    const insidePlacement = placeLabelInsideMeasurementGeometry(
+      visibleMeasurement.type,
+      visibleMeasurement.points,
+      labelDimensions,
+      bounds,
+      zoom,
+      labelCollisionIndex,
+      LABEL_EDGE_MARGIN_SCREEN_PX,
+      4,
+      plannedOccupiedLabelRect,
+    );
+    return (
+      insidePlacement ??
+      placeLabelWithinBounds(labelPoint, labelDimensions, bounds, zoom, LABEL_EDGE_MARGIN_SCREEN_PX)
+    );
+  }, [
+    bounds,
+    dragPoints,
+    labelCollisionIndex,
+    labelDimensions,
+    labelPoint,
+    plannedLabelPlacement,
+    plannedOccupiedLabelRect,
+    visibleMeasurement,
+    zoom,
+  ]);
   const wholeMeasurementDraggable = canDragWholeMeasurement(
     measurement,
     selected || wholeDragPrepared,

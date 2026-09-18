@@ -5,8 +5,14 @@ import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
-import { loadSavedSession, resetPersistenceForTests } from "../services/persistence";
+import {
+  loadSavedSession,
+  replaceSavedSession,
+  resetPersistenceForTests,
+} from "../services/persistence";
 import type { CurrentSession } from "../types/domain";
+import { createEmptySession } from "./sessionState";
+import type { WorkspaceModule } from "./workspaceState";
 
 vi.mock("../services/pdf", () => ({
   loadPdf: async () => ({
@@ -20,6 +26,8 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let lifecycle: ReturnType<typeof usePdfSessionLifecycle> | null = null;
 let setHarnessSession: ((session: CurrentSession) => void) | null = null;
+let harnessSession: CurrentSession | null = null;
+let resetWorkspaceCalls: Array<WorkspaceModule | undefined> = [];
 
 beforeEach(async () => {
   (
@@ -36,24 +44,29 @@ afterEach(async () => {
   container = null;
   lifecycle = null;
   setHarnessSession = null;
+  harnessSession = null;
+  resetWorkspaceCalls = [];
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   await resetPersistenceForTests();
 });
 
 function LifecycleHarness({
   publish,
+  recoveredStartupWorkspace,
 }: {
   publish: (
     currentLifecycle: ReturnType<typeof usePdfSessionLifecycle>,
     updateSession: (session: CurrentSession) => void,
   ) => void;
+  recoveredStartupWorkspace: WorkspaceModule;
 }) {
   const [session, setSession] = useState<CurrentSession | null>(null);
   const currentLifecycle = usePdfSessionLifecycle({
     session,
     loadSession: (nextSession) => setSession(nextSession),
     clearSession: () => setSession(null),
-    resetWorkspace: () => undefined,
+    resetWorkspace: (module) => resetWorkspaceCalls.push(module),
+    recoveredStartupWorkspace,
     cancelWorkspaceCalibration: () => undefined,
     cancelReferenceEdit: () => undefined,
     requestReplacePdf: () => undefined,
@@ -63,12 +76,13 @@ function LifecycleHarness({
     setError: () => undefined,
   });
   useEffect(() => {
+    harnessSession = session;
     publish(currentLifecycle, (nextSession) => setSession(nextSession));
-  }, [currentLifecycle, publish]);
+  }, [currentLifecycle, publish, session]);
   return null;
 }
 
-async function renderLifecycleHarness() {
+async function renderLifecycleHarness(recoveredStartupWorkspace: WorkspaceModule = "scales") {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -80,7 +94,7 @@ async function renderLifecycleHarness() {
     setHarnessSession = updateSession;
   };
   await act(async () => {
-    root!.render(createElement(LifecycleHarness, { publish }));
+    root!.render(createElement(LifecycleHarness, { publish, recoveredStartupWorkspace }));
   });
   for (let attempt = 0; attempt < 20 && !lifecycle?.recoveryChecked; attempt += 1) {
     await act(async () => {
@@ -89,6 +103,67 @@ async function renderLifecycleHarness() {
   }
   expect(lifecycle?.recoveryChecked).toBe(true);
 }
+
+async function seedRecoverySession(): Promise<CurrentSession> {
+  const base = createEmptySession({ name: "recovered.pdf", size: 3, lastModified: 1 }, 1);
+  const calibration = {
+    id: "scale-1",
+    name: "Scale 1",
+    mode: "uniform" as const,
+    start: { x: 10, y: 10 },
+    end: { x: 110, y: 10 },
+    referenceDistanceMm: 1000,
+  };
+  const session: CurrentSession = {
+    ...base,
+    pages: {
+      ...base.pages,
+      1: {
+        ...base.pages[1]!,
+        calibrations: [calibration],
+        activeCalibrationId: calibration.id,
+      },
+    },
+  };
+  await replaceSavedSession(session, new Blob(["pdf"], { type: "application/pdf" }), null);
+  return session;
+}
+
+describe("workspace initialization", () => {
+  it.each(["scales", "measurements", "classifications"] as const)(
+    "resets recovered sessions directly into %s without mutating session state",
+    async (workspace) => {
+      const saved = await seedRecoverySession();
+      await renderLifecycleHarness(workspace);
+
+      await act(async () => {
+        await lifecycle!.continueRecovery();
+      });
+
+      expect(resetWorkspaceCalls).toEqual([workspace]);
+      expect(harnessSession).toEqual(saved);
+      expect(harnessSession?.currentPage).toBe(saved.currentPage);
+      expect(harnessSession?.pages[1]?.activeCalibrationId).toBe(
+        saved.pages[1]?.activeCalibrationId,
+      );
+    },
+  );
+
+  it.each(["measurements", "classifications"] as const)(
+    "keeps a brand-new PDF on Scales when recovered startup preference is %s",
+    async (workspace) => {
+      await renderLifecycleHarness(workspace);
+
+      await act(async () => {
+        await lifecycle!.chooseFile(
+          new File(["pdf"], "new.pdf", { type: "application/pdf", lastModified: 1 }),
+        );
+      });
+
+      expect(resetWorkspaceCalls).toEqual([undefined]);
+    },
+  );
+});
 
 describe("page-exit autosave", () => {
   it("registers beforeunload only while a changed snapshot still needs autosave protection", async () => {

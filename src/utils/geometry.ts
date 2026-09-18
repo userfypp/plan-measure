@@ -14,6 +14,13 @@ export interface MeasurementPathSpec {
   closed: boolean;
 }
 
+export interface AxisAlignedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export const measurementPathSpecs: Record<MeasurementType, MeasurementPathSpec> = {
   line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false },
   polyline: { label: "Polyline", minVertices: 2, maxVertices: null, closed: false },
@@ -50,8 +57,149 @@ export function hasValidMeasurementPointSequence(
   );
 }
 
+const UNIT_ROUNDOFF = Number.EPSILON / 2;
+const ORIENTATION_ERROR_BOUND = (3 + 16 * UNIT_ROUNDOFF) * UNIT_ROUNDOFF;
+const FLOAT64_SIGN_BIT = 1n << 63n;
+const FLOAT64_EXPONENT_MASK = 0x7ffn;
+const FLOAT64_FRACTION_MASK = (1n << 52n) - 1n;
+const FLOAT64_HIDDEN_BIT = 1n << 52n;
+const exactFloat64View = new DataView(new ArrayBuffer(8));
+
+interface ExactDyadic {
+  coefficient: bigint;
+  exponent: number;
+}
+
+function exactDyadic(value: number): ExactDyadic {
+  exactFloat64View.setFloat64(0, value, false);
+  const bits = exactFloat64View.getBigUint64(0, false);
+  const negative = (bits & FLOAT64_SIGN_BIT) !== 0n;
+  const rawExponent = Number((bits >> 52n) & FLOAT64_EXPONENT_MASK);
+  const fraction = bits & FLOAT64_FRACTION_MASK;
+  if (rawExponent === 0 && fraction === 0n) return { coefficient: 0n, exponent: 0 };
+
+  let coefficient = rawExponent === 0 ? fraction : FLOAT64_HIDDEN_BIT | fraction;
+  const exponent = rawExponent === 0 ? -1074 : rawExponent - 1023 - 52;
+  if (negative) coefficient = -coefficient;
+  return { coefficient, exponent };
+}
+
+function addExactDyadics(a: ExactDyadic, b: ExactDyadic): ExactDyadic {
+  if (a.coefficient === 0n) return b;
+  if (b.coefficient === 0n) return a;
+  const exponent = Math.min(a.exponent, b.exponent);
+  return {
+    coefficient:
+      (a.coefficient << BigInt(a.exponent - exponent)) +
+      (b.coefficient << BigInt(b.exponent - exponent)),
+    exponent,
+  };
+}
+
+function subtractExactDyadics(a: ExactDyadic, b: ExactDyadic): ExactDyadic {
+  return addExactDyadics(a, { coefficient: -b.coefficient, exponent: b.exponent });
+}
+
+function multiplyExactDyadics(a: ExactDyadic, b: ExactDyadic): ExactDyadic {
+  return {
+    coefficient: a.coefficient * b.coefficient,
+    exponent: a.exponent + b.exponent,
+  };
+}
+
+function exactOrientationDeterminant(a: Point, b: Point, c: Point): ExactDyadic {
+  const abX = subtractExactDyadics(exactDyadic(b.x), exactDyadic(a.x));
+  const abY = subtractExactDyadics(exactDyadic(b.y), exactDyadic(a.y));
+  const acX = subtractExactDyadics(exactDyadic(c.x), exactDyadic(a.x));
+  const acY = subtractExactDyadics(exactDyadic(c.y), exactDyadic(a.y));
+  return subtractExactDyadics(
+    multiplyExactDyadics(abX, acY),
+    multiplyExactDyadics(abY, acX),
+  );
+}
+
+function robustOrientationDeterminant(a: Point, b: Point, c: Point): number | ExactDyadic {
+  const abX = b.x - a.x;
+  const abY = b.y - a.y;
+  const acX = c.x - a.x;
+  const acY = c.y - a.y;
+  const left = abX * acY;
+  const right = abY * acX;
+  const determinant = left - right;
+  const determinantSum = Math.abs(left) + Math.abs(right);
+  const allFinite =
+    Number.isFinite(a.x) &&
+    Number.isFinite(a.y) &&
+    Number.isFinite(b.x) &&
+    Number.isFinite(b.y) &&
+    Number.isFinite(c.x) &&
+    Number.isFinite(c.y);
+
+  if (
+    Number.isFinite(determinant) &&
+    Number.isFinite(determinantSum) &&
+    Math.abs(determinant) > ORIENTATION_ERROR_BOUND * determinantSum
+  ) {
+    return determinant;
+  }
+  return allFinite ? exactOrientationDeterminant(a, b, c) : determinant;
+}
+
 function orientation(a: Point, b: Point, c: Point): number {
-  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const determinant = robustOrientationDeterminant(a, b, c);
+  if (typeof determinant === "number") return Math.sign(determinant);
+  return determinant.coefficient === 0n ? 0 : determinant.coefficient > 0n ? 1 : -1;
+}
+
+function roundBigIntRightToEven(value: bigint, shift: number): bigint {
+  if (shift <= 0) return value << BigInt(-shift);
+  const bigintShift = BigInt(shift);
+  const quotient = value >> bigintShift;
+  const remainder = value - (quotient << bigintShift);
+  const halfway = 1n << (bigintShift - 1n);
+  return remainder > halfway || (remainder === halfway && (quotient & 1n) === 1n)
+    ? quotient + 1n
+    : quotient;
+}
+
+function exactDyadicToNumber(value: ExactDyadic): number {
+  if (value.coefficient === 0n) return 0;
+  const negative = value.coefficient < 0n;
+  const coefficient = negative ? -value.coefficient : value.coefficient;
+  const bitLength = coefficient.toString(2).length;
+  const highestExponent = value.exponent + bitLength - 1;
+  let magnitude: number;
+
+  if (highestExponent < -1022) {
+    const subnormalShift = value.exponent + 1074;
+    const units =
+      subnormalShift >= 0
+        ? coefficient << BigInt(subnormalShift)
+        : roundBigIntRightToEven(coefficient, -subnormalShift);
+    magnitude = Number(units) * 2 ** -1074;
+  } else {
+    const shift = Math.max(0, bitLength - 53);
+    let significand = roundBigIntRightToEven(coefficient, shift);
+    let exponent = value.exponent + shift;
+    if (significand >= 1n << 53n) {
+      significand >>= 1n;
+      exponent += 1;
+    }
+    magnitude = Number(significand) * 2 ** exponent;
+  }
+  return negative ? -magnitude : magnitude;
+}
+
+function exactPolygonDoubledArea(points: Point[]): number {
+  const origin = points[0]!;
+  let exactDoubledArea: ExactDyadic = { coefficient: 0n, exponent: 0 };
+  for (let index = 1; index < points.length - 1; index += 1) {
+    exactDoubledArea = addExactDyadics(
+      exactDoubledArea,
+      exactOrientationDeterminant(origin, points[index]!, points[index + 1]!),
+    );
+  }
+  return exactDyadicToNumber(exactDoubledArea);
 }
 
 function isPointOnSegment(point: Point, start: Point, end: Point): boolean {
@@ -81,6 +229,82 @@ function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
     (cda === 0 && isPointOnSegment(a, c, d)) ||
     (cdb === 0 && isPointOnSegment(b, c, d))
   );
+}
+
+/**
+ * Tests strict interior membership for a simple polygon. Points on the polygon
+ * boundary are intentionally rejected so callers can enforce visual clearance
+ * without introducing an arbitrary floating-point epsilon.
+ */
+export function isPointStrictlyInsidePolygon(point: Point, polygon: readonly Point[]): boolean {
+  if (
+    polygon.length < 3 ||
+    !Number.isFinite(point.x) ||
+    !Number.isFinite(point.y) ||
+    polygon.some((vertex) => !Number.isFinite(vertex.x) || !Number.isFinite(vertex.y))
+  ) {
+    return false;
+  }
+
+  let windingNumber = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const start = polygon[index]!;
+    const end = polygon[(index + 1) % polygon.length]!;
+    if (isPointOnSegment(point, start, end)) return false;
+
+    if (start.y <= point.y) {
+      if (end.y > point.y && orientation(start, end, point) > 0) windingNumber += 1;
+    } else if (end.y <= point.y && orientation(start, end, point) < 0) {
+      windingNumber -= 1;
+    }
+  }
+  return windingNumber !== 0;
+}
+
+/**
+ * Requires the complete axis-aligned rectangle to lie strictly inside a simple
+ * polygon. Corner membership alone is insufficient for concave polygons, so
+ * every rectangle edge is also checked against every polygon edge.
+ */
+export function isAxisAlignedRectStrictlyInsidePolygon(
+  rect: AxisAlignedRect,
+  polygon: readonly Point[],
+): boolean {
+  if (
+    !Number.isFinite(rect.x) ||
+    !Number.isFinite(rect.y) ||
+    !Number.isFinite(rect.width) ||
+    !Number.isFinite(rect.height) ||
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    polygon.length < 3
+  ) {
+    return false;
+  }
+
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+  if (!Number.isFinite(right) || !Number.isFinite(bottom)) return false;
+
+  const corners: [Point, Point, Point, Point] = [
+    { x: rect.x, y: rect.y },
+    { x: right, y: rect.y },
+    { x: right, y: bottom },
+    { x: rect.x, y: bottom },
+  ];
+  if (!corners.every((corner) => isPointStrictlyInsidePolygon(corner, polygon))) return false;
+
+  for (let polygonEdge = 0; polygonEdge < polygon.length; polygonEdge += 1) {
+    const polygonStart = polygon[polygonEdge]!;
+    const polygonEnd = polygon[(polygonEdge + 1) % polygon.length]!;
+    for (let rectEdge = 0; rectEdge < corners.length; rectEdge += 1) {
+      const rectStart = corners[rectEdge]!;
+      const rectEnd = corners[(rectEdge + 1) % corners.length]!;
+      if (segmentsIntersect(polygonStart, polygonEnd, rectStart, rectEnd)) return false;
+    }
+  }
+
+  return true;
 }
 
 function adjacentEdgesOverlap(start: Point, shared: Point, end: Point): boolean {
@@ -321,15 +545,32 @@ export function polygonPerimeterPageUnits(points: Point[]): number {
 export function polygonAreaPageUnitsSquared(points: Point[]): number {
   if (points.length < 3) return 0;
   const origin = points[0]!;
-  const doubledArea = points.reduce((total, point, index) => {
-    const next = points[(index + 1) % points.length];
-    if (!next) return total;
-    const pointX = point.x - origin.x;
-    const pointY = point.y - origin.y;
-    const nextX = next.x - origin.x;
-    const nextY = next.y - origin.y;
-    return total + pointX * nextY - nextX * pointY;
-  }, 0);
+  let doubledArea = 0;
+  let absoluteDeterminantSum = 0;
+  let determinantErrorBoundSum = 0;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const point = points[index]!;
+    const next = points[index + 1]!;
+    const determinant = robustOrientationDeterminant(origin, point, next);
+    if (typeof determinant !== "number") {
+      return Math.abs(exactPolygonDoubledArea(points)) / 2;
+    }
+    doubledArea += determinant;
+    absoluteDeterminantSum += Math.abs(determinant);
+    const left = (point.x - origin.x) * (next.y - origin.y);
+    const right = (point.y - origin.y) * (next.x - origin.x);
+    determinantErrorBoundSum += ORIENTATION_ERROR_BOUND * (Math.abs(left) + Math.abs(right));
+  }
+
+  const additionCount = Math.max(0, points.length - 3);
+  const accumulatedRoundoff = additionCount * UNIT_ROUNDOFF;
+  const accumulationErrorBound =
+    accumulatedRoundoff < 1
+      ? (accumulatedRoundoff / (1 - accumulatedRoundoff)) * absoluteDeterminantSum
+      : Number.POSITIVE_INFINITY;
+  if (Math.abs(doubledArea) <= determinantErrorBoundSum + accumulationErrorBound) {
+    return Math.abs(exactPolygonDoubledArea(points)) / 2;
+  }
   return Math.abs(doubledArea) / 2;
 }
 

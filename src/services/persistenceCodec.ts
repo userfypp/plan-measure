@@ -178,8 +178,22 @@ function hasValidSessionHeader(value: Record<string, unknown>): boolean {
     isObject(value.pages)
   );
 }
+function assertCanonicalPageKeysWithinPageCount(value: Record<string, unknown>): void {
+  const pageCount = value.pageCount as number;
+  const pages = value.pages as Record<string, unknown>;
+  for (const pageKey of Object.keys(pages)) {
+    const pageNumber = Number(pageKey);
+    if (!Number.isInteger(pageNumber) || pageNumber < 1 || String(pageNumber) !== pageKey) {
+      throw new Error("The saved session contains an invalid page key.");
+    }
+    if (pageNumber > pageCount) {
+      throw new Error("The saved session contains a page outside the declared page count.");
+    }
+  }
+}
 function assertValidLegacySession(value: Record<string, unknown>): void {
   if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
+  assertCanonicalPageKeysWithinPageCount(value);
   const pageCount = value.pageCount as number;
   const pages = value.pages as Record<string, unknown>;
   const measurementIds = new Set<string>();
@@ -212,6 +226,7 @@ function assertValidSessionV3(
   isCalibrationValue: (value: unknown) => boolean,
 ): void {
   if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
+  assertCanonicalPageKeysWithinPageCount(value);
   const pageCount = value.pageCount as number;
   const pages = value.pages as Record<string, unknown>;
   const measurementIds = new Set<string>();
@@ -265,6 +280,7 @@ function hasValidMeasurementCounters(value: unknown): boolean {
 }
 function assertValidSessionV4(value: Record<string, unknown>): void {
   if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
+  assertCanonicalPageKeysWithinPageCount(value);
   const pageCount = value.pageCount as number;
   const pages = value.pages as Record<string, unknown>;
   const measurementIds = new Set<string>();

@@ -49,7 +49,7 @@
   justify-items: center;
   padding: 58px 40px;
   border: var(--border-width) dashed var(--color-text-disabled);
-  border-radius: var(--radius-surface);
+  border-radius: var(--radius-overlay);
   background: var(--color-surface-panel);
   text-align: center;
 }

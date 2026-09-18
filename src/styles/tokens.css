@@ -22,6 +22,7 @@
   --color-control-active-surface: #e1e6ec;
   --color-control-hover-border: #c5cbd2;
   --color-control-active-border: #98a2ae;
+  --color-switch-off-border: var(--color-control-hover-border);
   --color-accent-hover-semantic: #1f59b2;
   --color-accent-active-semantic: #194b99;
   --color-danger-hover-semantic: #962f39;
@@ -66,6 +67,7 @@
   --color-control-active-surface: #3d4651;
   --color-control-hover-border: #59636f;
   --color-control-active-border: #748092;
+  --color-switch-off-border: var(--color-control-hover-border);
   --color-accent-hover-semantic: #a7c8f4;
   --color-accent-active-semantic: #7fa9e4;
   --color-danger-hover-semantic: #f3a7ae;

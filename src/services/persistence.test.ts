@@ -829,6 +829,84 @@ describe("session persistence", () => {
     expect(() => serializeSession(decoded.session)).not.toThrow();
   });
 
+  it.each([
+    [1, () => legacySession(true)],
+    [2, v2MeasuredSession],
+    [3, v3MeasuredSession],
+    [4, v4MeasuredSession],
+    [5, v5MeasuredSession],
+    [6, v6MeasuredSession],
+    [7, v7MeasuredSession],
+    [8, v8MeasuredSession],
+    [9, currentMeasuredSession],
+  ] as const)(
+    "rejects V%d page entries above pageCount before migration or canonicalization",
+    (_version, create) => {
+      const raw = JSON.parse(JSON.stringify(create())) as {
+        pageCount: number;
+        pages: Record<string, { pageNumber: number }>;
+      };
+      const boundaryPage = raw.pages[String(raw.pageCount)];
+      if (!boundaryPage) throw new Error("Expected a page at the pageCount boundary.");
+
+      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).not.toThrow();
+
+      const outOfRangePageNumber = raw.pageCount + 1;
+      raw.pages[String(outOfRangePageNumber)] = {
+        ...structuredClone(boundaryPage),
+        pageNumber: outOfRangePageNumber,
+      };
+
+      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).toThrow(
+        "outside the declared page count",
+      );
+    },
+  );
+
+  it.each([
+    [1, () => legacySession(true)],
+    [2, v2MeasuredSession],
+    [3, v3MeasuredSession],
+    [4, v4MeasuredSession],
+    [5, v5MeasuredSession],
+    [6, v6MeasuredSession],
+    [7, v7MeasuredSession],
+    [8, v8MeasuredSession],
+    [9, currentMeasuredSession],
+  ] as const)("rejects noncanonical V%d page keys before migration or canonicalization", (_version, create) => {
+    for (const pageKey of ["0", "-1", "1.5", "01", "+1", "1e0", " 1", "1 ", "NaN", "Infinity"]) {
+      const raw = JSON.parse(JSON.stringify(create())) as {
+        pages: Record<string, { pageNumber: number }>;
+      };
+      const canonicalPage = raw.pages["1"];
+      if (!canonicalPage) throw new Error("Expected a canonical page 1 entry.");
+      raw.pages[pageKey] = structuredClone(canonicalPage);
+
+      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).toThrow("invalid page key");
+    }
+  });
+
+  it("accepts a canonical persisted page key", () => {
+    const raw = JSON.parse(JSON.stringify(legacySession(true))) as {
+      pages: Record<string, { pageNumber: number }>;
+    };
+
+    expect(Object.keys(raw.pages)).toEqual(["1"]);
+    expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).not.toThrow();
+  });
+
+  it("rejects persisted recovery instead of silently dropping a page above pageCount", async () => {
+    const session = currentMeasuredSession();
+    const outOfRangePageNumber = session.pageCount + 1;
+    session.pages[outOfRangePageNumber] = {
+      ...structuredClone(session.pages[session.pageCount]!),
+      pageNumber: outOfRangePageNumber,
+    };
+    await writeRawActiveSession(session, new Blob(["pdf"]));
+
+    await expect(loadSavedSession()).rejects.toBeInstanceOf(PersistenceLoadError);
+  });
+
   it("does not treat invalid current geometry as historical compatibility data", async () => {
     const invalidV4 = v4MeasuredSession();
     invalidV4.pages[1]!.measurements[0]!.points = [
@@ -1511,6 +1589,37 @@ describe("session persistence", () => {
       end: { x: 35, y: 16 },
     });
     expect(restored.pages[2]!.measurements[0]!.calibrationId).toBe("custom-scale");
+  });
+
+  it("persists a renamed scale through autosave and restores its existing links", async () => {
+    const original = currentMeasuredSession();
+    let revision = await writeRawActiveSession(original, new Blob(["pdf"]));
+    const recovered = await loadSavedSession();
+    if (!recovered) throw new Error("Expected the seeded session to load.");
+    let state = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: recovered.session,
+    });
+    state = sessionReducer(state, {
+      type: "RENAME_CALIBRATION",
+      pageNumber: 2,
+      calibrationId: "custom-scale",
+      name: "  Detail renamed  ",
+    });
+    if (!state.session) throw new Error("Expected the renamed session to remain loaded.");
+
+    await enqueueAutosave(Promise.resolve(), state.session, 1, () => true, async (snapshot) => {
+      revision = await saveSessionMetadata(snapshot, revision);
+    });
+    const restored = await loadSavedSession();
+
+    expect(restored?.compatibility).toBe("current");
+    expect(restored?.session.pages[2]!.calibrations[0]).toMatchObject({
+      id: "custom-scale",
+      name: "Detail renamed",
+    });
+    expect(restored?.session.pages[2]!.activeCalibrationId).toBe("custom-scale");
+    expect(restored?.session.pages[2]!.measurements[0]!.calibrationId).toBe("custom-scale");
   });
 
   it("rejects corrupt measurement IDs and canonicalizes restored session data", () => {

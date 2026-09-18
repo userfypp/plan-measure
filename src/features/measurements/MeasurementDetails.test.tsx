@@ -213,6 +213,27 @@ describe("MeasurementDetails", () => {
     );
   });
 
+  it("reflects a renamed linked scale without changing the measurement calibration link or value", () => {
+    renderDetails(createProps());
+    const originalValue = "1.00 m";
+    expect(container?.textContent).toContain("Original scale");
+    expect(container?.textContent).toContain(originalValue);
+
+    const renamedPage: PageState = {
+      ...page,
+      calibrations: page.calibrations.map((calibration) =>
+        calibration.id === firstMeasurement.calibrationId
+          ? { ...calibration, name: "Original scale revised" }
+          : calibration,
+      ),
+    };
+    renderDetails(createProps({ page: renamedPage }));
+
+    expect(container?.textContent).toContain("Original scale revised");
+    expect(container?.textContent).toContain(originalValue);
+    expect(firstMeasurement.calibrationId).toBe("historical");
+  });
+
   it("wires Back, geometry edit, delete, and classification assignment to existing commands", () => {
     const props = createProps();
     renderDetails(props);

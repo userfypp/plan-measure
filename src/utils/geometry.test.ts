@@ -14,6 +14,8 @@ import {
   calibrationScaleX,
   calibrationScaleY,
   hasValidMeasurementPoints,
+  isAxisAlignedRectStrictlyInsidePolygon,
+  isPointStrictlyInsidePolygon,
   isPredominantlyHorizontal,
   isPredominantlyVertical,
   isOrthogonalSegment,
@@ -140,6 +142,115 @@ describe("path geometry", () => {
     ],
   ])("rejects %s", (_name, points) => {
     expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+  });
+
+  it("keeps near-collinear extreme Polygon vertices distinct in both windings", () => {
+    const points = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 2_000_000_000, y: 1_999_999_999 },
+      { x: 1_999_999_999, y: 1_999_999_998 },
+    ];
+
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+    expect(hasValidMeasurementPoints("polygon", [...points].reverse())).toBe(true);
+  });
+
+  it("still rejects exact large-coordinate collinear overlap", () => {
+    expect(
+      hasValidMeasurementPoints("polygon", [
+        { x: 1_000_000_000, y: 1_000_000_000 },
+        { x: 3_000_000_000, y: 3_000_000_000 },
+        { x: 2_000_000_000, y: 2_000_000_000 },
+        { x: 2_000_000_000, y: 4_000_000_000 },
+        { x: 1_000_000_000, y: 4_000_000_000 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects a large-coordinate self-intersection and accepts a large simple ring", () => {
+    const crossing = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 3_000_000_000, y: 3_000_000_000 },
+      { x: 1_000_000_000, y: 3_000_000_000 },
+      { x: 3_000_000_000, y: 1_000_000_000 },
+    ];
+    const simple = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 2_000_000_000, y: 1_999_999_999 },
+      { x: 1_999_999_999, y: 1_999_999_998 },
+      { x: 1_500_000_000, y: 1_000_000_000 },
+    ];
+
+    expect(hasValidMeasurementPoints("polygon", crossing)).toBe(false);
+    expect(hasValidMeasurementPoints("polygon", simple)).toBe(true);
+  });
+
+  describe("strict polygon containment", () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 20, y: 20 },
+      { x: 0, y: 20 },
+    ];
+
+    it("accepts a rectangle fully inside a convex polygon in either winding", () => {
+      const rect = { x: 5, y: 6, width: 7, height: 4 };
+
+      expect(isAxisAlignedRectStrictlyInsidePolygon(rect, square)).toBe(true);
+      expect(isAxisAlignedRectStrictlyInsidePolygon(rect, [...square].reverse())).toBe(true);
+      expect(isPointStrictlyInsidePolygon({ x: 8, y: 8 }, square)).toBe(true);
+    });
+
+    it("rejects boundary crossing, an outside corner, and boundary touching", () => {
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: 18, y: 5, width: 4, height: 4 }, square),
+      ).toBe(false);
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: -1, y: 5, width: 3, height: 3 }, square),
+      ).toBe(false);
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: 0, y: 5, width: 3, height: 3 }, square),
+      ).toBe(false);
+      expect(isPointStrictlyInsidePolygon({ x: 0, y: 10 }, square)).toBe(false);
+    });
+
+    it("rejects a rectangle whose corners are inside but an edge crosses a concavity", () => {
+      const notched = [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+        { x: 6, y: 10 },
+        { x: 6, y: 4 },
+        { x: 4, y: 4 },
+        { x: 4, y: 10 },
+        { x: 0, y: 10 },
+      ];
+      const rect = { x: 3, y: 3, width: 4, height: 6 };
+      const corners = [
+        { x: rect.x, y: rect.y },
+        { x: rect.x + rect.width, y: rect.y },
+        { x: rect.x + rect.width, y: rect.y + rect.height },
+        { x: rect.x, y: rect.y + rect.height },
+      ];
+
+      expect(corners.every((corner) => isPointStrictlyInsidePolygon(corner, notched))).toBe(true);
+      expect(isAxisAlignedRectStrictlyInsidePolygon(rect, notched)).toBe(false);
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon({ x: 4.5, y: 5, width: 1, height: 3 }, notched),
+      ).toBe(false);
+    });
+
+    it("remains correct for large finite coordinates", () => {
+      const offset = 1_000_000_000;
+      const translated = square.map((point) => ({ x: point.x + offset, y: point.y + offset }));
+
+      expect(
+        isAxisAlignedRectStrictlyInsidePolygon(
+          { x: offset + 5, y: offset + 6, width: 7, height: 4 },
+          translated,
+        ),
+      ).toBe(true);
+    });
   });
 });
 
@@ -277,6 +388,23 @@ describe("geometry", () => {
       { x: 2, y: 5 },
     ];
     expect(polygonAreaPageUnitsSquared(irregular)).toBe(10.5);
+  });
+
+  it("preserves a 0.5 area when extreme products cancel in Number arithmetic", () => {
+    const points = [
+      { x: 1_000_000_000, y: 1_000_000_000 },
+      { x: 2_000_000_000, y: 1_999_999_999 },
+      { x: 1_999_999_999, y: 1_999_999_998 },
+    ];
+    const reversed = [...points].reverse();
+    const nearOrigin = points.map((point) => ({
+      x: point.x - points[0]!.x,
+      y: point.y - points[0]!.y,
+    }));
+
+    expect(polygonAreaPageUnitsSquared(points)).toBe(0.5);
+    expect(polygonAreaPageUnitsSquared(reversed)).toBe(0.5);
+    expect(polygonAreaPageUnitsSquared(nearOrigin)).toBe(0.5);
   });
 
   it("keeps a 0.5 square area stable at large page coordinates through measurement results", () => {

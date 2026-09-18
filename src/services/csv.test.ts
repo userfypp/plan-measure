@@ -657,6 +657,27 @@ describe("CSV export", () => {
     expect(after).toContain(",scale-2,Detail A,xy,,,,500,1000,,30.00,50.00,");
   });
 
+  it("changes calibration_name but not calibration_id or numeric output after a scale rename", () => {
+    const original = measuredSession();
+    const before = buildCsv(original, null, allColumns(original));
+    const renamedState = sessionReducer(
+      { session: structuredClone(original), error: null },
+      {
+        type: "RENAME_CALIBRATION",
+        pageNumber: 1,
+        calibrationId: "scale-1",
+        name: "  Ground floor revised  ",
+      },
+    );
+    const renamed = renamedState.session!;
+    const after = buildCsv(renamed, null, allColumns(renamed));
+
+    expect(after).toContain(",scale-1,Ground floor revised,uniform,");
+    expect(after).toBe(
+      before.replace(",scale-1,Scale 1,uniform,", ",scale-1,Ground floor revised,uniform,"),
+    );
+  });
+
   it("exports a standard ratio preset through the existing Uniform calibration columns", () => {
     const session = createEmptySession({ name: "preset.pdf", size: 10, lastModified: 1 }, 1);
     const calibration = { id: "preset-50", name: "Scale 1", ...createStandardScalePreset(50) };

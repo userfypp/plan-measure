@@ -67,6 +67,10 @@ import {
   readMeasurementDeleteConfirmationPreference,
   writeMeasurementDeleteConfirmationPreference,
 } from "./measurementDeletePreference";
+import {
+  readRecoveredPlanStartupWorkspacePreference,
+  writeRecoveredPlanStartupWorkspacePreference,
+} from "./recoveredPlanStartupPreference";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
@@ -96,6 +100,7 @@ function PlanMeasureApp() {
     updatePage,
     addCalibration,
     recalibrateCalibration,
+    renameCalibration,
     updateCalibration,
     pasteMeasurement,
     renameMeasurement,
@@ -164,6 +169,9 @@ function PlanMeasureApp() {
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
   );
+  const [recoveredPlanStartupWorkspace, setRecoveredPlanStartupWorkspaceState] = useState(
+    readRecoveredPlanStartupWorkspacePreference,
+  );
   const [authoringCapability, setAuthoringCapability] = useState<AuthoringCapability | null>(null);
   const authoringCapabilityRef = useRef<AuthoringCapability | null>(null);
   const handleAuthoringCapabilityChange = useCallback((capability: AuthoringCapability) => {
@@ -231,6 +239,7 @@ function PlanMeasureApp() {
     loadSession,
     clearSession,
     resetWorkspace,
+    recoveredStartupWorkspace: recoveredPlanStartupWorkspace,
     cancelWorkspaceCalibration,
     cancelReferenceEdit,
     requestReplacePdf,
@@ -249,6 +258,14 @@ function PlanMeasureApp() {
     setConfirmMeasurementDeletionState(enabled);
     writeMeasurementDeleteConfirmationPreference(enabled);
   }, []);
+
+  const setRecoveredPlanStartupWorkspace = useCallback(
+    (workspace: typeof recoveredPlanStartupWorkspace) => {
+      setRecoveredPlanStartupWorkspaceState(workspace);
+      writeRecoveredPlanStartupWorkspacePreference(workspace);
+    },
+    [],
+  );
 
   const performMeasurementDelete = useCallback(
     (request: MeasurementDeleteRequest) => {
@@ -806,12 +823,14 @@ function PlanMeasureApp() {
       canExport={Boolean(session)}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
+      recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }
       onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
+      onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
       onDismissStatus={
@@ -826,6 +845,7 @@ function PlanMeasureApp() {
         ref={fileInputRef}
         className={styles.hiddenInput}
         type="file"
+        tabIndex={-1}
         accept="application/pdf,.pdf"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -878,6 +898,13 @@ function PlanMeasureApp() {
                   actionsDisabled={calibrationActionsDisabled}
                   onAddScale={beginNewCalibration}
                   onAddPresetScale={addStandardScalePreset}
+                  onRenameScale={(calibrationId, name) =>
+                    renameCalibration({
+                      pageNumber: currentPage.pageNumber,
+                      calibrationId,
+                      name,
+                    })
+                  }
                   onRecalibrate={requestRecalibration}
                   onEditReference={beginCalibrationReferenceEdit}
                 />
@@ -1115,7 +1142,7 @@ function PlanMeasureApp() {
                 ? "vertical Y"
                 : undefined
           }
-          includeName={calibrationCandidate.phase !== "y"}
+          includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
           onCancel={() => {
             cancelCalibration();
           }}
@@ -1128,11 +1155,12 @@ function PlanMeasureApp() {
               cancelCalibration();
               return;
             }
+            const calibrationName = calibrationCandidateTarget?.name ?? name;
             const confirmation = confirmCalibration(
               calibrationFlow,
               calibrationCandidate,
               referenceDistanceMm,
-              name,
+              calibrationName,
             );
             if (confirmation.kind === "select-y") {
               advanceCalibrationStep(confirmation.flow);
@@ -1148,7 +1176,6 @@ function PlanMeasureApp() {
                 recalibrateCalibration({
                   pageNumber: calibrationCandidate.pageNumber,
                   calibrationId: calibrationCandidateTarget.id,
-                  name,
                   calibration,
                 });
               }
@@ -1156,7 +1183,7 @@ function PlanMeasureApp() {
               addCalibration({
                 pageNumber: calibrationCandidate.pageNumber,
                 id: crypto.randomUUID(),
-                name,
+                name: calibrationName,
                 calibration,
               });
             }
