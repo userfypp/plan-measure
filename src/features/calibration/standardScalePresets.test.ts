@@ -3,7 +3,9 @@ import type { Point } from "../../types/domain";
 import { fitToScreen, pageToScreen, screenToPage } from "../../utils/coordinates";
 import { lineLengthMm, millimetresPerPageUnit } from "../../utils/geometry";
 import { millimetresPerPageUnitForScaleRatio } from "../../utils/pdfUnits";
+import { scaleByRatio } from "../../utils/units";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
+import { createPageCalibrationFromRatio } from "./ratioCalibration";
 import {
   createStandardScalePreset,
   STANDARD_SCALE_PRESET_RATIOS,
@@ -31,8 +33,11 @@ describe("standard scale presets", () => {
           ],
           calibration,
         ),
-      ).toBeCloseTo(25.4 * ratio, 10);
+      ).toBeCloseTo(scaleByRatio(ratio, 127, 5), 10);
       expect(scaleDisplayMetadata(calibration).ratioLabel).toBe(`1:${ratio}`);
+      expect(createStandardScalePreset(ratio)).toEqual(
+        createPageCalibrationFromRatio({ mode: "uniform", denominator: ratio }),
+      );
     },
   );
 

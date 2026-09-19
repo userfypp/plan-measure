@@ -45,10 +45,12 @@ import type {
 } from "../types/domain";
 import { getMeasurementKeyboardAction } from "../utils/keyboard";
 import {
+  defaultCalibrationName,
   findPageCalibration,
   getActiveCalibration,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
+import type { RatioCalibrationInput } from "../features/calibration/ratioCalibration";
 import {
   canDuplicateMeasurement,
   duplicateMeasurement,
@@ -545,8 +547,27 @@ function PlanMeasureApp() {
     addCalibration({
       pageNumber: currentPage.pageNumber,
       id: crypto.randomUUID(),
-      name: `Scale ${currentPage.nextCalibrationNumber}`,
+      name: defaultCalibrationName(currentPage),
       calibration: createStandardScalePreset(ratio),
+    });
+  }
+
+  function addCustomRatioScale(name: string, calibration: RatioCalibrationInput) {
+    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    addCalibration({
+      pageNumber: currentPage.pageNumber,
+      id: crypto.randomUUID(),
+      name,
+      calibration,
+    });
+  }
+
+  function setScaleRatio(calibrationId: string, calibration: RatioCalibrationInput) {
+    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    recalibrateCalibration({
+      pageNumber: currentPage.pageNumber,
+      calibrationId,
+      calibration,
     });
   }
 
@@ -823,7 +844,7 @@ function PlanMeasureApp() {
         initialName={
           calibrationCandidate.name ??
           calibrationCandidateTarget?.name ??
-          `Scale ${calibrationCandidatePage.nextCalibrationNumber}`
+          defaultCalibrationName(calibrationCandidatePage)
         }
         title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
         referenceLabel={
@@ -967,7 +988,9 @@ function PlanMeasureApp() {
                   displayUnit={session.settings.displayUnit}
                   actionsDisabled={calibrationActionsDisabled}
                   onAddScale={beginNewCalibration}
+                  onAddCustomRatioScale={addCustomRatioScale}
                   onAddPresetScale={addStandardScalePreset}
+                  onSetRatio={setScaleRatio}
                   onRenameScale={(calibrationId, name) =>
                     renameCalibration({
                       pageNumber: currentPage.pageNumber,

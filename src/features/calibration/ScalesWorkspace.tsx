@@ -7,8 +7,14 @@ import type {
   PageState,
 } from "../../types/domain";
 import { formatDisplayNumber, formatLinearValue } from "../../utils/format";
+import { defaultCalibrationName } from "../../utils/calibration";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
+import { CustomRatioDialog } from "./CustomRatioDialog";
+import {
+  scaleRatioSpecFromCalibration,
+  type RatioCalibrationInput,
+} from "./ratioCalibration";
 import {
   STANDARD_SCALE_PRESET_RATIOS,
   type StandardScalePresetRatio,
@@ -20,7 +26,9 @@ export interface ScalesWorkspaceProps {
   displayUnit: MeasurementDisplayUnit;
   actionsDisabled?: boolean;
   onAddScale: (mode: "uniform" | "xy") => void;
+  onAddCustomRatioScale: (name: string, calibration: RatioCalibrationInput) => void;
   onAddPresetScale: (ratio: StandardScalePresetRatio) => void;
+  onSetRatio: (calibrationId: string, calibration: RatioCalibrationInput) => void;
   onRenameScale: (calibrationId: string, name: string) => void;
   onRecalibrate: (calibrationId: string) => void;
   onEditReference: (calibration: PageCalibration, reference: CalibrationReferenceKey) => void;
@@ -64,6 +72,15 @@ function PresetScaleOptionLabel({ ratio }: { ratio: StandardScalePresetRatio }) 
   );
 }
 
+function CustomRatioOptionLabel() {
+  return (
+    <span className={styles.addOptionLabel}>
+      <strong>Custom ratio</strong>
+      <span>Enter 1:n</span>
+    </span>
+  );
+}
+
 function DisclosureIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
@@ -77,7 +94,9 @@ export function ScalesWorkspace({
   displayUnit,
   actionsDisabled = false,
   onAddScale,
+  onAddCustomRatioScale,
   onAddPresetScale,
+  onSetRatio,
   onRenameScale,
   onRecalibrate,
   onEditReference,
@@ -85,8 +104,12 @@ export function ScalesWorkspace({
   const workspace = useWorkspaceDrawerPresentation();
   const [inspectedScaleId, setInspectedScaleId] = useState<string | null>(null);
   const [renameState, setRenameState] = useState<RenameState | null>(null);
+  const [customRatioDialogOpen, setCustomRatioDialogOpen] = useState(false);
+  const [setRatioScaleId, setSetRatioScaleId] = useState<string | null>(null);
   const renameTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const returnFocusScaleIdRef = useRef<string | null>(null);
+  const addScaleContainerRef = useRef<HTMLDivElement>(null);
+  const returnFocusToAddScaleRef = useRef(false);
   const precisionActionsDisabled = !workspace.precisionActionAvailable;
   const precisionDisabledReason = workspace.precisionDisabledReason;
   const spatialActionsDisabled = actionsDisabled || precisionActionsDisabled;
@@ -94,6 +117,9 @@ export function ScalesWorkspace({
     ? WORKFLOW_DISABLED_REASON
     : precisionDisabledReason;
   const disabledReasonId = "scale-spatial-actions-disabled-reason";
+  const setRatioCalibration = setRatioScaleId
+    ? (page.calibrations.find((calibration) => calibration.id === setRatioScaleId) ?? null)
+    : null;
 
   useLayoutEffect(() => {
     if (renameState) return;
@@ -102,6 +128,19 @@ export function ScalesWorkspace({
     returnFocusScaleIdRef.current = null;
     renameTriggerRefs.current.get(scaleId)?.focus({ preventScroll: true });
   }, [renameState]);
+
+  useLayoutEffect(() => {
+    if (customRatioDialogOpen || !returnFocusToAddScaleRef.current) return;
+    returnFocusToAddScaleRef.current = false;
+    addScaleContainerRef.current
+      ?.querySelector<HTMLButtonElement>('button[aria-label="Add scale"]')
+      ?.focus({ preventScroll: true });
+  }, [customRatioDialogOpen]);
+
+  function closeCustomRatioDialog() {
+    returnFocusToAddScaleRef.current = true;
+    setCustomRatioDialogOpen(false);
+  }
 
   function discardRename() {
     returnFocusScaleIdRef.current = null;
@@ -175,14 +214,16 @@ export function ScalesWorkspace({
                 </Button>
               </div>
               <div id={detailId} className={styles.scaleDetails} hidden={!inspected}>
-                <section className={styles.detailSection} aria-label="Identity">
-                  <span className={styles.sectionLabel}>Identity</span>
+                <div
+                  className={styles.detailRows}
+                  role="group"
+                  aria-label={`Scale details for ${calibration.name}`}
+                >
                   {renameState?.calibrationId === calibration.id ? (
                     <form
                       className={styles.renameForm}
                       onSubmit={(event) => submitRename(event, calibration)}
                     >
-                      <span className={styles.fieldLabel}>Scale name</span>
                       <Input
                         aria-label="Scale name"
                         value={renameState.draftName}
@@ -227,47 +268,59 @@ export function ScalesWorkspace({
                       </div>
                     </form>
                   ) : (
-                    <div className={styles.identityField}>
-                      <span className={styles.fieldLabel}>Scale name</span>
-                      <div className={styles.identityValueRow}>
-                        <strong className={styles.scaleNameValue} title={calibration.name}>
-                          {calibration.name}
-                        </strong>
-                        <Button
-                          ref={(node) => {
-                            if (node) renameTriggerRefs.current.set(calibration.id, node);
-                            else renameTriggerRefs.current.delete(calibration.id);
-                          }}
-                          variant="ghost"
-                          size="compact"
-                          aria-label={`Rename scale ${calibration.name}`}
-                          disabled={actionsDisabled}
-                          disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
-                          onClick={() =>
-                            setRenameState({
-                              calibrationId: calibration.id,
-                              draftName: calibration.name,
-                              error: null,
-                            })
-                          }
-                        >
-                          Rename
-                        </Button>
-                      </div>
+                    <div className={styles.detailRow}>
+                      <strong className={styles.detailValue} title={calibration.name}>
+                        {calibration.name}
+                      </strong>
+                      <Button
+                        ref={(node) => {
+                          if (node) renameTriggerRefs.current.set(calibration.id, node);
+                          else renameTriggerRefs.current.delete(calibration.id);
+                        }}
+                        variant="ghost"
+                        size="compact"
+                        aria-label={`Rename scale ${calibration.name}`}
+                        disabled={actionsDisabled}
+                        disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                        onClick={() =>
+                          setRenameState({
+                            calibrationId: calibration.id,
+                            draftName: calibration.name,
+                            error: null,
+                          })
+                        }
+                      >
+                        Rename
+                      </Button>
                     </div>
                   )}
-                </section>
 
-                <section className={styles.detailSection} aria-label="Calibration">
-                  <span className={styles.sectionLabel}>Calibration</span>
+                  <div className={styles.detailRow}>
+                    <strong className={styles.detailValue} title={metadata.ratioLabel}>
+                      <span className={styles.visuallyHidden}>Effective ratio: </span>
+                      {metadata.ratioLabel}
+                    </strong>
+                    <Button
+                      variant="ghost"
+                      size="compact"
+                      aria-label={`Set ratio for scale ${calibration.name}`}
+                      disabled={actionsDisabled}
+                      disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                      onClick={() => setSetRatioScaleId(calibration.id)}
+                    >
+                      Set ratio
+                    </Button>
+                  </div>
+
                   {calibration.mode === "uniform" ? (
-                    <div className={styles.referenceRow}>
-                      <span className={styles.referenceInfo}>
-                        <span className={styles.referenceLabel}>Reference</span>
-                        <strong>
-                          {formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
-                        </strong>
-                      </span>
+                    <div className={styles.detailRow}>
+                      <strong
+                        className={styles.detailValue}
+                        title={formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
+                      >
+                        <span className={styles.visuallyHidden}>Uniform reference: </span>
+                        {formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
+                      </strong>
                       <Button
                         variant="ghost"
                         size="compact"
@@ -285,16 +338,21 @@ export function ScalesWorkspace({
                     </div>
                   ) : (
                     <>
-                      <div className={styles.referenceRow}>
-                        <span className={styles.referenceInfo}>
-                          <span className={styles.referenceLabel}>X reference</span>
-                          <strong>
-                            {formatReferenceDistance(
-                              calibration.xReference.referenceDistanceMm,
-                              displayUnit,
-                            )}
-                          </strong>
-                        </span>
+                      <div className={styles.detailRow}>
+                        <strong
+                          className={styles.detailValue}
+                          title={`X ${formatReferenceDistance(
+                            calibration.xReference.referenceDistanceMm,
+                            displayUnit,
+                          )}`}
+                        >
+                          <span className={styles.visuallyHidden}>X reference: </span>
+                          <span aria-hidden="true">X </span>
+                          {formatReferenceDistance(
+                            calibration.xReference.referenceDistanceMm,
+                            displayUnit,
+                          )}
+                        </strong>
                         <Button
                           variant="ghost"
                           size="compact"
@@ -310,16 +368,21 @@ export function ScalesWorkspace({
                           Edit points
                         </Button>
                       </div>
-                      <div className={styles.referenceRow}>
-                        <span className={styles.referenceInfo}>
-                          <span className={styles.referenceLabel}>Y reference</span>
-                          <strong>
-                            {formatReferenceDistance(
-                              calibration.yReference.referenceDistanceMm,
-                              displayUnit,
-                            )}
-                          </strong>
-                        </span>
+                      <div className={styles.detailRow}>
+                        <strong
+                          className={styles.detailValue}
+                          title={`Y ${formatReferenceDistance(
+                            calibration.yReference.referenceDistanceMm,
+                            displayUnit,
+                          )}`}
+                        >
+                          <span className={styles.visuallyHidden}>Y reference: </span>
+                          <span aria-hidden="true">Y </span>
+                          {formatReferenceDistance(
+                            calibration.yReference.referenceDistanceMm,
+                            displayUnit,
+                          )}
+                        </strong>
                         <Button
                           variant="ghost"
                           size="compact"
@@ -337,7 +400,7 @@ export function ScalesWorkspace({
                       </div>
                     </>
                   )}
-                </section>
+                </div>
 
                 <div className={styles.recalibrateFooter}>
                   <div className={styles.recalibrateControl} data-recalibrate-control>
@@ -361,7 +424,7 @@ export function ScalesWorkspace({
         })}
       </div>
 
-      <div className={styles.addScale}>
+      <div ref={addScaleContainerRef} className={styles.addScale}>
         <AnchoredMenu
           trigger={<span>+ Add scale</span>}
           triggerProps={{
@@ -404,6 +467,11 @@ export function ScalesWorkspace({
               disabled: precisionActionsDisabled,
               onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("xy")),
             },
+            {
+              id: "custom-ratio",
+              label: <CustomRatioOptionLabel />,
+              onSelect: () => setCustomRatioDialogOpen(true),
+            },
             ...STANDARD_SCALE_PRESET_RATIOS.map((ratio, index) => ({
               id: `preset-${ratio}`,
               sectionLabel: index === 0 ? "Standard ratios" : undefined,
@@ -427,6 +495,30 @@ export function ScalesWorkspace({
             ? "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements."
             : "Changing the active scale does not relink measurements."}
         </p>
+      )}
+
+      {customRatioDialogOpen && (
+        <CustomRatioDialog
+          purpose="create"
+          initialName={defaultCalibrationName(page)}
+          onCancel={closeCustomRatioDialog}
+          onConfirm={({ name, calibration }) => {
+            onAddCustomRatioScale(name, calibration);
+            closeCustomRatioDialog();
+          }}
+        />
+      )}
+
+      {setRatioCalibration && (
+        <CustomRatioDialog
+          purpose="set"
+          initialRatio={scaleRatioSpecFromCalibration(setRatioCalibration)}
+          onCancel={() => setSetRatioScaleId(null)}
+          onConfirm={(calibration) => {
+            onSetRatio(setRatioCalibration.id, calibration);
+            setSetRatioScaleId(null);
+          }}
+        />
       )}
     </section>
   );

@@ -9,6 +9,7 @@ import {
 } from "../app/sessionState";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import { createStandardScalePreset } from "../features/calibration/standardScalePresets";
+import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import type {
   CurrentSession,
   Point,
@@ -348,6 +349,68 @@ it("persists and recovers a standard Uniform scale preset with unchanged measure
   expect(recoveredPage?.activeCalibrationId).toBe("preset-50");
   expect(recoveredMeasurement?.calibrationId).toBe("preset-50");
   expect(lineLengthMm(recoveredMeasurement!.points, recoveredCalibration!)).toBeCloseTo(1270, 10);
+});
+
+it("persists a custom Uniform ratio as the existing PageCalibration shape and preserves measurement binding", async () => {
+  let state: SessionCommandResult = {
+    ...initialSessionState,
+    session: createEmptySession({ name: "custom-uniform.pdf", size: 3, lastModified: 1 }, 1),
+  };
+  const calibration = createPageCalibrationFromRatio({ mode: "uniform", denominator: 62.5125 });
+  state = sessionReducer(state, {
+    type: "ADD_CALIBRATION",
+    pageNumber: 1,
+    id: "custom-uniform",
+    name: "Scale 1",
+    calibration,
+  });
+  state = sessionReducer(state, {
+    type: "ADD_MEASUREMENT",
+    pageNumber: 1,
+    id: "line-1",
+    measurementType: "line",
+    points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+  });
+
+  await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
+  const recovered = await loadSavedSession();
+  const page = recovered?.session.pages[1];
+  expect(recovered?.session.schemaVersion).toBe(10);
+  expect(page?.calibrations[0]).toEqual({ id: "custom-uniform", name: "Scale 1", ...calibration });
+  expect(page?.activeCalibrationId).toBe("custom-uniform");
+  expect(page?.measurements[0]?.calibrationId).toBe("custom-uniform");
+});
+
+it("persists and recovers a custom X/Y ratio without additional ratio metadata", async () => {
+  let state: SessionCommandResult = {
+    ...initialSessionState,
+    session: createEmptySession({ name: "custom-xy.pdf", size: 3, lastModified: 1 }, 1),
+  };
+  const calibration = createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: 30 });
+  state = sessionReducer(state, {
+    type: "ADD_CALIBRATION",
+    pageNumber: 1,
+    id: "custom-xy",
+    name: "Scale 1",
+    calibration,
+  });
+  state = sessionReducer(state, {
+    type: "ADD_MEASUREMENT",
+    pageNumber: 1,
+    id: "line-1",
+    measurementType: "line",
+    points: [{ x: 0, y: 0 }, { x: 72, y: 72 }],
+  });
+
+  await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
+  const recovered = await loadSavedSession();
+  const page = recovered?.session.pages[1];
+  expect(page?.calibrations[0]).toEqual({ id: "custom-xy", name: "Scale 1", ...calibration });
+  expect(page?.activeCalibrationId).toBe("custom-xy");
+  expect(page?.measurements[0]?.calibrationId).toBe("custom-xy");
+  expect(Object.keys(page?.calibrations[0] ?? {}).sort()).toEqual(
+    ["id", "mode", "name", "xReference", "yReference"].sort(),
+  );
 });
 
 function withMockDefaultLocale<T>(locale: string, run: () => T): T {

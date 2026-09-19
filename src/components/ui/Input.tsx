@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
 import styles from "./Input.module.css";
 
 type InputElementProps = Omit<
@@ -47,18 +47,21 @@ export type InputProps = InputElementProps &
     description?: ReactNode;
   };
 
-export function Input({
-  id,
-  label,
-  error,
-  description,
-  disabled = false,
-  className,
-  "aria-describedby": ariaDescribedBy,
-  "aria-label": ariaLabel,
-  "aria-labelledby": ariaLabelledBy,
-  ...inputProps
-}: InputProps) {
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  {
+    id,
+    label,
+    error,
+    description,
+    disabled = false,
+    className,
+    "aria-describedby": ariaDescribedBy,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    ...inputProps
+  },
+  ref,
+) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const descriptionId = `${inputId}-description`;
@@ -89,6 +92,7 @@ export function Input({
         </label>
       )}
       <input
+        ref={ref}
         {...inputProps}
         id={inputId}
         className={[styles.control, className].filter(Boolean).join(" ")}
@@ -110,4 +114,4 @@ export function Input({
       )}
     </div>
   );
-}
+});

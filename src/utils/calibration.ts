@@ -19,6 +19,10 @@ export function getActiveCalibration(page: PageState): PageCalibration | null {
   return findPageCalibration(page, page.activeCalibrationId);
 }
 
+export function defaultCalibrationName(page: Pick<PageState, "nextCalibrationNumber">): string {
+  return `Scale ${page.nextCalibrationNumber}`;
+}
+
 export function getMeasurementCalibration(
   page: Pick<PageState, "calibrations">,
   measurement: Pick<Measurement, "calibrationId">,

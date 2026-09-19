@@ -8,7 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceDrawerProvider } from "../../app/WorkspaceDrawerContext";
 import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { Measurement, PageCalibration, PageState } from "../../types/domain";
+import { scaleByRatio } from "../../utils/units";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
+import { createPageCalibrationFromRatio } from "./ratioCalibration";
 import { ScalesWorkspace, type ScalesWorkspaceProps } from "./ScalesWorkspace";
 
 const scalesCss = readFileSync("src/features/calibration/ScalesWorkspace.module.css", "utf8");
@@ -68,7 +70,9 @@ function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorks
     page,
     displayUnit: "m",
     onAddScale: vi.fn(),
+    onAddCustomRatioScale: vi.fn(),
     onAddPresetScale: vi.fn(),
+    onSetRatio: vi.fn(),
     onRenameScale: vi.fn(),
     onRecalibrate: vi.fn(),
     onEditReference: vi.fn(),
@@ -183,6 +187,20 @@ beforeEach(() => {
     configurable: true,
     value: vi.fn(),
   });
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.open = true;
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      if (!this.open) return;
+      this.open = false;
+      this.dispatchEvent(new Event("close"));
+    },
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -192,6 +210,7 @@ afterEach(() => {
   if (root) act(() => root?.unmount());
   container?.remove();
   document.querySelectorAll('[role="menu"]').forEach((element) => element.remove());
+  document.querySelectorAll("dialog").forEach((element) => element.remove());
   root = null;
   container = null;
 });
@@ -275,7 +294,7 @@ describe("ScalesWorkspace", () => {
     expect(input?.value).toBe(longName);
   });
 
-  it("expands X/Y administration with identity, paired reference actions, and a recalibration footer", () => {
+  it("expands compact X/Y administration with ratio, paired reference actions, and a recalibration footer", () => {
     const props = createProps();
     renderScales(props);
     const inspect = buttonByLabel("Expand scale Survey correction");
@@ -287,9 +306,24 @@ describe("ScalesWorkspace", () => {
     const details = document.getElementById(detailsId);
     if (!details) throw new Error("Expanded X/Y details were not rendered.");
     expect(details.hasAttribute("hidden")).toBe(false);
-    expect(details.textContent).toContain("IdentityScale nameSurvey correctionRename");
-    expect(details.textContent).toContain("CalibrationX reference2.50 mEdit points");
-    expect(details.textContent).toContain("Y reference3.00 mEdit points");
+    expect(details.textContent).toContain("Survey correctionRename");
+    expect(details.textContent).toContain(`${scaleDisplayMetadata(xy).ratioLabel}Set ratio`);
+    expect(details.textContent).toContain("X reference: X 2.50 mEdit points");
+    expect(details.textContent).toContain("Y reference: Y 3.00 mEdit points");
+    expect(Array.from(details.children).some((element) => element.textContent === "Identity")).toBe(false);
+    expect(Array.from(details.children).some((element) => element.textContent === "Calibration")).toBe(false);
+    expect(details.textContent).not.toContain("Scale name");
+    const referenceContext = Array.from(details.querySelectorAll<HTMLElement>("span")).filter(
+      (element) => element.textContent?.toLowerCase().includes("reference"),
+    );
+    expect(referenceContext.length).toBeGreaterThan(0);
+    expect(referenceContext.every((element) => element.className.includes("visuallyHidden"))).toBe(
+      true,
+    );
+    expect(scalesCss).not.toMatch(
+      /\.(detailSection|sectionLabel|identityField|fieldLabel|referenceInfo|referenceLabel|referenceRow|identityValueRow)\b/,
+    );
+    expect(buttonWithin(details, "Set ratio").className).toContain("ghost");
     const recalibrate = buttonWithin(details, "Recalibrate scale");
     const recalibrateControl = recalibrate.closest<HTMLElement>("[data-recalibrate-control]");
     expect(recalibrate.className).toContain("secondary");
@@ -300,7 +334,10 @@ describe("ScalesWorkspace", () => {
     if (!editX || !editY) throw new Error("X/Y reference actions were not rendered.");
     expect(editX.textContent?.trim()).toBe("Edit points");
     expect(editY.textContent?.trim()).toBe("Edit points");
-    expect(scalesCss).toContain("grid-template-columns: minmax(0, 1fr) auto;");
+    expect(scalesCss).toMatch(/\.detailRows\s*\{[^}]*gap:\s*var\(--space-4\);/s);
+    expect(scalesCss).toMatch(
+      /\.detailRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
     expect(scalesCss).toMatch(/\.renameForm\s*\{[^}]*display:\s*grid;/s);
     expect(scalesCss).not.toMatch(/\.recalibrateFooter\s*\{[^}]*display:\s*grid;/s);
     expect(scalesCss).toMatch(/\.recalibrateControl\s*\{[^}]*width:\s*100%;/s);
@@ -328,20 +365,24 @@ describe("ScalesWorkspace", () => {
   it("formats calibration references using the current imperial Viewer display mode", () => {
     renderScales(createProps({ displayUnit: "in" }));
     act(() => buttonByLabel("Expand scale Ground floor, active").click());
-    expect(container?.textContent).toContain("Reference39.37 in");
+    expect(container?.querySelector('[title="39.37 in"]')).not.toBeNull();
 
     renderScales(createProps({ displayUnit: "ft" }));
-    expect(container?.textContent).toContain("Reference3.28 ft");
+    expect(container?.querySelector('[title="3.28 ft"]')).not.toBeNull();
 
     const architecturalPage: PageState = {
       ...page,
       calibrations: [{ ...uniform, referenceDistanceMm: 3771.9 }, xy],
     };
     renderScales(createProps({ page: architecturalPage, displayUnit: "ft-in" }));
-    expect(container?.textContent).toContain('Reference12\' 4 1/2"');
+    expect(
+      Array.from(container?.querySelectorAll<HTMLElement>("[title]") ?? []).some(
+        (element) => element.title === `12' 4 1/2"`,
+      ),
+    ).toBe(true);
   });
 
-  it("groups compact manual modes before a Standard ratios section", () => {
+  it("groups point calibration and Custom ratio before a Standard ratios section", () => {
     const props = createProps();
     renderScales(props);
     const add = buttonByLabel("Add scale");
@@ -350,10 +391,11 @@ describe("ScalesWorkspace", () => {
 
     act(() => add.click());
     let items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    expect(items).toHaveLength(5);
+    expect(items).toHaveLength(6);
     expect(items.map((item) => item.textContent)).toEqual([
       "UniformOne reference",
       "X/YSeparate X and Y references",
+      "Custom ratioEnter 1:n",
       "1:20",
       "1:50",
       "1:100",
@@ -368,7 +410,7 @@ describe("ScalesWorkspace", () => {
     expect(scalesCss).toMatch(
       /\.addScaleMenu \[data-menu-section-label="true"\]\s*\{[^}]*padding:\s*var\(--space-4\) var\(--space-8\) 0;/s,
     );
-    act(() => items[3]?.click());
+    act(() => items[4]?.click());
     expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
 
     act(() => add.click());
@@ -382,7 +424,7 @@ describe("ScalesWorkspace", () => {
     expect(props.onAddScale).toHaveBeenCalledWith("uniform");
   });
 
-  it("keeps the section heading out of keyboard navigation and visits all five options", () => {
+  it("keeps the section heading out of keyboard navigation and visits all six options", () => {
     renderScales(createProps());
     act(() => buttonByLabel("Add scale").click());
     const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
@@ -398,7 +440,167 @@ describe("ScalesWorkspace", () => {
     }
 
     expect(document.querySelector('[data-menu-section-label="true"]')).not.toBe(document.activeElement);
-    expect(items.map((item) => item.tabIndex)).toEqual([-1, -1, -1, -1, 0]);
+    expect(items.map((item) => item.tabIndex)).toEqual([-1, -1, -1, -1, -1, 0]);
+  });
+
+  it("opens Custom ratio with the next default scale name and saves through the direct callback", () => {
+    const props = createProps();
+    renderScales(props);
+    const add = buttonByLabel("Add scale");
+    act(() => add.click());
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    act(() => items[2]?.click());
+
+    const dialog = document.querySelector<HTMLDialogElement>("dialog");
+    const name = document.querySelector<HTMLInputElement>("#custom-ratio-name");
+    const ratio = document.querySelector<HTMLInputElement>("#custom-ratio-uniform");
+    expect(dialog?.open).toBe(true);
+    expect(name?.value).toBe("Scale 3");
+    expect(document.activeElement).toBe(ratio);
+    if (!ratio) throw new Error("Custom ratio denominator was not rendered.");
+    setInputValue(ratio, "60");
+    const save = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent?.trim() === "Save scale",
+    );
+    if (!save) throw new Error("Custom ratio save action was not rendered.");
+    act(() => save.click());
+
+    expect(props.onAddCustomRatioScale).toHaveBeenCalledWith(
+      "Scale 3",
+      createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }),
+    );
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+
+  it("restores focus to Add scale when Custom ratio closes with Escape", async () => {
+    renderScales(createProps());
+    const add = buttonByLabel("Add scale");
+    act(() => add.click());
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    act(() => items[2]?.click());
+    const dialog = document.querySelector<HTMLDialogElement>("dialog");
+    expect(document.activeElement).toBe(document.querySelector("#custom-ratio-uniform"));
+
+    act(() =>
+      dialog?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      ),
+    );
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(document.activeElement).toBe(add);
+  });
+
+  it("sets a Uniform ratio in place, keeps mode fixed, and restores focus to Set ratio", async () => {
+    const ratioCalibration: PageCalibration = {
+      id: "uniform-50",
+      name: "Scale 3",
+      ...createPageCalibrationFromRatio({ mode: "uniform", denominator: 50 }),
+    };
+    const props = createProps({
+      page: {
+        ...page,
+        calibrations: [ratioCalibration],
+        activeCalibrationId: ratioCalibration.id,
+      },
+    });
+    renderScales(props);
+    act(() => buttonByLabel("Expand scale Scale 3, active").click());
+    const details = document.getElementById("scale-details-uniform-50")!;
+    const setRatio = buttonByLabel("Set ratio for scale Scale 3");
+    expect(buttonWithin(details, "Recalibrate scale")).toBeTruthy();
+    expect(details.querySelector('button[aria-label="Edit uniform reference points"]')).toBeTruthy();
+
+    act(() => {
+      setRatio.focus();
+      setRatio.click();
+    });
+    const ratio = document.querySelector<HTMLInputElement>("#custom-ratio-uniform")!;
+    expect(ratio.value).toBe("50");
+    expect(document.activeElement).toBe(ratio);
+    expect(document.querySelector('input[name="custom-ratio-mode"]')).toBeNull();
+    expect(document.querySelector("#custom-ratio-name")).toBeNull();
+
+    setInputValue(ratio, "60");
+    act(() => buttonWithin(document.querySelector("dialog")!, "Save").click());
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(props.onSetRatio).toHaveBeenCalledWith(
+      "uniform-50",
+      createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }),
+    );
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(document.activeElement).toBe(setRatio);
+    expect(props.onRecalibrate).not.toHaveBeenCalled();
+    expect(props.onEditReference).not.toHaveBeenCalled();
+  });
+
+  it("derives Set ratio prefill from a non-canonical point calibration and replaces it canonically", () => {
+    const denominator = 65.345;
+    const pageDistance = 40;
+    const pointCalibration: PageCalibration = {
+      id: "point-uniform",
+      name: "Point calibrated",
+      mode: "uniform",
+      start: { x: 13, y: 7 },
+      end: { x: 53, y: 7 },
+      referenceDistanceMm:
+        pageDistance * scaleByRatio(denominator, 127, 360),
+    };
+    const props = createProps({
+      page: {
+        ...page,
+        calibrations: [pointCalibration],
+        activeCalibrationId: pointCalibration.id,
+      },
+    });
+    renderScales(props);
+    act(() => buttonByLabel("Expand scale Point calibrated, active").click());
+    act(() => buttonByLabel("Set ratio for scale Point calibrated").click());
+
+    const ratio = document.querySelector<HTMLInputElement>("#custom-ratio-uniform")!;
+    expect(ratio.value).toBe("65.345");
+    setInputValue(ratio, "50");
+    act(() => buttonWithin(document.querySelector("dialog")!, "Save").click());
+
+    expect(props.onSetRatio).toHaveBeenCalledWith(
+      "point-uniform",
+      createPageCalibrationFromRatio({ mode: "uniform", denominator: 50 }),
+    );
+  });
+
+  it("sets X/Y ratios independently without swapping axes or exposing a mode selector", () => {
+    const xyRatioCalibration: PageCalibration = {
+      id: "xy-ratio",
+      name: "Survey correction",
+      ...createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: 30 }),
+    };
+    const props = createProps({
+      page: {
+        ...page,
+        calibrations: [xyRatioCalibration],
+        activeCalibrationId: xyRatioCalibration.id,
+      },
+    });
+    renderScales(props);
+    act(() => buttonByLabel("Expand scale Survey correction, active").click());
+    act(() => buttonByLabel("Set ratio for scale Survey correction").click());
+
+    const x = document.querySelector<HTMLInputElement>("#custom-ratio-x")!;
+    const y = document.querySelector<HTMLInputElement>("#custom-ratio-y")!;
+    expect(x.value).toBe("70");
+    expect(y.value).toBe("30");
+    expect(document.activeElement).toBe(x);
+    expect(document.querySelector('input[name="custom-ratio-mode"]')).toBeNull();
+    setInputValue(x, "80");
+    setInputValue(y, "40");
+    act(() => buttonWithin(document.querySelector("dialog")!, "Save").click());
+
+    expect(props.onSetRatio).toHaveBeenCalledWith(
+      "xy-ratio",
+      createPageCalibrationFromRatio({ mode: "xy", xDenominator: 80, yDenominator: 40 }),
+    );
   });
 
   it("keeps Uniform reference editing explicit and paired with its value", () => {
@@ -411,7 +613,8 @@ describe("ScalesWorkspace", () => {
     const details = document.getElementById(detailsId);
     if (!details) throw new Error("Expanded Uniform details were not rendered.");
 
-    expect(details.textContent).toContain("CalibrationReference1.00 mEdit points");
+    expect(details.textContent).toContain("Uniform reference: 1.00 mEdit points");
+    expect(details.textContent).toContain(`${scaleDisplayMetadata(uniform).ratioLabel}Set ratio`);
     expect(buttonWithin(details, "Recalibrate scale").className).toContain("secondary");
     const edit = details.querySelector<HTMLButtonElement>(
       'button[aria-label="Edit uniform reference points"]',
@@ -430,7 +633,7 @@ describe("ScalesWorkspace", () => {
 
     act(() => rename.click());
     const initialInput = scaleNameInput();
-    expect(initialInput.closest("form")?.textContent).toContain("Scale name");
+    expect(initialInput.closest("form")?.textContent).not.toContain("Scale name");
     expect(document.activeElement).toBe(initialInput);
     expect(initialInput.value).toBe("Ground floor");
     expect(initialInput.selectionStart).toBe(0);
@@ -518,7 +721,8 @@ describe("ScalesWorkspace", () => {
 
   it("keeps scale inspection available while precision actions are disabled with an accessible reason", () => {
     const reason = "Precision editing needs a fine pointer.";
-    renderScalesWithUnavailablePrecision(createProps(), reason);
+    const props = createProps();
+    renderScalesWithUnavailablePrecision(props, reason);
 
     const inspect = buttonByLabel("Expand scale Ground floor, active");
     expect(inspect.disabled).toBe(false);
@@ -531,12 +735,14 @@ describe("ScalesWorkspace", () => {
       'button[aria-label="Edit uniform reference points"]',
     );
     const rename = buttonByLabel("Rename scale Ground floor");
+    const setRatio = buttonByLabel("Set ratio for scale Ground floor");
     if (!edit) throw new Error("Uniform edit action was not rendered.");
     const add = buttonByLabel("Add scale");
 
     expect(recalibrate.disabled).toBe(false);
     expect(edit.disabled).toBe(false);
     expect(rename.getAttribute("aria-disabled")).not.toBe("true");
+    expect(setRatio.getAttribute("aria-disabled")).not.toBe("true");
     expect(recalibrate.getAttribute("aria-disabled")).toBe("true");
     expect(edit.getAttribute("aria-disabled")).toBe("true");
     expect(add.disabled).toBe(false);
@@ -545,7 +751,7 @@ describe("ScalesWorkspace", () => {
     );
     act(() => add.click());
     const addItems = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    expect(addItems).toHaveLength(5);
+    expect(addItems).toHaveLength(6);
     expect(addItems[0]?.getAttribute("aria-disabled")).toBe("true");
     expect(addItems[1]?.getAttribute("aria-disabled")).toBe("true");
     expect(addItems[0]?.textContent).toContain(reason);
@@ -553,6 +759,9 @@ describe("ScalesWorkspace", () => {
     expect(addItems.slice(2).every((item) => item.getAttribute("aria-disabled") !== "true")).toBe(
       true,
     );
+    act(() => addItems[2]?.click());
+    expect(document.querySelector("dialog")?.textContent).toContain("Custom ratio");
+    expect(props.onAddScale).not.toHaveBeenCalled();
   });
 
   it("disables rename only for the calibration workflow lock, using the shared reason", () => {
@@ -586,7 +795,7 @@ describe("ScalesWorkspace", () => {
     act(() => items[0]?.click());
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    act(() => items[3]?.click());
+    act(() => items[4]?.click());
     expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
     act(() => add.click());
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));

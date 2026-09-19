@@ -1,0 +1,83 @@
+.form {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.modeGroup {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.modeGroup legend,
+.fieldLabel {
+  padding: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.modeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.modeOptions label {
+  min-height: var(--target-current);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.modeOptions input:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.ratioField,
+.xyRatios {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.ratioInputRow {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-8);
+}
+
+.ratioPrefix {
+  min-height: var(--control-height-regular);
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 520px) {
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions > * {
+    flex: 1 1 auto;
+  }
+}
