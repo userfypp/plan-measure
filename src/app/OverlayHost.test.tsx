@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { OverlayHost } from "./OverlayHost";
 import { OverlayProvider, useOverlayState } from "./overlayState";
 
@@ -15,11 +16,28 @@ const deletePayload = {
   measurementName: "Hallway",
 };
 
+const setRatioPayload = {
+  pageNumber: 1,
+  calibrationId: "scale-1",
+  calibrationName: "Ground floor",
+  measurementCount: 2,
+  calibration: createPageCalibrationFromRatio({ mode: "uniform" as const, denominator: 60 }),
+};
+
 function DeleteRequest() {
   const { requestDeleteMeasurement } = useOverlayState();
   return (
     <button type="button" onClick={() => requestDeleteMeasurement(deletePayload)}>
       Request delete
+    </button>
+  );
+}
+
+function SetRatioRequest() {
+  const { requestSetScaleRatio } = useOverlayState();
+  return (
+    <button type="button" onClick={() => requestSetScaleRatio(setRatioPayload)}>
+      Request ratio change
     </button>
   );
 }
@@ -136,5 +154,31 @@ describe("OverlayHost measurement deletion", () => {
     expect(confirm).not.toHaveBeenCalled();
     expect(cancel).toHaveBeenCalledWith({ type: "deleteMeasurement", payload: deletePayload });
     expect(document.activeElement).toBe(request);
+  });
+});
+
+describe("OverlayHost Set ratio confirmation", () => {
+  it("explains measurement impact and forwards the exact pending ratio payload on confirm", () => {
+    const confirm = vi.fn();
+    act(() => {
+      root!.render(
+        <OverlayProvider>
+          <SetRatioRequest />
+          <OverlayHost onConfirmationConfirm={confirm} />
+        </OverlayProvider>,
+      );
+    });
+
+    act(() => buttonByText("Request ratio change").click());
+
+    const dialog = document.querySelector<HTMLDialogElement>("dialog");
+    expect(dialog?.textContent).toContain("Set ratio for “Ground floor”?");
+    expect(dialog?.textContent).toContain(
+      "2 measurements use this scale. Their values will be recalculated using the new ratio.",
+    );
+    act(() => buttonByText("Set ratio").click());
+
+    expect(confirm).toHaveBeenCalledWith({ type: "setScaleRatio", payload: setRatioPayload });
+    expect(document.querySelector("dialog")).toBeNull();
   });
 });

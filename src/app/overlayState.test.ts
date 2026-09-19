@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { getActiveOverlay, initialOverlayState, overlayReducer } from "./overlayState";
 
 describe("overlay state", () => {
@@ -22,6 +23,31 @@ describe("overlay state", () => {
     const state = overlayReducer(initialOverlayState, { type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT", payload: { pageNumber: 4, calibrationId: "scale-4", reference: "x", calibrationName: "Detail", measurementCount: 2 } });
     expect(state.active).toEqual({ kind: "confirmation", descriptor: { type: "saveCalibrationReferenceEdit", payload: { pageNumber: 4, calibrationId: "scale-4", reference: "x", calibrationName: "Detail", measurementCount: 2 } } });
     expect(state.active).not.toHaveProperty("onConfirm");
+  });
+
+  it("stores the exact pending Set ratio calibration in the confirmation descriptor", () => {
+    const calibration = createPageCalibrationFromRatio({
+      mode: "xy",
+      xDenominator: 80,
+      yDenominator: 40,
+    });
+    const payload = {
+      pageNumber: 2,
+      calibrationId: "scale-xy",
+      calibrationName: "Survey correction",
+      measurementCount: 3,
+      calibration,
+    };
+
+    const state = overlayReducer(initialOverlayState, {
+      type: "REQUEST_SET_SCALE_RATIO",
+      payload,
+    });
+
+    expect(state.active).toEqual({
+      kind: "confirmation",
+      descriptor: { type: "setScaleRatio", payload },
+    });
   });
 
   it("cannot represent two blocking overlays at the same time", () => {

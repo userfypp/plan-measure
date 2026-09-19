@@ -164,30 +164,20 @@
   --color-text: var(--color-text-primary);
   --color-text-muted: var(--color-text-secondary);
   --color-border: var(--color-divider);
-  --color-border-strong: var(--color-text-disabled);
-  --color-tool: var(--color-text-secondary);
   --color-primary: var(--color-accent);
-  --color-primary-hover: var(--color-accent-hover-semantic);
-  --color-primary-active: var(--color-accent-active-semantic);
   --color-selected: var(--color-selection-surface);
   --color-info: var(--color-status-info);
   --color-info-subdued: var(--color-status-info-surface);
   --color-warning: var(--color-status-warning);
   --color-warning-subdued: var(--color-status-warning-surface);
   --color-danger: var(--color-danger-semantic);
-  --color-danger-hover: var(--color-danger-hover-semantic);
   --color-danger-active: var(--color-danger-active-semantic);
   --color-danger-subdued: var(--color-status-danger-surface);
   --color-success: var(--color-status-success);
   --color-success-subdued: var(--color-status-success-surface);
   --color-on-primary: var(--color-surface-panel);
   --color-on-danger: var(--color-surface-panel);
-  --color-surface-inverse: #242a31;
-  --color-on-inverse: #ffffff;
-  --color-border-inverse: rgba(255, 255, 255, 0.35);
-  --color-inverse-hover: rgba(255, 255, 255, 0.12);
   --color-viewer-surface: var(--color-surface-viewer);
-  --color-focus: var(--color-focus-semantic);
   /* Legacy feature controls still depend on an inset ring until their owning
    * surfaces migrate; base primitives and new disclosures use the V2 focus contract above. */
   --focus-ring-width: 3px;
@@ -203,7 +193,6 @@
   --control-height-regular: 40px;
   --space-group-gap: 0px;
   --control-border-overlap: -1px;
-  --shadow-tool-hover: var(--shadow-overlay);
   --shadow-none: var(--shadow-structural);
   --opacity-disabled: 0.56;
 }

@@ -6,7 +6,7 @@ import {
   millimetresPerPageUnit,
   polygonResultsMm,
 } from "../../utils/geometry";
-import { scaleByRatio } from "../../utils/units";
+import { scaleByRatio, toMillimetres } from "../../utils/units";
 import { createStandardScalePreset, STANDARD_SCALE_PRESET_RATIOS } from "./standardScalePresets";
 import {
   createPageCalibrationFromRatio,
@@ -15,7 +15,7 @@ import {
 } from "./ratioCalibration";
 
 describe("ratio calibration", () => {
-  it.each([1, 20, 50, 60, 62.5, 62.5125, 100])(
+  it.each([1, 20, 50, 60, 62.5, 62.5125, 100, 100.125])(
     "creates canonical Uniform calibration for 1:%s",
     (denominator) => {
       const calibration = createPageCalibrationFromRatio({ mode: "uniform", denominator });
@@ -24,7 +24,7 @@ describe("ratio calibration", () => {
         mode: "uniform",
         start: { x: 0, y: 0 },
         end: { x: 72, y: 0 },
-        referenceDistanceMm: scaleByRatio(denominator, 127, 5),
+        referenceDistanceMm: toMillimetres(denominator, "in"),
       });
       expect(millimetresPerPageUnit(calibration)).toBeCloseTo(
         scaleByRatio(denominator, 127, 360),
@@ -32,6 +32,12 @@ describe("ratio calibration", () => {
       );
     },
   );
+
+  it("keeps the canonical 1:60 reference exactly at 1524 mm", () => {
+    expect(
+      createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }).referenceDistanceMm,
+    ).toBe(1524);
+  });
 
   it.each(STANDARD_SCALE_PRESET_RATIOS)(
     "makes preset 1:%s converge exactly on the shared ratio helper",

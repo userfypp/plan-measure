@@ -19,17 +19,11 @@
   padding: var(--space-8);
 }
 
-.description,
-.empty {
+.description {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
-}
-
-.empty {
-  padding: var(--space-8) 0;
-  text-align: center;
 }
 
 .list {
@@ -130,11 +124,6 @@
   border-color: var(--color-danger-active-semantic);
   background: var(--color-danger-active-surface);
   color: var(--color-danger-active-semantic);
-}
-
-.renameForm {
-  display: grid;
-  gap: var(--space-8);
 }
 
 .valueList {

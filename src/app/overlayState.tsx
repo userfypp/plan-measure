@@ -1,14 +1,23 @@
 import { createContext, useCallback, useContext, useMemo, useReducer, type ReactNode } from "react";
+import type { RatioCalibrationInput } from "../features/calibration/ratioCalibration";
 import type { CalibrationReferenceKey } from "../types/domain";
 
 export interface ReplacePdfPayload { pdfId: string; fileName?: string }
 export interface RecalibrationPayload { pageNumber: number; calibrationId: string; calibrationName: string; measurementCount: number }
+export interface SetScaleRatioPayload {
+  pageNumber: number;
+  calibrationId: string;
+  calibrationName: string;
+  measurementCount: number;
+  calibration: RatioCalibrationInput;
+}
 export interface CalibrationReferenceEditConfirmationPayload { pageNumber: number; calibrationId: string; reference: CalibrationReferenceKey; calibrationName: string; measurementCount: number }
 export interface DeleteMeasurementPayload { pageNumber: number; measurementId: string; measurementName: string }
 
 export type OverlayDialog = { type: "replacePdf"; payload: ReplacePdfPayload };
 export type OverlayConfirmation =
   | { type: "recalibrateScale"; payload: RecalibrationPayload }
+  | { type: "setScaleRatio"; payload: SetScaleRatioPayload }
   | { type: "saveCalibrationReferenceEdit"; payload: CalibrationReferenceEditConfirmationPayload }
   | { type: "deleteMeasurement"; payload: DeleteMeasurementPayload };
 
@@ -23,6 +32,7 @@ export type OverlayAction =
   | { type: "REQUEST_REPLACE_PDF"; payload: ReplacePdfPayload }
   | { type: "CLOSE_DIALOG"; dialog?: OverlayDialog }
   | { type: "REQUEST_RECALIBRATION"; payload: RecalibrationPayload }
+  | { type: "REQUEST_SET_SCALE_RATIO"; payload: SetScaleRatioPayload }
   | { type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT"; payload: CalibrationReferenceEditConfirmationPayload }
   | { type: "REQUEST_DELETE_MEASUREMENT"; payload: DeleteMeasurementPayload }
   | { type: "CLOSE_CONFIRMATION"; confirmation?: OverlayConfirmation }
@@ -41,6 +51,9 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
     case "REQUEST_RECALIBRATION":
       if (state.active?.kind === "dialog") return state;
       return { active: { kind: "confirmation", descriptor: { type: "recalibrateScale", payload: action.payload } } };
+    case "REQUEST_SET_SCALE_RATIO":
+      if (state.active?.kind === "dialog") return state;
+      return { active: { kind: "confirmation", descriptor: { type: "setScaleRatio", payload: action.payload } } };
     case "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT":
       if (state.active?.kind === "dialog") return state;
       return { active: { kind: "confirmation", descriptor: { type: "saveCalibrationReferenceEdit", payload: action.payload } } };
@@ -61,6 +74,7 @@ interface OverlayContextValue {
   requestReplacePdf: (payload: ReplacePdfPayload) => void;
   closeDialog: (dialog?: OverlayDialog) => void;
   requestRecalibration: (payload: RecalibrationPayload) => void;
+  requestSetScaleRatio: (payload: SetScaleRatioPayload) => void;
   requestSaveCalibrationReferenceEdit: (payload: CalibrationReferenceEditConfirmationPayload) => void;
   requestDeleteMeasurement: (payload: DeleteMeasurementPayload) => void;
   closeConfirmation: (confirmation?: OverlayConfirmation) => void;
@@ -81,6 +95,10 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   );
   const requestRecalibration = useCallback(
     (payload: RecalibrationPayload) => dispatch({ type: "REQUEST_RECALIBRATION", payload }),
+    [],
+  );
+  const requestSetScaleRatio = useCallback(
+    (payload: SetScaleRatioPayload) => dispatch({ type: "REQUEST_SET_SCALE_RATIO", payload }),
     [],
   );
   const requestSaveCalibrationReferenceEdit = useCallback(
@@ -107,6 +125,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     requestReplacePdf,
     closeDialog,
     requestRecalibration,
+    requestSetScaleRatio,
     requestSaveCalibrationReferenceEdit,
     requestDeleteMeasurement,
     closeConfirmation,
@@ -118,6 +137,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     requestDeleteMeasurement,
     requestRecalibration,
     requestReplacePdf,
+    requestSetScaleRatio,
     requestSaveCalibrationReferenceEdit,
     state,
   ]);

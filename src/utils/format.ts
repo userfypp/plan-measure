@@ -68,13 +68,6 @@ export function formatCsvNumber(value: number): string {
     : serialized.padEnd(serialized.length + (2 - fractionDigits), "0");
 }
 
-/**
- * Kept as a compatibility alias for existing UI callers.
- */
-export function formatNumber(value: number): string {
-  return formatDisplayNumber(value);
-}
-
 const SIXTEENTHS_PER_INCH = 16;
 const SIXTEENTHS_PER_FOOT = 12 * SIXTEENTHS_PER_INCH;
 export const MAX_SAFE_ARCHITECTURAL_SIXTEENTHS = Math.floor(Number.MAX_SAFE_INTEGER / 127);
@@ -92,68 +85,6 @@ export function architecturalSixteenthsToMillimetres(totalSixteenths: number): n
 
 export function resolveLinearUnit(displayUnit: MeasurementDisplayUnit): LinearUnit {
   return displayUnit === "ft-in" ? "ft" : displayUnit;
-}
-
-function parseSafeInteger(value: string): number | null {
-  if (!/^\d+$/.test(value)) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) ? parsed : null;
-}
-
-function parseArchitecturalInchPart(input: string): number | null {
-  const match = /^(?:(\d+)(?: (\d+)\/(2|4|8|16))?|(\d+)\/(2|4|8|16))$/.exec(input);
-  if (!match) return null;
-
-  const wholeText = match[1];
-  const numeratorText = match[2] ?? match[4];
-  const denominatorText = match[3] ?? match[5];
-  const whole = wholeText === undefined ? 0 : parseSafeInteger(wholeText);
-  if (whole === null || whole > 11) return null;
-
-  let fractionalSixteenths = 0;
-  if (numeratorText !== undefined && denominatorText !== undefined) {
-    const numerator = parseSafeInteger(numeratorText);
-    const denominator = Number(denominatorText);
-    if (numerator === null || numerator <= 0 || numerator >= denominator) return null;
-    fractionalSixteenths = numerator * (SIXTEENTHS_PER_INCH / denominator);
-  }
-
-  return whole * SIXTEENTHS_PER_INCH + fractionalSixteenths;
-}
-
-export function parseArchitecturalLength(input: string): number | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  const feetOnly = /^(\d+)'$/.exec(trimmed);
-  if (feetOnly) {
-    const feet = parseSafeInteger(feetOnly[1]!);
-    if (
-      feet === null ||
-      feet > Math.floor(MAX_SAFE_ARCHITECTURAL_SIXTEENTHS / SIXTEENTHS_PER_FOOT)
-    ) {
-      return null;
-    }
-    return architecturalSixteenthsToMillimetres(feet * SIXTEENTHS_PER_FOOT);
-  }
-
-  const feetAndInches = /^(\d+)'(?:\s*-\s*|\s+)(.+)"$/.exec(trimmed);
-  if (feetAndInches) {
-    const feet = parseSafeInteger(feetAndInches[1]!);
-    const inchSixteenths = parseArchitecturalInchPart(feetAndInches[2]!);
-    if (feet === null || inchSixteenths === null) return null;
-    const maxFeet = Math.floor(
-      (MAX_SAFE_ARCHITECTURAL_SIXTEENTHS - inchSixteenths) / SIXTEENTHS_PER_FOOT,
-    );
-    if (feet > maxFeet) return null;
-    const totalSixteenths = feet * SIXTEENTHS_PER_FOOT + inchSixteenths;
-    return architecturalSixteenthsToMillimetres(totalSixteenths);
-  }
-
-  const inchesOnly = /^(.+)"$/.exec(trimmed);
-  if (!inchesOnly) return null;
-  const totalSixteenths = parseArchitecturalInchPart(inchesOnly[1]!);
-  return totalSixteenths === null ? null : architecturalSixteenthsToMillimetres(totalSixteenths);
 }
 
 function gcd(left: number, right: number): number {
