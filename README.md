@@ -9,7 +9,7 @@ Live app: https://userfypp.github.io/plan-measure/
 ## Features
 
 - Open PDFs up to 100 MB and work across multiple pages.
-- Create multiple named scales per page with Uniform or X/Y calibration in metric, decimal imperial, or feet-and-inches input, plus standard 1:20, 1:50, and 1:100 presets.
+- Create multiple named scales per page with Uniform or X/Y calibration in metric, decimal imperial, or feet-and-inches input, enter a known 1:n ratio directly, or use standard 1:20, 1:50, and 1:100 presets.
 - Draw Line, Polyline, and Polygon measurements. Edit vertices or move a whole measurement.
 - Use Snap for visible measurement geometry and Ortho for horizontal or vertical segments.
 - Manage measurements in the Measurements workspace, including visibility and grouping, and edit properties in Details.
@@ -26,7 +26,7 @@ The active PDF and session data are stored locally in IndexedDB for recovery aft
 ## Using Plan Measure
 
 1. Choose **Open PDF** in the App Bar, or drop a PDF into the empty workspace.
-2. Open **Scales** in the Workspace and choose **Add scale**. Use **Uniform** for one reference, **X/Y** for separate horizontal and vertical references, or a standard 1:20, 1:50, or 1:100 ratio. Manual references accept mm, cm, m, decimal inches or feet, and structured feet-and-inches input. Select the active scale from the Viewer Dock.
+2. Open **Scales** in the Workspace and choose **Add scale**. Use **Uniform** for one reference, **X/Y** for separate horizontal and vertical references, **Custom ratio** to enter a known 1:n ratio directly, or a standard 1:20, 1:50, or 1:100 ratio. Manual references accept mm, cm, m, decimal inches or feet, and structured feet-and-inches input. Select the active scale from the Viewer Dock.
 3. Choose **Line**, **Polyline**, or **Polygon** in the Tool Rail and draw on the plan. Line uses two points, Polyline is open, and Polygon is closed. The Context Toolbar provides **Snap**, **Ortho**, **Finish**, and **Cancel** when they apply.
 4. Use **Select** to move a measurement or edit its vertices. The Context Toolbar provides rename, duplicate, **Details**, and delete actions for the selected measurement. Details also supports geometry editing and classification assignment.
 5. Use **Classifications** in the Workspace to manage reusable dimensions and values. The **Measurements** workspace can group measurements by a classification dimension.

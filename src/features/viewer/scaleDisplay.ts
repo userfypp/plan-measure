@@ -5,11 +5,18 @@ import {
   calibrationScaleY,
   millimetresPerPageUnit,
 } from "../../utils/geometry";
-import { scaleRatioDenominatorFromMillimetresPerPageUnit } from "../../utils/pdfUnits";
+import {
+  cleanScaleRatioDenominator,
+  scaleRatioDenominatorFromMillimetresPerPageUnit,
+} from "../../utils/pdfUnits";
 
 function formatRatioValue(value: number): string {
-  const formatted = formatDisplayNumber(value);
-  return formatted.includes(".") ? formatted.replace(/0+$/, "").replace(/\.$/, "") : formatted;
+  if (!Number.isFinite(value)) return String(value);
+  const clean = cleanScaleRatioDenominator(value);
+  if (clean !== null) return String(clean);
+
+  const fallback = formatDisplayNumber(value);
+  return fallback.includes(".") ? fallback.replace(/0+$/, "").replace(/\.$/, "") : fallback;
 }
 
 export interface ScaleDisplayMetadata {

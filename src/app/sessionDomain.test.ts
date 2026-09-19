@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { lineLengthMm } from "../utils/geometry";
 import { getDrawingKeyboardAction } from "../utils/keyboard";
+import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { deserializeSessionForRecovery, serializeSession } from "../services/persistenceCodec";
 import {
   createEmptySession,
@@ -230,6 +231,70 @@ describe("session domain reducer", () => {
     expect(page?.nextCalibrationNumber).toBe(2);
   });
 
+  it("treats a custom ratio scale as a normal calibration through activation, measurement binding, rename, point edit, and recalibration", () => {
+    let state = loadedState();
+    state = sessionReducer(state, {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "custom-60",
+      name: "Scale 1",
+      calibration: createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }),
+    });
+    expect(state.session!.pages[1]!.activeCalibrationId).toBe("custom-60");
+
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "line-custom",
+      measurementType: "line",
+      points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+    });
+    expect(state.session!.pages[1]!.measurements[0]!.calibrationId).toBe("custom-60");
+
+    state = sessionReducer(state, {
+      type: "RENAME_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "custom-60",
+      name: "Custom detail",
+    });
+    state = sessionReducer(state, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "custom-60",
+      reference: "uniform",
+      points: [{ x: 5, y: 5 }, { x: 77, y: 5 }],
+    });
+    expect(state.session!.pages[1]!.calibrations[0]).toMatchObject({
+      id: "custom-60",
+      name: "Custom detail",
+      mode: "uniform",
+      start: { x: 5, y: 5 },
+      end: { x: 77, y: 5 },
+      referenceDistanceMm: 1524,
+    });
+
+    state = sessionReducer(state, {
+      type: "RECALIBRATE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "custom-60",
+      calibration: {
+        mode: "uniform",
+        start: { x: 10, y: 10 },
+        end: { x: 110, y: 10 },
+        referenceDistanceMm: 5000,
+      },
+    });
+    expect(state.session!.pages[1]!.calibrations[0]).toEqual({
+      id: "custom-60",
+      name: "Custom detail",
+      mode: "uniform",
+      start: { x: 10, y: 10 },
+      end: { x: 110, y: 10 },
+      referenceDistanceMm: 5000,
+    });
+    expect(state.session!.pages[1]!.measurements[0]!.calibrationId).toBe("custom-60");
+  });
+
   it("creates a second calibration without changing the first and makes it active", () => {
     let state = addScale(loadedState(), "scale-1", "Main plan");
     state = addScale(state, "scale-2", "Detail A", 5000);
@@ -382,6 +447,25 @@ describe("session domain reducer", () => {
     expect(afterB).toBe(beforeB);
   });
 
+  it("replaces a point-calibrated Uniform scale with canonical ratio references while preserving identity", () => {
+    let state = addScale(loadedState(), "scale-1", "Main plan");
+    const ratioCalibration = createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 });
+
+    state = sessionReducer(state, {
+      type: "RECALIBRATE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "scale-1",
+      calibration: ratioCalibration,
+    });
+
+    expect(state.error).toBeNull();
+    expect(state.session!.pages[1]!.calibrations[0]).toEqual({
+      id: "scale-1",
+      name: "Main plan",
+      ...ratioCalibration,
+    });
+  });
+
   it("recalibrates X/Y in place and changes only its linked measurement results", () => {
     let state = addScale(loadedState(), "uniform", "Main plan");
     state = sessionReducer(state, {
@@ -442,6 +526,29 @@ describe("session domain reducer", () => {
         getMeasurementCalibration(after, after.measurements[1]!)!,
       ),
     ).toBe(beforeXy * 2);
+  });
+
+  it("replaces point-calibrated X/Y references from ratios without swapping axes or changing identity", () => {
+    let state = addXyScale(loadedState(), "xy", "Survey correction");
+    const ratioCalibration = createPageCalibrationFromRatio({
+      mode: "xy",
+      xDenominator: 80,
+      yDenominator: 40,
+    });
+
+    state = sessionReducer(state, {
+      type: "RECALIBRATE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "xy",
+      calibration: ratioCalibration,
+    });
+
+    expect(state.error).toBeNull();
+    expect(state.session!.pages[1]!.calibrations[0]).toEqual({
+      id: "xy",
+      name: "Survey correction",
+      ...ratioCalibration,
+    });
   });
 
   it("creates measurements with persistent page-local counters", () => {

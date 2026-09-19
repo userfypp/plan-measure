@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession, sessionReducer } from "../app/sessionState";
 import { createStandardScalePreset } from "../features/calibration/standardScalePresets";
+import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import type { CurrentSession, MeasurementDisplayUnit } from "../types/domain";
 import {
@@ -707,6 +708,73 @@ describe("CSV export", () => {
     expect(Number(row[12])).toBeCloseTo((50 * 25.4) / 72, 12);
     expect(Number(row[13])).toBeCloseTo(1.27, 12);
     expect(row[16]).toBe("m");
+  });
+
+  it("exports a custom Uniform ratio through the unchanged calibration columns", () => {
+    const session = createEmptySession({ name: "custom-ratio.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = {
+      id: "custom-60",
+      name: "Scale 1",
+      ...createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }),
+    };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    session.pages[1]!.measurements.push({
+      id: "custom-line",
+      type: "line",
+      name: "Custom line",
+      calibrationId: calibration.id,
+      points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+      classificationValueIds: [],
+      visible: true,
+    });
+
+    const rows = buildCsv(session, null, allColumns(session)).split("\r\n");
+    const headers = rows[0]!.split(",");
+    const row = rows[1]!.split(",");
+    expect(row[headers.indexOf("calibration_reference_mm")]).toBe("1524");
+    expect(row[headers.indexOf("calibration_page_distance")]).toBe("72");
+    expect(Number(row[headers.indexOf("calibration_mm_per_page_unit")])).toBeCloseTo(
+      (60 * 127) / 360,
+      13,
+    );
+    expect(row[headers.indexOf("calibration_mode")]).toBe("uniform");
+  });
+
+  it("exports custom X/Y ratios only through existing X/Y scale columns", () => {
+    const session = createEmptySession({ name: "custom-xy.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = {
+      id: "custom-xy",
+      name: "Scale 1",
+      ...createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: 30 }),
+    };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    session.pages[1]!.measurements.push({
+      id: "xy-line",
+      type: "line",
+      name: "X/Y line",
+      calibrationId: calibration.id,
+      points: [{ x: 0, y: 0 }, { x: 72, y: 72 }],
+      classificationValueIds: [],
+      visible: true,
+    });
+
+    const rows = buildCsv(session, null, allColumns(session)).split("\r\n");
+    const headers = rows[0]!.split(",");
+    const row = rows[1]!.split(",");
+    expect(row[headers.indexOf("calibration_mode")]).toBe("xy");
+    expect(row[headers.indexOf("calibration_reference_mm")]).toBe("");
+    expect(row[headers.indexOf("calibration_page_distance")]).toBe("");
+    expect(row[headers.indexOf("calibration_mm_per_page_unit")]).toBe("");
+    expect(Number(row[headers.indexOf("calibration_scale_x_mm_per_page_unit")])).toBeCloseTo(
+      (70 * 127) / 360,
+      13,
+    );
+    expect(Number(row[headers.indexOf("calibration_scale_y_mm_per_page_unit")])).toBeCloseTo(
+      (30 * 127) / 360,
+      13,
+    );
   });
 
   it("preserves calibration metadata precision beyond two decimals", () => {
