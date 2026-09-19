@@ -4,7 +4,7 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
-## [2.3.0] - Unreleased
+## [2.3.0] - 2026-09-19
 
 ### Added
 
