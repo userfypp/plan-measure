@@ -1,7 +1,12 @@
 import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { AnchoredMenu, Button, Input } from "../../components/ui";
-import type { CalibrationReferenceKey, PageCalibration, PageState } from "../../types/domain";
-import { formatDisplayNumber } from "../../utils/format";
+import type {
+  CalibrationReferenceKey,
+  MeasurementDisplayUnit,
+  PageCalibration,
+  PageState,
+} from "../../types/domain";
+import { formatDisplayNumber, formatLinearValue } from "../../utils/format";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
 import {
@@ -12,6 +17,7 @@ import styles from "./ScalesWorkspace.module.css";
 
 export interface ScalesWorkspaceProps {
   page: PageState;
+  displayUnit: MeasurementDisplayUnit;
   actionsDisabled?: boolean;
   onAddScale: (mode: "uniform" | "xy") => void;
   onAddPresetScale: (ratio: StandardScalePresetRatio) => void;
@@ -29,7 +35,13 @@ interface RenameState {
 const WORKFLOW_DISABLED_REASON = "Finish or cancel the current scale workflow first.";
 const EMPTY_SCALE_NAME_ERROR = "Scale name cannot be empty.";
 
-function formatReferenceDistance(millimetres: number): string {
+function formatReferenceDistance(
+  millimetres: number,
+  displayUnit: MeasurementDisplayUnit,
+): string {
+  if (displayUnit === "in" || displayUnit === "ft" || displayUnit === "ft-in") {
+    return formatLinearValue(millimetres, displayUnit);
+  }
   return millimetres >= 1000
     ? `${formatDisplayNumber(millimetres / 1000)} m`
     : `${formatDisplayNumber(millimetres)} mm`;
@@ -62,6 +74,7 @@ function DisclosureIcon() {
 
 export function ScalesWorkspace({
   page,
+  displayUnit,
   actionsDisabled = false,
   onAddScale,
   onAddPresetScale,
@@ -251,7 +264,9 @@ export function ScalesWorkspace({
                     <div className={styles.referenceRow}>
                       <span className={styles.referenceInfo}>
                         <span className={styles.referenceLabel}>Reference</span>
-                        <strong>{formatReferenceDistance(calibration.referenceDistanceMm)}</strong>
+                        <strong>
+                          {formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
+                        </strong>
                       </span>
                       <Button
                         variant="ghost"
@@ -274,7 +289,10 @@ export function ScalesWorkspace({
                         <span className={styles.referenceInfo}>
                           <span className={styles.referenceLabel}>X reference</span>
                           <strong>
-                            {formatReferenceDistance(calibration.xReference.referenceDistanceMm)}
+                            {formatReferenceDistance(
+                              calibration.xReference.referenceDistanceMm,
+                              displayUnit,
+                            )}
                           </strong>
                         </span>
                         <Button
@@ -296,7 +314,10 @@ export function ScalesWorkspace({
                         <span className={styles.referenceInfo}>
                           <span className={styles.referenceLabel}>Y reference</span>
                           <strong>
-                            {formatReferenceDistance(calibration.yReference.referenceDistanceMm)}
+                            {formatReferenceDistance(
+                              calibration.yReference.referenceDistanceMm,
+                              displayUnit,
+                            )}
                           </strong>
                         </span>
                         <Button
@@ -319,18 +340,20 @@ export function ScalesWorkspace({
                 </section>
 
                 <div className={styles.recalibrateFooter}>
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    className={styles.recalibrateButton}
-                    disabled={spatialActionsDisabled}
-                    disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                    onClick={() =>
-                      workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
-                    }
-                  >
-                    Recalibrate scale
-                  </Button>
+                  <div className={styles.recalibrateControl} data-recalibrate-control>
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      className={styles.recalibrateButton}
+                      disabled={spatialActionsDisabled}
+                      disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                      onClick={() =>
+                        workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
+                      }
+                    >
+                      Recalibrate scale
+                    </Button>
+                  </div>
                 </div>
               </div>
             </article>

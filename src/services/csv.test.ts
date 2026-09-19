@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createEmptySession, sessionReducer } from "../app/sessionState";
 import { createStandardScalePreset } from "../features/calibration/standardScalePresets";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
-import type { CurrentSession, LinearUnit } from "../types/domain";
+import type { CurrentSession, MeasurementDisplayUnit } from "../types/domain";
 import {
   buildCsv,
   createCsvExportSettingsPreset,
@@ -95,7 +95,7 @@ function measuredSession(): CurrentSession {
   return session;
 }
 
-function smallMeasuredSession(displayUnit: LinearUnit): CurrentSession {
+function smallMeasuredSession(displayUnit: MeasurementDisplayUnit): CurrentSession {
   const session = createEmptySession({ name: "small.pdf", size: 10, lastModified: 1 }, 1);
   session.settings.displayUnit = displayUnit;
   session.pages[1]!.calibrations = [
@@ -765,9 +765,116 @@ describe("CSV export", () => {
   });
 
   it.each([
+    ["ft", "8.202099737532809", "ft", "98.4251968503937", "538.1955208354861", "ft²"],
+    ["in", "98.4251968503937", "in", "1181.1023622047244", "77500.15500031", "in²"],
+  ] as const)(
+    "exports decimal imperial measurements numerically in %s",
+    (displayUnit, expectedLength, expectedUnit, expectedPerimeter, expectedArea, expectedAreaUnit) => {
+      const session = measuredSession();
+      session.settings.displayUnit = displayUnit;
+      const csv = buildCsv(session, null, allColumns(session));
+
+      expect(csv).toContain(`,${expectedLength},,,${expectedUnit},`);
+      expect(csv).toContain(`,,${expectedPerimeter},${expectedArea},${expectedUnit},${expectedAreaUnit}`);
+      expect(csv).not.toContain("' ");
+    },
+  );
+
+  it("exports Feet & inches UI mode as numeric decimal feet", () => {
+    const session = createEmptySession({ name: "architectural.pdf", size: 10, lastModified: 1 }, 1);
+    session.settings.displayUnit = "ft-in";
+    session.pages[1]!.calibrations = [
+      {
+        id: "scale",
+        name: "Architectural",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: (1524 * 12.375) / 5,
+      },
+    ];
+    session.pages[1]!.activeCalibrationId = "scale";
+    session.pages[1]!.measurements = [
+      {
+        id: "line",
+        type: "line",
+        name: "Reference",
+        calibrationId: "scale",
+        points: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+        ],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    const csv = buildCsv(session, null, allColumns(session));
+
+    expect(csv).toContain(",12.375,,,ft,");
+    expect(csv).not.toContain("12' 4 1/2");
+  });
+
+  it.each([
+    ["ft", "ft²"],
+    ["in", "in²"],
+    ["ft-in", "ft²"],
+  ] as const)("uses %s Auto polygon area unit %s", (displayUnit, areaUnit) => {
+    const session = measuredSession();
+    session.settings.displayUnit = displayUnit;
+    session.settings.areaDisplay = "auto";
+    const csv = buildCsv(session, null, allColumns(session));
+    expect(csv).toContain(`,${displayUnit === "ft-in" ? "ft" : displayUnit},${areaUnit}`);
+  });
+
+  it("exports an exact one-acre synthetic polygon as numeric acres", () => {
+    const session = createEmptySession({ name: "acre.pdf", size: 10, lastModified: 1 }, 1);
+    session.settings.displayUnit = "ft-in";
+    session.settings.areaDisplay = "ac";
+    session.pages[1]!.calibrations = [
+      {
+        id: "one-foot",
+        name: "One page unit per foot",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1524 / 5,
+      },
+    ];
+    session.pages[1]!.activeCalibrationId = "one-foot";
+    session.pages[1]!.measurements = [
+      {
+        id: "acre",
+        type: "polygon",
+        name: "Acre",
+        calibrationId: "one-foot",
+        points: [
+          { x: 0, y: 0 },
+          { x: 66, y: 0 },
+          { x: 66, y: 660 },
+          { x: 0, y: 660 },
+        ],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    const csv = buildCsv(session, null, allColumns(session));
+    const row = csv.split("\r\n")[1]!.split(",");
+
+    expect(row[15]).toBe("1.00");
+    expect(row[16]).toBe("ft");
+    expect(row[17]).toBe("ac");
+    expect(row[8]).toBe(String(1524 / 5));
+    expect(row[10]).toBe(String(1524 / 5));
+  });
+
+  it.each([
     ["mm", "4.00", "8.00", "4.00"],
     ["cm", "0.40", "0.80", "0.04"],
     ["m", "0.004", "0.008", "0.000004"],
+    ["in", "0.15748031496062992", "0.31496062992125984", "0.0062000124000248"],
+    ["ft", "0.013123359580052493", "0.026246719160104987", "0.00004305564166683889"],
   ] as const)(
     "does not round small length, perimeter, or area to zero in %s",
     (unit, length, perimeter, area) => {

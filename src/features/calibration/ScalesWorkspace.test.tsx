@@ -66,6 +66,7 @@ const page: PageState = {
 function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorkspaceProps {
   return {
     page,
+    displayUnit: "m",
     onAddScale: vi.fn(),
     onAddPresetScale: vi.fn(),
     onRenameScale: vi.fn(),
@@ -289,7 +290,11 @@ describe("ScalesWorkspace", () => {
     expect(details.textContent).toContain("IdentityScale nameSurvey correctionRename");
     expect(details.textContent).toContain("CalibrationX reference2.50 mEdit points");
     expect(details.textContent).toContain("Y reference3.00 mEdit points");
-    expect(buttonWithin(details, "Recalibrate scale").className).toContain("secondary");
+    const recalibrate = buttonWithin(details, "Recalibrate scale");
+    const recalibrateControl = recalibrate.closest<HTMLElement>("[data-recalibrate-control]");
+    expect(recalibrate.className).toContain("secondary");
+    expect(recalibrateControl).not.toBeNull();
+    expect(recalibrateControl?.firstElementChild).toBe(recalibrate);
     const editX = details.querySelector<HTMLButtonElement>('button[aria-label="Edit X reference points"]');
     const editY = details.querySelector<HTMLButtonElement>('button[aria-label="Edit Y reference points"]');
     if (!editX || !editY) throw new Error("X/Y reference actions were not rendered.");
@@ -297,15 +302,43 @@ describe("ScalesWorkspace", () => {
     expect(editY.textContent?.trim()).toBe("Edit points");
     expect(scalesCss).toContain("grid-template-columns: minmax(0, 1fr) auto;");
     expect(scalesCss).toMatch(/\.renameForm\s*\{[^}]*display:\s*grid;/s);
+    expect(scalesCss).not.toMatch(/\.recalibrateFooter\s*\{[^}]*display:\s*grid;/s);
+    expect(scalesCss).toMatch(/\.recalibrateControl\s*\{[^}]*width:\s*100%;/s);
+    expect(scalesCss).toContain(".recalibrateControl > span,");
+    expect(scalesCss).toMatch(/\.recalibrateControl > span > span:first-child\s*\{[^}]*width:\s*100%;/s);
     expect(scalesCss).toMatch(/\.recalibrateButton\s*\{[^}]*width:\s*100%;/s);
 
-    act(() => buttonWithin(details, "Recalibrate scale").click());
     act(() => editX.click());
     act(() => editY.click());
+    act(() => recalibrate.click());
     expect(props.onRecalibrate).toHaveBeenCalledWith("xy");
     expect(props.onEditReference).toHaveBeenNthCalledWith(1, xy, "x");
     expect(props.onEditReference).toHaveBeenNthCalledWith(2, xy, "y");
     expect(page.measurements[0]?.calibrationId).toBe("uniform");
+
+    renderScales({ ...props, actionsDisabled: true });
+    const blockedRecalibrate = buttonWithin(details, "Recalibrate scale");
+    const blockedControl = blockedRecalibrate.closest<HTMLElement>("[data-recalibrate-control]");
+    expect(blockedRecalibrate.getAttribute("aria-disabled")).toBe("true");
+    expect(blockedControl).toBe(recalibrateControl);
+    expect(blockedControl?.firstElementChild).not.toBe(blockedRecalibrate);
+    expect(blockedControl?.contains(blockedRecalibrate)).toBe(true);
+  });
+
+  it("formats calibration references using the current imperial Viewer display mode", () => {
+    renderScales(createProps({ displayUnit: "in" }));
+    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    expect(container?.textContent).toContain("Reference39.37 in");
+
+    renderScales(createProps({ displayUnit: "ft" }));
+    expect(container?.textContent).toContain("Reference3.28 ft");
+
+    const architecturalPage: PageState = {
+      ...page,
+      calibrations: [{ ...uniform, referenceDistanceMm: 3771.9 }, xy],
+    };
+    renderScales(createProps({ page: architecturalPage, displayUnit: "ft-in" }));
+    expect(container?.textContent).toContain('Reference12\' 4 1/2"');
   });
 
   it("groups compact manual modes before a Standard ratios section", () => {

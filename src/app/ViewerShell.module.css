@@ -20,6 +20,46 @@
   overflow: hidden;
 }
 
+.viewerInteractionShield {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: auto;
+}
+
+.viewerOverlay {
+  position: absolute;
+  top: calc(
+    var(--geometry-context-toolbar-top) + var(--geometry-context-toolbar-height) + var(--space-12)
+  );
+  right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
+  bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
+  left: var(--geometry-context-toolbar-left);
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.viewerOverlay > dialog {
+  position: static;
+  width: min(480px, 100%);
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.viewerOverlay > dialog > div {
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+
 .viewerSurface {
   display: grid;
   overflow: hidden;
@@ -61,4 +101,13 @@
 
 [data-workspace-drawer-open="true"] .authoringNotice {
   display: none;
+}
+
+@media (any-pointer: coarse), (max-width: 800px) {
+  .viewerOverlay {
+    top: calc(
+      var(--geometry-context-toolbar-top) + var(--geometry-context-toolbar-height-coarse) +
+        var(--space-12)
+    );
+  }
 }

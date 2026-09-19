@@ -217,6 +217,16 @@
   border-top: var(--border-width) solid var(--color-divider);
 }
 
+.recalibrateControl {
+  min-width: 0;
+  width: 100%;
+}
+
+.recalibrateControl > span,
+.recalibrateControl > span > span:first-child {
+  width: 100%;
+}
+
 .recalibrateButton {
   width: 100%;
 }

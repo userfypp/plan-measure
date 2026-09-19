@@ -1,7 +1,9 @@
 import type {
+  AreaDisplay,
   ClassificationValue,
   CsvExportSettings,
   CurrentSession,
+  LinearUnit,
   Measurement,
   PageCalibration,
   PageState,
@@ -17,8 +19,12 @@ import {
   measurementResultsMm,
   millimetresPerPageUnit,
 } from "../utils/geometry";
-import { formatCsvNumber } from "../utils/format";
-import { fromMillimetres, fromSquareMillimetres } from "../utils/units";
+import { formatCsvNumber, resolveLinearUnit } from "../utils/format";
+import {
+  fromMillimetres,
+  fromSquareMillimetres,
+  fromSquareMillimetresToAcres,
+} from "../utils/units";
 
 interface CsvRowContext {
   pageNumber: number;
@@ -29,7 +35,8 @@ interface CsvRowContext {
   calibration: PageCalibration;
   spec: MeasurementPathSpec;
   result: ReturnType<typeof measurementResultsMm>;
-  unit: CurrentSession["settings"]["displayUnit"];
+  unit: LinearUnit;
+  areaDisplay: AreaDisplay;
   scaleX: number;
   scaleY: number;
   calibrationReferenceMm: string;
@@ -240,7 +247,11 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     required: false,
     extract: (context) =>
       context.spec.closed
-        ? formatCsvNumber(fromSquareMillimetres(context.result.areaMm2 ?? 0, context.unit))
+        ? formatCsvNumber(
+            context.areaDisplay === "ac"
+              ? fromSquareMillimetresToAcres(context.result.areaMm2 ?? 0)
+              : fromSquareMillimetres(context.result.areaMm2 ?? 0, context.unit),
+          )
         : "",
   },
   {
@@ -261,7 +272,8 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "text",
     defaultEnabled: true,
     required: true,
-    extract: (context) => (context.spec.closed ? `${context.unit}²` : ""),
+    extract: (context) =>
+      context.spec.closed ? (context.areaDisplay === "ac" ? "ac" : `${context.unit}²`) : "",
   },
 ];
 
@@ -452,7 +464,8 @@ function createCsvRowContext(
     calibration.mode === "uniform" ? String(distance(calibration.start, calibration.end)) : "";
   const calibrationMmPerPageUnitValue =
     calibration.mode === "uniform" ? String(millimetresPerPageUnit(calibration)) : "";
-  const unit = session.settings.displayUnit;
+  const unit = resolveLinearUnit(session.settings.displayUnit);
+  const areaDisplay = session.settings.areaDisplay;
   const spec = measurementPathSpecs[measurement.type];
   let result: ReturnType<typeof measurementResultsMm>;
   try {
@@ -493,6 +506,7 @@ function createCsvRowContext(
     spec,
     result,
     unit,
+    areaDisplay,
     scaleX,
     scaleY,
     calibrationReferenceMm,

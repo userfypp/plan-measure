@@ -178,10 +178,14 @@ describe("WorkspaceShell responsive layout", () => {
 
   function renderShell({
     panel = <StatefulPanel />,
+    viewerOverlay,
+    viewer = <div data-testid="pdf">PDF</div>,
     onAuthoringCapabilityChange,
     authoringIntentScopeKey,
   }: {
     panel?: ReactNode;
+    viewerOverlay?: ReactNode;
+    viewer?: ReactNode;
     onAuthoringCapabilityChange?: Parameters<typeof WorkspaceShell>[0]["onAuthoringCapabilityChange"];
     authoringIntentScopeKey?: string | number;
   } = {}) {
@@ -197,7 +201,8 @@ describe("WorkspaceShell responsive layout", () => {
             onDrop={noop}
             workspacePanel={panel}
             toolRail={<div data-testid="tools">Tools</div>}
-            viewer={<div data-testid="pdf">PDF</div>}
+            viewerOverlay={viewerOverlay}
+            viewer={viewer}
             onAuthoringCapabilityChange={onAuthoringCapabilityChange}
             authoringIntentScopeKey={authoringIntentScopeKey}
           />
@@ -239,6 +244,77 @@ describe("WorkspaceShell responsive layout", () => {
     expect(container.querySelector('[data-testid="tools"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="pdf"]')).not.toBeNull();
     expect(container.querySelector("main")?.dataset.responsiveMode).toBe("wide");
+  });
+
+  it("hosts viewer overlays inside Viewer ownership instead of the application viewport", () => {
+    renderShell({ viewerOverlay: <div data-testid="calibration-dialog">Calibration</div> });
+
+    const viewer = container.querySelector('[data-layout-slot="viewer"]');
+    const overlay = viewer?.querySelector('[data-layout-slot="viewer-overlay"]');
+    expect(overlay?.querySelector('[data-testid="calibration-dialog"]')).not.toBeNull();
+    expect(container.querySelector('main > [data-layout-slot="viewer-overlay"]')).toBeNull();
+  });
+
+  it("blocks wheel, pointer, click, and viewer keyboard events at the overlay shield", () => {
+    const onViewerWheel = vi.fn();
+    const onViewerPointerDown = vi.fn();
+    const onViewerClick = vi.fn();
+    const onWindowWheel = vi.fn();
+    const onWindowPointerDown = vi.fn();
+    const onWindowPointerMove = vi.fn();
+    const onWindowPointerUp = vi.fn();
+    const onWindowKeyDown = vi.fn();
+    window.addEventListener("wheel", onWindowWheel);
+    window.addEventListener("pointerdown", onWindowPointerDown);
+    window.addEventListener("pointermove", onWindowPointerMove);
+    window.addEventListener("pointerup", onWindowPointerUp);
+    window.addEventListener("keydown", onWindowKeyDown);
+
+    renderShell({
+      viewerOverlay: <div data-testid="calibration-dialog">Calibration</div>,
+      viewer: (
+        <button
+          type="button"
+          data-testid="pdf"
+          onWheel={onViewerWheel}
+          onPointerDown={onViewerPointerDown}
+          onClick={onViewerClick}
+        >
+          PDF
+        </button>
+      ),
+    });
+
+    const shield = container.querySelector<HTMLElement>(
+      '[data-layout-slot="viewer-interaction-shield"]',
+    )!;
+    const overlay = container.querySelector<HTMLElement>('[data-testid="calibration-dialog"]')!;
+
+    const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 100 });
+    act(() => shield.dispatchEvent(wheel));
+    expect(onViewerWheel).not.toHaveBeenCalled();
+    expect(onWindowWheel).not.toHaveBeenCalled();
+
+    act(() => shield.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+    act(() => shield.dispatchEvent(new PointerEvent("pointermove", { bubbles: true })));
+    act(() => shield.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })));
+    act(() => shield.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(onViewerPointerDown).not.toHaveBeenCalled();
+    expect(onViewerClick).not.toHaveBeenCalled();
+    expect(onWindowPointerDown).not.toHaveBeenCalled();
+    expect(onWindowPointerMove).not.toHaveBeenCalled();
+    expect(onWindowPointerUp).not.toHaveBeenCalled();
+
+    act(() =>
+      overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "+", bubbles: true })),
+    );
+    expect(onWindowKeyDown).not.toHaveBeenCalled();
+
+    window.removeEventListener("wheel", onWindowWheel);
+    window.removeEventListener("pointerdown", onWindowPointerDown);
+    window.removeEventListener("pointermove", onWindowPointerMove);
+    window.removeEventListener("pointerup", onWindowPointerUp);
+    window.removeEventListener("keydown", onWindowKeyDown);
   });
 
   it("turns the same mounted panel into a hidden Narrow drawer without losing local module state", () => {

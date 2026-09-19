@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Button, Input } from "../../components/ui";
 import type {
+  AreaDisplay,
   ClassificationCatalog,
-  LinearUnit,
   Measurement,
   MeasurementDecimalPlaces,
+  MeasurementDisplayUnit,
   PageState,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
@@ -17,13 +18,13 @@ import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createMeasurementViewModel } from "./measurementViewModels";
 import type { WorkspaceModule } from "../../app/workspaceState";
 import { workspaceModuleLabel } from "../../app/WorkspacePanel";
-import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
 import styles from "./MeasurementDetails.module.css";
 
 export interface MeasurementDetailsProps {
   page: PageState;
   measurement: Measurement;
-  displayUnit: LinearUnit;
+  displayUnit: MeasurementDisplayUnit;
+  areaDisplay: AreaDisplay;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   catalog: ClassificationCatalog;
   returnModule: WorkspaceModule;
@@ -31,7 +32,6 @@ export interface MeasurementDetailsProps {
   onBack: () => void;
   onRename: (name: string) => void;
   onAssignClassification: (measurementId: string, dimensionId: string, valueId: string | null) => void;
-  onEditGeometry: () => void;
   onDelete: () => void;
 }
 
@@ -39,6 +39,7 @@ export function MeasurementDetails({
   page,
   measurement,
   displayUnit,
+  areaDisplay,
   measurementDecimalPlaces,
   catalog,
   returnModule,
@@ -46,16 +47,8 @@ export function MeasurementDetails({
   onBack,
   onRename,
   onAssignClassification,
-  onEditGeometry,
   onDelete,
 }: MeasurementDetailsProps) {
-  const workspace = useWorkspaceDrawerPresentation();
-  const editGeometryDisabled = !measurement.visible || !workspace.precisionActionAvailable;
-  const editGeometryDisabledReason = !measurement.visible
-    ? "Show the measurement before editing its geometry."
-    : !workspace.precisionActionAvailable
-      ? workspace.precisionDisabledReason
-      : undefined;
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -65,6 +58,7 @@ export function MeasurementDetails({
     displayUnit,
     true,
     measurementDecimalPlaces,
+    areaDisplay,
   );
   const calibration = getMeasurementCalibration(page, measurement);
   const scaleMetadata = calibration ? scaleDisplayMetadata(calibration) : null;
@@ -190,15 +184,6 @@ export function MeasurementDetails({
           />
         </section>
 
-        <Button
-          variant="secondary"
-          size="compact"
-          disabled={editGeometryDisabled}
-          disabledReason={editGeometryDisabledReason}
-          onClick={() => workspace.requestPrecisionAuthoring(onEditGeometry)}
-        >
-          Edit geometry
-        </Button>
       </div>
 
       <div className={styles.dangerZone}>

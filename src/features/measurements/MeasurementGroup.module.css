@@ -26,7 +26,7 @@
   line-height: 1;
   background: transparent;
   border: var(--border-width) solid transparent;
-  border-radius: var(--radius-flat);
+  border-radius: var(--radius-control);
   cursor: pointer;
   transition: var(--transition-interactive);
 }
@@ -91,11 +91,12 @@
 }
 
 .list {
+  --measurement-row-content-indent: var(--space-16);
   --measurement-selection-marker-width: 0px;
 
   display: grid;
   min-width: 0;
-  padding-left: var(--space-8);
+  padding: 0;
   background: var(--color-surface-panel);
   gap: 0;
 }

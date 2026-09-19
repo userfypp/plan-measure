@@ -7,11 +7,12 @@ import { Circle, Group, Label, Line, Tag, Text } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useSessionState } from "../../app/sessionState";
 import type {
+  AreaDisplay,
   CalibrationReferenceKey,
-  LinearUnit,
   LogicalPageBounds,
   Measurement,
   MeasurementDecimalPlaces,
+  MeasurementDisplayUnit,
   PageState,
   Point,
   Tool,
@@ -154,7 +155,8 @@ interface PdfAnnotationLayerProps {
   visualRoles: CanvasVisualRoles;
   interactionTargetScreenPx: number;
 
-  displayUnit: LinearUnit;
+  displayUnit: MeasurementDisplayUnit;
+  areaDisplay: AreaDisplay;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   showCalibration: boolean;
   showMeasurements: boolean;
@@ -193,6 +195,7 @@ export function PdfAnnotationLayer({
   visualRoles,
   interactionTargetScreenPx,
   displayUnit,
+  areaDisplay,
   measurementDecimalPlaces,
   showCalibration,
   showMeasurements,
@@ -282,6 +285,7 @@ export function PdfAnnotationLayer({
           calibration,
           displayUnit,
           measurementDecimalPlaces,
+          areaDisplay,
         );
         const key = `measurement:${measurement.id}`;
         const dimensions = measureLabelText(
@@ -318,6 +322,7 @@ export function PdfAnnotationLayer({
     page,
     selectedMeasurementId,
     displayUnit,
+    areaDisplay,
     measurementDecimalPlaces,
     showCalibration,
     showMeasurementLabels,
@@ -455,6 +460,7 @@ export function PdfAnnotationLayer({
             showLabel={showLabels}
             page={page}
             displayUnit={displayUnit}
+            areaDisplay={areaDisplay}
             measurementDecimalPlaces={measurementDecimalPlaces}
             visualRoles={visualRoles}
             interactionTargetScreenPx={interactionTargetScreenPx}
@@ -677,7 +683,8 @@ interface MeasurementShapeProps {
   measurement: Measurement;
   pageNumber: number;
   page: PageState;
-  displayUnit: LinearUnit;
+  displayUnit: MeasurementDisplayUnit;
+  areaDisplay: AreaDisplay;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   visualRoles: CanvasVisualRoles;
   interactionTargetScreenPx: number;
@@ -709,6 +716,7 @@ const MeasurementShape = memo(function MeasurementShape({
   pageNumber,
   page,
   displayUnit,
+  areaDisplay,
   measurementDecimalPlaces,
   visualRoles,
   interactionTargetScreenPx,
@@ -763,9 +771,15 @@ const MeasurementShape = memo(function MeasurementShape({
   const labelText = useMemo(
     () =>
       calibration
-        ? formatMeasurement(visibleMeasurement, calibration, displayUnit, measurementDecimalPlaces)
+        ? formatMeasurement(
+            visibleMeasurement,
+            calibration,
+            displayUnit,
+            measurementDecimalPlaces,
+            areaDisplay,
+          )
         : null,
-    [calibration, displayUnit, measurementDecimalPlaces, visibleMeasurement],
+    [areaDisplay, calibration, displayUnit, measurementDecimalPlaces, visibleMeasurement],
   );
   const labelDimensions = useMemo(
     () =>

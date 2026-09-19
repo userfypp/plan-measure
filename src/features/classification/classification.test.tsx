@@ -77,7 +77,8 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Archive Trade; existing assignments are preserved");
     expect(markup).toContain('title="Trade"');
     expect(markup).toContain('title="Electrical"');
-    expect(markup).toContain("never change measurement scales");
+    expect(markup).toContain("Create dimensions to organize measurements.");
+    expect(markup).not.toContain("never change measurement scales");
     expect(markup).not.toContain(">Classifications<");
     expect(markup).not.toContain("active dimensions");
     expect(markup).not.toContain("archived dimensions");
@@ -236,7 +237,10 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("Create a dimension such as Trade, Status, or Area.");
+    expect(markup.match(/Create dimensions to organize measurements\./g)).toHaveLength(1);
+    expect(markup).toContain("New dimension");
+    expect(markup).not.toContain("Create a dimension such as Trade, Status, or Area.");
+    expect(markup).not.toContain("Create reusable values.");
   });
 
   it("keeps the classifications workspace focused on catalog management", () => {

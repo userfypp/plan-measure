@@ -83,6 +83,20 @@ describe("measurement view models", () => {
     ]);
   });
 
+  it("formats decimal imperial and architectural values through the shared view model", () => {
+    const baseCalibration = page.calibrations[0]!;
+    if (baseCalibration.mode !== "uniform") throw new Error("Expected uniform calibration.");
+    const imperialPage: PageState = {
+      ...page,
+      calibrations: [{ ...baseCalibration, referenceDistanceMm: 3048 }],
+    };
+    expect(createMeasurementViewModel(imperialPage, measurement, "ft").valueLabel).toBe("10.00 ft");
+    expect(createMeasurementViewModel(imperialPage, measurement, "in").valueLabel).toBe(
+      "120.00 in",
+    );
+    expect(createMeasurementViewModel(imperialPage, measurement, "ft-in").valueLabel).toBe("10'");
+  });
+
   it("keeps hidden measurements in the collection and only renders visible ones", () => {
     const hidden = { ...measurement, id: "hidden-line", visible: false };
     const models = [
@@ -255,6 +269,34 @@ describe("MeasurementRow accessibility", () => {
     expect(markup.indexOf(quantityParts[0]!)).toBeLessThan(markup.indexOf(model.typeLabel));
   });
 
+  it("keeps Polygon perimeter architectural while acres changes only the area quantity", () => {
+    const polygon: Measurement = {
+      ...measurement,
+      id: "polygon-acre",
+      type: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 66, y: 0 },
+        { x: 66, y: 660 },
+        { x: 0, y: 660 },
+      ],
+    };
+    const baseCalibration = page.calibrations[0]!;
+    if (baseCalibration.mode !== "uniform") throw new Error("Expected uniform calibration.");
+    const acrePage: PageState = {
+      ...page,
+      calibrations: [
+        {
+          ...baseCalibration,
+          end: { x: 1, y: 0 },
+          referenceDistanceMm: 1524 / 5,
+        },
+      ],
+    };
+    const model = createMeasurementViewModel(acrePage, polygon, "ft-in", false, 2, "ac");
+    expect(model.valueLabel).toBe("P 1452' · A 1.00 ac");
+  });
+
   it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
     expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
     expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
@@ -374,16 +416,29 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("keeps grouped hierarchy compact and removes only the grouped selection marker", () => {
+  it("keeps grouped controls rounded with full-width rows and a light inner child indent", () => {
     expect(measurementGroupCss).toMatch(
       /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding-left:\s*var\(--space-8\);/s,
+      /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-16\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+    );
+    expect(measurementCollectionCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 var\(--space-8\) var\(--space-8\);/s,
     );
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
+    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*--measurement-row-inline-bleed:/s);
     expect(measurementRowCss).toMatch(
       /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, 3px\);/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-12\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-8\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
     );
     expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
   });

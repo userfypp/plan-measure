@@ -3,7 +3,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MeasurementDecimalPlaces, PageState, Point } from "../../types/domain";
+import type {
+  AreaDisplay,
+  MeasurementDecimalPlaces,
+  MeasurementDisplayUnit,
+  PageState,
+  Point,
+} from "../../types/domain";
 import { isAxisAlignedRectStrictlyInsidePolygon } from "../../utils/geometry";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
@@ -183,6 +189,8 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     showCalibration = false,
     showMeasurements = true,
     showLabels = true,
+    displayUnit = "m",
+    areaDisplay = "auto",
     measurementDecimalPlaces = 2,
     bounds = { width: 600, height: 800, rotation: 0 },
     transform = { zoom: 2, panX: 0, panY: 0 },
@@ -195,6 +203,8 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     showCalibration?: boolean;
     showMeasurements?: boolean;
     showLabels?: boolean;
+    displayUnit?: MeasurementDisplayUnit;
+    areaDisplay?: AreaDisplay;
     measurementDecimalPlaces?: MeasurementDecimalPlaces;
     bounds?: { width: number; height: number; rotation: 0 | 90 | 180 | 270 };
     transform?: { zoom: number; panX: number; panY: number };
@@ -220,7 +230,8 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           precisionAuthoringAvailable
           visualRoles={roles}
           interactionTargetScreenPx={32}
-          displayUnit="m"
+          displayUnit={displayUnit}
+          areaDisplay={areaDisplay}
           measurementDecimalPlaces={measurementDecimalPlaces}
           showCalibration={showCalibration}
           showMeasurements={showMeasurements}
@@ -269,6 +280,27 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     captured.texts.length = 0;
     renderLayer({ measurementDecimalPlaces: 6 });
     expect(captured.texts[0]?.text).toContain("17.500000 m²");
+  });
+
+  it("measures and places long architectural labels through the existing inside/fallback pipeline", () => {
+    const page = uniformPage();
+    const calibration = page.calibrations[0]!;
+    if (calibration.mode !== "uniform") throw new Error("Expected uniform calibration.");
+    page.calibrations[0] = {
+      ...calibration,
+      referenceDistanceMm: 1524 / 5,
+    };
+
+    renderLayer({ page, displayUnit: "ft-in", areaDisplay: "ac" });
+
+    const text = String(captured.texts[0]?.text);
+    expect(text).toContain("P ");
+    expect(text).toContain("'");
+    expect(text).toContain(" · A ");
+    expect(text).toContain(" ac");
+    expect(captured.labels).toHaveLength(1);
+    expect(Number.isFinite(Number(captured.labels[0]?.x))).toBe(true);
+    expect(Number.isFinite(Number(captured.labels[0]?.y))).toBe(true);
   });
 
   it("keeps selected-first collision planning deterministic and excludes hidden measurements", () => {

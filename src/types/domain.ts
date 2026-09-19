@@ -1,4 +1,7 @@
-export type LinearUnit = "mm" | "cm" | "m";
+export type MetricLinearUnit = "mm" | "cm" | "m";
+export type LinearUnit = MetricLinearUnit | "in" | "ft";
+export type MeasurementDisplayUnit = LinearUnit | "ft-in";
+export type AreaDisplay = "auto" | "ac";
 export type MeasurementDecimalPlaces = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface Point {
@@ -72,7 +75,7 @@ export interface CsvExportSettings {
 }
 
 export interface LegacySessionSettings {
-  displayUnit: LinearUnit;
+  displayUnit: MetricLinearUnit;
   showLabels: boolean;
   showMeasurements: boolean;
   showCalibration: boolean;
@@ -82,8 +85,14 @@ export interface SessionSettingsV8 extends LegacySessionSettings {
   csvExport: CsvExportSettings;
 }
 
-export interface SessionSettings extends SessionSettingsV8 {
+export interface SessionSettingsV9 extends SessionSettingsV8 {
   measurementDecimalPlaces: MeasurementDecimalPlaces;
+}
+
+export interface SessionSettings
+  extends Omit<SessionSettingsV9, "displayUnit"> {
+  displayUnit: MeasurementDisplayUnit;
+  areaDisplay: AreaDisplay;
 }
 
 interface LegacyMeasurementBase {
@@ -292,11 +301,21 @@ export interface SessionV9 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageState>;
+  settings: SessionSettingsV9;
+  classificationCatalog: ClassificationCatalog;
+}
+
+export interface SessionV10 {
+  schemaVersion: 10;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageState>;
   settings: SessionSettings;
   classificationCatalog: ClassificationCatalog;
 }
 
-export type CurrentSession = SessionV9;
+export type CurrentSession = SessionV10;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 
