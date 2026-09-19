@@ -35,12 +35,14 @@ export function MeasurementPanel({
   const { selectedMeasurementId } = useWorkspaceState();
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
+  const areaDisplay = session?.settings.areaDisplay ?? "auto";
   const [groupByDimensionId, setGroupByDimensionId] = useState<string | null>(null);
   const measurements = createMeasurementViewModels(
     page,
     displayUnit,
     selectedMeasurementId,
     measurementDecimalPlaces,
+    areaDisplay,
   );
   const catalog = session?.classificationCatalog ?? { dimensions: [] };
   const hasGroupBy = catalog.dimensions.length > 0;

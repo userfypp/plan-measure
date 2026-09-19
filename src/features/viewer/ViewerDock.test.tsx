@@ -61,6 +61,7 @@ function createProps(overrides: Partial<ViewerDockProps> = {}): ViewerDockProps 
     activeCalibrationId: uniform.id,
     settings: {
       displayUnit: "m",
+      areaDisplay: "auto",
       showLabels: true,
       showMeasurements: true,
       showCalibration: true,
@@ -274,13 +275,36 @@ describe("ViewerDock", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
-    const select = document.querySelector<HTMLSelectElement>('[role="dialog"] select');
-    if (!select) throw new Error("Display unit select was not rendered.");
+    const selects = Array.from(
+      document.querySelectorAll<HTMLSelectElement>('[role="dialog"] select'),
+    );
+    const [select, areaSelect] = selects;
+    if (!select || !areaSelect) throw new Error("View selectors were not rendered.");
+    expect(Array.from(select.options).map((option) => [option.value, option.textContent])).toEqual([
+      ["mm", "Millimetres"],
+      ["cm", "Centimetres"],
+      ["m", "Metres"],
+      ["in", "Inches"],
+      ["ft", "Feet"],
+      ["ft-in", "Feet & inches"],
+    ]);
+    expect(Array.from(areaSelect.options).map((option) => [option.value, option.textContent])).toEqual([
+      ["auto", "Auto"],
+      ["ac", "Acres"],
+    ]);
     act(() => {
-      select.value = "cm";
+      select.value = "ft-in";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(props.onSettingsChange).toHaveBeenCalledWith({ displayUnit: "cm" });
+    expect(props.onSettingsChange).toHaveBeenCalledWith({ displayUnit: "ft-in" });
+    expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
+
+    act(() => {
+      areaSelect.value = "ac";
+      areaSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(props.onSettingsChange).toHaveBeenCalledWith({ areaDisplay: "ac" });
+    expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
     const labelsSwitch = Array.from(document.querySelectorAll<HTMLInputElement>('[role="switch"]'))[0];
     if (!labelsSwitch) throw new Error("Labels switch was not rendered.");

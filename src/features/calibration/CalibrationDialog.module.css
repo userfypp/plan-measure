@@ -5,9 +5,14 @@
 
 .inputRow {
   display: grid;
-  grid-template-columns: 1fr 90px;
+  grid-template-columns: minmax(0, 1fr) minmax(144px, max-content);
   gap: 8px;
   align-items: end;
+}
+
+.unitOnlyRow {
+  grid-template-columns: minmax(144px, 180px);
+  justify-content: end;
 }
 
 .unitField {
@@ -19,6 +24,8 @@
 }
 
 .unitField select {
+  width: 100%;
+  min-width: 0;
   min-height: var(--control-height-regular);
   padding: 0 var(--space-16) 0 var(--space-8);
   background-color: var(--color-surface);
@@ -27,6 +34,78 @@
 .unitField select:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+.architecturalGroup {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+}
+
+.architecturalGroup legend,
+.fractionField > span {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.architecturalGroup legend {
+  padding: 0 var(--space-4);
+}
+
+.architecturalInputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(112px, 0.9fr);
+  gap: var(--space-8);
+  align-items: end;
+}
+
+.inputWithSuffix {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.unitSuffix {
+  min-height: var(--control-height-regular);
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.fractionField {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.fractionField select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height-regular);
+  padding: 0 var(--space-16) 0 var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-field);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.fractionField select:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.architecturalGroup[aria-invalid="true"],
+.invalidControl {
+  border-color: var(--color-danger);
 }
 
 .error {
@@ -40,4 +119,16 @@
   justify-content: flex-end;
   gap: var(--space-8);
   margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+  .inputRow,
+  .unitOnlyRow,
+  .architecturalInputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .unitOnlyRow {
+    justify-content: stretch;
+  }
 }

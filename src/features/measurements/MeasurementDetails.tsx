@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Button, Input } from "../../components/ui";
 import type {
+  AreaDisplay,
   ClassificationCatalog,
-  LinearUnit,
   Measurement,
   MeasurementDecimalPlaces,
+  MeasurementDisplayUnit,
   PageState,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
@@ -23,7 +24,8 @@ import styles from "./MeasurementDetails.module.css";
 export interface MeasurementDetailsProps {
   page: PageState;
   measurement: Measurement;
-  displayUnit: LinearUnit;
+  displayUnit: MeasurementDisplayUnit;
+  areaDisplay: AreaDisplay;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   catalog: ClassificationCatalog;
   returnModule: WorkspaceModule;
@@ -39,6 +41,7 @@ export function MeasurementDetails({
   page,
   measurement,
   displayUnit,
+  areaDisplay,
   measurementDecimalPlaces,
   catalog,
   returnModule,
@@ -65,6 +68,7 @@ export function MeasurementDetails({
     displayUnit,
     true,
     measurementDecimalPlaces,
+    areaDisplay,
   );
   const calibration = getMeasurementCalibration(page, measurement);
   const scaleMetadata = calibration ? scaleDisplayMetadata(calibration) : null;

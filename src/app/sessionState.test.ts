@@ -9,11 +9,12 @@ function session(): CurrentSession {
 }
 
 describe("SessionState", () => {
-  it("creates a V9 session with default measurement precision and empty CSV column overrides", () => {
+  it("creates a V10 session with default measurement precision, area display, and empty CSV column overrides", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(9);
+    expect(created.schemaVersion).toBe(10);
     expect(created.settings.measurementDecimalPlaces).toBe(2);
+    expect(created.settings.areaDisplay).toBe("auto");
     expect(created.settings.csvExport).toEqual({ columnOverrides: {} });
   });
 
@@ -27,7 +28,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(9);
+    expect(loaded.session?.schemaVersion).toBe(10);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -71,7 +72,8 @@ describe("SessionState", () => {
     state = sessionReducer(state, {
       type: "UPDATE_SETTINGS",
       settings: {
-        displayUnit: "cm",
+        displayUnit: "ft-in",
+        areaDisplay: "ac",
         showLabels: false,
         measurementDecimalPlaces: 6,
         csvExport: { columnOverrides: { name: false } },
@@ -81,7 +83,8 @@ describe("SessionState", () => {
 
     expect(state.session?.currentPage).toBe(2);
     expect(state.session?.settings).toMatchObject({
-      displayUnit: "cm",
+      displayUnit: "ft-in",
+      areaDisplay: "ac",
       showLabels: false,
       measurementDecimalPlaces: 6,
     });
@@ -91,7 +94,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(9);
+    expect(state.session?.schemaVersion).toBe(10);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });

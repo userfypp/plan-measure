@@ -816,6 +816,75 @@ function PlanMeasureApp() {
     polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
   };
+  const calibrationDialog =
+    calibrationCandidate && session && calibrationCandidatePage ? (
+      <CalibrationDialog
+        points={calibrationCandidate.points}
+        initialName={
+          calibrationCandidate.name ??
+          calibrationCandidateTarget?.name ??
+          `Scale ${calibrationCandidatePage.nextCalibrationNumber}`
+        }
+        title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
+        referenceLabel={
+          calibrationCandidate.phase === "x"
+            ? "horizontal X"
+            : calibrationCandidate.phase === "y"
+              ? "vertical Y"
+              : undefined
+        }
+        includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
+        onCancel={() => {
+          cancelCalibration();
+        }}
+        onConfirm={({ name, referenceDistanceMm }) => {
+          if (session.currentPage !== calibrationCandidate.pageNumber) {
+            cancelCalibration();
+            return;
+          }
+          if (!calibrationFlow) {
+            cancelCalibration();
+            return;
+          }
+          const calibrationName = calibrationCandidateTarget?.name ?? name;
+          const confirmation = confirmCalibration(
+            calibrationFlow,
+            calibrationCandidate,
+            referenceDistanceMm,
+            calibrationName,
+          );
+          if (confirmation.kind === "select-y") {
+            advanceCalibrationStep(confirmation.flow);
+            chooseTool("calibrate");
+            focusViewer();
+            return;
+          }
+          const calibration = confirmation.calibration;
+          if (calibrationCandidate.calibrationId) {
+            if (!calibrationCandidateTarget) {
+              setError("The scale to recalibrate is no longer available.");
+            } else {
+              recalibrateCalibration({
+                pageNumber: calibrationCandidate.pageNumber,
+                calibrationId: calibrationCandidateTarget.id,
+                calibration,
+              });
+            }
+          } else {
+            addCalibration({
+              pageNumber: calibrationCandidate.pageNumber,
+              id: crypto.randomUUID(),
+              name: calibrationName,
+              calibration,
+            });
+          }
+          completeCalibration();
+          clearDraft();
+          chooseWorkspaceTool("select");
+          focusViewer();
+        }}
+      />
+    ) : null;
 
   return (
     <AppShell
@@ -895,6 +964,7 @@ function PlanMeasureApp() {
               scales={
                 <ScalesWorkspace
                   page={currentPage}
+                  displayUnit={session.settings.displayUnit}
                   actionsDisabled={calibrationActionsDisabled}
                   onAddScale={beginNewCalibration}
                   onAddPresetScale={addStandardScalePreset}
@@ -916,6 +986,7 @@ function PlanMeasureApp() {
                     page={previewPage}
                     measurement={selectedMeasurement}
                     displayUnit={session.settings.displayUnit}
+                    areaDisplay={session.settings.areaDisplay}
                     measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
                     catalog={session.classificationCatalog}
                     returnModule={workspaceModule}
@@ -952,6 +1023,7 @@ function PlanMeasureApp() {
               duplicateDisabled={duplicateDisabled}
               referenceEditValid={calibrationReferenceEditIsValid}
               measurementEditActive={measurementEditActive}
+              calibrationDialogOpen={Boolean(calibrationCandidate)}
               onDeleteSelectedMeasurement={() => {
                 if (!selectedMeasurement) return;
                 requestMeasurementDelete({
@@ -981,6 +1053,7 @@ function PlanMeasureApp() {
               onSaveReferenceEdit={requestCalibrationReferenceEditSave}
             />
           }
+          viewerOverlay={calibrationDialog}
           viewer={
             <Suspense
               fallback={
@@ -1126,74 +1199,6 @@ function PlanMeasureApp() {
         />
       )}
 
-      {calibrationCandidate && session && calibrationCandidatePage && (
-        <CalibrationDialog
-          points={calibrationCandidate.points}
-          initialName={
-            calibrationCandidate.name ??
-            calibrationCandidateTarget?.name ??
-            `Scale ${calibrationCandidatePage.nextCalibrationNumber}`
-          }
-          title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
-          referenceLabel={
-            calibrationCandidate.phase === "x"
-              ? "horizontal X"
-              : calibrationCandidate.phase === "y"
-                ? "vertical Y"
-                : undefined
-          }
-          includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
-          onCancel={() => {
-            cancelCalibration();
-          }}
-          onConfirm={({ name, referenceDistanceMm }) => {
-            if (session.currentPage !== calibrationCandidate.pageNumber) {
-              cancelCalibration();
-              return;
-            }
-            if (!calibrationFlow) {
-              cancelCalibration();
-              return;
-            }
-            const calibrationName = calibrationCandidateTarget?.name ?? name;
-            const confirmation = confirmCalibration(
-              calibrationFlow,
-              calibrationCandidate,
-              referenceDistanceMm,
-              calibrationName,
-            );
-            if (confirmation.kind === "select-y") {
-              advanceCalibrationStep(confirmation.flow);
-              chooseTool("calibrate");
-              focusViewer();
-              return;
-            }
-            const calibration = confirmation.calibration;
-            if (calibrationCandidate.calibrationId) {
-              if (!calibrationCandidateTarget) {
-                setError("The scale to recalibrate is no longer available.");
-              } else {
-                recalibrateCalibration({
-                  pageNumber: calibrationCandidate.pageNumber,
-                  calibrationId: calibrationCandidateTarget.id,
-                  calibration,
-                });
-              }
-            } else {
-              addCalibration({
-                pageNumber: calibrationCandidate.pageNumber,
-                id: crypto.randomUUID(),
-                name: calibrationName,
-                calibration,
-              });
-            }
-            completeCalibration();
-            clearDraft();
-            chooseWorkspaceTool("select");
-            focusViewer();
-          }}
-        />
-      )}
     </AppShell>
   );
 }

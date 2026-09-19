@@ -66,6 +66,7 @@ const page: PageState = {
 function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorkspaceProps {
   return {
     page,
+    displayUnit: "m",
     onAddScale: vi.fn(),
     onAddPresetScale: vi.fn(),
     onRenameScale: vi.fn(),
@@ -306,6 +307,22 @@ describe("ScalesWorkspace", () => {
     expect(props.onEditReference).toHaveBeenNthCalledWith(1, xy, "x");
     expect(props.onEditReference).toHaveBeenNthCalledWith(2, xy, "y");
     expect(page.measurements[0]?.calibrationId).toBe("uniform");
+  });
+
+  it("formats calibration references using the current imperial Viewer display mode", () => {
+    renderScales(createProps({ displayUnit: "in" }));
+    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    expect(container?.textContent).toContain("Reference39.37 in");
+
+    renderScales(createProps({ displayUnit: "ft" }));
+    expect(container?.textContent).toContain("Reference3.28 ft");
+
+    const architecturalPage: PageState = {
+      ...page,
+      calibrations: [{ ...uniform, referenceDistanceMm: 3771.9 }, xy],
+    };
+    renderScales(createProps({ page: architecturalPage, displayUnit: "ft-in" }));
+    expect(container?.textContent).toContain('Reference12\' 4 1/2"');
   });
 
   it("groups compact manual modes before a Standard ratios section", () => {

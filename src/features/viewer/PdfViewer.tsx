@@ -1214,6 +1214,7 @@ export function PdfViewer({
   const pdfCanvasLayout = bounds ? canvasLayout(bounds, viewTransform, devicePixelRatio) : null;
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
+  const areaDisplay = session?.settings.areaDisplay ?? "auto";
   const showCalibration = session?.settings.showCalibration ?? false;
   const showLabels = session?.settings.showLabels ?? true;
 
@@ -1312,6 +1313,7 @@ export function PdfViewer({
                   visualRoles={canvasVisualRoles}
                   interactionTargetScreenPx={canvasInteractionTarget}
                   displayUnit={displayUnit}
+                  areaDisplay={areaDisplay}
                   measurementDecimalPlaces={measurementDecimalPlaces}
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}

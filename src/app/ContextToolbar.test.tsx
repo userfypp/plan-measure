@@ -41,6 +41,7 @@ function props(overrides: Partial<ContextToolbarProps> = {}): ContextToolbarProp
     duplicateDisabled: false,
     referenceEditValid: true,
     measurementEditActive: false,
+    calibrationDialogOpen: false,
     onDeleteSelectedMeasurement: vi.fn(),
     onDuplicateSelectedMeasurement: vi.fn(),
     onRenameSelectedMeasurement: vi.fn(),
@@ -553,6 +554,18 @@ describe("ContextToolbar V2", () => {
       }),
     );
     expect(container?.textContent).toContain("Calibrating Y reference");
+  });
+
+  it("hides stale point-selection guidance while the calibration dialog owns the next step", () => {
+    renderToolbar(props({ calibrationDialogOpen: true }));
+    act(() => workspace!.startCalibration(beginCalibrationFlow(1, null, "uniform")));
+
+    expect(contextKind()).toBeNull();
+    expect(container?.textContent).not.toContain("Select two points");
+
+    renderToolbar(props({ calibrationDialogOpen: false }));
+    expect(contextKind()).toBe("calibration");
+    expect(container?.textContent).toContain("Calibrating scale · Select two points");
   });
 
   it("distinguishes reference-edit ownership and exposes Save/Cancel without collapsing X/Y", () => {

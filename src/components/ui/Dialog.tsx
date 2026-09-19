@@ -1,4 +1,12 @@
-import { useCallback, useId, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useId,
+  useInsertionEffect,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import styles from "./Dialog.module.css";
 
 const FOCUSABLE_SELECTOR = [
@@ -22,12 +30,17 @@ export interface DialogProps {
   initialFocus?: RefObject<HTMLElement | null>;
   descriptionId?: string;
   modal?: boolean;
+  trapFocus?: boolean;
 }
 
 function focusElement(element: HTMLElement | null): boolean {
   if (!element?.isConnected) return false;
   element.focus({ preventScroll: true });
   return document.activeElement === element;
+}
+
+function getFocusableElements(dialog: HTMLDialogElement): HTMLElement[] {
+  return Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
 }
 
 function getInitialFocus(
@@ -60,6 +73,7 @@ export function Dialog({
   initialFocus,
   descriptionId,
   modal = true,
+  trapFocus = false,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -67,15 +81,38 @@ export function Dialog({
   const openRef = useRef(open);
   const unmountingRef = useRef(false);
   const suppressedCloseEventsRef = useRef(0);
+  const lastFocusedInsideRef = useRef<HTMLElement | null>(null);
+  const restoringFocusRef = useRef(false);
   const titleId = useId();
 
-  const restoreFocus = useCallback(() => {
+  const restoreFocus = useCallback((deferUntilUnmount = false) => {
     if (!wasOpenRef.current) return;
     wasOpenRef.current = false;
-    if (!focusElement(restoreFocusRef.current)) {
-      focusElement(document.querySelector<HTMLElement>("[data-dialog-focus-fallback]"));
-    }
+    const restoreTarget = restoreFocusRef.current;
     restoreFocusRef.current = null;
+    lastFocusedInsideRef.current = null;
+
+    const applyRestore = () => {
+      restoringFocusRef.current = true;
+      try {
+        if (!focusElement(restoreTarget)) {
+          focusElement(document.querySelector<HTMLElement>("[data-dialog-focus-fallback]"));
+        }
+      } finally {
+        restoringFocusRef.current = false;
+      }
+    };
+
+    if (!deferUntilUnmount) {
+      applyRestore();
+      return;
+    }
+
+    queueMicrotask(() => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement.closest("dialog[open]")) return;
+      applyRestore();
+    });
   }, []);
 
   const handleNativeClose = useCallback(() => {
@@ -88,18 +125,24 @@ export function Dialog({
     if (wasOpen && openRef.current && !unmountingRef.current) onClose();
   }, [onClose, restoreFocus]);
 
+  useInsertionEffect(() => {
+    if (!open || wasOpenRef.current) return;
+    const activeElement = document.activeElement;
+    restoreFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+  }, [open]);
+
   useLayoutEffect(() => {
     openRef.current = open;
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     if (open && !dialog.open) {
-      const activeElement = document.activeElement;
-      restoreFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
       if (modal) dialog.showModal();
       else dialog.show();
       wasOpenRef.current = true;
-      focusElement(getInitialFocus(dialog, initialFocus));
+      const initial = getInitialFocus(dialog, initialFocus);
+      focusElement(initial);
+      lastFocusedInsideRef.current = initial;
       return;
     }
 
@@ -119,9 +162,33 @@ export function Dialog({
         suppressedCloseEventsRef.current += 1;
         dialog.close();
       }
-      restoreFocus();
+      restoreFocus(trapFocus);
     };
-  }, [restoreFocus]);
+  }, [restoreFocus, trapFocus]);
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open || !trapFocus || !dialog?.open) return;
+
+    const handleFocusIn = (event: FocusEvent) => {
+      if (restoringFocusRef.current || unmountingRef.current || !openRef.current) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && dialog.contains(target)) {
+        lastFocusedInsideRef.current = target;
+        return;
+      }
+
+      const fallback = lastFocusedInsideRef.current;
+      if (!focusElement(fallback)) {
+        const initial = getInitialFocus(dialog, initialFocus);
+        focusElement(initial);
+        lastFocusedInsideRef.current = initial;
+      }
+    };
+
+    document.addEventListener("focusin", handleFocusIn, true);
+    return () => document.removeEventListener("focusin", handleFocusIn, true);
+  }, [initialFocus, open, trapFocus]);
 
   return (
     <dialog
@@ -137,6 +204,29 @@ export function Dialog({
         onClose();
       }}
       onKeyDown={(event) => {
+        if (event.key === "Tab" && trapFocus) {
+          const focusable = getFocusableElements(event.currentTarget);
+          if (focusable.length === 0) {
+            event.preventDefault();
+            focusElement(event.currentTarget);
+            return;
+          }
+
+          const first = focusable[0]!;
+          const last = focusable[focusable.length - 1]!;
+          const active = document.activeElement;
+          if (event.shiftKey) {
+            if (active === first || !event.currentTarget.contains(active)) {
+              event.preventDefault();
+              focusElement(last);
+            }
+          } else if (active === last || !event.currentTarget.contains(active)) {
+            event.preventDefault();
+            focusElement(first);
+          }
+          return;
+        }
+
         if (event.key === "Escape") {
           event.preventDefault();
           onClose();

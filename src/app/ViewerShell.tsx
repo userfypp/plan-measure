@@ -26,6 +26,7 @@ interface ViewerShellProps {
   children?: ReactNode;
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
+  viewerOverlay?: ReactNode;
   rightObstruction?: number;
   onAuthoringCapabilityChange?: (
     capability: AuthoringCapability,
@@ -37,6 +38,7 @@ export function ViewerShell({
   children,
   toolRail,
   contextToolbar,
+  viewerOverlay,
   rightObstruction = 0,
   onAuthoringCapabilityChange,
 }: ViewerShellProps) {
@@ -161,6 +163,29 @@ export function ViewerShell({
           >
             {toolRail}
             {contextToolbar}
+            {viewerOverlay && (
+              <div
+                className={styles.viewerInteractionShield}
+                data-layout-slot="viewer-interaction-shield"
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerMove={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                onPointerCancel={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+                onContextMenu={(event) => event.stopPropagation()}
+                onWheel={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onKeyDown={(event) => event.stopPropagation()}
+                onKeyUp={(event) => event.stopPropagation()}
+              >
+                <div className={styles.viewerOverlay} data-layout-slot="viewer-overlay">
+                  {viewerOverlay}
+                </div>
+              </div>
+            )}
             {authoringCapability.measured && !authoringCapability.available && (
               <div className={styles.authoringNotice} role="status">
                 {authoringCapability.unavailableReason}

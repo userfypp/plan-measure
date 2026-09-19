@@ -39,6 +39,7 @@ interface WorkspaceShellProps {
   workspacePanel?: ReactNode;
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
+  viewerOverlay?: ReactNode;
   viewer?: ReactNode;
   emptyState?: ReactNode;
   dropOverlay?: ReactNode;
@@ -56,6 +57,7 @@ export function WorkspaceShell({
   workspacePanel,
   toolRail,
   contextToolbar,
+  viewerOverlay,
   viewer,
   emptyState,
   dropOverlay = "Drop PDF to replace current session",
@@ -289,6 +291,7 @@ export function WorkspaceShell({
         <ViewerShell
           toolRail={toolRail}
           contextToolbar={contextToolbar}
+          viewerOverlay={viewerOverlay}
           rightObstruction={geometry.rightObstruction}
           onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
         >

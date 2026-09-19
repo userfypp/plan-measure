@@ -74,6 +74,7 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
     page,
     measurement: firstMeasurement,
     displayUnit: "m",
+    areaDisplay: "auto",
     measurementDecimalPlaces: 2,
     catalog,
     returnModule: "classifications",
@@ -192,6 +193,46 @@ describe("MeasurementDetails", () => {
 
     renderDetails(createProps({ measurementDecimalPlaces: 3 }));
     expect(container?.textContent).toContain("1.000 m");
+  });
+
+  it("shows architectural linear values and acres in Details", () => {
+    const polygon: Measurement = {
+      ...firstMeasurement,
+      id: "acre-polygon",
+      type: "polygon",
+      name: "Acre polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 66, y: 0 },
+        { x: 66, y: 660 },
+        { x: 0, y: 660 },
+      ],
+    };
+    const baseCalibration = page.calibrations[0]!;
+    if (baseCalibration.mode !== "uniform") throw new Error("Expected uniform calibration.");
+    const acrePage: PageState = {
+      ...page,
+      calibrations: [
+        {
+          ...baseCalibration,
+          end: { x: 1, y: 0 },
+          referenceDistanceMm: 1524 / 5,
+        },
+        page.calibrations[1]!,
+      ],
+      measurements: [polygon],
+    };
+
+    renderDetails(
+      createProps({
+        page: acrePage,
+        measurement: polygon,
+        displayUnit: "ft-in",
+        areaDisplay: "ac",
+      }),
+    );
+
+    expect(container?.textContent).toContain("P 1452' · A 1.00 ac");
   });
 
   it("keeps a long linked scale name recoverable while allowing visual truncation", () => {

@@ -6,11 +6,18 @@ interface ModalProps {
   children: ReactNode;
   onCancel?: () => void;
   modal?: boolean;
+  trapFocus?: boolean;
 }
 
-export function Modal({ title, children, onCancel, modal = true }: ModalProps) {
+export function Modal({ title, children, onCancel, modal = true, trapFocus = false }: ModalProps) {
   return (
-    <Dialog open title={title} onClose={onCancel ?? (() => undefined)} modal={modal}>
+    <Dialog
+      open
+      title={title}
+      onClose={onCancel ?? (() => undefined)}
+      modal={modal}
+      trapFocus={trapFocus}
+    >
       {children}
     </Dialog>
   );

@@ -25,6 +25,7 @@ export interface ContextToolbarProps {
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
+  calibrationDialogOpen?: boolean;
   onDeleteSelectedMeasurement: () => void;
   onDuplicateSelectedMeasurement: () => void;
   onRenameSelectedMeasurement: (name: string) => void;
@@ -305,6 +306,7 @@ export function ContextToolbar({
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
+  calibrationDialogOpen = false,
   onDeleteSelectedMeasurement,
   onDuplicateSelectedMeasurement,
   onRenameSelectedMeasurement,
@@ -365,7 +367,7 @@ export function ContextToolbar({
     );
   }
 
-  if (calibrationFlow) {
+  if (calibrationFlow && !calibrationDialogOpen) {
     const calibrationLabel =
       calibrationFlow.mode === "xy"
         ? `Calibrating ${calibrationFlow.phase.toUpperCase()} reference`

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { LineMeasurement, PolygonMeasurement, UniformPageCalibration } from "../types/domain";
-import { formatCsvNumber, formatDisplayNumber, formatMeasurement, formatNumber } from "./format";
+import {
+  formatArchitecturalLength,
+  formatAreaValue,
+  formatCsvNumber,
+  formatDisplayNumber,
+  formatMeasurement,
+  formatNumber,
+  parseArchitecturalLength,
+} from "./format";
+import { toMillimetres } from "./units";
 
 const calibration: UniformPageCalibration = {
   id: "scale-1",
@@ -123,5 +132,98 @@ describe("measurement formatting", () => {
         "mm",
       ),
     ).toBe("Repair required");
+  });
+
+  it.each([
+    ["12'", 144],
+    ["12' 4\"", 148],
+    ["12' 4 1/2\"", 148.5],
+    ["12'-4 1/2\"", 148.5],
+    ["12' - 4 1/2\"", 148.5],
+    ["4\"", 4],
+    ["4 1/2\"", 4.5],
+    ["1/2\"", 0.5],
+    ["0' 6\"", 6],
+    ["  12' 4 1/2\"  ", 148.5],
+    ["2/4\"", 0.5],
+  ] as const)("parses restricted architectural input %s", (input, inches) => {
+    expect(parseArchitecturalLength(input)).toBe(toMillimetres(inches, "in"));
+  });
+
+  it.each([
+    "",
+    "12",
+    "12' 12\"",
+    "150\"",
+    "12.5'",
+    "4.5\"",
+    "1/3\"",
+    "17/16\"",
+    "1/0\"",
+    "1 / 2\"",
+    "-1'",
+    "+1'",
+    "NaN",
+    "Infinity",
+    "1e2'",
+    "x12'",
+    "12'x",
+    "12′ 4½″",
+    "999999999999999999999999999999'",
+  ])("rejects malformed architectural input %s", (input) => {
+    expect(parseArchitecturalLength(input)).toBeNull();
+  });
+
+  it("uses integer sixteenths and agrees exactly with decimal imperial conversion", () => {
+    const parsed = parseArchitecturalLength("12' 4 1/2\"");
+    expect(parsed).toBe(toMillimetres(148.5, "in"));
+    expect(parsed).toBe(toMillimetres(12.375, "ft"));
+    expect(parsed).toBe(3771.9);
+  });
+
+  it.each([
+    [0, '0"'],
+    [4, '4"'],
+    [4.5, '4 1/2"'],
+    [12, "1'"],
+    [148.5, '12\' 4 1/2"'],
+    [0.5, '1/2"'],
+  ] as const)("formats %s inches canonically", (inches, expected) => {
+    expect(formatArchitecturalLength(toMillimetres(inches, "in"))).toBe(expected);
+  });
+
+  it("reduces fractions, carries once-rounded values, and preserves tiny positive lengths", () => {
+    expect(formatArchitecturalLength(toMillimetres(0.5, "in"))).toBe('1/2"');
+    expect(formatArchitecturalLength(toMillimetres(0.375, "in"))).toBe('3/8"');
+    expect(formatArchitecturalLength(toMillimetres(0.25, "in"))).toBe('1/4"');
+    expect(formatArchitecturalLength(toMillimetres(11 + 31 / 32, "in"))).toBe("1'");
+    expect(formatArchitecturalLength(toMillimetres(12 * 12 + 11 + 31 / 32, "in"))).toBe(
+      "13'",
+    );
+    expect(formatArchitecturalLength(toMillimetres(1 / 64, "in"))).toBe('< 1/16"');
+  });
+
+  it("avoids intermediate overflow while formatting a finite architectural length", () => {
+    const formatted = formatArchitecturalLength(3e306);
+
+    expect(formatted).not.toContain("Infinity");
+    expect(formatted).not.toContain("NaN");
+    expect(formatted).toMatch(/^\d+'(?: \d+(?: \d+\/\d+)?")?$/);
+  });
+
+  it("formats imperial measurement display and keeps architectural area in square feet", () => {
+    const imperialCalibration = { ...calibration, referenceDistanceMm: toMillimetres(1, "ft") };
+    expect(formatMeasurement(line, imperialCalibration, "ft", 2)).toBe("4.00 ft");
+    expect(formatMeasurement(line, imperialCalibration, "in", 2)).toBe("48.00 in");
+    expect(formatMeasurement(line, imperialCalibration, "ft-in", 2)).toBe("4'");
+    expect(formatMeasurement(polygon, imperialCalibration, "ft-in", 2)).toBe(
+      "P 8' · A 4.00 ft²",
+    );
+  });
+
+  it("formats polygon area in acres without changing linear presentation", () => {
+    const acreMm2 = (43_560 * 1524 * 1524) / 25;
+    expect(formatAreaValue(acreMm2, "m", "ac", 2)).toBe("1.00 ac");
+    expect(formatAreaValue(acreMm2, "ft-in", "auto", 2)).toBe("43560.00 ft²");
   });
 });

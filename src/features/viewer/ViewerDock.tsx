@@ -7,7 +7,7 @@ import styles from "./ViewerDock.module.css";
 
 type ViewerSettings = Pick<
   SessionSettings,
-  "displayUnit" | "showLabels" | "showMeasurements" | "showCalibration"
+  "displayUnit" | "areaDisplay" | "showLabels" | "showMeasurements" | "showCalibration"
 >;
 
 export interface ViewerDockProps {
@@ -269,6 +269,23 @@ export function ViewerDock({
               <option value="mm">Millimetres</option>
               <option value="cm">Centimetres</option>
               <option value="m">Metres</option>
+              <option value="in">Inches</option>
+              <option value="ft">Feet</option>
+              <option value="ft-in">Feet &amp; inches</option>
+            </select>
+          </label>
+          <label className={styles.unit}>
+            <span>Polygon area</span>
+            <select
+              value={settings.areaDisplay}
+              onChange={(event) =>
+                onSettingsChange({
+                  areaDisplay: event.target.value as ViewerSettings["areaDisplay"],
+                })
+              }
+            >
+              <option value="auto">Auto</option>
+              <option value="ac">Acres</option>
             </select>
           </label>
           <span className={styles.menuDivider} aria-hidden="true" />
