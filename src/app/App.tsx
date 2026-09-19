@@ -1001,7 +1001,6 @@ function PlanMeasureApp() {
                       renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
                     }
                     onAssignClassification={assignClassification}
-                    onEditGeometry={() => chooseTool("select")}
                     onDelete={() =>
                       requestMeasurementDelete({
                         pageNumber: currentPage.pageNumber,

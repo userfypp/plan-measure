@@ -18,7 +18,6 @@ import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createMeasurementViewModel } from "./measurementViewModels";
 import type { WorkspaceModule } from "../../app/workspaceState";
 import { workspaceModuleLabel } from "../../app/WorkspacePanel";
-import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
 import styles from "./MeasurementDetails.module.css";
 
 export interface MeasurementDetailsProps {
@@ -33,7 +32,6 @@ export interface MeasurementDetailsProps {
   onBack: () => void;
   onRename: (name: string) => void;
   onAssignClassification: (measurementId: string, dimensionId: string, valueId: string | null) => void;
-  onEditGeometry: () => void;
   onDelete: () => void;
 }
 
@@ -49,16 +47,8 @@ export function MeasurementDetails({
   onBack,
   onRename,
   onAssignClassification,
-  onEditGeometry,
   onDelete,
 }: MeasurementDetailsProps) {
-  const workspace = useWorkspaceDrawerPresentation();
-  const editGeometryDisabled = !measurement.visible || !workspace.precisionActionAvailable;
-  const editGeometryDisabledReason = !measurement.visible
-    ? "Show the measurement before editing its geometry."
-    : !workspace.precisionActionAvailable
-      ? workspace.precisionDisabledReason
-      : undefined;
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -194,15 +184,6 @@ export function MeasurementDetails({
           />
         </section>
 
-        <Button
-          variant="secondary"
-          size="compact"
-          disabled={editGeometryDisabled}
-          disabledReason={editGeometryDisabledReason}
-          onClick={() => workspace.requestPrecisionAuthoring(onEditGeometry)}
-        >
-          Edit geometry
-        </Button>
       </div>
 
       <div className={styles.dangerZone}>

@@ -164,12 +164,8 @@ export function ClassificationManager({
   return (
     <section className={styles.manager} aria-label="Classification catalog">
       <div className={styles.body}>
-        <p className={styles.description}>
-          Create reusable values. Classifications never change measurement scales.
-        </p>
-        {catalog.dimensions.length === 0 ? (
-          <p className={styles.empty}>Create a dimension such as Trade, Status, or Area.</p>
-        ) : (
+        <p className={styles.description}>Create dimensions to organize measurements.</p>
+        {catalog.dimensions.length > 0 && (
           <ul className={styles.list} aria-label="Classification dimensions">
             {catalog.dimensions.map((dimension) => {
               const activeValueCount = dimension.values.filter((value) => !value.archived).length;

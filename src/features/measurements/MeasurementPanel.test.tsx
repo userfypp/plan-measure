@@ -416,16 +416,29 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("keeps grouped hierarchy compact and removes only the grouped selection marker", () => {
+  it("keeps grouped controls rounded with full-width rows and a light inner child indent", () => {
     expect(measurementGroupCss).toMatch(
       /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding-left:\s*var\(--space-8\);/s,
+      /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-16\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+    );
+    expect(measurementCollectionCss).toMatch(
+      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 var\(--space-8\) var\(--space-8\);/s,
     );
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
+    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*--measurement-row-inline-bleed:/s);
     expect(measurementRowCss).toMatch(
       /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, 3px\);/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-12\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+    );
+    expect(measurementRowCss).toMatch(
+      /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-8\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
     );
     expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
   });

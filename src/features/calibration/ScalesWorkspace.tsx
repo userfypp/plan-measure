@@ -340,18 +340,20 @@ export function ScalesWorkspace({
                 </section>
 
                 <div className={styles.recalibrateFooter}>
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    className={styles.recalibrateButton}
-                    disabled={spatialActionsDisabled}
-                    disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                    onClick={() =>
-                      workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
-                    }
-                  >
-                    Recalibrate scale
-                  </Button>
+                  <div className={styles.recalibrateControl} data-recalibrate-control>
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      className={styles.recalibrateButton}
+                      disabled={spatialActionsDisabled}
+                      disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                      onClick={() =>
+                        workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
+                      }
+                    >
+                      Recalibrate scale
+                    </Button>
+                  </div>
                 </div>
               </div>
             </article>

@@ -3,8 +3,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WorkspaceDrawerProvider } from "../../app/WorkspaceDrawerContext";
-import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { ClassificationCatalog, Measurement, PageState } from "../../types/domain";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { MeasurementDetails, type MeasurementDetailsProps } from "./MeasurementDetails";
@@ -81,7 +79,6 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
     onBack: vi.fn(),
     onRename: vi.fn(),
     onAssignClassification: vi.fn(),
-    onEditGeometry: vi.fn(),
     onDelete: vi.fn(),
     ...overrides,
   };
@@ -89,44 +86,6 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
 
 function renderDetails(props: MeasurementDetailsProps) {
   act(() => root!.render(<MeasurementDetails key={props.measurement.id} {...props} />));
-}
-
-function renderRecoverableDetails(
-  props: MeasurementDetailsProps,
-  requestPrecisionAuthoring: (start: () => void) => boolean,
-) {
-  const current = computeAuthoringCapability({
-    viewerSize: { width: 768, height: 600 },
-    rightObstruction: 304,
-    bottomExclusion: 0,
-    finePointer: true,
-  });
-  const withoutDrawer = computeAuthoringCapability({
-    viewerSize: { width: 768, height: 600 },
-    rightObstruction: 0,
-    bottomExclusion: 0,
-    finePointer: true,
-  });
-  act(() =>
-    root!.render(
-      <WorkspaceDrawerProvider
-        value={{
-          isNarrow: true,
-          narrowVersion: 1,
-          open: true,
-          close: () => undefined,
-          currentCapability: current,
-          capabilityWithoutDrawer: withoutDrawer,
-          canRecoverAuthoringByClosingWorkspace: true,
-          precisionActionAvailable: true,
-          precisionDisabledReason: current.unavailableReason ?? "Unavailable",
-          requestPrecisionAuthoring,
-        }}
-      >
-        <MeasurementDetails key={props.measurement.id} {...props} />
-      </WorkspaceDrawerProvider>,
-    ),
-  );
 }
 
 function buttonByText(text: string): HTMLButtonElement {
@@ -275,12 +234,11 @@ describe("MeasurementDetails", () => {
     expect(firstMeasurement.calibrationId).toBe("historical");
   });
 
-  it("wires Back, geometry edit, delete, and classification assignment to existing commands", () => {
+  it("wires Back, delete, and classification assignment while omitting the redundant geometry action", () => {
     const props = createProps();
     renderDetails(props);
 
     act(() => buttonByText("‹ Back to classifications").click());
-    act(() => buttonByText("Edit geometry").click());
     act(() => buttonByText("Delete measurement").click());
     const assignment = classificationTrigger();
     act(() => assignment.click());
@@ -291,9 +249,10 @@ describe("MeasurementDetails", () => {
     act(() => unclassified.click());
 
     expect(props.onBack).toHaveBeenCalledOnce();
-    expect(props.onEditGeometry).toHaveBeenCalledOnce();
     expect(props.onDelete).toHaveBeenCalledOnce();
     expect(props.onAssignClassification).toHaveBeenCalledWith("line-1", "trade", null);
+    expect(container?.textContent).toContain("Organization");
+    expect(container?.textContent).not.toContain("Edit geometry");
   });
 
   it("uses the shared menu trigger contract for compact classification assignment", () => {
@@ -352,74 +311,4 @@ describe("MeasurementDetails", () => {
     expect(container?.querySelector('section[aria-label="Details for Lobby"]')).not.toBeNull();
   });
 
-  it("routes Edit geometry through the shared recoverable-authoring handoff", () => {
-    const props = createProps();
-    let pending: (() => void) | null = null;
-    const request = vi.fn((start: () => void) => {
-      pending = start;
-      return true;
-    });
-    renderRecoverableDetails(props, request);
-
-    const edit = buttonByText("Edit geometry");
-    expect(edit.disabled).toBe(false);
-    act(() => edit.click());
-    expect(request).toHaveBeenCalledOnce();
-    expect(props.onEditGeometry).not.toHaveBeenCalled();
-
-    act(() => pending?.());
-    expect(props.onEditGeometry).toHaveBeenCalledOnce();
-  });
-
-  it("disables Edit geometry for a hidden measurement", () => {
-    const props = createProps({ measurement: { ...firstMeasurement, visible: false } });
-    renderDetails(props);
-
-    const edit = buttonByText("Edit geometry");
-    expect(edit.getAttribute("aria-disabled")).toBe("true");
-    expect(document.getElementById(edit.getAttribute("aria-describedby")!)?.textContent).toBe(
-      "Show the measurement before editing its geometry.",
-    );
-    act(() => edit.click());
-    expect(props.onEditGeometry).not.toHaveBeenCalled();
-  });
-
-  it("gates only Edit geometry when precision is impossible", () => {
-    const props = createProps();
-    const capability = computeAuthoringCapability({
-      viewerSize: { width: 479, height: 600 },
-      rightObstruction: 0,
-      bottomExclusion: 0,
-      finePointer: true,
-    });
-    const reason = capability.unavailableReason ?? "Unavailable";
-    act(() =>
-      root!.render(
-        <WorkspaceDrawerProvider
-          value={{
-            isNarrow: true,
-            narrowVersion: 1,
-            open: true,
-            close: () => undefined,
-            currentCapability: capability,
-            capabilityWithoutDrawer: capability,
-            canRecoverAuthoringByClosingWorkspace: false,
-            precisionActionAvailable: false,
-            precisionDisabledReason: reason,
-            requestPrecisionAuthoring: () => false,
-          }}
-        >
-          <MeasurementDetails {...props} />
-        </WorkspaceDrawerProvider>,
-      ),
-    );
-
-    expect(buttonByText("Edit geometry").disabled).toBe(false);
-    expect(buttonByText("Edit geometry").getAttribute("aria-disabled")).toBe("true");
-    expect(
-      document.getElementById(buttonByText("Edit geometry").getAttribute("aria-describedby")!)?.textContent,
-    ).toBe(reason);
-    expect(buttonByText("Rename").disabled).toBe(false);
-    expect(buttonByText("Delete measurement").disabled).toBe(false);
-  });
 });
