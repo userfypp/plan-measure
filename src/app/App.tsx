@@ -871,7 +871,6 @@ function PlanMeasureApp() {
   const calibrationDialog =
     calibrationCandidate && session && calibrationCandidatePage ? (
       <CalibrationDialog
-        points={calibrationCandidate.points}
         initialName={
           calibrationCandidate.name ??
           calibrationCandidateTarget?.name ??

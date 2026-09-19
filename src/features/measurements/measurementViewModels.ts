@@ -1,6 +1,5 @@
 import type {
   AreaDisplay,
-  ClassificationCatalog,
   Measurement,
   MeasurementDecimalPlaces,
   MeasurementDisplayUnit,
@@ -78,25 +77,6 @@ export function createMeasurementViewModels(
       measurementDecimalPlaces,
       areaDisplay,
     ),
-  );
-}
-
-export function getMeasurementClassificationSummary(
-  measurement: Measurement | null,
-  catalog: ClassificationCatalog | null | undefined,
-): string {
-  if (!measurement || !catalog) return "None assigned";
-
-  return (
-    catalog.dimensions
-      .flatMap((dimension) =>
-        dimension.values
-          .filter((value) => measurement.classificationValueIds.includes(value.id))
-          .map((value) =>
-            `${dimension.name}: ${value.name}${value.archived || dimension.archived ? " (archived)" : ""}`,
-          ),
-      )
-      .join(" · ") || "None assigned"
   );
 }
 

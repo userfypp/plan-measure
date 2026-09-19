@@ -30,8 +30,6 @@ interface CsvRowContext {
   pageNumber: number;
   pageLabel: string;
   measurement: Measurement;
-  page: PageState;
-  session: CurrentSession;
   calibration: PageCalibration;
   spec: MeasurementPathSpec;
   result: ReturnType<typeof measurementResultsMm>;
@@ -500,8 +498,6 @@ function createCsvRowContext(
     pageNumber,
     pageLabel,
     measurement,
-    page,
-    session,
     calibration,
     spec,
     result,

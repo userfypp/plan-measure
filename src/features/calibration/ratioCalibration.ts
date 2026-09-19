@@ -9,7 +9,7 @@ import {
   practicalScaleRatioDenominator,
   scaleRatioDenominatorFromMillimetresPerPageUnit,
 } from "../../utils/pdfUnits";
-import { scaleByRatio } from "../../utils/units";
+import { toMillimetres } from "../../utils/units";
 
 export type RatioCalibrationInput =
   | Omit<UniformPageCalibration, "id" | "name">
@@ -29,8 +29,6 @@ interface XyScaleRatioSpec {
 export type ScaleRatioSpec = UniformScaleRatioSpec | XyScaleRatioSpec;
 
 const CANONICAL_REFERENCE_PAGE_UNITS = 72;
-const MILLIMETRES_PER_PHYSICAL_INCH_NUMERATOR = 127;
-const MILLIMETRES_PER_PHYSICAL_INCH_DENOMINATOR = 5;
 
 interface ScaleRatioMetrics {
   millimetresPerPageUnit: number;
@@ -41,11 +39,7 @@ function scaleRatioMetrics(denominator: number): ScaleRatioMetrics | null {
   if (!Number.isFinite(denominator) || denominator <= 0) return null;
 
   const millimetresPerPageUnit = millimetresPerPageUnitForScaleRatio(denominator);
-  const referenceDistanceMm = scaleByRatio(
-    denominator,
-    MILLIMETRES_PER_PHYSICAL_INCH_NUMERATOR,
-    MILLIMETRES_PER_PHYSICAL_INCH_DENOMINATOR,
-  );
+  const referenceDistanceMm = toMillimetres(denominator, "in");
   if (
     !Number.isFinite(millimetresPerPageUnit) ||
     millimetresPerPageUnit <= 0 ||

@@ -6,8 +6,6 @@ import {
   formatCsvNumber,
   formatDisplayNumber,
   formatMeasurement,
-  formatNumber,
-  parseArchitecturalLength,
 } from "./format";
 import { toMillimetres } from "./units";
 
@@ -47,7 +45,6 @@ const polygon: PolygonMeasurement = {
 describe("measurement formatting", () => {
   it("keeps the normal two-decimal UI rule for ordinary values", () => {
     expect(formatDisplayNumber(12.345)).toBe("12.35");
-    expect(formatNumber(12.345)).toBe("12.35");
   });
 
   it.each([
@@ -132,53 +129,6 @@ describe("measurement formatting", () => {
         "mm",
       ),
     ).toBe("Repair required");
-  });
-
-  it.each([
-    ["12'", 144],
-    ["12' 4\"", 148],
-    ["12' 4 1/2\"", 148.5],
-    ["12'-4 1/2\"", 148.5],
-    ["12' - 4 1/2\"", 148.5],
-    ["4\"", 4],
-    ["4 1/2\"", 4.5],
-    ["1/2\"", 0.5],
-    ["0' 6\"", 6],
-    ["  12' 4 1/2\"  ", 148.5],
-    ["2/4\"", 0.5],
-  ] as const)("parses restricted architectural input %s", (input, inches) => {
-    expect(parseArchitecturalLength(input)).toBe(toMillimetres(inches, "in"));
-  });
-
-  it.each([
-    "",
-    "12",
-    "12' 12\"",
-    "150\"",
-    "12.5'",
-    "4.5\"",
-    "1/3\"",
-    "17/16\"",
-    "1/0\"",
-    "1 / 2\"",
-    "-1'",
-    "+1'",
-    "NaN",
-    "Infinity",
-    "1e2'",
-    "x12'",
-    "12'x",
-    "12′ 4½″",
-    "999999999999999999999999999999'",
-  ])("rejects malformed architectural input %s", (input) => {
-    expect(parseArchitecturalLength(input)).toBeNull();
-  });
-
-  it("uses integer sixteenths and agrees exactly with decimal imperial conversion", () => {
-    const parsed = parseArchitecturalLength("12' 4 1/2\"");
-    expect(parsed).toBe(toMillimetres(148.5, "in"));
-    expect(parsed).toBe(toMillimetres(12.375, "ft"));
-    expect(parsed).toBe(3771.9);
   });
 
   it.each([

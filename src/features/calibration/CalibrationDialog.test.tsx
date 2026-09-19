@@ -53,10 +53,6 @@ function renderDialog(overrides: Partial<Omit<DialogProps, "onConfirm" | "onCanc
   act(() =>
     root!.render(
       <CalibrationDialog
-        points={[
-          { x: 0, y: 0 },
-          { x: 10, y: 0 },
-        ]}
         initialName="Scale 1"
         title="Add scale"
         onConfirm={onConfirm}
@@ -105,10 +101,6 @@ describe("CalibrationDialog", () => {
     act(() =>
       root!.render(
         <CalibrationDialog
-          points={[
-            { x: 0, y: 0 },
-            { x: 10, y: 0 },
-          ]}
           initialName="Existing scale"
           title="Recalibrate scale"
           includeName={false}
@@ -132,10 +124,6 @@ describe("CalibrationDialog", () => {
     act(() =>
       root!.render(
         <CalibrationDialog
-          points={[
-            { x: 0, y: 0 },
-            { x: 10, y: 0 },
-          ]}
           initialName="Scale 3"
           title="Add scale"
           includeName
@@ -159,10 +147,6 @@ describe("CalibrationDialog", () => {
     act(() =>
       root!.render(
         <CalibrationDialog
-          points={[
-            { x: 0, y: 0 },
-            { x: 10, y: 0 },
-          ]}
           initialName="Scale 1"
           title="Add scale"
           onConfirm={vi.fn()}
@@ -190,10 +174,6 @@ describe("CalibrationDialog", () => {
     act(() =>
       root!.render(
         <CalibrationDialog
-          points={[
-            { x: 0, y: 0 },
-            { x: 10, y: 0 },
-          ]}
           initialName="Imperial scale"
           title="Add scale"
           onConfirm={onConfirm}
@@ -420,10 +400,6 @@ describe("CalibrationDialog", () => {
           </button>
           {open && (
             <CalibrationDialog
-              points={[
-                { x: 0, y: 0 },
-                { x: 10, y: 0 },
-              ]}
               initialName="Keyboard scale"
               title="Add scale"
               onConfirm={onConfirm}

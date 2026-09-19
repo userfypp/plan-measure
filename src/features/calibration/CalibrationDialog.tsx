@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
-import type { LinearUnit, Point } from "../../types/domain";
+import type { LinearUnit } from "../../types/domain";
 import {
   architecturalSixteenthsToMillimetres,
   MAX_SAFE_ARCHITECTURAL_SIXTEENTHS,
@@ -10,7 +10,6 @@ import { Button, Input } from "../../components/ui";
 import styles from "./CalibrationDialog.module.css";
 
 interface CalibrationDialogProps {
-  points: [Point, Point];
   initialName: string;
   title: string;
   referenceLabel?: string;
