@@ -107,6 +107,32 @@ export function OverlayHost({
       );
     }
 
+    if (confirmation.type === "setScaleRatio") {
+      const { calibrationName, measurementCount } = confirmation.payload;
+      return (
+        <ConfirmationDialog
+          open
+          title={`Set ratio for “${calibrationName}”?`}
+          description={
+            <>
+              {measurementCount} {"measurement"}
+              {measurementCount === 1 ? " uses" : "s use"} this scale. Their values will be
+              recalculated using the new ratio. Geometry will stay in place.
+            </>
+          }
+          confirmLabel="Set ratio"
+          onCancel={() => {
+            closeConfirmation(confirmation);
+            onConfirmationCancel?.(confirmation);
+          }}
+          onConfirm={() => {
+            closeConfirmation(confirmation);
+            onConfirmationConfirm?.(confirmation);
+          }}
+        />
+      );
+    }
+
     const { calibrationName, measurementCount } = confirmation.payload;
     return (
       <ConfirmationDialog

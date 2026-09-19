@@ -40,6 +40,7 @@ import type {
   CalibrationReferenceKey,
   LogicalPageBounds,
   PageCalibration,
+  PageState,
   Point,
   Tool,
 } from "../types/domain";
@@ -78,6 +79,11 @@ import styles from "./App.module.css";
 const PdfViewer = lazy(() =>
   import("../features/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
 );
+
+function calibrationMeasurementCount(page: PageState, calibrationId: string): number {
+  return page.measurements.filter((measurement) => measurement.calibrationId === calibrationId)
+    .length;
+}
 
 export function App() {
   return (
@@ -125,6 +131,7 @@ function PlanMeasureApp() {
     requestReplacePdf,
     closeDialog,
     requestRecalibration: openRecalibrationConfirmation,
+    requestSetScaleRatio: openSetScaleRatioConfirmation,
     requestSaveCalibrationReferenceEdit: openCalibrationReferenceEditConfirmation,
     requestDeleteMeasurement: openDeleteMeasurementConfirmation,
     closeConfirmation,
@@ -564,6 +571,22 @@ function PlanMeasureApp() {
 
   function setScaleRatio(calibrationId: string, calibration: RatioCalibrationInput) {
     if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    const target = findPageCalibration(currentPage, calibrationId);
+    if (!target || target.mode !== calibration.mode) {
+      setError("The scale to update is no longer available.");
+      return;
+    }
+    const measurementCount = calibrationMeasurementCount(currentPage, calibrationId);
+    if (measurementCount > 0) {
+      openSetScaleRatioConfirmation({
+        pageNumber: currentPage.pageNumber,
+        calibrationId,
+        calibrationName: target.name,
+        measurementCount,
+        calibration,
+      });
+      return;
+    }
     recalibrateCalibration({
       pageNumber: currentPage.pageNumber,
       calibrationId,
@@ -582,9 +605,7 @@ function PlanMeasureApp() {
       setError("Select a valid scale before recalibrating.");
       return;
     }
-    const measurementCount = currentPage.measurements.filter(
-      (measurement) => measurement.calibrationId === calibration.id,
-    ).length;
+    const measurementCount = calibrationMeasurementCount(currentPage, calibration.id);
     if (measurementCount === 0) {
       beginRecalibration(currentPage.pageNumber, calibration.id);
       return;
@@ -673,9 +694,7 @@ function PlanMeasureApp() {
       setError("Place the reference points in a valid position before saving.");
       return;
     }
-    const measurementCount = page.measurements.filter(
-      (measurement) => measurement.calibrationId === calibration.id,
-    ).length;
+    const measurementCount = calibrationMeasurementCount(page, calibration.id);
     if (measurementCount === 0) {
       commitCalibrationReferenceEdit(edit);
       return;
@@ -713,6 +732,18 @@ function PlanMeasureApp() {
 
     if (confirmation.type === "recalibrateScale") {
       beginRecalibration(confirmation.payload.pageNumber, confirmation.payload.calibrationId);
+      return;
+    }
+
+    if (confirmation.type === "setScaleRatio") {
+      const { pageNumber, calibrationId, calibration } = confirmation.payload;
+      const page = session?.pages[pageNumber];
+      const target = page && findPageCalibration(page, calibrationId);
+      if (!target || target.mode !== calibration.mode) {
+        setError("The scale to update is no longer available.");
+        return;
+      }
+      recalibrateCalibration({ pageNumber, calibrationId, calibration });
       return;
     }
 
