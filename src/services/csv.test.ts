@@ -5,8 +5,10 @@ import { createPageCalibrationFromRatio } from "../features/calibration/ratioCal
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import type { CurrentSession, MeasurementDisplayUnit } from "../types/domain";
 import {
+  buildClassificationAssignmentsCsv,
   buildCsv,
   createCsvExportSettingsPreset,
+  downloadClassificationAssignmentsCsv,
   downloadCsv,
   getCsvColumnDescriptors,
   normalizeCsvExportSettings,
@@ -178,6 +180,25 @@ function allColumns(session: CurrentSession) {
   return createCsvExportSettingsPreset(session, "all");
 }
 
+const CLASSIFICATION_ASSIGNMENT_HEADER =
+  "pdf_name,page,page_label,measurement_id,measurement_name,measurement_type,measurement_visible,classification_dimension,classification_dimension_id,classification_dimension_status,classification_value,classification_value_id,classification_value_status,classification_status";
+
+const NEW_MEASUREMENT_COLUMN_IDS = [
+  "pdf_name",
+  "measurement_visible",
+  "measurement_point_count",
+  "length_mm",
+  "perimeter_mm",
+  "area_mm2",
+  "calibration_ratio_denominator",
+  "calibration_ratio_x_denominator",
+  "calibration_ratio_y_denominator",
+  "calibration_x_reference_mm",
+  "calibration_x_page_span",
+  "calibration_y_reference_mm",
+  "calibration_y_page_span",
+] as const;
+
 describe("CSV export", () => {
   it("exports Polyline as an open accumulated length", () => {
     const session = measuredSession();
@@ -222,6 +243,18 @@ describe("CSV export", () => {
     expect(csv).toContain('1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,xy,,30.00,50.00,m,m²');
   });
 
+  it("keeps the default Measurements CSV byte-for-byte compatible", () => {
+    expect(buildCsv(measuredSession())).toBe(
+      [
+        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,length,perimeter,area,unit,area_unit",
+        '1,,line-id,"Lobby, ""north""",Line,scale-1,Scale 1,uniform,2.50,,,m,',
+        '1,,polygon-id,"Room\nA",Polygon,scale-2,Detail A,xy,,30.00,50.00,m,m²',
+        "2,,second-line-id,Second measurement,Line,scale-3,Section,uniform,0.25,,,m,",
+        "",
+      ].join("\r\n"),
+    );
+  });
+
   it("does not export a self-intersecting Polygon area", () => {
     const session = measuredSession();
     session.pages[1]!.measurements[1]!.points = [
@@ -239,7 +272,7 @@ describe("CSV export", () => {
     const csv = buildCsv(session, null, allColumns(session));
     expect(
       csv.startsWith(
-        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit,area_unit\r\n",
+        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit,area_unit,pdf_name,measurement_visible,measurement_point_count,length_mm,perimeter_mm,area_mm2,calibration_ratio_denominator,calibration_ratio_x_denominator,calibration_ratio_y_denominator,calibration_x_reference_mm,calibration_x_page_span,calibration_y_reference_mm,calibration_y_page_span\r\n",
       ),
     ).toBe(true);
     expect(csv).toContain(
@@ -280,6 +313,7 @@ describe("CSV export", () => {
       "area",
       "unit",
       "area_unit",
+      ...NEW_MEASUREMENT_COLUMN_IDS,
     ]);
     expect(
       staticDescriptors
@@ -305,6 +339,21 @@ describe("CSV export", () => {
       "unit",
       "area_unit",
     ]);
+    expect(
+      NEW_MEASUREMENT_COLUMN_IDS.map((id) =>
+        staticDescriptors.find((descriptor) => descriptor.id === id),
+      ),
+    ).toEqual(
+      NEW_MEASUREMENT_COLUMN_IDS.map((id) =>
+        expect.objectContaining({
+          id,
+          section: "additional",
+          defaultEnabled: false,
+          required: false,
+          enabled: false,
+        }),
+      ),
+    );
     expect(descriptors.find((descriptor) => descriptor.id === "page")?.label).toBe("Page");
     expect(descriptors.find((descriptor) => descriptor.id === "name")?.label).toBe(
       "Measurement name",
@@ -332,6 +381,115 @@ describe("CSV export", () => {
       dimensionArchived: false,
       field: "value",
     });
+  });
+
+  it("exports canonical measurement audit values without display rounding", () => {
+    const session = smallMeasuredSession("ft");
+    session.settings.measurementDecimalPlaces = 0;
+    const calibration = session.pages[1]!.calibrations[0]!;
+    if (calibration.mode !== "uniform") throw new Error("Expected uniform calibration.");
+    calibration.end = { x: 3, y: 0 };
+    session.pages[1]!.measurements[0]!.visible = false;
+
+    const csv = buildCsv(session, null, allColumns(session));
+    const headers = headerColumns(csv);
+    const line = csv.split("\r\n")[1]!.split(",");
+    const polygon = csv.split("\r\n")[2]!.split(",");
+    const cell = (row: string[], id: string) => row[headers.indexOf(id)];
+
+    expect(cell(line, "measurement_visible")).toBe("false");
+    expect(cell(polygon, "measurement_visible")).toBe("true");
+    expect(cell(line, "measurement_point_count")).toBe("2");
+    expect(cell(polygon, "measurement_point_count")).toBe("4");
+    expect(cell(line, "length_mm")).toBe("1.3333333333333333");
+    expect(cell(line, "perimeter_mm")).toBe("");
+    expect(cell(line, "area_mm2")).toBe("");
+    expect(cell(polygon, "length_mm")).toBe("");
+    expect(cell(polygon, "perimeter_mm")).toBe("2.6666666666666665");
+    expect(cell(polygon, "area_mm2")).toBe("0.4444444444444444");
+  });
+
+  it("exports the practical Uniform ratio denominator and leaves X/Y-only audit fields blank", () => {
+    const session = createEmptySession({ name: "uniform-ratio.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = {
+      id: "uniform-60",
+      name: "Scale 1",
+      ...createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }),
+    };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    session.pages[1]!.measurements.push({
+      id: "line",
+      type: "line",
+      name: "Line",
+      calibrationId: calibration.id,
+      points: [
+        { x: 0, y: 0 },
+        { x: 72, y: 0 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    });
+
+    const csv = buildCsv(session, null, allColumns(session));
+    const headers = headerColumns(csv);
+    const row = csv.split("\r\n")[1]!.split(",");
+    const cell = (id: string) => row[headers.indexOf(id)];
+
+    expect(cell("calibration_ratio_denominator")).toBe("60");
+    expect(cell("calibration_ratio_x_denominator")).toBe("");
+    expect(cell("calibration_ratio_y_denominator")).toBe("");
+    expect(cell("calibration_x_reference_mm")).toBe("");
+    expect(cell("calibration_x_page_span")).toBe("");
+    expect(cell("calibration_y_reference_mm")).toBe("");
+    expect(cell("calibration_y_page_span")).toBe("");
+  });
+
+  it("exports practical X/Y ratios and axis reference spans while leaving the Uniform ratio blank", () => {
+    const session = createEmptySession({ name: "xy-ratio.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = {
+      id: "xy-70-30",
+      name: "Scale 1",
+      ...createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: 30 }),
+    };
+    calibration.xReference.end = { x: 72, y: 9 };
+    calibration.yReference.end = { x: 11, y: 72 };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    session.pages[1]!.measurements.push({
+      id: "line",
+      type: "line",
+      name: "Line",
+      calibrationId: calibration.id,
+      points: [
+        { x: 0, y: 0 },
+        { x: 72, y: 72 },
+      ],
+      classificationValueIds: [],
+      visible: true,
+    });
+
+    const csv = buildCsv(session, null, allColumns(session));
+    const headers = headerColumns(csv);
+    const row = csv.split("\r\n")[1]!.split(",");
+    const cell = (id: string) => row[headers.indexOf(id)];
+
+    expect(cell("calibration_ratio_denominator")).toBe("");
+    expect(cell("calibration_ratio_x_denominator")).toBe("70");
+    expect(cell("calibration_ratio_y_denominator")).toBe("30");
+    expect(cell("calibration_x_reference_mm")).toBe("1778");
+    expect(cell("calibration_x_page_span")).toBe("72");
+    expect(cell("calibration_y_reference_mm")).toBe("762");
+    expect(cell("calibration_y_page_span")).toBe("72");
+  });
+
+  it("escapes and formula-neutralizes pdf_name through the shared CSV serializer", () => {
+    const session = smallMeasuredSession("m");
+    session.pdf.name = '=SUM("A",1).pdf';
+
+    const csv = buildCsv(session, null, allColumns(session));
+
+    expect(csv).toContain('"\'=SUM(""A"",1).pdf"');
   });
 
   it("normalizes overrides and computes the three registry presets", () => {
@@ -453,7 +611,9 @@ describe("CSV export", () => {
 
   it("exports a moved measurement through normal session state without changing derived CSV metadata", () => {
     const session = classifiedMeasuredSession();
-    const source = session.pages[1]!.measurements.find((measurement) => measurement.id === "line-id")!;
+    const source = session.pages[1]!.measurements.find(
+      (measurement) => measurement.id === "line-id",
+    )!;
     const sourceBefore = structuredClone(source);
     const csvBefore = buildCsv(session, null, allColumns(session));
     const movedPoints = translateMeasurementPoints(source.points, { x: 37.5, y: 18.25 });
@@ -724,7 +884,10 @@ describe("CSV export", () => {
       type: "line",
       name: "Custom line",
       calibrationId: calibration.id,
-      points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+      points: [
+        { x: 0, y: 0 },
+        { x: 72, y: 0 },
+      ],
       classificationValueIds: [],
       visible: true,
     });
@@ -755,7 +918,10 @@ describe("CSV export", () => {
       type: "line",
       name: "X/Y line",
       calibrationId: calibration.id,
-      points: [{ x: 0, y: 0 }, { x: 72, y: 72 }],
+      points: [
+        { x: 0, y: 0 },
+        { x: 72, y: 72 },
+      ],
       classificationValueIds: [],
       visible: true,
     });
@@ -837,13 +1003,22 @@ describe("CSV export", () => {
     ["in", "98.4251968503937", "in", "1181.1023622047244", "77500.15500031", "in²"],
   ] as const)(
     "exports decimal imperial measurements numerically in %s",
-    (displayUnit, expectedLength, expectedUnit, expectedPerimeter, expectedArea, expectedAreaUnit) => {
+    (
+      displayUnit,
+      expectedLength,
+      expectedUnit,
+      expectedPerimeter,
+      expectedArea,
+      expectedAreaUnit,
+    ) => {
       const session = measuredSession();
       session.settings.displayUnit = displayUnit;
       const csv = buildCsv(session, null, allColumns(session));
 
       expect(csv).toContain(`,${expectedLength},,,${expectedUnit},`);
-      expect(csv).toContain(`,,${expectedPerimeter},${expectedArea},${expectedUnit},${expectedAreaUnit}`);
+      expect(csv).toContain(
+        `,,${expectedPerimeter},${expectedArea},${expectedUnit},${expectedAreaUnit}`,
+      );
       expect(csv).not.toContain("' ");
     },
   );
@@ -998,6 +1173,180 @@ describe("CSV export", () => {
     );
   });
 
+  describe("classification assignment export", () => {
+    it("exports one normalized row per assignment in page, measurement, and catalog-dimension order", () => {
+      const session = classifiedMeasuredSession();
+      session.pages[2]!.measurements[0]!.classificationValueIds = ["approved-id"];
+
+      const csv = buildClassificationAssignmentsCsv(session, ["A1", "A2"]);
+      const rows = csv.split("\r\n");
+
+      expect(rows[0]).toBe(`\uFEFF${CLASSIFICATION_ASSIGNMENT_HEADER}`);
+      expect(rows.slice(1, -1)).toEqual([
+        'sample.pdf,1,A1,line-id,"Lobby, ""north""",Line,true,Trade,trade,active,Electrical,electrical-id,active,active',
+        'sample.pdf,1,A1,line-id,"Lobby, ""north""",Line,true,Status,status,active,Approved,approved-id,active,active',
+        'sample.pdf,1,A1,polygon-id,"Room\nA",Polygon,true,Trade,trade,active,Electrical,electrical-id,active,active',
+        "sample.pdf,2,A2,second-line-id,Second measurement,Line,true,Status,status,active,Approved,approved-id,active,active",
+      ]);
+      expect(rows[0]).not.toContain("length");
+      expect(rows[0]).not.toContain("perimeter");
+      expect(rows[0]).not.toContain("area");
+      expect(rows[0]).not.toContain("unit");
+      expect(rows[0]).not.toContain("calibration");
+    });
+
+    it("does not use classificationValueIds order to order assignment rows", () => {
+      const session = classifiedMeasuredSession();
+      const measurement = session.pages[1]!.measurements[0]!;
+      const before = buildClassificationAssignmentsCsv(session);
+
+      measurement.classificationValueIds.reverse();
+
+      expect(buildClassificationAssignmentsCsv(session)).toBe(before);
+    });
+
+    it("exports header only when measurements exist without classification assignments", () => {
+      const session = measuredSession();
+      session.classificationCatalog = classifiedMeasuredSession().classificationCatalog;
+
+      expect(buildClassificationAssignmentsCsv(session)).toBe(
+        `\uFEFF${CLASSIFICATION_ASSIGNMENT_HEADER}\r\n`,
+      );
+    });
+
+    it("rejects sessions with no measurements", () => {
+      const session = createEmptySession({ name: "empty.pdf", size: 1, lastModified: 1 }, 1);
+
+      expect(() => buildClassificationAssignmentsCsv(session)).toThrow(NoMeasurementsError);
+    });
+
+    it.each([
+      {
+        label: "archived dimension only",
+        dimensionArchived: true,
+        valueArchived: false,
+        expected: ",Trade,trade,archived,Electrical,electrical-id,active,archived",
+      },
+      {
+        label: "archived value only",
+        dimensionArchived: false,
+        valueArchived: true,
+        expected: ",Trade,trade,active,Electrical,electrical-id,archived,archived",
+      },
+      {
+        label: "archived dimension and value",
+        dimensionArchived: true,
+        valueArchived: true,
+        expected: ",Trade,trade,archived,Electrical,electrical-id,archived,archived",
+      },
+    ])(
+      "exports independent dimension/value status and effective status for $label",
+      ({ dimensionArchived, valueArchived, expected }) => {
+        const session = classifiedMeasuredSession();
+        const trade = session.classificationCatalog.dimensions[0]!;
+        trade.archived = dimensionArchived;
+        trade.values[0]!.archived = valueArchived;
+
+        const csv = buildClassificationAssignmentsCsv(session);
+
+        expect(csv).toContain(expected);
+        expect(csv).not.toContain("(archived)");
+      },
+    );
+
+    it("exports active dimension, value, and effective status when neither is archived", () => {
+      const csv = buildClassificationAssignmentsCsv(classifiedMeasuredSession());
+
+      expect(csv).toContain(",Trade,trade,active,Electrical,electrical-id,active,active");
+    });
+
+    it("uses current names while preserving stable dimension and value IDs", () => {
+      const session = classifiedMeasuredSession();
+      const trade = session.classificationCatalog.dimensions[0]!;
+      trade.name = "Renamed trade";
+      trade.values[0]!.name = "Renamed electrical";
+
+      const csv = buildClassificationAssignmentsCsv(session);
+
+      expect(csv).toContain(
+        ",Renamed trade,trade,active,Renamed electrical,electrical-id,active,active",
+      );
+    });
+
+    it("uses shared escaping and formula neutralization for PDF, page, measurement, dimension, and value text", () => {
+      const session = classifiedMeasuredSession();
+      const measurement = session.pages[1]!.measurements[0]!;
+      const trade = session.classificationCatalog.dimensions[0]!;
+      session.pdf.name = '=SUM("A",1).pdf';
+      measurement.name = "+measurement name";
+      measurement.id = " \t=measurement";
+      trade.name = 'Trade, "Δ"\nZone';
+      trade.id = "+trade";
+      trade.values[0]!.name = 'Electrical, "Ω"\nBay';
+      trade.values[0]!.id = "@electrical";
+      measurement.classificationValueIds = ["@electrical", "approved-id"];
+
+      const csv = buildClassificationAssignmentsCsv(session, ['=A1, "cover"\nSheet', "A2"]);
+
+      expect(csv).toContain('"\'=SUM(""A"",1).pdf"');
+      expect(csv).toContain('"\'=A1, ""cover""\nSheet"');
+      expect(csv).toContain("' \t=measurement");
+      expect(csv).toContain("'+measurement name");
+      expect(csv).toContain('"Trade, ""Δ""\nZone"');
+      expect(csv).toContain("'+trade");
+      expect(csv).toContain('"Electrical, ""Ω""\nBay"');
+      expect(csv).toContain("'@electrical");
+    });
+
+    it("includes classification assignments from hidden measurements", () => {
+      const session = classifiedMeasuredSession();
+      session.pages[1]!.measurements[0]!.visible = false;
+
+      expect(buildClassificationAssignmentsCsv(session)).toContain(
+        'line-id,"Lobby, ""north""",Line,false,Trade,trade,active,Electrical,electrical-id,active,active',
+      );
+    });
+
+    it("downloads the exact classifications filename and preserves the object URL lifecycle", () => {
+      const anchor = {
+        href: "",
+        download: "",
+        click: vi.fn(),
+        remove: vi.fn(),
+      };
+      const append = vi.fn();
+      const revokeObjectURL = vi.fn();
+      const setTimeout = vi.fn((callback: () => void) => {
+        callback();
+        return 1;
+      });
+      vi.stubGlobal("document", {
+        body: { append },
+        createElement: vi.fn(() => anchor),
+      });
+      vi.stubGlobal("URL", {
+        createObjectURL: vi.fn(() => "blob:classifications"),
+        revokeObjectURL,
+      });
+      vi.stubGlobal("window", { setTimeout });
+
+      try {
+        const session = classifiedMeasuredSession();
+        session.pdf.name = "plan.PDF";
+        downloadClassificationAssignmentsCsv(session);
+
+        expect(anchor.download).toBe("plan-classifications.csv");
+        expect(append).toHaveBeenCalledWith(anchor);
+        expect(anchor.click).toHaveBeenCalledOnce();
+        expect(anchor.remove).toHaveBeenCalledOnce();
+        expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 250);
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:classifications");
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
   it("rejects empty exports", () => {
     const session = createEmptySession({ name: "empty.pdf", size: 1, lastModified: 1 }, 1);
     expect(() => buildCsv(session)).toThrow(NoMeasurementsError);
@@ -1028,6 +1377,7 @@ describe("CSV export", () => {
 
     try {
       downloadCsv(measuredSession());
+      expect(anchor.download).toBe("sample-measurements.csv");
       expect(append).toHaveBeenCalledWith(anchor);
       expect(anchor.click).toHaveBeenCalledOnce();
       expect(anchor.remove).toHaveBeenCalledOnce();
