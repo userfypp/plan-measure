@@ -18,13 +18,13 @@
     "konva": "10.5.0",
     "pdfjs-dist": "6.3.289",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react-dom": "19.3.0",
     "react-konva": "19.2.7"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.7",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "eslint": "10.10.0",
     "eslint-plugin-react-hooks": "7.1.1",
