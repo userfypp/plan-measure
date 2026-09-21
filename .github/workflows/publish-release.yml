@@ -19,7 +19,10 @@ jobs:
       actions: read
       pull-requests: read
     outputs:
-      should-publish: ${{ steps.release-pr.outputs.should-publish }}
+      should-process: ${{ steps.release-pr.outputs.should-process }}
+      release-pr-number: ${{ steps.release-pr.outputs.release-pr-number }}
+      release-state: ${{ steps.release-pr.outputs.release-state }}
+      expected-sha: ${{ steps.release-pr.outputs.expected-sha }}
 
     steps:
       - name: Verify successful Pages deploy job for the exact SHA
@@ -53,7 +56,7 @@ jobs:
             exit 1
           fi
 
-      - name: Classify main deployment and verify pending Release PR
+      - name: Classify main deployment and verify Release PR
         id: release-pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,39 +81,150 @@ jobs:
                           and .base.ref == "main"
                           and .head.ref == $head
                           and .merge_commit_sha == $sha
-                          and (.labels | any(.name == "autorelease: pending"))
                         )
                     ]
                 ')"
 
           release_pr_count="$(jq 'length' <<<"$release_prs")"
           if [[ "$release_pr_count" == "0" ]]; then
-            echo "No pending Release Please PR matches ${EXPECTED_SHA}; skipping publication."
-            echo "should-publish=false" >>"$GITHUB_OUTPUT"
+            echo "No Release Please PR matches ${EXPECTED_SHA}; skipping publication."
+            echo "should-process=false" >>"$GITHUB_OUTPUT"
             exit 0
           fi
 
           if [[ "$release_pr_count" != "1" ]]; then
-            echo "Expected exactly one pending Release Please PR for ${EXPECTED_SHA}; found ${release_pr_count}." >&2
+            echo "Expected exactly one Release Please PR for ${EXPECTED_SHA}; found ${release_pr_count}." >&2
             exit 1
           fi
 
           release_pr_number="$(jq -r '.[0].number' <<<"$release_prs")"
-          echo "Validated Release PR #${release_pr_number} for ${EXPECTED_SHA}."
-          echo "should-publish=true" >>"$GITHUB_OUTPUT"
+          pending_count="$(jq '[.[0].labels[] | select(.name == "autorelease: pending")] | length' <<<"$release_prs")"
+          tagged_count="$(jq '[.[0].labels[] | select(.name == "autorelease: tagged")] | length' <<<"$release_prs")"
+
+          if [[ "$pending_count" == "1" && "$tagged_count" == "0" ]]; then
+            release_state="pending"
+          elif [[ "$pending_count" == "0" && "$tagged_count" == "1" ]]; then
+            release_state="tagged"
+          else
+            echo "Release PR #${release_pr_number} must have exactly one release state label; found pending=${pending_count}, tagged=${tagged_count}." >&2
+            exit 1
+          fi
+
+          echo "Validated Release PR #${release_pr_number} for ${EXPECTED_SHA} (${release_state})."
+          echo "should-process=true" >>"$GITHUB_OUTPUT"
+          echo "release-pr-number=${release_pr_number}" >>"$GITHUB_OUTPUT"
+          echo "release-state=${release_state}" >>"$GITHUB_OUTPUT"
+          echo "expected-sha=${EXPECTED_SHA}" >>"$GITHUB_OUTPUT"
 
   publish:
     needs: preflight
-    if: ${{ needs.preflight.outputs.should-publish == 'true' }}
+    if: ${{ needs.preflight.outputs.should-process == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ needs.preflight.outputs.expected-sha }}
+      RELEASE_PR_NUMBER: ${{ needs.preflight.outputs.release-pr-number }}
+      RELEASE_STATE: ${{ needs.preflight.outputs.release-state }}
 
     steps:
+      - name: Check out exact release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Prepare release metadata
+        run: |
+          set -euo pipefail
+
+          manifest_version="$(jq -er '."."' .release-please-manifest.json)"
+          package_version="$(jq -er '.version' package.json)"
+
+          if [[ "$manifest_version" != "$package_version" ]]; then
+            echo "Manifest version ${manifest_version} does not match package version ${package_version}." >&2
+            exit 1
+          fi
+
+          if [[ ! "$manifest_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected an X.Y.Z release version; found ${manifest_version}." >&2
+            exit 1
+          fi
+
+          echo "VERSION=${manifest_version}" >>"$GITHUB_ENV"
+          echo "TAG=v${manifest_version}" >>"$GITHUB_ENV"
+          echo "TITLE=Plan Measure v${manifest_version}" >>"$GITHUB_ENV"
+          echo "NOTES_FILE=${RUNNER_TEMP}/release-notes.md" >>"$GITHUB_ENV"
+
+      - name: Format release notes
+        run: |
+          set -euo pipefail
+
+          node .github/scripts/format-release-notes.mjs \
+            --changelog CHANGELOG.md \
+            --version "$VERSION" \
+            --output "$NOTES_FILE"
+
+      - name: Inspect expected tag and GitHub Release
+        id: remote-state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          remote_state="$(gh api graphql \
+            -f owner="$owner" \
+            -f name="$repo" \
+            -f tag="$TAG" \
+            -f ref="refs/tags/$TAG" \
+            -f query='
+              query($owner: String!, $name: String!, $tag: String!, $ref: String!) {
+                repository(owner: $owner, name: $name) {
+                  release(tagName: $tag) { tagName }
+                  ref(qualifiedName: $ref) { name }
+                }
+              }
+            ')"
+
+          release_exists="$(jq -r '.data.repository.release != null' <<<"$remote_state")"
+          tag_exists="$(jq -r '.data.repository.ref != null' <<<"$remote_state")"
+
+          if [[ "$tag_exists" == "true" ]]; then
+            tag_sha="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/${GITHUB_REPOSITORY}/commits/${TAG}" \
+              --jq '.sha')"
+
+            if [[ "$tag_sha" != "$EXPECTED_SHA" ]]; then
+              echo "Tag ${TAG} points to ${tag_sha}, expected ${EXPECTED_SHA}." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "$release_exists" == "true" && "$tag_exists" != "true" ]]; then
+            echo "GitHub Release ${TAG} exists but its Git tag does not." >&2
+            exit 1
+          fi
+
+          if [[ "$release_exists" != "true" && "$RELEASE_STATE" == "tagged" ]]; then
+            echo "Release PR #${RELEASE_PR_NUMBER} is tagged but GitHub Release ${TAG} does not exist." >&2
+            exit 1
+          fi
+
+          echo "release-exists=${release_exists}" >>"$GITHUB_OUTPUT"
+
       - name: Create tag and GitHub Release
+        id: release
+        if: ${{ steps.remote-state.outputs.release-exists == 'false' && env.RELEASE_STATE == 'pending' }}
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -118,3 +232,149 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-github-pull-request: true
+
+      - name: Verify Release Please outputs
+        if: ${{ steps.remote-state.outputs.release-exists == 'false' && env.RELEASE_STATE == 'pending' }}
+        env:
+          RELEASE_CREATED: ${{ steps.release.outputs.release_created }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$RELEASE_CREATED" != "true" ]]; then
+            echo "Release Please did not create the expected release." >&2
+            exit 1
+          fi
+
+          if [[ "$RELEASE_VERSION" != "$VERSION" ]]; then
+            echo "Release Please created version ${RELEASE_VERSION}; expected ${VERSION}." >&2
+            exit 1
+          fi
+
+          if [[ "$RELEASE_TAG" != "$TAG" ]]; then
+            echo "Release Please created tag ${RELEASE_TAG}; expected ${TAG}." >&2
+            exit 1
+          fi
+
+          if [[ "$RELEASE_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Release Please tagged ${RELEASE_SHA}; expected ${EXPECTED_SHA}." >&2
+            exit 1
+          fi
+
+      - name: Post-process and verify GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          release_json="$(gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,body)"
+          release_tag="$(jq -r '.tagName' <<<"$release_json")"
+
+          if [[ "$release_tag" != "$TAG" ]]; then
+            echo "GitHub Release tag ${release_tag} does not match ${TAG}." >&2
+            exit 1
+          fi
+
+          tag_sha="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/commits/${TAG}" \
+            --jq '.sha')"
+
+          if [[ "$tag_sha" != "$EXPECTED_SHA" ]]; then
+            echo "Tag ${TAG} points to ${tag_sha}, expected ${EXPECTED_SHA}." >&2
+            exit 1
+          fi
+
+          gh release edit "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$TITLE" \
+            --notes-file "$NOTES_FILE"
+
+          final_release_file="${RUNNER_TEMP}/release-final.json"
+          gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,body >"$final_release_file"
+
+          final_tag="$(jq -r '.tagName' "$final_release_file")"
+          final_title="$(jq -r '.name' "$final_release_file")"
+
+          if [[ "$final_tag" != "$TAG" ]]; then
+            echo "Final GitHub Release tag ${final_tag} does not match ${TAG}." >&2
+            exit 1
+          fi
+
+          if [[ "$final_title" != "$TITLE" ]]; then
+            echo "Final GitHub Release title ${final_title} does not match ${TITLE}." >&2
+            exit 1
+          fi
+
+          NOTES_FILE="$NOTES_FILE" FINAL_RELEASE_FILE="$final_release_file" node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const normalize = (value) => value.replace(/\r\n/g, "\n").replace(/\n?$/, "\n");
+          const expected = await readFile(process.env.NOTES_FILE, "utf8");
+          const release = JSON.parse(await readFile(process.env.FINAL_RELEASE_FILE, "utf8"));
+          const actual = release.body ?? "";
+
+          if (normalize(actual) !== normalize(expected)) {
+            console.error("Final GitHub Release body does not match the generated notes.");
+            process.exit(1);
+          }
+          NODE
+
+          final_tag_sha="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/commits/${TAG}" \
+            --jq '.sha')"
+
+          if [[ "$final_tag_sha" != "$EXPECTED_SHA" ]]; then
+            echo "Final tag ${TAG} points to ${final_tag_sha}, expected ${EXPECTED_SHA}." >&2
+            exit 1
+          fi
+
+      - name: Repair Release Please labels if needed
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          labels="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR_NUMBER}/labels?per_page=100")"
+          pending_count="$(jq '[.[] | select(.name == "autorelease: pending")] | length' <<<"$labels")"
+          tagged_count="$(jq '[.[] | select(.name == "autorelease: tagged")] | length' <<<"$labels")"
+
+          if [[ "$pending_count" == "0" && "$tagged_count" == "1" ]]; then
+            echo "Release Please labels are already correct."
+            exit 0
+          fi
+
+          if [[ "$pending_count" != "1" || "$tagged_count" != "0" ]]; then
+            echo "Cannot safely repair Release PR labels; found pending=${pending_count}, tagged=${tagged_count}." >&2
+            exit 1
+          fi
+
+          gh pr edit "$RELEASE_PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --remove-label "autorelease: pending" \
+            --add-label "autorelease: tagged"
+
+          labels="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR_NUMBER}/labels?per_page=100")"
+          pending_count="$(jq '[.[] | select(.name == "autorelease: pending")] | length' <<<"$labels")"
+          tagged_count="$(jq '[.[] | select(.name == "autorelease: tagged")] | length' <<<"$labels")"
+
+          if [[ "$pending_count" != "0" || "$tagged_count" != "1" ]]; then
+            echo "Release PR label repair did not reach the tagged state." >&2
+            exit 1
+          fi
