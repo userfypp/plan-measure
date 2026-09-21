@@ -27,6 +27,7 @@ interface ViewerShellProps {
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
   viewerOverlay?: ReactNode;
+  sourcePageLabels?: readonly string[] | null;
   rightObstruction?: number;
   onAuthoringCapabilityChange?: (
     capability: AuthoringCapability,
@@ -39,6 +40,7 @@ export function ViewerShell({
   toolRail,
   contextToolbar,
   viewerOverlay,
+  sourcePageLabels = null,
   rightObstruction = 0,
   onAuthoringCapabilityChange,
 }: ViewerShellProps) {
@@ -199,6 +201,7 @@ export function ViewerShell({
             {navigation && (
               <div className={styles.dock} ref={dockRef}>
                 <ViewerDockContainer
+                  sourcePageLabels={sourcePageLabels}
                   navigation={{
                     ...navigation,
                     onPageChange: (pageNumber) =>

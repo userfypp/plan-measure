@@ -2,17 +2,23 @@ import { describe, expect, it } from "vitest";
 import type { CurrentSession, Measurement, MeasurementType } from "../types/domain";
 import { measurementResultsMm } from "../utils/geometry";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
-import { createEmptySession, initialSessionState, sessionReducer } from "./sessionState";
+import {
+  createEmptySession,
+  initialSessionState,
+  sessionReducer,
+  type SessionCommandResult,
+} from "./sessionState";
 
 function session(): CurrentSession {
   return createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 2);
 }
 
 describe("SessionState", () => {
-  it("creates a V10 session with default measurement precision, area display, and empty CSV column overrides", () => {
+  it("creates a V11 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(10);
+    expect(created.schemaVersion).toBe(11);
+    expect(created.pageLabelOverrides).toEqual({});
     expect(created.settings.measurementDecimalPlaces).toBe(2);
     expect(created.settings.areaDisplay).toBe("auto");
     expect(created.settings.csvExport).toEqual({ columnOverrides: {} });
@@ -28,7 +34,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(10);
+    expect(loaded.session?.schemaVersion).toBe(11);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -94,10 +100,69 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(10);
+    expect(state.session?.schemaVersion).toBe(11);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });
+  });
+
+  it("sets, trims, removes, and preserves independent page-label overrides immutably", () => {
+    const original = session();
+    let state: SessionCommandResult = { session: original, error: null };
+
+    state = sessionReducer(state, {
+      type: "SET_PAGE_LABEL_OVERRIDE",
+      pageNumber: 2,
+      label: "Second",
+    });
+    const afterSecond = state.session!;
+    state = sessionReducer(state, {
+      type: "SET_PAGE_LABEL_OVERRIDE",
+      pageNumber: 1,
+      label: "  A-101  ",
+    });
+    const afterFirst = state.session!;
+
+    expect(original.pageLabelOverrides).toEqual({});
+    expect(afterSecond).not.toBe(original);
+    expect(afterSecond.pageLabelOverrides).toEqual({ 2: "Second" });
+    expect(afterFirst).not.toBe(afterSecond);
+    expect(afterFirst.pageLabelOverrides).toEqual({ 1: "A-101", 2: "Second" });
+
+    state = sessionReducer(state, {
+      type: "SET_PAGE_LABEL_OVERRIDE",
+      pageNumber: 1,
+      label: "   ",
+    });
+    expect(state.session?.pageLabelOverrides).toEqual({ 2: "Second" });
+  });
+
+  it("treats removal of a missing override as a semantic no-op", () => {
+    const original = session();
+    const state = sessionReducer(
+      { session: original, error: "stale" },
+      { type: "REMOVE_PAGE_LABEL_OVERRIDE", pageNumber: 1 },
+    );
+
+    expect(state.session).toBe(original);
+    expect(state.session?.pageLabelOverrides).toEqual({});
+    expect(state.error).toBeNull();
+  });
+
+  it("rejects out-of-range pages and control characters without mutating page-label overrides", () => {
+    const original = session();
+    for (const action of [
+      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 0, label: "A" },
+      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 3, label: "A" },
+      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\nB" },
+      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\tB" },
+      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\u007fB" },
+    ]) {
+      const state = sessionReducer({ session: original, error: null }, action);
+      expect(state.session).toBe(original);
+      expect(state.session?.pageLabelOverrides).toEqual({});
+      expect(state.error).not.toBeNull();
+    }
   });
 
   it("keeps the authoritative measurement points when an update is invalid", () => {

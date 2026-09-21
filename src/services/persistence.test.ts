@@ -22,6 +22,7 @@ import type {
   SessionV7,
   SessionV8,
   SessionV9,
+  SessionV10,
 } from "../types/domain";
 import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
@@ -229,6 +230,19 @@ function v9MeasuredSession(): SessionV9 {
   };
 }
 
+function v10MeasuredSession(): SessionV10 {
+  const current = currentMeasuredSession();
+  return {
+    schemaVersion: 10,
+    pdf: structuredClone(current.pdf),
+    pageCount: current.pageCount,
+    currentPage: current.currentPage,
+    pages: structuredClone(current.pages),
+    settings: structuredClone(current.settings),
+    classificationCatalog: structuredClone(current.classificationCatalog),
+  };
+}
+
 function archivedCurrentSession(): CurrentSession {
   const session = currentMeasuredSession();
   session.classificationCatalog = {
@@ -332,10 +346,7 @@ it("persists and recovers a standard Uniform scale preset with unchanged measure
     pageNumber: 1,
     id: "line-1",
     measurementType: "line",
-    points: [
-      { x: 0, y: 0 },
-      { x: 72, y: 0 },
-    ],
+    points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
   });
   expect(state.error).toBeNull();
 
@@ -369,13 +380,16 @@ it("persists a custom Uniform ratio as the existing PageCalibration shape and pr
     pageNumber: 1,
     id: "line-1",
     measurementType: "line",
-    points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+    points: [
+      { x: 0, y: 0 },
+      { x: 72, y: 0 },
+    ],
   });
 
   await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
   const recovered = await loadSavedSession();
   const page = recovered?.session.pages[1];
-  expect(recovered?.session.schemaVersion).toBe(10);
+  expect(recovered?.session.schemaVersion).toBe(11);
   expect(page?.calibrations[0]).toEqual({ id: "custom-uniform", name: "Scale 1", ...calibration });
   expect(page?.activeCalibrationId).toBe("custom-uniform");
   expect(page?.measurements[0]?.calibrationId).toBe("custom-uniform");
@@ -1056,13 +1070,34 @@ describe("session persistence", () => {
     expect(await decoded.pdfBlob.text()).toBe("pdf-v9");
   });
 
-  it("migrates V7 to V10 with CSV defaults, two measurement decimals, and automatic area display", () => {
+  it("preserves V11 page-label overrides through historical geometry recovery", () => {
+    const historical = currentMeasuredSession();
+    historical.pageLabelOverrides = { 2: "Detail-2" };
+    historical.pages[2]!.measurements[0] = {
+      ...historical.pages[2]!.measurements[0]!,
+      type: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 6, y: 5 },
+        { x: 0, y: 4 },
+        { x: 4, y: 0 },
+      ],
+    };
+
+    const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
+
+    expect(recovered.compatibility).toBe("historical-repair-required");
+    expect(recovered.session.pageLabelOverrides).toEqual({ 2: "Detail-2" });
+  });
+
+  it("migrates V7 to V11 with CSV defaults, two measurement decimals, automatic area display, and no page-label overrides", () => {
     const v7 = v7MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v7));
 
     expect(migrated).toEqual({
       ...v7,
-      schemaVersion: 10,
+      schemaVersion: 11,
+      pageLabelOverrides: {},
       settings: {
         ...v7.settings,
         csvExport: { columnOverrides: {} },
@@ -1072,13 +1107,14 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates V8 sessions through V9 to V10 without changing existing settings", () => {
+  it("migrates V8 sessions through V10 to V11 without changing existing settings", () => {
     const v8 = v8MeasuredSession();
     v8.settings.csvExport.columnOverrides = { name: false };
 
     const migrated = deserializeSession(JSON.stringify(v8));
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v8.settings,
       measurementDecimalPlaces: 2,
@@ -1086,14 +1122,15 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates V9 to V10 by adding only automatic polygon area display", () => {
+  it("migrates V9 through V10 to V11 while adding area display and empty page-label overrides", () => {
     const v9 = v9MeasuredSession();
     v9.settings.measurementDecimalPlaces = 6;
     v9.settings.csvExport.columnOverrides = { name: false };
 
     const migrated = deserializeSession(JSON.stringify(v9));
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v9.settings,
       areaDisplay: "auto",
@@ -1102,11 +1139,26 @@ describe("session persistence", () => {
     expect(migrated.classificationCatalog).toEqual(v9.classificationCatalog);
   });
 
-  it("migrates a V1 page without calibration to an empty V10 page", () => {
+  it("migrates V10 to V11 by adding only empty page-label overrides", () => {
+    const v10 = v10MeasuredSession();
+    v10.settings.displayUnit = "ft-in";
+    v10.settings.areaDisplay = "ac";
+
+    const migrated = deserializeSession(JSON.stringify(v10));
+
+    expect(migrated).toEqual({
+      ...v10,
+      schemaVersion: 11,
+      pageLabelOverrides: {},
+    });
+  });
+
+  it("migrates a V1 page without calibration to an empty V11 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
     expect(migrated.settings.measurementDecimalPlaces).toBe(2);
@@ -1197,7 +1249,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -1213,7 +1265,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -1228,11 +1280,11 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates V4 measurements to V10 with visibility enabled", () => {
+  it("migrates V4 measurements to V11 with visibility enabled", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -1242,7 +1294,7 @@ describe("session persistence", () => {
     ]);
   });
 
-  it("serializes V10 and round trips settings with uniform/X/Y calibrations", () => {
+  it("serializes V11 and round trips settings with uniform/X/Y calibrations", () => {
     const session = currentMeasuredSession();
     session.pages[1]!.calibrations.push({
       id: "xy-scale",
@@ -1272,15 +1324,54 @@ describe("session persistence", () => {
     };
     session.settings.measurementDecimalPlaces = 6;
     const serialized = serializeSession(session);
-    expect(JSON.parse(serialized).schemaVersion).toBe(10);
+    expect(JSON.parse(serialized).schemaVersion).toBe(11);
     expect(deserializeSession(serialized)).toEqual(session);
+  });
+
+  it("round trips sparse V11 page-label overrides without altering their text", () => {
+    const session = currentMeasuredSession();
+    session.pageLabelOverrides = {
+      1: 'Δ, "Quoted" =+-@',
+      2: "=SUM(A1:A2)",
+    };
+
+    const restored = deserializeSession(serializeSession(session));
+
+    expect(restored.pageLabelOverrides).toEqual(session.pageLabelOverrides);
+    expect(restored.pageLabelOverrides[1]).toBe('Δ, "Quoted" =+-@');
+    expect(restored.pageLabelOverrides[2]).toBe("=SUM(A1:A2)");
+  });
+
+  it("rejects invalid V11 page-label override records instead of repairing them", () => {
+    const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
+    const invalidOverrides: unknown[] = [
+      [],
+      { "01": "A" },
+      { "1.0": "A" },
+      { "0": "A" },
+      { "-1": "A" },
+      { "3": "A" },
+      { "1": 123 },
+      { "1": "" },
+      { "1": " A" },
+      { "1": "A " },
+      { "1": "A\nB" },
+      { "1": "A\tB" },
+      { "1": "A\u007fB" },
+    ];
+
+    for (const pageLabelOverrides of invalidOverrides) {
+      expect(() =>
+        deserializeSessionForRecovery(JSON.stringify({ ...base, pageLabelOverrides })),
+      ).toThrow("page label overrides");
+    }
   });
 
   it("migrates V5 measurements to visible by default without changing their data", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -1298,13 +1389,13 @@ describe("session persistence", () => {
     });
   });
 
-  it("migrates a real V6 catalog to V10 without losing historical state", () => {
+  it("migrates a real V6 catalog to V11 without losing historical state", () => {
     const v6 = v6MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v6));
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
     expect(migrated.pdf).toEqual(v6.pdf);
     expect(migrated.settings).toEqual({
       ...v6.settings,
@@ -1328,7 +1419,7 @@ describe("session persistence", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(10);
+    expect(restored.schemaVersion).toBe(11);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
@@ -1346,7 +1437,7 @@ describe("session persistence", () => {
   });
 
   it.each(["mm", "cm", "m", "in", "ft", "ft-in"] as const)(
-    "round trips V10 display unit %s with both polygon area modes",
+    "round trips V11 display unit %s with both polygon area modes",
     (displayUnit) => {
       for (const areaDisplay of ["auto", "ac"] as const) {
         const session = currentMeasuredSession();
@@ -1361,7 +1452,7 @@ describe("session persistence", () => {
     },
   );
 
-  it("rejects malformed V10 display and polygon area settings", () => {
+  it("rejects malformed V11 display and polygon area settings", () => {
     const base = JSON.parse(serializeSession(currentMeasuredSession())) as {
       settings: Record<string, unknown>;
     } & Record<string, unknown>;
@@ -1414,6 +1505,16 @@ describe("session persistence", () => {
 
     expect(recovered?.session.settings.displayUnit).toBe("ft-in");
     expect(recovered?.session.settings.areaDisplay).toBe("ac");
+  });
+
+  it("persists and recovers page-label overrides through the existing session flow", async () => {
+    const session = currentMeasuredSession();
+    session.pageLabelOverrides = { 1: "Cover", 2: "Δ-2" };
+    await replaceSavedSession(session, new Blob(["pdf"], { type: "application/pdf" }), null);
+
+    const recovered = await loadSavedSession();
+
+    expect(recovered?.session.pageLabelOverrides).toEqual({ 1: "Cover", 2: "Δ-2" });
   });
 
   it("requires valid current CSV export settings", () => {
@@ -1528,6 +1629,7 @@ describe("session persistence", () => {
 
   it("recovers deterministic classification conflicts without rewriting data and persists repair", async () => {
     const historical = currentMeasuredSession();
+    historical.pageLabelOverrides = { 2: "Classified detail" };
     historical.classificationCatalog = {
       dimensions: [
         {
@@ -1554,6 +1656,7 @@ describe("session persistence", () => {
     expect(recovered.incompatibleMeasurementIds).toEqual([]);
     expect(recovered.revision).toBe(originalRevision);
     expect(recovered.session).toEqual(historical);
+    expect(recovered.session.pageLabelOverrides).toEqual({ 2: "Classified detail" });
     expect(isSessionPersistable(recovered.session)).toBe(false);
     expect(() => deserializeSession(JSON.stringify(historical))).toThrow(
       "classification names that require repair",
@@ -1620,7 +1723,7 @@ describe("session persistence", () => {
     const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
 
     expect(recovered.compatibility).toBe("classification-repair-required");
-    expect(recovered.session.schemaVersion).toBe(10);
+    expect(recovered.session.schemaVersion).toBe(11);
     expect(recovered.session.classificationCatalog.dimensions).toEqual([
       {
         id: "discipline",
@@ -1763,7 +1866,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(10);
+    expect(restored.schemaVersion).toBe(11);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -2123,7 +2226,7 @@ describe("session persistence", () => {
 
     const recovered = await loadSavedSession();
 
-    expect(recovered?.session.schemaVersion).toBe(10);
+    expect(recovered?.session.schemaVersion).toBe(11);
     expect(recovered?.session.pdf).toEqual(historical.pdf);
     expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
       "legacy-line",

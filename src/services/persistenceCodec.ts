@@ -17,6 +17,7 @@ import type {
   SessionV8,
   SessionV9,
   SessionV10,
+  SessionV11,
   CurrentSession,
 } from "../types/domain";
 import {
@@ -27,6 +28,7 @@ import {
   isValidPageCalibration,
 } from "../utils/geometry";
 import { classificationNameKey } from "../utils/classificationNames";
+import { isValidCustomPageLabel } from "../utils/pageLabels";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -521,6 +523,30 @@ function assertValidSessionV10(
     throw new Error("The saved polygon area display setting is invalid.");
   }
 }
+function assertValidSessionV11(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
+  if (value.schemaVersion !== 11) throw new Error("The saved session is invalid.");
+  assertValidSessionV10({ ...value, schemaVersion: 10 }, allowClassificationNameConflicts);
+  const pageLabelOverrides = value.pageLabelOverrides;
+  if (!isRecord(pageLabelOverrides)) {
+    throw new Error("The saved page label overrides are invalid.");
+  }
+  const pageCount = value.pageCount as number;
+  for (const [pageKey, label] of Object.entries(pageLabelOverrides)) {
+    const pageNumber = Number(pageKey);
+    if (
+      !Number.isInteger(pageNumber) ||
+      pageNumber < 1 ||
+      pageNumber > pageCount ||
+      String(pageNumber) !== pageKey ||
+      !isValidCustomPageLabel(label)
+    ) {
+      throw new Error("The saved page label overrides are invalid.");
+    }
+  }
+}
 function legacyCalibrationId(pageNumber: number): string {
   return `legacy-page-${pageNumber}-scale-1`;
 }
@@ -667,6 +693,14 @@ function migrateSessionV9(session: SessionV9): SessionV10 {
   };
 }
 
+function migrateSessionV10(session: SessionV10): SessionV11 {
+  return {
+    ...session,
+    schemaVersion: 11,
+    pageLabelOverrides: {},
+  };
+}
+
 function canonicalizeSessionV10(session: SessionV10): SessionV10 {
   const pages: SessionV10["pages"] = {};
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
@@ -725,12 +759,29 @@ function canonicalizeSessionV10(session: SessionV10): SessionV10 {
   };
 }
 
-function migrateAndCanonicalizeSessionV9(session: SessionV9): SessionV10 {
-  return canonicalizeSessionV10(migrateSessionV9(session));
+function canonicalizeSessionV11(session: SessionV11): SessionV11 {
+  const v10 = canonicalizeSessionV10({
+    ...session,
+    schemaVersion: 10,
+  });
+  const pageLabelOverrides: Record<number, string> = {};
+  for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
+    const label = session.pageLabelOverrides[pageNumber];
+    if (isValidCustomPageLabel(label)) pageLabelOverrides[pageNumber] = label;
+  }
+  return {
+    ...v10,
+    schemaVersion: 11,
+    pageLabelOverrides,
+  };
+}
+
+function migrateAndCanonicalizeSessionV9(session: SessionV9): SessionV11 {
+  return canonicalizeSessionV11(migrateSessionV10(migrateSessionV9(session)));
 }
 
 export function serializeSession(session: CurrentSession): string {
-  assertValidSessionV10(session as unknown as Record<string, unknown>);
+  assertValidSessionV11(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
 
@@ -834,12 +885,12 @@ function finalizeDecodedSession(
   const historicalGeometryRepairRequired =
     allowHistoricalGeometry && incompatibleMeasurementIds.length > 0;
   if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
-    assertValidSessionV10(session as unknown as Record<string, unknown>);
+    assertValidSessionV11(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
   }
 
   // Validate every other migrated field without changing the repairable snapshot returned below.
-  const validationProbe = canonicalizeSessionV10(session);
+  const validationProbe = canonicalizeSessionV11(session);
   for (const page of Object.values(validationProbe.pages)) {
     page.measurements = page.measurements.map((measurement) =>
       hasValidMeasurementPoints(measurement.type, measurement.points)
@@ -860,7 +911,7 @@ function finalizeDecodedSession(
           },
     );
   }
-  assertValidSessionV10(
+  assertValidSessionV11(
     validationProbe as unknown as Record<string, unknown>,
     classificationRepairRequired,
   );
@@ -1019,7 +1070,20 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       assertValidSessionV10(candidate, classificationRepairRequired),
     );
     return finalizeDecodedSession(
-      canonicalizeSessionV10(value as unknown as SessionV10),
+      canonicalizeSessionV11(migrateSessionV10(value as unknown as SessionV10)),
+      true,
+      classificationRepairRequired,
+    );
+  }
+  if (value.schemaVersion === 11) {
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionWithHistoricalPolygons(value, (candidate) =>
+      assertValidSessionV11(candidate, classificationRepairRequired),
+    );
+    return finalizeDecodedSession(
+      canonicalizeSessionV11(value as unknown as SessionV11),
       true,
       classificationRepairRequired,
     );
