@@ -26,6 +26,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
@@ -33,7 +34,7 @@ jobs:
           jobs="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2026-03-10' \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?filter=all&per_page=100")"
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/attempts/${RUN_ATTEMPT}/jobs?per_page=100")"
 
           deploy_count="$(jq '[.jobs[] | select(.name == "deploy")] | length' <<<"$jobs")"
           if [[ "$deploy_count" != "1" ]]; then
@@ -61,81 +62,40 @@ jobs:
         run: |
           set -euo pipefail
 
-          associated_prs="$(gh api \
+          # REST 2026-03-10 removes merge_commit_sha from pull request responses.
+          release_prs="$(gh api --paginate \
             -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2026-03-10' \
-            "repos/${GITHUB_REPOSITORY}/commits/${EXPECTED_SHA}/pulls?per_page=100")"
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/pulls?state=closed&base=main&per_page=100" \
+            | jq -s \
+                --arg sha "$EXPECTED_SHA" \
+                --arg head "$EXPECTED_HEAD" '
+                  add
+                  | [
+                      .[]
+                      | select(
+                          .merged_at != null
+                          and .base.ref == "main"
+                          and .head.ref == $head
+                          and .merge_commit_sha == $sha
+                          and (.labels | any(.name == "autorelease: pending"))
+                        )
+                    ]
+                ')"
 
-          release_branch_prs="$(jq \
-            --arg sha "$EXPECTED_SHA" \
-            --arg head "$EXPECTED_HEAD" '
-              [
-                .[]
-                | select(
-                    .merged_at != null
-                    and .base.ref == "main"
-                    and .merge_commit_sha == $sha
-                    and .head.ref == $head
-                  )
-              ]
-            ' <<<"$associated_prs")"
-
-          release_branch_count="$(jq 'length' <<<"$release_branch_prs")"
-          if [[ "$release_branch_count" == "0" ]]; then
-            echo "No Release Please PR is associated with ${EXPECTED_SHA}; skipping publication."
+          release_pr_count="$(jq 'length' <<<"$release_prs")"
+          if [[ "$release_pr_count" == "0" ]]; then
+            echo "No pending Release Please PR matches ${EXPECTED_SHA}; skipping publication."
             echo "should-publish=false" >>"$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [[ "$release_branch_count" != "1" ]]; then
-            echo "Expected exactly one Release Please PR for ${EXPECTED_SHA}; found ${release_branch_count}." >&2
+          if [[ "$release_pr_count" != "1" ]]; then
+            echo "Expected exactly one pending Release Please PR for ${EXPECTED_SHA}; found ${release_pr_count}." >&2
             exit 1
           fi
 
-          if ! jq -e '
-            .[0].labels
-            | any(.name == "autorelease: pending")
-          ' <<<"$release_branch_prs" >/dev/null; then
-            echo "The Release Please PR associated with ${EXPECTED_SHA} is missing autorelease: pending." >&2
-            exit 1
-          fi
-
-          release_pr_number="$(jq -r '.[0].number' <<<"$release_branch_prs")"
-
-          pending_prs="$(gh api --paginate \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2026-03-10' \
-            "repos/${GITHUB_REPOSITORY}/pulls?state=closed&base=main&per_page=100" \
-            | jq -s '
-                add
-                | [
-                    .[]
-                    | select(
-                        .merged_at != null
-                        and (.labels | any(.name == "autorelease: pending"))
-                      )
-                  ]
-              ')"
-
-          pending_count="$(jq 'length' <<<"$pending_prs")"
-          if [[ "$pending_count" != "1" ]]; then
-            echo "Expected exactly one merged PR on main with autorelease: pending; found ${pending_count}." >&2
-            exit 1
-          fi
-
-          if ! jq -e \
-            --argjson number "$release_pr_number" \
-            --arg sha "$EXPECTED_SHA" \
-            --arg head "$EXPECTED_HEAD" '
-              .[0].number == $number
-              and .[0].merge_commit_sha == $sha
-              and .[0].head.ref == $head
-              and .[0].base.ref == "main"
-            ' <<<"$pending_prs" >/dev/null; then
-            echo "The unique pending Release PR does not match ${EXPECTED_SHA}." >&2
-            exit 1
-          fi
-
+          release_pr_number="$(jq -r '.[0].number' <<<"$release_prs")"
           echo "Validated Release PR #${release_pr_number} for ${EXPECTED_SHA}."
           echo "should-publish=true" >>"$GITHUB_OUTPUT"
 
