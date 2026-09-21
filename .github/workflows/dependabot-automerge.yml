@@ -1,0 +1,94 @@
+name: Dependabot Auto-merge
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-automerge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' && startsWith(github.event.workflow_run.head_branch, 'dependabot/') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Enable auto-merge for eligible Dependabot PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          pull_requests="$(gh api --paginate \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&per_page=100" \
+            | jq -s \
+                --arg branch "$HEAD_BRANCH" \
+                --arg sha "$HEAD_SHA" \
+                --arg repo "$GITHUB_REPOSITORY" '
+                  add
+                  | [
+                      .[]
+                      | select(
+                          .user.login == "dependabot[bot]"
+                          and .base.ref == "main"
+                          and .head.ref == $branch
+                          and .head.sha == $sha
+                          and .head.repo.full_name == $repo
+                        )
+                    ]
+                ')"
+
+          pr_count="$(jq 'length' <<<"$pull_requests")"
+          if [[ "$pr_count" == "0" ]]; then
+            echo "No matching open Dependabot PR; nothing to do."
+            exit 0
+          fi
+
+          if [[ "$pr_count" != "1" ]]; then
+            echo "Expected exactly one matching Dependabot PR; found ${pr_count}." >&2
+            exit 1
+          fi
+
+          pr_number="$(jq -r '.[0].number' <<<"$pull_requests")"
+
+          if [[ "$HEAD_BRANCH" != dependabot/npm_and_yarn/automerge-* ]]; then
+            echo "Dependabot PR #${pr_number} is manual; nothing to do."
+            exit 0
+          fi
+
+          pr_state="$(gh pr view "$pr_number" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json state,headRefOid,autoMergeRequest)"
+
+          if [[ "$(jq -r '.state' <<<"$pr_state")" != "OPEN" ]]; then
+            echo "Dependabot PR #${pr_number} is no longer open; nothing to do."
+            exit 0
+          fi
+
+          if [[ "$(jq -r '.headRefOid' <<<"$pr_state")" != "$HEAD_SHA" ]]; then
+            echo "Dependabot PR #${pr_number} moved to a different head SHA; nothing to do."
+            exit 0
+          fi
+
+          if [[ "$(jq -r '.autoMergeRequest != null' <<<"$pr_state")" == "true" ]]; then
+            echo "Auto-merge is already enabled for Dependabot PR #${pr_number}."
+            exit 0
+          fi
+
+          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.allow_auto_merge')" != "true" ]]; then
+            echo "Repository auto-merge is disabled; cannot enable auto-merge for Dependabot PR #${pr_number}." >&2
+            exit 1
+          fi
+
+          gh pr merge "$pr_number" \
+            --repo "$GITHUB_REPOSITORY" \
+            --auto \
+            --squash \
+            --match-head-commit "$HEAD_SHA"
