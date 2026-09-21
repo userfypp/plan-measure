@@ -57,6 +57,9 @@ function createProps(overrides: Partial<ViewerDockProps> = {}): ViewerDockProps 
       onZoomOut: vi.fn(),
       onFit: vi.fn(),
     },
+    sourcePageLabel: "A-1",
+    customPageLabel: null,
+    effectivePageLabel: "A-1",
     calibrations: [uniform, xy],
     activeCalibrationId: uniform.id,
     settings: {
@@ -67,6 +70,8 @@ function createProps(overrides: Partial<ViewerDockProps> = {}): ViewerDockProps 
       showCalibration: true,
     },
     onScaleChange: vi.fn(),
+    onSetPageLabelOverride: vi.fn(),
+    onRemovePageLabelOverride: vi.fn(),
     onSettingsChange: vi.fn(),
     ...overrides,
   };
@@ -83,11 +88,42 @@ function buttonByLabel(label: string): HTMLButtonElement {
 }
 
 function activeScaleTrigger(): HTMLButtonElement {
-  const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((candidate) =>
-    candidate.getAttribute("aria-label")?.startsWith("Active scale:"),
+  const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+    (candidate) => candidate.getAttribute("aria-label")?.startsWith("Active scale:"),
   );
   if (!button) throw new Error("Active scale trigger was not rendered.");
   return button;
+}
+
+function pageLabelTrigger(): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+    (candidate) => {
+      const label = candidate.getAttribute("aria-label") ?? "";
+      return label.includes("page label") || label.startsWith("Page label:");
+    },
+  );
+  if (!button) throw new Error("Page label trigger was not rendered.");
+  return button;
+}
+
+function pageLabelDialog(): HTMLElement {
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"][aria-label="Page label"]');
+  if (!dialog) throw new Error("Page label dialog was not rendered.");
+  return dialog;
+}
+
+function pageLabelInput(): HTMLInputElement {
+  const input = pageLabelDialog().querySelector<HTMLInputElement>('input[type="text"]');
+  if (!input) throw new Error("Page label input was not rendered.");
+  return input;
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  act(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 }
 
 beforeEach(() => {
@@ -102,7 +138,9 @@ beforeEach(() => {
 afterEach(() => {
   if (root) act(() => root?.unmount());
   container?.remove();
-  document.querySelectorAll('[role="menu"], [role="dialog"]').forEach((element) => element.remove());
+  document
+    .querySelectorAll('[role="menu"], [role="dialog"]')
+    .forEach((element) => element.remove());
   root = null;
   container = null;
 });
@@ -144,7 +182,9 @@ describe("ViewerDock", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
     act(() => trigger.click());
-    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+    const items = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'),
+    );
     expect(items).toHaveLength(2);
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
     expect(items[0]?.getAttribute("aria-current")).toBe("true");
@@ -164,7 +204,9 @@ describe("ViewerDock", () => {
     expect(trigger.disabled).toBe(true);
     expect(trigger.textContent).toContain("No active scale");
     expect(trigger.textContent).toContain("Create a scale to measure");
-    expect(trigger.getAttribute("aria-label")).toBe("Active scale: none. Create a scale to measure.");
+    expect(trigger.getAttribute("aria-label")).toBe(
+      "Active scale: none. Create a scale to measure.",
+    );
 
     renderDock(createProps({ calibrations: [uniform], activeCalibrationId: uniform.id }));
     trigger = activeScaleTrigger();
@@ -172,7 +214,9 @@ describe("ViewerDock", () => {
     expect(trigger.textContent).toContain("Ground floor");
     expect(trigger.textContent).toContain("1:100 · Uniform");
     act(() => trigger.click());
-    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+    const items = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'),
+    );
     expect(items).toHaveLength(1);
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
     expect(items[0]?.getAttribute("aria-current")).toBe("true");
@@ -205,6 +249,7 @@ describe("ViewerDock", () => {
     const controls = Array.from(dock.querySelectorAll<HTMLButtonElement>("button"));
     expect(controls.map((button) => button.getAttribute("aria-label"))).toEqual([
       "Previous page",
+      "Page label: A-1. Page 2 of 3. Edit page label",
       "Next page",
       "Zoom out",
       "Zoom in",
@@ -218,8 +263,12 @@ describe("ViewerDock", () => {
       act(() => control.focus());
       expect(document.activeElement).toBe(control);
     }
-    expect(buttonCss).toMatch(/\.button:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s);
-    expect(popoverCss).toMatch(/\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s);
+    expect(buttonCss).toMatch(
+      /\.button:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
+    );
+    expect(popoverCss).toMatch(
+      /\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
+    );
   });
 
   it("uses bounded content sizing and deterministic condensation instead of hidden scrolling", () => {
@@ -232,6 +281,8 @@ describe("ViewerDock", () => {
     expect(dockCss).toContain("@container (max-width: 500px)");
     expect(dockCss).toContain("@container (max-width: 460px)");
     expect(dockCss).toContain("@container (max-width: 360px)");
+    expect(dockCss).toMatch(/\.pageTriggerText strong\s*\{[^}]*text-overflow:\s*ellipsis;/s);
+    expect(dockCss).not.toMatch(/\.pageTrigger[^}]*display:\s*none/s);
   });
 
   it("locks active-scale switching during calibration/reference workflows", () => {
@@ -264,6 +315,194 @@ describe("ViewerDock", () => {
     expect(buttonByLabel("Zoom in").disabled).toBe(false);
     expect(buttonByLabel("Fit page to viewer").disabled).toBe(false);
     expect(buttonByLabel("View options").disabled).toBe(false);
+    act(() => pageLabelTrigger().click());
+    expect(pageLabelDialog()).toBeTruthy();
+  });
+
+  it("shows the effective label and physical page reference, including the no-label state", () => {
+    renderDock(createProps());
+    let trigger = pageLabelTrigger();
+    expect(trigger.textContent).toContain("A-1");
+    expect(trigger.textContent).toContain("1 / 3");
+    expect(trigger.getAttribute("aria-label")).toBe(
+      "Page label: A-1. Page 1 of 3. Edit page label",
+    );
+    expect(trigger.title).toBe("A-1");
+
+    renderDock(
+      createProps({ sourcePageLabel: null, customPageLabel: null, effectivePageLabel: "" }),
+    );
+    trigger = pageLabelTrigger();
+    expect(trigger.textContent).toContain("No label");
+    expect(trigger.textContent).toContain("1 / 3");
+    expect(trigger.getAttribute("aria-label")).toBe("Page 1 of 3. No page label. Set page label");
+  });
+
+  it("opens the page-label editor with focused selected effective content and source metadata", () => {
+    renderDock(createProps());
+    act(() => pageLabelTrigger().click());
+
+    const input = pageLabelInput();
+    expect(input.value).toBe("A-1");
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(3);
+    expect(pageLabelDialog().textContent).toContain("PDF label: A-1");
+    expect(pageLabelDialog().querySelector("button")?.textContent).not.toContain("Restore");
+  });
+
+  it("saves a trimmed custom label with Save and restores focus", () => {
+    const props = createProps();
+    renderDock(props);
+    const trigger = pageLabelTrigger();
+    act(() => trigger.click());
+    setInputValue(pageLabelInput(), "  A-101  ");
+    const save = Array.from(pageLabelDialog().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Save",
+    );
+    if (!save) throw new Error("Save button was not rendered.");
+    act(() => save.click());
+
+    expect(props.onSetPageLabelOverride).toHaveBeenCalledWith("A-101");
+    expect(props.onRemovePageLabelOverride).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"][aria-label="Page label"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("saves with Enter", () => {
+    const props = createProps({ sourcePageLabel: null, effectivePageLabel: "" });
+    renderDock(props);
+    act(() => pageLabelTrigger().click());
+    const input = pageLabelInput();
+    setInputValue(input, "Δ-2");
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+
+    expect(props.onSetPageLabelOverride).toHaveBeenCalledWith("Δ-2");
+    expect(document.querySelector('[role="dialog"][aria-label="Page label"]')).toBeNull();
+  });
+
+  it("discards draft on Escape and Cancel and restores focus", () => {
+    const props = createProps();
+    renderDock(props);
+    const trigger = pageLabelTrigger();
+    act(() => trigger.click());
+    setInputValue(pageLabelInput(), "Discard me");
+    act(() =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
+    expect(props.onSetPageLabelOverride).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+
+    act(() => trigger.click());
+    setInputValue(pageLabelInput(), "Discard again");
+    const cancel = Array.from(pageLabelDialog().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Cancel",
+    );
+    if (!cancel) throw new Error("Cancel button was not rendered.");
+    act(() => cancel.click());
+    expect(props.onSetPageLabelOverride).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("discards the draft when focus leaves the page-label popover", () => {
+    const props = createProps();
+    renderDock(props);
+    act(() => pageLabelTrigger().click());
+    setInputValue(pageLabelInput(), "Discard on focus leave");
+
+    act(() => buttonByLabel("Zoom in").focus());
+
+    expect(document.querySelector('[role="dialog"][aria-label="Page label"]')).toBeNull();
+    expect(props.onSetPageLabelOverride).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(buttonByLabel("Zoom in"));
+
+    act(() => pageLabelTrigger().click());
+    expect(pageLabelInput().value).toBe("A-1");
+  });
+
+  it("restores the PDF label or removes a custom-only label immediately", () => {
+    const restoreProps = createProps({ customPageLabel: "Custom", effectivePageLabel: "Custom" });
+    renderDock(restoreProps);
+    let trigger = pageLabelTrigger();
+    act(() => trigger.click());
+    const restore = Array.from(
+      pageLabelDialog().querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent === "Restore PDF label");
+    if (!restore) throw new Error("Restore PDF label button was not rendered.");
+    act(() => restore.click());
+    expect(restoreProps.onRemovePageLabelOverride).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(trigger);
+
+    const removeProps = createProps({
+      sourcePageLabel: null,
+      customPageLabel: "Custom",
+      effectivePageLabel: "Custom",
+    });
+    renderDock(removeProps);
+    trigger = pageLabelTrigger();
+    act(() => trigger.click());
+    const remove = Array.from(pageLabelDialog().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Remove label",
+    );
+    if (!remove) throw new Error("Remove label button was not rendered.");
+    expect(pageLabelDialog().textContent).toContain("PDF label: None");
+    act(() => remove.click());
+    expect(removeProps.onRemovePageLabelOverride).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("avoids source-equal and unchanged-source overrides", () => {
+    const sourceEqual = createProps();
+    renderDock(sourceEqual);
+    act(() => pageLabelTrigger().click());
+    setInputValue(pageLabelInput(), "  A-1  ");
+    const save = Array.from(pageLabelDialog().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Save",
+    );
+    if (!save) throw new Error("Save button was not rendered.");
+    act(() => save.click());
+    expect(sourceEqual.onSetPageLabelOverride).not.toHaveBeenCalled();
+    expect(sourceEqual.onRemovePageLabelOverride).not.toHaveBeenCalled();
+
+    const spaced = createProps({ sourcePageLabel: " A ", effectivePageLabel: " A " });
+    renderDock(spaced);
+    act(() => pageLabelTrigger().click());
+    const unchangedSave = Array.from(
+      pageLabelDialog().querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent === "Save");
+    if (!unchangedSave) throw new Error("Save button was not rendered.");
+    act(() => unchangedSave.click());
+    expect(spaced.onSetPageLabelOverride).not.toHaveBeenCalled();
+    expect(spaced.onRemovePageLabelOverride).not.toHaveBeenCalled();
+  });
+
+  it("keeps a long full label accessible while the visual label is bounded", () => {
+    const label = "A very long page label that must not expand the Viewer Dock indefinitely";
+    renderDock(createProps({ sourcePageLabel: label, effectivePageLabel: label }));
+    const trigger = pageLabelTrigger();
+    expect(trigger.title).toBe(label);
+    expect(trigger.getAttribute("aria-label")).toContain(label);
+    expect(dockCss).toMatch(/\.pageTrigger\s*\{[^}]*max-width:/s);
+  });
+
+  it("closes and discards the draft when the physical page changes", () => {
+    const props = createProps();
+    renderDock(props);
+    act(() => pageLabelTrigger().click());
+    setInputValue(pageLabelInput(), "Page one draft");
+
+    renderDock(
+      createProps({
+        navigation: { ...props.navigation, pageNumber: 2 },
+        sourcePageLabel: "B-2",
+        effectivePageLabel: "B-2",
+      }),
+    );
+    expect(document.querySelector('[role="dialog"][aria-label="Page label"]')).toBeNull();
+    expect(props.onSetPageLabelOverride).not.toHaveBeenCalled();
+
+    act(() => pageLabelTrigger().click());
+    expect(pageLabelInput().value).toBe("B-2");
   });
 
   it("moves the existing View settings into a Popover without changing their commands", () => {
@@ -288,7 +527,9 @@ describe("ViewerDock", () => {
       ["ft", "Feet"],
       ["ft-in", "Feet & inches"],
     ]);
-    expect(Array.from(areaSelect.options).map((option) => [option.value, option.textContent])).toEqual([
+    expect(
+      Array.from(areaSelect.options).map((option) => [option.value, option.textContent]),
+    ).toEqual([
       ["auto", "Auto"],
       ["ac", "Acres"],
     ]);
@@ -306,7 +547,9 @@ describe("ViewerDock", () => {
     expect(props.onSettingsChange).toHaveBeenCalledWith({ areaDisplay: "ac" });
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
-    const labelsSwitch = Array.from(document.querySelectorAll<HTMLInputElement>('[role="switch"]'))[0];
+    const labelsSwitch = Array.from(
+      document.querySelectorAll<HTMLInputElement>('[role="switch"]'),
+    )[0];
     if (!labelsSwitch) throw new Error("Labels switch was not rendered.");
     const labelsText = Array.from(labelsSwitch.labels ?? []).find((label) =>
       label.textContent?.includes("Labels"),
@@ -423,10 +666,9 @@ describe("ViewerDock", () => {
         { x: 10, y: 1 },
       ],
     });
-    expect(state.session!.pages[1]!.measurements.map((measurement) => measurement.calibrationId)).toEqual([
-      "scale-1",
-      "scale-2",
-    ]);
+    expect(
+      state.session!.pages[1]!.measurements.map((measurement) => measurement.calibrationId),
+    ).toEqual(["scale-1", "scale-2"]);
   });
 
   it("reflects a renamed active scale without changing its calibration ID", () => {

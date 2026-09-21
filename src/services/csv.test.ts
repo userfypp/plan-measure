@@ -981,6 +981,46 @@ describe("CSV export", () => {
     );
   });
 
+  it("uses custom page labels before source labels and falls back after reset", () => {
+    const session = measuredSession();
+    session.pageLabelOverrides[1] = "Custom";
+
+    expect(buildCsv(session, ["Source", "7"])).toContain(
+      '1,Custom,line-id,"Lobby, ""north""",Line,',
+    );
+
+    delete session.pageLabelOverrides[1];
+    expect(buildCsv(session, ["Source", "7"])).toContain(
+      '1,Source,line-id,"Lobby, ""north""",Line,',
+    );
+  });
+
+  it("exports custom page labels without PDF labels and leaves page_label empty without either", () => {
+    const session = measuredSession();
+    session.pageLabelOverrides[1] = "Custom only";
+    expect(buildCsv(session, null)).toContain('1,Custom only,line-id,"Lobby, ""north""",Line,');
+
+    delete session.pageLabelOverrides[1];
+    expect(buildCsv(session, null)).toContain('1,,line-id,"Lobby, ""north""",Line,');
+  });
+
+  it("escapes custom page-label comma/quotes and neutralizes spreadsheet-active prefixes", () => {
+    const escaped = measuredSession();
+    escaped.pageLabelOverrides[1] = 'Custom, "A"';
+    expect(buildCsv(escaped, ["Source", "7"])).toContain('1,"Custom, ""A""",line-id,');
+
+    for (const prefix of ["=", "+", "-", "@"] as const) {
+      const formula = measuredSession();
+      formula.pageLabelOverrides[1] = `${prefix}SUM(A1:A2)`;
+      expect(buildCsv(formula, ["Source", "7"])).toContain(`1,'${prefix}SUM(A1:A2),line-id,`);
+    }
+  });
+
+  it("does not normalize source PDF page labels", () => {
+    const csv = buildCsv(measuredSession(), [" A ", "7"]);
+    expect(csv).toContain('1, A ,line-id,"Lobby, ""north""",Line,');
+  });
+
   it("formats values in the selected unit", () => {
     const session = measuredSession();
     session.settings.displayUnit = "cm";
@@ -1203,6 +1243,28 @@ describe("CSV export", () => {
       measurement.classificationValueIds.reverse();
 
       expect(buildClassificationAssignmentsCsv(session)).toBe(before);
+    });
+
+    it("uses custom page labels before source labels and falls back after reset", () => {
+      const session = classifiedMeasuredSession();
+      session.pageLabelOverrides[1] = "Custom";
+      expect(buildClassificationAssignmentsCsv(session, ["Source", "A2"])).toContain(
+        'sample.pdf,1,Custom,line-id,"Lobby, ""north""",Line,true,',
+      );
+
+      delete session.pageLabelOverrides[1];
+      expect(buildClassificationAssignmentsCsv(session, ["Source", "A2"])).toContain(
+        'sample.pdf,1,Source,line-id,"Lobby, ""north""",Line,true,',
+      );
+    });
+
+    it("uses shared escaping and formula neutralization for custom page labels", () => {
+      const session = classifiedMeasuredSession();
+      session.pageLabelOverrides[1] = '=SUM("A",1), Δ';
+
+      const csv = buildClassificationAssignmentsCsv(session, ["Source", "A2"]);
+
+      expect(csv).toContain('"\'=SUM(""A"",1), Δ"');
     });
 
     it("exports header only when measurements exist without classification assignments", () => {

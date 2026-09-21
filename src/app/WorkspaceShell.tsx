@@ -41,6 +41,7 @@ interface WorkspaceShellProps {
   contextToolbar?: ReactNode;
   viewerOverlay?: ReactNode;
   viewer?: ReactNode;
+  sourcePageLabels?: readonly string[] | null;
   emptyState?: ReactNode;
   dropOverlay?: ReactNode;
   onAuthoringCapabilityChange?: (capability: AuthoringCapability) => void;
@@ -59,6 +60,7 @@ export function WorkspaceShell({
   contextToolbar,
   viewerOverlay,
   viewer,
+  sourcePageLabels = null,
   emptyState,
   dropOverlay = "Drop PDF to replace current session",
   onAuthoringCapabilityChange,
@@ -292,6 +294,7 @@ export function WorkspaceShell({
           toolRail={toolRail}
           contextToolbar={contextToolbar}
           viewerOverlay={viewerOverlay}
+          sourcePageLabels={sourcePageLabels}
           rightObstruction={geometry.rightObstruction}
           onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
         >

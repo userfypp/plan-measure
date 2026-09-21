@@ -980,6 +980,7 @@ function PlanMeasureApp() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          sourcePageLabels={activePdf.pageLabels}
           workspacePanel={
             <WorkspacePanel
               measurements={

@@ -1,6 +1,7 @@
-import { useId } from "react";
+import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
 import { AnchoredMenu, Button, Popover, Switch } from "../../components/ui";
+import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
 import { scaleDisplayMetadata } from "./scaleDisplay";
 import styles from "./ViewerDock.module.css";
@@ -12,12 +13,17 @@ type ViewerSettings = Pick<
 
 export interface ViewerDockProps {
   navigation: ViewerNavigationModel;
+  sourcePageLabel: string | null;
+  customPageLabel: string | null;
+  effectivePageLabel: string;
   calibrations: readonly PageCalibration[];
   activeCalibrationId: string | null;
   pageNavigationDisabled?: boolean;
   scaleSwitchDisabled?: boolean;
   settings: ViewerSettings;
   onScaleChange: (calibrationId: string) => void;
+  onSetPageLabelOverride: (label: string) => void;
+  onRemovePageLabelOverride: () => void;
   onSettingsChange: (settings: Partial<ViewerSettings>) => void;
 }
 
@@ -80,14 +86,26 @@ function EyeIcon() {
 
 export function ViewerDock({
   navigation,
+  sourcePageLabel,
+  customPageLabel,
+  effectivePageLabel,
   calibrations,
   activeCalibrationId,
   pageNavigationDisabled = false,
   scaleSwitchDisabled = false,
   settings,
   onScaleChange,
+  onSetPageLabelOverride,
+  onRemovePageLabelOverride,
   onSettingsChange,
 }: ViewerDockProps) {
+  const pageLabelInputId = useId();
+  const pageLabelInputRef = useRef<HTMLInputElement>(null);
+  const editingPageNumberRef = useRef<number | null>(null);
+  const originalEffectivePageLabelRef = useRef("");
+  const [pageLabelEditorOpen, setPageLabelEditorOpen] = useState(false);
+  const [pageLabelDraft, setPageLabelDraft] = useState("");
+  const [pageLabelError, setPageLabelError] = useState<string | null>(null);
   const activeCalibration =
     calibrations.find((calibration) => calibration.id === activeCalibrationId) ?? null;
   const activeMetadata = activeCalibration ? scaleDisplayMetadata(activeCalibration) : null;
@@ -110,6 +128,53 @@ export function ViewerDock({
     };
   });
 
+  useLayoutEffect(() => {
+    if (!pageLabelEditorOpen) return;
+    if (editingPageNumberRef.current !== navigation.pageNumber) {
+      setPageLabelEditorOpen(false);
+      setPageLabelError(null);
+      return;
+    }
+    pageLabelInputRef.current?.focus({ preventScroll: true });
+    pageLabelInputRef.current?.select();
+  }, [navigation.pageNumber, pageLabelEditorOpen]);
+
+  function handlePageLabelOpenChange(open: boolean) {
+    if (open) {
+      editingPageNumberRef.current = navigation.pageNumber;
+      originalEffectivePageLabelRef.current = effectivePageLabel;
+      setPageLabelDraft(effectivePageLabel);
+      setPageLabelError(null);
+    }
+    setPageLabelEditorOpen(open);
+  }
+
+  function closePageLabelEditor() {
+    setPageLabelError(null);
+    setPageLabelEditorOpen(false);
+  }
+
+  function handlePageLabelSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const decision = decidePageLabelOverride({
+      draft: pageLabelDraft,
+      originalEffectiveLabel: originalEffectivePageLabelRef.current,
+      customPageLabel,
+      sourcePageLabel,
+    });
+    if (decision.kind === "invalid") {
+      setPageLabelError("Use a single-line label without control characters.");
+      return;
+    }
+    if (decision.kind === "set") onSetPageLabelOverride(decision.value);
+    if (decision.kind === "remove") onRemovePageLabelOverride();
+    closePageLabelEditor();
+  }
+
+  const pageLabelTriggerAriaLabel = effectivePageLabel
+    ? `Page label: ${effectivePageLabel}. Page ${navigation.pageNumber} of ${navigation.pageCount}. Edit page label`
+    : `Page ${navigation.pageNumber} of ${navigation.pageCount}. No page label. Set page label`;
+
   return (
     <nav className={styles.dock} aria-label="Viewer controls">
       <div className={styles.group} aria-label="Page navigation">
@@ -129,9 +194,85 @@ export function ViewerDock({
         >
           <ChevronLeftIcon />
         </Button>
-        <span className={styles.pageValue} aria-label={`Page ${navigation.pageNumber} of ${navigation.pageCount}`}>
-          {navigation.pageNumber} / {navigation.pageCount}
-        </span>
+        <Popover
+          trigger={
+            <span className={styles.pageTriggerText}>
+              <strong>{effectivePageLabel || "No label"}</strong>
+              <small>
+                {navigation.pageNumber} / {navigation.pageCount}
+              </small>
+            </span>
+          }
+          triggerProps={{
+            className: styles.pageTrigger,
+            "aria-label": pageLabelTriggerAriaLabel,
+            title: effectivePageLabel || "Set page label",
+          }}
+          open={pageLabelEditorOpen}
+          onOpenChange={handlePageLabelOpenChange}
+          placement="bottom-start"
+          initialFocus="first"
+          dismissOnFocusLeave
+          role="dialog"
+          aria-label="Page label"
+          className={styles.pageLabelPopover}
+        >
+          <form className={styles.pageLabelEditor} onSubmit={handlePageLabelSubmit}>
+            <strong className={styles.pageLabelHeading}>Page label</strong>
+            <label className={styles.pageLabelField} htmlFor={pageLabelInputId}>
+              <span>Label</span>
+              <input
+                ref={pageLabelInputRef}
+                id={pageLabelInputId}
+                data-popover-autofocus="true"
+                type="text"
+                value={pageLabelDraft}
+                aria-invalid={pageLabelError ? true : undefined}
+                onChange={(event) => {
+                  setPageLabelDraft(event.target.value);
+                  if (pageLabelError) setPageLabelError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }}
+              />
+            </label>
+            <div className={styles.pageLabelSource}>
+              PDF label:{" "}
+              <span title={sourcePageLabel ?? undefined}>
+                {sourcePageLabel === null ? "None" : sourcePageLabel}
+              </span>
+            </div>
+            {pageLabelError && (
+              <div className={styles.pageLabelError} role="alert">
+                {pageLabelError}
+              </div>
+            )}
+            <div className={styles.pageLabelActions}>
+              {customPageLabel !== null && (
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  className={styles.pageLabelReset}
+                  onClick={() => {
+                    onRemovePageLabelOverride();
+                    closePageLabelEditor();
+                  }}
+                >
+                  {sourcePageLabel === null ? "Remove label" : "Restore PDF label"}
+                </Button>
+              )}
+              <Button variant="secondary" size="compact" onClick={closePageLabelEditor}>
+                Cancel
+              </Button>
+              <Button size="compact" type="submit">
+                Save
+              </Button>
+            </div>
+          </form>
+        </Popover>
         <Button
           variant="ghost"
           size="compact"

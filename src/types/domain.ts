@@ -89,8 +89,7 @@ export interface SessionSettingsV9 extends SessionSettingsV8 {
   measurementDecimalPlaces: MeasurementDecimalPlaces;
 }
 
-export interface SessionSettings
-  extends Omit<SessionSettingsV9, "displayUnit"> {
+export interface SessionSettings extends Omit<SessionSettingsV9, "displayUnit"> {
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
 }
@@ -315,7 +314,18 @@ export interface SessionV10 {
   classificationCatalog: ClassificationCatalog;
 }
 
-export type CurrentSession = SessionV10;
+export interface SessionV11 {
+  schemaVersion: 11;
+  pdf: PdfMetadata;
+  pageCount: number;
+  currentPage: number;
+  pages: Record<number, PageState>;
+  pageLabelOverrides: Record<number, string>;
+  settings: SessionSettings;
+  classificationCatalog: ClassificationCatalog;
+}
+
+export type CurrentSession = SessionV11;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

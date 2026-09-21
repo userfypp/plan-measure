@@ -35,6 +35,7 @@ import {
   MEASUREMENT_NAME_EMPTY_ERROR,
   normalizeMeasurementName,
 } from "../utils/measurementName";
+import { normalizeCustomPageLabel } from "../utils/pageLabels";
 
 /**
  * Persistent domain state for the currently open plan.
@@ -123,6 +124,8 @@ export type SessionAction =
   | { type: "LOAD_SESSION"; session: CurrentSession }
   | { type: "CLEAR_SESSION" }
   | { type: "UPDATE_PAGE"; pageNumber: number }
+  | { type: "SET_PAGE_LABEL_OVERRIDE"; pageNumber: number; label: string }
+  | { type: "REMOVE_PAGE_LABEL_OVERRIDE"; pageNumber: number }
   | ({ type: "ADD_CALIBRATION" } & AddCalibrationCommand)
   | ({ type: "RECALIBRATE_CALIBRATION" } & RecalibrateCalibrationCommand)
   | ({ type: "RENAME_CALIBRATION" } & RenameCalibrationCommand)
@@ -187,11 +190,12 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     pdf,
     pageCount,
     currentPage: 1,
     pages,
+    pageLabelOverrides: {},
     settings: {
       displayUnit: "m",
       showLabels: true,
@@ -237,6 +241,63 @@ export function sessionReducer(
       return {
         ...state,
         session: { ...state.session, currentPage: pageNumber },
+        error: null,
+      };
+    }
+    case "SET_PAGE_LABEL_OVERRIDE": {
+      if (!state.session) return state;
+      const { pageNumber } = action;
+      if (!Number.isInteger(pageNumber) || !state.session.pages[pageNumber]) {
+        return { ...state, error: "The selected page is no longer available." };
+      }
+      const normalized = normalizeCustomPageLabel(action.label);
+      if (normalized.kind === "invalid") {
+        return {
+          ...state,
+          error: "Page labels must be single-line text without control characters.",
+        };
+      }
+      if (normalized.kind === "reset") {
+        if (state.session.pageLabelOverrides[pageNumber] === undefined) {
+          return { ...state, error: null };
+        }
+        const pageLabelOverrides = { ...state.session.pageLabelOverrides };
+        delete pageLabelOverrides[pageNumber];
+        return {
+          ...state,
+          session: { ...state.session, pageLabelOverrides },
+          error: null,
+        };
+      }
+      if (state.session.pageLabelOverrides[pageNumber] === normalized.value) {
+        return { ...state, error: null };
+      }
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          pageLabelOverrides: {
+            ...state.session.pageLabelOverrides,
+            [pageNumber]: normalized.value,
+          },
+        },
+        error: null,
+      };
+    }
+    case "REMOVE_PAGE_LABEL_OVERRIDE": {
+      if (!state.session) return state;
+      const { pageNumber } = action;
+      if (!Number.isInteger(pageNumber) || !state.session.pages[pageNumber]) {
+        return { ...state, error: "The selected page is no longer available." };
+      }
+      if (state.session.pageLabelOverrides[pageNumber] === undefined) {
+        return { ...state, error: null };
+      }
+      const pageLabelOverrides = { ...state.session.pageLabelOverrides };
+      delete pageLabelOverrides[pageNumber];
+      return {
+        ...state,
+        session: { ...state.session, pageLabelOverrides },
         error: null,
       };
     }
@@ -877,6 +938,8 @@ interface SessionContextValue extends SessionState {
   loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
   updatePage: (pageNumber: number) => void;
+  setPageLabelOverride: (pageNumber: number, label: string) => void;
+  removePageLabelOverride: (pageNumber: number) => void;
   addCalibration: (command: AddCalibrationCommand) => void;
   recalibrateCalibration: (command: RecalibrateCalibrationCommand) => void;
   renameCalibration: (command: RenameCalibrationCommand) => void;
@@ -930,6 +993,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadSession: (nextSession) => applyAction({ type: "LOAD_SESSION", session: nextSession }),
       clearSession: () => applyAction({ type: "CLEAR_SESSION" }),
       updatePage: (pageNumber) => applyAction({ type: "UPDATE_PAGE", pageNumber }),
+      setPageLabelOverride: (pageNumber, label) =>
+        applyAction({ type: "SET_PAGE_LABEL_OVERRIDE", pageNumber, label }),
+      removePageLabelOverride: (pageNumber) =>
+        applyAction({ type: "REMOVE_PAGE_LABEL_OVERRIDE", pageNumber }),
       addCalibration: (command) => applyAction({ type: "ADD_CALIBRATION", ...command }),
       recalibrateCalibration: (command) =>
         applyAction({ type: "RECALIBRATE_CALIBRATION", ...command }),

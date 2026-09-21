@@ -24,6 +24,7 @@ import {
   practicalScaleRatioDenominator,
   scaleRatioDenominatorFromMillimetresPerPageUnit,
 } from "../utils/pdfUnits";
+import { effectivePageLabel } from "../utils/pageLabels";
 import {
   fromMillimetres,
   fromSquareMillimetres,
@@ -725,7 +726,7 @@ export function buildCsv(
       }
       const context = createCsvRowContext(
         pageNumber,
-        pageLabels?.[pageNumber - 1] ?? "",
+        effectivePageLabel(pageNumber, session.pageLabelOverrides, pageLabels),
         measurement,
         page,
         session,
@@ -795,7 +796,7 @@ export function buildClassificationAssignmentsCsv(
         rows.push([
           session.pdf.name,
           pageNumber,
-          pageLabels?.[pageNumber - 1] ?? "",
+          effectivePageLabel(pageNumber, session.pageLabelOverrides, pageLabels),
           measurement.id,
           measurement.name,
           measurementPathSpecs[measurement.type].label,

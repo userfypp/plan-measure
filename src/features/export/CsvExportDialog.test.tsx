@@ -35,10 +35,11 @@ let container: HTMLDivElement | null = null;
 
 function sessionFixture(): CurrentSession {
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount: 1,
     currentPage: 1,
+    pageLabelOverrides: {},
     pages: {
       1: {
         pageNumber: 1,
