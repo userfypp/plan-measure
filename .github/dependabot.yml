@@ -28,18 +28,6 @@ updates:
         update-types:
           - patch
 
-      react-minor-major:
-        applies-to: version-updates
-        patterns:
-          - react
-          - react-dom
-          - react-konva
-          - "@types/react"
-          - "@types/react-dom"
-        update-types:
-          - minor
-          - major
-
       automerge-development-non-major:
         applies-to: version-updates
         patterns:
@@ -63,6 +51,28 @@ updates:
         dependency-type: production
         update-types:
           - patch
+
+    ignore:
+      - dependency-name: react
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: react-konva
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: "@types/react"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: "@types/react-dom"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
