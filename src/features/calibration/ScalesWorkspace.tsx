@@ -32,6 +32,7 @@ export interface ScalesWorkspaceProps {
   onRenameScale: (calibrationId: string, name: string) => void;
   onRecalibrate: (calibrationId: string) => void;
   onEditReference: (calibration: PageCalibration, reference: CalibrationReferenceKey) => void;
+  onCopyScale: (calibration: PageCalibration) => void;
 }
 
 interface RenameState {
@@ -89,6 +90,15 @@ function DisclosureIcon() {
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+      <rect x="7" y="6" width="9" height="11" rx="1.5" />
+      <path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" />
+    </svg>
+  );
+}
+
 export function ScalesWorkspace({
   page,
   displayUnit,
@@ -100,6 +110,7 @@ export function ScalesWorkspace({
   onRenameScale,
   onRecalibrate,
   onEditReference,
+  onCopyScale,
 }: ScalesWorkspaceProps) {
   const workspace = useWorkspaceDrawerPresentation();
   const [inspectedScaleId, setInspectedScaleId] = useState<string | null>(null);
@@ -200,6 +211,18 @@ export function ScalesWorkspace({
                   <span>{metadata.detailLabel}</span>
                 </span>
                 {active && <span className={styles.activeLabel}>Active</span>}
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  className={styles.copyScaleButton}
+                  aria-label={`Copy scale ${calibration.name}`}
+                  title={`Copy scale ${calibration.name}`}
+                  disabled={actionsDisabled}
+                  disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                  onClick={() => onCopyScale(calibration)}
+                >
+                  <CopyIcon />
+                </Button>
                 <Button
                   variant="ghost"
                   size="compact"

@@ -10,11 +10,68 @@ import { scaleByRatio, toMillimetres } from "../../utils/units";
 import { createStandardScalePreset, STANDARD_SCALE_PRESET_RATIOS } from "./standardScalePresets";
 import {
   createPageCalibrationFromRatio,
+  copyCalibrationToPage,
   isValidScaleRatioDenominator,
   scaleRatioSpecFromCalibration,
 } from "./ratioCalibration";
 
 describe("ratio calibration", () => {
+  it("copies an existing Uniform calibration's exact scale factor with fresh page references", () => {
+    const calibration = {
+      id: "uniform-source",
+      name: "Source",
+      mode: "uniform" as const,
+      start: { x: 8, y: 4 },
+      end: { x: 48, y: 4 },
+      referenceDistanceMm: 812.345,
+    };
+    const copied = copyCalibrationToPage(calibration);
+
+    expect(copied).toEqual({
+      mode: "uniform",
+      start: { x: 0, y: 0 },
+      end: { x: 72, y: 0 },
+      referenceDistanceMm: (812.345 / 40) * 72,
+    });
+    expect(millimetresPerPageUnit(copied)).toBe(millimetresPerPageUnit(calibration));
+  });
+
+  it("copies X and Y scale factors independently", () => {
+    const calibration = {
+      id: "xy-source",
+      name: "Source XY",
+      mode: "xy" as const,
+      xReference: {
+        start: { x: 2, y: 3 },
+        end: { x: 82, y: 3 },
+        referenceDistanceMm: 1600,
+      },
+      yReference: {
+        start: { x: 4, y: 5 },
+        end: { x: 4, y: 45 },
+        referenceDistanceMm: 1100,
+      },
+    };
+    const copied = copyCalibrationToPage(calibration);
+
+    expect(copied).toMatchObject({
+      mode: "xy",
+      xReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 72, y: 0 },
+        referenceDistanceMm: 1440,
+      },
+      yReference: {
+        start: { x: 0, y: 0 },
+        end: { x: 0, y: 72 },
+        referenceDistanceMm: 1980,
+      },
+    });
+    const copiedPageCalibration = { ...copied, id: "copy", name: "Copy" };
+    expect(calibrationScaleX(copiedPageCalibration)).toBe(calibrationScaleX(calibration));
+    expect(calibrationScaleY(copiedPageCalibration)).toBe(calibrationScaleY(calibration));
+  });
+
   it.each([1, 20, 50, 60, 62.5, 62.5125, 100, 100.125])(
     "creates canonical Uniform calibration for 1:%s",
     (denominator) => {
