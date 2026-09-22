@@ -134,7 +134,7 @@ describe("workspace selection state", () => {
     });
   });
 
-  it.each(["scales", "measurements", "classifications"] as const)(
+  it.each(["scales", "measurements", "takeoff", "classifications"] as const)(
     "can reset all interaction state directly into the %s module",
     (module) => {
       const dirty = {

@@ -17,7 +17,7 @@ describe("recovered plan startup workspace preference", () => {
     expect(readRecoveredPlanStartupWorkspacePreference()).toBe("scales");
   });
 
-  it.each(["scales", "measurements", "classifications"] as const)(
+  it.each(["scales", "measurements", "takeoff", "classifications"] as const)(
     "persists and restores %s",
     (workspace) => {
       writeRecoveredPlanStartupWorkspacePreference(workspace);

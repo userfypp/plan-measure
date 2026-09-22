@@ -130,7 +130,7 @@ async function seedRecoverySession(): Promise<CurrentSession> {
 }
 
 describe("workspace initialization", () => {
-  it.each(["scales", "measurements", "classifications"] as const)(
+  it.each(["scales", "measurements", "takeoff", "classifications"] as const)(
     "resets recovered sessions directly into %s without mutating session state",
     async (workspace) => {
       const saved = await seedRecoverySession();
@@ -149,7 +149,7 @@ describe("workspace initialization", () => {
     },
   );
 
-  it.each(["measurements", "classifications"] as const)(
+  it.each(["measurements", "takeoff", "classifications"] as const)(
     "keeps a brand-new PDF on Scales when recovered startup preference is %s",
     async (workspace) => {
       await renderLifecycleHarness(workspace);

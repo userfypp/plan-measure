@@ -12,7 +12,7 @@ Live app: https://userfypp.github.io/plan-measure/
 - Create multiple named scales per page with Uniform or X/Y calibration in metric, decimal imperial, or feet-and-inches input, enter a known 1:n ratio directly, or use standard 1:20, 1:50, and 1:100 presets.
 - Draw Line, Polyline, and Polygon measurements. Edit vertices or move a whole measurement.
 - Use Snap for visible measurement geometry and Ortho for horizontal or vertical segments.
-- Manage measurements in the Measurements workspace, including visibility and grouping, and edit properties in Details.
+- Manage measurements in the Measurements workspace, including visibility and grouping; review project-wide totals in Takeoff; and edit properties in Details.
 - Create reusable classification dimensions and values, assign them in Organization, and group measurements by a classification dimension.
 - Export measurements from every page to CSV with configurable measurement, value, scale, classification, and optional audit-data columns, or export normalized classification assignments with PDF, page, measurement, dimension, value, and archive-status context.
 - Choose System, Light, or Dark appearance and configure measurement display, deletion confirmation, and recovered-plan startup behavior in Settings.

@@ -2,7 +2,7 @@ import type { WorkspaceModule } from "./workspaceState";
 
 export type RecoveredPlanStartupWorkspace = Extract<
   WorkspaceModule,
-  "scales" | "measurements" | "classifications"
+  "scales" | "measurements" | "takeoff" | "classifications"
 >;
 
 export const RECOVERED_PLAN_STARTUP_WORKSPACE_STORAGE_KEY =
@@ -11,7 +11,10 @@ export const RECOVERED_PLAN_STARTUP_WORKSPACE_STORAGE_KEY =
 export function sanitizeRecoveredPlanStartupWorkspace(
   value: string | null,
 ): RecoveredPlanStartupWorkspace {
-  return value === "measurements" || value === "classifications" || value === "scales"
+  return value === "measurements" ||
+    value === "takeoff" ||
+    value === "classifications" ||
+    value === "scales"
     ? value
     : "scales";
 }

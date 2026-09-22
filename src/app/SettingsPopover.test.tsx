@@ -198,15 +198,16 @@ describe("SettingsPopover", () => {
     expect(Array.from(select.options).map((option) => option.textContent)).toEqual([
       "Scales",
       "Measurements",
+      "Takeoff",
       "Classifications",
     ]);
     expect(select.value).toBe("measurements");
 
     act(() => {
-      select.value = "classifications";
+      select.value = "takeoff";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(callbacks.onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("classifications");
+    expect(callbacks.onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("takeoff");
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
