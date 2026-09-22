@@ -6,7 +6,7 @@ import {
 } from "./calibrationReferenceEdit";
 import type { DrawingDraft, Measurement, Point, Tool } from "../types/domain";
 
-export type WorkspaceModule = "measurements" | "classifications" | "scales";
+export type WorkspaceModule = "measurements" | "takeoff" | "classifications" | "scales";
 
 /**
  * Interaction state for the current workspace. This state is intentionally not

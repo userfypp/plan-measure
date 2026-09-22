@@ -6,6 +6,7 @@ import styles from "./WorkspacePanel.module.css";
 
 const MODULES: Array<{ id: WorkspaceModule; label: string }> = [
   { id: "measurements", label: "Measurements" },
+  { id: "takeoff", label: "Takeoff" },
   { id: "classifications", label: "Classifications" },
   { id: "scales", label: "Scales" },
 ];
@@ -32,6 +33,7 @@ function CloseIcon() {
 
 export interface WorkspacePanelProps {
   measurements: ReactNode;
+  takeoff: ReactNode;
   classifications: ReactNode;
   scales: ReactNode;
   details?: ReactNode;
@@ -39,6 +41,7 @@ export interface WorkspacePanelProps {
 
 export function WorkspacePanel({
   measurements,
+  takeoff,
   classifications,
   scales,
   details,
@@ -93,6 +96,12 @@ export function WorkspacePanel({
           hidden={measurementDetailsOpen || workspaceModule !== "measurements"}
         >
           {measurements}
+        </div>
+        <div
+          className={styles.modulePane}
+          hidden={measurementDetailsOpen || workspaceModule !== "takeoff"}
+        >
+          {takeoff}
         </div>
         <div
           className={styles.modulePane}

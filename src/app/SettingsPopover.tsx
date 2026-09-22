@@ -17,6 +17,7 @@ const RECOVERED_PLAN_STARTUP_OPTIONS: Array<{
 }> = [
   { id: "scales", label: "Scales" },
   { id: "measurements", label: "Measurements" },
+  { id: "takeoff", label: "Takeoff" },
   { id: "classifications", label: "Classifications" },
 ];
 

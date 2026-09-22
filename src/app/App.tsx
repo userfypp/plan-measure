@@ -21,6 +21,7 @@ import {
   type MeasurementDeleteRequest,
 } from "../features/measurements/MeasurementPanel";
 import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
+import { TakeoffWorkspace } from "../features/measurements/TakeoffWorkspace";
 import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import {
@@ -990,6 +991,18 @@ function PlanMeasureApp() {
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onSetMeasurementVisibility={setMeasurementVisibility}
                   onSetMeasurementsVisibility={setMeasurementsVisibility}
+                />
+              }
+              takeoff={
+                <TakeoffWorkspace
+                  key={workspaceVersion}
+                  pages={session.pages}
+                  catalog={session.classificationCatalog}
+                  displayUnit={session.settings.displayUnit}
+                  decimalPlaces={session.settings.measurementDecimalPlaces}
+                  areaDisplay={session.settings.areaDisplay}
+                  pageLabelOverrides={session.pageLabelOverrides}
+                  sourcePageLabels={activePdf.pageLabels}
                 />
               }
               classifications={

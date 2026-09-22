@@ -15,6 +15,7 @@ function renderPanel() {
       <WorkspaceProvider>
         <WorkspacePanel
           measurements={<div data-testid="measurements-pane">Measurements pane</div>}
+          takeoff={<div data-testid="takeoff-pane">Takeoff pane</div>}
           classifications={<div data-testid="classifications-pane">Classifications pane</div>}
           scales={<div data-testid="scales-pane">Scales pane</div>}
           details={<div data-testid="details-pane">Details pane</div>}
@@ -41,6 +42,7 @@ function DetailsLifecycleHarness() {
     clearSelection,
     openMeasurementDetails,
     closeMeasurementDetails,
+    setWorkspaceModule,
   } = useWorkspaceState();
   return (
     <>
@@ -48,11 +50,19 @@ function DetailsLifecycleHarness() {
       <button type="button" data-testid="open-details" onClick={openMeasurementDetails}>Open details</button>
       <button type="button" data-testid="close-details" onClick={closeMeasurementDetails}>Close details</button>
       <button type="button" data-testid="clear" onClick={clearSelection}>Clear</button>
+      <button
+        type="button"
+        data-testid="show-takeoff"
+        onClick={() => setWorkspaceModule("takeoff")}
+      >
+        Show Takeoff
+      </button>
       <output data-testid="lifecycle-state">
         {selectedMeasurementId ?? "none"}:{measurementDetailsOpen ? "open" : "closed"}
       </output>
       <WorkspacePanel
         measurements={<StatefulMeasurements />}
+        takeoff={<div data-testid="takeoff-pane">Takeoff</div>}
         classifications={<div>Classifications</div>}
         scales={<div>Scales</div>}
         details={<div data-testid="details-pane">Details pane</div>}
@@ -102,7 +112,7 @@ afterEach(() => {
 });
 
 describe("WorkspacePanel", () => {
-  it("starts in Scales and exposes exactly the three V2 modules as radio menu items", () => {
+  it("starts in Scales and exposes the workspace modules as radio menu items", () => {
     expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Scales");
     expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).not.toBeNull();
     expect(container?.querySelector('[data-testid="classifications-pane"]')?.closest("[hidden]")).not.toBeNull();
@@ -110,23 +120,30 @@ describe("WorkspacePanel", () => {
 
     act(() => trigger().click());
     const items = menuItems();
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items.map((item) => item.textContent?.trim())).toEqual([
       "Measurements",
+      "Takeoff",
       "Classifications",
       "Scales",
     ]);
     expect(items[0]?.querySelector("svg")).toBeNull();
     expect(items[1]?.querySelector("svg")).toBeNull();
-    expect(items[2]?.querySelector("svg")).not.toBeNull();
-    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["false", "false", "true"]);
+    expect(items[2]?.querySelector("svg")).toBeNull();
+    expect(items[3]?.querySelector("svg")).not.toBeNull();
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "false",
+      "true",
+    ]);
     expect(document.body.textContent).not.toContain("Future module");
   });
 
   it("switches modules with composite keyboard navigation and restores focus to the trigger", () => {
     const workspaceTrigger = trigger();
     act(() => workspaceTrigger.click());
-    expect(document.activeElement).toBe(menuItems()[2]);
+    expect(document.activeElement).toBe(menuItems()[3]);
 
     press("Home");
     expect(document.activeElement).toBe(menuItems()[0]);
@@ -174,6 +191,13 @@ describe("WorkspacePanel", () => {
     expect(byTestId("details-pane")?.closest("[hidden]")).toBeNull();
     expect(local.closest("[hidden]")).not.toBeNull();
 
+    act(() => (byTestId("show-takeoff") as HTMLButtonElement).click());
+    expect(byTestId("lifecycle-state")?.textContent).toBe("line-1:closed");
+    expect(byTestId("details-pane")?.closest("[hidden]")).not.toBeNull();
+    expect(byTestId("takeoff-pane")?.closest("[hidden]")).toBeNull();
+
+    act(() => (byTestId("open-details") as HTMLButtonElement).click());
+    expect(byTestId("lifecycle-state")?.textContent).toBe("line-1:open");
     act(() => (byTestId("close-details") as HTMLButtonElement).click());
     expect(byTestId("lifecycle-state")?.textContent).toBe("line-1:closed");
     expect(byTestId("local-state")?.textContent).toBe("Local 1");
