@@ -112,6 +112,39 @@ describe("workspace selection state", () => {
     expect(workspaceReducer(copied, { type: "RESET_WORKSPACE" }).measurementClipboard).toBeNull();
   });
 
+  it("copies a detached scale snapshot that survives page changes", () => {
+    const source = {
+      id: "scale-1",
+      name: "Ground floor",
+      mode: "uniform" as const,
+      start: { x: 10, y: 20 },
+      end: { x: 110, y: 20 },
+      referenceDistanceMm: 1000,
+    };
+    const copied = workspaceReducer(initialWorkspaceState, {
+      type: "COPY_SCALE",
+      pageNumber: 1,
+      calibration: source,
+    });
+
+    source.start.x = 99;
+    expect(copied.scaleClipboard).toEqual({
+      sourcePageNumber: 1,
+      calibration: {
+        id: "scale-1",
+        name: "Ground floor",
+        mode: "uniform",
+        start: { x: 10, y: 20 },
+        end: { x: 110, y: 20 },
+        referenceDistanceMm: 1000,
+      },
+    });
+    expect(workspaceReducer(copied, { type: "PAGE_CHANGED" }).scaleClipboard).toEqual(
+      copied.scaleClipboard,
+    );
+    expect(workspaceReducer(copied, { type: "RESET_WORKSPACE" }).scaleClipboard).toBeNull();
+  });
+
   it("starts with no draft", () => {
     expect(initialWorkspaceState.draft).toBeNull();
   });

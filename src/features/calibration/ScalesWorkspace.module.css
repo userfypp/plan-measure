@@ -35,7 +35,7 @@
   width: 100%;
   min-height: var(--geometry-scale-row-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto var(--target-current);
+  grid-template-columns: minmax(0, 1fr) auto var(--target-current) var(--target-current);
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8) var(--space-16);
@@ -78,6 +78,16 @@
 }
 
 .disclosureButton {
+  grid-column: 4;
+  width: var(--target-current);
+  min-width: var(--target-current);
+  height: var(--target-current);
+  min-height: var(--target-current);
+  padding: 0;
+  color: var(--color-text-secondary);
+}
+
+.copyScaleButton {
   grid-column: 3;
   width: var(--target-current);
   min-width: var(--target-current);
@@ -85,6 +95,12 @@
   min-height: var(--target-current);
   padding: 0;
   color: var(--color-text-secondary);
+}
+
+.copyScaleButton svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
 }
 
 .disclosureButton[aria-expanded="true"] {

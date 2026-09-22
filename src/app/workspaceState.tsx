@@ -4,7 +4,7 @@ import {
   updateCalibrationReferenceEdit as updateCalibrationReferenceEditDraft,
   type CalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
-import type { DrawingDraft, Measurement, Point, Tool } from "../types/domain";
+import type { DrawingDraft, Measurement, PageCalibration, Point, Tool } from "../types/domain";
 
 export type WorkspaceModule = "measurements" | "takeoff" | "classifications" | "scales";
 
@@ -16,6 +16,7 @@ export interface WorkspaceState {
   activeTool: Tool;
   selectedMeasurementId: string | null;
   measurementClipboard: MeasurementClipboard | null;
+  scaleClipboard: ScaleClipboard | null;
   draft: DrawingDraft | null;
   orthogonal: boolean;
   snap: boolean;
@@ -32,6 +33,11 @@ export interface MeasurementClipboard {
   measurement: Measurement;
 }
 
+export interface ScaleClipboard {
+  sourcePageNumber: number;
+  calibration: PageCalibration;
+}
+
 export type WorkspaceAction =
   | { type: "RESET_WORKSPACE"; module?: WorkspaceModule }
   | { type: "PAGE_CHANGED" }
@@ -40,6 +46,7 @@ export type WorkspaceAction =
   | { type: "CLEAR_SELECTION" }
   | { type: "COPY_MEASUREMENT"; pageNumber: number; measurement: Measurement }
   | { type: "CLEAR_MEASUREMENT_CLIPBOARD" }
+  | { type: "COPY_SCALE"; pageNumber: number; calibration: PageCalibration }
   | { type: "START_DRAFT"; draft: DrawingDraft }
   | { type: "UPDATE_DRAFT"; draft: DrawingDraft }
   | { type: "CLEAR_DRAFT" }
@@ -65,6 +72,7 @@ export const initialWorkspaceState: WorkspaceState = {
   activeTool: "select",
   selectedMeasurementId: null,
   measurementClipboard: null,
+  scaleClipboard: null,
   draft: null,
   orthogonal: false,
   snap: false,
@@ -126,6 +134,33 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       };
     case "CLEAR_MEASUREMENT_CLIPBOARD":
       return state.measurementClipboard === null ? state : { ...state, measurementClipboard: null };
+    case "COPY_SCALE":
+      return {
+        ...state,
+        scaleClipboard: {
+          sourcePageNumber: action.pageNumber,
+          calibration:
+            action.calibration.mode === "uniform"
+              ? {
+                  ...action.calibration,
+                  start: { ...action.calibration.start },
+                  end: { ...action.calibration.end },
+                }
+              : {
+                  ...action.calibration,
+                  xReference: {
+                    ...action.calibration.xReference,
+                    start: { ...action.calibration.xReference.start },
+                    end: { ...action.calibration.xReference.end },
+                  },
+                  yReference: {
+                    ...action.calibration.yReference,
+                    start: { ...action.calibration.yReference.start },
+                    end: { ...action.calibration.yReference.end },
+                  },
+                },
+        },
+      };
     case "START_DRAFT":
       return { ...state, draft: action.draft };
     case "UPDATE_DRAFT":
@@ -202,6 +237,7 @@ interface WorkspaceContextValue extends WorkspaceState {
   selectMeasurement: (id: string) => void;
   clearSelection: () => void;
   copyMeasurement: (pageNumber: number, measurement: Measurement) => void;
+  copyScale: (pageNumber: number, calibration: PageCalibration) => void;
   clearMeasurementClipboard: () => void;
   startDraft: (draft: DrawingDraft) => void;
   updateDraft: (draft: DrawingDraft) => void;
@@ -239,6 +275,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       clearSelection: () => dispatch({ type: "CLEAR_SELECTION" }),
       copyMeasurement: (pageNumber: number, measurement: Measurement) =>
         dispatch({ type: "COPY_MEASUREMENT", pageNumber, measurement }),
+      copyScale: (pageNumber: number, calibration: PageCalibration) =>
+        dispatch({ type: "COPY_SCALE", pageNumber, calibration }),
       clearMeasurementClipboard: () => dispatch({ type: "CLEAR_MEASUREMENT_CLIPBOARD" }),
       startDraft: (draft: DrawingDraft) => dispatch({ type: "START_DRAFT", draft }),
       updateDraft: (draft: DrawingDraft) => dispatch({ type: "UPDATE_DRAFT", draft }),

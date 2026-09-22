@@ -154,6 +154,7 @@ function PlanMeasureApp() {
     selectMeasurement: selectWorkspaceMeasurement,
     clearSelection,
     copyMeasurement,
+    copyScale,
     clearMeasurementClipboard,
     clearDraft,
     startCalibration,
@@ -1044,6 +1045,7 @@ function PlanMeasureApp() {
                   }
                   onRecalibrate={requestRecalibration}
                   onEditReference={beginCalibrationReferenceEdit}
+                  onCopyScale={(calibration) => copyScale(currentPage.pageNumber, calibration)}
                 />
               }
               details={

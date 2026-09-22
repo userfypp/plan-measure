@@ -20,8 +20,11 @@ export interface ViewerDockProps {
   activeCalibrationId: string | null;
   pageNavigationDisabled?: boolean;
   scaleSwitchDisabled?: boolean;
+  copiedScaleName?: string | null;
+  scaleApplyDisabled?: boolean;
   settings: ViewerSettings;
   onScaleChange: (calibrationId: string) => void;
+  onApplyCopiedScale: () => void;
   onSetPageLabelOverride: (label: string) => void;
   onRemovePageLabelOverride: () => void;
   onSettingsChange: (settings: Partial<ViewerSettings>) => void;
@@ -93,8 +96,11 @@ export function ViewerDock({
   activeCalibrationId,
   pageNavigationDisabled = false,
   scaleSwitchDisabled = false,
+  copiedScaleName = null,
+  scaleApplyDisabled = false,
   settings,
   onScaleChange,
+  onApplyCopiedScale,
   onSetPageLabelOverride,
   onRemovePageLabelOverride,
   onSettingsChange,
@@ -376,6 +382,25 @@ export function ViewerDock({
         items={scaleItems}
         placement="bottom-end"
       />
+
+      {copiedScaleName !== null && (
+        <Button
+          variant="secondary"
+          size="compact"
+          className={styles.applyCopiedScaleButton}
+          aria-label="Apply copied scale to this page"
+          title={`Apply “${copiedScaleName}” to this page`}
+          disabled={scaleApplyDisabled}
+          disabledReason={
+            scaleApplyDisabled
+              ? "Finish or cancel the current drawing or scale workflow before applying a scale."
+              : undefined
+          }
+          onClick={onApplyCopiedScale}
+        >
+          Apply copied scale
+        </Button>
+      )}
 
       <span className={styles.separator} aria-hidden="true" />
 

@@ -76,6 +76,7 @@ function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorks
     onRenameScale: vi.fn(),
     onRecalibrate: vi.fn(),
     onEditReference: vi.fn(),
+    onCopyScale: vi.fn(),
     ...overrides,
   };
 }
@@ -216,6 +217,17 @@ afterEach(() => {
 });
 
 describe("ScalesWorkspace", () => {
+  it("copies a scale directly from its collapsed page row", () => {
+    const props = createProps();
+    renderScales(props);
+    const copy = buttonByLabel("Copy scale Ground floor");
+    const disclosure = buttonByLabel("Expand scale Ground floor, active");
+    expect(copy.compareDocumentPosition(disclosure) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    act(() => copy.click());
+    expect(props.onCopyScale).toHaveBeenCalledWith(uniform);
+  });
+
   it("lists page scales, marks active status structurally, and keeps administration separate from switching", () => {
     renderScales(createProps());
 

@@ -70,6 +70,7 @@ function createProps(overrides: Partial<ViewerDockProps> = {}): ViewerDockProps 
       showCalibration: true,
     },
     onScaleChange: vi.fn(),
+    onApplyCopiedScale: vi.fn(),
     onSetPageLabelOverride: vi.fn(),
     onRemovePageLabelOverride: vi.fn(),
     onSettingsChange: vi.fn(),
@@ -220,6 +221,20 @@ describe("ViewerDock", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
     expect(items[0]?.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("shows a visible apply action in the Viewer Dock for a copied scale", () => {
+    const props = createProps({ copiedScaleName: "Ground floor" });
+    renderDock(props);
+
+    const apply = buttonByLabel("Apply copied scale to this page");
+    expect(apply.textContent).toContain("Apply copied scale");
+    expect(apply.title).toContain("Ground floor");
+    act(() => apply.click());
+    expect(props.onApplyCopiedScale).toHaveBeenCalledOnce();
+
+    renderDock(createProps());
+    expect(document.querySelector('button[aria-label="Apply copied scale to this page"]')).toBeNull();
   });
 
   it("keeps every essential Dock command present for deterministic visual condensation", () => {

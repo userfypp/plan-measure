@@ -118,3 +118,36 @@ export function scaleRatioSpecFromCalibration(calibration: PageCalibration): Sca
     yDenominator: practicalRatioFromMillimetresPerPageUnit(calibrationScaleY(calibration)),
   };
 }
+
+export function copyCalibrationToPage(
+  calibration: UniformPageCalibration,
+): Omit<UniformPageCalibration, "id" | "name">;
+export function copyCalibrationToPage(
+  calibration: XyPageCalibration,
+): Omit<XyPageCalibration, "id" | "name">;
+export function copyCalibrationToPage(calibration: PageCalibration): RatioCalibrationInput;
+export function copyCalibrationToPage(calibration: PageCalibration): RatioCalibrationInput {
+  if (calibration.mode === "uniform") {
+    return {
+      mode: "uniform",
+      start: { x: 0, y: 0 },
+      end: { x: CANONICAL_REFERENCE_PAGE_UNITS, y: 0 },
+      referenceDistanceMm:
+        millimetresPerPageUnit(calibration) * CANONICAL_REFERENCE_PAGE_UNITS,
+    };
+  }
+
+  return {
+    mode: "xy",
+    xReference: {
+      start: { x: 0, y: 0 },
+      end: { x: CANONICAL_REFERENCE_PAGE_UNITS, y: 0 },
+      referenceDistanceMm: calibrationScaleX(calibration) * CANONICAL_REFERENCE_PAGE_UNITS,
+    },
+    yReference: {
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: CANONICAL_REFERENCE_PAGE_UNITS },
+      referenceDistanceMm: calibrationScaleY(calibration) * CANONICAL_REFERENCE_PAGE_UNITS,
+    },
+  };
+}

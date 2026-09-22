@@ -173,6 +173,11 @@
   text-align: left;
 }
 
+.applyCopiedScaleButton {
+  flex: 0 0 auto;
+  padding-inline: var(--space-8);
+}
+
 .scaleFullName {
   position: absolute;
   z-index: 1;
