@@ -165,4 +165,68 @@ describe("createMeasurementGroups", () => {
   it("returns no groups for an unavailable dimension", () => {
     expect(createMeasurementGroups([measurement("line-1", [])], catalog, "missing")).toEqual([]);
   });
+
+  it("nests selected dimensions in order with unique paths and one leaf per measurement", () => {
+    const measurements = [
+      measurement("first", ["electrical", "approved"]),
+      measurement("second", ["electrical"], false),
+      measurement("third", ["plumbing", "approved"]),
+      measurement("fourth", ["approved"]),
+      measurement("fifth", []),
+    ];
+
+    const groups = createMeasurementGroups(measurements, catalog, ["trade", "status"]);
+    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "None assigned"]);
+    expect(groups[0]).toMatchObject({ visibility: "mixed", measurementIds: ["first", "second"] });
+    expect(groups[0]?.children).toMatchObject([
+      { label: "Approved", measurementIds: ["first"], visibility: "visible" },
+      { label: "None assigned", measurementIds: ["second"], visibility: "hidden" },
+    ]);
+    expect(groups[1]).toMatchObject({ archived: true, children: [{ archived: false }] });
+    expect(groups[1]?.children?.[0]?.key).toBe(
+      "dimension:trade:value:plumbing/dimension:status:value:approved",
+    );
+    expect(groups[2]?.children?.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
+    expect(groups.flatMap((group) => group.children?.flatMap((child) => child.measurementIds) ?? [])).toEqual([
+      "first", "second", "third", "fourth", "fifth",
+    ]);
+
+    const reversed = createMeasurementGroups(measurements, catalog, ["status", "trade"]);
+    expect(reversed.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
+    expect(reversed[0]?.children?.map((group) => group.label)).toEqual([
+      "Electrical", "Plumbing", "None assigned",
+    ]);
+  });
+
+  it("keeps third-level keys unique beneath different second-level values", () => {
+    const threeDimensions: ClassificationCatalog = {
+      dimensions: [
+        ...catalog.dimensions,
+        {
+          id: "phase",
+          name: "Phase",
+          archived: false,
+          values: [{ id: "planned", name: "Planned", archived: false }],
+        },
+      ],
+    };
+    const groups = createMeasurementGroups(
+      [
+        measurement("electrical-approved", ["electrical", "approved", "planned"]),
+        measurement("electrical-none", ["electrical", "planned"]),
+      ],
+      threeDimensions,
+      ["trade", "status", "phase"],
+    );
+
+    const approvedKey = groups[0]?.children?.[0]?.children?.[0]?.key;
+    const unassignedKey = groups[0]?.children?.[1]?.children?.[0]?.key;
+    expect(approvedKey).toBe(
+      "dimension:trade:value:electrical/dimension:status:value:approved/dimension:phase:value:planned",
+    );
+    expect(unassignedKey).toBe(
+      "dimension:trade:value:electrical/dimension:status:unclassified/dimension:phase:value:planned",
+    );
+    expect(approvedKey).not.toBe(unassignedKey);
+  });
 });

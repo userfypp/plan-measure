@@ -18,6 +18,27 @@ export interface MeasurementCollectionProps {
 type MeasurementControl = "selection" | "visibility";
 type RovingCell = { measurementId: string; control: MeasurementControl };
 
+function findGroupPath(groups: readonly MeasurementGroupModel[], measurementId: string): string[] {
+  for (const group of groups) {
+    if (!group.measurementIds.includes(measurementId)) continue;
+    return [group.key, ...findGroupPath(group.children ?? [], measurementId)];
+  }
+  return [];
+}
+
+function visibleGroupMeasurementIds(
+  groups: readonly MeasurementGroupModel[],
+  collapsedKeys: ReadonlySet<string>,
+): string[] {
+  return groups.flatMap((group) =>
+    collapsedKeys.has(group.key)
+      ? []
+      : group.children
+        ? visibleGroupMeasurementIds(group.children, collapsedKeys)
+        : group.measurementIds,
+  );
+}
+
 export function MeasurementCollection({
   measurements,
   emptyMessage,
@@ -30,18 +51,15 @@ export function MeasurementCollection({
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<Set<string>>(() => new Set());
   const selectedMeasurementId =
     measurements.find((measurement) => measurement.selected)?.id ?? null;
-  const selectedGroupKey = groups?.find((group) =>
-    selectedMeasurementId ? group.measurementIds.includes(selectedMeasurementId) : false,
-  )?.key;
+  const selectedGroupPath = selectedMeasurementId ? findGroupPath(groups ?? [], selectedMeasurementId) : [];
+  const selectedGroupPathKey = selectedGroupPath.join("\u0000");
   const [rovingCell, setRovingCell] = useState<RovingCell | null>(() => {
     const initial = selectedMeasurementId ?? measurements[0]?.id;
     return initial ? { measurementId: initial, control: "selection" } : null;
   });
   const grouped = Boolean(groupByDimensionId && groups && onSetMeasurementsVisibility);
   const visibleMeasurementIds = grouped
-    ? (groups ?? []).flatMap((group) =>
-        collapsedGroupKeys.has(group.key) ? [] : group.measurementIds,
-      )
+    ? visibleGroupMeasurementIds(groups ?? [], collapsedGroupKeys)
     : measurements.map((measurement) => measurement.id);
   const visibleMeasurementIdSet = new Set(visibleMeasurementIds);
   const firstVisibleMeasurementId = visibleMeasurementIds.find((id) =>
@@ -110,17 +128,18 @@ export function MeasurementCollection({
   }
 
   useEffect(() => {
-    if (!selectedGroupKey) return;
+    if (!selectedGroupPathKey) return;
+    const selectedKeys = selectedGroupPathKey.split("\u0000");
     const frame = window.requestAnimationFrame(() => {
       setCollapsedGroupKeys((current) => {
-        if (!current.has(selectedGroupKey)) return current;
+        if (!selectedKeys.some((key) => current.has(key))) return current;
         const next = new Set(current);
-        next.delete(selectedGroupKey);
+        selectedKeys.forEach((key) => next.delete(key));
         return next;
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [selectedMeasurementId, selectedGroupKey]);
+  }, [selectedMeasurementId, selectedGroupPathKey]);
 
   function toggleGroup(key: string) {
     setCollapsedGroupKeys((current) => {
@@ -143,6 +162,28 @@ export function MeasurementCollection({
     const measurementsById = new Map(
       measurements.map((measurement) => [measurement.id, measurement]),
     );
+    function renderGroup(group: MeasurementGroupModel) {
+      return (
+        <MeasurementGroup
+          key={group.key}
+          group={group}
+          measurements={group.children ? [] : group.measurementIds.flatMap((id) => {
+            const measurement = measurementsById.get(id);
+            return measurement ? [measurement] : [];
+          })}
+          collapsed={collapsedGroupKeys.has(group.key)}
+          onToggleCollapsed={() => toggleGroup(group.key)}
+          onSelectMeasurement={onSelectMeasurement}
+          onToggleVisibility={onToggleVisibility}
+          onSetMeasurementsVisibility={(measurementIds, visible) =>
+            onSetMeasurementsVisibility?.(measurementIds, visible)
+          }
+          rovingCell={effectiveRovingCell}
+        >
+          {group.children?.map(renderGroup)}
+        </MeasurementGroup>
+      );
+    }
     return (
       <section
         className={styles.collection}
@@ -151,24 +192,7 @@ export function MeasurementCollection({
         onKeyDown={handleKeyDown}
       >
         <div className={styles.groups} aria-label="Measurements grouped by classification">
-          {groups.map((group) => (
-            <MeasurementGroup
-              key={group.key}
-              group={group}
-              measurements={group.measurementIds.flatMap((id) => {
-                const measurement = measurementsById.get(id);
-                return measurement ? [measurement] : [];
-              })}
-              collapsed={collapsedGroupKeys.has(group.key)}
-              onToggleCollapsed={() => toggleGroup(group.key)}
-              onSelectMeasurement={onSelectMeasurement}
-              onToggleVisibility={onToggleVisibility}
-              onSetMeasurementsVisibility={(measurementIds, visible) =>
-                onSetMeasurementsVisibility(measurementIds, visible)
-              }
-              rovingCell={effectiveRovingCell}
-            />
-          ))}
+          {groups.map(renderGroup)}
         </div>
       </section>
     );

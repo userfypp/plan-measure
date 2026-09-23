@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { IconButton } from "../../components/ui";
 import type { MeasurementGroup as MeasurementGroupModel } from "./measurementGrouping";
 import { MeasurementRow } from "./MeasurementRow";
@@ -14,6 +14,7 @@ export interface MeasurementGroupProps {
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
   onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void;
   rovingCell?: { measurementId: string; control: "selection" | "visibility" } | null;
+  children?: ReactNode;
 }
 
 const visibilityStateLabel = {
@@ -66,6 +67,7 @@ export function MeasurementGroup({
   onToggleVisibility,
   onSetMeasurementsVisibility,
   rovingCell,
+  children,
 }: MeasurementGroupProps) {
   const generatedId = useId();
   const listId = `${generatedId}-measurements`;
@@ -113,7 +115,7 @@ export function MeasurementGroup({
         aria-label={`${group.label} measurements`}
         hidden={collapsed}
       >
-        {measurements.map((measurement) => (
+        {children ? <div className={styles.childGroups}>{children}</div> : measurements.map((measurement) => (
           <MeasurementRow
             key={measurement.id}
             viewModel={measurement}

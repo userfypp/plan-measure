@@ -8,6 +8,7 @@ export interface MeasurementGroup {
   archived: boolean;
   measurementIds: string[];
   visibility: MeasurementGroupVisibility;
+  children?: MeasurementGroup[];
 }
 
 function getVisibility(measurements: readonly Measurement[]): MeasurementGroupVisibility {
@@ -17,14 +18,25 @@ function getVisibility(measurements: readonly Measurement[]): MeasurementGroupVi
   return allHidden ? "hidden" : "mixed";
 }
 
+function prefixGroupKey(group: MeasurementGroup, parentKey: string): MeasurementGroup {
+  const key = `${parentKey}/${group.key}`;
+  return {
+    ...group,
+    key,
+    children: group.children?.map((child) => prefixGroupKey(child, parentKey)),
+  };
+}
+
 /**
- * Groups measurements by one catalog dimension while retaining catalog and page ordering.
+ * Groups measurements by catalog dimensions in the supplied order.
  */
 export function createMeasurementGroups(
   measurements: readonly Measurement[],
   catalog: ClassificationCatalog,
-  dimensionId: string,
+  dimensionIds: string | readonly string[],
 ): MeasurementGroup[] {
+  const ids = typeof dimensionIds === "string" ? [dimensionIds] : dimensionIds;
+  const [dimensionId, ...remainingIds] = ids;
   const dimension = catalog.dimensions.find((candidate) => candidate.id === dimensionId);
   if (!dimension) return [];
 
@@ -69,5 +81,18 @@ export function createMeasurementGroups(
     });
   }
 
-  return groups;
+  if (remainingIds.length === 0) return groups;
+
+  const measurementsById = new Map(measurements.map((measurement) => [measurement.id, measurement]));
+  return groups.map((group) => ({
+    ...group,
+    children: createMeasurementGroups(
+      group.measurementIds.flatMap((id) => {
+        const measurement = measurementsById.get(id);
+        return measurement ? [measurement] : [];
+      }),
+      catalog,
+      remainingIds,
+    ).map((child) => prefixGroupKey(child, group.key)),
+  }));
 }
