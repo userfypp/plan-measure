@@ -1342,6 +1342,19 @@ describe("session persistence", () => {
     expect(restored.pageLabelOverrides[2]).toBe("=SUM(A1:A2)");
   });
 
+  it("round trips optional measurement notes and accepts V11 measurements without notes", () => {
+    const session = currentMeasuredSession();
+    session.pages[2]!.measurements[0]!.note = "Verify ceiling height.";
+
+    const restored = deserializeSession(serializeSession(session));
+    expect(restored.pages[2]?.measurements[0]?.note).toBe("Verify ceiling height.");
+
+    delete session.pages[2]!.measurements[0]!.note;
+    expect(deserializeSession(serializeSession(session)).pages[2]?.measurements[0]).not.toHaveProperty(
+      "note",
+    );
+  });
+
   it("rejects invalid V11 page-label override records instead of repairing them", () => {
     const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
     const invalidOverrides: unknown[] = [

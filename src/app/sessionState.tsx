@@ -137,6 +137,7 @@ export type SessionAction =
   | ({ type: "PASTE_MEASUREMENT" } & PasteMeasurementCommand)
   | ({ type: "UPDATE_MEASUREMENT" } & UpdateMeasurementCommand)
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
+  | { type: "SET_MEASUREMENT_NOTE"; pageNumber: number; id: string; note: string }
   | { type: "SET_MEASUREMENT_VISIBILITY"; pageNumber: number; id: string; visible: boolean }
   | {
       type: "SET_MEASUREMENTS_VISIBILITY";
@@ -542,6 +543,25 @@ export function sessionReducer(
         measurements: page.measurements.map((measurement) =>
           measurement.id === action.id ? { ...measurement, name } : measurement,
         ),
+      }));
+      return { ...state, session, error: null };
+    }
+    case "SET_MEASUREMENT_NOTE": {
+      if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      if (!page || !page.measurements.some((measurement) => measurement.id === action.id)) {
+        return { ...state, error: "The selected measurement is no longer available." };
+      }
+      const note = action.note.trim();
+      const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
+        ...currentPage,
+        measurements: currentPage.measurements.map((measurement) => {
+          if (measurement.id !== action.id) return measurement;
+          const updated = { ...measurement };
+          if (note) updated.note = note;
+          else delete updated.note;
+          return updated;
+        }),
       }));
       return { ...state, session, error: null };
     }
@@ -951,6 +971,7 @@ interface SessionContextValue extends SessionState {
   pasteMeasurement: (command: PasteMeasurementCommand) => boolean;
   updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
+  setMeasurementNote: (pageNumber: number, id: string, note: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
   setMeasurementsVisibility: (
     pageNumber: number,
@@ -1039,6 +1060,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       renameMeasurement: (pageNumber, id, name) =>
         applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
+      setMeasurementNote: (pageNumber, id, note) =>
+        applyAction({ type: "SET_MEASUREMENT_NOTE", pageNumber, id, note }),
       setMeasurementVisibility: (pageNumber, id, visible) =>
         applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
       setMeasurementsVisibility: (pageNumber, measurementIds, visible) =>

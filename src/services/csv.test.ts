@@ -200,6 +200,17 @@ const NEW_MEASUREMENT_COLUMN_IDS = [
 ] as const;
 
 describe("CSV export", () => {
+  it("offers notes as an optional CSV column and exports note text when enabled", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[0]!.note = 'Check, "north" wall';
+    const noteColumn = getCsvColumnDescriptors(session).find((column) => column.id === "note");
+    expect(noteColumn).toMatchObject({ enabled: false, required: false, header: "note" });
+
+    const csv = buildCsv(session, null, allColumns(session));
+    expect(headerColumns(csv)).toContain("note");
+    expect(csv).toContain('"Check, ""north"" wall"');
+  });
+
   it("exports Polyline as an open accumulated length", () => {
     const session = measuredSession();
     session.pages[1]!.measurements.push({
@@ -272,7 +283,7 @@ describe("CSV export", () => {
     const csv = buildCsv(session, null, allColumns(session));
     expect(
       csv.startsWith(
-        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit,area_unit,pdf_name,measurement_visible,measurement_point_count,length_mm,perimeter_mm,area_mm2,calibration_ratio_denominator,calibration_ratio_x_denominator,calibration_ratio_y_denominator,calibration_x_reference_mm,calibration_x_page_span,calibration_y_reference_mm,calibration_y_page_span\r\n",
+        "\uFEFFpage,page_label,measurement_id,name,type,calibration_id,calibration_name,calibration_mode,calibration_reference_mm,calibration_page_distance,calibration_mm_per_page_unit,calibration_scale_x_mm_per_page_unit,calibration_scale_y_mm_per_page_unit,length,perimeter,area,unit,area_unit,pdf_name,measurement_visible,measurement_point_count,length_mm,perimeter_mm,area_mm2,calibration_ratio_denominator,calibration_ratio_x_denominator,calibration_ratio_y_denominator,calibration_x_reference_mm,calibration_x_page_span,calibration_y_reference_mm,calibration_y_page_span,note\r\n",
       ),
     ).toBe(true);
     expect(csv).toContain(
@@ -314,6 +325,7 @@ describe("CSV export", () => {
       "unit",
       "area_unit",
       ...NEW_MEASUREMENT_COLUMN_IDS,
+      "note",
     ]);
     expect(
       staticDescriptors
