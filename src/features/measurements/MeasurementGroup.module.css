@@ -14,6 +14,11 @@
   background: var(--color-surface);
 }
 
+.header > :last-child {
+  display: grid;
+  place-items: center;
+}
+
 .toggle {
   display: grid;
   place-items: center;
@@ -84,10 +89,12 @@
 }
 
 .visibilityControl {
+  display: grid;
+  place-items: center;
   width: var(--target-current);
   height: var(--target-current);
   border-color: transparent;
-  border-radius: var(--radius-flat);
+  border-radius: var(--radius-control);
 }
 
 .list {

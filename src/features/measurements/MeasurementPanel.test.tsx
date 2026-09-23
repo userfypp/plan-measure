@@ -244,6 +244,9 @@ describe("MeasurementRow accessibility", () => {
 
   it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
     expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
+    expect(measurementRowCss).toMatch(
+      /\.actions > \*\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
+    );
     expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
@@ -367,6 +370,12 @@ describe("measurement grouping surfaces", () => {
     );
     expect(measurementGroupCss).toMatch(
       /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.header > :last-child\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
     expect(measurementGroupCss).toMatch(
       /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-16\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
