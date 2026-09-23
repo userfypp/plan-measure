@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -77,29 +77,43 @@ function Quantities({
   );
 }
 
-export function TakeoffWorkspace(props: TakeoffWorkspaceProps) {
+export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWorkspaceProps) {
   const [breakdown, setBreakdown] = useState<Breakdown>("none");
   const [dimensionId, setDimensionId] = useState<string | null>(null);
-  const overall = createMeasurementTotals({
-    pages: props.pages,
-    catalog: props.catalog,
-    grouping: "overall",
-    classificationDimensionId: null,
-    pageLabelOverrides: props.pageLabelOverrides,
-    sourcePageLabels: props.sourcePageLabels,
-  });
+  const overall = useMemo(
+    () =>
+      createMeasurementTotals({
+        pages: props.pages,
+        catalog: props.catalog,
+        grouping: "overall",
+        classificationDimensionId: null,
+        pageLabelOverrides: props.pageLabelOverrides,
+        sourcePageLabels: props.sourcePageLabels,
+      }),
+    [props.catalog, props.pageLabelOverrides, props.pages, props.sourcePageLabels],
+  );
   const activeDimensionId = dimensionId ?? props.catalog.dimensions[0]?.id ?? null;
-  const grouped =
-    breakdown === "none"
-      ? null
-      : createMeasurementTotals({
-          pages: props.pages,
-          catalog: props.catalog,
-          grouping: breakdown,
-          classificationDimensionId: breakdown === "classification" ? activeDimensionId : null,
-          pageLabelOverrides: props.pageLabelOverrides,
-          sourcePageLabels: props.sourcePageLabels,
-        });
+  const grouped = useMemo(
+    () =>
+      breakdown === "none"
+        ? null
+        : createMeasurementTotals({
+            pages: props.pages,
+            catalog: props.catalog,
+            grouping: breakdown,
+            classificationDimensionId: breakdown === "classification" ? activeDimensionId : null,
+            pageLabelOverrides: props.pageLabelOverrides,
+            sourcePageLabels: props.sourcePageLabels,
+          }),
+    [
+      activeDimensionId,
+      breakdown,
+      props.catalog,
+      props.pageLabelOverrides,
+      props.pages,
+      props.sourcePageLabels,
+    ],
+  );
   const overallGroup = overall.groups[0];
 
   return (
@@ -204,4 +218,4 @@ export function TakeoffWorkspace(props: TakeoffWorkspaceProps) {
       )}
     </section>
   );
-}
+});

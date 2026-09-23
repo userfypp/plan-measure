@@ -29,6 +29,13 @@ interface LocatedMeasurement {
   measurement: Measurement;
 }
 
+interface CalculatedMeasurement {
+  length: number | null;
+  perimeter: number | null;
+  area: number | null;
+  excluded: boolean;
+}
+
 const absent = (): TotalQuantity => ({ kind: "absent" });
 
 function sumQuantity(values: readonly (number | null)[]): TotalQuantity {
@@ -78,9 +85,10 @@ function aggregateGroup(
   key: string,
   label: string,
   measurements: readonly LocatedMeasurement[],
+  calculationsByMeasurement: ReadonlyMap<Measurement, CalculatedMeasurement>,
   archived = false,
 ): { group: MeasurementTotalGroup; excludedCount: number } {
-  const calculated = measurements.map(calculateMeasurement);
+  const calculated = measurements.map(({ measurement }) => calculationsByMeasurement.get(measurement)!);
   return {
     group: {
       key,
@@ -121,6 +129,12 @@ export function createMeasurementTotals({
   );
   const allMeasurements = orderedPages.flatMap((page) =>
     page.measurements.map((measurement) => ({ page, measurement })),
+  );
+  const calculationsByMeasurement = new Map<Measurement, CalculatedMeasurement>(
+    allMeasurements.map(({ page, measurement }) => [
+      measurement,
+      calculateMeasurement({ page, measurement }),
+    ]),
   );
   const groupInputs: Array<{
     key: string;
@@ -174,13 +188,18 @@ export function createMeasurementTotals({
   }
 
   const groups = groupInputs.map((input) =>
-    aggregateGroup(input.key, input.label, input.measurements, input.archived),
+    aggregateGroup(
+      input.key,
+      input.label,
+      input.measurements,
+      calculationsByMeasurement,
+      input.archived,
+    ),
   );
   return {
     groups: groups.map((entry) => entry.group),
     measurementCount: allMeasurements.length,
     // Count exclusions once across the project, even when grouping duplicates presentation.
-    excludedCount: allMeasurements.map(calculateMeasurement).filter((result) => result.excluded)
-      .length,
+    excludedCount: [...calculationsByMeasurement.values()].filter((result) => result.excluded).length,
   };
 }

@@ -97,6 +97,7 @@ function renderPanel(currentSession: CurrentSession, activePage: PageState) {
     root!.render(
       <MeasurementPanel
         page={activePage}
+        selectedMeasurementId={state.selectedMeasurementId}
         onSelectMeasurement={() => undefined}
         onSetMeasurementVisibility={() => undefined}
         onSetMeasurementsVisibility={() => undefined}

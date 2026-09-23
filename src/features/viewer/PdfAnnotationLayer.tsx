@@ -75,6 +75,7 @@ const MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX =
   CANVAS_VISUAL_METRICS.measurementLabelFontSizeScreenPx;
 const CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX =
   CANVAS_VISUAL_METRICS.calibrationLabelFontSizeScreenPx;
+const LABEL_LAYOUT_ZOOM_DEBOUNCE_MS = 90;
 
 export interface CalibrationReferenceEditPreview {
   calibrationId: string;
@@ -137,6 +138,30 @@ function measureLabelText(text: string, fontSizeScreenPx: number, zoom: number):
   return { width: textNode.width(), height: textNode.height() };
 }
 
+function keepPlannedLabelWithinPage(
+  placement: LabelPlacement,
+  dimensionsAtLayoutZoom: LabelDimensions,
+  layoutZoom: number,
+  zoom: number,
+  bounds: LogicalPageBounds,
+): LabelPlacement {
+  const scale = layoutZoom / zoom;
+  const dimensions = {
+    width: dimensionsAtLayoutZoom.width * scale,
+    height: dimensionsAtLayoutZoom.height * scale,
+  };
+  return placeLabelWithinBounds(
+    {
+      x: placement.x + dimensionsAtLayoutZoom.width / 2,
+      y: placement.y + dimensionsAtLayoutZoom.height / 2,
+    },
+    dimensions,
+    bounds,
+    zoom,
+    LABEL_EDGE_MARGIN_SCREEN_PX,
+  );
+}
+
 interface PdfAnnotationLayerProps {
   page: PageState;
   bounds: LogicalPageBounds;
@@ -180,7 +205,7 @@ interface PdfAnnotationLayerProps {
   ) => void;
 }
 
-export function PdfAnnotationLayer({
+export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   page,
   bounds,
   transform,
@@ -208,6 +233,17 @@ export function PdfAnnotationLayer({
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
   const showMeasurementLabels = showMeasurements && showLabels;
+  const [labelLayoutZoom, setLabelLayoutZoom] = useState(transform.zoom);
+
+  useEffect(() => {
+    if (labelLayoutZoom === transform.zoom) return;
+    const timeout = window.setTimeout(
+      () => setLabelLayoutZoom(transform.zoom),
+      LABEL_LAYOUT_ZOOM_DEBOUNCE_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [labelLayoutZoom, transform.zoom]);
+
   const plannedLabelLayout = useMemo(() => {
     const placements = new Map<string, LabelPlacement>();
     const occupiedRects = new Map<string, OccupiedLabelRect>();
@@ -226,7 +262,7 @@ export function PdfAnnotationLayer({
         anchor,
         dimensions,
         bounds!,
-        transform.zoom,
+        labelLayoutZoom,
         occupied,
         LABEL_EDGE_MARGIN_SCREEN_PX,
       );
@@ -266,7 +302,7 @@ export function PdfAnnotationLayer({
           reserve(
             `calibration:${calibration.id}:${reference.key}`,
             { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
-            measureLabelText(labelText, CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX, transform.zoom),
+            measureLabelText(labelText, CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX, labelLayoutZoom),
           );
         }
       }
@@ -291,7 +327,7 @@ export function PdfAnnotationLayer({
         const dimensions = measureLabelText(
           labelText,
           MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX,
-          transform.zoom,
+          labelLayoutZoom,
         );
         const fallbackAnchor = averagePoint(measurement.points);
         const placement =
@@ -300,7 +336,7 @@ export function PdfAnnotationLayer({
             measurement.points,
             dimensions,
             bounds,
-            transform.zoom,
+            labelLayoutZoom,
             occupied,
             LABEL_EDGE_MARGIN_SCREEN_PX,
           ) ??
@@ -308,7 +344,7 @@ export function PdfAnnotationLayer({
             fallbackAnchor,
             dimensions,
             bounds,
-            transform.zoom,
+            labelLayoutZoom,
             occupied,
             LABEL_EDGE_MARGIN_SCREEN_PX,
           );
@@ -326,7 +362,7 @@ export function PdfAnnotationLayer({
     measurementDecimalPlaces,
     showCalibration,
     showMeasurementLabels,
-    transform.zoom,
+    labelLayoutZoom,
   ]);
 
   return (
@@ -374,9 +410,20 @@ export function PdfAnnotationLayer({
               CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
               transform.zoom,
             );
-            const labelPlacement =
-              plannedLabelLayout.placements.get(`calibration:${calibration.id}:${reference.key}`) ??
-              placeLabelWithinBounds(labelPoint, labelDimensions, bounds, transform.zoom);
+            const layoutKey = `calibration:${calibration.id}:${reference.key}`;
+            const plannedPlacement = plannedLabelLayout.placements.get(layoutKey);
+            const plannedRect = plannedLabelLayout.occupiedRects.get(layoutKey);
+            const labelPlacement = plannedPlacement
+              ? plannedRect
+                ? keepPlannedLabelWithinPage(
+                    plannedPlacement,
+                    plannedRect,
+                    labelLayoutZoom,
+                    transform.zoom,
+                    bounds,
+                  )
+                : plannedPlacement
+              : placeLabelWithinBounds(labelPoint, labelDimensions, bounds, transform.zoom);
             return (
               <Group
                 key={`${calibration.id}-${reference.key}`}
@@ -462,6 +509,7 @@ export function PdfAnnotationLayer({
             displayUnit={displayUnit}
             areaDisplay={areaDisplay}
             measurementDecimalPlaces={measurementDecimalPlaces}
+            labelLayoutZoom={labelLayoutZoom}
             visualRoles={visualRoles}
             interactionTargetScreenPx={interactionTargetScreenPx}
             pageNumber={page.pageNumber}
@@ -480,7 +528,7 @@ export function PdfAnnotationLayer({
         ))}
     </>
   );
-}
+});
 
 interface CalibrationReferenceMarkersProps {
   calibrationId: string;
@@ -686,6 +734,7 @@ interface MeasurementShapeProps {
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
+  labelLayoutZoom: number;
   visualRoles: CanvasVisualRoles;
   interactionTargetScreenPx: number;
   bounds: LogicalPageBounds;
@@ -718,6 +767,7 @@ const MeasurementShape = memo(function MeasurementShape({
   displayUnit,
   areaDisplay,
   measurementDecimalPlaces,
+  labelLayoutZoom,
   visualRoles,
   interactionTargetScreenPx,
   bounds,
@@ -783,11 +833,25 @@ const MeasurementShape = memo(function MeasurementShape({
   );
   const labelDimensions = useMemo(
     () =>
-      labelText ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom) : null,
-    [labelText, zoom],
+      !dragPoints && plannedLabelPlacement
+        ? null
+        : labelText
+          ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom)
+          : null,
+    [dragPoints, labelText, plannedLabelPlacement, zoom],
   );
   const labelPlacement = useMemo(() => {
-    if (!dragPoints && plannedLabelPlacement) return plannedLabelPlacement;
+    if (!dragPoints && plannedLabelPlacement) {
+      return plannedOccupiedLabelRect
+        ? keepPlannedLabelWithinPage(
+            plannedLabelPlacement,
+            plannedOccupiedLabelRect,
+            labelLayoutZoom,
+            zoom,
+            bounds,
+          )
+        : plannedLabelPlacement;
+    }
     if (!labelDimensions) return null;
     const insidePlacement = placeLabelInsideMeasurementGeometry(
       visibleMeasurement.type,
@@ -810,7 +874,9 @@ const MeasurementShape = memo(function MeasurementShape({
     labelCollisionIndex,
     labelDimensions,
     labelPoint,
+    labelLayoutZoom,
     plannedLabelPlacement,
+    plannedOccupiedLabelRect,
     plannedOccupiedLabelRect,
     visibleMeasurement,
     zoom,

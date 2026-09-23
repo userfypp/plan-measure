@@ -280,6 +280,129 @@ describe("snap target extraction", () => {
 });
 
 describe("snap candidate geometry", () => {
+  it("matches the linear resolver for indexed ordinary and Ortho geometry", () => {
+    const measurements = Array.from({ length: 60 }, (_, index) => {
+      const x = (index % 10) * 46 + 10;
+      const y = Math.floor(index / 10) * 58 + 10;
+      return measurement(`grid-${index}`, "polyline", [
+        { x, y },
+        { x: x + 22, y: y + 20 },
+        { x: x + 35, y: y + 4 },
+      ]);
+    });
+    const indexed = extractSnapTargets(measurements, true, bounds);
+    const linear = [...indexed];
+
+    for (const zoom of [0.135, 1, 5.052086315814703]) {
+      for (let x = 0; x <= 500; x += 17) {
+        for (let y = 0; y <= 400; y += 23) {
+          const raw = { x: x + 0.375, y: y + 0.625 };
+          const excluded = x % 2 === 0 ? { x: 10, y: 10 } : undefined;
+          expect(resolveSnapCandidate(raw, zoom, indexed, bounds, excluded)).toEqual(
+            resolveSnapCandidate(raw, zoom, linear, bounds, excluded),
+          );
+          for (const anchor of [{ x: 20, y: 20 }, { x: 250, y: 190 }]) {
+            expect(resolveSnapWithOrtho(anchor, raw, zoom, indexed, bounds, excluded)).toEqual(
+              resolveSnapWithOrtho(anchor, raw, zoom, linear, bounds, excluded),
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it("keeps an indexed Ortho crossing whose segment endpoints are far from the pointer", () => {
+    const indexed = extractSnapTargets(
+      [
+        measurement("crossing", "line", [
+          { x: 200, y: -10_000 },
+          { x: 200, y: 10_000 },
+        ]),
+        ...Array.from({ length: 40 }, (_, index) =>
+          measurement(`far-${index}`, "line", [
+            { x: 350 + index, y: 250 },
+            { x: 350 + index, y: 300 },
+          ]),
+        ),
+      ],
+      true,
+    );
+    const anchor = { x: 100, y: 100 };
+    const raw = { x: 200, y: 103 };
+    const match = resolveSnapWithOrtho(anchor, raw, 1, indexed, bounds);
+
+    expect(match).toEqual(resolveSnapWithOrtho(anchor, raw, 1, [...indexed], bounds));
+    expect(match?.target).toMatchObject({ kind: "segment", measurementId: "crossing" });
+    expect(match?.point).toEqual({ x: 200, y: 100 });
+    expect(resolveAtPagePoint(raw, {
+      confirmedPoints: [anchor],
+      orthogonal: true,
+      targets: indexed,
+    })).toEqual(resolveAtPagePoint(raw, {
+      confirmedPoints: [anchor],
+      orthogonal: true,
+      targets: [...indexed],
+    }));
+  });
+
+  it("matches the linear resolver at indexed page edges and corrected screen boundaries", () => {
+    const edgeBounds: LogicalPageBounds = { width: 1000, height: 1000, rotation: 0 };
+    const view = transform(0.135, 973.722312071624, -1476.9260697145432);
+    const rawPointerScreen = pageToScreen({ x: 380.65569593270095, y: 100 }, view);
+    const exact = { x: (rawPointerScreen.x + 10 - view.panX) / view.zoom, y: 100 };
+    const measurements = [
+      measurement("boundary", "line", [exact, { x: exact.x + 100, y: 100 }]),
+      measurement("clipped", "line", [{ x: -100, y: 300 }, { x: 100, y: 300 }]),
+      ...Array.from({ length: 40 }, (_, index) =>
+        measurement(`far-${index}`, "line", [
+          { x: 700 + index, y: 600 },
+          { x: 700 + index, y: 800 },
+        ]),
+      ),
+    ];
+    const indexed = extractSnapTargets(measurements, true, edgeBounds);
+    const linear = [...indexed];
+
+    for (const point of [rawPointerScreen, pageToScreen({ x: 0, y: 300 }, view)]) {
+      const args = {
+        measurementType: "line" as const,
+        confirmedPoints: [] as Point[],
+        rawPointerScreen: point,
+        transform: view,
+        bounds: edgeBounds,
+        snapEnabled: true,
+        orthogonal: false,
+      };
+      expect(resolveDrawingPoint({ ...args, targets: indexed })).toEqual(
+        resolveDrawingPoint({ ...args, targets: linear }),
+      );
+    }
+    const orthoArgs = {
+      measurementType: "line" as const,
+      confirmedPoints: [{ x: 300, y: 100 }],
+      rawPointerScreen,
+      transform: view,
+      bounds: edgeBounds,
+      snapEnabled: true,
+      orthogonal: true,
+    };
+    expect(resolveDrawingPoint({ ...orthoArgs, targets: indexed })).toEqual(
+      resolveDrawingPoint({ ...orthoArgs, targets: linear }),
+    );
+    expect(
+      resolveDrawingPoint({
+        measurementType: "line",
+        confirmedPoints: [],
+        rawPointerScreen,
+        transform: view,
+        bounds: edgeBounds,
+        snapEnabled: true,
+        orthogonal: false,
+        targets: indexed,
+      })?.snapMatch?.target.measurementId,
+    ).toBe("boundary");
+  });
+
   it("projects to the nearest finite point on a segment, including endpoints", () => {
     expect(nearestPointOnSegment({ x: 5, y: 7 }, { x: 0, y: 0 }, { x: 10, y: 0 })).toEqual({
       x: 5,

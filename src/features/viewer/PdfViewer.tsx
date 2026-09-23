@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  memo,
   useMemo,
   useRef,
   useState,
@@ -104,6 +105,35 @@ function pointsToFlat(points: Point[]): number[] {
   return points.flatMap((point) => [point.x, point.y]);
 }
 
+const DraftPointMarkers = memo(function DraftPointMarkers({
+  points,
+  zoom,
+  fill,
+  stroke,
+}: {
+  points: Point[];
+  zoom: number;
+  fill: string;
+  stroke: string;
+}) {
+  return (
+    <>
+      {points.slice(1).map((point, index) => (
+        <Circle
+          key={`draft-point-${index + 1}`}
+          x={point.x}
+          y={point.y}
+          radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
+          listening={false}
+        />
+      ))}
+    </>
+  );
+});
+
 interface LoadedPageData {
   document: PDFDocumentProxy;
   pageNumber: number;
@@ -165,16 +195,11 @@ export function PdfViewer({
   const stageRef = useRef<Konva.Stage>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageGroupRef = useRef<Konva.Group>(null);
+  const draftPreviewGroupRef = useRef<Konva.Group>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
   const activePageRequestRef = useRef({ document, pageNumber: page.pageNumber });
   const viewerMountedRef = useRef(false);
   const pageRenderTasksRef = useRef(new WeakMap<PDFPageProxy, Set<RenderTask>>());
-  const draftPointerFrameRef = useRef<number | null>(null);
-  const pendingDraftPointerRef = useRef<{
-    draft: DrawingDraft | null;
-    measurementType: MeasurementType;
-    rawPointerScreen: Point;
-  } | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
@@ -258,7 +283,6 @@ export function PdfViewer({
   );
 
   const clearSnapFeedback = useCallback(() => {
-    pendingDraftPointerRef.current = null;
     setPlacementPointer(null);
   }, []);
 
@@ -398,8 +422,8 @@ export function PdfViewer({
   const bounds = pageRenderData?.bounds ?? null;
   const showMeasurements = session?.settings.showMeasurements ?? false;
   const snapTargets = useMemo(
-    () => extractSnapTargets(page.measurements, showMeasurements, bounds ?? undefined),
-    [bounds, page.measurements, showMeasurements],
+    () => extractSnapTargets(page.measurements, showMeasurements, bounds ?? undefined, snap),
+    [bounds, page.measurements, showMeasurements, snap],
   );
 
   useLayoutEffect(
@@ -628,9 +652,6 @@ export function PdfViewer({
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
       renderCacheRef.current.clear();
-      if (draftPointerFrameRef.current !== null) {
-        window.cancelAnimationFrame(draftPointerFrameRef.current);
-      }
       if (wheelZoomFrameRef.current !== null) {
         window.cancelAnimationFrame(wheelZoomFrameRef.current);
       }
@@ -938,28 +959,11 @@ export function PdfViewer({
       group.position({ x: next.panX, y: next.panY });
       group.getLayer()?.batchDraw();
     }
-  }
-
-  function queueDraftPointerUpdate(
-    draft: DrawingDraft | null,
-    measurementType: MeasurementType,
-    rawPointerScreen: Point,
-  ) {
-    pendingDraftPointerRef.current = {
-      draft,
-      measurementType,
-      rawPointerScreen,
-    };
-    if (draftPointerFrameRef.current !== null) return;
-    draftPointerFrameRef.current = window.requestAnimationFrame(() => {
-      draftPointerFrameRef.current = null;
-      const pending = pendingDraftPointerRef.current;
-      pendingDraftPointerRef.current = null;
-      if (!pending) return;
-      if (workspaceDraftRef.current !== pending.draft) return;
-      if (activeToolRef.current !== pending.measurementType) return;
-      setPlacementPointer(pending.rawPointerScreen);
-    });
+    const draftPreviewGroup = draftPreviewGroupRef.current;
+    if (draftPreviewGroup) {
+      draftPreviewGroup.position({ x: next.panX, y: next.panY });
+      draftPreviewGroup.getLayer()?.batchDraw();
+    }
   }
 
   function handleMouseMove(event: KonvaEventObject<MouseEvent>) {
@@ -1007,11 +1011,9 @@ export function PdfViewer({
       clearSnapFeedback();
       return;
     }
-    const draft =
-      workspaceDraft?.type === "path" && workspaceDraft.measurementType === activeTool
-        ? workspaceDraft
-        : null;
-    queueDraftPointerUpdate(draft, activeTool, pointer);
+    setPlacementPointer((current) =>
+      current?.x === pointer.x && current.y === pointer.y ? current : pointer,
+    );
   }
 
   function handleMouseUp() {
@@ -1124,6 +1126,9 @@ export function PdfViewer({
         completePath(measurementType, [...pathDraft.points, effectivePoint], pathDraft);
         return;
       }
+      // Keep the current pointer so the next draft segment remains live after
+      // confirming a vertex, even if the pointer does not move again.
+      setPlacementPointer(pointer);
       updateDraft({ ...pathDraft, points: [...pathDraft.points, effectivePoint] });
     }
   }
@@ -1193,13 +1198,18 @@ export function PdfViewer({
     viewTransform,
     workspaceDraft,
   ]);
-  const draftPoints = useMemo(
+  const draftPreviewPointer =
+    workspaceDraft?.type === "path" ? (placementResolution?.point ?? null) : draftPointer;
+  const closedDraftPreviewPoints = useMemo(
     () =>
-      buildDraftPreviewPoints(
-        workspaceDraft,
-        workspaceDraft?.type === "path" ? (placementResolution?.point ?? null) : draftPointer,
-      ),
-    [draftPointer, placementResolution, workspaceDraft],
+      workspaceDraft?.type === "path" && measurementPathSpecs[workspaceDraft.measurementType].closed
+        ? buildDraftPreviewPoints(workspaceDraft, draftPreviewPointer)
+        : [],
+    [draftPreviewPointer, workspaceDraft],
+  );
+  const confirmedDraftFlatPoints = useMemo(
+    () => (workspaceDraft ? pointsToFlat(workspaceDraft.points) : []),
+    [workspaceDraft],
   );
   const snapMarker = placementResolution?.snapMatch?.point ?? null;
 
@@ -1219,7 +1229,6 @@ export function PdfViewer({
   const showLabels = session?.settings.showLabels ?? true;
 
   useLayoutEffect(() => {
-    pendingDraftPointerRef.current = null;
     // Snap feedback is viewer-local and must not survive interaction context changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlacementPointer(null);
@@ -1233,7 +1242,6 @@ export function PdfViewer({
     viewTransform.panX,
     viewTransform.panY,
     viewTransform.zoom,
-    workspaceDraft,
     precisionAuthoringBlocked,
   ]);
 
@@ -1329,11 +1337,25 @@ export function PdfViewer({
                   }
                   onVertexDragCancellationChange={registerVertexDragCancellation}
                 />
+              </Group>
+            </Layer>
+            <Layer listening={false}>
+              <Group
+                ref={draftPreviewGroupRef}
+                x={viewTransform.panX}
+                y={viewTransform.panY}
+                scaleX={viewTransform.zoom}
+                scaleY={viewTransform.zoom}
+                clipX={0}
+                clipY={0}
+                clipWidth={bounds.width}
+                clipHeight={bounds.height}
+              >
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
-                  draftPoints.length >= 3 && (
+                  closedDraftPreviewPoints.length >= 3 && (
                     <Line
-                      points={pointsToFlat(draftPoints)}
+                      points={pointsToFlat(closedDraftPreviewPoints)}
                       closed
                       fill={canvasVisualRoles.drawingDraftFill}
                       strokeEnabled={false}
@@ -1342,7 +1364,7 @@ export function PdfViewer({
                   )}
                 {workspaceDraft && workspaceDraft.points.length >= 2 && (
                   <Line
-                    points={pointsToFlat(workspaceDraft.points)}
+                    points={confirmedDraftFlatPoints}
                     stroke={
                       workspaceDraft.type === "calibrate"
                         ? canvasVisualRoles.calibrationStroke
@@ -1356,9 +1378,12 @@ export function PdfViewer({
                 )}
                 {workspaceDraft &&
                   workspaceDraft.points.length >= 1 &&
-                  draftPoints.length > workspaceDraft.points.length && (
+                  draftPreviewPointer && (
                     <Line
-                      points={pointsToFlat(draftPoints.slice(-2))}
+                      points={pointsToFlat([
+                        workspaceDraft.points.at(-1)!,
+                        draftPreviewPointer,
+                      ])}
                       stroke={
                         workspaceDraft.type === "calibrate"
                           ? canvasVisualRoles.calibrationStroke
@@ -1378,10 +1403,10 @@ export function PdfViewer({
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
                   workspaceDraft.points.length >= 2 &&
-                  draftPoints.length > workspaceDraft.points.length &&
+                  draftPreviewPointer &&
                   workspaceDraft.points[0] && (
                     <Line
-                      points={pointsToFlat([draftPoints.at(-1)!, workspaceDraft.points[0]])}
+                      points={pointsToFlat([draftPreviewPointer, workspaceDraft.points[0]])}
                       stroke={canvasVisualRoles.drawingDraftStroke}
                       strokeWidth={
                         CANVAS_VISUAL_METRICS.draftPreviewStrokeScreenPx / viewTransform.zoom
@@ -1406,19 +1431,14 @@ export function PdfViewer({
                       strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / viewTransform.zoom}
                     />
                   )}
-                {workspaceDraft?.type === "path" &&
-                  workspaceDraft.points.slice(1).map((point, index) => (
-                    <Circle
-                      key={`draft-point-${index + 1}`}
-                      x={point.x}
-                      y={point.y}
-                      radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / viewTransform.zoom}
-                      fill={canvasVisualRoles.handleFill}
-                      stroke={canvasVisualRoles.handleStroke}
-                      strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / viewTransform.zoom}
-                      listening={false}
-                    />
-                  ))}
+                {workspaceDraft?.type === "path" && (
+                  <DraftPointMarkers
+                    points={workspaceDraft.points}
+                    zoom={viewTransform.zoom}
+                    fill={canvasVisualRoles.handleFill}
+                    stroke={canvasVisualRoles.handleStroke}
+                  />
+                )}
                 {snapMarker && (
                   <Rect
                     x={snapMarker.x}

@@ -329,6 +329,28 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(captured.labels.map((label) => ({ x: label.x, y: label.y }))).toEqual(firstPass);
   });
 
+  it("keeps a planned label inside the page while zoom layout is debounced", () => {
+    const page = uniformPage();
+    page.measurements[0]!.points = [
+      { x: 500, y: 50 },
+      { x: 590, y: 50 },
+      { x: 590, y: 140 },
+      { x: 500, y: 140 },
+    ];
+    renderLayer({ page, transform: { zoom: 1, panX: 0, panY: 0 } });
+
+    captured.labels.length = 0;
+    captured.tags.length = 0;
+    captured.texts.length = 0;
+    renderLayer({ page, transform: { zoom: 0.5, panX: 0, panY: 0 } });
+
+    const label = captured.labels[0]!;
+    const text = captured.texts[0]!;
+    const estimatedWidth =
+      String(text.text).length * Number(text.fontSize) * 0.6 + Number(text.padding) * 2;
+    expect(Number(label.x) + estimatedWidth).toBeLessThanOrEqual(600);
+  });
+
   it("anchors a Polyline label to its longest fitting segment rather than the whole-path average", () => {
     renderLayer({ page: pageWithMeasurement("polyline") });
 

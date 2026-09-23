@@ -50,6 +50,7 @@ const konvaCapture = vi.hoisted(() => ({
   circles: [] as CapturedProps[],
   lines: [] as CapturedProps[],
   rects: [] as CapturedProps[],
+  layers: [] as CapturedProps[],
   stages: [] as CapturedProps[],
   annotationLayers: [] as CapturedProps[],
 }));
@@ -65,7 +66,10 @@ vi.mock("react-konva", () => ({
     return null;
   },
   Group: ({ children }: { children?: ReactNode }) => <>{children}</>,
-  Layer: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  Layer: ({ children, ...props }: { children?: ReactNode; [key: string]: unknown }) => {
+    konvaCapture.layers.push({ ...props, children });
+    return <>{children}</>;
+  },
   Line: (props: CapturedProps) => {
     konvaCapture.lines.push(props);
     return null;
@@ -1382,7 +1386,6 @@ describe("PdfViewer render liveness", () => {
     const stage = konvaCapture.stages.at(-1);
     const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
     if (!onMouseMove) throw new Error("Stage mouse-move handler was not captured.");
-    konvaCapture.circles.length = 0;
     konvaCapture.lines.length = 0;
     konvaCapture.rects.length = 0;
     konvaCapture.annotationLayers.length = 0;
@@ -1399,6 +1402,10 @@ describe("PdfViewer render liveness", () => {
 
     expect(hybridCapability.available).toBe(true);
     expect(konvaCapture.annotationLayers.at(-1)?.interactionTargetScreenPx).toBe(44);
+    expect(konvaCapture.layers.slice(-2).map((layer) => layer.listening)).toEqual([
+      undefined,
+      false,
+    ]);
 
     const pageHit = konvaCapture.rects.find((props) => props.name === "page-background");
     expect(pageHit?.fill).toBe("rgba(255,255,255,0.001)");
@@ -1428,8 +1435,13 @@ describe("PdfViewer render liveness", () => {
       });
     }
 
-    expect(konvaCapture.circles).toHaveLength(3);
-    for (const point of konvaCapture.circles) {
+    const draftCircles = [
+      ...new Map(
+        konvaCapture.circles.map((point) => [`${point.x}:${point.y}`, point] as const),
+      ).values(),
+    ];
+    expect(draftCircles).toHaveLength(3);
+    for (const point of draftCircles) {
       expect(point).toMatchObject({
         radius: 3 / 0.815,
         fill: "#ffffff",
@@ -1448,5 +1460,30 @@ describe("PdfViewer render liveness", () => {
       rotation: 45,
       listening: false,
     });
+
+    const onClick = konvaCapture.stages.at(-1)?.onClick as
+      | ((event: unknown) => void)
+      | undefined;
+    if (!onClick) throw new Error("Stage click handler was not captured.");
+    konvaCapture.lines.length = 0;
+    await act(async () => {
+      onClick({
+        evt: { button: 0 },
+        target: {
+          name: () => "",
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 370, y: 140 }),
+          }),
+        },
+      });
+    });
+
+    expect(workspaceProbe?.draft).toMatchObject({
+      type: "path",
+      measurementType: "polygon",
+      points: expect.arrayContaining([expect.any(Object)]),
+    });
+    expect((workspaceProbe?.draft as { points: unknown[] } | null)?.points).toHaveLength(4);
+    expect(konvaCapture.lines.filter((props) => Array.isArray(props.dash))).toHaveLength(2);
   });
 });
