@@ -26,6 +26,23 @@
   font-weight: var(--font-weight-medium);
 }
 
+.backContent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.backContent svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 .summary {
   position: relative;
   min-width: 0;
@@ -41,15 +58,17 @@
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .result {
+  display: grid;
   color: var(--color-text-primary);
   font-size: var(--font-size-result);
   font-variant-numeric: var(--font-variant-numeric-quantities);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-regular);
   line-height: 1.2;
 }
 
@@ -60,11 +79,11 @@
 }
 
 .section > h3 {
-  margin: 2px 0 var(--space-4);
+  margin: 0 0 var(--space-4);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-secondary);
+  line-height: var(--line-height-base);
 }
 
 .propertyRow {
@@ -125,17 +144,21 @@
 
 .noteHeader {
   display: flex;
-  align-items: flex-start;
+  min-height: 38px;
+  align-items: center;
   justify-content: space-between;
-  margin: 2px 0 var(--space-8);
 }
 
 .noteSection {
   margin-block-start: calc(-1 * var(--space-12));
 }
 
+.organizationSection {
+  margin-block-start: calc(-1 * var(--space-4));
+}
+
 .noteHeader h3 {
-  margin: calc((38px - var(--line-height-base)) / 2 - 2px) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
@@ -144,7 +167,8 @@
 
 .noteForm {
   min-width: 0;
-  padding-bottom: var(--space-8);
+  padding-bottom: var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-divider);
 }
 
 .noteForm textarea {

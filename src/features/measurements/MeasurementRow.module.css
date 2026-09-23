@@ -6,6 +6,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--target-current);
   align-items: stretch;
+  padding-right: var(--space-8);
   border-bottom: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
 }
@@ -172,6 +173,8 @@
 }
 
 .actions > * {
+  display: grid;
+  place-items: center;
   width: var(--target-current);
   min-width: var(--target-current);
   height: var(--target-current);

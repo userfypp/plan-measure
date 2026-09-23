@@ -131,20 +131,19 @@ describe("MeasurementDetails", () => {
       `Original scale · ${scaleDisplayMetadata(page.calibrations[0]!).ratioLabel}`,
     );
     expect(container?.textContent).not.toContain("Current active scale");
+    expect(container?.querySelector("h3")?.textContent).not.toBe("Measurement");
     expect(container?.textContent).toContain("Uniform");
     expect(container?.textContent).toContain("Page7");
-    const summary = Array.from(container?.querySelectorAll<HTMLDivElement>("div") ?? []).find(
-      (candidate) =>
-        candidate.firstElementChild?.tagName === "STRONG" &&
-        candidate.firstElementChild?.textContent === "Hallway" &&
-        candidate.textContent?.includes("1.00 m"),
-    );
+    const summary = container?.querySelector<HTMLDivElement>("[data-measurement-summary]");
     expect(summary).toBeTruthy();
-    expect(summary?.childElementCount).toBe(2);
+    expect(summary?.textContent).toBe("1.00 m");
+    expect(summary?.textContent).not.toContain("Hallway");
+    expect(summary?.childElementCount).toBe(1);
     expect(classificationTrigger().textContent).toContain("Electrical");
     expect(classificationTrigger().getAttribute("aria-expanded")).toBe("false");
     expect(container?.querySelector('section[aria-label="Classification assignment"] select')).toBeNull();
-    expect(buttonByText("‹ Back to classifications")).toBeTruthy();
+    const backButton = buttonByText("Back to classifications");
+    expect(backButton.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("updates an existing measurement value when display precision changes", () => {
@@ -192,7 +191,11 @@ describe("MeasurementDetails", () => {
       }),
     );
 
-    expect(container?.textContent).toContain("P 1452' · A 1.00 ac");
+    const summary = container?.querySelector<HTMLDivElement>("[data-measurement-summary]");
+    const result = summary?.children[0];
+    expect(summary?.textContent).not.toContain("Acre polygon");
+    expect(result?.children[0]?.textContent).toBe("A 1.00 ac");
+    expect(result?.children[1]?.textContent).toBe("P 1452'");
   });
 
   it("keeps a long linked scale name recoverable while allowing visual truncation", () => {
@@ -239,7 +242,7 @@ describe("MeasurementDetails", () => {
     const props = createProps();
     renderDetails(props);
 
-    act(() => buttonByText("‹ Back to classifications").click());
+    act(() => buttonByText("Back to classifications").click());
     act(() => buttonByText("Delete measurement").click());
     const assignment = classificationTrigger();
     act(() => assignment.click());
