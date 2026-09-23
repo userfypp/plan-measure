@@ -69,6 +69,8 @@ export function MeasurementDetails({
     calibration && scaleMetadata
       ? `${calibration.name} · ${scaleMetadata.ratioLabel}`
       : "Scale unavailable";
+  const [perimeterResult, areaResult] = viewModel.valueLabel.split(" · ");
+  const polygonResults = measurement.type === "polygon" && perimeterResult && areaResult;
 
   function submitRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,16 +95,28 @@ export function MeasurementDetails({
           data-measurement-details-back
           onClick={onBack}
         >
-          ‹ Back to {workspaceModuleLabel(returnModule).toLowerCase()}
+          <span className={styles.backContent}>
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path d="m12 4-6 6 6 6" />
+            </svg>
+            <span>Back to {workspaceModuleLabel(returnModule).toLowerCase()}</span>
+          </span>
         </Button>
 
-        <div className={styles.summary}>
-          <strong>{measurement.name}</strong>
-          <span className={styles.result}>{viewModel.valueLabel}</span>
+        <div className={styles.summary} data-measurement-summary>
+          <span className={styles.result}>
+            {polygonResults ? (
+              <>
+                <span>{areaResult}</span>
+                <span>{perimeterResult}</span>
+              </>
+            ) : (
+              viewModel.valueLabel
+            )}
+          </span>
         </div>
 
         <section className={styles.section} aria-label="Measurement properties">
-          <h3>Measurement</h3>
           {renaming ? (
             <form className={styles.renameForm} onSubmit={submitRename}>
               <Input
@@ -205,7 +219,10 @@ export function MeasurementDetails({
           </form>
         </section>
 
-        <section className={styles.section} aria-label="Measurement organization">
+        <section
+          className={`${styles.section} ${styles.organizationSection}`}
+          aria-label="Measurement organization"
+        >
           <h3>Organization</h3>
           <ClassificationAssignment
             measurementId={measurement.id}
