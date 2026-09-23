@@ -164,11 +164,24 @@ interface LoadedPageData {
   bounds: LogicalPageBounds;
 }
 
+interface ReadyRaster {
+  page: LoadedPageData;
+  canvas: HTMLCanvasElement;
+}
+
+interface StagePage {
+  slot: 0 | 1;
+  data: LoadedPageData;
+  page: PageState;
+  transform: ViewTransform;
+  presented: boolean;
+}
+
 function copyRasterToCanvas(source: HTMLCanvasElement, target: HTMLCanvasElement): boolean {
-  target.width = source.width;
-  target.height = source.height;
   const context = target.getContext("2d", { alpha: false });
   if (!context) return false;
+  if (target.width !== source.width) target.width = source.width;
+  if (target.height !== source.height) target.height = source.height;
   context.drawImage(source, 0, 0);
   return true;
 }
@@ -216,9 +229,12 @@ export function PdfViewer({
   } = useWorkspaceState();
   const viewerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const candidateStageRef = useRef<Konva.Stage>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageGroupRef = useRef<Konva.Group>(null);
+  const candidatePageGroupRef = useRef<Konva.Group>(null);
   const annotationLayerRef = useRef<Konva.Layer>(null);
+  const candidateAnnotationLayerRef = useRef<Konva.Layer>(null);
   const cachedPanGroupRef = useRef<Konva.Group | null>(null);
   const draftPreviewGroupRef = useRef<Konva.Group>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
@@ -243,11 +259,20 @@ export function PdfViewer({
   const renderRequestRef = useRef(0);
   const pageReadyRef = useRef(false);
   const [pageRenderData, setPageRenderData] = useState<LoadedPageData | null>(null);
+  const [annotationPreparationPage, setAnnotationPreparationPage] = useState<LoadedPageData | null>(
+    null,
+  );
+  const [readyRaster, setReadyRaster] = useState<ReadyRaster | null>(null);
+  const [displayedRaster, setDisplayedRaster] = useState<ReadyRaster | null>(null);
+  const [displayedStageSlot, setDisplayedStageSlot] = useState<0 | 1>(0);
+  const [preparedCandidate, setPreparedCandidate] = useState<object | null>(null);
+  const drawnCandidateKeyRef = useRef<object | null>(null);
   const [pageReady, setPageReady] = useState(false);
   const [viewerSize, setViewerSize] = useState({ width: 0, height: 0 });
   const [devicePixelRatio, setDevicePixelRatio] = useState(() => window.devicePixelRatio || 1);
   const [transform, setTransform] = useState<ViewTransform>({ zoom: 1, panX: 0, panY: 0 });
   const transformRef = useRef<ViewTransform>(transform);
+  const [presentedState, setPresentedState] = useState({ page, transform });
   const [fitMode, setFitMode] = useState(true);
   const [spacePan, setSpacePan] = useState(false);
   const [draftPointer, setDraftPointer] = useState<Point | null>(null);
@@ -521,6 +546,10 @@ export function PdfViewer({
     if (cachedDocumentRef.current !== document) {
       renderCacheRef.current.clear();
       cachedDocumentRef.current = document;
+      // A replacement document must release the previous PDF raster as well as hide it.
+      setAnnotationPreparationPage(null);
+      setReadyRaster(null);
+      setDisplayedRaster(null);
     }
     // Keep the old canvas pixels detached from the new page until the new raster is ready.
     pageReadyRef.current = false;
@@ -606,13 +635,12 @@ export function PdfViewer({
       if (requestId !== renderRequestRef.current) return;
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
+      // Start the raster request before mounting and planning the target annotations.
+      setAnnotationPreparationPage(loadedPage);
       const cachedRaster = renderCacheRef.current.get(cacheKey);
       if (cachedRaster) {
-        if (!copyRasterToCanvas(cachedRaster, canvas)) {
-          setError("The PDF canvas could not be created.");
-          return;
-        }
         pageReadyRef.current = true;
+        setReadyRaster({ page: loadedPage, canvas: cachedRaster });
         setPageReady(true);
         return;
       }
@@ -622,6 +650,7 @@ export function PdfViewer({
       rasterCanvas.height = layout.backingHeight;
       const context = rasterCanvas.getContext("2d", { alpha: false });
       if (!context) {
+        setAnnotationPreparationPage(null);
         setError("The PDF canvas could not be created.");
         return;
       }
@@ -645,18 +674,18 @@ export function PdfViewer({
             rasterCanvas,
             layout.backingWidth * layout.backingHeight,
           );
-          if (!copyRasterToCanvas(rasterCanvas, canvas)) {
-            setError("The PDF canvas could not be created.");
-            return;
-          }
           pageReadyRef.current = true;
+          setReadyRaster({ page: loadedPage, canvas: rasterCanvas });
           setPageReady(true);
         })
         .catch((error: unknown) => {
           if (requestId !== renderRequestRef.current) return;
           renderTaskRef.current = null;
           const message = pdfRenderErrorMessage(error);
-          if (message) setError(message);
+          if (message) {
+            setAnnotationPreparationPage(null);
+            setError(message);
+          }
         });
     };
 
@@ -1244,18 +1273,181 @@ export function PdfViewer({
 
   const showPage = Boolean(
     pageReady &&
+    readyRaster?.page === pageRenderData &&
     pageRenderData?.document === document &&
     pageRenderData.pageNumber === page.pageNumber &&
     bounds &&
     viewerSize.width > 0 &&
     viewerSize.height > 0,
   );
-  const pdfCanvasLayout = bounds ? canvasLayout(bounds, viewTransform, devicePixelRatio) : null;
+  const canvasPageData = displayedRaster?.page.document === document ? displayedRaster.page : null;
+  const candidatePageData =
+    pageRenderData?.document === document &&
+    pageRenderData.pageNumber === page.pageNumber &&
+    annotationPreparationPage === pageRenderData &&
+    pageRenderData !== canvasPageData
+      ? pageRenderData
+      : null;
+  const candidateStageSlot = canvasPageData
+    ? displayedStageSlot === 0
+      ? 1
+      : 0
+    : displayedStageSlot;
+  const isPresentedTarget = showPage && canvasPageData === pageRenderData;
+  const canvasLayoutPageData = canvasPageData ?? pageRenderData;
+  const canvasTransform = isPresentedTarget ? viewTransform : presentedState.transform;
+  const pdfCanvasLayout = canvasLayoutPageData
+    ? canvasLayout(canvasLayoutPageData.bounds, canvasTransform, devicePixelRatio)
+    : null;
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
   const showCalibration = session?.settings.showCalibration ?? false;
   const showLabels = session?.settings.showLabels ?? true;
+
+  const candidateVisualKey = useMemo(
+    () => ({
+      activeMeasurementEditId,
+      activeTool,
+      areaDisplay,
+      calibrationReferenceEdit,
+      candidatePageData,
+      canvasInteractionTarget,
+      canvasVisualRoles,
+      displayUnit,
+      isPanning,
+      measurementDecimalPlaces,
+      measurementEditingBlocked,
+      page,
+      precisionAuthoringBlocked,
+      selectedMeasurementId,
+      showCalibration,
+      showLabels,
+      showMeasurements,
+      spacePan,
+      viewTransform,
+      viewerWidth: viewerSize.width,
+      viewerHeight: viewerSize.height,
+    }),
+    [
+      activeMeasurementEditId,
+      activeTool,
+      areaDisplay,
+      calibrationReferenceEdit,
+      candidatePageData,
+      canvasInteractionTarget,
+      canvasVisualRoles,
+      displayUnit,
+      isPanning,
+      measurementDecimalPlaces,
+      measurementEditingBlocked,
+      page,
+      precisionAuthoringBlocked,
+      selectedMeasurementId,
+      showCalibration,
+      showLabels,
+      showMeasurements,
+      spacePan,
+      viewTransform,
+      viewerSize.width,
+      viewerSize.height,
+    ],
+  );
+
+  const stagePages: StagePage[] = [];
+  if (canvasPageData) {
+    stagePages.push({
+      slot: displayedStageSlot,
+      data: canvasPageData,
+      page: isPresentedTarget ? page : presentedState.page,
+      transform: isPresentedTarget ? viewTransform : presentedState.transform,
+      presented: true,
+    });
+  }
+  if (candidatePageData) {
+    stagePages.push({
+      slot: candidateStageSlot,
+      data: candidatePageData,
+      page,
+      transform: viewTransform,
+      presented: false,
+    });
+  }
+
+  useLayoutEffect(() => {
+    if (!isPresentedTarget) return;
+    // Keep the annotations and transform paired with the retained PDF raster.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPresentedState((current) =>
+      current.page === page && current.transform === viewTransform
+        ? current
+        : { page, transform: viewTransform },
+    );
+  }, [isPresentedTarget, page, viewTransform]);
+
+  useLayoutEffect(() => {
+    if (!candidatePageData) return;
+    const layer = candidateAnnotationLayerRef.current;
+    if (!layer) return;
+    // Lightweight Layer adapters used by non-browser renderers may not expose
+    // Konva's draw lifecycle; keep those adapters on the synchronous fallback.
+    if (typeof layer.on !== "function" || typeof layer.batchDraw !== "function") {
+      layer.draw();
+      setPreparedCandidate(candidateVisualKey);
+      return;
+    }
+    // Stage.add draws its new Layer synchronously. Its onDraw prop is installed
+    // before that draw, so a cached raster need not wait for another frame.
+    if (drawnCandidateKeyRef.current !== candidateVisualKey) layer.batchDraw();
+  }, [candidatePageData, candidateVisualKey]);
+
+  const candidateDrawEvents = {
+    onDraw: () => {
+      drawnCandidateKeyRef.current = candidateVisualKey;
+      // Konva emits draw after the scene and then draws the hit graph in the
+      // same stack. The microtask cannot run until both canvases are complete.
+      queueMicrotask(() => setPreparedCandidate(candidateVisualKey));
+    },
+  };
+
+  useLayoutEffect(() => {
+    if (!showPage || !readyRaster || displayedRaster === readyRaster) return;
+    if (candidatePageData && preparedCandidate !== candidateVisualKey) return;
+    const activePage = activePageRequestRef.current;
+    if (activePage.document !== document || activePage.pageNumber !== page.pageNumber) return;
+    if (!candidatePageData) annotationLayerRef.current?.draw();
+    const canvas = canvasRef.current;
+    if (!canvas || !copyRasterToCanvas(readyRaster.canvas, canvas)) {
+      setPageReady(false);
+      setReadyRaster(null);
+      setAnnotationPreparationPage(null);
+      setError("The PDF canvas could not be created.");
+      return;
+    }
+    setDisplayedRaster(readyRaster);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (candidatePageData) setDisplayedStageSlot(candidateStageSlot);
+    setPresentedState({ page, transform: viewTransform });
+  }, [
+    candidatePageData,
+    candidateStageSlot,
+    candidateVisualKey,
+    displayedRaster,
+    document,
+    page,
+    preparedCandidate,
+    readyRaster,
+    setError,
+    showPage,
+    viewTransform,
+  ]);
+
+  useLayoutEffect(() => {
+    if (isPresentedTarget || !canvasPageData) return;
+    // The retained page has no pointer input during navigation. Release its
+    // stage-sized hit bitmap before mounting the next page's candidate Stage.
+    annotationLayerRef.current?.drawHit?.();
+  }, [canvasPageData, isPresentedTarget]);
 
   useLayoutEffect(() => {
     const previousCache = cachedPanGroupRef.current;
@@ -1265,7 +1457,7 @@ export function PdfViewer({
     }
 
     const group = pageGroupRef.current;
-    if (isPanning && showPage && bounds && group) {
+    if (isPanning && isPresentedTarget && bounds && group) {
       const pixelRatio = panCachePixelRatio(bounds, viewTransform.zoom, devicePixelRatio);
       if (pixelRatio !== null) {
         try {
@@ -1310,7 +1502,7 @@ export function PdfViewer({
     showCalibration,
     showLabels,
     showMeasurements,
-    showPage,
+    isPresentedTarget,
     spacePan,
     viewTransform.zoom,
     viewerSize.width,
@@ -1359,7 +1551,7 @@ export function PdfViewer({
         <canvas
           ref={canvasRef}
           className={styles.pdfCanvas}
-          aria-label={`PDF page ${page.pageNumber}`}
+          aria-label={`PDF page ${canvasPageData?.pageNumber ?? page.pageNumber}`}
           style={
             pdfCanvasLayout
               ? {
@@ -1367,17 +1559,22 @@ export function PdfViewer({
                   height: pdfCanvasLayout.cssHeight,
                   left: pdfCanvasLayout.left,
                   top: pdfCanvasLayout.top,
-                  visibility: showPage ? "visible" : "hidden",
+                  visibility: canvasPageData ? "visible" : "hidden",
                 }
               : { visibility: "hidden" }
           }
         />
-        {showPage && bounds && viewerSize.width > 0 && viewerSize.height > 0 && (
+        {stagePages.map((stage) => (
           <Stage
-            ref={stageRef}
+            key={stage.slot}
+            ref={stage.presented ? stageRef : candidateStageRef}
             width={viewerSize.width}
             height={viewerSize.height}
             className={styles.stage}
+            style={{
+              visibility: stage.presented ? "visible" : "hidden",
+              pointerEvents: stage.presented && isPresentedTarget ? "auto" : "none",
+            }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -1385,28 +1582,32 @@ export function PdfViewer({
             onClick={handleStageClick}
             onWheel={handleWheel}
           >
-            <Layer ref={annotationLayerRef} listening={!isPanning}>
+            <Layer
+              ref={stage.presented ? annotationLayerRef : candidateAnnotationLayerRef}
+              listening={stage.presented ? !isPanning && isPresentedTarget : true}
+              {...(stage.presented ? {} : candidateDrawEvents)}
+            >
               <Group
-                ref={pageGroupRef}
-                x={viewTransform.panX}
-                y={viewTransform.panY}
-                scaleX={viewTransform.zoom}
-                scaleY={viewTransform.zoom}
+                ref={stage.presented ? pageGroupRef : candidatePageGroupRef}
+                x={stage.transform.panX}
+                y={stage.transform.panY}
+                scaleX={stage.transform.zoom}
+                scaleY={stage.transform.zoom}
                 clipX={0}
                 clipY={0}
-                clipWidth={bounds.width}
-                clipHeight={bounds.height}
+                clipWidth={stage.data.bounds.width}
+                clipHeight={stage.data.bounds.height}
               >
                 <Rect
                   name="page-background"
-                  width={bounds.width}
-                  height={bounds.height}
+                  width={stage.data.bounds.width}
+                  height={stage.data.bounds.height}
                   fill={canvasVisualRoles.pageHitRegionFill}
                 />
                 <PdfAnnotationLayer
-                  page={page}
-                  bounds={bounds}
-                  transform={viewTransform}
+                  page={stage.page}
+                  bounds={stage.data.bounds}
+                  transform={stage.transform}
                   activeTool={activeTool}
                   spacePan={spacePan}
                   isPanning={isPanning}
@@ -1436,17 +1637,18 @@ export function PdfViewer({
                 />
               </Group>
             </Layer>
-            <Layer listening={false}>
+            {stage.presented && isPresentedTarget && (
+              <Layer listening={false} visible={isPresentedTarget}>
               <Group
                 ref={draftPreviewGroupRef}
-                x={viewTransform.panX}
-                y={viewTransform.panY}
-                scaleX={viewTransform.zoom}
-                scaleY={viewTransform.zoom}
+                x={stage.transform.panX}
+                y={stage.transform.panY}
+                scaleX={stage.transform.zoom}
+                scaleY={stage.transform.zoom}
                 clipX={0}
                 clipY={0}
-                clipWidth={bounds.width}
-                clipHeight={bounds.height}
+                clipWidth={stage.data.bounds.width}
+                clipHeight={stage.data.bounds.height}
               >
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
@@ -1556,10 +1758,13 @@ export function PdfViewer({
                   />
                 )}
               </Group>
-            </Layer>
+              </Layer>
+            )}
           </Stage>
+        ))}
+        {!canvasPageData && (
+          <div className={styles.loading}>Rendering page…</div>
         )}
-        {!showPage && <div className={styles.loading}>Rendering page…</div>}
       </div>
     </div>
   );
