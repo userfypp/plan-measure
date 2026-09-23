@@ -164,26 +164,14 @@ export function ClassificationManager({
   return (
     <section className={styles.manager} aria-label="Classification catalog">
       <div className={styles.body}>
-        <p className={styles.description}>Create dimensions to organize measurements.</p>
         {catalog.dimensions.length > 0 && (
           <ul className={styles.list} aria-label="Classification dimensions">
             {catalog.dimensions.map((dimension) => {
-              const activeValueCount = dimension.values.filter((value) => !value.archived).length;
-              const archivedValueCount = dimension.values.filter((value) => value.archived).length;
               return (
-                <li
-                  key={dimension.id}
-                  className={[styles.item, dimension.archived ? styles.archivedItem : ""]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
+                <li key={dimension.id} className={styles.item}>
                   <div className={styles.itemHeader}>
                     <div className={styles.itemText}>
                       <strong title={dimension.name}>{dimension.name}</strong>
-                      <span>
-                        {activeValueCount} active value{activeValueCount === 1 ? "" : "s"}
-                        {archivedValueCount > 0 ? ` · ${archivedValueCount} archived` : ""}
-                      </span>
                     </div>
                     {dimension.archived ? (
                       <div className={styles.actions}>
@@ -292,8 +280,7 @@ export function ClassificationManager({
                   </ul>
                   {dimension.archived ? (
                     <p className={styles.archivedNote}>
-                      Existing measurement assignments are preserved. Restore this dimension to edit
-                      or assign it.
+                      Assignments are preserved. Restore to edit or assign.
                     </p>
                   ) : (
                     <form

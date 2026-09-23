@@ -70,14 +70,12 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Trade");
     expect(markup).toContain("Electrical");
     expect(markup).toContain("Archived");
-    expect(markup).toContain("1 active value");
-    expect(markup).not.toContain("1 active values");
     expect(markup).toContain("Rename");
     expect(markup).toContain('aria-label="Rename Trade"');
     expect(markup).toContain("Archive Trade; existing assignments are preserved");
     expect(markup).toContain('title="Trade"');
     expect(markup).toContain('title="Electrical"');
-    expect(markup).toContain("Create dimensions to organize measurements.");
+    expect(markup).not.toContain("Create dimensions to organize measurements.");
     expect(markup).not.toContain("never change measurement scales");
     expect(markup).not.toContain(">Classifications<");
     expect(markup).not.toContain("active dimensions");
@@ -92,10 +90,16 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(/\.archiveAction\s*\{[^}]*color:\s*var\(--color-text-secondary\)/s);
     expect(managerCss).toMatch(/\.archiveAction:hover[^}]*color:\s*var\(--color-danger-hover-semantic\)/s);
     expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
+    expect(managerCss).toMatch(
+      /\.item \+ \.item\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
+    );
+    expect(managerCss).toMatch(/\.body\s*\{[^}]*gap:\s*0;/s);
     expect(managerCss).not.toContain("@container (max-width: 640px)");
     expect(managerCss).toContain("@container (max-width: 248px)");
     expect(managerCss).toMatch(/\.inlineForm\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
-    expect(managerCss).toMatch(/\.create\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+    expect(managerCss).toMatch(
+      /\.create\s*\{[^}]*padding:\s*var\(--space-4\) var\(--space-4\) var\(--space-4\);[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
+    );
   });
 
   it("keeps classification headers and create controls compact at the real panel widths", () => {
@@ -112,9 +116,9 @@ describe("classification surfaces", () => {
       /\.compactInput\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*padding-inline:\s*var\(--space-8\);/s,
     );
     expect(managerCss).toMatch(
-      /\.inlineLabel\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s,
+      /\.inlineLabel\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*overflow:\s*hidden;[^}]*clip:\s*rect\(0, 0, 0, 0\);/s,
     );
-    expect(managerCss).toMatch(/\.create > button\s*\{[^}]*width:\s*100%;/s);
+    expect(managerCss).toMatch(/\.create\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s);
     expect(managerCss).not.toContain("@container (max-width: 320px)");
   });
 
@@ -133,13 +137,11 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("2 active values");
-    expect(markup).toContain("1 archived");
     expect(markup).toContain("Trade");
     expect(markup).toContain("Archived");
     expect(markup).toContain("Restore");
     expect(markup).toContain('aria-label="Restore dimension Trade"');
-    expect(markup).toContain("Existing measurement assignments are preserved.");
+    expect(markup).toContain("Assignments are preserved. Restore to edit or assign.");
     expect(markup).toContain("Electrical");
     expect(markup).toContain("Legacy");
     expect(markup).not.toContain("Add value");
@@ -237,7 +239,7 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup.match(/Create dimensions to organize measurements\./g)).toHaveLength(1);
+    expect(markup).not.toContain("Create dimensions to organize measurements.");
     expect(markup).toContain("New dimension");
     expect(markup).not.toContain("Create a dimension such as Trade, Status, or Area.");
     expect(markup).not.toContain("Create reusable values.");
