@@ -78,6 +78,7 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
     returnModule: "classifications",
     onBack: vi.fn(),
     onRename: vi.fn(),
+    onSaveNote: vi.fn(),
     onAssignClassification: vi.fn(),
     onDelete: vi.fn(),
     ...overrides,
@@ -295,6 +296,29 @@ describe("MeasurementDetails", () => {
 
     expect(props.onRename).toHaveBeenCalledWith("Main hallway");
     expect(container?.querySelector("input")).toBeNull();
+  });
+
+  it("saves an editable measurement note", () => {
+    const props = createProps({
+      measurement: { ...firstMeasurement, note: "Existing note" },
+    });
+    renderDetails(props);
+
+    const textarea = container?.querySelector<HTMLTextAreaElement>("textarea");
+    if (!textarea) throw new Error("Measurement note editor was not rendered.");
+    expect(textarea.value).toBe("Existing note");
+    expect(textarea.getAttribute("aria-label")).toBe("Note");
+    expect(container?.textContent).not.toContain("Note or description");
+    expect(textarea.form?.id).toBe("measurement-note-form");
+    expect(buttonByText("Save note").getAttribute("form")).toBe("measurement-note-form");
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(textarea, "Check the ceiling height.");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => buttonByText("Save note").click());
+
+    expect(props.onSaveNote).toHaveBeenCalledWith("Check the ceiling height.");
   });
 
   it("resets local rename UI when canonical selection changes while Details stays open", () => {

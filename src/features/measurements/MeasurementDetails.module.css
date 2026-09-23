@@ -123,6 +123,42 @@
   gap: var(--space-8);
 }
 
+.noteHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 2px 0 var(--space-8);
+}
+
+.noteSection {
+  margin-block-start: calc(-1 * var(--space-12));
+}
+
+.noteHeader h3 {
+  margin: calc((38px - var(--line-height-base)) / 2 - 2px) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+}
+
+.noteForm {
+  min-width: 0;
+  padding-bottom: var(--space-8);
+}
+
+.noteForm textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-panel);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
 .dangerZone {
   display: flex;
   justify-content: flex-end;

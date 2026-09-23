@@ -160,7 +160,12 @@ function isMeasurementV5(value: unknown): value is MeasurementV5 {
   return hasValidClassificationValueIds(value);
 }
 function isMeasurement(value: unknown): value is Measurement {
-  return isObject(value) && typeof value.visible === "boolean" && isMeasurementV5(value);
+  return (
+    isObject(value) &&
+    typeof value.visible === "boolean" &&
+    (value.note === undefined || typeof value.note === "string") &&
+    isMeasurementV5(value)
+  );
 }
 function hasValidSessionHeader(value: Record<string, unknown>): boolean {
   return (
@@ -734,6 +739,7 @@ function canonicalizeSessionV10(session: SessionV10): SessionV10 {
         points: measurement.points.map((point) => ({ ...point })),
         classificationValueIds: [...measurement.classificationValueIds],
         visible: measurement.visible,
+        ...(measurement.note === undefined ? {} : { note: measurement.note }),
       })),
       nextMeasurementNumber: { ...page.nextMeasurementNumber },
     };

@@ -31,6 +31,7 @@ export interface MeasurementDetailsProps {
   assignmentDisabled?: boolean;
   onBack: () => void;
   onRename: (name: string) => void;
+  onSaveNote: (note: string) => void;
   onAssignClassification: (measurementId: string, dimensionId: string, valueId: string | null) => void;
   onDelete: () => void;
 }
@@ -46,12 +47,14 @@ export function MeasurementDetails({
   assignmentDisabled = false,
   onBack,
   onRename,
+  onSaveNote,
   onAssignClassification,
   onDelete,
 }: MeasurementDetailsProps) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [note, setNote] = useState(measurement.note ?? "");
   const viewModel = createMeasurementViewModel(
     page,
     measurement,
@@ -170,6 +173,36 @@ export function MeasurementDetails({
             <span>Page</span>
             <strong>{page.pageNumber}</strong>
           </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.noteSection}`} aria-label="Measurement note">
+          <div className={styles.noteHeader}>
+            <h3>Note</h3>
+            <Button
+              type="submit"
+              form="measurement-note-form"
+              variant="ghost"
+              size="compact"
+            >
+              Save note
+            </Button>
+          </div>
+          <form
+            id="measurement-note-form"
+            className={styles.noteForm}
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSaveNote(note);
+            }}
+          >
+            <textarea
+              id="measurement-note"
+              aria-label="Note"
+              value={note}
+              rows={4}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </form>
         </section>
 
         <section className={styles.section} aria-label="Measurement organization">

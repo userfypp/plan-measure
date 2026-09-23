@@ -113,6 +113,7 @@ function PlanMeasureApp() {
     updateCalibration,
     pasteMeasurement,
     renameMeasurement,
+    setMeasurementNote,
     setMeasurementVisibility,
     setMeasurementsVisibility,
     deleteMeasurement,
@@ -1068,6 +1069,9 @@ function PlanMeasureApp() {
                     }}
                     onRename={(name) =>
                       renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
+                    }
+                    onSaveNote={(note) =>
+                      setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
                     }
                     onAssignClassification={assignClassification}
                     onDelete={() =>

@@ -251,6 +251,7 @@ export interface PathMeasurement extends MeasurementBase {
   points: Point[];
   classificationValueIds: string[];
   visible: boolean;
+  note?: string;
 }
 
 export type Measurement = PathMeasurement;

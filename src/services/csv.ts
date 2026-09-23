@@ -419,6 +419,16 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     required: false,
     extract: (context) => context.calibrationYPageSpan,
   },
+  {
+    id: "note",
+    header: "note",
+    label: "Note",
+    section: "measurement",
+    type: "text",
+    defaultEnabled: false,
+    required: false,
+    extract: (context) => context.measurement.note ?? "",
+  },
 ];
 
 function createClassificationColumns(
