@@ -13,7 +13,7 @@ Live app: https://userfypp.github.io/plan-measure/
 - Draw Line, Polyline, and Polygon measurements. Edit vertices or move a whole measurement.
 - Use Snap for visible measurement geometry and Ortho for horizontal or vertical segments.
 - Manage measurements in the Measurements workspace, including visibility and grouping; review project-wide totals in Takeoff; and edit properties in Details.
-- Create reusable classification dimensions and values, assign them in Organization, and group measurements by a classification dimension.
+- Create reusable classification dimensions and values, assign them in Organization, and group measurements by one or more classification dimensions in a chosen order.
 - Export measurements from every page to CSV with configurable measurement, value, scale, classification, and optional audit-data columns, or export normalized classification assignments with PDF, page, measurement, dimension, value, and archive-status context.
 - Choose System, Light, or Dark appearance and configure measurement display, deletion confirmation, and recovered-plan startup behavior in Settings.
 
@@ -29,7 +29,7 @@ The active PDF and session data are stored locally in IndexedDB for recovery aft
 2. Open **Scales** in the Workspace and choose **Add scale**. Use **Uniform** for one reference, **X/Y** for separate horizontal and vertical references, **Custom ratio** to enter a known 1:n ratio directly, or a standard 1:20, 1:50, or 1:100 ratio. Manual references accept mm, cm, m, decimal inches or feet, and structured feet-and-inches input. Select the active scale from the Viewer Dock.
 3. Choose **Line**, **Polyline**, or **Polygon** in the Tool Rail and draw on the plan. Line uses two points, Polyline is open, and Polygon is closed. The Context Toolbar provides **Snap**, **Ortho**, **Finish**, and **Cancel** when they apply.
 4. Use **Select** to move a measurement or edit its vertices. The Context Toolbar provides rename, duplicate, **Details**, and delete actions for the selected measurement. Details provides measurement properties, rename, classification assignment, and delete; geometry editing remains in Select in the Viewer.
-5. Use **Classifications** in the Workspace to manage reusable dimensions and values. The **Measurements** workspace can group measurements by a classification dimension.
+5. Use **Classifications** in the Workspace to manage reusable dimensions and values. In **Measurements**, choose one or more dimensions in order to nest measurement groups; each group can be collapsed, and its visibility control applies to all measurements in that group.
 6. Choose **Export** in the App Bar and select **Measurements** to configure the existing measurement CSV. Optional audit data includes PDF name, measurement visibility and point count, canonical mm/mm² values, and scale ratio/reference metadata without changing the default export. Select **Classification assignments** to export one row per assigned classification with PDF/page/measurement context and separate dimension, value, and effective archive status. Hidden measurements are still exported.
 
 The active scale applies only to new measurements. Existing measurements keep the scale they were created with. Renaming a scale changes only its name. Recalibrating it or editing its reference points updates measurements linked to that scale; Plan Measure asks for confirmation first when the scale is already in use.

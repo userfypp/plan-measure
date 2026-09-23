@@ -120,6 +120,57 @@ afterEach(() => {
 });
 
 describe("MeasurementPanel and TakeoffWorkspace", () => {
+  it("lets users choose and reorder classification dimensions for nested measurement groups", () => {
+    const activePage = page([
+      measurement({ classificationValueIds: ["electrical", "approved"] }),
+      measurement({ id: "line-2", name: "Second", classificationValueIds: ["electrical"] }),
+    ]);
+    const currentSession = session({ 1: activePage });
+    currentSession.classificationCatalog.dimensions.push({
+      id: "status",
+      name: "Status",
+      archived: false,
+      values: [{ id: "approved", name: "Approved", archived: false }],
+    });
+    renderPanel(currentSession, activePage);
+
+    function choose(index: number, value: string) {
+      const select = container!.querySelectorAll<HTMLSelectElement>("header select")[index]!;
+      act(() => {
+        select.value = value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    choose(0, "trade");
+    choose(1, "status");
+    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
+      "trade", "status",
+    ]);
+    const electrical = container!.querySelector('[aria-label="Electrical measurement group"]');
+    expect(electrical?.querySelector('[aria-label="Approved measurement group"]')).not.toBeNull();
+    expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
+
+    choose(0, "status");
+    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
+      "status", "trade",
+    ]);
+    const approved = container!.querySelector('[aria-label="Approved measurement group"]');
+    expect(approved?.querySelector('[aria-label="Electrical measurement group"]')).not.toBeNull();
+
+    choose(1, "");
+    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
+      "status", "",
+    ]);
+
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Clear all grouping"]')!.click());
+    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
+      "",
+    ]);
+    expect(container!.querySelector('[aria-label="Measurements grouped by classification"]')).toBeNull();
+    expect(container!.querySelector('[aria-label="Select measurement Hallway"]')).not.toBeNull();
+  });
+
   it("keeps Measurements dedicated to its list", () => {
     const activePage = page([measurement()]);
     renderPanel(session({ 1: activePage }), activePage);

@@ -36,7 +36,7 @@ export function MeasurementPanel({
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
-  const [groupByDimensionId, setGroupByDimensionId] = useState<string | null>(null);
+  const [groupByDimensionIds, setGroupByDimensionIds] = useState<string[]>([]);
   const measurements = createMeasurementViewModels(
     page,
     displayUnit,
@@ -46,8 +46,8 @@ export function MeasurementPanel({
   );
   const catalog = session?.classificationCatalog ?? { dimensions: [] };
   const hasGroupBy = catalog.dimensions.length > 0;
-  const groups = groupByDimensionId
-    ? createMeasurementGroups(page.measurements, catalog, groupByDimensionId)
+  const groups = groupByDimensionIds.length
+    ? createMeasurementGroups(page.measurements, catalog, groupByDimensionIds)
     : undefined;
 
   return (
@@ -58,12 +58,12 @@ export function MeasurementPanel({
       {hasGroupBy && (
         <MeasurementsHeader
           dimensions={catalog.dimensions}
-          groupByDimensionId={groupByDimensionId}
-          onGroupByDimensionChange={setGroupByDimensionId}
+          groupByDimensionIds={groupByDimensionIds}
+          onGroupByDimensionsChange={setGroupByDimensionIds}
         />
       )}
       <MeasurementCollection
-        key={groupByDimensionId ?? "flat"}
+        key={groupByDimensionIds.join("/") || "flat"}
         measurements={measurements}
         emptyMessage={getMeasurementEmptyMessage(page)}
         onSelectMeasurement={onSelectMeasurement}
@@ -71,7 +71,7 @@ export function MeasurementPanel({
           onSetMeasurementVisibility(page.pageNumber, measurementId, visible)
         }
         groups={groups}
-        groupByDimensionId={groupByDimensionId}
+        groupByDimensionId={groupByDimensionIds[0] ?? null}
         onSetMeasurementsVisibility={(measurementIds, visible) =>
           onSetMeasurementsVisibility(page.pageNumber, measurementIds, visible)
         }

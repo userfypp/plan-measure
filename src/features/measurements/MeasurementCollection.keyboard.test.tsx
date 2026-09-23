@@ -226,4 +226,67 @@ describe("MeasurementCollection keyboard model", () => {
     act(() => visibilityControls[0]?.click());
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
   });
+
+  it("collapses nested branches and applies visibility to exactly their descendant measurements", () => {
+    const onSetMeasurementsVisibility = vi.fn();
+    act(() =>
+      root!.render(
+        <MeasurementCollection
+          measurements={measurements}
+          emptyMessage="Empty"
+          onSelectMeasurement={vi.fn()}
+          onToggleVisibility={vi.fn()}
+          groupByDimensionId="trade"
+          groups={[
+            {
+              key: "trade:electrical",
+              label: "Electrical",
+              archived: false,
+              measurementIds: ["line-1", "line-2"],
+              visibility: "visible",
+              children: [
+                {
+                  key: "trade:electrical/status:approved",
+                  label: "Approved",
+                  archived: false,
+                  measurementIds: ["line-1"],
+                  visibility: "visible",
+                },
+                {
+                  key: "trade:electrical/dimension:status:unclassified",
+                  label: "None assigned",
+                  archived: false,
+                  measurementIds: ["line-2"],
+                  visibility: "visible",
+                },
+              ],
+            },
+            {
+              key: "trade:other",
+              label: "Other",
+              archived: false,
+              measurementIds: ["polygon-1"],
+              visibility: "visible",
+            },
+          ]}
+          onSetMeasurementsVisibility={onSetMeasurementsVisibility}
+        />,
+      ),
+    );
+
+    expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
+    const approved = container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Approved group"]')!;
+    act(() => approved.click());
+    expect(control("line-1", "selection").closest("[hidden]")).not.toBeNull();
+    expect(control("line-2", "selection").closest("[hidden]")).toBeNull();
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all unclassified measurements; currently all visible"]')?.click());
+    expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-2"], false);
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all measurements in Electrical; currently all visible"]')?.click());
+    expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1", "line-2"], false);
+
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Electrical group"]')?.click());
+    expect(control("line-2", "selection").closest("[hidden]")).not.toBeNull();
+    expect(control("polygon-1", "selection").closest("[hidden]")).toBeNull();
+    expect(control("polygon-1", "selection").tabIndex).toBe(0);
+  });
 });

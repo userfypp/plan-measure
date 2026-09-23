@@ -111,3 +111,8 @@
 .list[hidden] {
   display: none;
 }
+
+.childGroups {
+  min-width: 0;
+  padding-left: var(--space-8);
+}

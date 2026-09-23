@@ -280,8 +280,8 @@ describe("measurement grouping surfaces", () => {
     const markup = renderToStaticMarkup(
       <MeasurementsHeader
         dimensions={[]}
-        groupByDimensionId={null}
-        onGroupByDimensionChange={() => undefined}
+        groupByDimensionIds={[]}
+        onGroupByDimensionsChange={() => undefined}
       />,
     );
 
@@ -296,8 +296,8 @@ describe("measurement grouping surfaces", () => {
           { id: "trade", name: "Trade", archived: false },
           { id: "legacy", name: "Legacy trade", archived: true },
         ]}
-        groupByDimensionId="trade"
-        onGroupByDimensionChange={() => undefined}
+        groupByDimensionIds={["trade"]}
+        onGroupByDimensionsChange={() => undefined}
       />,
     );
 
