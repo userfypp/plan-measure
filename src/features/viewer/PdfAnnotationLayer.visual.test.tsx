@@ -329,7 +329,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(captured.labels.map((label) => ({ x: label.x, y: label.y }))).toEqual(firstPass);
   });
 
-  it("keeps a planned label inside the page while zoom layout is debounced", () => {
+  it("replans labels at the current zoom and keeps them inside the page", () => {
     const page = uniformPage();
     page.measurements[0]!.points = [
       { x: 500, y: 50 },
@@ -349,6 +349,55 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     const estimatedWidth =
       String(text.text).length * Number(text.fontSize) * 0.6 + Number(text.padding) * 2;
     expect(Number(label.x) + estimatedWidth).toBeLessThanOrEqual(600);
+  });
+
+  it("replans label collisions in the same render as a zoom change", () => {
+    const page = uniformPage();
+    const first = {
+      ...page.measurements[0]!,
+      id: "polygon-first",
+      points: [
+        { x: 170, y: 50 },
+        { x: 310, y: 50 },
+        { x: 310, y: 150 },
+        { x: 170, y: 150 },
+      ],
+    };
+    const second = {
+      ...page.measurements[0]!,
+      id: "polygon-second",
+      points: [
+        { x: 320, y: 50 },
+        { x: 460, y: 50 },
+        { x: 460, y: 150 },
+        { x: 320, y: 150 },
+      ],
+    };
+    page.measurements = [first, second];
+    renderLayer({ page, transform: { zoom: 1, panX: 0, panY: 0 } });
+
+    captured.labels.length = 0;
+    captured.texts.length = 0;
+    renderLayer({ page, transform: { zoom: 0.5, panX: 0, panY: 0 } });
+
+    const firstLabel = captured.labels[0]!;
+    const secondLabel = captured.labels[1]!;
+    const firstText = captured.texts[0]!;
+    const secondText = captured.texts[1]!;
+    const dimensions = (text: CapturedProps) => ({
+      width: String(text.text).length * Number(text.fontSize) * 0.6 + Number(text.padding) * 2,
+      height: Number(text.fontSize) + Number(text.padding) * 2,
+    });
+    const firstSize = dimensions(firstText);
+    const secondSize = dimensions(secondText);
+    const overlaps =
+      Number(firstLabel.x) < Number(secondLabel.x) + secondSize.width &&
+      Number(firstLabel.x) + firstSize.width > Number(secondLabel.x) &&
+      Number(firstLabel.y) < Number(secondLabel.y) + secondSize.height &&
+      Number(firstLabel.y) + firstSize.height > Number(secondLabel.y);
+
+    expect(captured.labels).toHaveLength(2);
+    expect(overlaps).toBe(false);
   });
 
   it("anchors a Polyline label to its longest fitting segment rather than the whole-path average", () => {

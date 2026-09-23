@@ -83,6 +83,29 @@ import {
 } from "./viewerLayout";
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
+const MAX_PAN_CACHE_PIXELS = 4 * 1024 * 1024;
+const MAX_PAN_CACHE_DIMENSION = 4096;
+
+function panCachePixelRatio(
+  bounds: LogicalPageBounds,
+  zoom: number,
+  devicePixelRatio: number,
+): number | null {
+  const width = Math.ceil(bounds.width);
+  const height = Math.ceil(bounds.height);
+  if (!(width > 0 && height > 0 && Number.isFinite(width * height))) return null;
+  const ratio = Math.min(
+    zoom * Math.max(1, devicePixelRatio),
+    Math.sqrt(MAX_PAN_CACHE_PIXELS / (width * height)),
+    MAX_PAN_CACHE_DIMENSION / Math.max(width, height),
+  );
+  return Number.isFinite(ratio) &&
+    ratio > 0 &&
+    Math.floor(width * ratio) > 0 &&
+    Math.floor(height * ratio) > 0
+    ? ratio
+    : null;
+}
 
 interface PdfViewerProps {
   document: PDFDocumentProxy;
@@ -195,6 +218,8 @@ export function PdfViewer({
   const stageRef = useRef<Konva.Stage>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageGroupRef = useRef<Konva.Group>(null);
+  const annotationLayerRef = useRef<Konva.Layer>(null);
+  const cachedPanGroupRef = useRef<Konva.Group | null>(null);
   const draftPreviewGroupRef = useRef<Konva.Group>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
   const activePageRequestRef = useRef({ document, pageNumber: page.pageNumber });
@@ -234,6 +259,7 @@ export function PdfViewer({
     pointer: Point;
     transform: ViewTransform;
   } | null>(null);
+  const completedPanRef = useRef(false);
   const safeViewer = useMemo(
     () => safeViewerLayout(viewerSize, viewerBottomExclusion),
     [viewerBottomExclusion, viewerSize],
@@ -820,6 +846,7 @@ export function PdfViewer({
     const completedPan = panDragRef.current !== null;
     panDragRef.current = null;
     if (completedPan) {
+      completedPanRef.current = true;
       setTransform(transformRef.current);
       if (suppressPanClickTimerRef.current !== null) {
         window.clearTimeout(suppressPanClickTimerRef.current);
@@ -831,6 +858,11 @@ export function PdfViewer({
     }
     setIsPanning(false);
   }, []);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) canvas.style.transform = "";
+  }, [transform]);
 
   const releaseSpacePan = useCallback(() => {
     if (panDragRef.current) setTransform(transformRef.current);
@@ -951,18 +983,15 @@ export function PdfViewer({
     transformRef.current = next;
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.style.left = `${next.panX}px`;
-      canvas.style.top = `${next.panY}px`;
+      canvas.style.transform = `translate3d(${next.panX - transform.panX}px, ${next.panY - transform.panY}px, 0)`;
     }
     const group = pageGroupRef.current;
     if (group) {
       group.position({ x: next.panX, y: next.panY });
-      group.getLayer()?.batchDraw();
     }
     const draftPreviewGroup = draftPreviewGroupRef.current;
     if (draftPreviewGroup) {
       draftPreviewGroup.position({ x: next.panX, y: next.panY });
-      draftPreviewGroup.getLayer()?.batchDraw();
     }
   }
 
@@ -1229,6 +1258,74 @@ export function PdfViewer({
   const showLabels = session?.settings.showLabels ?? true;
 
   useLayoutEffect(() => {
+    const previousCache = cachedPanGroupRef.current;
+    if (previousCache) {
+      previousCache.clearCache();
+      cachedPanGroupRef.current = null;
+    }
+
+    const group = pageGroupRef.current;
+    if (isPanning && showPage && bounds && group) {
+      const pixelRatio = panCachePixelRatio(bounds, viewTransform.zoom, devicePixelRatio);
+      if (pixelRatio !== null) {
+        try {
+          // Capture after React has updated the pan-specific handles and hit state.
+          group.cache({
+            x: 0,
+            y: 0,
+            width: bounds.width,
+            height: bounds.height,
+            pixelRatio,
+          });
+          cachedPanGroupRef.current = group;
+        } catch {
+          // A browser may reject a canvas even within the pixel budget.
+          group.clearCache();
+        }
+      }
+    }
+
+    if (previousCache || completedPanRef.current) {
+      // Restore the scene and hit graph before the next pointer interaction.
+      annotationLayerRef.current?.draw();
+    }
+    completedPanRef.current = false;
+  }, [
+    activeMeasurementEditId,
+    activeTool,
+    areaDisplay,
+    bounds,
+    calibrationReferenceEdit,
+    canvasInteractionTarget,
+    canvasVisualRoles,
+    devicePixelRatio,
+    displayUnit,
+    document,
+    isPanning,
+    measurementDecimalPlaces,
+    measurementEditingBlocked,
+    page,
+    precisionAuthoringBlocked,
+    selectedMeasurementId,
+    showCalibration,
+    showLabels,
+    showMeasurements,
+    showPage,
+    spacePan,
+    viewTransform.zoom,
+    viewerSize.width,
+    viewerSize.height,
+  ]);
+
+  useLayoutEffect(
+    () => () => {
+      cachedPanGroupRef.current?.clearCache();
+      cachedPanGroupRef.current = null;
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
     // Snap feedback is viewer-local and must not survive interaction context changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlacementPointer(null);
@@ -1288,7 +1385,7 @@ export function PdfViewer({
             onClick={handleStageClick}
             onWheel={handleWheel}
           >
-            <Layer>
+            <Layer ref={annotationLayerRef} listening={!isPanning}>
               <Group
                 ref={pageGroupRef}
                 x={viewTransform.panX}
