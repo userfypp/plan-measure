@@ -990,6 +990,7 @@ function PlanMeasureApp() {
                 <MeasurementPanel
                   key={workspaceVersion}
                   page={previewPage}
+                  selectedMeasurementId={selectedMeasurementId}
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onSetMeasurementVisibility={setMeasurementVisibility}
                   onSetMeasurementsVisibility={setMeasurementsVisibility}

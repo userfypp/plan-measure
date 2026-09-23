@@ -1,6 +1,12 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Konva } from "konva/lib/Global";
 import type { Context as KonvaContext } from "konva/lib/Context";
+import { Group as KonvaGroup } from "konva/lib/Group";
+import { Layer as KonvaLayer } from "konva/lib/Layer";
 import type { Shape as KonvaShape } from "konva/lib/Shape";
+import type { Node as KonvaNode, NodeConfig as KonvaNodeConfig } from "konva/lib/Node";
+import type { Circle as KonvaCircleNode } from "konva/lib/shapes/Circle";
+import type { Label as KonvaLabelNode } from "konva/lib/shapes/Label";
 import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
 import type { Line as KonvaLineNode } from "konva/lib/shapes/Line";
 import { Circle, Group, Label, Line, Tag, Text } from "react-konva";
@@ -42,7 +48,6 @@ import {
   MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX,
   measurementEditingEnabled,
   pageDeltaFromScreenDrag,
-  previewWholeMeasurementDrag,
   shouldCancelWholeMeasurementDrag,
   translateMeasurementPoints,
   type WholeMeasurementDragResult,
@@ -59,7 +64,6 @@ import {
   prepareMeasurementVertexDrag,
   shouldCancelMeasurementVertexDrag,
   shouldRenderMeasurementVertexHandles,
-  updateMeasurementVertexDrag,
   type MeasurementVertexDragEffects,
   type MeasurementVertexDragNode,
   type MeasurementVertexDragPreparation,
@@ -137,6 +141,16 @@ function measureLabelText(text: string, fontSizeScreenPx: number, zoom: number):
   return { width: textNode.width(), height: textNode.height() };
 }
 
+function withoutKonvaAutoDraw<T>(action: () => T): T {
+  const previousAutoDraw = Konva.autoDrawEnabled;
+  Konva.autoDrawEnabled = false;
+  try {
+    return action();
+  } finally {
+    Konva.autoDrawEnabled = previousAutoDraw;
+  }
+}
+
 interface PdfAnnotationLayerProps {
   page: PageState;
   bounds: LogicalPageBounds;
@@ -180,7 +194,7 @@ interface PdfAnnotationLayerProps {
   ) => void;
 }
 
-export function PdfAnnotationLayer({
+export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   page,
   bounds,
   transform,
@@ -208,6 +222,7 @@ export function PdfAnnotationLayer({
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
   const showMeasurementLabels = showMeasurements && showLabels;
+
   const plannedLabelLayout = useMemo(() => {
     const placements = new Map<string, LabelPlacement>();
     const occupiedRects = new Map<string, OccupiedLabelRect>();
@@ -374,8 +389,10 @@ export function PdfAnnotationLayer({
               CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
               transform.zoom,
             );
+            const layoutKey = `calibration:${calibration.id}:${reference.key}`;
+            const plannedPlacement = plannedLabelLayout.placements.get(layoutKey);
             const labelPlacement =
-              plannedLabelLayout.placements.get(`calibration:${calibration.id}:${reference.key}`) ??
+              plannedPlacement ??
               placeLabelWithinBounds(labelPoint, labelDimensions, bounds, transform.zoom);
             return (
               <Group
@@ -480,7 +497,7 @@ export function PdfAnnotationLayer({
         ))}
     </>
   );
-}
+});
 
 interface CalibrationReferenceMarkersProps {
   calibrationId: string;
@@ -736,7 +753,22 @@ const MeasurementShape = memo(function MeasurementShape({
   labelCollisionIndex,
 }: MeasurementShapeProps) {
   const { updateMeasurement: updateSessionMeasurement } = useSessionState();
+  const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaLineNode>(null);
+  const dragPreviewRef = useRef<{
+    layer: KonvaLayer;
+    source: KonvaGroup;
+    group: KonvaGroup;
+    line: KonvaLineNode;
+    label: KonvaLabelNode | undefined;
+    text: KonvaTextNode | undefined;
+    labelDimensions: LabelDimensions | null;
+    handles: KonvaCircleNode[];
+  } | null>(null);
+  const pinnedDragNodeRef = useRef<{
+    node: KonvaNode;
+    bound: KonvaNodeConfig["dragBoundFunc"];
+  } | null>(null);
   const vertexDragStateRef = useRef(createMeasurementVertexDragState());
   const vertexDragPreparationRef = useRef<MeasurementVertexDragPreparation | null>(null);
   const dragPointsRef = useRef<Point[] | null>(null);
@@ -747,6 +779,22 @@ const MeasurementShape = memo(function MeasurementShape({
     transform: ViewTransform;
     bounds: LogicalPageBounds;
   } | null>(null);
+  const previewFrameRef = useRef<number | null>(null);
+  const pendingPreviewRef = useRef<
+    | {
+        kind: "vertex";
+        owner: object;
+        node: MeasurementVertexDragNode;
+        index: number;
+        point: Point;
+      }
+    | {
+        kind: "whole";
+        drag: NonNullable<typeof wholeDragRef.current>;
+        pointer: Point;
+      }
+    | null
+  >(null);
   const rejectedWholeDragRef = useRef(false);
   const cancelledWholeDragRef = useRef(false);
   const [wholeDragPrepared, setWholeDragPrepared] = useState(false);
@@ -783,8 +831,12 @@ const MeasurementShape = memo(function MeasurementShape({
   );
   const labelDimensions = useMemo(
     () =>
-      labelText ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom) : null,
-    [labelText, zoom],
+      !dragPoints && plannedLabelPlacement
+        ? null
+        : labelText
+          ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom)
+          : null,
+    [dragPoints, labelText, plannedLabelPlacement, zoom],
   );
   const labelPlacement = useMemo(() => {
     if (!dragPoints && plannedLabelPlacement) return plannedLabelPlacement;
@@ -822,6 +874,217 @@ const MeasurementShape = memo(function MeasurementShape({
   );
   const manipulating = dragPoints !== null || vertexDragOwned;
 
+  function startDragPreview(node: KonvaNode, renderInitial: () => void): boolean {
+    const source = measurementGroupRef.current;
+    const stage = source?.getStage();
+    if (!source || !stage || dragPreviewRef.current) return false;
+
+    const clone = source.clone({ listening: false });
+    const layer = new KonvaLayer({ listening: false });
+    const pageGroup = new KonvaGroup({
+      x: transform.panX,
+      y: transform.panY,
+      scaleX: zoom,
+      scaleY: zoom,
+      clipX: 0,
+      clipY: 0,
+      clipWidth: bounds.width,
+      clipHeight: bounds.height,
+      listening: false,
+    });
+    const started = withoutKonvaAutoDraw(() => {
+      layer.add(pageGroup);
+      pageGroup.add(clone);
+      const line = clone.findOne<KonvaLineNode>(".measurement-preview-line");
+      if (!line) {
+        layer.destroy();
+        return false;
+      }
+      const label = clone.findOne<KonvaLabelNode>(".measurement-preview-label");
+      const handles = clone.find<KonvaCircleNode>(".measurement-preview-handle");
+      line.draggable(false);
+      handles.forEach((handle) => handle.draggable(false));
+      if (measurementPathSpecs[measurement.type].closed && selected) {
+        line.fill(visualRoles.measurementSelectedSoftFill);
+      }
+      dragPreviewRef.current = {
+        layer,
+        source,
+        group: clone,
+        line,
+        label,
+        text: label?.findOne<KonvaTextNode>("Text"),
+        labelDimensions: null,
+        handles,
+      };
+      try {
+        renderInitial();
+        stage.add(layer);
+      } catch (error) {
+        dragPreviewRef.current = null;
+        layer.destroy();
+        throw error;
+      }
+      return true;
+    });
+    if (!started) return false;
+    source.visible(false);
+
+    const position = node.getAbsolutePosition();
+    pinnedDragNodeRef.current = { node, bound: node.dragBoundFunc() };
+    node.dragBoundFunc(() => position);
+    return true;
+  }
+
+  const releaseDragPreview = useCallback(() => {
+    const pinned = pinnedDragNodeRef.current;
+    pinnedDragNodeRef.current = null;
+    if (pinned) pinned.node.setAttr("dragBoundFunc", pinned.bound);
+    const preview = dragPreviewRef.current;
+    dragPreviewRef.current = null;
+    if (!preview) return;
+    preview.source.visible(true);
+    preview.layer.destroy();
+  }, []);
+
+  function renderDragPreview(points: Point[]) {
+    const preview = dragPreviewRef.current;
+    if (!preview) {
+      updateDragPoints(points);
+      return;
+    }
+    preview.line.points(pointsToFlat(points));
+    points.forEach((point, index) => preview.handles[index]?.position(point));
+    if (preview.label && preview.text && calibration) {
+      const currentMeasurement = { ...measurement, points };
+      const text = formatMeasurement(
+        currentMeasurement,
+        calibration,
+        displayUnit,
+        measurementDecimalPlaces,
+        areaDisplay,
+      );
+      preview.text.text(text);
+      const dimensions = { width: preview.text.width(), height: preview.text.height() };
+      const placement =
+        placeLabelInsideMeasurementGeometry(
+          measurement.type,
+          points,
+          dimensions,
+          bounds,
+          zoom,
+          labelCollisionIndex,
+          LABEL_EDGE_MARGIN_SCREEN_PX,
+          4,
+          plannedOccupiedLabelRect,
+        ) ??
+        placeLabelWithinBounds(
+          averagePoint(points),
+          dimensions,
+          bounds,
+          zoom,
+          LABEL_EDGE_MARGIN_SCREEN_PX,
+        );
+      preview.label.position(placement);
+    }
+  }
+
+  function renderWholeDragPreview(result: WholeMeasurementDragResult) {
+    const preview = dragPreviewRef.current;
+    if (!preview) {
+      updateDragPoints(result.points);
+      return;
+    }
+    preview.group.position(result.delta);
+    if (preview.label && preview.text) {
+      const dimensions =
+        preview.labelDimensions ??
+        (preview.labelDimensions = {
+          width: preview.text.width(),
+          height: preview.text.height(),
+        });
+      const placement =
+        placeLabelInsideMeasurementGeometry(
+          measurement.type,
+          result.points,
+          dimensions,
+          bounds,
+          zoom,
+          labelCollisionIndex,
+          LABEL_EDGE_MARGIN_SCREEN_PX,
+          4,
+          plannedOccupiedLabelRect,
+        ) ??
+        placeLabelWithinBounds(
+          averagePoint(result.points),
+          dimensions,
+          bounds,
+          zoom,
+          LABEL_EDGE_MARGIN_SCREEN_PX,
+        );
+      preview.label.position({
+        x: placement.x - result.delta.x,
+        y: placement.y - result.delta.y,
+      });
+    }
+  }
+
+  const cancelPendingPreview = useCallback(() => {
+    if (previewFrameRef.current !== null) {
+      window.cancelAnimationFrame(previewFrameRef.current);
+      previewFrameRef.current = null;
+    }
+    pendingPreviewRef.current = null;
+  }, []);
+
+  function applyPreview(pending: NonNullable<typeof pendingPreviewRef.current>) {
+    if (pending.kind === "vertex") {
+      if (vertexDragStateRef.current.active?.owner !== pending.owner) return false;
+      const drag = getActiveMeasurementVertexDrag(
+        vertexDragStateRef.current,
+        pending.node,
+        pending.index,
+      );
+      if (drag) {
+        renderDragPreview(
+          drag.sourcePoints.map((point, index) =>
+            index === pending.index ? pending.point : point,
+          ),
+        );
+        return true;
+      }
+    } else if (wholeDragRef.current === pending.drag) {
+      const result = wholeDragResultFromPointer(pending.pointer);
+      if (result) {
+        renderWholeDragPreview(result);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function drawIsolatedPreview(update: () => boolean) {
+    const preview = dragPreviewRef.current;
+    if (!preview) {
+      update();
+      return;
+    }
+    withoutKonvaAutoDraw(() => {
+      if (update()) preview.layer.draw();
+    });
+  }
+
+  function queuePreview(preview: NonNullable<typeof pendingPreviewRef.current>) {
+    pendingPreviewRef.current = preview;
+    if (previewFrameRef.current !== null) return;
+    previewFrameRef.current = window.requestAnimationFrame(() => {
+      previewFrameRef.current = null;
+      const pending = pendingPreviewRef.current;
+      pendingPreviewRef.current = null;
+      if (pending) drawIsolatedPreview(() => applyPreview(pending));
+    });
+  }
+
   const cancelVertexGesture = useCallback(
     (owner?: object) => {
       const active = vertexDragStateRef.current.active;
@@ -829,6 +1092,7 @@ const MeasurementShape = memo(function MeasurementShape({
       const currentOwner = active?.owner ?? preparation?.owner ?? null;
       if (!currentOwner || (owner && currentOwner !== owner)) return false;
 
+      cancelPendingPreview();
       finalDragPointsRef.current = null;
       let cancelled = false;
       if (active) {
@@ -853,10 +1117,16 @@ const MeasurementShape = memo(function MeasurementShape({
       onVertexDragCancellationChange(measurement.id, currentOwner, null);
       return cancelled;
     },
-    [measurement.id, onMeasurementEditActiveChange, onVertexDragCancellationChange],
+    [
+      cancelPendingPreview,
+      measurement.id,
+      onMeasurementEditActiveChange,
+      onVertexDragCancellationChange,
+    ],
   );
 
   const clearCancelledWholeDrag = useCallback(() => {
+    cancelPendingPreview();
     wholeDragRef.current = null;
     setWholeDragPrepared(false);
     rejectedWholeDragRef.current = false;
@@ -868,7 +1138,12 @@ const MeasurementShape = memo(function MeasurementShape({
     setDragPoints(null);
     onWholeMeasurementDragCancellationChange(measurement.id, null);
     onMeasurementEditActiveChange(measurement.id, false);
-  }, [measurement.id, onMeasurementEditActiveChange, onWholeMeasurementDragCancellationChange]);
+  }, [
+    cancelPendingPreview,
+    measurement.id,
+    onMeasurementEditActiveChange,
+    onWholeMeasurementDragCancellationChange,
+  ]);
 
   const cancelWholeDrag = useCallback(() => {
     const node = wholeDragNodeRef.current;
@@ -909,11 +1184,24 @@ const MeasurementShape = memo(function MeasurementShape({
 
   useLayoutEffect(
     () => () => {
+      cancelPendingPreview();
       cancelWholeDrag();
       cancelVertexGesture();
+      releaseDragPreview();
     },
-    [cancelVertexGesture, cancelWholeDrag],
+    [cancelPendingPreview, cancelVertexGesture, cancelWholeDrag, releaseDragPreview],
   );
+
+  useLayoutEffect(() => {
+    if (
+      dragPreviewRef.current &&
+      !wholeDragRef.current &&
+      !vertexDragStateRef.current.active &&
+      !vertexDragPreparationRef.current
+    ) {
+      releaseDragPreview();
+    }
+  });
 
   useEffect(() => {
     const finalPoints = finalDragPointsRef.current;
@@ -1036,16 +1324,20 @@ const MeasurementShape = memo(function MeasurementShape({
     onWholeMeasurementDragCancellationChange(measurement.id, cancelWholeDrag);
   }
 
-  function wholeDragResult(event: KonvaEventObject<MouseEvent>): WholeMeasurementDragResult | null {
+  function wholeDragResultFromPointer(pointer: Point): WholeMeasurementDragResult | null {
     const drag = wholeDragRef.current;
-    const pointer = stagePointer(event);
-    if (!drag || !pointer) return null;
+    if (!drag) return null;
     const delta = constrainMeasurementTranslation(
       drag.sourcePoints,
       pageDeltaFromScreenDrag(drag.startScreen, pointer, drag.transform),
-      bounds,
+      drag.bounds,
     );
     return { delta, points: translateMeasurementPoints(drag.sourcePoints, delta) };
+  }
+
+  function wholeDragResult(event: KonvaEventObject<MouseEvent>): WholeMeasurementDragResult | null {
+    const pointer = stagePointer(event);
+    return pointer ? wholeDragResultFromPointer(pointer) : null;
   }
 
   function resetWholeDragTarget(event: KonvaEventObject<MouseEvent>) {
@@ -1062,30 +1354,32 @@ const MeasurementShape = memo(function MeasurementShape({
       event.target.stopDrag();
       return;
     }
+    cancelPendingPreview();
     onMeasurementEditActiveChange(measurement.id, true);
     finalDragPointsRef.current = null;
     dragPointsRef.current = null;
     resetWholeDragTarget(event);
     const result = wholeDragResult(event);
-    previewWholeMeasurementDrag(result, {
-      preview: updateDragPoints,
-      commit: updateMeasurementPoints,
+    const started = startDragPreview(event.target, () => {
+      if (result) renderWholeDragPreview(result);
     });
+    if (!started && result) renderWholeDragPreview(result);
   }
 
   function handleWholeDragMove(event: KonvaEventObject<MouseEvent>) {
     event.cancelBubble = true;
     if (rejectedWholeDragRef.current) return;
-    resetWholeDragTarget(event);
-    const result = wholeDragResult(event);
-    previewWholeMeasurementDrag(result, {
-      preview: updateDragPoints,
-      commit: updateMeasurementPoints,
-    });
+    if (!dragPreviewRef.current) resetWholeDragTarget(event);
+    const drag = wholeDragRef.current;
+    const pointer = stagePointer(event);
+    if (drag && pointer) queuePreview({ kind: "whole", drag, pointer });
   }
 
   function handleWholeDragEnd(event: KonvaEventObject<MouseEvent>) {
     event.cancelBubble = true;
+    if (wholeDragRef.current || cancelledWholeDragRef.current || rejectedWholeDragRef.current) {
+      cancelPendingPreview();
+    }
     resetWholeDragTarget(event);
     const cancelled = cancelledWholeDragRef.current || rejectedWholeDragRef.current;
     const result = cancelled ? null : wholeDragResult(event);
@@ -1129,8 +1423,9 @@ const MeasurementShape = memo(function MeasurementShape({
   }
 
   return (
-    <Group>
+    <Group ref={measurementGroupRef}>
       <Line
+        name="measurement-preview-line"
         ref={wholeDragNodeRef}
         points={flatPoints}
         closed={measurementPathSpecs[measurement.type].closed}
@@ -1162,7 +1457,12 @@ const MeasurementShape = memo(function MeasurementShape({
         onClick={select}
       />
       {showLabel && labelText && labelPlacement && (
-        <Label x={labelPlacement.x} y={labelPlacement.y} listening={false}>
+        <Label
+          name="measurement-preview-label"
+          x={labelPlacement.x}
+          y={labelPlacement.y}
+          listening={false}
+        >
           <Tag
             fill={visualRoles.labelBackground}
             opacity={selected ? 1 : 0.88}
@@ -1183,6 +1483,7 @@ const MeasurementShape = memo(function MeasurementShape({
         visibleMeasurement.points.map((point, index) => (
           <Circle
             key={index}
+            name="measurement-preview-handle"
             x={point.x}
             y={point.y}
             radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
@@ -1214,6 +1515,7 @@ const MeasurementShape = memo(function MeasurementShape({
                 event.target.stopDrag();
                 return;
               }
+              cancelPendingPreview();
               finalDragPointsRef.current = null;
               dragPointsRef.current = null;
               const startPoint = pointFromVertexDragEvent(
@@ -1233,6 +1535,13 @@ const MeasurementShape = memo(function MeasurementShape({
                 resetStaleVertexTarget(index, event);
                 return;
               }
+              startDragPreview(event.target, () => {
+                renderDragPreview(
+                  preparation.sourcePoints.map((point, pointIndex) =>
+                    pointIndex === index ? startPoint : point,
+                  ),
+                );
+              });
             }}
             onDragMove={(event) => {
               event.cancelBubble = true;
@@ -1246,13 +1555,13 @@ const MeasurementShape = memo(function MeasurementShape({
                 return;
               }
               const nextPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
-              updateMeasurementVertexDrag(
-                vertexDragStateRef.current,
-                event.target,
+              queuePreview({
+                kind: "vertex",
+                owner: drag.owner,
+                node: event.target,
                 index,
-                nextPoint,
-                vertexDragEffects(),
-              );
+                point: nextPoint,
+              });
             }}
             onDragEnd={(event) => {
               event.cancelBubble = true;
@@ -1265,6 +1574,7 @@ const MeasurementShape = memo(function MeasurementShape({
                 resetStaleVertexTarget(index, event);
                 return;
               }
+              cancelPendingPreview();
               const finalPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
               const result = finishMeasurementVertexDrag(
                 vertexDragStateRef.current,

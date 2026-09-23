@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { AnchoredMenu } from "../components/ui";
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
@@ -38,6 +38,25 @@ export interface WorkspacePanelProps {
   scales: ReactNode;
   details?: ReactNode;
 }
+
+const WorkspaceModulePane = memo(
+  function WorkspaceModulePane({
+    active,
+    children,
+  }: {
+    active: boolean;
+    children: ReactNode;
+  }) {
+    return (
+      <div className={styles.modulePane} hidden={!active}>
+        {children}
+      </div>
+    );
+  },
+  (previous, next) =>
+    (!previous.active && !next.active) ||
+    (previous.active === next.active && previous.children === next.children),
+);
 
 export function WorkspacePanel({
   measurements,
@@ -91,30 +110,22 @@ export function WorkspacePanel({
         )}
       </header>
       <div className={styles.body}>
-        <div
-          className={styles.modulePane}
-          hidden={measurementDetailsOpen || workspaceModule !== "measurements"}
+        <WorkspaceModulePane
+          active={!measurementDetailsOpen && workspaceModule === "measurements"}
         >
           {measurements}
-        </div>
-        <div
-          className={styles.modulePane}
-          hidden={measurementDetailsOpen || workspaceModule !== "takeoff"}
-        >
+        </WorkspaceModulePane>
+        <WorkspaceModulePane active={!measurementDetailsOpen && workspaceModule === "takeoff"}>
           {takeoff}
-        </div>
-        <div
-          className={styles.modulePane}
-          hidden={measurementDetailsOpen || workspaceModule !== "classifications"}
+        </WorkspaceModulePane>
+        <WorkspaceModulePane
+          active={!measurementDetailsOpen && workspaceModule === "classifications"}
         >
           {classifications}
-        </div>
-        <div
-          className={styles.modulePane}
-          hidden={measurementDetailsOpen || workspaceModule !== "scales"}
-        >
+        </WorkspaceModulePane>
+        <WorkspaceModulePane active={!measurementDetailsOpen && workspaceModule === "scales"}>
           {scales}
-        </div>
+        </WorkspaceModulePane>
         {details && (
           <div className={styles.detailsPane} hidden={!measurementDetailsOpen}>
             {details}

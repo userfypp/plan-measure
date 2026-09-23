@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useSessionState } from "../../app/sessionState";
-import { useWorkspaceState } from "../../app/workspaceState";
 import type { PageState } from "../../types/domain";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementsHeader } from "./MeasurementsHeader";
@@ -16,6 +15,7 @@ export interface MeasurementDeleteRequest {
 
 export interface MeasurementPanelProps {
   page: PageState;
+  selectedMeasurementId: string | null;
   onSelectMeasurement: (measurementId: string) => void;
   onSetMeasurementVisibility: (pageNumber: number, measurementId: string, visible: boolean) => void;
   onSetMeasurementsVisibility: (
@@ -25,14 +25,14 @@ export interface MeasurementPanelProps {
   ) => void;
 }
 
-export function MeasurementPanel({
+export const MeasurementPanel = memo(function MeasurementPanel({
   page,
+  selectedMeasurementId,
   onSelectMeasurement,
   onSetMeasurementVisibility,
   onSetMeasurementsVisibility,
 }: MeasurementPanelProps) {
   const { session } = useSessionState();
-  const { selectedMeasurementId } = useWorkspaceState();
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
@@ -78,4 +78,4 @@ export function MeasurementPanel({
       />
     </aside>
   );
-}
+});

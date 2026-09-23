@@ -46,6 +46,161 @@ export interface SegmentSnapTarget extends SnapTargetBase {
 
 export type SnapTarget = VertexSnapTarget | SegmentSnapTarget;
 
+interface TargetBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+interface TargetTreeNode extends TargetBounds {
+  indices?: number[];
+  left?: TargetTreeNode;
+  right?: TargetTreeNode;
+}
+
+interface TargetIndex {
+  root: TargetTreeNode;
+  maxCoordinate: number;
+}
+
+// Only extraction-owned arrays are indexed. Public resolvers also accept arbitrary
+// mutable target arrays; those continue through the exact linear path.
+const extractedTargetIndices = new WeakMap<readonly SnapTarget[], TargetIndex | null | undefined>();
+const MIN_INDEXED_TARGETS = 32;
+const MAX_INDEXED_COORDINATE = 1e12;
+
+function targetBounds(target: SnapTarget): TargetBounds {
+  if (target.kind === "vertex") {
+    return {
+      minX: target.point.x,
+      minY: target.point.y,
+      maxX: target.point.x,
+      maxY: target.point.y,
+    };
+  }
+  return {
+    minX: Math.min(target.start.x, target.end.x),
+    minY: Math.min(target.start.y, target.end.y),
+    maxX: Math.max(target.start.x, target.end.x),
+    maxY: Math.max(target.start.y, target.end.y),
+  };
+}
+
+function buildTargetIndex(targets: readonly SnapTarget[]): TargetIndex | null {
+  if (targets.length < MIN_INDEXED_TARGETS) return null;
+  const boxes = targets.map(targetBounds);
+  let maxCoordinate = 0;
+  for (const box of boxes) {
+    maxCoordinate = Math.max(
+      maxCoordinate,
+      Math.abs(box.minX), Math.abs(box.minY), Math.abs(box.maxX), Math.abs(box.maxY),
+    );
+  }
+  if (!Number.isFinite(maxCoordinate) || maxCoordinate > MAX_INDEXED_COORDINATE) return null;
+
+  function build(indices: number[]): TargetTreeNode {
+    const box = indices.reduce<TargetBounds>(
+      (bounds, index) => ({
+        minX: Math.min(bounds.minX, boxes[index]!.minX),
+        minY: Math.min(bounds.minY, boxes[index]!.minY),
+        maxX: Math.max(bounds.maxX, boxes[index]!.maxX),
+        maxY: Math.max(bounds.maxY, boxes[index]!.maxY),
+      }),
+      { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
+    );
+    if (indices.length <= 16) return { ...box, indices };
+    const axis = box.maxX - box.minX >= box.maxY - box.minY ? "x" : "y";
+    indices.sort((a, b) => {
+      const centerA = axis === "x"
+        ? boxes[a]!.minX / 2 + boxes[a]!.maxX / 2
+        : boxes[a]!.minY / 2 + boxes[a]!.maxY / 2;
+      const centerB = axis === "x"
+        ? boxes[b]!.minX / 2 + boxes[b]!.maxX / 2
+        : boxes[b]!.minY / 2 + boxes[b]!.maxY / 2;
+      return centerA - centerB || a - b;
+    });
+    const middle = Math.floor(indices.length / 2);
+    return {
+      ...box,
+      left: build(indices.slice(0, middle)),
+      right: build(indices.slice(middle)),
+    };
+  }
+
+  return { root: build(targets.map((_, index) => index)), maxCoordinate };
+}
+
+function intersects(a: TargetBounds, b: TargetBounds): boolean {
+  return a.minX <= b.maxX && a.maxX >= b.minX &&
+    a.minY <= b.maxY && a.maxY >= b.minY;
+}
+
+function queryTargetIndex(
+  node: TargetTreeNode,
+  area: TargetBounds,
+  result: number[],
+  candidateLimit: number,
+): boolean {
+  if (!intersects(node, area)) return true;
+  if (node.indices) {
+    result.push(...node.indices);
+    return result.length <= candidateLimit;
+  }
+  if (node.left && !queryTargetIndex(node.left, area, result, candidateLimit)) return false;
+  if (node.right && !queryTargetIndex(node.right, area, result, candidateLimit)) return false;
+  return true;
+}
+
+function candidateTargetIndices(
+  targets: readonly SnapTarget[],
+  rawPoint: Point,
+  zoom: number,
+  screenDistanceContext?: ScreenDistanceContext,
+): number[] | null {
+  if (!extractedTargetIndices.has(targets)) return null;
+  let index = extractedTargetIndices.get(targets);
+  if (index === undefined) {
+    index = buildTargetIndex(targets);
+    extractedTargetIndices.set(targets, index);
+  }
+  if (!index || !Number.isFinite(zoom) || zoom < 0.1 || zoom > 8) return null;
+
+  const coordinates = [rawPoint.x, rawPoint.y];
+  if (screenDistanceContext) {
+    coordinates.push(
+      screenDistanceContext.rawPointerScreen.x,
+      screenDistanceContext.rawPointerScreen.y,
+      screenDistanceContext.transform.panX,
+      screenDistanceContext.transform.panY,
+    );
+  }
+  const queryScale = Math.max(index.maxCoordinate, 1, ...coordinates.map(Math.abs));
+  if (!Number.isFinite(queryScale) || queryScale > MAX_INDEXED_COORDINATE) return null;
+
+  // Exact eligibility remains in resolveCandidates. In Ortho, a vertex must
+  // already lie on the anchor axis, while a segment's returned intersection
+  // (or collinear projection) lies within its endpoint bounds. Thus any Ortho
+  // candidate near the pointer also has a bounding box intersecting this area.
+  // The extra room covers screen/page rounding and projected segment points;
+  // extreme ranges use the linear path instead of risking a false rejection.
+  const radius = SNAP_TOLERANCE_SCREEN_PX / zoom +
+    1024 * Number.EPSILON * queryScale / Math.min(zoom, 1);
+  if (!Number.isFinite(radius)) return null;
+  const area = {
+    minX: rawPoint.x - radius,
+    minY: rawPoint.y - radius,
+    maxX: rawPoint.x + radius,
+    maxY: rawPoint.y + radius,
+  };
+  const indices: number[] = [];
+  // Dense or highly overlapping targets make an index query more expensive
+  // than the stable linear pass. Fall back early and preserve tie ordering.
+  if (!queryTargetIndex(index.root, area, indices, Math.floor(targets.length / 2))) return null;
+  indices.sort((a, b) => a - b);
+  return indices;
+}
+
 export interface SnapMatch {
   point: Point;
   target: SnapTarget;
@@ -230,6 +385,7 @@ export function extractSnapTargets(
   measurements: readonly Measurement[],
   showMeasurements: boolean,
   bounds?: LogicalPageBounds,
+  buildSpatialIndex = true,
 ): SnapTarget[] {
   const targets: SnapTarget[] = [];
 
@@ -270,6 +426,10 @@ export function extractSnapTargets(
     }
   });
 
+  // Build outside the pointer-move path so the first preview cannot pay the
+  // one-time tree construction cost for a dense page. Callers can skip this
+  // while snapping is disabled to keep page rendering free of index work.
+  if (buildSpatialIndex) extractedTargetIndices.set(targets, buildTargetIndex(targets));
   return targets;
 }
 
@@ -413,7 +573,9 @@ function resolveCandidates(
     distanceSquaredScreen: number;
   }> = [];
 
-  for (const target of targets) {
+  const targetIndices = candidateTargetIndices(targets, rawPoint, zoom, screenDistanceContext);
+  for (const index of targetIndices ?? targets.keys()) {
+    const target = targets[index]!;
     const point = candidatePoint(target);
     if (!point || !finitePoint(point)) continue;
     if (bounds && !isPointInPage(point, bounds)) continue;

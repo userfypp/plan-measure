@@ -50,6 +50,9 @@ const konvaCapture = vi.hoisted(() => ({
   circles: [] as CapturedProps[],
   lines: [] as CapturedProps[],
   rects: [] as CapturedProps[],
+  groups: [] as CapturedProps[],
+  cachePanStates: [] as unknown[],
+  layers: [] as CapturedProps[],
   stages: [] as CapturedProps[],
   annotationLayers: [] as CapturedProps[],
 }));
@@ -64,8 +67,32 @@ vi.mock("react-konva", () => ({
     konvaCapture.circles.push(props);
     return null;
   },
-  Group: ({ children }: { children?: ReactNode }) => <>{children}</>,
-  Layer: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  Group: forwardRef<unknown, { children?: ReactNode; [key: string]: unknown }>(
+    ({ children, ...props }, ref) => {
+      const nodeRef = useRef({
+        cache: vi.fn(() => {
+          konvaCapture.cachePanStates.push(konvaCapture.annotationLayers.at(-1)?.isPanning);
+        }),
+        clearCache: vi.fn(),
+        position: vi.fn(),
+      });
+      useImperativeHandle(ref, () => nodeRef.current);
+      useLayoutEffect(() => {
+        konvaCapture.groups.push({ ...props, node: nodeRef.current });
+      });
+      return <>{children}</>;
+    },
+  ),
+  Layer: forwardRef<unknown, { children?: ReactNode; [key: string]: unknown }>(
+    ({ children, ...props }, ref) => {
+      const nodeRef = useRef({ draw: vi.fn() });
+      useImperativeHandle(ref, () => nodeRef.current);
+      useLayoutEffect(() => {
+        konvaCapture.layers.push({ ...props, node: nodeRef.current });
+      });
+      return <>{children}</>;
+    },
+  ),
   Line: (props: CapturedProps) => {
     konvaCapture.lines.push(props);
     return null;
@@ -370,6 +397,9 @@ describe("PdfViewer render liveness", () => {
     konvaCapture.circles.length = 0;
     konvaCapture.lines.length = 0;
     konvaCapture.rects.length = 0;
+    konvaCapture.groups.length = 0;
+    konvaCapture.cachePanStates.length = 0;
+    konvaCapture.layers.length = 0;
     konvaCapture.stages.length = 0;
     konvaCapture.annotationLayers.length = 0;
     sessionProbe = null;
@@ -408,6 +438,25 @@ describe("PdfViewer render liveness", () => {
     );
     if (!element) throw new Error(`PDF page ${pageNumber} canvas was not mounted.`);
     return element;
+  }
+
+  function canvasTranslation(): { x: number; y: number } {
+    const translation = canvas().style.transform.match(
+      /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/,
+    );
+    return translation
+      ? { x: Number(translation[1]), y: Number(translation[2]) }
+      : { x: 0, y: 0 };
+  }
+
+  function pageGroupNode(): {
+    cache: ReturnType<typeof vi.fn>;
+    clearCache: ReturnType<typeof vi.fn>;
+    position: ReturnType<typeof vi.fn>;
+  } {
+    const node = konvaCapture.groups.at(-2)?.node;
+    if (!node) throw new Error("Page group was not mounted.");
+    return node as ReturnType<typeof pageGroupNode>;
   }
 
   function observer(): ControlledResizeObserver {
@@ -740,6 +789,99 @@ describe("PdfViewer render liveness", () => {
     expect(pdfPage.cleanup).not.toHaveBeenCalled();
   });
 
+  it("caches annotations only during pan and refreshes the cache after zoom", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    await mountViewer(runtime.document, { registerNavigation: (next) => (navigation = next) });
+
+    const group = pageGroupNode();
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseDown = stage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    if (!onMouseDown || !onMouseMove) throw new Error("Stage pan handlers were not captured.");
+    const panEvent = (x: number, y: number) => ({
+      target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) },
+      evt: { button: 1, preventDefault: vi.fn() },
+    });
+
+    await act(async () => onMouseDown(panEvent(100, 100)));
+    expect(group.cache).toHaveBeenCalledTimes(1);
+    expect(konvaCapture.cachePanStates).toEqual([true]);
+    expect(konvaCapture.annotationLayers.at(-1)?.isPanning).toBe(true);
+    expect(konvaCapture.layers.at(-2)?.listening).toBe(false);
+    expect(group.cache).toHaveBeenCalledWith({
+      x: 0,
+      y: 0,
+      width: PAGE_WIDTH,
+      height: PAGE_HEIGHT,
+      pixelRatio: expect.any(Number),
+    });
+
+    await act(async () => onMouseMove(panEvent(130, 120)));
+    expect(group.cache).toHaveBeenCalledTimes(1);
+
+    await act(async () => navigation?.onZoomIn());
+    expect(group.clearCache).toHaveBeenCalled();
+    expect(group.cache).toHaveBeenCalledTimes(2);
+    expect(group.cache.mock.calls[1]?.[0].pixelRatio).toBeGreaterThan(
+      group.cache.mock.calls[0]?.[0].pixelRatio,
+    );
+
+    await act(async () => workspaceProbe!.selectMeasurement("selection-during-pan"));
+    expect(group.cache).toHaveBeenCalledTimes(3);
+
+    const onMouseUp = konvaCapture.stages.at(-1)?.onMouseUp as (() => void) | undefined;
+    if (!onMouseUp) throw new Error("Stage pan release handler was not captured.");
+    const clearsBeforeFinish = group.clearCache.mock.calls.length;
+    await act(async () => onMouseUp());
+    expect(group.clearCache.mock.calls.length).toBeGreaterThan(clearsBeforeFinish);
+    expect(group.cache).toHaveBeenCalledTimes(3);
+    expect(konvaCapture.layers.at(-2)?.listening).toBe(true);
+    expect(
+      (konvaCapture.layers.at(-2)?.node as { draw: ReturnType<typeof vi.fn> }).draw,
+    ).toHaveBeenCalled();
+  });
+
+  it("caps pan cache resolution and falls back if the browser rejects its canvas", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+    await mountViewer(runtime.document, { registerNavigation: (next) => (navigation = next) });
+
+    for (let step = 0; step < 12; step += 1) {
+      await act(async () => navigation?.onZoomIn());
+    }
+    const group = pageGroupNode();
+    const zoom = (navigation as ViewerNavigationModel | null)?.zoom;
+    if (zoom === undefined) throw new Error("Viewer navigation was not registered.");
+    const stage = konvaCapture.stages.at(-1);
+    const onMouseDown = stage?.onMouseDown as ((event: unknown) => void) | undefined;
+    const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
+    if (!onMouseDown || !onMouseMove) throw new Error("Stage pan handlers were not captured.");
+    const panEvent = (x: number, y: number) => ({
+      target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) },
+      evt: { button: 1, preventDefault: vi.fn() },
+    });
+    group.cache.mockImplementationOnce(() => {
+      throw new Error("Canvas allocation failed");
+    });
+
+    await act(async () => onMouseDown(panEvent(100, 100)));
+    const cacheConfig = group.cache.mock.calls.at(-1)?.[0] as
+      { width: number; height: number; pixelRatio: number } | undefined;
+    if (!cacheConfig) throw new Error("Pan cache was not attempted.");
+    expect(cacheConfig.pixelRatio).toBeLessThan(zoom);
+    expect(
+      Math.floor(cacheConfig.width * cacheConfig.pixelRatio) *
+        Math.floor(cacheConfig.height * cacheConfig.pixelRatio),
+    ).toBeLessThanOrEqual(4 * 1024 * 1024);
+    expect(Math.floor(cacheConfig.height * cacheConfig.pixelRatio)).toBeLessThanOrEqual(4096);
+    expect(group.clearCache).toHaveBeenCalled();
+    await act(async () => onMouseMove(panEvent(140, 130)));
+    expect(group.position).toHaveBeenCalledWith(expect.objectContaining({ x: expect.any(Number) }));
+  });
+
   it("preserves a zoom made during an active pan and continues from the current translation", async () => {
     const pdfPage = createPdfPage();
     const runtime = createPdfDocument({ 1: pdfPage.page });
@@ -768,8 +910,11 @@ describe("PdfViewer render liveness", () => {
       onMouseDown(panEvent(100, 100));
       onMouseMove(panEvent(130, 120));
     });
-    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
-    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(initialTop + 20);
+    expect(konvaCapture.layers.at(-2)?.listening).toBe(false);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(initialTop);
+    expect(canvasTranslation().x).toBeCloseTo(30);
+    expect(canvasTranslation().y).toBeCloseTo(20);
 
     await act(async () => navigation?.onZoomIn());
     expect((navigation as ViewerNavigationModel | null)?.zoom).toBeCloseTo(initialZoom * 1.25);
@@ -781,13 +926,17 @@ describe("PdfViewer render liveness", () => {
     if (!continuePan || !finishPan) throw new Error("Updated Stage pan handlers were not captured.");
 
     await act(async () => continuePan(panEvent(140, 135)));
-    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft + 10);
-    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft);
+    expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop);
+    expect(canvasTranslation().x).toBeCloseTo(10);
+    expect(canvasTranslation().y).toBeCloseTo(15);
 
     await act(async () => finishPan());
+    expect(konvaCapture.layers.at(-2)?.listening).toBe(true);
     expect((navigation as ViewerNavigationModel | null)?.zoom).toBeCloseTo(initialZoom * 1.25);
     expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft + 10);
     expect(Number.parseFloat(canvas().style.top)).toBeCloseTo(zoomedTop + 15);
+    expect(canvas().style.transform).toBe("");
   });
 
   it("pans on the first Space-drag after an outside control held focus", async () => {
@@ -827,7 +976,8 @@ describe("PdfViewer render liveness", () => {
     });
 
     expect(document.activeElement).toBe(viewer);
-    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft);
+    expect(canvasTranslation().x).toBeCloseTo(30);
 
     await act(async () => onMouseUp());
     const updatedStage = konvaCapture.stages.at(-1);
@@ -841,7 +991,8 @@ describe("PdfViewer render liveness", () => {
       secondMouseDown(panEvent(130, 120));
       secondMouseMove(panEvent(160, 140));
     });
-    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 60);
+    expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(initialLeft + 30);
+    expect(canvasTranslation().x).toBeCloseTo(30);
 
     await act(async () => {
       secondMouseUp();
@@ -1382,7 +1533,6 @@ describe("PdfViewer render liveness", () => {
     const stage = konvaCapture.stages.at(-1);
     const onMouseMove = stage?.onMouseMove as ((event: unknown) => void) | undefined;
     if (!onMouseMove) throw new Error("Stage mouse-move handler was not captured.");
-    konvaCapture.circles.length = 0;
     konvaCapture.lines.length = 0;
     konvaCapture.rects.length = 0;
     konvaCapture.annotationLayers.length = 0;
@@ -1399,6 +1549,10 @@ describe("PdfViewer render liveness", () => {
 
     expect(hybridCapability.available).toBe(true);
     expect(konvaCapture.annotationLayers.at(-1)?.interactionTargetScreenPx).toBe(44);
+    expect(konvaCapture.layers.slice(-2).map((layer) => layer.listening)).toEqual([
+      true,
+      false,
+    ]);
 
     const pageHit = konvaCapture.rects.find((props) => props.name === "page-background");
     expect(pageHit?.fill).toBe("rgba(255,255,255,0.001)");
@@ -1428,8 +1582,13 @@ describe("PdfViewer render liveness", () => {
       });
     }
 
-    expect(konvaCapture.circles).toHaveLength(3);
-    for (const point of konvaCapture.circles) {
+    const draftCircles = [
+      ...new Map(
+        konvaCapture.circles.map((point) => [`${point.x}:${point.y}`, point] as const),
+      ).values(),
+    ];
+    expect(draftCircles).toHaveLength(3);
+    for (const point of draftCircles) {
       expect(point).toMatchObject({
         radius: 3 / 0.815,
         fill: "#ffffff",
@@ -1448,5 +1607,30 @@ describe("PdfViewer render liveness", () => {
       rotation: 45,
       listening: false,
     });
+
+    const onClick = konvaCapture.stages.at(-1)?.onClick as
+      | ((event: unknown) => void)
+      | undefined;
+    if (!onClick) throw new Error("Stage click handler was not captured.");
+    konvaCapture.lines.length = 0;
+    await act(async () => {
+      onClick({
+        evt: { button: 0 },
+        target: {
+          name: () => "",
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 370, y: 140 }),
+          }),
+        },
+      });
+    });
+
+    expect(workspaceProbe?.draft).toMatchObject({
+      type: "path",
+      measurementType: "polygon",
+      points: expect.arrayContaining([expect.any(Object)]),
+    });
+    expect((workspaceProbe?.draft as { points: unknown[] } | null)?.points).toHaveLength(4);
+    expect(konvaCapture.lines.filter((props) => Array.isArray(props.dash))).toHaveLength(2);
   });
 });
