@@ -21,10 +21,11 @@ interface AppBarProps {
 
 function SettingsIcon() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="10" r="2.4" />
-      <path d="M10 2.8v1.5M10 15.7v1.5M17.2 10h-1.5M4.3 10H2.8M15.1 4.9l-1.05 1.05M5.95 14.05 4.9 15.1M15.1 15.1l-1.05-1.05M5.95 5.95 4.9 4.9" />
-      <circle cx="10" cy="10" r="5.7" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <g transform="translate(0 1.8)">
+        <path d="M10.35 2.75h3.3l.56 2.14a7.6 7.6 0 0 1 1.4.81l2.08-.75 1.65 2.86-1.52 1.59a7.8 7.8 0 0 1 0 1.62l1.52 1.59-1.65 2.86-2.08-.75a7.6 7.6 0 0 1-1.4.81l-.56 2.14h-3.3l-.56-2.14a7.6 7.6 0 0 1-1.4-.81l-2.08.75-1.65-2.86 1.52-1.59a7.8 7.8 0 0 1 0-1.62L4.66 7.81l1.65-2.86 2.08.75a7.6 7.6 0 0 1 1.4-.81l.56-2.14Z" />
+        <circle cx="12" cy="10.2" r="3.05" />
+      </g>
     </svg>
   );
 }
