@@ -18,6 +18,7 @@ export interface MeasurementViewModel {
   calibrationSummary: string;
   hasCalibration: boolean;
   visible: boolean;
+  pageLabel?: string;
 }
 
 export function createMeasurementViewModel(

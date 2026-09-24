@@ -70,6 +70,7 @@ export const MeasurementRow = memo(function MeasurementRow({
               .join(" ")}
           >
             {viewModel.typeLabel} · {viewModel.calibrationSummary.split(" · ")[0]}
+            {viewModel.pageLabel ? ` · ${viewModel.pageLabel}` : ""}
           </span>
         </span>
       </button>
