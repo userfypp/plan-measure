@@ -270,6 +270,35 @@ describe("MeasurementRow accessibility", () => {
 });
 
 describe("measurement grouping surfaces", () => {
+  it("keeps advanced controls out of the list layout and bounds their responsive popovers", () => {
+    expect(measurementPanelCss).toMatch(/\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s);
+    expect(measurementPanelCss).toMatch(
+      /\.toolbar\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);/s,
+    );
+    expect(measurementPanelCss).toMatch(
+      /\.search\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
+    );
+    expect(measurementPanelCss).toMatch(
+      /\.toolbarButton\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
+    );
+    expect(measurementPanelCss).toContain(".toolbarButton::after");
+    expect(measurementPanelCss).toMatch(
+      /\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s,
+    );
+    expect(measurementPanelCss).toMatch(/\.toolbarButton::after\s*\{[^}]*width:\s*5px;[^}]*height:\s*5px;/s);
+    expect(measurementPanelCss).toMatch(
+      /@container measurement-panel \(max-width: 359px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
+    );
+    expect(measurementPanelCss).toContain("container-name: measurement-controls");
+    expect(measurementPanelCss).toMatch(
+      /@container measurement-controls \(max-width: 300px\)[\s\S]*?\.filterRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/,
+    );
+    expect(measurementPanelCss).toMatch(
+      /\.controlsPopover\s*\{[^}]*width:\s*min\(320px, calc\(100vw - var\(--space-16\)\)\);/s,
+    );
+    expect(measurementPanelCss).toContain("container-name: measurement-panel");
+  });
+
   it("keeps grouped layout bound to the Measurement Panel container without the old wrap rule", () => {
     expect(measurementPanelCss).toContain("container-name: measurement-panel");
     expect(measurementPanelCss).toContain("container-type: inline-size");
@@ -289,7 +318,7 @@ describe("measurement grouping surfaces", () => {
     expect(markup).not.toContain("Group by");
   });
 
-  it("renders Group by options, including archived dimensions, with viewer shortcuts enabled", () => {
+  it("renders Group by options, including archived dimensions, without hijacking select keys", () => {
     const markup = renderToStaticMarkup(
       <MeasurementsHeader
         dimensions={[
@@ -309,7 +338,7 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('<option value="">None</option>');
     expect(markup).toContain('<option value="trade" selected="">Trade</option>');
     expect(markup).toContain("Legacy trade (archived)");
-    expect(markup).toContain('data-viewer-shortcuts="enabled"');
+    expect(markup).not.toContain('data-viewer-shortcuts="enabled"');
   });
 
   it("retains the flat MeasurementRow markup", () => {

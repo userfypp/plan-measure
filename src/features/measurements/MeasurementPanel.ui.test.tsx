@@ -138,8 +138,12 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     });
     renderPanel(currentSession, activePage);
 
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click());
+
     function choose(index: number, value: string) {
-      const select = container!.querySelectorAll<HTMLSelectElement>("header select")[index]!;
+      const select = document.querySelectorAll<HTMLSelectElement>(
+        '[role="dialog"][aria-label="Measurement grouping"] select',
+      )[index]!;
       act(() => {
         select.value = value;
         select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -148,29 +152,49 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
 
     choose(0, "trade");
     choose(1, "status");
-    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
-      "trade", "status",
-    ]);
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLSelectElement>(
+          '[role="dialog"][aria-label="Measurement grouping"] select',
+        ),
+        (select) => select.value,
+      ),
+    ).toEqual(["trade", "status"]);
     const electrical = container!.querySelector('[aria-label="Electrical measurement group"]');
     expect(electrical?.querySelector('[aria-label="Approved measurement group"]')).not.toBeNull();
     expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
 
     choose(0, "status");
-    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
-      "status", "trade",
-    ]);
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLSelectElement>(
+          '[role="dialog"][aria-label="Measurement grouping"] select',
+        ),
+        (select) => select.value,
+      ),
+    ).toEqual(["status", "trade"]);
     const approved = container!.querySelector('[aria-label="Approved measurement group"]');
     expect(approved?.querySelector('[aria-label="Electrical measurement group"]')).not.toBeNull();
 
     choose(1, "");
-    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
-      "status", "",
-    ]);
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLSelectElement>(
+          '[role="dialog"][aria-label="Measurement grouping"] select',
+        ),
+        (select) => select.value,
+      ),
+    ).toEqual(["status", ""]);
 
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Clear all grouping"]')!.click());
-    expect(Array.from(container!.querySelectorAll<HTMLSelectElement>("header select"), (select) => select.value)).toEqual([
-      "",
-    ]);
+    act(() => document.querySelector<HTMLButtonElement>('[aria-label="Clear all grouping"]')!.click());
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLSelectElement>(
+          '[role="dialog"][aria-label="Measurement grouping"] select',
+        ),
+        (select) => select.value,
+      ),
+    ).toEqual([""]);
     expect(container!.querySelector('[aria-label="Measurements grouped by classification"]')).toBeNull();
     expect(container!.querySelector('[aria-label="Select measurement Hallway"]')).not.toBeNull();
   });
@@ -180,11 +204,61 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     renderPanel(session({ 1: activePage }), activePage);
 
     expect(container?.querySelector('aside[aria-label="Measurements workspace"]')).not.toBeNull();
-    expect(
-      container?.querySelector('[aria-label="Filter measurements"] [data-viewer-shortcuts]'),
-    ).toBeNull();
+    expect(container?.querySelector('input[type="search"]')).not.toBeNull();
+    expect(container?.querySelector('[aria-label="Filters"]')).not.toBeNull();
+    expect(container?.querySelector('[aria-label="Group measurements"]')).not.toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement grouping"]')).toBeNull();
     expect(container?.textContent).not.toContain("Summary");
     expect(container?.textContent).not.toContain("List");
+  });
+
+  it("keeps filter values when popovers close and opens only one control popover at a time", () => {
+    const firstPage = page([measurement()]);
+    const secondPage = { ...page([measurement({ id: "line-2", name: "Kitchen" })]), pageNumber: 2 };
+    renderPanel(session({ 1: firstPage, 2: secondPage }), firstPage);
+
+    const filtersButton = container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!;
+    const groupButton = container!.querySelector<HTMLButtonElement>(
+      '[aria-label="Group measurements"]',
+    )!;
+    act(() => filtersButton.click());
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).not.toBeNull();
+
+    const pageSelect = document.querySelector<HTMLSelectElement>(
+      '[role="dialog"][aria-label="Measurement filters"] select',
+    )!;
+    act(() => {
+      pageSelect.value = "2";
+      pageSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    act(() => {
+      groupButton.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      groupButton.click();
+    });
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    const groupingDialog = document.querySelector('[role="dialog"][aria-label="Measurement grouping"]');
+    expect(groupingDialog).not.toBeNull();
+    expect(groupingDialog?.querySelector("[data-viewer-shortcuts]")).toBeNull();
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement grouping"]')).toBeNull();
+    expect(document.activeElement).toBe(groupButton);
+
+    act(() => filtersButton.click());
+    expect(
+      document.querySelector<HTMLSelectElement>(
+        '[role="dialog"][aria-label="Measurement filters"] select',
+      )?.value,
+    ).toBe("2");
+
+    act(() => document.body.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).toBeNull();
   });
 
   it("filters measurements across pages and selects the result on its source page", () => {
@@ -211,9 +285,11 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     });
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
     expect(container!.querySelector('[aria-label="Select measurement Hallway"]')).toBeNull();
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
 
     function chooseFilter(labelText: string, value: string) {
-      const label = Array.from(container!.querySelectorAll("label")).find(
+      const filterDialog = document.querySelector('[role="dialog"][aria-label="Measurement filters"]');
+      const label = Array.from(filterDialog?.querySelectorAll("label") ?? []).find(
         (candidate) => candidate.querySelector("span")?.textContent === labelText,
       );
       const select = label?.querySelector("select");
@@ -235,6 +311,23 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     chooseFilter("Visibility", "false");
     chooseFilter("Classification", "electrical");
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
+    expect(container!.querySelector<HTMLButtonElement>('[aria-label^="Filters,"]')?.getAttribute("aria-label")).toBe(
+      "Filters, 3 active",
+    );
+    expect(container!.querySelector('[aria-label^="Filters,"]')?.textContent).toContain("3");
+
+    const clearFiltersButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Clear filters",
+    );
+    if (!clearFiltersButton) throw new Error("Clear filters button was not rendered.");
+    act(() => clearFiltersButton.click());
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
+    expect(
+      Array.from(container!.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+        button.getAttribute("aria-label")?.startsWith("Filters"),
+      )?.getAttribute("aria-label"),
+    ).toBe("Filters");
+    expect(search.value).toBe("kitchen");
 
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Select measurement Kitchen"]')!.click());
     expect(onSelectMeasurement).toHaveBeenCalledWith(2, "line-2");

@@ -37,7 +37,6 @@ export function MeasurementsHeader({
             <span>{index === 0 ? "Group by" : "Then by"}</span>
             <select
               value={groupByDimensionIds[index] ?? ""}
-              data-viewer-shortcuts="enabled"
               onChange={(event) => changeDimension(index, event.target.value)}
             >
               <option value="">None</option>
