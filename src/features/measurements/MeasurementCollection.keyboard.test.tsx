@@ -76,6 +76,7 @@ function renderGroupedCollection() {
         groups={[
           {
             key: "dimension:trade:value:first",
+            dimensionLabel: "Trade",
             label: "First",
             archived: false,
             measurementIds: ["line-1"],
@@ -83,6 +84,7 @@ function renderGroupedCollection() {
           },
           {
             key: "dimension:trade:value:second",
+            dimensionLabel: "Trade",
             label: "Second",
             archived: false,
             measurementIds: ["line-2", "polygon-1"],
@@ -193,7 +195,7 @@ describe("MeasurementCollection keyboard model", () => {
   it("moves the single row Tab stop to a visible group when its remembered group collapses", () => {
     renderGroupedCollection();
     const collapseFirst = Array.from(container!.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.getAttribute("aria-label") === "Collapse First group",
+      (button) => button.getAttribute("aria-label") === "Collapse Trade · First group",
     );
     if (!collapseFirst) throw new Error("First group toggle was not rendered.");
 
@@ -218,12 +220,67 @@ describe("MeasurementCollection keyboard model", () => {
     expect(visibilityControls.every((button) => button.tabIndex === 0)).toBe(true);
     expect(visibilityControls.every((button) => button.tabIndex <= 0)).toBe(true);
     expect(visibilityControls[0]?.getAttribute("aria-label")).toBe(
-      "Hide all measurements in First; currently all visible",
+      "Hide all measurements in Trade · First; currently all visible",
     );
 
     act(() => visibilityControls[0]?.focus());
     expect(document.activeElement).toBe(visibilityControls[0]);
     act(() => visibilityControls[0]?.click());
+    expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
+  });
+
+  it("moves identical single-child controls to the expanded child and restores them on collapse", () => {
+    const onSetMeasurementsVisibility = vi.fn();
+    act(() =>
+      root!.render(
+        <MeasurementCollection
+          measurements={measurements}
+          emptyMessage="Empty"
+          onSelectMeasurement={vi.fn()}
+          onToggleVisibility={vi.fn()}
+          groupByDimensionId="trade"
+          groups={[
+            {
+              key: "trade:electrical",
+              dimensionLabel: "Trade",
+              label: "Electrical",
+              archived: false,
+              measurementIds: ["line-1"],
+              visibility: "visible",
+              children: [
+                {
+                  key: "trade:electrical/status:unassigned",
+                  dimensionLabel: "Status",
+                  label: "None assigned",
+                  archived: false,
+                  measurementIds: ["line-1"],
+                  visibility: "visible",
+                },
+              ],
+            },
+          ]}
+          onSetMeasurementsVisibility={onSetMeasurementsVisibility}
+        />,
+      ),
+    );
+
+    const tradeGroup = container!.querySelector<HTMLElement>(
+      '[aria-label="Trade · Electrical measurement group"]',
+    );
+    const tradeHeader = tradeGroup?.querySelector<HTMLElement>(":scope > header");
+    expect(tradeHeader?.querySelector("[data-group-visibility]")).toBeNull();
+    expect(tradeHeader?.querySelector('[aria-label="1 measurements"]')).toBeNull();
+    expect(
+      tradeGroup?.querySelector('[aria-label="Status · None assigned measurement group"] [data-group-visibility]'),
+    ).not.toBeNull();
+
+    act(() => tradeHeader?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    expect(tradeHeader?.querySelector('[aria-label="1 measurements"]')).not.toBeNull();
+    const collapsedVisibility = tradeHeader?.querySelector<HTMLButtonElement>("[data-group-visibility]");
+    expect(collapsedVisibility?.getAttribute("aria-label")).toBe(
+      "Hide all measurements in Trade · Electrical; currently all visible",
+    );
+    act(() => collapsedVisibility?.click());
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
   });
 
@@ -240,6 +297,7 @@ describe("MeasurementCollection keyboard model", () => {
           groups={[
             {
               key: "trade:electrical",
+              dimensionLabel: "Trade",
               label: "Electrical",
               archived: false,
               measurementIds: ["line-1", "line-2"],
@@ -247,6 +305,7 @@ describe("MeasurementCollection keyboard model", () => {
               children: [
                 {
                   key: "trade:electrical/status:approved",
+                  dimensionLabel: "Status",
                   label: "Approved",
                   archived: false,
                   measurementIds: ["line-1"],
@@ -254,6 +313,7 @@ describe("MeasurementCollection keyboard model", () => {
                 },
                 {
                   key: "trade:electrical/dimension:status:unclassified",
+                  dimensionLabel: "Status",
                   label: "None assigned",
                   archived: false,
                   measurementIds: ["line-2"],
@@ -263,6 +323,7 @@ describe("MeasurementCollection keyboard model", () => {
             },
             {
               key: "trade:other",
+              dimensionLabel: "Trade",
               label: "Other",
               archived: false,
               measurementIds: ["polygon-1"],
@@ -275,16 +336,16 @@ describe("MeasurementCollection keyboard model", () => {
     );
 
     expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
-    const approved = container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Approved group"]')!;
+    const approved = container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Status · Approved group"]')!;
     act(() => approved.click());
     expect(control("line-1", "selection").closest("[hidden]")).not.toBeNull();
     expect(control("line-2", "selection").closest("[hidden]")).toBeNull();
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all unclassified measurements; currently all visible"]')?.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all measurements in Status · None assigned; currently all visible"]')?.click());
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-2"], false);
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all measurements in Electrical; currently all visible"]')?.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all measurements in Trade · Electrical; currently all visible"]')?.click());
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1", "line-2"], false);
 
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Electrical group"]')?.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · Electrical group"]')?.click());
     expect(control("line-2", "selection").closest("[hidden]")).not.toBeNull();
     expect(control("polygon-1", "selection").closest("[hidden]")).toBeNull();
     expect(control("polygon-1", "selection").tabIndex).toBe(0);

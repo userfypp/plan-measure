@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
-  padding: var(--space-8);
+  padding: 0 var(--space-4) var(--space-8);
 }
 
 .list {
@@ -31,8 +31,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
-  gap: var(--space-4);
-  padding: var(--space-4);
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-4);
   background: transparent;
 }
 
@@ -45,120 +45,175 @@
   min-width: 0;
   gap: var(--space-8);
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: flex-start;
+  align-items: center;
 }
 
-.itemText {
+.itemTitle {
   min-width: 0;
-  display: grid;
-  gap: var(--space-4);
-}
-
-.itemText strong,
-.itemText span {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.itemText strong {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-heading);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
-}
-
-.itemText span {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
+.valueSection {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
 }
 
 .actions {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-8);
   flex-wrap: wrap;
 }
 
-.itemHeader > .actions {
-  min-width: max-content;
-  max-width: none;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
-}
-
-.itemHeader > .actions > * {
-  flex: 0 0 auto;
-}
-
-.secondaryAction {
+.restoreAction {
   min-height: var(--control-height-compact);
   padding-inline: var(--space-8);
-  color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-medium);
 }
 
-.archiveAction {
-  border-color: transparent;
-  background: transparent;
+.dimensionMenuTrigger {
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
+  min-width: var(--control-height-compact);
+  min-height: var(--control-height-compact);
+  display: grid;
+  place-items: center;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0;
   color: var(--color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
-.archiveAction:hover:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--color-danger-hover-semantic);
-  background: var(--color-danger-hover-surface);
-  color: var(--color-danger-hover-semantic);
+.dimensionMenuTrigger:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
 }
 
-.archiveAction:active:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--color-danger-active-semantic);
-  background: var(--color-danger-active-surface);
-  color: var(--color-danger-active-semantic);
+.dimensionMenuTrigger:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.dimensionMenuTrigger:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.dimensionMenuTrigger > svg,
+.valueChipContent > svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: currentColor;
 }
 
 .valueList {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
   min-width: 0;
-  gap: 0;
-  margin: 0 0 0 var(--space-8);
-  padding: 0 0 0 var(--space-12);
-  border-left: var(--border-width) solid var(--color-divider);
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .valueItem {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
+  flex: 0 1 auto;
   min-width: 0;
-  min-height: 32px;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
+  max-width: 100%;
+}
+
+.valueList .valueChipTrigger {
+  width: auto;
+  height: auto;
+  min-width: var(--control-height-compact);
+  min-height: var(--control-height-compact);
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: var(--space-4) var(--space-8);
+  color: var(--color-text-primary);
+  background: var(--color-surface-field);
+  font-family: var(--font-family-sans);
   font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+.valueList .valueChipTrigger:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.valueList .valueChipTrigger:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.valueList .valueChipTrigger:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.valueList .valueChipTrigger:disabled {
+  border-color: var(--color-divider);
+  color: var(--color-text-disabled);
+  background: var(--color-surface-panel);
+  cursor: not-allowed;
+}
+
+.valueList .archivedValueChip {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subdued);
+}
+
+.valueChipContent {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
 .valueName {
   min-width: 0;
-  flex: 1 1 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.valueItem > .actions {
-  flex: 0 1 auto;
+.readOnlyValue {
+  min-width: 0;
+  min-height: var(--control-height-compact);
   max-width: 100%;
-  flex-wrap: nowrap;
-  gap: var(--space-4);
-}
-
-.valueItem > .actions > * {
-  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: var(--space-4) var(--space-8);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subdued);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }
 
 .archivedNote {
@@ -169,13 +224,10 @@
   overflow-wrap: anywhere;
 }
 
-.inlineForm > :first-child,
-.create > :first-child {
-  min-width: 0;
-}
-
 .inlineForm,
-.create {
+.create,
+.renameForm,
+.valueRenameForm {
   min-width: 0;
 }
 
@@ -200,18 +252,12 @@
 .inlineForm {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  align-items: center;
   column-gap: var(--space-8);
-  row-gap: var(--space-4);
-  margin-left: var(--space-8);
-  padding: var(--space-4) 0 0 var(--space-12);
-  border-left: var(--border-width) solid var(--color-divider);
+  row-gap: var(--space-8);
 }
 
-.inlineForm > :first-child {
-  display: contents;
-}
-
+.inlineForm > :first-child,
 .create > :first-child {
   display: contents;
 }
@@ -245,85 +291,91 @@
 .inlineForm > button {
   grid-column: 2;
   grid-row: 1;
-  align-self: start;
+  align-self: center;
   white-space: nowrap;
 }
 
 .create > button {
   grid-column: 2;
   grid-row: 2;
-  align-self: start;
+  align-self: center;
   white-space: nowrap;
 }
 
-.renameOverlay {
-  position: absolute;
-  inset: auto var(--space-12) var(--space-12);
-  z-index: 1;
+.renameForm,
+.valueRenameForm {
   display: grid;
-  gap: var(--space-8);
-  padding: var(--space-12);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  background: var(--color-surface-raised);
-  box-shadow: var(--shadow-overlay);
-}
-
-.renameOverlay .actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--space-8);
 }
 
-.renameOverlay .actions > * + * {
-  margin-inline-start: 0;
+.itemHeader > .renameForm {
+  grid-column: 1 / -1;
+}
+
+.valueRenameForm {
+  flex: 1 1 100%;
+}
+
+.renameForm > :first-child,
+.valueRenameForm > :first-child {
+  display: contents;
+}
+
+.renameForm > :first-child > input,
+.valueRenameForm > :first-child > input {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.renameForm > :first-child > p,
+.valueRenameForm > :first-child > p {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.renameActions {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
 }
 
 .create {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: var(--space-8);
-  padding: var(--space-4) var(--space-4) var(--space-4);
+  align-items: center;
+  column-gap: var(--space-8);
+  row-gap: var(--space-8);
+  padding: var(--space-8) var(--space-4);
   border-top: var(--border-width) solid var(--color-divider);
 }
 
-@container (max-width: 248px) {
-  .itemHeader {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .itemHeader > .actions {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .inlineForm {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .create {
+@container (max-width: 224px) {
+  .inlineForm,
+  .create,
+  .renameForm,
+  .valueRenameForm {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .inlineForm > button {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
     justify-self: start;
   }
 
   .create > button {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
     justify-self: start;
   }
 
-  .inlineForm > :first-child > p {
+  .renameActions {
+    grid-column: 1;
     grid-row: 3;
-  }
-
-  .create > :first-child > p {
-    grid-row: 4;
   }
 }

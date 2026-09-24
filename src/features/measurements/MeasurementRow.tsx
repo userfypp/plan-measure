@@ -36,6 +36,9 @@ export const MeasurementRow = memo(function MeasurementRow({
   const detailsId = `measurement-details-${viewModel.id}`;
   const quantityLines =
     viewModel.type === "polygon" ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
+  const metadata = `${viewModel.typeLabel} · ${viewModel.calibrationSummary.split(" · ")[0]}${
+    viewModel.pageLabel ? ` · ${viewModel.pageLabel}` : ""
+  }`;
 
   return (
     <article
@@ -52,6 +55,7 @@ export const MeasurementRow = memo(function MeasurementRow({
         aria-label={`${viewModel.selected ? "Selected" : "Select"} measurement ${viewModel.name}`}
         aria-pressed={viewModel.selected}
         aria-describedby={detailsId}
+        title={metadata}
         onClick={() => onSelectMeasurement(viewModel.id)}
       >
         <span className={styles.glyph} aria-hidden="true">
@@ -69,8 +73,7 @@ export const MeasurementRow = memo(function MeasurementRow({
               .filter(Boolean)
               .join(" ")}
           >
-            {viewModel.typeLabel} · {viewModel.calibrationSummary.split(" · ")[0]}
-            {viewModel.pageLabel ? ` · ${viewModel.pageLabel}` : ""}
+            {metadata}
           </span>
         </span>
       </button>

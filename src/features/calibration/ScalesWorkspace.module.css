@@ -137,7 +137,6 @@
   gap: var(--space-8);
   margin-inline: var(--space-16);
   padding: var(--space-8) 0;
-  border-top: var(--border-width) solid var(--color-divider);
   background: transparent;
 }
 
@@ -190,8 +189,6 @@
 
 .recalibrateFooter {
   min-width: 0;
-  padding-top: var(--space-8);
-  border-top: var(--border-width) solid var(--color-divider);
 }
 
 .recalibrateControl {

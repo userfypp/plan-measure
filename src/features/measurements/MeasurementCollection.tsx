@@ -162,11 +162,12 @@ export function MeasurementCollection({
     const measurementsById = new Map(
       measurements.map((measurement) => [measurement.id, measurement]),
     );
-    function renderGroup(group: MeasurementGroupModel) {
+    function renderGroup(group: MeasurementGroupModel, depth = 0) {
       return (
         <MeasurementGroup
           key={group.key}
           group={group}
+          depth={depth}
           measurements={group.children ? [] : group.measurementIds.flatMap((id) => {
             const measurement = measurementsById.get(id);
             return measurement ? [measurement] : [];
@@ -180,7 +181,7 @@ export function MeasurementCollection({
           }
           rovingCell={effectiveRovingCell}
         >
-          {group.children?.map(renderGroup)}
+          {group.children?.map((child) => renderGroup(child, depth + 1))}
         </MeasurementGroup>
       );
     }
@@ -192,7 +193,7 @@ export function MeasurementCollection({
         onKeyDown={handleKeyDown}
       >
         <div className={styles.groups} aria-label="Measurements grouped by classification">
-          {groups.map(renderGroup)}
+          {groups.map((group) => renderGroup(group))}
         </div>
       </section>
     );

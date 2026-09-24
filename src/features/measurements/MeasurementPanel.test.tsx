@@ -140,9 +140,10 @@ describe("measurement view models", () => {
 
 describe("MeasurementRow accessibility", () => {
   it("exposes selection and visibility without legacy rename/delete row actions", () => {
+    const measurementWithPage = { ...viewModel(), pageLabel: "A-101" };
     const markup = renderToStaticMarkup(
       <MeasurementRow
-        viewModel={viewModel()}
+        viewModel={measurementWithPage}
         onSelectMeasurement={() => undefined}
         onToggleVisibility={() => undefined}
       />,
@@ -153,7 +154,8 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain('aria-label="Select measurement Hallway"');
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain('aria-describedby="measurement-details-line-1"');
-    expect(markup).toContain("Line · Main plan");
+    expect(markup).toContain("Line · Main plan · A-101");
+    expect(markup).toContain('title="Line · Main plan · A-101"');
     expect(markup).not.toContain('aria-label="Rename Hallway"');
     expect(markup).not.toContain('aria-label="Delete Hallway"');
     expect(markup).toContain('aria-label="Hide measurement Hallway"');
@@ -210,8 +212,9 @@ describe("MeasurementRow accessibility", () => {
     expect(quantityParts).toHaveLength(2);
     expect(markup).toContain(`>${quantityParts[0]}<`);
     expect(markup).toContain(`>${quantityParts[1]}<`);
-    expect(markup.indexOf(model.name)).toBeLessThan(markup.indexOf(quantityParts[0]!));
-    expect(markup.indexOf(quantityParts[0]!)).toBeLessThan(markup.indexOf(model.typeLabel));
+    const visibleDetails = markup.slice(markup.indexOf('id="measurement-details-polygon-1"'));
+    expect(visibleDetails.indexOf(model.name)).toBeLessThan(visibleDetails.indexOf(quantityParts[0]!));
+    expect(visibleDetails.indexOf(quantityParts[0]!)).toBeLessThan(visibleDetails.indexOf(model.typeLabel));
   });
 
   it("keeps Polygon perimeter architectural while acres changes only the area quantity", () => {
@@ -291,6 +294,12 @@ describe("measurement grouping surfaces", () => {
     );
     expect(measurementPanelCss).toContain("container-name: measurement-controls");
     expect(measurementPanelCss).toMatch(
+      /\.groupingPrefix,\s*\.groupingSeparator,\s*\.groupingCount\s*\{[^}]*flex:\s*0 0 auto;/s,
+    );
+    expect(measurementPanelCss).toMatch(
+      /\.groupingName\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/s,
+    );
+    expect(measurementPanelCss).toMatch(
       /@container measurement-controls \(max-width: 300px\)[\s\S]*?\.filterRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/,
     );
     expect(measurementPanelCss).toMatch(
@@ -365,6 +374,7 @@ describe("measurement grouping surfaces", () => {
         groups={[
           {
             key: "dimension:trade:value:electrical",
+            dimensionLabel: "Trade",
             label: "Electrical",
             archived: true,
             measurementIds: ["line-1"],
@@ -379,11 +389,13 @@ describe("measurement grouping surfaces", () => {
     );
 
     expect(markup).toContain("Electrical (archived)");
-    expect(markup.match(/\(archived\)/g)).toHaveLength(1);
+    expect(markup).toContain('aria-label="Trade · Electrical measurement group"');
+    expect(markup).toContain('title="Trade · Electrical (archived)"');
+    expect(markup.match(/>Electrical \(archived\)<\/span>/g)).toHaveLength(1);
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).toMatch(/aria-controls="[^"]+-measurements"/);
     expect(markup).toContain(
-      'aria-label="Show all measurements in Electrical; currently mixed visibility"',
+      'aria-label="Show all measurements in Trade · Electrical; currently mixed visibility"',
     );
     expect(markup).toContain('data-group-visibility="mixed"');
     expect(markup).toContain('d="M9.5 12h5"');
@@ -393,21 +405,41 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("keeps grouped controls rounded with full-width rows and a light inner child indent", () => {
+  it("uses one fine divider level and a lighter compact hierarchy for nested groups", () => {
+    expect(measurementGroupCss).not.toMatch(
+      /\.group\s*\{[^}]*border-bottom:/s,
+    );
     expect(measurementGroupCss).toMatch(
       /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
+      /\.rootHeader\s*\{[^}]*border-bottom:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-subdued\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.header > :last-child\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
+      /\.childGroups\s*\{[^}]*border-inline-start:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*padding-inline-start:\s*var\(--space-8\);/s,
     );
+    expect(measurementGroupCss).toMatch(
+      /\.childHeader,\s*\.deepHeader\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*border-bottom:\s*0;[^}]*background:\s*transparent;/s,
+    );
+    expect(measurementGroupCss).toMatch(/\.headerWithoutMeta\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\);/s);
+    expect(measurementGroupCss).toMatch(
+      /\.title\s*\{[^}]*grid-template-rows:\s*auto auto;[^}]*align-content:\s*center;/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.dimensionName\s*\{[^}]*font-size:\s*10px;[^}]*text-transform:\s*uppercase;/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.childHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-sm\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.deepHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-xs\);/s,
+    );
+    expect(measurementGroupCss).toMatch(/\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s);
     expect(measurementGroupCss).toMatch(
       /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-16\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+      /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
     );
     expect(measurementCollectionCss).toMatch(
       /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 var\(--space-8\) var\(--space-8\);/s,
@@ -431,6 +463,7 @@ describe("measurement grouping surfaces", () => {
       <MeasurementGroup
         group={{
           key: "dimension:trade:value:electrical",
+          dimensionLabel: "Trade",
           label: "Electrical",
           archived: false,
           measurementIds: ["line-1"],
@@ -446,7 +479,8 @@ describe("measurement grouping surfaces", () => {
     );
 
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain('aria-label="Expand Electrical group"');
+    expect(markup).toContain('aria-label="Expand Trade · Electrical group"');
+    expect(markup).toContain('aria-label="Trade · Electrical measurement group"');
     const controlledId = markup.match(/aria-controls="([^"]+-measurements)"/)?.[1];
     expect(controlledId).toBeTruthy();
     expect(markup).toContain(`id="${controlledId}"`);

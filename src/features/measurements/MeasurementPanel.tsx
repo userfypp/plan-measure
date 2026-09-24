@@ -93,10 +93,6 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       catalog.dimensions.find((dimension) => dimension.id === dimensionId)?.name ??
       "Unknown classification",
   );
-  const groupBySummary =
-    groupByNames.length === 0
-      ? "Group"
-      : `Group · ${groupByNames[0]}${groupByNames.length > 1 ? ` +${groupByNames.length - 1}` : ""}`;
   const groups = groupByDimensionIds.length
     ? createMeasurementGroups(
         measurements.map((measurement) => ({
@@ -244,7 +240,20 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                   : "Group measurements",
               title: groupByNames.length > 0 ? groupByNames.join(", then ") : undefined,
             }}
-            trigger={<span className={styles.truncatedTrigger}>{groupBySummary}</span>}
+            trigger={
+              <span className={styles.truncatedTrigger}>
+                <span className={styles.groupingPrefix}>Group</span>
+                {groupByNames.length > 0 && (
+                  <>
+                    <span className={styles.groupingSeparator} aria-hidden="true">·</span>
+                    <span className={styles.groupingName}>{groupByNames[0]}</span>
+                    {groupByNames.length > 1 && (
+                      <span className={styles.groupingCount}>+{groupByNames.length - 1}</span>
+                    )}
+                  </>
+                )}
+              </span>
+            }
             role="dialog"
             aria-label="Measurement grouping"
             initialFocus="first"

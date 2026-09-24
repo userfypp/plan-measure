@@ -52,6 +52,7 @@ describe("createMeasurementGroups", () => {
     );
 
     expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "None assigned"]);
+    expect(groups.map((group) => group.dimensionLabel)).toEqual(["Trade", "Trade", "Trade"]);
     expect(groups.map((group) => group.measurementIds)).toEqual([
       ["line-1", "line-4"],
       ["line-3"],
@@ -182,11 +183,16 @@ describe("createMeasurementGroups", () => {
       { label: "Approved", measurementIds: ["first"], visibility: "visible" },
       { label: "None assigned", measurementIds: ["second"], visibility: "hidden" },
     ]);
+    expect(groups[0]?.children?.map(({ dimensionLabel, label }) => [dimensionLabel, label])).toEqual([
+      ["Status", "Approved"],
+      ["Status", "None assigned"],
+    ]);
     expect(groups[1]).toMatchObject({ archived: true, children: [{ archived: false }] });
     expect(groups[1]?.children?.[0]?.key).toBe(
       "dimension:trade:value:plumbing/dimension:status:value:approved",
     );
     expect(groups[2]?.children?.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
+    expect(groups[2]?.children?.map((group) => group.dimensionLabel)).toEqual(["Status", "Status"]);
     expect(groups.flatMap((group) => group.children?.flatMap((child) => child.measurementIds) ?? [])).toEqual([
       "first", "second", "third", "fourth", "fifth",
     ]);
@@ -228,5 +234,9 @@ describe("createMeasurementGroups", () => {
       "dimension:trade:value:electrical/dimension:status:unclassified/dimension:phase:value:planned",
     );
     expect(approvedKey).not.toBe(unassignedKey);
+    expect(groups[0]?.children?.[1]?.children?.[0]).toMatchObject({
+      dimensionLabel: "Phase",
+      label: "Planned",
+    });
   });
 });
