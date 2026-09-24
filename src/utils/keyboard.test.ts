@@ -104,6 +104,17 @@ describe("measurement keyboard shortcuts", () => {
     },
   );
 
+  it.each([
+    ["measurement search", new FakeHTMLElement("input", false, "search")],
+    ["measurement filter", new FakeHTMLElement("select")],
+  ])("preserves native keyboard behavior in the %s control", (_name, target) => {
+    for (const key of ["v", "h", "l", "m", "p", "o", "s", " ", "+", "-"]) {
+      expect(
+        getGlobalViewerKeyboardAction(keyboardEvent(key, target as unknown as EventTarget)),
+      ).toBeNull();
+    }
+  });
+
   it.each(["input", "textarea", "select", "[contenteditable='true']"])(
     "leaves native copy and paste untouched in %s",
     (kind) => {

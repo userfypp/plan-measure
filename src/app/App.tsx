@@ -318,11 +318,15 @@ function PlanMeasureApp() {
   );
 
   const selectMeasurementFromPanel = useCallback(
-    (measurementId: string) => {
+    (pageNumber: number, measurementId: string) => {
+      if (session?.currentPage !== pageNumber) {
+        pageChanged();
+        updatePage(pageNumber);
+      }
       selectWorkspaceMeasurement(measurementId);
       clearError();
     },
-    [clearError, selectWorkspaceMeasurement],
+    [clearError, pageChanged, selectWorkspaceMeasurement, session?.currentPage, updatePage],
   );
 
   const handlePageChange = useCallback(
@@ -990,6 +994,9 @@ function PlanMeasureApp() {
                 <MeasurementPanel
                   key={workspaceVersion}
                   page={previewPage}
+                  pages={session.pages}
+                  pageLabelOverrides={session.pageLabelOverrides}
+                  sourcePageLabels={activePdf.pageLabels}
                   selectedMeasurementId={selectedMeasurementId}
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onSetMeasurementVisibility={setMeasurementVisibility}

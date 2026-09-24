@@ -5,11 +5,53 @@
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--color-surface-panel);
 }
 
+.withGroupBy {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
 .withoutGroupBy {
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.filters {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.search,
+.filterRow label {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.search input,
+.filterRow select {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-height-compact);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: var(--space-8);
+}
+
+@container measurement-panel (max-width: 220px) {
+  .filterRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

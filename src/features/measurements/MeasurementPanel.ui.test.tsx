@@ -88,7 +88,7 @@ function session(pages: Record<number, PageState>, withCatalog = true): CurrentS
   } as CurrentSession;
 }
 
-function renderPanel(currentSession: CurrentSession, activePage: PageState) {
+function renderPanel(currentSession: CurrentSession, activePage: PageState, onSelectMeasurement = () => undefined) {
   state.session = currentSession;
   container = document.createElement("div");
   document.body.append(container);
@@ -97,8 +97,11 @@ function renderPanel(currentSession: CurrentSession, activePage: PageState) {
     root!.render(
       <MeasurementPanel
         page={activePage}
+        pages={currentSession.pages}
+        pageLabelOverrides={currentSession.pageLabelOverrides}
+        sourcePageLabels={null}
         selectedMeasurementId={state.selectedMeasurementId}
-        onSelectMeasurement={() => undefined}
+        onSelectMeasurement={onSelectMeasurement}
         onSetMeasurementVisibility={() => undefined}
         onSetMeasurementsVisibility={() => undefined}
       />,
@@ -176,9 +179,65 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     const activePage = page([measurement()]);
     renderPanel(session({ 1: activePage }), activePage);
 
-    expect(container?.querySelector('aside[aria-label="Measurements on current page"]')).not.toBeNull();
+    expect(container?.querySelector('aside[aria-label="Measurements workspace"]')).not.toBeNull();
+    expect(
+      container?.querySelector('[aria-label="Filter measurements"] [data-viewer-shortcuts]'),
+    ).toBeNull();
     expect(container?.textContent).not.toContain("Summary");
     expect(container?.textContent).not.toContain("List");
+  });
+
+  it("filters measurements across pages and selects the result on its source page", () => {
+    const firstPage = page([measurement({ name: "Hallway" })]);
+    const secondPage = {
+      ...page([
+        measurement({
+          id: "line-2",
+          name: "Kitchen",
+          visible: false,
+          classificationValueIds: ["electrical"],
+        }),
+      ]),
+      pageNumber: 2,
+    };
+    const currentSession = session({ 1: firstPage, 2: secondPage });
+    const onSelectMeasurement = vi.fn();
+    renderPanel(currentSession, firstPage, onSelectMeasurement);
+
+    const search = container!.querySelector<HTMLInputElement>('input[type="search"]')!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(search, "kitchen");
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Select measurement Hallway"]')).toBeNull();
+
+    function chooseFilter(labelText: string, value: string) {
+      const label = Array.from(container!.querySelectorAll("label")).find(
+        (candidate) => candidate.querySelector("span")?.textContent === labelText,
+      );
+      const select = label?.querySelector("select");
+      if (!select) throw new Error(`${labelText} filter was not rendered.`);
+      act(() => {
+        select.value = value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    chooseFilter("Page", "1");
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
+    chooseFilter("Page", "");
+    chooseFilter("Type", "polygon");
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
+    chooseFilter("Type", "line");
+    chooseFilter("Visibility", "true");
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
+    chooseFilter("Visibility", "false");
+    chooseFilter("Classification", "electrical");
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
+
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Select measurement Kitchen"]')!.click());
+    expect(onSelectMeasurement).toHaveBeenCalledWith(2, "line-2");
   });
 
   it("shows project totals with accessible, compact breakdown controls", () => {
