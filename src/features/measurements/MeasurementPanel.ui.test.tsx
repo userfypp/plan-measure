@@ -160,8 +160,16 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
         (select) => select.value,
       ),
     ).toEqual(["trade", "status"]);
-    const electrical = container!.querySelector('[aria-label="Electrical measurement group"]');
-    expect(electrical?.querySelector('[aria-label="Approved measurement group"]')).not.toBeNull();
+    const groupingButton = container!.querySelector<HTMLButtonElement>(
+      '[aria-label="Group by Trade, then Status"]',
+    );
+    expect(groupingButton).not.toBeNull();
+    expect(Array.from(groupingButton!.querySelectorAll("span"), (span) => span.textContent)).toContain(
+      "+1",
+    );
+    expect(groupingButton?.title).toBe("Trade, then Status");
+    const electrical = container!.querySelector('[aria-label="Trade · Electrical measurement group"]');
+    expect(electrical?.querySelector('[aria-label="Status · Approved measurement group"]')).not.toBeNull();
     expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
 
     choose(0, "status");
@@ -173,8 +181,8 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
         (select) => select.value,
       ),
     ).toEqual(["status", "trade"]);
-    const approved = container!.querySelector('[aria-label="Approved measurement group"]');
-    expect(approved?.querySelector('[aria-label="Electrical measurement group"]')).not.toBeNull();
+    const approved = container!.querySelector('[aria-label="Status · Approved measurement group"]');
+    expect(approved?.querySelector('[aria-label="Trade · Electrical measurement group"]')).not.toBeNull();
 
     choose(1, "");
     expect(

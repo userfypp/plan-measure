@@ -6,8 +6,7 @@
   padding: var(--space-12);
   background: var(--color-surface-panel);
 }
-.projectTotals h2,
-.breakdownResults > h2 {
+.projectTotals h2 {
   margin: 0 0 var(--space-8);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
@@ -75,11 +74,15 @@
   margin-top: var(--space-4);
 }
 .breakdownResults {
-  margin-top: var(--space-16);
+  margin-top: var(--space-8);
 }
 .group {
   padding: var(--space-12) 0;
   border-top: var(--border-width) solid var(--color-divider);
+}
+.group:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 .group h3 {
   margin: 0;

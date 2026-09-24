@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Badge, Button, Input } from "../../components/ui";
+import { AnchoredMenu, Badge, Button, Input } from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
 import { classificationNameKey } from "../../utils/classificationNames";
 import styles from "./ClassificationManager.module.css";
@@ -20,6 +20,16 @@ export interface ClassificationManagerProps {
 type EditingTarget =
   | { type: "dimension"; dimensionId: string }
   | { type: "value"; dimensionId: string; valueId: string };
+
+function MoreActionsIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <circle cx="3" cy="8" r="1" />
+      <circle cx="8" cy="8" r="1" />
+      <circle cx="13" cy="8" r="1" />
+    </svg>
+  );
+}
 
 export function ClassificationManager({
   catalog,
@@ -161,163 +171,220 @@ export function ClassificationManager({
     setNameError(null);
   }
 
+  function renderRenameForm(className: string | undefined) {
+    if (!editing) return null;
+    return (
+      <form
+        className={className}
+        onSubmit={submitRename}
+        aria-label="Rename classification"
+      >
+        <Input
+          label={<span className={styles.inlineLabel}>Rename {editing.type}</span>}
+          className={styles.compactInput}
+          placeholder="New name"
+          value={editName}
+          error={nameError}
+          disabled={disabled}
+          autoFocus
+          onChange={(event) => setEditName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") cancelEditing();
+          }}
+        />
+        <div className={styles.renameActions}>
+          <Button variant="ghost" size="compact" onClick={cancelEditing}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="secondary" size="compact" disabled={disabled}>
+            Save
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   return (
     <section className={styles.manager} aria-label="Classification catalog">
       <div className={styles.body}>
         {catalog.dimensions.length > 0 && (
           <ul className={styles.list} aria-label="Classification dimensions">
             {catalog.dimensions.map((dimension) => {
+              const editingDimension =
+                editing?.type === "dimension" && editing.dimensionId === dimension.id;
               return (
                 <li key={dimension.id} className={styles.item}>
                   <div className={styles.itemHeader}>
-                    <div className={styles.itemText}>
-                      <strong title={dimension.name}>{dimension.name}</strong>
-                    </div>
-                    {dimension.archived ? (
-                      <div className={styles.actions}>
-                        <Badge variant="neutral">Archived</Badge>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          className={styles.secondaryAction}
-                          disabled={disabled}
-                          aria-label={`Restore dimension ${dimension.name}`}
-                          onClick={() => onRestoreDimension(dimension.id)}
-                        >
-                          Restore
-                        </Button>
-                      </div>
+                    {editingDimension ? (
+                      renderRenameForm(styles.renameForm)
                     ) : (
-                      <div className={styles.actions}>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          className={styles.secondaryAction}
-                          disabled={disabled}
-                          aria-label={`Rename ${dimension.name}`}
-                          onClick={() =>
-                            startEditing(
-                              { type: "dimension", dimensionId: dimension.id },
-                              dimension.name,
-                            )
-                          }
-                        >
-                          Rename
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          className={[styles.secondaryAction, styles.archiveAction].join(" ")}
-                          disabled={disabled}
-                          aria-label={`Archive ${dimension.name}; existing assignments are preserved`}
-                          title="Existing measurement assignments will be preserved"
-                          onClick={() => archiveDimension(dimension.id)}
-                        >
-                          Archive
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <ul className={styles.valueList} aria-label={`${dimension.name} values`}>
-                    {dimension.values.map((value) => {
-                      const valueActions = dimension.archived ? (
-                        value.archived ? (
+                      <>
+                        <h3 className={styles.itemTitle} title={dimension.name}>
+                          {dimension.name}
+                        </h3>
+                        {dimension.archived ? (
                           <div className={styles.actions}>
                             <Badge variant="neutral">Archived</Badge>
+                            <Button
+                              variant="secondary"
+                              size="compact"
+                              className={styles.restoreAction}
+                              disabled={disabled}
+                              aria-label={`Restore dimension ${dimension.name}`}
+                              onClick={() => onRestoreDimension(dimension.id)}
+                            >
+                              Restore
+                            </Button>
                           </div>
-                        ) : null
-                      ) : value.archived ? (
-                        <div className={styles.actions}>
-                          <Badge variant="neutral">Archived</Badge>
-                          <Button
-                            variant="ghost"
-                            size="compact"
-                            className={styles.secondaryAction}
-                            disabled={disabled}
-                            aria-label={`Restore value ${value.name}`}
-                            onClick={() => onRestoreValue(dimension.id, value.id)}
-                          >
-                            Restore
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className={styles.actions}>
-                          <Button
-                            variant="ghost"
-                            size="compact"
-                            className={styles.secondaryAction}
-                            disabled={disabled}
-                            aria-label={`Rename ${value.name}`}
-                            onClick={() =>
-                              startEditing(
-                                { type: "value", dimensionId: dimension.id, valueId: value.id },
-                                value.name,
-                              )
-                            }
-                          >
-                            Rename
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="compact"
-                            className={[styles.secondaryAction, styles.archiveAction].join(" ")}
-                            disabled={disabled}
-                            aria-label={`Archive ${value.name}; existing assignments are preserved`}
-                            title="Existing measurement assignments will be preserved"
-                            onClick={() => archiveValue(dimension.id, value.id)}
-                          >
-                            Archive
-                          </Button>
-                        </div>
-                      );
-                      return (
-                        <li key={value.id} className={styles.valueItem}>
-                          <span className={styles.valueName} title={value.name}>{value.name}</span>
-                          {valueActions}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {dimension.archived ? (
-                    <p className={styles.archivedNote}>
-                      Assignments are preserved. Restore to edit or assign.
-                    </p>
-                  ) : (
-                    <form
-                      className={styles.inlineForm}
-                      onSubmit={(event) => submitValue(event, dimension.id)}
-                    >
-                      <Input
-                        label={
-                          <span
-                            className={styles.inlineLabel}
-                            title={`New value for ${dimension.name}`}
-                          >
-                            New value for {dimension.name}
-                          </span>
-                        }
-                        className={styles.compactInput}
-                        value={valueNames[dimension.id] ?? ""}
-                        error={valueErrors[dimension.id]}
-                        disabled={disabled}
-                        onChange={(event) => {
-                          setValueNames((current) => ({
-                            ...current,
-                            [dimension.id]: event.target.value,
-                          }));
-                          setValueErrors((current) => ({ ...current, [dimension.id]: null }));
-                        }}
-                      />
-                      <Button
-                        type="submit"
-                        variant="secondary"
-                        size="compact"
-                        disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
+                        ) : (
+                          <AnchoredMenu
+                            trigger={<MoreActionsIcon />}
+                            triggerProps={{
+                              className: styles.dimensionMenuTrigger,
+                              "aria-label": `Actions for dimension ${dimension.name}`,
+                              disabled,
+                            }}
+                            label={`Actions for dimension ${dimension.name}`}
+                            showMarkerColumn={false}
+                            items={[
+                              {
+                                id: "rename",
+                                label: "Rename",
+                                onSelect: () =>
+                                  startEditing(
+                                    { type: "dimension", dimensionId: dimension.id },
+                                    dimension.name,
+                                  ),
+                              },
+                              {
+                                id: "archive",
+                                label: "Archive (assignments preserved)",
+                                onSelect: () => archiveDimension(dimension.id),
+                              },
+                            ]}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className={styles.valueSection}>
+                    <ul className={styles.valueList} aria-label={`${dimension.name} values`}>
+                      {dimension.values.map((value) => {
+                        const editingValue =
+                          editing?.type === "value" &&
+                          editing.dimensionId === dimension.id &&
+                          editing.valueId === value.id;
+                        return (
+                          <li key={value.id} className={styles.valueItem}>
+                            {editingValue ? (
+                              renderRenameForm(styles.valueRenameForm)
+                            ) : dimension.archived ? (
+                              <span className={styles.readOnlyValue} title={value.name}>
+                                <span className={styles.valueName}>{value.name}</span>
+                                {value.archived && <Badge variant="neutral">Archived</Badge>}
+                              </span>
+                            ) : (
+                              <AnchoredMenu
+                                trigger={
+                                  <span className={styles.valueChipContent}>
+                                    <span className={styles.valueName} title={value.name}>
+                                      {value.name}
+                                    </span>
+                                    {value.archived && <Badge variant="neutral">Archived</Badge>}
+                                    <MoreActionsIcon />
+                                  </span>
+                                }
+                                triggerProps={{
+                                  className: [
+                                    styles.valueChipTrigger,
+                                    value.archived ? styles.archivedValueChip : "",
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" "),
+                                  "aria-label": `Actions for ${value.archived ? "archived " : ""}value ${value.name}`,
+                                  disabled,
+                                }}
+                                label={`Actions for ${value.archived ? "archived " : ""}value ${value.name}`}
+                                showMarkerColumn={false}
+                                items={
+                                  value.archived
+                                    ? [
+                                        {
+                                          id: "restore",
+                                          label: "Restore",
+                                          onSelect: () => onRestoreValue(dimension.id, value.id),
+                                        },
+                                      ]
+                                    : [
+                                        {
+                                          id: "rename",
+                                          label: "Rename",
+                                          onSelect: () =>
+                                            startEditing(
+                                              {
+                                                type: "value",
+                                                dimensionId: dimension.id,
+                                                valueId: value.id,
+                                              },
+                                              value.name,
+                                            ),
+                                        },
+                                        {
+                                          id: "archive",
+                                          label: "Archive (assignments preserved)",
+                                          onSelect: () => archiveValue(dimension.id, value.id),
+                                        },
+                                      ]
+                                }
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {dimension.archived ? (
+                      <p className={styles.archivedNote}>
+                        Assignments are preserved. Restore to edit or assign.
+                      </p>
+                    ) : (
+                      <form
+                        className={styles.inlineForm}
+                        onSubmit={(event) => submitValue(event, dimension.id)}
                       >
-                        Add value
-                      </Button>
-                    </form>
-                  )}
+                        <Input
+                          label={
+                            <span
+                              className={styles.inlineLabel}
+                              title={`New value for ${dimension.name}`}
+                            >
+                              New value for {dimension.name}
+                            </span>
+                          }
+                          className={styles.compactInput}
+                          placeholder="New value…"
+                          value={valueNames[dimension.id] ?? ""}
+                          error={valueErrors[dimension.id]}
+                          disabled={disabled}
+                          onChange={(event) => {
+                            setValueNames((current) => ({
+                              ...current,
+                              [dimension.id]: event.target.value,
+                            }));
+                            setValueErrors((current) => ({ ...current, [dimension.id]: null }));
+                          }}
+                        />
+                        <Button
+                          type="submit"
+                          variant="secondary"
+                          size="compact"
+                          aria-label={`Add value to ${dimension.name}`}
+                          disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
+                        >
+                          Add
+                        </Button>
+                      </form>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -327,6 +394,7 @@ export function ClassificationManager({
           <Input
             label="New dimension"
             className={styles.compactInput}
+            placeholder="Dimension name"
             value={dimensionName}
             error={createError}
             disabled={disabled}
@@ -339,39 +407,13 @@ export function ClassificationManager({
             type="submit"
             variant="secondary"
             size="compact"
+            aria-label="Add dimension"
             disabled={disabled || !dimensionName.trim()}
           >
-            Add dimension
+            Add
           </Button>
         </form>
       </div>
-      {editing && (
-        <form
-          className={styles.renameOverlay}
-          onSubmit={submitRename}
-          aria-label="Rename classification"
-        >
-          <Input
-            label={`Rename ${editing.type}`}
-            value={editName}
-            error={nameError}
-            disabled={disabled}
-            autoFocus
-            onChange={(event) => setEditName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") cancelEditing();
-            }}
-          />
-          <div className={styles.actions}>
-            <Button variant="secondary" size="compact" onClick={cancelEditing}>
-              Cancel
-            </Button>
-            <Button type="submit" size="compact" disabled={disabled}>
-              Save
-            </Button>
-          </div>
-        </form>
-      )}
     </section>
   );
 }

@@ -70,9 +70,8 @@ describe("classification surfaces", () => {
     expect(markup).toContain("Trade");
     expect(markup).toContain("Electrical");
     expect(markup).toContain("Archived");
-    expect(markup).toContain("Rename");
-    expect(markup).toContain('aria-label="Rename Trade"');
-    expect(markup).toContain("Archive Trade; existing assignments are preserved");
+    expect(markup).toContain('aria-label="Actions for dimension Trade"');
+    expect(markup).toContain('aria-label="Actions for value Electrical"');
     expect(markup).toContain('title="Trade"');
     expect(markup).toContain('title="Electrical"');
     expect(markup).not.toContain("Create dimensions to organize measurements.");
@@ -82,35 +81,44 @@ describe("classification surfaces", () => {
     expect(markup).not.toContain("archived dimensions");
   });
 
-  it("keeps catalog hierarchy, secondary archive actions, and contextual creation styling", () => {
-    expect(managerCss).toMatch(/\.itemText strong\s*\{[^}]*font-size:\s*var\(--font-size-heading\)/s);
-    expect(managerCss).toMatch(/\.valueList\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
-    expect(managerCss).toMatch(/\.valueItem\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s);
-    expect(managerCss).toMatch(/\.secondaryAction\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s);
-    expect(managerCss).toMatch(/\.archiveAction\s*\{[^}]*color:\s*var\(--color-text-secondary\)/s);
-    expect(managerCss).toMatch(/\.archiveAction:hover[^}]*color:\s*var\(--color-danger-hover-semantic\)/s);
+  it("keeps the compact value flow, aligned headings, and contextual creation styling", () => {
+    expect(managerCss).toMatch(/\.itemTitle\s*\{[^}]*font-size:\s*var\(--font-size-heading\)/s);
+    expect(managerCss).toMatch(
+      /\.itemHeader\s*\{[^}]*align-items:\s*center;/s,
+    );
+    expect(managerCss).toMatch(
+      /\.body\s*\{[^}]*padding:\s*0 var\(--space-4\) var\(--space-8\);/s,
+    );
+    expect(managerCss).toMatch(/\.item\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);/s);
+    expect(managerCss).not.toMatch(
+      /\.valueSection\s*\{[^}]*padding-inline-start:/s,
+    );
+    expect(managerCss).toMatch(/\.valueList\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
+    expect(managerCss).toMatch(/\.valueList\s*\{[^}]*gap:\s*var\(--space-8\);/s);
+    expect(managerCss).toMatch(/\.valueSection\s*\{[^}]*gap:\s*var\(--space-8\);/s);
+    expect(managerCss).toMatch(/\.valueList \.valueChipTrigger\s*\{[^}]*min-height:\s*var\(--control-height-compact\)/s);
     expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
     expect(managerCss).toMatch(
       /\.item \+ \.item\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
     );
     expect(managerCss).toMatch(/\.body\s*\{[^}]*gap:\s*0;/s);
     expect(managerCss).not.toContain("@container (max-width: 640px)");
-    expect(managerCss).toContain("@container (max-width: 248px)");
-    expect(managerCss).toMatch(/\.inlineForm\s*\{[^}]*border-left:\s*var\(--border-width\) solid var\(--color-divider\)/s);
+    expect(managerCss).toContain("@container (max-width: 224px)");
+    expect(managerCss).not.toMatch(/\.inlineForm\s*\{[^}]*border-left:/s);
     expect(managerCss).toMatch(
-      /\.create\s*\{[^}]*padding:\s*var\(--space-4\) var\(--space-4\) var\(--space-4\);[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
+      /\.create\s*\{[^}]*column-gap:\s*var\(--space-8\);[^}]*row-gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
     );
   });
 
-  it("keeps classification headers and create controls compact at the real panel widths", () => {
+  it("keeps action menus and create controls compact at the real panel widths", () => {
     expect(managerCss).toMatch(
       /\.itemHeader\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
     );
     expect(managerCss).toMatch(
-      /\.itemHeader > \.actions\s*\{[^}]*flex-wrap:\s*nowrap;/s,
+      /\.dimensionMenuTrigger\s*\{[^}]*width:\s*var\(--control-height-compact\);[^}]*height:\s*var\(--control-height-compact\);/s,
     );
     expect(managerCss).toMatch(
-      /\.inlineForm\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+      /\.inlineForm\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;[^}]*column-gap:\s*var\(--space-8\);[^}]*row-gap:\s*var\(--space-8\);/s,
     );
     expect(managerCss).toMatch(
       /\.compactInput\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*padding-inline:\s*var\(--space-8\);/s,
@@ -313,10 +321,10 @@ describe("classification surfaces", () => {
     const longDimension = largeCatalog.dimensions[0]!.name;
     const longValue = largeCatalog.dimensions[0]!.values[0]!.name;
     expect(markup).toContain(`title="${longDimension}"`);
-    expect(markup).toContain(`aria-label="Rename ${longDimension}"`);
+    expect(markup).toContain(`aria-label="Actions for dimension ${longDimension}"`);
     expect(markup).toContain(`title="New value for ${longDimension}"`);
     expect(markup).toContain(`title="${longValue}"`);
-    expect(markup).toContain(`aria-label="Rename ${longValue}"`);
+    expect(markup).toContain(`aria-label="Actions for value ${longValue}"`);
   });
 
   it("generates unique field IDs when multiple assignment instances are mounted", () => {

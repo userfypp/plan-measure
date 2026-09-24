@@ -184,7 +184,6 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
 
       {grouped && (
         <section className={styles.breakdownResults} aria-label={`Breakdown by ${breakdown}`}>
-          <h2>By {breakdown}</h2>
           {grouped.groups.map((group) => (
             <section
               key={group.key}

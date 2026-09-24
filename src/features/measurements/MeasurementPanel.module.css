@@ -143,9 +143,33 @@
   outline-offset: var(--focus-offset);
 }
 
-.activeCount,
-.truncatedTrigger {
+.activeCount {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.truncatedTrigger {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.groupingPrefix,
+.groupingSeparator,
+.groupingCount {
+  flex: 0 0 auto;
+}
+
+.groupingName {
+  min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

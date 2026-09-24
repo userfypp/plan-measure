@@ -4,6 +4,7 @@ export type MeasurementGroupVisibility = "visible" | "hidden" | "mixed";
 
 export interface MeasurementGroup {
   key: string;
+  dimensionLabel: string;
   label: string;
   archived: boolean;
   measurementIds: string[];
@@ -63,6 +64,7 @@ export function createMeasurementGroups(
     return [
       {
         key: `dimension:${dimension.id}:value:${value.id}`,
+        dimensionLabel: dimension.name,
         label: value.name,
         archived: dimension.archived || value.archived,
         measurementIds: groupedMeasurements.map((measurement) => measurement.id),
@@ -74,6 +76,7 @@ export function createMeasurementGroups(
   if (unclassified.length) {
     groups.push({
       key: `dimension:${dimension.id}:unclassified`,
+      dimensionLabel: dimension.name,
       label: "None assigned",
       archived: false,
       measurementIds: unclassified.map((measurement) => measurement.id),

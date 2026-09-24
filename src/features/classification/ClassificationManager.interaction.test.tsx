@@ -72,6 +72,15 @@ function buttonIn(element: HTMLElement, text: string): HTMLButtonElement {
   return button;
 }
 
+function selectMenuItem(triggerLabel: string, itemLabel: string) {
+  act(() => buttonByLabel(triggerLabel).click());
+  const menuItem = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+    (candidate) => candidate.textContent?.trim() === itemLabel,
+  );
+  if (!menuItem) throw new Error(`Menu item ${itemLabel} was not rendered.`);
+  act(() => menuItem.click());
+}
+
 beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
@@ -91,7 +100,7 @@ describe("ClassificationManager interactions", () => {
     const props = createProps();
     renderManager(props);
 
-    act(() => buttonByLabel("Rename Trade").click());
+    selectMenuItem("Actions for dimension Trade", "Rename");
     const firstRenameForm = container?.querySelector<HTMLFormElement>('form[aria-label="Rename classification"]');
     if (!firstRenameForm) throw new Error("Rename form was not rendered.");
     const firstInput = firstRenameForm.querySelector<HTMLInputElement>("input");
@@ -104,7 +113,7 @@ describe("ClassificationManager interactions", () => {
     expect(container?.querySelector('form[aria-label="Rename classification"]')).toBeNull();
     expect(props.onRenameDimension).not.toHaveBeenCalled();
 
-    act(() => buttonByLabel("Rename Trade").click());
+    selectMenuItem("Actions for dimension Trade", "Rename");
     const renameForm = container?.querySelector<HTMLFormElement>('form[aria-label="Rename classification"]');
     if (!renameForm) throw new Error("Rename form was not rendered after reopening.");
     const renameInput = renameForm.querySelector<HTMLInputElement>("input");
@@ -118,8 +127,8 @@ describe("ClassificationManager interactions", () => {
     const props = createProps();
     renderManager(props);
 
-    act(() => buttonByLabel("Archive Trade; existing assignments are preserved").click());
-    act(() => buttonByLabel("Archive Electrical; existing assignments are preserved").click());
+    selectMenuItem("Actions for dimension Trade", "Archive (assignments preserved)");
+    selectMenuItem("Actions for value Electrical", "Archive (assignments preserved)");
 
     expect(props.onArchiveDimension).toHaveBeenCalledWith("trade");
     expect(props.onArchiveValue).toHaveBeenCalledWith("trade", "electrical");
@@ -133,14 +142,14 @@ describe("ClassificationManager interactions", () => {
     setInputValue(dimensionInput, "Status");
     const dimensionForm = dimensionInput.closest("form");
     if (!dimensionForm) throw new Error("Create dimension form was not rendered.");
-    act(() => buttonIn(dimensionForm, "Add dimension").click());
+    act(() => buttonIn(dimensionForm, "Add").click());
     expect(props.onCreateDimension).toHaveBeenCalledWith("Status");
 
     const valueInput = inputByLabel("New value for Trade");
     setInputValue(valueInput, "Plumbing");
     const valueForm = valueInput.closest("form");
     if (!valueForm) throw new Error("Create value form was not rendered.");
-    act(() => buttonIn(valueForm, "Add value").click());
+    act(() => buttonIn(valueForm, "Add").click());
     expect(props.onCreateValue).toHaveBeenCalledWith("trade", "Plumbing");
   });
 });
