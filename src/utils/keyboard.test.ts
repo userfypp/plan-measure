@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   getDrawingKeyboardAction,
-  getGlobalViewerKeyboardAction,
   getMeasurementKeyboardAction,
   getShortcutLabel,
   getToolShortcut,
@@ -9,7 +8,6 @@ import {
   getViewerKeyboardAction,
   shouldIgnoreKeyboardShortcut,
   shouldIgnoreGlobalKeyboardShortcut,
-  shouldIgnoreGlobalViewerShortcutTarget,
   shouldIgnoreMeasurementClipboardShortcutTarget,
   viewerShortcuts,
   type KeyboardShortcutEvent,
@@ -110,7 +108,7 @@ describe("measurement keyboard shortcuts", () => {
   ])("preserves native keyboard behavior in the %s control", (_name, target) => {
     for (const key of ["v", "h", "l", "m", "p", "o", "s", " ", "+", "-"]) {
       expect(
-        getGlobalViewerKeyboardAction(keyboardEvent(key, target as unknown as EventTarget)),
+        getViewerKeyboardAction(keyboardEvent(key, target as unknown as EventTarget), "select", null),
       ).toBeNull();
     }
   });
@@ -214,7 +212,7 @@ describe("global keyboard shortcut targets", () => {
   });
 });
 
-describe("global viewer keyboard policy", () => {
+describe("viewer-local keyboard policy", () => {
   it.each([
     ["V", { type: "choose-tool", tool: "select" }],
     ["H", { type: "choose-tool", tool: "hand" }],
@@ -223,132 +221,35 @@ describe("global viewer keyboard policy", () => {
     ["P", { type: "choose-tool", tool: "polygon" }],
     ["O", "toggle-orthogonal"],
     ["S", "toggle-snap"],
-  ] as const)("keeps %s available after focus moves to App Bar or Workspace chrome", (key, action) => {
-    for (const target of [
-      new FakeHTMLElement("button") as unknown as EventTarget,
-      new FakeHTMLElement("summary") as unknown as EventTarget,
-    ]) {
-      expect(getGlobalViewerKeyboardAction(keyboardEvent(key, target))).toEqual(action);
-    }
+  ] as const)("maps %s from the focused viewer surface", (key, action) => {
+    const viewerSurface = new FakeHTMLElement("canvas") as unknown as EventTarget;
+    expect(
+      getViewerKeyboardAction(keyboardEvent(key, viewerSurface), "select", null),
+    ).toEqual(action);
   });
 
-  it.each([
-    ["V", { type: "choose-tool", tool: "select" }],
-    ["H", { type: "choose-tool", tool: "hand" }],
-    ["L", { type: "choose-tool", tool: "line" }],
-    ["M", { type: "choose-tool", tool: "polyline" }],
-    ["P", { type: "choose-tool", tool: "polygon" }],
-    ["O", "toggle-orthogonal"],
-    ["S", "toggle-snap"],
-  ] as const)("keeps %s available after focus moves to a non-textual switch", (key, action) => {
-    const target = new FakeHTMLElement("input", false, "checkbox") as unknown as EventTarget;
-    expect(getGlobalViewerKeyboardAction(keyboardEvent(key, target))).toEqual(action);
-  });
-
-  it.each(["button", "a", "summary", "body"])(
-    "allows tool shortcuts after focus moves to %s",
+  it.each(["button", "a", "input", "textarea", "select"])(
+    "does not consume viewer shortcuts while %s has focus",
     (kind) => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;
-      expect(shouldIgnoreGlobalViewerShortcutTarget(target)).toBe(false);
-      expect(getGlobalViewerKeyboardAction(keyboardEvent("L", target))).toEqual({
-        type: "choose-tool",
-        tool: "line",
-      });
-    },
-  );
-
-  it("keeps tool shortcuts available while a measurement action button has focus", () => {
-    const measurementAction = new FakeHTMLElement("button") as unknown as EventTarget;
-
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", measurementAction))).toEqual({
-      type: "choose-tool",
-      tool: "line",
-    });
-  });
-
-  it("starts temporary pan while a non-editing application control has focus", () => {
-    const measurementControl = new FakeHTMLElement(
-      "input",
-      false,
-      "checkbox",
-    ) as unknown as EventTarget;
-
-    expect(getGlobalViewerKeyboardAction(keyboardEvent(" ", measurementControl))).toBe(
-      "start-pan",
-    );
-  });
-
-  it("toggles Snap globally from non-editing application chrome", () => {
-    const target = new FakeHTMLElement("button") as unknown as EventTarget;
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target))).toBe("toggle-snap");
-  });
-
-  it("keeps tool shortcuts available after a classification assignment", () => {
-    const assignmentSelect = new FakeHTMLElement(
-      "select",
-      false,
-      null,
-      false,
-      true,
-    ) as unknown as EventTarget;
-
-    expect(shouldIgnoreGlobalViewerShortcutTarget(assignmentSelect)).toBe(false);
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", assignmentSelect))).toEqual({
-      type: "choose-tool",
-      tool: "line",
-    });
-  });
-
-  it.each(["input", "textarea", "select", "[contenteditable='true']"])(
-    "preserves text editing in %s",
-    (kind) => {
-      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
-      expect(getGlobalViewerKeyboardAction(keyboardEvent("p", target))).toBeNull();
-      expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target))).toBeNull();
-      expect(getGlobalViewerKeyboardAction(keyboardEvent(" ", target))).toBeNull();
-      expect(getGlobalViewerKeyboardAction(keyboardEvent("-", target))).toBeNull();
+      for (const key of ["l", "s", " ", "+", "-"]) {
+        expect(getViewerKeyboardAction(keyboardEvent(key, target), "select", null)).toBeNull();
+      }
     },
   );
 
   it.each(["checkbox", "radio", "range"])(
-    "allows tool shortcuts after a non-editing %s input",
+    "preserves native Space for a focused %s",
     (inputType) => {
       const target = new FakeHTMLElement("input", false, inputType) as unknown as EventTarget;
-      expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target))).toEqual({
-        type: "choose-tool",
-        tool: "line",
-      });
+      expect(getViewerKeyboardAction(keyboardEvent(" ", target), "select", null)).toBeNull();
     },
   );
 
-  it("protects descendants of every contenteditable form", () => {
-    const target = new FakeHTMLElement("span", false, null, true) as unknown as EventTarget;
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("p", target))).toBeNull();
-  });
-
-  it("does not claim shortcuts inside a dialog", () => {
-    const target = new FakeHTMLElement("button", true) as unknown as EventTarget;
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target))).toBeNull();
-    expect(getGlobalViewerKeyboardAction(keyboardEvent(" ", target))).toBeNull();
-  });
-
-  it("ignores repeated tool and drawing-aid shortcuts without disabling held zoom", () => {
-    const target = new FakeHTMLElement("button") as unknown as EventTarget;
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("l", target, { repeat: true }))).toBeNull();
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("o", target, { repeat: true }))).toBeNull();
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("s", target, { repeat: true }))).toBeNull();
-    expect(getGlobalViewerKeyboardAction(keyboardEvent("+", target, { repeat: true }))).toBe(
-      "zoom-in",
-    );
-  });
-
-  it.each(["metaKey", "ctrlKey", "altKey"] as const)("preserves %s combinations", (modifier) => {
+  it("does not consume an event that a viewer child already handled", () => {
+    const target = new FakeHTMLElement("canvas") as unknown as EventTarget;
     expect(
-      getGlobalViewerKeyboardAction(
-        keyboardEvent("l", new FakeHTMLElement("button") as unknown as EventTarget, {
-          [modifier]: true,
-        }),
-      ),
+      getViewerKeyboardAction(keyboardEvent("l", target, { defaultPrevented: true }), "select", null),
     ).toBeNull();
   });
 });

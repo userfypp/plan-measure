@@ -45,10 +45,8 @@ import {
 import { pdfRenderErrorMessage } from "../../services/pdf";
 import {
   getDrawingKeyboardAction,
-  getGlobalViewerKeyboardAction,
   getViewerKeyboardAction,
   shouldIgnoreGlobalKeyboardShortcut,
-  shouldIgnoreGlobalViewerShortcutTarget,
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
 import { buildDraftPreviewPoints } from "./draftPreview";
@@ -925,25 +923,6 @@ export function PdfViewer({
   );
 
   useEffect(() => {
-    function handleGlobalKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !shouldIgnoreGlobalViewerShortcutTarget(event.target)) {
-        const drawingAction = getViewerKeyboardAction(
-          event,
-          activeToolRef.current,
-          workspaceDraftRef.current,
-        );
-        if (drawingAction && typeof drawingAction !== "object") {
-          event.preventDefault();
-          executeKeyboardAction(drawingAction);
-          return;
-        }
-      }
-      const action = getGlobalViewerKeyboardAction(event);
-      if (!action) return;
-      if (typeof action === "object" && action.tool === activeToolRef.current) return;
-      event.preventDefault();
-      executeKeyboardAction(action);
-    }
     function handleGlobalKeyUp(event: KeyboardEvent) {
       if (event.key === " ") releaseSpacePan();
     }
@@ -956,7 +935,6 @@ export function PdfViewer({
       releaseSpacePan();
       finishPan();
     }
-    window.addEventListener("keydown", handleGlobalKeyDown);
     window.addEventListener("keyup", handleGlobalKeyUp);
     const unregisterEnvironmentCancellation = registerWholeMeasurementDragEnvironmentCancellation({
       windowTarget: window,
@@ -972,7 +950,6 @@ export function PdfViewer({
       },
     });
     return () => {
-      window.removeEventListener("keydown", handleGlobalKeyDown);
       window.removeEventListener("keyup", handleGlobalKeyUp);
       unregisterEnvironmentCancellation();
       unregisterPointerReleaseCleanup();

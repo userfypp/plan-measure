@@ -196,6 +196,7 @@ export function Dialog({
       className={[styles.dialog, styles[size]].join(" ")}
       role="dialog"
       aria-modal={modal || undefined}
+      data-focus-trap={trapFocus ? "" : undefined}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       tabIndex={-1}
@@ -204,6 +205,8 @@ export function Dialog({
         onClose();
       }}
       onKeyDown={(event) => {
+        if (event.defaultPrevented) return;
+
         if (event.key === "Tab" && trapFocus) {
           const focusable = getFocusableElements(event.currentTarget);
           if (focusable.length === 0) {

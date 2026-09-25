@@ -284,18 +284,16 @@ describe("SettingsPopover", () => {
     const first = radios()[0]!;
     expect(document.activeElement).toBe(first);
 
-    act(() => {
-      first.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Tab",
-          shiftKey: true,
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
+    const backwardTab = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
     });
+    act(() => first.dispatchEvent(backwardTab));
+    expect(backwardTab.defaultPrevented).toBe(false);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
-    expect(document.activeElement).toBe(settingsTrigger);
+    expect(document.activeElement).not.toBe(settingsTrigger);
 
     openSettings();
     const last = switchControl();

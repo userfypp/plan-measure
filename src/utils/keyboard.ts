@@ -15,23 +15,6 @@ export function shouldIgnoreGlobalKeyboardShortcut(target: EventTarget | null): 
   );
 }
 
-export function shouldIgnoreGlobalViewerShortcutTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  // Assignment selects keep focus after a change; only those controls opt
-  // back into viewer shortcuts so ordinary form controls remain protected.
-  if (target.matches("[data-viewer-shortcuts]")) return false;
-  if (
-    target.isContentEditable ||
-    target.closest("[contenteditable]") ||
-    target.matches("textarea, select") ||
-    target.closest("dialog, [role='dialog']")
-  )
-    return true;
-  if (!target.matches("input")) return false;
-  const inputType = target.getAttribute("type")?.toLocaleLowerCase() ?? "text";
-  return !["button", "checkbox", "radio", "range", "reset", "submit"].includes(inputType);
-}
-
 /**
  * Browser, operating-system, and assistive-technology shortcuts always take precedence.
  * Shift is intentionally allowed so letter shortcuts remain case-insensitive.
@@ -200,26 +183,4 @@ export function getViewerKeyboardAction(
   if (drawingAction) return drawingAction;
 
   return findShortcut(event.key)?.action ?? null;
-}
-
-/**
- * Tool and zoom shortcuts remain available after using application chrome.
- * Text editing, dialogs, browser modifiers, and native drawing keys keep their
- * local behavior.
- */
-export function getGlobalViewerKeyboardAction(
-  event: KeyboardShortcutEvent,
-): "start-pan" | "zoom-in" | "zoom-out" | ShortcutAction | null {
-  if (
-    event.defaultPrevented ||
-    hasKeyboardShortcutModifier(event) ||
-    shouldIgnoreGlobalViewerShortcutTarget(event.target)
-  )
-    return null;
-
-  if (event.key === " ") return "start-pan";
-  if (event.key === "+" || event.key === "=") return "zoom-in";
-  if (event.key === "-") return "zoom-out";
-  const shortcut = findShortcut(event.key)?.action ?? null;
-  return event.repeat && shortcut ? null : shortcut;
 }

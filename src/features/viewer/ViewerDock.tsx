@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
 import { AnchoredMenu, Button, Popover, Switch } from "../../components/ui";
+import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
 import { scaleDisplayMetadata } from "./scaleDisplay";
@@ -107,6 +108,10 @@ export function ViewerDock({
 }: ViewerDockProps) {
   const pageLabelInputId = useId();
   const pageLabelInputRef = useRef<HTMLInputElement>(null);
+  const pageNavigationRef = useRef<HTMLDivElement>(null);
+  const pageNavigationFocus = useRovingFocusGroup(pageNavigationRef, { orientation: "horizontal" });
+  const zoomControlsRef = useRef<HTMLDivElement>(null);
+  const zoomControlsFocus = useRovingFocusGroup(zoomControlsRef, { orientation: "horizontal" });
   const editingPageNumberRef = useRef<number | null>(null);
   const originalEffectivePageLabelRef = useRef("");
   const [pageLabelEditorOpen, setPageLabelEditorOpen] = useState(false);
@@ -183,7 +188,14 @@ export function ViewerDock({
 
   return (
     <nav className={styles.dock} aria-label="Viewer controls">
-      <div className={styles.group} aria-label="Page navigation">
+      <div
+        ref={pageNavigationRef}
+        {...pageNavigationFocus}
+        className={styles.group}
+        role="toolbar"
+        aria-label="Page navigation"
+        aria-orientation="horizontal"
+      >
         <Button
           variant="ghost"
           size="compact"
@@ -299,7 +311,14 @@ export function ViewerDock({
 
       <span className={styles.separator} aria-hidden="true" />
 
-      <div className={styles.group} aria-label="Zoom controls">
+      <div
+        ref={zoomControlsRef}
+        {...zoomControlsFocus}
+        className={styles.group}
+        role="toolbar"
+        aria-label="Zoom controls"
+        aria-orientation="horizontal"
+      >
         <Button
           variant="ghost"
           size="compact"

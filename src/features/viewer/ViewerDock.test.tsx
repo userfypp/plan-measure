@@ -88,6 +88,14 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return button;
 }
 
+function press(key: string) {
+  act(() => {
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+    );
+  });
+}
+
 function activeScaleTrigger(): HTMLButtonElement {
   const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
     (candidate) => candidate.getAttribute("aria-label")?.startsWith("Active scale:"),
@@ -249,7 +257,7 @@ describe("ViewerDock", () => {
     expect(buttonByLabel("View options")).toBeTruthy();
   });
 
-  it("keeps the Dock in native sequential focus order with shared focus-visible states", () => {
+  it("exposes one sequential Tab stop per Dock toolbar and preserves individual menu triggers", () => {
     renderDock(
       createProps({
         navigation: {
@@ -272,7 +280,27 @@ describe("ViewerDock", () => {
       expect.stringMatching(/^Active scale:/),
       "View options",
     ]);
-    expect(controls.every((button) => button.tabIndex === 0)).toBe(true);
+    expect(
+      controls
+        .filter((button) => button.tabIndex === 0)
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual([
+      "Previous page",
+      "Zoom out",
+      expect.stringMatching(/^Active scale:/),
+      "View options",
+    ]);
+    expect(
+      Array.from(dock.querySelectorAll<HTMLElement>("[role='toolbar']")).map((toolbar) => ({
+        label: toolbar.getAttribute("aria-label"),
+        tabStops: Array.from(toolbar.querySelectorAll<HTMLElement>("button")).filter(
+          (button) => button.tabIndex === 0,
+        ).length,
+      })),
+    ).toEqual([
+      { label: "Page navigation", tabStops: 1 },
+      { label: "Zoom controls", tabStops: 1 },
+    ]);
     expect(controls.some((button) => button.tabIndex > 0)).toBe(false);
     for (const control of controls) {
       act(() => control.focus());
@@ -284,6 +312,39 @@ describe("ViewerDock", () => {
     expect(popoverCss).toMatch(
       /\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
     );
+  });
+
+  it("moves through page and zoom commands with arrows, Home, and End", () => {
+    renderDock(
+      createProps({
+        navigation: { ...createProps().navigation, pageNumber: 2 },
+      }),
+    );
+    const previous = buttonByLabel("Previous page");
+    const page = pageLabelTrigger();
+    const next = buttonByLabel("Next page");
+
+    expect(previous.tabIndex).toBe(0);
+    act(() => previous.focus());
+    press("ArrowRight");
+    expect(document.activeElement).toBe(page);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(next);
+    press("Home");
+    expect(document.activeElement).toBe(previous);
+    press("End");
+    expect(document.activeElement).toBe(next);
+    expect([previous, page, next].filter((control) => control.tabIndex === 0)).toEqual([next]);
+
+    const zoomOut = buttonByLabel("Zoom out");
+    const zoomIn = buttonByLabel("Zoom in");
+    const fit = buttonByLabel("Fit page to viewer");
+    expect(zoomOut.tabIndex).toBe(0);
+    act(() => zoomOut.focus());
+    press("ArrowRight");
+    expect(document.activeElement).toBe(zoomIn);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(fit);
   });
 
   it("uses bounded content sizing and deterministic condensation instead of hidden scrolling", () => {

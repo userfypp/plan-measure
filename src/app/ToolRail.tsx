@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Tooltip } from "../components/ui";
+import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import {
   getToolAvailabilityState,
@@ -30,6 +31,24 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const [narrowOpenVersion, setNarrowOpenVersion] = useState<number | null>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarFocus = useRovingFocusGroup(toolbarRef, {
+    orientation: "vertical",
+    itemSelector: "button[data-tool-id]",
+    getDirectionalTarget: (current, direction, candidates) => {
+      const toolId = current.dataset.toolId as ToolDefinition["id"] | undefined;
+      if (!toolId) return null;
+      const directionName = direction < 0 ? "up" : "down";
+      let verticalNeighbor = getToolRailVerticalNeighbor(toolId, directionName);
+      while (verticalNeighbor && verticalNeighbor !== toolId) {
+        const neighbor = candidates.find(
+          (candidate) => candidate.dataset.toolId === verticalNeighbor,
+        );
+        if (neighbor) return neighbor;
+        verticalNeighbor = getToolRailVerticalNeighbor(verticalNeighbor, directionName);
+      }
+      return null;
+    },
+  });
   const returnFocusOnCloseRef = useRef(false);
   const previousIsNarrowRef = useRef(isNarrow);
   const toolFocusOwnedRef = useRef(false);
@@ -78,7 +97,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
     if (!target) return;
     setRovingToolId(target.dataset.toolId as ToolDefinition["id"]);
     target.focus({ preventScroll: true });
-  }, [currentRovingToolId, isNarrow, narrowOpen]);
+  }, [currentRovingToolId, isNarrow, narrowOpen, toolbarRef]);
 
   useLayoutEffect(() => {
     const wasNarrow = previousIsNarrowRef.current;
@@ -102,63 +121,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
     if (!target) return;
     setRovingToolId(target.dataset.toolId as ToolDefinition["id"]);
     target.focus({ preventScroll: true });
-  }, [currentRovingToolId, isNarrow]);
-
-  function handleToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const previousKey = "ArrowUp";
-    const nextKey = "ArrowDown";
-    const isDirectionalNavigation = event.key === previousKey || event.key === nextKey;
-    const isBoundaryNavigation = event.key === "Home" || event.key === "End";
-    if (event.key === "Escape" && isNarrow) {
-      event.preventDefault();
-      closeNarrowTools(true);
-      return;
-    }
-    if (!isDirectionalNavigation && !isBoundaryNavigation) return;
-
-    const buttons = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-tool-id]"),
-    );
-    const navigableButtons = buttons;
-    if (navigableButtons.length === 0) return;
-
-    const currentIndex = buttons.findIndex((button) => button === document.activeElement);
-    const activeIndex = currentIndex >= 0 ? currentIndex : buttons.indexOf(navigableButtons[0]!);
-    let nextButton =
-      event.key === "Home"
-        ? navigableButtons[0]
-        : event.key === "End"
-          ? navigableButtons[navigableButtons.length - 1]
-          : undefined;
-
-    if (!nextButton && isDirectionalNavigation) {
-      const activeToolId = buttons[activeIndex]?.dataset.toolId as ToolDefinition["id"] | undefined;
-      if (activeToolId) {
-        let verticalNeighbor = getToolRailVerticalNeighbor(
-          activeToolId,
-          event.key === previousKey ? "up" : "down",
-        );
-        while (verticalNeighbor && verticalNeighbor !== activeToolId) {
-          const neighborButton = buttons.find(
-            (button) => button.dataset.toolId === verticalNeighbor,
-          );
-          if (neighborButton) {
-            nextButton = neighborButton;
-            break;
-          }
-          verticalNeighbor = getToolRailVerticalNeighbor(
-            verticalNeighbor,
-            event.key === previousKey ? "up" : "down",
-          );
-        }
-      }
-    }
-
-    if (!nextButton) return;
-    event.preventDefault();
-    setRovingToolId(nextButton.dataset.toolId as ToolDefinition["id"]);
-    nextButton.focus();
-  }
+  }, [currentRovingToolId, isNarrow, toolbarRef]);
 
   return (
     <aside
@@ -198,12 +161,14 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
       )}
       {(!isNarrow || narrowOpen) && <div
         ref={toolbarRef}
+        {...toolbarFocus}
         id={isNarrow ? toolbarId : undefined}
         className={styles.tools}
         role="toolbar"
         aria-label="Drawing tools"
         aria-orientation="vertical"
-        onFocusCapture={() => {
+        onFocusCapture={(event) => {
+          toolbarFocus.onFocusCapture(event);
           toolFocusOwnedRef.current = true;
         }}
         onBlurCapture={(event) => {
@@ -212,7 +177,14 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
             toolFocusOwnedRef.current = false;
           }
         }}
-        onKeyDown={handleToolbarKeyDown}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && isNarrow) {
+            event.preventDefault();
+            closeNarrowTools(true);
+            return;
+          }
+          toolbarFocus.onKeyDown(event);
+        }}
       >
         {toolRailRegistry.map((definition) => {
           const tool = definition.id as PrimaryTool;

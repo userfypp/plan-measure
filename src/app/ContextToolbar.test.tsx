@@ -5,7 +5,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { beginCalibrationFlow } from "./calibrationFlow";
 import { ContextToolbar, type ContextToolbarProps } from "./ContextToolbar";
-import { getGlobalViewerKeyboardAction } from "../utils/keyboard";
 import {
   useViewerInteractionCommandRegistration,
   ViewerInteractionCommandsProvider,
@@ -430,7 +429,7 @@ describe("ContextToolbar V2", () => {
     expect(document.activeElement).toBe(input);
   });
 
-  it("does not expose viewer shortcuts while the measurement name field is active", () => {
+  it("leaves tool shortcut letters and Space native while the measurement name field is active", () => {
     renderToolbar(props({ selectedMeasurementName: "Line 1" }));
     act(() => workspace!.selectMeasurement("line-1"));
     act(() => renameTrigger("Line 1").click());
@@ -438,13 +437,8 @@ describe("ContextToolbar V2", () => {
 
     for (const key of ["l", "p", "s", " "]) {
       const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
-      let action: ReturnType<typeof getGlobalViewerKeyboardAction> = null;
-      const listener = (keyboardEvent: KeyboardEvent) => {
-        action = getGlobalViewerKeyboardAction(keyboardEvent);
-      };
-      window.addEventListener("keydown", listener, { once: true });
       act(() => input.dispatchEvent(event));
-      expect(action).toBeNull();
+      expect(event.defaultPrevented).toBe(false);
     }
   });
 
