@@ -4,6 +4,13 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.5.1](https://github.com/userfypp/plan-measure/compare/v2.5.0...v2.5.1) (2026-09-25)
+
+
+### Fixed
+
+* unify keyboard focus navigation across browsers ([#143](https://github.com/userfypp/plan-measure/issues/143)) ([4edf61a](https://github.com/userfypp/plan-measure/commit/4edf61a7da9496fada8b8bcd0096fa3f1057fcd5))
+
 ## [2.5.0](https://github.com/userfypp/plan-measure/compare/v2.4.0...v2.5.0) (2026-09-24)
 
 
