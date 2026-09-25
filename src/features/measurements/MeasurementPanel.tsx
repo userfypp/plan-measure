@@ -146,6 +146,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           role="dialog"
           aria-label="Measurement filters"
           initialFocus="first"
+          dismissOnFocusLeave
           placement="bottom-end"
           className={[styles.controlsPopover, styles.filtersPopover].join(" ")}
         >
@@ -257,6 +258,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             role="dialog"
             aria-label="Measurement grouping"
             initialFocus="first"
+            dismissOnFocusLeave
             placement="bottom-end"
             className={[styles.controlsPopover, styles.groupingPopover].join(" ")}
           >

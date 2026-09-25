@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import { AppBar } from "./AppBar";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
+import { useManagedTabNavigation } from "../components/ui/tabNavigation";
 import styles from "./AppShell.module.css";
 
 type StatusTone = "error" | "warning";
@@ -39,8 +40,15 @@ export function AppShell({
   statusTone = "error",
   onDismissStatus,
 }: AppShellProps) {
+  const tabNavigationRootRef = useRef<HTMLDivElement>(null);
+  useManagedTabNavigation(tabNavigationRootRef);
+
   return (
-    <div className={styles.appShell}>
+    <div
+      ref={tabNavigationRootRef}
+      className={styles.appShell}
+      data-tab-navigation-root
+    >
       <AppBar
         documentName={documentName}
         canExport={canExport}

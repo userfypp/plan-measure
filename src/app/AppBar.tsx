@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { Button } from "../components/ui";
+import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsPopover } from "./SettingsPopover";
@@ -42,6 +44,9 @@ export function AppBar({
   onConfirmMeasurementDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: AppBarProps) {
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const actionsFocus = useRovingFocusGroup(actionsRef, { orientation: "horizontal" });
+
   return (
     <header className={styles.appBar} aria-label="Application bar">
       <div className={styles.identityGroup}>
@@ -52,7 +57,14 @@ export function AppBar({
         </div>
       </div>
 
-      <div className={styles.actions}>
+      <div
+        ref={actionsRef}
+        {...actionsFocus}
+        className={styles.actions}
+        role="toolbar"
+        aria-label="Application actions"
+        aria-orientation="horizontal"
+      >
         <Button
           variant="ghost"
           size="compact"

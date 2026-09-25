@@ -280,22 +280,32 @@ export function Popover({
     const last = focusables.at(-1);
 
     if (event.shiftKey && current === first) {
+      const tabStops = documentTabStopsOutside(content);
+      const anchor = anchorRef.current;
+      const anchorIndex = anchor ? tabStops.indexOf(anchor) : -1;
+      const previous = anchorIndex > 0 ? tabStops[anchorIndex - 1] : undefined;
+      if (!previous) {
+        setOpen(false, false);
+        return;
+      }
       event.preventDefault();
-      setOpen(false, true);
+      setOpen(false, false);
+      previous.focus({ preventScroll: true });
       return;
     }
     if (event.shiftKey || current !== last) return;
 
-    event.preventDefault();
     const tabStops = documentTabStopsOutside(content);
     const anchor = anchorRef.current;
     const anchorIndex = anchor ? tabStops.indexOf(anchor) : -1;
-    const next =
-      anchorIndex >= 0
-        ? tabStops[(anchorIndex + 1) % tabStops.length]
-        : tabStops[0];
+    const next = anchorIndex >= 0 ? tabStops[anchorIndex + 1] : undefined;
+    if (!next) {
+      setOpen(false, false);
+      return;
+    }
+    event.preventDefault();
     setOpen(false, false);
-    next?.focus({ preventScroll: true });
+    next.focus({ preventScroll: true });
   }
 
   const { onClick: originalOnClick, className: triggerClassName, ...buttonProps } =
@@ -306,6 +316,7 @@ export function Popover({
       <button
         ref={anchorRef}
         {...buttonProps}
+        data-focus-owner={popoverId}
         type="button"
         className={[styles.trigger, triggerClassName].filter(Boolean).join(" ")}
         aria-expanded={isOpen}
@@ -323,6 +334,7 @@ export function Popover({
             <div
               ref={contentRef}
               id={popoverId}
+              data-focus-portal={popoverId}
               role={role}
               aria-label={ariaLabel}
               aria-labelledby={ariaLabelledBy}

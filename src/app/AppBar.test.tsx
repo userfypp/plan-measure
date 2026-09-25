@@ -30,6 +30,18 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return button;
 }
 
+function press(key: string): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+  act(() => {
+    document.activeElement?.dispatchEvent(event);
+  });
+  return event;
+}
+
 function renderAppBar({
   documentName = "North Studio — Level 01.pdf",
   canExport = true,
@@ -127,6 +139,44 @@ describe("AppBar", () => {
     expect(exportButton.classList.contains(buttonStyles.ghost!)).toBe(true);
     expect(open.classList.contains(buttonStyles.secondary!)).toBe(false);
     expect(exportButton.classList.contains(buttonStyles.secondary!)).toBe(false);
+  });
+
+  it("uses one Tab stop for AppBar actions and arrow keys within that group", () => {
+    renderAppBar();
+    const toolbar = container?.querySelector<HTMLElement>('[role="toolbar"]');
+    if (!toolbar) throw new Error("Application actions toolbar was not rendered.");
+    const actions = Array.from(
+      toolbar.querySelectorAll<HTMLElement>("button, a[href]"),
+    );
+
+    expect(toolbar.getAttribute("aria-label")).toBe("Application actions");
+    expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1]);
+
+    act(() => actions[0]?.focus());
+    press("ArrowRight");
+    expect(document.activeElement).toBe(actions[1]);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(actions[2]);
+    press("End");
+    expect(document.activeElement).toBe(actions[3]);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(actions[0]);
+    expect(actions.filter((action) => action.tabIndex === 0)).toEqual([actions[0]]);
+  });
+
+  it("does not route portal Home/End keys back through the AppBar toolbar", () => {
+    renderAppBar();
+    act(() => buttonByLabel("Settings").click());
+    const focusedSetting = document.activeElement;
+    const open = Array.from(container!.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent === "Open PDF",
+    );
+    expect(focusedSetting).not.toBe(open);
+
+    expect(press("Home").defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(focusedSetting);
+    expect(press("End").defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(focusedSetting);
   });
 
   it("delegates Settings to the structured dialog popover", () => {

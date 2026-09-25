@@ -269,6 +269,42 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).toBeNull();
   });
 
+  it("closes filter and grouping popovers when keyboard focus leaves their content", () => {
+    const activePage = page([measurement()]);
+    renderPanel(session({ 1: activePage }), activePage);
+
+    const filtersButton = container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!;
+    const groupingButton = container!.querySelector<HTMLButtonElement>(
+      '[aria-label="Group measurements"]',
+    )!;
+    act(() => filtersButton.click());
+    const filterDialog = document.querySelector<HTMLElement>(
+      '[role="dialog"][aria-label="Measurement filters"]',
+    )!;
+    const lastFilterControl = Array.from(
+      filterDialog.querySelectorAll<HTMLElement>("input, select, button"),
+    ).at(-1)!;
+    act(() => lastFilterControl.focus());
+    act(() => groupingButton.focus());
+    expect(
+      document.querySelector('[role="dialog"][aria-label="Measurement filters"]'),
+    ).toBeNull();
+
+    act(() => groupingButton.click());
+    const groupingDialog = document.querySelector<HTMLElement>(
+      '[role="dialog"][aria-label="Measurement grouping"]',
+    )!;
+    const lastGroupingControl = groupingDialog.querySelector<HTMLSelectElement>("select")!;
+    const measurementButton = container!.querySelector<HTMLButtonElement>(
+      '[aria-label="Select measurement Hallway"]',
+    )!;
+    act(() => lastGroupingControl.focus());
+    act(() => measurementButton.focus());
+    expect(
+      document.querySelector('[role="dialog"][aria-label="Measurement grouping"]'),
+    ).toBeNull();
+  });
+
   it("filters measurements across pages and selects the result on its source page", () => {
     const firstPage = page([measurement({ name: "Hallway" })]);
     const secondPage = {

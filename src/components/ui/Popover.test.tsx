@@ -15,6 +15,7 @@ function renderPopover() {
   act(() => {
     root!.render(
       <div>
+        <button type="button">Before action</button>
         <Popover
           trigger="Open disclosure"
           initialFocus="first"
@@ -161,7 +162,7 @@ describe("Popover", () => {
     expect(disclosureTrigger.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("closes deterministically at the backward Tab boundary and returns to its trigger", () => {
+  it("closes at the backward Tab boundary and moves to the previous document stop", () => {
     openPopover();
     const inside = findButton("Inside action");
     expect(document.activeElement).toBe(inside);
@@ -173,7 +174,7 @@ describe("Popover", () => {
     });
 
     expect(document.querySelector('[role="dialog"]')).toBeNull();
-    expect(document.activeElement).toBe(trigger());
+    expect(document.activeElement).toBe(findButton("Before action"));
   });
 
   it("closes deterministically at the forward Tab boundary and moves to the next document stop", () => {

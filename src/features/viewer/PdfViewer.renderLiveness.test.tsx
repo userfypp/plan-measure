@@ -939,7 +939,7 @@ describe("PdfViewer render liveness", () => {
     expect(canvas().style.transform).toBe("");
   });
 
-  it("pans on the first Space-drag after an outside control held focus", async () => {
+  it("starts Space pan only from the focused viewer surface", async () => {
     const pdfPage = createPdfPage();
     const runtime = createPdfDocument({ 1: pdfPage.page });
 
@@ -950,11 +950,25 @@ describe("PdfViewer render liveness", () => {
     const outsideControl = document.createElement("button");
     document.body.append(outsideControl);
     outsideControl.focus();
-    await act(async () => {
-      outsideControl.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
-      );
+    const nativeSpace = new KeyboardEvent("keydown", {
+      key: " ",
+      bubbles: true,
+      cancelable: true,
     });
+    await act(async () => {
+      outsideControl.dispatchEvent(nativeSpace);
+    });
+    expect(nativeSpace.defaultPrevented).toBe(false);
+    expect(konvaCapture.annotationLayers.at(-1)?.spacePan).toBe(false);
+
+    viewer.focus();
+    const viewerSpace = new KeyboardEvent("keydown", {
+      key: " ",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => viewer.dispatchEvent(viewerSpace));
+    expect(viewerSpace.defaultPrevented).toBe(true);
     expect(konvaCapture.annotationLayers.at(-1)?.spacePan).toBe(true);
 
     const stage = konvaCapture.stages.at(-1);
@@ -1025,8 +1039,11 @@ describe("PdfViewer render liveness", () => {
     expect(stageCursor()).toBe("crosshair");
 
     // Space-pan is another stationary-pointer transition with a distinct cursor.
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]");
+    if (!viewer) throw new Error("Viewer focus surface was not mounted.");
+    viewer.focus();
     await act(async () => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
     });
     expect(stageContent()).toBe(initialStageContent);
     expect(stageCursor()).toBe("grab");
@@ -1362,8 +1379,10 @@ describe("PdfViewer render liveness", () => {
     });
     expect(workspaceProbe?.draft?.type === "path" && workspaceProbe.draft.points).toHaveLength(1);
 
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]");
+    if (!viewer) throw new Error("Viewer focus surface was not mounted.");
     await act(async () =>
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
     );
 
     expect(workspaceProbe?.activeTool).toBe("line");

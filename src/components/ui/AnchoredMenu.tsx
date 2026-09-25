@@ -141,6 +141,7 @@ export function AnchoredMenu({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented) return;
     if (event.key === "Tab") {
       setOpen(false);
       return;
@@ -180,6 +181,7 @@ export function AnchoredMenu({
       onOpenChange={setOpen}
       placement={placement}
       initialFocus="first"
+      dismissOnFocusLeave
       role="menu"
       aria-label={label}
       className={[

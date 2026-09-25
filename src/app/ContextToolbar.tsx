@@ -4,10 +4,10 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { Button } from "../components/ui";
+import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
@@ -52,88 +52,22 @@ function ToolbarComposite({
   children: ReactNode;
 }) {
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const rovingButtonRef = useRef<HTMLButtonElement | null>(null);
-
-  function allToolbarButtons(): HTMLButtonElement[] {
-    return Array.from(toolbarRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
-  }
-
-  function toolbarButtons(): HTMLButtonElement[] {
-    return allToolbarButtons().filter((button) => !button.closest("[data-toolbar-inline-editor]"));
-  }
-
-  function setRovingButton(button: HTMLButtonElement) {
-    for (const candidate of toolbarButtons()) candidate.tabIndex = candidate === button ? 0 : -1;
-    rovingButtonRef.current = button;
-  }
-
-  useLayoutEffect(() => {
-    if (toolbarRef.current?.querySelector("[data-toolbar-inline-editor]")) {
-      for (const button of allToolbarButtons()) button.tabIndex = -1;
-      rovingButtonRef.current = null;
-      return;
-    }
-    const buttons = toolbarButtons();
-    const enabledButtons = buttons.filter((button) => !button.disabled);
-    const focused =
-      document.activeElement instanceof HTMLButtonElement &&
-      toolbarRef.current?.contains(document.activeElement) &&
-      !document.activeElement.disabled
-        ? document.activeElement
-        : null;
-    const remembered =
-      rovingButtonRef.current &&
-      toolbarRef.current?.contains(rovingButtonRef.current) &&
-      !rovingButtonRef.current.disabled
-        ? rovingButtonRef.current
-        : null;
-    const nextRoving = focused ?? remembered ?? enabledButtons[0] ?? null;
-
-    for (const button of buttons) button.tabIndex = button === nextRoving ? 0 : -1;
-    rovingButtonRef.current = nextRoving;
+  const toolbarFocus = useRovingFocusGroup(toolbarRef, {
+    orientation: "horizontal",
+    itemSelector: "button",
+    suspendWhen: (root) => Boolean(root.querySelector("[data-toolbar-inline-editor]")),
   });
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    const buttons = toolbarButtons().filter((button) => !button.disabled);
-    if (buttons.length === 0) return;
-    const currentIndex = buttons.findIndex((button) => button === document.activeElement);
-    if (currentIndex < 0) return;
-
-    const nextButton =
-      event.key === "Home"
-        ? buttons[0]
-        : event.key === "End"
-          ? buttons[buttons.length - 1]
-          : buttons[
-              (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) %
-                buttons.length
-            ];
-    if (!nextButton) return;
-    event.preventDefault();
-    setRovingButton(nextButton);
-    nextButton.focus();
-  }
 
   return (
     <div
       ref={toolbarRef}
+      {...toolbarFocus}
       className={styles.toolbar}
       role="toolbar"
       aria-label={label}
       aria-orientation="horizontal"
       data-context-kind={contextKind}
       data-drawing-tool={drawingTool}
-      onFocusCapture={(event) => {
-        if (
-          event.target instanceof HTMLButtonElement &&
-          !event.target.disabled &&
-          !event.target.closest("[data-toolbar-inline-editor]")
-        ) {
-          setRovingButton(event.target);
-        }
-      }}
-      onKeyDown={handleKeyDown}
     >
       {children}
     </div>
