@@ -320,13 +320,34 @@ function PlanMeasureApp() {
   const selectMeasurementFromPanel = useCallback(
     (pageNumber: number, measurementId: string) => {
       if (session?.currentPage !== pageNumber) {
+        if (
+          draft ||
+          calibrationFlow ||
+          calibrationCandidate ||
+          calibrationReferenceEdit ||
+          activeMeasurementEditIdRef.current !== null
+        ) {
+          setError("Finish or cancel the current measurement or scale workflow before switching pages.");
+          return;
+        }
         pageChanged();
         updatePage(pageNumber);
       }
       selectWorkspaceMeasurement(measurementId);
       clearError();
     },
-    [clearError, pageChanged, selectWorkspaceMeasurement, session?.currentPage, updatePage],
+    [
+      calibrationCandidate,
+      calibrationFlow,
+      calibrationReferenceEdit,
+      clearError,
+      draft,
+      pageChanged,
+      selectWorkspaceMeasurement,
+      session?.currentPage,
+      setError,
+      updatePage,
+    ],
   );
 
   const handlePageChange = useCallback(

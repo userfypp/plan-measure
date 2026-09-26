@@ -196,6 +196,8 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     transform = { zoom: 2, panX: 0, panY: 0 },
     onCalibrationReferencePointsChange = noop,
     onCalibrationReferenceDragCancellationChange = noop,
+    onMeasurementEditActiveChange = noop,
+    onWholeMeasurementDragCancellationChange = noop,
   }: {
     page?: PageState;
     selectedMeasurementId?: string | null;
@@ -211,6 +213,11 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     onCalibrationReferencePointsChange?: (points: [Point, Point]) => void;
     onCalibrationReferenceDragCancellationChange?: (
       owner: object,
+      cancel: (() => void) | null,
+    ) => void;
+    onMeasurementEditActiveChange?: (measurementId: string, active: boolean) => void;
+    onWholeMeasurementDragCancellationChange?: (
+      measurementId: string,
       cancel: (() => void) | null,
     ) => void;
   } = {}) {
@@ -241,8 +248,8 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           onCalibrationReferenceDragCancellationChange={
             onCalibrationReferenceDragCancellationChange
           }
-          onMeasurementEditActiveChange={noop}
-          onWholeMeasurementDragCancellationChange={noop}
+          onMeasurementEditActiveChange={onMeasurementEditActiveChange}
+          onWholeMeasurementDragCancellationChange={onWholeMeasurementDragCancellationChange}
           onVertexDragCancellationChange={noop}
         />,
       );
@@ -271,6 +278,44 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       fontSize: 6,
       padding: 2,
     });
+  });
+
+  it("prepares and starts a whole-measurement drag from touch events", () => {
+    const onMeasurementEditActiveChange = vi.fn();
+    const onWholeMeasurementDragCancellationChange = vi.fn();
+    renderLayer({
+      page: pageWithMeasurement("line"),
+      selectedMeasurementId: "polygon-1",
+      onMeasurementEditActiveChange,
+      onWholeMeasurementDragCancellationChange,
+    });
+
+    const measurementLine = captured.lines.find(
+      (line) => line.name === "measurement-preview-line",
+    );
+    const onTouchStart = measurementLine?.onTouchStart as
+      | ((event: unknown) => void)
+      | undefined;
+    const onDragStart = measurementLine?.onDragStart as
+      | ((event: unknown) => void)
+      | undefined;
+    if (!onTouchStart || !onDragStart) throw new Error("Touch drag handlers were not rendered.");
+    const target = {
+      getStage: () => ({ getPointerPosition: () => ({ x: 80, y: 80 }) }),
+      position: vi.fn(),
+      stopDrag: vi.fn(),
+    };
+    const event = { target, evt: { type: "touchstart" }, cancelBubble: false };
+
+    act(() => onTouchStart(event));
+    expect(onWholeMeasurementDragCancellationChange).toHaveBeenLastCalledWith(
+      "polygon-1",
+      expect.any(Function),
+    );
+
+    act(() => onDragStart(event));
+    expect(target.stopDrag).not.toHaveBeenCalled();
+    expect(onMeasurementEditActiveChange).toHaveBeenCalledWith("polygon-1", true);
   });
 
   it("updates existing measurement labels when display precision changes", () => {

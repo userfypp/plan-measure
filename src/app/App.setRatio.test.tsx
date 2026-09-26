@@ -70,19 +70,64 @@ vi.mock("./AppShell", () => ({
   LoadingOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("./WorkspaceShell", () => ({
-  WorkspaceShell: ({
-    workspacePanel,
-    emptyState,
-  }: {
-    workspacePanel?: ReactNode;
-    emptyState?: ReactNode;
-  }) => <main>{workspacePanel ?? emptyState}</main>,
-  EmptyWorkspaceState: () => null,
-}));
+vi.mock("./WorkspaceShell", async () => {
+  const { useWorkspaceState } = await import("./workspaceState");
+  function PendingDraftControl() {
+    const { draft, startDraft } = useWorkspaceState();
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() =>
+            startDraft({
+              type: "path",
+              measurementType: "line",
+              points: [{ x: 10, y: 10 }],
+            })
+          }
+        >
+          Start pending drawing
+        </button>
+        <output data-testid="pending-draft">{draft ? `${draft.type}:${draft.points.length}` : ""}</output>
+      </>
+    );
+  }
+  return {
+    WorkspaceShell: ({
+      workspacePanel,
+      emptyState,
+    }: {
+      workspacePanel?: ReactNode;
+      emptyState?: ReactNode;
+    }) => (
+      <main>
+        {workspacePanel ?? emptyState}
+        <PendingDraftControl />
+      </main>
+    ),
+    EmptyWorkspaceState: () => null,
+  };
+});
 
 vi.mock("./WorkspacePanel", () => ({
-  WorkspacePanel: ({ scales }: { scales: ReactNode }) => <aside>{scales}</aside>,
+  WorkspacePanel: ({ measurements, scales }: { measurements: ReactNode; scales: ReactNode }) => (
+    <aside>
+      {measurements}
+      {scales}
+    </aside>
+  ),
+}));
+
+vi.mock("../features/measurements/MeasurementPanel", () => ({
+  MeasurementPanel: ({
+    onSelectMeasurement,
+  }: {
+    onSelectMeasurement: (pageNumber: number, measurementId: string) => void;
+  }) => (
+    <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>
+      Select page 2 measurement
+    </button>
+  ),
 }));
 
 vi.mock("./WorkspaceDrawerContext", () => ({
@@ -220,6 +265,10 @@ async function renderApp(session: CurrentSession) {
   currentSession();
 }
 
+function twoPageSession(): CurrentSession {
+  return createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 2);
+}
+
 function openSetRatio(scaleName: string) {
   act(() => buttonByLabel(`Expand scale ${scaleName}, active`).click());
   act(() => buttonByLabel(`Set ratio for scale ${scaleName}`).click());
@@ -282,6 +331,20 @@ afterEach(() => {
 });
 
 describe("App Set ratio impact confirmation", () => {
+  it("preserves pending drawing work when a measurement on another page is selected", async () => {
+    await renderApp(twoPageSession());
+    act(() => buttonByText("Start pending drawing").click());
+
+    expect(container?.querySelector('[data-testid="pending-draft"]')?.textContent).toBe("path:1");
+    act(() => buttonByText("Select page 2 measurement").click());
+
+    expect(currentSession().currentPage).toBe(1);
+    expect(container?.querySelector('[data-testid="pending-draft"]')?.textContent).toBe("path:1");
+    expect(container?.querySelector('[role="alert"]')?.textContent).toBe(
+      "Finish or cancel the current measurement or scale workflow before switching pages.",
+    );
+  });
+
   it("applies a Uniform ratio immediately when no measurements use the scale", async () => {
     await renderApp(buildSession(uniformScale()));
     openSetRatio("Ground floor");

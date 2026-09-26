@@ -1302,16 +1302,19 @@ const MeasurementShape = memo(function MeasurementShape({
     });
   }
 
-  function stagePointer(event: KonvaEventObject<MouseEvent>): Point | null {
+  function stagePointer<E extends MouseEvent | TouchEvent>(event: KonvaEventObject<E>): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
     return pointer ? { x: pointer.x, y: pointer.y } : null;
   }
 
-  function prepareWholeDrag(event: KonvaEventObject<MouseEvent>) {
+  function prepareWholeDrag<E extends MouseEvent | TouchEvent>(
+    event: KonvaEventObject<E>,
+    button: number,
+  ) {
     if (wholeDragRef.current) return;
     wholeDragRef.current = null;
     onWholeMeasurementDragCancellationChange(measurement.id, null);
-    if (!canStartWholeMeasurementDrag(wholeMeasurementDraggable, event.evt.button)) return;
+    if (!canStartWholeMeasurementDrag(wholeMeasurementDraggable, button)) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
     wholeDragRef.current = {
@@ -1322,6 +1325,14 @@ const MeasurementShape = memo(function MeasurementShape({
     };
     setWholeDragPrepared(true);
     onWholeMeasurementDragCancellationChange(measurement.id, cancelWholeDrag);
+  }
+
+  function prepareWholeMouseDrag(event: KonvaEventObject<MouseEvent>) {
+    prepareWholeDrag(event, event.evt.button);
+  }
+
+  function prepareWholeTouchDrag(event: KonvaEventObject<TouchEvent>) {
+    prepareWholeDrag(event, 0);
   }
 
   function wholeDragResultFromPointer(pointer: Point): WholeMeasurementDragResult | null {
@@ -1346,10 +1357,7 @@ const MeasurementShape = memo(function MeasurementShape({
 
   function handleWholeDragStart(event: KonvaEventObject<MouseEvent>) {
     event.cancelBubble = true;
-    if (
-      !wholeDragRef.current ||
-      !canStartWholeMeasurementDrag(wholeMeasurementDraggable, event.evt.button)
-    ) {
+    if (!wholeDragRef.current || !wholeMeasurementDraggable) {
       rejectedWholeDragRef.current = true;
       event.target.stopDrag();
       return;
@@ -1450,7 +1458,8 @@ const MeasurementShape = memo(function MeasurementShape({
         lineJoin="round"
         draggable={wholeMeasurementDraggable}
         dragDistance={MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX}
-        onMouseDown={prepareWholeDrag}
+        onMouseDown={prepareWholeMouseDrag}
+        onTouchStart={prepareWholeTouchDrag}
         onDragStart={wholeMeasurementDraggable ? handleWholeDragStart : undefined}
         onDragMove={wholeMeasurementDraggable ? handleWholeDragMove : undefined}
         onDragEnd={wholeMeasurementDraggable ? handleWholeDragEnd : undefined}
