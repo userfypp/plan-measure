@@ -597,6 +597,27 @@ describe("PdfViewer render liveness", () => {
     expect(canvas(2).style.visibility).toBe("visible");
   });
 
+  it("hides the previous page and reports a load failure when the next page cannot load", async () => {
+    const page1 = createPdfPage();
+    const runtime = createPdfDocument({ 1: page1.page });
+
+    await mountViewer(runtime.document);
+    expect(canvas(1).style.visibility).toBe("visible");
+
+    await act(async () => {
+      root.render(<ViewerHarness document={runtime.document} page={createPageState(2)} />);
+    });
+
+    expect(runtime.getPage).toHaveBeenCalledWith(2);
+    expect(canvas(2).style.visibility).toBe("hidden");
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not load this page.",
+    );
+    expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toContain(
+      "This PDF page could not be rendered.",
+    );
+  });
+
   it("waits for an in-flight render to settle before cleaning an inactive page", async () => {
     const firstRender = controlledRenderTask(false);
     const page1 = createPdfPage(() => firstRender.task);

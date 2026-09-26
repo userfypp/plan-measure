@@ -262,6 +262,10 @@ export function PdfViewer({
   );
   const [readyRaster, setReadyRaster] = useState<ReadyRaster | null>(null);
   const [displayedRaster, setDisplayedRaster] = useState<ReadyRaster | null>(null);
+  const [failedPageRequest, setFailedPageRequest] = useState<{
+    document: PDFDocumentProxy;
+    pageNumber: number;
+  } | null>(null);
   const [displayedStageSlot, setDisplayedStageSlot] = useState<0 | 1>(0);
   const [preparedCandidate, setPreparedCandidate] = useState<object | null>(null);
   const drawnCandidateKeyRef = useRef<object | null>(null);
@@ -555,6 +559,7 @@ export function PdfViewer({
     // This state transition hides a previous page immediately when the requested page changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPageReady(false);
+    setFailedPageRequest(null);
     // The loaded page data is replaced atomically by the async PDF.js result below.
     setPageRenderData(null);
     // A page navigation always returns to the page's fit transform.
@@ -580,6 +585,8 @@ export function PdfViewer({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          setFailedPageRequest({ document, pageNumber: page.pageNumber });
+          setDisplayedRaster(null);
           setError(pdfRenderErrorMessage(error));
         }
       });
@@ -1257,7 +1264,11 @@ export function PdfViewer({
     viewerSize.width > 0 &&
     viewerSize.height > 0,
   );
-  const canvasPageData = displayedRaster?.page.document === document ? displayedRaster.page : null;
+  const pageLoadFailed =
+    failedPageRequest?.document === document &&
+    failedPageRequest.pageNumber === page.pageNumber;
+  const canvasPageData =
+    !pageLoadFailed && displayedRaster?.page.document === document ? displayedRaster.page : null;
   const candidatePageData =
     pageRenderData?.document === document &&
     pageRenderData.pageNumber === page.pageNumber &&
@@ -1740,7 +1751,9 @@ export function PdfViewer({
           </Stage>
         ))}
         {!canvasPageData && (
-          <div className={styles.loading}>Rendering page…</div>
+          <div className={styles.loading} role={pageLoadFailed ? "alert" : "status"}>
+            {pageLoadFailed ? "Could not load this page." : "Rendering page…"}
+          </div>
         )}
       </div>
     </div>
