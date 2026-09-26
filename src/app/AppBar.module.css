@@ -180,3 +180,15 @@
     gap: var(--space-8);
   }
 }
+
+@media (max-width: 380px) {
+  .identityGroup {
+    gap: var(--space-4);
+  }
+
+  .actions .openAction,
+  .actions .exportAction,
+  .actions .feedbackAction {
+    padding-inline: var(--space-8);
+  }
+}

@@ -368,6 +368,10 @@
 }
 
 @media (max-width: 380px) {
+  .bulkActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .datasetOption {
     padding-inline: var(--space-8);
   }

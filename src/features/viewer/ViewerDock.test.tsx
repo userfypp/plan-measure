@@ -356,7 +356,7 @@ describe("ViewerDock", () => {
     expect(dockCss).toContain("@container (max-width: 600px)");
     expect(dockCss).toContain("@container (max-width: 500px)");
     expect(dockCss).toContain("@container (max-width: 460px)");
-    expect(dockCss).toContain("@container (max-width: 360px)");
+    expect(dockCss).toContain("@container (max-width: 400px)");
     expect(dockCss).toMatch(/\.pageTriggerText strong\s*\{[^}]*text-overflow:\s*ellipsis;/s);
     expect(dockCss).not.toMatch(/\.pageTrigger[^}]*display:\s*none/s);
   });
