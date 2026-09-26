@@ -11,6 +11,7 @@ import { createStandardScalePreset, STANDARD_SCALE_PRESET_RATIOS } from "./stand
 import {
   createPageCalibrationFromRatio,
   copyCalibrationToPage,
+  fitCalibrationReferencesToPage,
   isValidScaleRatioDenominator,
   scaleRatioSpecFromCalibration,
 } from "./ratioCalibration";
@@ -94,6 +95,41 @@ describe("ratio calibration", () => {
     expect(
       createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }).referenceDistanceMm,
     ).toBe(1524);
+  });
+
+  it("fits a ratio reference inside a small page without changing its scale", () => {
+    const calibration = createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 });
+    const fitted = fitCalibrationReferencesToPage(calibration, { width: 50, height: 50 });
+
+    expect(fitted).toMatchObject({
+      mode: "uniform",
+      start: { x: 5, y: 5 },
+      end: { x: 45, y: 5 },
+    });
+    expect(fitted.referenceDistanceMm).toBe(1524 * (40 / 72));
+    expect(millimetresPerPageUnit(fitted)).toBe(millimetresPerPageUnit(calibration));
+  });
+
+  it("fits both ratio references inside a small page and preserves independent axis scales", () => {
+    const calibration = {
+      id: "xy-small-page",
+      name: "XY small page",
+      ...createPageCalibrationFromRatio({
+        mode: "xy",
+        xDenominator: 70,
+        yDenominator: 30,
+      }),
+    };
+    const fitted = fitCalibrationReferencesToPage(calibration, { width: 50, height: 40 });
+
+    expect(fitted).toMatchObject({
+      mode: "xy",
+      xReference: { start: { x: 5, y: 4 }, end: { x: 45, y: 4 } },
+      yReference: { start: { x: 5, y: 4 }, end: { x: 5, y: 36 } },
+    });
+    const fittedPageCalibration = { ...fitted, id: "fitted", name: "Fitted" };
+    expect(calibrationScaleX(fittedPageCalibration)).toBe(calibrationScaleX(calibration));
+    expect(calibrationScaleY(fittedPageCalibration)).toBe(calibrationScaleY(calibration));
   });
 
   it.each(STANDARD_SCALE_PRESET_RATIOS)(

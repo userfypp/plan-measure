@@ -52,7 +52,10 @@ import {
   getActiveCalibration,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
-import type { RatioCalibrationInput } from "../features/calibration/ratioCalibration";
+import {
+  fitCalibrationReferencesToPage,
+  type RatioCalibrationInput,
+} from "../features/calibration/ratioCalibration";
 import {
   canDuplicateMeasurement,
   duplicateMeasurement,
@@ -579,21 +582,25 @@ function PlanMeasureApp() {
 
   function addStandardScalePreset(ratio: StandardScalePresetRatio) {
     if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    const pageBounds =
+      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
     addCalibration({
       pageNumber: currentPage.pageNumber,
       id: crypto.randomUUID(),
       name: defaultCalibrationName(currentPage),
-      calibration: createStandardScalePreset(ratio),
+      calibration: fitCalibrationReferencesToPage(createStandardScalePreset(ratio), pageBounds),
     });
   }
 
   function addCustomRatioScale(name: string, calibration: RatioCalibrationInput) {
     if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
+    const pageBounds =
+      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
     addCalibration({
       pageNumber: currentPage.pageNumber,
       id: crypto.randomUUID(),
       name,
-      calibration,
+      calibration: fitCalibrationReferencesToPage(calibration, pageBounds),
     });
   }
 
@@ -605,20 +612,23 @@ function PlanMeasureApp() {
       return;
     }
     const measurementCount = calibrationMeasurementCount(currentPage, calibrationId);
+    const pageBounds =
+      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
+    const fittedCalibration = fitCalibrationReferencesToPage(calibration, pageBounds);
     if (measurementCount > 0) {
       openSetScaleRatioConfirmation({
         pageNumber: currentPage.pageNumber,
         calibrationId,
         calibrationName: target.name,
         measurementCount,
-        calibration,
+        calibration: fittedCalibration,
       });
       return;
     }
     recalibrateCalibration({
       pageNumber: currentPage.pageNumber,
       calibrationId,
-      calibration,
+      calibration: fittedCalibration,
     });
   }
 
@@ -817,6 +827,10 @@ function PlanMeasureApp() {
           ),
         }
       : currentPage;
+  const previewPages =
+    session && currentPage && previewPage && previewPage !== currentPage
+      ? { ...session.pages, [currentPage.pageNumber]: previewPage }
+      : session?.pages;
   const activePageCalibration = currentPage ? getActiveCalibration(currentPage) : null;
   const activeCalibration = activePageCalibration;
   const selectedMeasurement =
@@ -1009,13 +1023,16 @@ function PlanMeasureApp() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           sourcePageLabels={activePdf.pageLabels}
+          logicalPageBounds={
+            viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null
+          }
           workspacePanel={
             <WorkspacePanel
               measurements={
                 <MeasurementPanel
                   key={workspaceVersion}
                   page={previewPage}
-                  pages={session.pages}
+                  pages={previewPages ?? session.pages}
                   pageLabelOverrides={session.pageLabelOverrides}
                   sourcePageLabels={activePdf.pageLabels}
                   selectedMeasurementId={selectedMeasurementId}
@@ -1027,7 +1044,7 @@ function PlanMeasureApp() {
               takeoff={
                 <TakeoffWorkspace
                   key={workspaceVersion}
-                  pages={session.pages}
+                  pages={previewPages ?? session.pages}
                   catalog={session.classificationCatalog}
                   displayUnit={session.settings.displayUnit}
                   decimalPlaces={session.settings.measurementDecimalPlaces}

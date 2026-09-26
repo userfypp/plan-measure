@@ -13,6 +13,7 @@ import {
 } from "../features/viewer/ViewerNavigation";
 import { ViewerInteractionCommandsProvider } from "../features/viewer/ViewerInteractionCommands";
 import { ViewerBottomExclusionProvider } from "../features/viewer/viewerLayout";
+import type { LogicalPageBounds } from "../types/domain";
 import {
   AuthoringCapabilityProvider,
   computeAuthoringCapability,
@@ -28,6 +29,7 @@ interface ViewerShellProps {
   contextToolbar?: ReactNode;
   viewerOverlay?: ReactNode;
   sourcePageLabels?: readonly string[] | null;
+  logicalPageBounds?: LogicalPageBounds | null;
   rightObstruction?: number;
   onAuthoringCapabilityChange?: (
     capability: AuthoringCapability,
@@ -41,6 +43,7 @@ export function ViewerShell({
   contextToolbar,
   viewerOverlay,
   sourcePageLabels = null,
+  logicalPageBounds = null,
   rightObstruction = 0,
   onAuthoringCapabilityChange,
 }: ViewerShellProps) {
@@ -202,6 +205,7 @@ export function ViewerShell({
               <div className={styles.dock} ref={dockRef}>
                 <ViewerDockContainer
                   sourcePageLabels={sourcePageLabels}
+                  logicalPageBounds={logicalPageBounds}
                   navigation={{
                     ...navigation,
                     onPageChange: (pageNumber) =>

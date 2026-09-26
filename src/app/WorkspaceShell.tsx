@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Button } from "../components/ui";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
+import type { LogicalPageBounds } from "../types/domain";
 import { ViewerShell } from "./ViewerShell";
 import {
   responsiveModeForWidth,
@@ -42,6 +43,7 @@ interface WorkspaceShellProps {
   viewerOverlay?: ReactNode;
   viewer?: ReactNode;
   sourcePageLabels?: readonly string[] | null;
+  logicalPageBounds?: LogicalPageBounds | null;
   emptyState?: ReactNode;
   dropOverlay?: ReactNode;
   onAuthoringCapabilityChange?: (capability: AuthoringCapability) => void;
@@ -61,6 +63,7 @@ export function WorkspaceShell({
   viewerOverlay,
   viewer,
   sourcePageLabels = null,
+  logicalPageBounds = null,
   emptyState,
   dropOverlay = "Drop PDF to replace current session",
   onAuthoringCapabilityChange,
@@ -295,6 +298,7 @@ export function WorkspaceShell({
           contextToolbar={contextToolbar}
           viewerOverlay={viewerOverlay}
           sourcePageLabels={sourcePageLabels}
+          logicalPageBounds={logicalPageBounds}
           rightObstruction={geometry.rightObstruction}
           onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
         >

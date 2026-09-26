@@ -1,4 +1,9 @@
-import type { PageCalibration, UniformPageCalibration, XyPageCalibration } from "../../types/domain";
+import type {
+  LogicalPageBounds,
+  PageCalibration,
+  UniformPageCalibration,
+  XyPageCalibration,
+} from "../../types/domain";
 import {
   calibrationScaleX,
   calibrationScaleY,
@@ -14,6 +19,78 @@ import { toMillimetres } from "../../utils/units";
 export type RatioCalibrationInput =
   | Omit<UniformPageCalibration, "id" | "name">
   | Omit<XyPageCalibration, "id" | "name">;
+
+export function fitCalibrationReferencesToPage(
+  calibration: Omit<UniformPageCalibration, "id" | "name">,
+  bounds: Pick<LogicalPageBounds, "width" | "height"> | null,
+): Omit<UniformPageCalibration, "id" | "name">;
+export function fitCalibrationReferencesToPage(
+  calibration: Omit<XyPageCalibration, "id" | "name">,
+  bounds: Pick<LogicalPageBounds, "width" | "height"> | null,
+): Omit<XyPageCalibration, "id" | "name">;
+export function fitCalibrationReferencesToPage(
+  calibration: RatioCalibrationInput,
+  bounds: Pick<LogicalPageBounds, "width" | "height"> | null,
+): RatioCalibrationInput;
+export function fitCalibrationReferencesToPage(
+  calibration: RatioCalibrationInput,
+  bounds: Pick<LogicalPageBounds, "width" | "height"> | null,
+): RatioCalibrationInput {
+  if (
+    !bounds ||
+    !Number.isFinite(bounds.width) ||
+    !Number.isFinite(bounds.height) ||
+    bounds.width <= 0 ||
+    bounds.height <= 0
+  ) {
+    return calibration;
+  }
+
+  const insetX = bounds.width * 0.1;
+  const insetY = bounds.height * 0.1;
+  const width = Math.min(CANONICAL_REFERENCE_PAGE_UNITS, bounds.width * 0.8);
+  const height = Math.min(CANONICAL_REFERENCE_PAGE_UNITS, bounds.height * 0.8);
+  if (calibration.mode === "uniform") {
+    const millimetresPerPageUnit =
+      calibration.referenceDistanceMm /
+      Math.hypot(
+        calibration.end.x - calibration.start.x,
+        calibration.end.y - calibration.start.y,
+      );
+    return {
+      ...calibration,
+      start: { x: insetX, y: insetY },
+      end: { x: insetX + width, y: insetY },
+      referenceDistanceMm: millimetresPerPageUnit * width,
+    };
+  }
+
+  return {
+    ...calibration,
+    xReference: {
+      start: { x: insetX, y: insetY },
+      end: { x: insetX + width, y: insetY },
+      referenceDistanceMm:
+        (calibration.xReference.referenceDistanceMm /
+          Math.hypot(
+            calibration.xReference.end.x - calibration.xReference.start.x,
+            calibration.xReference.end.y - calibration.xReference.start.y,
+          )) *
+        width,
+    },
+    yReference: {
+      start: { x: insetX, y: insetY },
+      end: { x: insetX, y: insetY + height },
+      referenceDistanceMm:
+        (calibration.yReference.referenceDistanceMm /
+          Math.hypot(
+            calibration.yReference.end.x - calibration.yReference.start.x,
+            calibration.yReference.end.y - calibration.yReference.start.y,
+          )) *
+        height,
+    },
+  };
+}
 
 interface UniformScaleRatioSpec {
   mode: "uniform";

@@ -1,6 +1,10 @@
 import { ViewerDock } from "../features/viewer/ViewerDock";
-import { copyCalibrationToPage } from "../features/calibration/ratioCalibration";
+import {
+  copyCalibrationToPage,
+  fitCalibrationReferencesToPage,
+} from "../features/calibration/ratioCalibration";
 import type { ViewerNavigationModel } from "../features/viewer/ViewerNavigation";
+import type { LogicalPageBounds } from "../types/domain";
 import { effectivePageLabel, sourcePageLabel } from "../utils/pageLabels";
 import { useSessionState } from "./sessionState";
 import { useWorkspaceState } from "./workspaceState";
@@ -8,9 +12,11 @@ import { useWorkspaceState } from "./workspaceState";
 export function ViewerDockContainer({
   navigation,
   sourcePageLabels,
+  logicalPageBounds,
 }: {
   navigation: ViewerNavigationModel;
   sourcePageLabels: readonly string[] | null;
+  logicalPageBounds: LogicalPageBounds | null;
 }) {
   const {
     session,
@@ -44,7 +50,10 @@ export function ViewerDockContainer({
       pageNumber,
       id: crypto.randomUUID(),
       name: scaleClipboard.calibration.name,
-      calibration: copyCalibrationToPage(scaleClipboard.calibration),
+      calibration: fitCalibrationReferencesToPage(
+        copyCalibrationToPage(scaleClipboard.calibration),
+        logicalPageBounds,
+      ),
     });
   }
 
