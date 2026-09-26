@@ -4,6 +4,22 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.5.1](https://github.com/userfypp/plan-measure/compare/v2.5.0...v2.5.1) (2026-09-26)
+
+
+### Fixed
+
+* align calibration previews and fit references to page bounds ([#149](https://github.com/userfypp/plan-measure/issues/149)) ([85c5e34](https://github.com/userfypp/plan-measure/commit/85c5e341395181670e16f18a39f49b1b147c1e9c))
+* hide stale PDF page after load failure ([#146](https://github.com/userfypp/plan-measure/issues/146)) ([6a119d2](https://github.com/userfypp/plan-measure/commit/6a119d2c6a301d5700432a0cd5ca9d402d022799))
+* preserve measurement workflows across page changes and touch ([#148](https://github.com/userfypp/plan-measure/issues/148)) ([863e591](https://github.com/userfypp/plan-measure/commit/863e59145ebfb087bc0d4e49302c274b598a0a8d))
+* prevent mobile layout overflow ([#145](https://github.com/userfypp/plan-measure/issues/145)) ([3a3d115](https://github.com/userfypp/plan-measure/commit/3a3d1158e0bf1e082a92bdddcaf83b49bd75b305))
+* unify keyboard focus navigation across browsers ([#143](https://github.com/userfypp/plan-measure/issues/143)) ([4edf61a](https://github.com/userfypp/plan-measure/commit/4edf61a7da9496fada8b8bcd0096fa3f1057fcd5))
+
+
+### Improved
+
+* reuse oversized PDF rasters ([#147](https://github.com/userfypp/plan-measure/issues/147)) ([8e5c6a9](https://github.com/userfypp/plan-measure/commit/8e5c6a9b7ef089a8f13079eec8a106d6308ea60c))
+
 ## [2.5.0](https://github.com/userfypp/plan-measure/compare/v2.4.0...v2.5.0) (2026-09-24)
 
 
