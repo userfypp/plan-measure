@@ -167,6 +167,12 @@ interface ReadyRaster {
   canvas: HTMLCanvasElement;
 }
 
+interface RecentRaster {
+  document: PDFDocumentProxy;
+  cacheKey: string;
+  canvas: HTMLCanvasElement;
+}
+
 interface StagePage {
   slot: 0 | 1;
   data: LoadedPageData;
@@ -239,6 +245,7 @@ export function PdfViewer({
   const activePageRequestRef = useRef({ document, pageNumber: page.pageNumber });
   const viewerMountedRef = useRef(false);
   const pageRenderTasksRef = useRef(new WeakMap<PDFPageProxy, Set<RenderTask>>());
+  const recentRasterRef = useRef<RecentRaster | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
@@ -543,6 +550,7 @@ export function PdfViewer({
     renderTaskRef.current = null;
     if (cachedDocumentRef.current !== document) {
       renderCacheRef.current.clear();
+      recentRasterRef.current = null;
       cachedDocumentRef.current = document;
       // A replacement document must release the previous PDF raster as well as hide it.
       setAnnotationPreparationPage(null);
@@ -636,9 +644,20 @@ export function PdfViewer({
       // Start the raster request before mounting and planning the target annotations.
       setAnnotationPreparationPage(loadedPage);
       const cachedRaster = renderCacheRef.current.get(cacheKey);
-      if (cachedRaster) {
+      const recentRaster = recentRasterRef.current;
+      const reusableRaster =
+        cachedRaster ??
+        (recentRaster?.document === loadedPage.document && recentRaster.cacheKey === cacheKey
+          ? recentRaster.canvas
+          : undefined);
+      if (reusableRaster) {
+        recentRasterRef.current = {
+          document: loadedPage.document,
+          cacheKey,
+          canvas: reusableRaster,
+        };
         pageReadyRef.current = true;
-        setReadyRaster({ page: loadedPage, canvas: cachedRaster });
+        setReadyRaster({ page: loadedPage, canvas: reusableRaster });
         setPageReady(true);
         return;
       }
@@ -672,6 +691,11 @@ export function PdfViewer({
             rasterCanvas,
             layout.backingWidth * layout.backingHeight,
           );
+          recentRasterRef.current = {
+            document: loadedPage.document,
+            cacheKey,
+            canvas: rasterCanvas,
+          };
           pageReadyRef.current = true;
           setReadyRaster({ page: loadedPage, canvas: rasterCanvas });
           setPageReady(true);
@@ -705,6 +729,7 @@ export function PdfViewer({
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
       renderCacheRef.current.clear();
+      recentRasterRef.current = null;
       if (wheelZoomFrameRef.current !== null) {
         window.cancelAnimationFrame(wheelZoomFrameRef.current);
       }

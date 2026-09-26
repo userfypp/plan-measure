@@ -18,8 +18,9 @@ import { ThemeProvider } from "../../app/themeState";
 import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
 import type { PageState, Point, Tool, ViewTransform } from "../../types/domain";
-import { pageToScreen, screenToPage } from "../../utils/coordinates";
+import { pageToScreen, pdfRasterLayout, screenToPage } from "../../utils/coordinates";
 import { PdfViewer } from "./PdfViewer";
+import { MAX_RENDER_CACHE_PIXELS } from "./renderCache";
 import {
   AuthoringCapabilityProvider,
   computeAuthoringCapability,
@@ -552,6 +553,56 @@ describe("PdfViewer render liveness", () => {
 
     expect(pdfPage.render).toHaveBeenCalledTimes(1);
     expect(canvas().style.visibility).toBe("visible");
+  });
+
+  it("reuses the same high-zoom raster when it exceeds the multi-page cache budget", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    let navigation: ViewerNavigationModel | null = null;
+
+    await mountViewer(runtime.document, { registerNavigation: (next) => (navigation = next) });
+    expect(pdfPage.render).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      for (let index = 0; index < 9; index += 1) navigation?.onZoomIn();
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 110));
+    });
+
+    expect(pdfPage.render).toHaveBeenCalledTimes(2);
+    const firstZoom = (navigation as ViewerNavigationModel | null)?.zoom;
+    if (firstZoom === undefined) throw new Error("Viewer navigation was not registered.");
+    const firstLayout = pdfRasterLayout(
+      { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+      { zoom: firstZoom, panX: 0, panY: 0 },
+      window.devicePixelRatio,
+    );
+    const firstHighZoomCanvas = pdfPage.render.mock.calls[1]?.[0]?.canvas as
+      | HTMLCanvasElement
+      | undefined;
+    if (!firstHighZoomCanvas) throw new Error("The high-zoom raster canvas was not created.");
+
+    await act(async () => navigation?.onZoomIn());
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 110));
+    });
+
+    const nextZoom = (navigation as ViewerNavigationModel | null)?.zoom;
+    if (nextZoom === undefined) throw new Error("Viewer navigation was not registered.");
+    const nextLayout = pdfRasterLayout(
+      { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+      { zoom: nextZoom, panX: 0, panY: 0 },
+      window.devicePixelRatio,
+    );
+    expect(pdfPage.render).toHaveBeenCalledTimes(2);
+    expect(firstZoom).toBeGreaterThan(6);
+    expect(nextZoom).toBeGreaterThan(firstZoom);
+    expect(firstLayout.backingWidth).toBe(nextLayout.backingWidth);
+    expect(firstLayout.backingHeight).toBe(nextLayout.backingHeight);
+    expect(firstHighZoomCanvas.width * firstHighZoomCanvas.height).toBeGreaterThan(
+      MAX_RENDER_CACHE_PIXELS,
+    );
   });
 
   it.each([
