@@ -125,7 +125,7 @@ describe("AppBar", () => {
           "header button, header a",
         ),
       ).map((action) => action.textContent?.trim() || action.getAttribute("aria-label")),
-    ).toEqual(["Open PDF", "Export", "Feedback", "Settings"]);
+    ).toEqual(["Open PDF", "Export", "Undo", "Redo", "Feedback", "Settings"]);
   });
 
   it("uses the same ghost command hierarchy for Open PDF and Export", () => {
@@ -150,15 +150,15 @@ describe("AppBar", () => {
     );
 
     expect(toolbar.getAttribute("aria-label")).toBe("Application actions");
-    expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1]);
+    expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
 
     act(() => actions[0]?.focus());
     press("ArrowRight");
     expect(document.activeElement).toBe(actions[1]);
     press("ArrowRight");
-    expect(document.activeElement).toBe(actions[2]);
+    expect(document.activeElement).toBe(actions[4]);
     press("End");
-    expect(document.activeElement).toBe(actions[3]);
+    expect(document.activeElement).toBe(actions[5]);
     press("ArrowRight");
     expect(document.activeElement).toBe(actions[0]);
     expect(actions.filter((action) => action.tabIndex === 0)).toEqual([actions[0]]);

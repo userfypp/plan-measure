@@ -48,6 +48,24 @@ export function shouldIgnoreMeasurementClipboardShortcutTarget(
   return !["button", "checkbox", "radio", "range", "reset", "submit"].includes(inputType);
 }
 
+export type HistoryKeyboardAction = "undo" | "redo";
+
+export function getHistoryKeyboardAction(
+  event: KeyboardShortcutEvent,
+): HistoryKeyboardAction | null {
+  if (
+    event.defaultPrevented ||
+    event.repeat ||
+    event.altKey ||
+    event.metaKey === event.ctrlKey ||
+    shouldIgnoreMeasurementClipboardShortcutTarget(event.target) ||
+    event.key.toLowerCase() !== "z"
+  ) {
+    return null;
+  }
+  return event.shiftKey ? "redo" : "undo";
+}
+
 export type MeasurementKeyboardAction =
   "copy-measurement" | "delete-measurement" | "paste-measurement";
 

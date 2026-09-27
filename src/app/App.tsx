@@ -45,7 +45,10 @@ import type {
   Point,
   Tool,
 } from "../types/domain";
-import { getMeasurementKeyboardAction } from "../utils/keyboard";
+import {
+  getHistoryKeyboardAction,
+  getMeasurementKeyboardAction,
+} from "../utils/keyboard";
 import {
   defaultCalibrationName,
   findPageCalibration,
@@ -107,6 +110,10 @@ function PlanMeasureApp() {
   const { state: appState, setError, clearError } = useAppState();
   const {
     session,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
     loadSession,
     clearSession,
     updatePage,
@@ -197,6 +204,18 @@ function PlanMeasureApp() {
     pageNumber: number;
     bounds: LogicalPageBounds;
   } | null>(null);
+
+  useEffect(() => {
+    function handleHistoryShortcut(event: KeyboardEvent) {
+      const action = getHistoryKeyboardAction(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action === "redo") redo();
+      else undo();
+    }
+    window.addEventListener("keydown", handleHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleHistoryShortcut);
+  }, [redo, undo]);
 
   const focusViewer = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -983,11 +1002,15 @@ function PlanMeasureApp() {
     <AppShell
       documentName={session?.pdf.name ?? null}
       canExport={Boolean(session)}
+      canUndo={canUndo}
+      canRedo={canRedo}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
+      onUndo={undo}
+      onRedo={redo}
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }
