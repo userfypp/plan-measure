@@ -4,6 +4,21 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.6.0](https://github.com/userfypp/plan-measure/compare/v2.5.1...v2.6.0) (2026-09-27)
+
+
+### Added
+
+* add project import and export ([#154](https://github.com/userfypp/plan-measure/issues/154)) ([98dd07e](https://github.com/userfypp/plan-measure/commit/98dd07ee1d8e3d93ed1b3184af765954156525a4))
+* add undo and redo history ([#151](https://github.com/userfypp/plan-measure/issues/151)) ([f237291](https://github.com/userfypp/plan-measure/commit/f237291296c74c9b936b98782c75e4c2c15da6c8))
+* export measurements as annotated PDF ([#156](https://github.com/userfypp/plan-measure/issues/156)) ([2ee6981](https://github.com/userfypp/plan-measure/commit/2ee69812c12e675e5ff6dbe71f94f9437fd59219))
+* support multiple saved projects ([#153](https://github.com/userfypp/plan-measure/issues/153)) ([c78b722](https://github.com/userfypp/plan-measure/commit/c78b722fe07be2275d00224cd788aa49fa12e33a))
+
+
+### Fixed
+
+* synchronize project refresh after activation ([#155](https://github.com/userfypp/plan-measure/issues/155)) ([7fee295](https://github.com/userfypp/plan-measure/commit/7fee2955a97ef0b164588e14e653d3cb7b019848))
+
 ## [2.5.1](https://github.com/userfypp/plan-measure/compare/v2.5.0...v2.5.1) (2026-09-26)
 
 
