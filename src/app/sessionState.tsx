@@ -955,6 +955,10 @@ function updateCalibrationReferencePoints(
 }
 
 interface SessionContextValue extends SessionState {
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
   loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
   updatePage: (pageNumber: number) => void;
@@ -997,20 +1001,76 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { setError } = useAppState();
   const [session, setSession] = useState<CurrentSession | null>(null);
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const sessionRef = useRef<CurrentSession | null>(null);
+  const undoStackRef = useRef<CurrentSession[]>([]);
+  const redoStackRef = useRef<CurrentSession[]>([]);
+  const updateHistoryState = useCallback(() => {
+    setHistoryState({
+      canUndo: undoStackRef.current.length > 0,
+      canRedo: redoStackRef.current.length > 0,
+    });
+  }, []);
   const applyAction = useCallback(
     (action: SessionAction): SessionCommandResult => {
       const result = sessionReducer({ session: sessionRef.current, error: null }, action);
+      if (action.type === "LOAD_SESSION" || action.type === "CLEAR_SESSION") {
+        undoStackRef.current = [];
+        redoStackRef.current = [];
+        updateHistoryState();
+      } else if (
+        action.type !== "UPDATE_PAGE" &&
+        action.type !== "UPDATE_SETTINGS" &&
+        sessionRef.current &&
+        result.session !== sessionRef.current
+      ) {
+        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(-100);
+        redoStackRef.current = [];
+        updateHistoryState();
+      }
       sessionRef.current = result.session;
       setSession(result.session);
       setError(result.error);
       return result;
     },
-    [setError],
+    [setError, updateHistoryState],
   );
+  const undo = useCallback(() => {
+    const previous = undoStackRef.current.pop();
+    const current = sessionRef.current;
+    if (!previous || !current) return;
+    redoStackRef.current = [...redoStackRef.current, current];
+    const restored = {
+      ...previous,
+      currentPage: current.currentPage,
+      settings: current.settings,
+    };
+    sessionRef.current = restored;
+    setSession(restored);
+    setError(null);
+    updateHistoryState();
+  }, [setError, updateHistoryState]);
+  const redo = useCallback(() => {
+    const next = redoStackRef.current.pop();
+    const current = sessionRef.current;
+    if (!next || !current) return;
+    undoStackRef.current = [...undoStackRef.current, current].slice(-100);
+    const restored = {
+      ...next,
+      currentPage: current.currentPage,
+      settings: current.settings,
+    };
+    sessionRef.current = restored;
+    setSession(restored);
+    setError(null);
+    updateHistoryState();
+  }, [setError, updateHistoryState]);
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
+      ...historyState,
+      undo,
+      redo,
       loadSession: (nextSession) => applyAction({ type: "LOAD_SESSION", session: nextSession }),
       clearSession: () => applyAction({ type: "CLEAR_SESSION" }),
       updatePage: (pageNumber) => applyAction({ type: "UPDATE_PAGE", pageNumber }),
@@ -1090,7 +1150,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "REMOVE_CLASSIFICATION_VALUE", ...command }),
       updateSettings: (settings) => applyAction({ type: "UPDATE_SETTINGS", settings }),
     }),
-    [applyAction, session],
+    [applyAction, historyState, redo, session, undo],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

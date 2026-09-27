@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  getHistoryKeyboardAction,
   getDrawingKeyboardAction,
   getMeasurementKeyboardAction,
   getShortcutLabel,
@@ -181,6 +182,44 @@ describe("measurement keyboard shortcuts", () => {
     ).toBeNull();
     expect(getMeasurementKeyboardAction(keyboardEvent("c", canvas()))).toBeNull();
     expect(getMeasurementKeyboardAction(keyboardEvent("v", canvas()))).toBeNull();
+  });
+});
+
+describe("undo and redo keyboard shortcuts", () => {
+  const canvas = () => new FakeHTMLElement("canvas") as unknown as EventTarget;
+
+  it.each([
+    ["metaKey", "undo"],
+    ["ctrlKey", "undo"],
+  ] as const)("maps %s+Z to undo", (modifier, action) => {
+    expect(getHistoryKeyboardAction(keyboardEvent("Z", canvas(), { [modifier]: true }))).toBe(
+      action,
+    );
+  });
+
+  it.each(["metaKey", "ctrlKey"] as const)("maps %s+Shift+Z to redo", (modifier) => {
+    expect(
+      getHistoryKeyboardAction(
+        keyboardEvent("z", canvas(), { [modifier]: true, shiftKey: true }),
+      ),
+    ).toBe("redo");
+  });
+
+  it("leaves editing fields, repeats, and unrelated modifiers untouched", () => {
+    expect(getHistoryKeyboardAction(keyboardEvent("z", canvas()))).toBeNull();
+    expect(
+      getHistoryKeyboardAction(keyboardEvent("z", canvas(), { metaKey: true, repeat: true })),
+    ).toBeNull();
+    expect(
+      getHistoryKeyboardAction(keyboardEvent("z", canvas(), { ctrlKey: true, altKey: true })),
+    ).toBeNull();
+    expect(
+      getHistoryKeyboardAction(
+        keyboardEvent("z", new FakeHTMLElement("input") as unknown as EventTarget, {
+          metaKey: true,
+        }),
+      ),
+    ).toBeNull();
   });
 });
 

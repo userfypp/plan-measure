@@ -12,12 +12,16 @@ interface AppShellProps {
   documentName: string | null;
   canExport: boolean;
   savedProjectCount?: number;
+  canUndo?: boolean;
+  canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onOpenPdf: () => void;
   onExport: () => void;
   onOpenProjects?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
@@ -31,12 +35,16 @@ export function AppShell({
   documentName,
   canExport,
   savedProjectCount = 0,
+  canUndo = false,
+  canRedo = false,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onOpenPdf,
   onExport,
   onOpenProjects,
+  onUndo,
+  onRedo,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
@@ -57,12 +65,16 @@ export function AppShell({
         documentName={documentName}
         canExport={canExport}
         savedProjectCount={savedProjectCount}
+        canUndo={canUndo}
+        canRedo={canRedo}
         measurementDecimalPlaces={measurementDecimalPlaces}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onOpenPdf={onOpenPdf}
         onExport={onExport}
         onOpenProjects={onOpenProjects}
+        onUndo={onUndo}
+        onRedo={onRedo}
         onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
         onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
         onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}

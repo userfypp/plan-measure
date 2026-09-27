@@ -12,12 +12,16 @@ interface AppBarProps {
   documentName: string | null;
   canExport: boolean;
   savedProjectCount?: number;
+  canUndo?: boolean;
+  canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onOpenPdf: () => void;
   onExport: () => void;
   onOpenProjects?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
@@ -38,12 +42,16 @@ export function AppBar({
   documentName,
   canExport,
   savedProjectCount = 0,
+  canUndo = false,
+  canRedo = false,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onOpenPdf,
   onExport,
   onOpenProjects,
+  onUndo,
+  onRedo,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
@@ -101,6 +109,28 @@ export function AppBar({
               {savedProjectCount}
             </span>
           )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="compact"
+          aria-label="Undo"
+          aria-keyshortcuts="Control+Z Meta+Z"
+          title="Undo (Ctrl+Z / ⌘Z)"
+          disabled={!canUndo}
+          onClick={onUndo}
+        >
+          Undo
+        </Button>
+        <Button
+          variant="ghost"
+          size="compact"
+          aria-label="Redo"
+          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
+          title="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
+          disabled={!canRedo}
+          onClick={onRedo}
+        >
+          Redo
         </Button>
         <a
           className={styles.feedbackAction}
