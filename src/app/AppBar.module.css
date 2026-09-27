@@ -56,16 +56,33 @@
 
 .openAction,
 .exportAction,
+.projectsAction,
 .feedbackAction,
 .iconTrigger {
   min-height: var(--target-current);
 }
 
 .openAction,
-.exportAction {
+.exportAction,
+.projectsAction {
   border-color: transparent;
   background: transparent;
   color: var(--color-text-primary);
+}
+
+.projectCount {
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  margin-left: var(--space-4);
+  padding: 0 var(--space-4);
+  place-items: center;
+  border-radius: 9px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-field);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .feedbackAction {
@@ -188,6 +205,7 @@
 
   .actions .openAction,
   .actions .exportAction,
+  .actions .projectsAction,
   .actions .feedbackAction {
     padding-inline: var(--space-8);
   }

@@ -8,6 +8,7 @@ import { AppShell, LoadingOverlay } from "./AppShell";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { WorkspacePanel } from "./WorkspacePanel";
 import { ContextToolbar } from "./ContextToolbar";
+import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { Modal } from "../components/Modal";
@@ -181,6 +182,8 @@ function PlanMeasureApp() {
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
+  const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
   );
@@ -234,6 +237,7 @@ function PlanMeasureApp() {
   const {
     activePdf,
     recovery,
+    savedProjects,
     recoveryChecked,
     recoveryIssue,
     confirmDiscardRecovery,
@@ -241,7 +245,8 @@ function PlanMeasureApp() {
     autosaveWarning,
     autosaveUnavailable,
     chooseFile,
-    continueRecovery,
+    openProject,
+    refreshSavedProjects,
     discardRecovery,
     continueWithoutRecovery,
     showDiscardRecoveryConfirmation,
@@ -983,11 +988,16 @@ function PlanMeasureApp() {
     <AppShell
       documentName={session?.pdf.name ?? null}
       canExport={Boolean(session)}
+      savedProjectCount={savedProjects.length}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
       onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
+      onOpenProjects={() => {
+        setProjectLibraryOpen(true);
+        void refreshSavedProjects();
+      }}
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }
@@ -1239,40 +1249,6 @@ function PlanMeasureApp() {
       {!recoveryChecked && <LoadingOverlay>Checking for a saved session…</LoadingOverlay>}
       {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
 
-      {recovery && !session && !loading && (
-        <Modal title="Previous session found">
-          {confirmDiscardRecovery ? (
-            <>
-              <p>
-                The saved session for <strong>{recovery.session.pdf.name}</strong> and its local PDF
-                will be permanently removed.
-              </p>
-              <div className={styles.modalActions}>
-                <Button variant="secondary" onClick={hideDiscardRecoveryConfirmation}>
-                  Cancel
-                </Button>
-                <Button variant="danger" onClick={() => void discardRecovery()}>
-                  Discard saved session
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p>
-                Continue working on <strong>{recovery.session.pdf.name}</strong>, or discard the
-                saved browser-local session.
-              </p>
-              <div className={styles.modalActions}>
-                <Button variant="dangerSecondary" onClick={showDiscardRecoveryConfirmation}>
-                  Discard
-                </Button>
-                <Button onClick={() => void continueRecovery()}>Continue</Button>
-              </div>
-            </>
-          )}
-        </Modal>
-      )}
-
       {recoveryIssue && !session && (
         <Modal title="Saved session unavailable">
           {confirmDiscardRecovery ? (
@@ -1307,6 +1283,37 @@ function PlanMeasureApp() {
         onDialogConfirm={confirmPdfReplacement}
         onDialogCancel={cancelPdfReplacement}
         onConfirmationConfirm={handleOverlayConfirmationConfirm}
+      />
+
+      <ProjectLibraryDialog
+        open={
+          projectLibraryOpen ||
+          (Boolean(recovery && !session) && !dismissInitialProjectLibrary)
+        }
+        projects={savedProjects}
+        currentSessionLoaded={Boolean(session)}
+        opening={loading}
+        confirmDiscard={confirmDiscardRecovery}
+        onOpenProject={(projectId) => {
+          setProjectLibraryOpen(false);
+          setDismissInitialProjectLibrary(true);
+          if (session && savedProjects.find((project) => project.id === projectId)?.isCurrent) {
+            return;
+          }
+          void openProject(projectId);
+        }}
+        onOpenPdf={() => {
+          setProjectLibraryOpen(false);
+          setDismissInitialProjectLibrary(true);
+          fileInputRef.current?.click();
+        }}
+        onRequestDiscard={showDiscardRecoveryConfirmation}
+        onCancelDiscard={hideDiscardRecoveryConfirmation}
+        onConfirmDiscard={() => void discardRecovery()}
+        onClose={() => {
+          setProjectLibraryOpen(false);
+          if (recovery && !session) setDismissInitialProjectLibrary(true);
+        }}
       />
 
       {csvExportDialogOpen && session && (

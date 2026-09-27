@@ -13,12 +13,16 @@ import type {
 } from "./overlayState";
 import type { CurrentSession } from "../types/domain";
 import {
+  activateSavedProject,
   beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
+  listSavedProjects,
+  loadSavedProject,
   loadSavedSession,
   PersistenceLoadError,
   replaceSavedSession,
   saveSessionMetadata,
+  type SavedProjectSummary,
   type SavedSession,
 } from "../services/persistence";
 import type { LoadedPdf } from "../services/pdf";
@@ -33,6 +37,7 @@ async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
 
 interface PendingPdf {
   pdfId: string;
+  projectId: string;
   file: File;
   loaded: LoadedPdf;
   session: CurrentSession;
@@ -95,6 +100,7 @@ export function usePdfSessionLifecycle({
   const [activePdf, setActivePdf] = useState<LoadedPdf | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [recovery, setRecovery] = useState<SavedSession | null>(null);
+  const [savedProjects, setSavedProjects] = useState<SavedProjectSummary[]>([]);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
   const [recoveryProtected, setRecoveryProtected] = useState(false);
@@ -186,16 +192,23 @@ export function usePdfSessionLifecycle({
   useEffect(() => {
     let cancelled = false;
     void loadSavedSession()
-      .then((saved) => {
+      .then(async (saved) => {
+        if (cancelled) return;
+        try {
+          setSavedProjects(await listSavedProjects());
+        } catch (error) {
+          console.error("Could not list saved projects.", error);
+        }
         if (cancelled) return;
         persistenceRevisionRef.current = saved?.revision ?? null;
         setRecovery(saved);
-        setRecoveryProtected(Boolean(saved));
+        setRecoveryProtected(false);
         setRecoveryChecked(true);
       })
       .catch((error: unknown) => {
         console.error("IndexedDB recovery failed.", error);
         if (cancelled) return;
+        void listSavedProjects().then(setSavedProjects).catch(() => undefined);
         if (error instanceof PersistenceLoadError) {
           persistenceRevisionRef.current = error.revision;
         }
@@ -355,6 +368,8 @@ export function usePdfSessionLifecycle({
           candidate.session,
           candidate.file,
           expectedRevision,
+          candidate.projectId,
+          session ?? undefined,
         );
         persistedSessionRef.current = candidate.session;
         saved = true;
@@ -373,9 +388,14 @@ export function usePdfSessionLifecycle({
       loadSession(candidate.session);
       resetWorkspace();
       closeAllOverlays();
+      setRecovery(null);
+      setRecoveryProtected(false);
       if (saved) {
         setAutosaveStatus("available");
         setAutosaveWarning(null);
+        void listSavedProjects().then(setSavedProjects).catch((error: unknown) => {
+          console.error("Could not refresh saved projects.", error);
+        });
       } else {
         setError("Autosave could not be started.");
       }
@@ -404,6 +424,7 @@ export function usePdfSessionLifecycle({
       );
       const candidate = {
         pdfId: crypto.randomUUID(),
+        projectId: crypto.randomUUID(),
         file,
         loaded,
         session: newSession,
@@ -436,37 +457,54 @@ export function usePdfSessionLifecycle({
     }
   }
 
-  async function continueRecovery() {
-    if (!recovery) return;
+  async function openProject(projectId: string) {
+    const previousAutosaveStatus = autosaveStatus;
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     beginPdfLoad(loadGeneration);
     let loaded: LoadedPdf | null = null;
     try {
-      loaded = await loadPdfRuntime(recovery.pdfBlob);
+      const openingCurrentRecovery = !session && recovery?.projectId === projectId;
+      const savedProject = openingCurrentRecovery
+        ? recovery
+        : await loadSavedProject(projectId);
+      if (!savedProject) throw new Error("The selected project is no longer available.");
+      loaded = await loadPdfRuntime(savedProject.pdfBlob);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
         await destroyPdf(loaded);
         return;
       }
-      if (loaded.document.numPages !== recovery.session.pageCount) {
+      if (loaded.document.numPages !== savedProject.session.pageCount) {
         await destroyPdf(loaded);
         loaded = null;
-        throw new Error("The saved PDF does not match its session metadata.");
+        throw new Error("The saved PDF does not match this project's page count.");
       }
-      // Recovery order: install the validated runtime before publishing the
-      // persistent snapshot, then reset interaction/UI state and enable saves.
+      let activatedRevision = persistenceRevisionRef.current;
+      if (!openingCurrentRecovery) {
+        persistenceGenerationRef.current += 1;
+        setAutosaveStatus("inactive");
+        await saveQueueRef.current.catch(() => undefined);
+        const expectedRevision = persistenceRevisionRef.current;
+        if (expectedRevision === null || expectedRevision === undefined) {
+          throw new Error("Cannot switch projects without a saved session revision.");
+        }
+        const activated = await activateSavedProject(projectId, expectedRevision, session ?? undefined);
+        activatedRevision = activated.revision;
+      }
       const installed = await installActivePdf(loaded);
       if (!installed) return;
       loaded = null;
-      setPdfBlob(recovery.pdfBlob);
-      persistedSessionRef.current = recovery.session;
-      loadSession(recovery.session);
+      if (!activatedRevision) throw new Error("The selected project has no active revision.");
+      persistenceRevisionRef.current = activatedRevision;
+      setPdfBlob(savedProject.pdfBlob);
+      persistedSessionRef.current = savedProject.session;
+      loadSession(savedProject.session);
       resetWorkspace(recoveredStartupWorkspace);
       closeAllOverlays();
-      if (recovery.compatibility !== "current") {
+      if (savedProject.compatibility !== "current") {
         setAutosaveStatus("repair-required");
         setAutosaveWarning(
-          recovery.compatibility === "classification-repair-required"
-            ? recovery.incompatibleMeasurementIds.length > 0
+          savedProject.compatibility === "classification-repair-required"
+            ? savedProject.incompatibleMeasurementIds.length > 0
               ? COMBINED_REPAIR_WARNING
               : CLASSIFICATION_REPAIR_WARNING
             : HISTORICAL_REPAIR_WARNING,
@@ -477,14 +515,35 @@ export function usePdfSessionLifecycle({
       }
       setRecovery(null);
       setRecoveryProtected(false);
+      setConfirmDiscardRecovery(false);
+      setRecoveryIssue(null);
+      setSavedProjects(await listSavedProjects());
     } catch (error) {
       if (loaded) await destroyPdf(loaded);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
+      if (
+        session &&
+        activePdfRef.current &&
+        (previousAutosaveStatus === "available" || previousAutosaveStatus === "repair-required")
+      ) {
+        setAutosaveStatus(previousAutosaveStatus);
+      }
       console.error("Saved PDF recovery failed.", error);
-      setError("The previous session could not be restored. You can discard it and open a PDF.");
+      setError("This project could not be opened. Its saved copy has been kept on this device.");
     } finally {
       finishPdfLoad(loadGeneration);
     }
+  }
+
+  async function continueRecovery() {
+    if (!recovery) return;
+    await openProject(recovery.projectId);
+  }
+
+  async function refreshSavedProjects() {
+    const projects = await listSavedProjects();
+    setSavedProjects(projects);
+    return projects;
   }
 
   async function discardRecovery() {
@@ -513,6 +572,7 @@ export function usePdfSessionLifecycle({
       clearSession();
       resetWorkspace();
       closeAllOverlays();
+      setSavedProjects(await listSavedProjects());
     } catch (error) {
       console.error("Could not discard the saved session.", error);
       setError("The saved session could not be discarded.");
@@ -557,6 +617,7 @@ export function usePdfSessionLifecycle({
   return {
     activePdf,
     recovery,
+    savedProjects,
     recoveryChecked,
     recoveryIssue,
     confirmDiscardRecovery,
@@ -564,6 +625,8 @@ export function usePdfSessionLifecycle({
     autosaveWarning,
     autosaveUnavailable: autosaveStatus === "unavailable" || autosaveStatus === "repair-required",
     chooseFile,
+    openProject,
+    refreshSavedProjects,
     continueRecovery,
     discardRecovery,
     continueWithoutRecovery,

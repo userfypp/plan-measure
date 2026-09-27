@@ -28,6 +28,9 @@ import { lineLengthMm, polygonResultsMm } from "../utils/geometry";
 import {
   beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
+  activateSavedProject,
+  listSavedProjects,
+  loadSavedProject,
   loadSavedSession,
   PersistenceConflictError,
   PersistenceLoadError,
@@ -2046,6 +2049,56 @@ describe("session persistence", () => {
     expect(await restored?.pdfBlob.text()).toBe("pdf");
   });
 
+  it("keeps multiple local projects and saves the outgoing project before switching", async () => {
+    const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 2);
+    const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
+    const projectAId = "project-a";
+    const projectBId = "project-b";
+    let revision = await replaceSavedSession(
+      projectA,
+      new Blob(["pdf-a"]),
+      null,
+      projectAId,
+    );
+    const editedProjectA = structuredClone(projectA);
+    editedProjectA.settings.showLabels = false;
+    revision = await saveSessionMetadata(editedProjectA, revision);
+
+    revision = await replaceSavedSession(
+      projectB,
+      new Blob(["pdf-b"]),
+      revision,
+      projectBId,
+      editedProjectA,
+    );
+    const projectSummary = await listSavedProjects();
+    expect(projectSummary).toEqual([
+      expect.objectContaining({ id: projectBId, name: "B-202.pdf", isCurrent: true }),
+      expect.objectContaining({ id: projectAId, name: "A-101.pdf", isCurrent: false }),
+    ]);
+
+    const loadedProjectA = await loadSavedProject(projectAId);
+    expect(loadedProjectA.session.settings.showLabels).toBe(false);
+    const editedProjectB = structuredClone(projectB);
+    editedProjectB.settings.showMeasurements = false;
+    const activatedA = await activateSavedProject(projectAId, revision, editedProjectB);
+    expect(activatedA.projectId).toBe(projectAId);
+    expect(activatedA.session.settings.showLabels).toBe(false);
+    expect(await (await loadSavedSession())?.pdfBlob.text()).toBe("pdf-a");
+
+    const storedProjectB = await loadSavedProject(projectBId);
+    expect(storedProjectB.session.settings.showMeasurements).toBe(false);
+    expect(await (await listSavedProjects()).find((project) => project.id === projectAId)?.isCurrent).toBe(
+      true,
+    );
+
+    const activeProject = await loadSavedSession();
+    if (!activeProject) throw new Error("Expected project A to be active.");
+    await discardSavedSession(activeProject.revision);
+    expect(await loadSavedSession()).toBeNull();
+    expect((await listSavedProjects()).map((project) => project.id)).toEqual([projectBId]);
+  });
+
   it("keeps the revision for an unchanged recovery autosave", async () => {
     const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
     const revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
@@ -2337,7 +2390,8 @@ describe("session persistence", () => {
     expect(await recovered?.pdfBlob.text()).toBe("pdf");
 
     const records = await readPersistenceRecords();
-    expect(records.state).toEqual({ key: "persistence-v2", activeRevision: revision });
+    expect(records.state).toMatchObject({ key: "persistence-v2", activeRevision: revision });
+    expect(records.state?.activeProjectId).toEqual(expect.any(String));
     expect(records.activeSession).toMatchObject({ revision });
     expect(records.activePdf).toMatchObject({ revision });
   });
@@ -2352,7 +2406,7 @@ describe("session persistence", () => {
     expect(recovered?.revision).toBe(revision);
     expect(recovered?.session).toEqual(session);
     expect(await recovered?.pdfBlob.text()).toBe("pdf");
-    expect((await readPersistenceRecords()).state).toEqual({
+    expect((await readPersistenceRecords()).state).toMatchObject({
       key: "persistence-v2",
       activeRevision: revision,
     });
@@ -2402,7 +2456,7 @@ describe("session persistence", () => {
       revision,
       message: "The saved PDF does not match its session metadata.",
     });
-    expect((await readPersistenceRecords()).state).toEqual({
+    expect((await readPersistenceRecords()).state).toMatchObject({
       key: "persistence-v2",
       activeRevision: revision,
     });

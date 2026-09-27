@@ -27,6 +27,19 @@ interface SessionRecord {
 interface PersistenceStateRecord {
   key: string;
   activeRevision: string | null;
+  activeProjectId?: string | null;
+}
+
+interface ProjectRecord extends SessionRecord {
+  projectId: string;
+}
+
+export interface SavedProjectSummary {
+  id: string;
+  name: string;
+  pageCount: number;
+  savedAt: number;
+  isCurrent: boolean;
 }
 
 interface PdfRecord {
@@ -38,7 +51,7 @@ interface PdfRecord {
 interface PlanMeasureDb extends DBSchema {
   sessions: {
     key: string;
-    value: SessionRecord | PersistenceStateRecord;
+    value: SessionRecord | ProjectRecord | PersistenceStateRecord;
   };
   pdfs: {
     key: string;
@@ -93,6 +106,7 @@ export class PersistenceLoadError extends Error {
 }
 
 export interface SavedSession {
+  projectId: string;
   session: CurrentSession;
   pdfBlob: Blob;
   revision: string;
@@ -101,7 +115,7 @@ export interface SavedSession {
 }
 
 function isPersistenceStateRecord(
-  record: SessionRecord | PersistenceStateRecord | undefined,
+  record: SessionRecord | ProjectRecord | PersistenceStateRecord | undefined,
 ): record is PersistenceStateRecord {
   return Boolean(
     record &&
@@ -111,8 +125,24 @@ function isPersistenceStateRecord(
   );
 }
 
+function isProjectRecord(
+  record: SessionRecord | ProjectRecord | PersistenceStateRecord | undefined,
+): record is ProjectRecord {
+  return Boolean(
+    record &&
+    "projectId" in record &&
+    typeof record.projectId === "string" &&
+    record.projectId.length > 0 &&
+    typeof record.serialized === "string",
+  );
+}
+
+function projectRecordKey(projectId: string): string {
+  return `project:${projectId}`;
+}
+
 function readMatchingActiveRevision(
-  sessionRecord: SessionRecord | PersistenceStateRecord | undefined,
+  sessionRecord: SessionRecord | ProjectRecord | PersistenceStateRecord | undefined,
   pdfRecord: PdfRecord | undefined,
 ): string | null {
   if (!sessionRecord || isPersistenceStateRecord(sessionRecord) || !pdfRecord) return null;
@@ -120,6 +150,45 @@ function readMatchingActiveRevision(
   return typeof revision === "string" && revision.length > 0 && pdfRecord.revision === revision
     ? revision
     : null;
+}
+
+async function ensureActiveProject(
+  transaction: PersistenceTransaction,
+  state: PersistenceStateRecord,
+  sessionRecord: SessionRecord | ProjectRecord | PersistenceStateRecord | undefined,
+  pdfRecord: PdfRecord | undefined,
+): Promise<PersistenceStateRecord> {
+  const sessions = transaction.objectStore("sessions");
+  const pdfs = transaction.objectStore("pdfs");
+  if (state.activeProjectId) {
+    const existing = await sessions.get(projectRecordKey(state.activeProjectId));
+    if (isProjectRecord(existing)) return state;
+  }
+  if (
+    !sessionRecord ||
+    isPersistenceStateRecord(sessionRecord) ||
+    !pdfRecord ||
+    !sessionRecord.revision ||
+    pdfRecord.revision !== sessionRecord.revision
+  ) {
+    return state;
+  }
+  const sessionPdf = readRecoverableSessionPdfMetadata(sessionRecord.serialized);
+  if (sessionPdf && storedFileIdentityMatches(pdfRecord.blob, sessionPdf) === false) return state;
+  const projectId = state.activeProjectId || crypto.randomUUID();
+  const key = projectRecordKey(projectId);
+  await Promise.all([
+    sessions.put({
+      key,
+      projectId,
+      serialized: sessionRecord.serialized,
+      savedAt: sessionRecord.savedAt ?? Date.now(),
+    }),
+    pdfs.put({ key, blob: pdfRecord.blob }),
+  ]);
+  const nextState = { ...state, activeProjectId: projectId };
+  await sessions.put(nextState);
+  return nextState;
 }
 
 function readRecoverableSessionPdfMetadata(serialized: string): PdfMetadata | null {
@@ -163,13 +232,12 @@ async function readOrCreatePersistenceState(
   ]);
   const activeRevision = readMatchingActiveRevision(activeSession, activePdf);
   if (activeRevision !== null) {
-    if (
-      !isPersistenceStateRecord(existingState) ||
-      existingState.activeRevision !== activeRevision
-    ) {
-      await sessions.put({ key: STATE_KEY, activeRevision });
-    }
-    return { key: STATE_KEY, activeRevision };
+    const nextState =
+      isPersistenceStateRecord(existingState) && existingState.activeRevision === activeRevision
+        ? existingState
+        : { key: STATE_KEY, activeRevision };
+    if (nextState !== existingState) await sessions.put(nextState);
+    return ensureActiveProject(transaction, nextState, activeSession, activePdf);
   }
   if (isPersistenceStateRecord(existingState) && existingState.activeRevision !== null) {
     return existingState;
@@ -203,7 +271,13 @@ async function readOrCreatePersistenceState(
     );
   }
   await Promise.all(writes);
-  return { key: STATE_KEY, activeRevision: legacyRevision };
+  const nextState = { key: STATE_KEY, activeRevision: legacyRevision };
+  if (legacyRevision === null) return nextState;
+  const [migratedSession, migratedPdf] = await Promise.all([
+    sessions.get(ACTIVE_KEY),
+    pdfs.get(ACTIVE_KEY),
+  ]);
+  return ensureActiveProject(transaction, nextState, migratedSession, migratedPdf);
 }
 
 async function abort(transaction: PersistenceTransaction, error: Error): Promise<never> {
@@ -251,6 +325,7 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
       throw new Error("The saved PDF does not match its session metadata.");
     }
     return {
+      projectId: state.activeProjectId ?? "",
       ...decoded,
       pdfBlob: pdfRecord.blob,
       revision: state.activeRevision,
@@ -261,17 +336,149 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
   }
 }
 
+export async function listSavedProjects(): Promise<SavedProjectSummary[]> {
+  const database = await getDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+  const state = await readOrCreatePersistenceState(transaction);
+  const [records, pdfRecords] = await Promise.all([
+    transaction.objectStore("sessions").getAll(),
+    transaction.objectStore("pdfs").getAll(),
+  ]);
+  const pdfKeys = new Set(pdfRecords.map((record) => record.key));
+  const projects = records.flatMap((record) => {
+    if (!isProjectRecord(record) || !pdfKeys.has(projectRecordKey(record.projectId))) return [];
+    try {
+      const session = deserializeSessionForRecovery(record.serialized).session;
+      return [{
+        id: record.projectId,
+        name: session.pdf.name,
+        pageCount: session.pageCount,
+        savedAt: record.savedAt,
+        isCurrent: record.projectId === state.activeProjectId,
+      }];
+    } catch {
+      return [];
+    }
+  });
+  await transaction.done;
+  return projects.sort(
+    (left, right) =>
+      Number(right.isCurrent) - Number(left.isCurrent) || right.savedAt - left.savedAt,
+  );
+}
+
+export async function loadSavedProject(projectId: string): Promise<Omit<SavedSession, "revision">> {
+  const database = await getDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readonly");
+  const key = projectRecordKey(projectId);
+  const [project, pdf] = await Promise.all([
+    transaction.objectStore("sessions").get(key),
+    transaction.objectStore("pdfs").get(key),
+  ]);
+  await transaction.done;
+  if (!isProjectRecord(project) || !pdf) {
+    throw new Error("The selected project is no longer available.");
+  }
+  try {
+    const decoded = deserializeSessionForRecovery(project.serialized);
+    if (storedFileIdentityMatches(pdf.blob, decoded.session.pdf) === false) {
+      throw new Error("The saved PDF does not match its session metadata.");
+    }
+    return { ...decoded, projectId, pdfBlob: pdf.blob };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The saved project is invalid.";
+    throw new Error(message, { cause: error });
+  }
+}
+
+export async function activateSavedProject(
+  projectId: string,
+  expectedRevision: string,
+  currentSession?: CurrentSession,
+): Promise<SavedSession> {
+  const database = await getDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+  const state = await requireExpectedRevision(transaction, expectedRevision);
+  const key = projectRecordKey(projectId);
+  const [project, pdf, activePdf] = await Promise.all([
+    transaction.objectStore("sessions").get(key),
+    transaction.objectStore("pdfs").get(key),
+    transaction.objectStore("pdfs").get(ACTIVE_KEY),
+  ]);
+  if (!isProjectRecord(project) || !pdf) {
+    return abort(transaction, new Error("The selected project is no longer available."));
+  }
+  let decoded: ReturnType<typeof deserializeSessionForRecovery>;
+  try {
+    decoded = deserializeSessionForRecovery(project.serialized);
+    if (storedFileIdentityMatches(pdf.blob, decoded.session.pdf) === false) {
+      throw new Error("The saved PDF does not match its session metadata.");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The saved project is invalid.";
+    return abort(transaction, new Error(message));
+  }
+  const writes: Array<Promise<unknown>> = [];
+  if (state.activeProjectId && currentSession && activePdf) {
+    writes.push(
+      putProjectSnapshot(
+        transaction,
+        state.activeProjectId,
+        currentSession,
+        activePdf.blob,
+      ),
+    );
+  }
+  const revision = crypto.randomUUID();
+  writes.push(
+    transaction.objectStore("sessions").put({
+      key: ACTIVE_KEY,
+      serialized: project.serialized,
+      savedAt: Date.now(),
+      revision,
+    }),
+    transaction.objectStore("pdfs").put({ key: ACTIVE_KEY, blob: pdf.blob, revision }),
+    transaction.objectStore("sessions").put({
+      key: STATE_KEY,
+      activeRevision: revision,
+      activeProjectId: projectId,
+    }),
+  );
+  await Promise.all(writes);
+  await transaction.done;
+  return {
+    ...decoded,
+    projectId,
+    pdfBlob: pdf.blob,
+    revision,
+  };
+}
+
 export async function replaceSavedSession(
   session: CurrentSession,
   pdfBlob: Blob,
   expectedRevision: string | null,
+  projectId: string = crypto.randomUUID(),
+  currentSession?: CurrentSession,
 ): Promise<string> {
   const serialized = serializeSession(session);
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
-  await requireExpectedRevision(transaction, expectedRevision);
+  const state = await requireExpectedRevision(transaction, expectedRevision);
+  const activePdf = await transaction.objectStore("pdfs").get(ACTIVE_KEY);
+  const writes: Array<Promise<unknown>> = [];
+  if (state.activeProjectId && currentSession && activePdf) {
+    writes.push(
+      putProjectSnapshot(
+        transaction,
+        state.activeProjectId,
+        currentSession,
+        activePdf.blob,
+      ),
+    );
+  }
   const revision = crypto.randomUUID();
-  await Promise.all([
+  writes.push(
     transaction.objectStore("sessions").put({
       key: ACTIVE_KEY,
       serialized,
@@ -279,10 +486,35 @@ export async function replaceSavedSession(
       revision,
     }),
     transaction.objectStore("pdfs").put({ key: ACTIVE_KEY, blob: pdfBlob, revision }),
-    transaction.objectStore("sessions").put({ key: STATE_KEY, activeRevision: revision }),
-  ]);
+    putProjectSnapshot(transaction, projectId, session, pdfBlob),
+    transaction.objectStore("sessions").put({
+      key: STATE_KEY,
+      activeRevision: revision,
+      activeProjectId: projectId,
+    }),
+  );
+  await Promise.all(writes);
   await transaction.done;
   return revision;
+}
+
+async function putProjectSnapshot(
+  transaction: PersistenceTransaction,
+  projectId: string,
+  session: CurrentSession,
+  pdfBlob: Blob,
+  savedAt = Date.now(),
+): Promise<void> {
+  const key = projectRecordKey(projectId);
+  await Promise.all([
+    transaction.objectStore("sessions").put({
+      key,
+      projectId,
+      serialized: serializeSession(session),
+      savedAt,
+    }),
+    transaction.objectStore("pdfs").put({ key, blob: pdfBlob }),
+  ]);
 }
 
 export async function saveSessionMetadata(
@@ -292,13 +524,14 @@ export async function saveSessionMetadata(
   const serialized = serializeSession(session);
   const database = databaseInstance ?? (await getDatabase());
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
-  return saveSerializedSessionMetadata(serialized, () => expectedRevision, transaction);
+  return saveSerializedSessionMetadata(serialized, () => expectedRevision, transaction, session);
 }
 
 async function saveSerializedSessionMetadata(
   serialized: string,
   expectedRevision: () => string,
   transaction: PersistenceTransaction,
+  snapshot?: CurrentSession,
 ): Promise<string> {
   const state = await readOrCreatePersistenceState(transaction);
   const currentExpectedRevision = expectedRevision();
@@ -319,11 +552,14 @@ async function saveSerializedSessionMetadata(
     return abort(transaction, new Error("Cannot save session metadata without its PDF."));
   }
   if (sessionRecord.serialized === serialized) {
+    if (snapshot && state.activeProjectId) {
+      await putProjectSnapshot(transaction, state.activeProjectId, snapshot, pdfRecord.blob, sessionRecord.savedAt);
+    }
     await transaction.done;
     return currentExpectedRevision;
   }
   const revision = crypto.randomUUID();
-  await Promise.all([
+  const writes: Array<Promise<unknown>> = [
     transaction.objectStore("sessions").put({
       key: ACTIVE_KEY,
       serialized,
@@ -331,8 +567,16 @@ async function saveSerializedSessionMetadata(
       revision,
     }),
     transaction.objectStore("pdfs").put({ ...pdfRecord, revision }),
-    transaction.objectStore("sessions").put({ key: STATE_KEY, activeRevision: revision }),
-  ]);
+    transaction.objectStore("sessions").put({
+      key: STATE_KEY,
+      activeRevision: revision,
+      activeProjectId: state.activeProjectId ?? null,
+    }),
+  ];
+  if (snapshot && state.activeProjectId) {
+    writes.push(putProjectSnapshot(transaction, state.activeProjectId, snapshot, pdfRecord.blob));
+  }
+  await Promise.all(writes);
   await transaction.done;
   return revision;
 }
@@ -350,20 +594,30 @@ export function beginSessionMetadataSaveOnPageExit(
   if (!database) return null;
   const serialized = serializeSession(session);
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
-  return saveSerializedSessionMetadata(serialized, expectedRevision, transaction);
+  return saveSerializedSessionMetadata(serialized, expectedRevision, transaction, session);
 }
 
 export async function discardSavedSession(expectedRevision: string): Promise<void> {
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
-  await requireExpectedRevision(transaction, expectedRevision);
-  await Promise.all([
+  const state = await requireExpectedRevision(transaction, expectedRevision);
+  const writes: Array<Promise<unknown>> = [
     transaction.objectStore("sessions").delete(ACTIVE_KEY),
     transaction.objectStore("pdfs").delete(ACTIVE_KEY),
     transaction.objectStore("sessions").delete(LEGACY_ACTIVE_KEY),
     transaction.objectStore("pdfs").delete(LEGACY_ACTIVE_KEY),
-    transaction.objectStore("sessions").put({ key: STATE_KEY, activeRevision: null }),
-  ]);
+    transaction.objectStore("sessions").put({
+      key: STATE_KEY,
+      activeRevision: null,
+      activeProjectId: null,
+    }),
+  ];
+  if (state.activeProjectId) {
+    const key = projectRecordKey(state.activeProjectId);
+    writes.push(transaction.objectStore("sessions").delete(key));
+    writes.push(transaction.objectStore("pdfs").delete(key));
+  }
+  await Promise.all(writes);
   await transaction.done;
 }
 

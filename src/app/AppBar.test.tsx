@@ -45,13 +45,17 @@ function press(key: string): KeyboardEvent {
 function renderAppBar({
   documentName = "North Studio — Level 01.pdf",
   canExport = true,
+  savedProjectCount = 0,
   onOpenPdf = vi.fn(),
   onExport = vi.fn(),
+  onOpenProjects = vi.fn(),
 }: {
   documentName?: string | null;
   canExport?: boolean;
+  savedProjectCount?: number;
   onOpenPdf?: () => void;
   onExport?: () => void;
+  onOpenProjects?: () => void;
 } = {}) {
   act(() => {
     root!.render(
@@ -59,11 +63,13 @@ function renderAppBar({
         <AppBar
           documentName={documentName}
           canExport={canExport}
+          savedProjectCount={savedProjectCount}
           measurementDecimalPlaces={2}
           confirmMeasurementDeletion
           recoveredPlanStartupWorkspace="scales"
           onOpenPdf={onOpenPdf}
           onExport={onExport}
+          onOpenProjects={onOpenProjects}
           onMeasurementDecimalPlacesChange={vi.fn()}
           onConfirmMeasurementDeletionChange={vi.fn()}
           onRecoveredPlanStartupWorkspaceChange={vi.fn()}
@@ -71,7 +77,7 @@ function renderAppBar({
       </ThemeProvider>,
     );
   });
-  return { onOpenPdf, onExport };
+  return { onOpenPdf, onExport, onOpenProjects };
 }
 
 beforeEach(() => {
@@ -98,7 +104,7 @@ afterEach(() => {
 
 describe("AppBar", () => {
   it("owns document/global actions without reintroducing Viewer Dock responsibilities", () => {
-    const callbacks = renderAppBar();
+    const callbacks = renderAppBar({ savedProjectCount: 2 });
 
     expect(container?.textContent).toContain("Plan Measure");
     expect(container?.textContent).toContain("North Studio — Level 01.pdf");
@@ -114,9 +120,11 @@ describe("AppBar", () => {
     if (!open || !exportButton) throw new Error("App Bar document actions were not rendered.");
     act(() => open.click());
     act(() => exportButton.click());
+    act(() => buttonByLabel("Projects, 2 saved").click());
 
     expect(callbacks.onOpenPdf).toHaveBeenCalledOnce();
     expect(callbacks.onExport).toHaveBeenCalledOnce();
+    expect(callbacks.onOpenProjects).toHaveBeenCalledOnce();
     expect(buttonByLabel("Settings")).toBeTruthy();
     expect(document.querySelector('button[aria-label="More actions"]')).toBeNull();
     expect(
@@ -124,8 +132,8 @@ describe("AppBar", () => {
         container!.querySelectorAll<HTMLButtonElement | HTMLAnchorElement>(
           "header button, header a",
         ),
-      ).map((action) => action.textContent?.trim() || action.getAttribute("aria-label")),
-    ).toEqual(["Open PDF", "Export", "Feedback", "Settings"]);
+      ).map((action) => action.getAttribute("aria-label") || action.textContent?.trim()),
+    ).toEqual(["Open PDF", "Export", "Projects, 2 saved", "Feedback", "Settings"]);
   });
 
   it("uses the same ghost command hierarchy for Open PDF and Export", () => {
@@ -150,7 +158,7 @@ describe("AppBar", () => {
     );
 
     expect(toolbar.getAttribute("aria-label")).toBe("Application actions");
-    expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1]);
+    expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1, -1]);
 
     act(() => actions[0]?.focus());
     press("ArrowRight");
@@ -158,7 +166,7 @@ describe("AppBar", () => {
     press("ArrowRight");
     expect(document.activeElement).toBe(actions[2]);
     press("End");
-    expect(document.activeElement).toBe(actions[3]);
+    expect(document.activeElement).toBe(actions[4]);
     press("ArrowRight");
     expect(document.activeElement).toBe(actions[0]);
     expect(actions.filter((action) => action.tabIndex === 0)).toEqual([actions[0]]);

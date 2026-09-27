@@ -6,6 +6,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import {
+  activateSavedProject,
+  listSavedProjects,
+  loadSavedProject,
   loadSavedSession,
   replaceSavedSession,
   resetPersistenceForTests,
@@ -130,6 +133,51 @@ async function seedRecoverySession(): Promise<CurrentSession> {
 }
 
 describe("workspace initialization", () => {
+  it("switches between local projects and saves the outgoing session before switching", async () => {
+    const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
+    let revision = await replaceSavedSession(
+      projectA,
+      new Blob(["pdf-a"], { type: "application/pdf" }),
+      null,
+      "project-a",
+    );
+    revision = await replaceSavedSession(
+      projectB,
+      new Blob(["pdf-b"], { type: "application/pdf" }),
+      revision,
+      "project-b",
+      projectA,
+    );
+    await activateSavedProject("project-a", revision);
+    await renderLifecycleHarness();
+
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    expect(harnessSession?.pdf.name).toBe("A-101.pdf");
+
+    await act(async () => {
+      await lifecycle!.openProject("project-b");
+    });
+    expect(harnessSession?.pdf.name).toBe("B-202.pdf");
+    expect((await loadSavedSession())?.projectId).toBe("project-b");
+
+    const editedProjectB = {
+      ...harnessSession!,
+      settings: { ...harnessSession!.settings, showLabels: false },
+    };
+    act(() => setHarnessSession!(editedProjectB));
+    await act(async () => {
+      await lifecycle!.openProject("project-a");
+    });
+    expect(harnessSession?.pdf.name).toBe("A-101.pdf");
+    expect((await loadSavedProject("project-b")).session.settings.showLabels).toBe(false);
+    expect((await listSavedProjects()).find((project) => project.id === "project-a")?.isCurrent).toBe(
+      true,
+    );
+  });
+
   it.each(["scales", "measurements", "takeoff", "classifications"] as const)(
     "resets recovered sessions directly into %s without mutating session state",
     async (workspace) => {

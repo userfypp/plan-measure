@@ -34,6 +34,7 @@ vi.mock("./usePdfSessionLifecycle", async () => {
       return {
         activePdf: { document: {} },
         recovery: null,
+        savedProjects: [],
         recoveryChecked: true,
         recoveryIssue: null,
         confirmDiscardRecovery: false,
@@ -41,6 +42,8 @@ vi.mock("./usePdfSessionLifecycle", async () => {
         autosaveWarning: null,
         autosaveUnavailable: false,
         chooseFile: () => undefined,
+        openProject: () => undefined,
+        refreshSavedProjects: async () => [],
         continueRecovery: () => undefined,
         discardRecovery: () => undefined,
         continueWithoutRecovery: () => undefined,

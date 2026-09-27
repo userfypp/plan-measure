@@ -11,11 +11,13 @@ const FEEDBACK_URL = "https://github.com/userfypp/plan-measure/discussions/1";
 interface AppBarProps {
   documentName: string | null;
   canExport: boolean;
+  savedProjectCount?: number;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onOpenPdf: () => void;
   onExport: () => void;
+  onOpenProjects?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
@@ -35,11 +37,13 @@ function SettingsIcon() {
 export function AppBar({
   documentName,
   canExport,
+  savedProjectCount = 0,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onOpenPdf,
   onExport,
+  onOpenProjects,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
@@ -83,6 +87,21 @@ export function AppBar({
             Export
           </Button>
         )}
+        <Button
+          variant="ghost"
+          size="compact"
+          className={styles.projectsAction}
+          aria-haspopup="dialog"
+          aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
+          onClick={onOpenProjects}
+        >
+          Projects
+          {savedProjectCount > 0 && (
+            <span className={styles.projectCount} aria-hidden="true">
+              {savedProjectCount}
+            </span>
+          )}
+        </Button>
         <a
           className={styles.feedbackAction}
           href={FEEDBACK_URL}
