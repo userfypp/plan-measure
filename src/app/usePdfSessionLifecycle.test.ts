@@ -397,9 +397,9 @@ describe("workspace initialization", () => {
     });
     const savedBefore = await loadSavedSession();
     if (!savedBefore) throw new Error("Expected the first PDF to be saved.");
-    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValue(
-      new Error("simulated persistence failure"),
-    );
+    const persistenceFailure = new Error("simulated persistence failure");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValue(persistenceFailure);
 
     await act(async () => {
       await lifecycle!.chooseFile(
@@ -411,6 +411,11 @@ describe("workspace initialization", () => {
     expect((await loadSavedSession())?.projectId).toBe(savedBefore.projectId);
     expect((await listSavedProjects()).map((project) => project.name)).toEqual(["First.pdf"]);
     expect(lifecycleErrors).toContain("The new PDF could not be saved. The current project remains open.");
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Could not save the new PDF session.",
+      persistenceFailure,
+    );
   });
 
   it("opens another project without overwriting an unrepaired current snapshot", async () => {
@@ -521,6 +526,50 @@ describe("workspace initialization", () => {
     },
   );
 
+  it("waits for saved project summaries before a successful PDF activation resolves", async () => {
+    await renderLifecycleHarness();
+
+    const listSavedProjectsNow = persistenceService.listSavedProjects;
+    let reportRefreshStarted!: () => void;
+    const refreshStarted = new Promise<void>((resolve) => {
+      reportRefreshStarted = resolve;
+    });
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    vi.spyOn(persistenceService, "listSavedProjects").mockImplementation(async () => {
+      reportRefreshStarted();
+      await refreshGate;
+      return listSavedProjectsNow();
+    });
+
+    let activationSettled = false;
+    let activation!: Promise<void>;
+    await act(async () => {
+      activation = lifecycle!
+        .chooseFile(
+          new File(["first"], "First.pdf", { type: "application/pdf", lastModified: 1 }),
+        )
+        .finally(() => {
+          activationSettled = true;
+        });
+      await refreshStarted;
+    });
+
+    expect(activationSettled).toBe(false);
+    expect(lifecycle!.projectOperationPending).toBe(true);
+
+    await act(async () => {
+      releaseRefresh();
+      await activation;
+    });
+
+    expect(activationSettled).toBe(true);
+    expect(lifecycle!.projectOperationPending).toBe(false);
+    expect(lifecycle!.savedProjects.map((project) => project.name)).toEqual(["First.pdf"]);
+  });
+
   it("opens a selected PDF as a new project without a replacement prompt", async () => {
     await renderLifecycleHarness();
     await act(async () => {
@@ -581,9 +630,9 @@ describe("workspace initialization", () => {
   it("keeps recoverable project data when an imported project cannot be saved", async () => {
     const previous = await seedRecoverySession();
     await renderLifecycleHarness();
-    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(
-      new Error("storage unavailable"),
-    );
+    const persistenceFailure = new Error("storage unavailable");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(persistenceFailure);
     const imported = createEmptySession({ name: "Imported.pdf", size: 3, lastModified: 7 }, 1);
     await act(async () => {
       await lifecycle!.importProject(createProjectFile(imported, new Blob(["new"])) as File);
@@ -592,6 +641,11 @@ describe("workspace initialization", () => {
     expect((await loadSavedSession())?.session).toEqual(previous);
     expect(lifecycle!.savedProjects).toHaveLength(1);
     expect(latestLifecycleError).toContain("current project remains open");
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Could not save the new PDF session.",
+      persistenceFailure,
+    );
   });
 
   it("exports current in-memory edits and rejects projects that need repair", async () => {

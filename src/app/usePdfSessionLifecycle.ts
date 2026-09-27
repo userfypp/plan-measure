@@ -495,9 +495,11 @@ export function usePdfSessionLifecycle({
         if (saved) {
           updateAutosaveStatus("available");
           setAutosaveWarning(null);
-          void listSavedProjects().then(setSavedProjects).catch((error: unknown) => {
+          try {
+            setSavedProjects(await listSavedProjects());
+          } catch (error) {
             console.error("Could not refresh saved projects.", error);
-          });
+          }
         } else {
           if (pdfLoadLifecycleRef.current.isCurrent(candidate.loadGeneration)) {
             setError("Autosave could not be started.");

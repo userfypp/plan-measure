@@ -651,6 +651,7 @@ describe("PdfViewer render liveness", () => {
   it("hides the previous page and reports a load failure when the next page cannot load", async () => {
     const page1 = createPdfPage();
     const runtime = createPdfDocument({ 1: page1.page });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(noop);
 
     await mountViewer(runtime.document);
     expect(canvas(1).style.visibility).toBe("visible");
@@ -666,6 +667,11 @@ describe("PdfViewer render liveness", () => {
     );
     expect(container.querySelector('[data-testid="viewer-error"]')?.textContent).toContain(
       "This PDF page could not be rendered.",
+    );
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "PDF.js failed to render the page.",
+      expect.objectContaining({ message: "Missing test page 2." }),
     );
   });
 
