@@ -20,6 +20,7 @@ import {
 import type { CurrentSession } from "../types/domain";
 import type { LoadedPdf } from "../services/pdf";
 import { createEmptySession } from "./sessionState";
+import { createProjectFile, readProjectFile } from "../services/projectFile";
 import type { WorkspaceModule } from "./workspaceState";
 
 vi.mock("../services/pdf", () => ({
@@ -543,6 +544,130 @@ describe("workspace initialization", () => {
       "Second.pdf",
       "First.pdf",
     ]);
+  });
+
+  it("imports a complete project as a new saved project and keeps the previous one", async () => {
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(
+        new File(["old"], "Old.pdf", { type: "application/pdf", lastModified: 1 }),
+      );
+    });
+    const previous = await loadSavedSession();
+    if (!previous) throw new Error("Expected a saved project before import.");
+    const imported = createEmptySession({ name: "Imported.pdf", size: 3, lastModified: 7 }, 1);
+    imported.settings.showLabels = false;
+    const file = createProjectFile(imported, new Blob(["new"]));
+
+    await act(async () => {
+      await lifecycle!.importProject(file as File);
+    });
+
+    expect(harnessSession).toEqual(imported);
+    expect((await loadSavedSession())?.session).toEqual(imported);
+    expect((await loadSavedProject(previous.projectId)).session.pdf.name).toBe("Old.pdf");
+    expect((await listSavedProjects()).map((project) => project.name)).toEqual([
+      "Imported.pdf",
+      "Old.pdf",
+    ]);
+
+    await act(async () => {
+      await lifecycle!.importProject(new Blob(["bad project"]) as File);
+    });
+    expect((await loadSavedSession())?.session).toEqual(imported);
+    expect(latestLifecycleError).toContain("invalid or unsupported");
+  });
+
+  it("keeps recoverable project data when an imported project cannot be saved", async () => {
+    const previous = await seedRecoverySession();
+    await renderLifecycleHarness();
+    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(
+      new Error("storage unavailable"),
+    );
+    const imported = createEmptySession({ name: "Imported.pdf", size: 3, lastModified: 7 }, 1);
+    await act(async () => {
+      await lifecycle!.importProject(createProjectFile(imported, new Blob(["new"])) as File);
+    });
+    expect(harnessSession).toBeNull();
+    expect((await loadSavedSession())?.session).toEqual(previous);
+    expect(lifecycle!.savedProjects).toHaveLength(1);
+    expect(latestLifecycleError).toContain("current project remains open");
+  });
+
+  it("exports current in-memory edits and rejects projects that need repair", async () => {
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(
+        new File(["pdf"], "Current.pdf", { type: "application/pdf", lastModified: 1 }),
+      );
+    });
+    const savedBeforeExport = await loadSavedSession();
+    if (!savedBeforeExport || !harnessSession) throw new Error("Expected an open project.");
+    const changed = {
+      ...harnessSession,
+      settings: { ...harnessSession.settings, showLabels: false },
+    };
+    act(() => setHarnessSession!(changed));
+
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+    const downloads: Blob[] = [];
+    let downloadName = "";
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: (blob: Blob) => {
+        downloads.push(blob);
+        return "blob:project-test";
+      },
+    });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      downloadName = this.download;
+    });
+    const setTimeout = window.setTimeout.bind(window);
+    vi.spyOn(window, "setTimeout").mockImplementation((handler, timeout) =>
+      timeout === 60_000 ? 0 : setTimeout(handler, timeout),
+    );
+    try {
+      await act(async () => {
+        await lifecycle!.exportProject();
+      });
+      expect(downloads).toHaveLength(1);
+      expect(downloadName).toBe("Current.planmeasure");
+      expect((await readProjectFile(downloads[0]!)).session.settings.showLabels).toBe(false);
+      expect((await loadSavedSession())?.session.settings.showLabels).toBe(true);
+
+      const invalid = {
+        ...changed,
+        pages: {
+          ...changed.pages,
+          1: {
+            ...changed.pages[1]!,
+            measurements: [{
+              id: "unrepairable",
+              name: "Needs repair",
+              type: "line" as const,
+              calibrationId: "missing-scale",
+              points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] as [{ x: number; y: number }, { x: number; y: number }],
+              classificationValueIds: [],
+              visible: true,
+            }],
+          },
+        },
+      };
+      act(() => setHarnessSession!(invalid));
+      await act(async () => {
+        await lifecycle!.exportProject();
+      });
+      expect(downloads).toHaveLength(1);
+      expect(latestLifecycleError).toContain("Repair this project's measurements");
+      expect((await loadSavedSession())?.session.settings.showLabels).toBe(true);
+    } finally {
+      if (originalCreate) Object.defineProperty(URL, "createObjectURL", originalCreate);
+      else Reflect.deleteProperty(URL, "createObjectURL");
+      if (originalRevoke) Object.defineProperty(URL, "revokeObjectURL", originalRevoke);
+      else Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
   });
 
   it("keeps a newer PDF replacement prompt open when an earlier save finishes", async () => {

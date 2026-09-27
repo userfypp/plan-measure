@@ -30,6 +30,7 @@ import {
 } from "../services/persistence";
 import type { LoadedPdf } from "../services/pdf";
 import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
+import { createProjectFile, projectFileName, readProjectFile } from "../services/projectFile";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import type { WorkspaceModule } from "./workspaceState";
 
@@ -41,7 +42,7 @@ async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
 interface PendingPdf {
   pdfId: string;
   projectId: string;
-  file: File;
+  file: Blob;
   loaded: LoadedPdf;
   session: CurrentSession;
   loadGeneration: number;
@@ -94,6 +95,8 @@ export function usePdfSessionLifecycle({
   const activeProjectOperationCountRef = useRef(0);
   const persistenceGenerationRef = useRef(0);
   const persistenceRevisionRef = useRef<string | null | undefined>(undefined);
+  const activeProjectIdRef = useRef<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const persistedSessionRef = useRef<CurrentSession | null>(null);
   const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
   const activePdfRef = useRef<LoadedPdf | null>(null);
@@ -192,7 +195,7 @@ export function usePdfSessionLifecycle({
     pendingPdfRef.current = candidate;
     requestReplacePdf({
       pdfId: candidate.pdfId,
-      fileName: candidate.file.name,
+      fileName: candidate.session.pdf.name,
       recoveryProtected,
     });
     if (previous && previous !== candidate) void destroyPdf(previous.loaded);
@@ -255,6 +258,8 @@ export function usePdfSessionLifecycle({
         }
         if (cancelled) return;
         persistenceRevisionRef.current = saved?.revision ?? null;
+        activeProjectIdRef.current = saved?.projectId ?? null;
+        setActiveProjectId(activeProjectIdRef.current);
         setRecovery(saved);
         setRecoveryProtected(false);
         setRecoveryChecked(true);
@@ -452,7 +457,7 @@ export function usePdfSessionLifecycle({
           saved = true;
         } catch (error) {
           console.error("Could not save the new PDF session.", error);
-          if (previousSession || previousPdf || recoveryWasProtected) {
+          if (previousSession || previousPdf || recovery || recoveryWasProtected) {
             if (autosaveStatusRef.current !== "unavailable") {
               updateAutosaveStatus(previousAutosaveStatus);
             }
@@ -477,6 +482,8 @@ export function usePdfSessionLifecycle({
         cancelReferenceEdit();
         const installed = installActivePdf(candidate.loaded);
         if (!installed) return;
+        activeProjectIdRef.current = candidate.projectId;
+        setActiveProjectId(candidate.projectId);
         setPdfBlob(preparedPdfBlob);
         currentSessionRef.current = candidate.session;
         loadSession(candidate.session);
@@ -550,6 +557,81 @@ export function usePdfSessionLifecycle({
           : "The PDF could not be opened. Try another file.";
       setError(message);
       finishPdfLoad(loadGeneration);
+    }
+  }
+
+  async function importProject(file: File) {
+    const loadGeneration = pdfLoadLifecycleRef.current.begin();
+    clearPendingPdf();
+    beginPdfLoad(loadGeneration);
+    let loaded: LoadedPdf | null = null;
+    let handedOff = false;
+    try {
+      const imported = await readProjectFile(file);
+      loaded = await loadPdfRuntime(imported.pdfBlob);
+      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
+        await destroyPdf(loaded);
+        return;
+      }
+      if (loaded.document.numPages !== imported.session.pageCount) {
+        throw new Error("The project PDF does not match its saved page count.");
+      }
+      const candidate: PendingPdf = {
+        pdfId: crypto.randomUUID(),
+        projectId: crypto.randomUUID(),
+        file: imported.pdfBlob,
+        loaded,
+        session: imported.session,
+        loadGeneration,
+      };
+      if (
+        shouldConfirmPdfReplacement({
+          pdfActivating: Boolean(activatingPdfRef.current),
+          recoveryProtected,
+        })
+      ) {
+        handedOff = true;
+        publishPendingPdf(candidate, recoveryProtected);
+        finishPdfLoad(loadGeneration);
+      } else {
+        handedOff = true;
+        await activatePdf(candidate);
+      }
+    } catch (error) {
+      if (loaded && !handedOff) await destroyPdf(loaded);
+      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
+      setError(error instanceof Error ? error.message : "The project could not be imported.");
+      finishPdfLoad(loadGeneration);
+    }
+  }
+
+  function downloadProject(sessionToExport: CurrentSession, projectPdf: Blob) {
+    if (!isSessionPersistable(sessionToExport)) {
+      throw new Error("Repair this project's measurements or classification names before exporting it.");
+    }
+    const file = createProjectFile(sessionToExport, projectPdf);
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = projectFileName(sessionToExport.pdf.name);
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  async function exportProject(projectId?: string) {
+    try {
+      if ((!projectId || projectId === activeProjectIdRef.current) && currentSessionRef.current && pdfBlob) {
+        downloadProject(currentSessionRef.current, pdfBlob);
+      } else if (projectId) {
+        const saved = await loadSavedProject(projectId);
+        downloadProject(saved.session, saved.pdfBlob);
+      } else {
+        throw new Error("No project is open to export.");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "The project could not be exported.");
     }
   }
 
@@ -627,6 +709,8 @@ export function usePdfSessionLifecycle({
         if (!didInstall) return false;
         loaded = null;
         persistenceRevisionRef.current = activatedRevision;
+        activeProjectIdRef.current = projectId;
+        setActiveProjectId(projectId);
         setPdfBlob(preparedPdfBlob);
         currentSessionRef.current = savedProject.session;
         persistedSessionRef.current = savedProject.session;
@@ -723,6 +807,8 @@ export function usePdfSessionLifecycle({
         }
         await discardSavedSession(expectedRevision);
         persistenceRevisionRef.current = null;
+        activeProjectIdRef.current = null;
+        setActiveProjectId(null);
         persistedSessionRef.current = null;
         currentSessionRef.current = null;
         if (disposedRef.current) return;
@@ -784,6 +870,8 @@ export function usePdfSessionLifecycle({
           activePdfRef.current = null;
           if (previousPdf) retiredPdfsRef.current.push(previousPdf);
           persistenceRevisionRef.current = null;
+          activeProjectIdRef.current = null;
+          setActiveProjectId(null);
           persistedSessionRef.current = null;
           currentSessionRef.current = null;
           if (disposedRef.current) return;
@@ -863,6 +951,7 @@ export function usePdfSessionLifecycle({
     activePdf,
     recovery,
     savedProjects,
+    activeProjectId,
     recoveryChecked,
     recoveryIssue,
     confirmDiscardRecovery,
@@ -871,6 +960,8 @@ export function usePdfSessionLifecycle({
     autosaveWarning,
     autosaveUnavailable: autosaveStatus === "unavailable" || autosaveStatus === "repair-required",
     chooseFile,
+    importProject,
+    exportProject,
     openProject,
     refreshSavedProjects,
     continueRecovery,

@@ -6,10 +6,13 @@ interface ProjectLibraryDialogProps {
   open: boolean;
   projects: SavedProjectSummary[];
   currentSessionLoaded: boolean;
+  activeProjectId: string | null;
   opening: boolean;
   pendingDiscardProjectId: string | null;
   onOpenProject: (projectId: string) => void;
   onOpenPdf: () => void;
+  onImportProject: () => void;
+  onExportProject: (projectId?: string) => void;
   onRequestDiscard: (projectId: string) => void;
   onCancelDiscard: () => void;
   onConfirmDiscard: (projectId: string) => void;
@@ -24,10 +27,13 @@ export function ProjectLibraryDialog({
   open,
   projects,
   currentSessionLoaded,
+  activeProjectId,
   opening,
   pendingDiscardProjectId,
   onOpenProject,
   onOpenPdf,
+  onImportProject,
+  onExportProject,
   onRequestDiscard,
   onCancelDiscard,
   onConfirmDiscard,
@@ -41,7 +47,7 @@ export function ProjectLibraryDialog({
     <Dialog
       open
       title={confirmingDiscard ? "Discard project?" : "Projects"}
-      size="medium"
+      size={confirmingDiscard ? "medium" : "large"}
       trapFocus
       onClose={confirmingDiscard ? onCancelDiscard : onClose}
     >
@@ -68,17 +74,19 @@ export function ProjectLibraryDialog({
         </div>
       ) : (
         <>
-          <p className={styles.localNote}>Saved on this device</p>
           {projects.length > 0 ? (
             <ul className={styles.projectList} aria-label="Saved projects">
               {projects.map((project) => {
-                const isOpen = project.isCurrent && currentSessionLoaded;
+                const isCurrent = currentSessionLoaded
+                  ? project.id === activeProjectId
+                  : project.isCurrent;
+                const isOpen = isCurrent && currentSessionLoaded;
                 return (
                   <li className={styles.project} key={project.id}>
                     <div className={styles.projectInfo}>
                       <div className={styles.projectName}>
                         <h3 title={project.name}>{project.name}</h3>
-                        {project.isCurrent && <Badge variant="info">Current</Badge>}
+                        {isCurrent && <Badge variant="info">Current</Badge>}
                       </div>
                       <p>
                         {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
@@ -89,13 +97,22 @@ export function ProjectLibraryDialog({
                     <div className={styles.projectActions}>
                       <Button
                         size="compact"
-                        variant={project.isCurrent ? "primary" : "secondary"}
+                        variant="secondary"
+                        disabled={opening}
+                        aria-label={`Export project ${project.name}`}
+                        onClick={() => onExportProject(project.id)}
+                      >
+                        Export
+                      </Button>
+                      <Button
+                        size="compact"
+                        variant={isCurrent ? "primary" : "secondary"}
                         disabled={opening || isOpen}
                         disabledReason={isOpen ? "This project is already open." : undefined}
-                        aria-label={`${isOpen ? "Current project" : project.isCurrent ? "Continue project" : "Open project"} ${project.name}`}
+                        aria-label={`${isOpen ? "Current project" : isCurrent ? "Continue project" : "Open project"} ${project.name}`}
                         onClick={() => onOpenProject(project.id)}
                       >
-                        {isOpen ? "Current" : project.isCurrent ? "Continue" : "Open"}
+                        {isOpen ? "Current" : isCurrent ? "Continue" : "Open"}
                       </Button>
                       <Button
                         size="compact"
@@ -124,10 +141,24 @@ export function ProjectLibraryDialog({
             </div>
           )}
           <div className={styles.actions}>
-            <Button variant="ghost" onClick={onClose}>
+            <Button size="compact" variant="ghost" onClick={onClose}>
               Close
             </Button>
-            <Button onClick={onOpenPdf} disabled={opening}>
+            {currentSessionLoaded &&
+              !projects.some((project) => project.id === activeProjectId) && (
+                <Button
+                  size="compact"
+                  variant="secondary"
+                  disabled={opening}
+                  onClick={() => onExportProject()}
+                >
+                  Export current project
+                </Button>
+              )}
+            <Button size="compact" variant="secondary" disabled={opening} onClick={onImportProject}>
+              Import project
+            </Button>
+            <Button size="compact" onClick={onOpenPdf} disabled={opening}>
               Open PDF
             </Button>
           </div>

@@ -4,10 +4,18 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SavedProjectSummary } from "../services/persistence";
+import buttonStyles from "../components/ui/Button.module.css";
+import dialogStyles from "../components/ui/Dialog.module.css";
 import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 
 const projects: SavedProjectSummary[] = [
-  { id: "current", name: "Level 01.pdf", pageCount: 2, savedAt: 1_800_000_000_000, isCurrent: true },
+  {
+    id: "current",
+    name: "Level 01.pdf",
+    pageCount: 2,
+    savedAt: 1_800_000_000_000,
+    isCurrent: true,
+  },
   { id: "other", name: "Level 02.pdf", pageCount: 4, savedAt: 1_799_000_000_000, isCurrent: false },
 ];
 
@@ -19,18 +27,24 @@ let closeDescriptor: PropertyDescriptor | undefined;
 function render({
   savedProjects = projects,
   currentSessionLoaded = true,
+  activeProjectId = "current",
   opening = false,
   onOpenProject = vi.fn(),
   onOpenPdf = vi.fn(),
+  onImportProject = vi.fn(),
+  onExportProject = vi.fn(),
   onRequestDiscard = vi.fn(),
   onConfirmDiscard = vi.fn(),
   onClose = vi.fn(),
 }: {
   savedProjects?: SavedProjectSummary[];
   currentSessionLoaded?: boolean;
+  activeProjectId?: string | null;
   opening?: boolean;
   onOpenProject?: (id: string) => void;
   onOpenPdf?: () => void;
+  onImportProject?: () => void;
+  onExportProject?: (id?: string) => void;
   onRequestDiscard?: (id: string) => void;
   onConfirmDiscard?: (id: string) => void;
   onClose?: () => void;
@@ -41,10 +55,13 @@ function render({
         open
         projects={savedProjects}
         currentSessionLoaded={currentSessionLoaded}
+        activeProjectId={activeProjectId}
         opening={opening}
         pendingDiscardProjectId={null}
         onOpenProject={onOpenProject}
         onOpenPdf={onOpenPdf}
+        onImportProject={onImportProject}
+        onExportProject={onExportProject}
         onRequestDiscard={onRequestDiscard}
         onCancelDiscard={vi.fn()}
         onConfirmDiscard={onConfirmDiscard}
@@ -52,11 +69,21 @@ function render({
       />,
     );
   });
-  return { onOpenProject, onOpenPdf, onRequestDiscard, onConfirmDiscard, onClose };
+  return {
+    onOpenProject,
+    onOpenPdf,
+    onImportProject,
+    onExportProject,
+    onRequestDiscard,
+    onConfirmDiscard,
+    onClose,
+  };
 }
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   showModalDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "showModal");
   closeDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close");
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
@@ -98,7 +125,8 @@ describe("ProjectLibraryDialog", () => {
   it("shows saved project details and opens a selected project", () => {
     const callbacks = render();
 
-    expect(container?.textContent).toContain("Saved on this device");
+    expect(container?.textContent).not.toContain("Saved on this device");
+    expect(container?.querySelector("dialog")?.classList.contains(dialogStyles.large!)).toBe(true);
     expect(container?.textContent).not.toContain("Open one to continue where you left off");
     expect(container?.textContent).toContain("Level 01.pdf");
     expect(container?.textContent).toContain("Current");
@@ -114,12 +142,25 @@ describe("ProjectLibraryDialog", () => {
     if (!openButton) throw new Error("The saved project action was not rendered.");
     const projectRows = container?.querySelectorAll('[aria-label="Saved projects"] > li');
     expect(projectRows).toHaveLength(2);
-    expect(
-      [...(projectRows ?? [])].map((row) => row.querySelectorAll('button').length),
-    ).toEqual([2, 2]);
+    expect([...(projectRows ?? [])].map((row) => row.querySelectorAll("button").length)).toEqual([
+      3, 3,
+    ]);
+    const projectButtons = [...(projectRows ?? [])].flatMap((row) => [
+      ...row.querySelectorAll<HTMLButtonElement>("button"),
+    ]);
+    expect(projectButtons).toHaveLength(6);
+    expect(projectButtons.every((button) => button.classList.contains(buttonStyles.compact!))).toBe(
+      true,
+    );
     act(() => openButton.click());
 
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("other");
+    const exportButton = projectRows?.[1]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Export project Level 02.pdf"]',
+    );
+    if (!exportButton) throw new Error("The project export action was not rendered.");
+    act(() => exportButton.click());
+    expect(callbacks.onExportProject).toHaveBeenCalledWith("other");
     const discardButton = [...(projectRows?.[1]?.querySelectorAll("button") ?? [])].find(
       (button) => button.textContent === "Discard",
     );
@@ -138,7 +179,7 @@ describe("ProjectLibraryDialog", () => {
     act(() => continueButton.click());
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("current");
 
-    render({ savedProjects: [], onOpenPdf });
+    const emptyCallbacks = render({ savedProjects: [], onOpenPdf });
     expect(container?.textContent).toContain("No saved projects");
     const openPdf = [...(container?.querySelectorAll("button") ?? [])].find(
       (button) => button.textContent === "Open PDF",
@@ -146,6 +187,25 @@ describe("ProjectLibraryDialog", () => {
     if (!openPdf) throw new Error("The new project action was not rendered.");
     act(() => openPdf.click());
     expect(callbacks.onOpenPdf).toHaveBeenCalledOnce();
+    const importProject = [...(container?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === "Import project",
+    );
+    if (!importProject) throw new Error("The project import action was not rendered.");
+    const close = [...(container?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === "Close",
+    );
+    if (!close) throw new Error("The project close action was not rendered.");
+    const exportCurrent = [...(container?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === "Export current project",
+    );
+    if (!exportCurrent) throw new Error("The current project export action was not rendered.");
+    expect(
+      [close, exportCurrent, importProject, openPdf].every((button) =>
+        button.classList.contains(buttonStyles.compact!),
+      ),
+    ).toBe(true);
+    act(() => importProject.click());
+    expect(emptyCallbacks.onImportProject).toHaveBeenCalledOnce();
   });
 
   it("disables project actions while a project operation is pending", () => {
@@ -154,7 +214,7 @@ describe("ProjectLibraryDialog", () => {
     const projectButtons = container?.querySelectorAll<HTMLButtonElement>(
       '[aria-label="Saved projects"] button',
     );
-    expect(projectButtons).toHaveLength(4);
+    expect(projectButtons).toHaveLength(6);
     expect(
       [...projectButtons!].every(
         (button) => button.disabled || button.getAttribute("aria-disabled") === "true",
@@ -166,6 +226,18 @@ describe("ProjectLibraryDialog", () => {
     expect(openPdf?.disabled).toBe(true);
   });
 
+  it("offers export for an open project even when it is absent from local storage", () => {
+    const onExportProject = vi.fn();
+    render({ savedProjects: projects, activeProjectId: "unsaved-project", onExportProject });
+    expect(container?.querySelector('[aria-label="Current project Level 01.pdf"]')).toBeNull();
+    const exportCurrent = [...(container?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === "Export current project",
+    );
+    if (!exportCurrent) throw new Error("The current project export action was not rendered.");
+    act(() => exportCurrent.click());
+    expect(onExportProject).toHaveBeenCalledWith();
+  });
+
   it("confirms removal of the pending current project while keeping other projects", () => {
     const onCancelDiscard = vi.fn();
     const onConfirmDiscard = vi.fn();
@@ -175,10 +247,13 @@ describe("ProjectLibraryDialog", () => {
           open
           projects={projects}
           currentSessionLoaded={false}
+          activeProjectId="current"
           opening={false}
           pendingDiscardProjectId="current"
           onOpenProject={vi.fn()}
           onOpenPdf={vi.fn()}
+          onImportProject={vi.fn()}
+          onExportProject={vi.fn()}
           onRequestDiscard={vi.fn()}
           onCancelDiscard={onCancelDiscard}
           onConfirmDiscard={onConfirmDiscard}
@@ -188,13 +263,17 @@ describe("ProjectLibraryDialog", () => {
     });
     expect(container?.textContent).toContain("Level 01.pdf");
     expect(container?.textContent).toContain("Other projects stay saved.");
+    const discardDialog = container?.querySelector("dialog");
+    expect(discardDialog?.classList.contains(dialogStyles.dialog!)).toBe(true);
+    expect(discardDialog?.classList.contains(dialogStyles.large!)).toBe(false);
     const keep = [...(container?.querySelectorAll("button") ?? [])].find(
       (button) => button.textContent === "Keep project",
     );
     const discard = [...(container?.querySelectorAll("button") ?? [])].find(
       (button) => button.textContent === "Discard",
     );
-    if (!keep || !discard) throw new Error("Project discard confirmation actions were not rendered.");
+    if (!keep || !discard)
+      throw new Error("Project discard confirmation actions were not rendered.");
     act(() => keep.click());
     act(() => discard.click());
     expect(onCancelDiscard).toHaveBeenCalledOnce();

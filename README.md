@@ -15,6 +15,7 @@ Live app: https://userfypp.github.io/plan-measure/
 - Manage measurements in the Measurements workspace, including visibility and grouping; review project-wide totals in Takeoff; and edit properties in Details.
 - Create reusable classification dimensions and values, assign them in Organization, and group measurements by one or more classification dimensions in a chosen order.
 - Export measurements from every page to CSV with configurable measurement, value, scale, classification, and optional audit-data columns, or export normalized classification assignments with PDF, page, measurement, dimension, value, and archive-status context.
+- Export a project with its PDF and working data to a `.planmeasure` file, then import it later to continue working.
 - Choose System, Light, or Dark appearance and configure measurement display, deletion confirmation, and recovered-plan startup behavior in Settings.
 
 ## Privacy
@@ -31,6 +32,7 @@ The active PDF and session data are stored locally in IndexedDB for recovery aft
 4. Use **Select** to move a measurement or edit its vertices. The Context Toolbar provides rename, duplicate, **Details**, and delete actions for the selected measurement. Details provides measurement properties, rename, classification assignment, and delete; geometry editing remains in Select in the Viewer.
 5. Use **Classifications** in the Workspace to manage reusable dimensions and values. In **Measurements**, choose one or more dimensions in order to nest measurement groups; each group can be collapsed, and its visibility control applies to all measurements in that group.
 6. Choose **Export** in the App Bar and select **Measurements** to configure the existing measurement CSV. Optional audit data includes PDF name, measurement visibility and point count, canonical mm/mm² values, and scale ratio/reference metadata without changing the default export. Select **Classification assignments** to export one row per assigned classification with PDF/page/measurement context and separate dimension, value, and effective archive status. Hidden measurements are still exported.
+7. Choose **Projects** to export a saved project or import a `.planmeasure` file. Import opens a new local project and keeps the projects already saved on this device.
 
 The active scale applies only to new measurements. Existing measurements keep the scale they were created with. Renaming a scale changes only its name. Recalibrating it or editing its reference points updates measurements linked to that scale; Plan Measure asks for confirmation first when the scale is already in use.
 
@@ -106,6 +108,6 @@ Tests use Vitest. GitHub Actions runs lint, tests, and a production build for pu
 - Password-protected PDFs are not supported.
 - Linear units are limited to mm, cm, m, in, and ft. Feet-and-inches is a display/input format, and acres are available only for Polygon area.
 - X/Y calibration handles different horizontal and vertical scale factors. It does not correct skew, perspective, local distortion, or nonlinear warping.
-- Only one recoverable local session is retained. There is no project library, account, cloud sync, or collaboration.
+- Projects are saved on this device. There is no account, cloud sync, or collaboration.
 - There is no undo/redo history.
-- CSV is the only export format. Measurements are not written back into the PDF.
+- Project files and CSV are available for export. Measurements are not written back into the PDF.

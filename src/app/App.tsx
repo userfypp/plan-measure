@@ -182,6 +182,7 @@ function PlanMeasureApp() {
     closeMeasurementDetails,
   } = useWorkspaceState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectFileInputRef = useRef<HTMLInputElement>(null);
   const applicationCopyRef = useRef(false);
   const activeMeasurementEditIdRef = useRef<string | null>(null);
   const viewerPageZoomRef = useRef<{ pageNumber: number; zoom: number } | null>(null);
@@ -258,6 +259,7 @@ function PlanMeasureApp() {
     activePdf,
     recovery,
     savedProjects,
+    activeProjectId,
     recoveryChecked,
     recoveryIssue,
     confirmDiscardRecovery,
@@ -266,6 +268,8 @@ function PlanMeasureApp() {
     autosaveWarning,
     autosaveUnavailable,
     chooseFile,
+    importProject,
+    exportProject,
     openProject,
     refreshSavedProjects,
     discardRecovery,
@@ -1050,6 +1054,22 @@ function PlanMeasureApp() {
           event.target.value = "";
         }}
       />
+      <input
+        ref={projectFileInputRef}
+        className={styles.hiddenInput}
+        type="file"
+        tabIndex={-1}
+        accept=".planmeasure"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            setProjectLibraryOpen(false);
+            setDismissInitialProjectLibrary(true);
+            void importProject(file);
+          }
+          event.target.value = "";
+        }}
+      />
       {session && activePdf && currentPage && previewPage ? (
         <WorkspaceShell
           dragActive={dragActive}
@@ -1317,13 +1337,14 @@ function PlanMeasureApp() {
         }
         projects={savedProjects}
         currentSessionLoaded={Boolean(session)}
+        activeProjectId={activeProjectId}
         opening={loading || projectOperationPending}
         pendingDiscardProjectId={pendingDiscardProjectId}
         onOpenProject={(projectId) => {
           setPendingDiscardProjectId(null);
           setProjectLibraryOpen(false);
           setDismissInitialProjectLibrary(true);
-          if (session && savedProjects.find((project) => project.id === projectId)?.isCurrent) {
+          if (session && activeProjectId === projectId) {
             return;
           }
           void openProject(projectId);
@@ -1334,6 +1355,8 @@ function PlanMeasureApp() {
           setDismissInitialProjectLibrary(true);
           fileInputRef.current?.click();
         }}
+        onImportProject={() => projectFileInputRef.current?.click()}
+        onExportProject={(projectId) => void exportProject(projectId)}
         onRequestDiscard={setPendingDiscardProjectId}
         onCancelDiscard={() => setPendingDiscardProjectId(null)}
         onConfirmDiscard={(projectId) => {
