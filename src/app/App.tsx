@@ -16,7 +16,8 @@ import { Button } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
 import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
-import { CsvExportDialog } from "../features/export/CsvExportDialog";
+import { ExportDialog } from "../features/export/ExportDialog";
+import { downloadAnnotatedPdf } from "../features/export/annotatedPdf";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
@@ -189,7 +190,7 @@ function PlanMeasureApp() {
   const dragDepthRef = useRef(0);
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
-  const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
   const [pendingDiscardProjectId, setPendingDiscardProjectId] = useState<string | null>(null);
   const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
@@ -1020,7 +1021,7 @@ function PlanMeasureApp() {
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-      onExport={() => setCsvExportDialogOpen(true)}
+      onExport={() => setExportDialogOpen(true)}
       onOpenProjects={() => {
         setProjectLibraryOpen(true);
         void refreshSavedProjects();
@@ -1371,11 +1372,16 @@ function PlanMeasureApp() {
         }}
       />
 
-      {csvExportDialogOpen && session && (
-        <CsvExportDialog
+      {exportDialogOpen && session && (
+        <ExportDialog
           session={session}
           pageLabels={activePdf?.pageLabels ?? null}
-          onClose={() => setCsvExportDialogOpen(false)}
+          onExportAnnotatedPdf={
+            activePdf
+              ? () => downloadAnnotatedPdf(session, activePdf.document)
+              : undefined
+          }
+          onClose={() => setExportDialogOpen(false)}
         />
       )}
 

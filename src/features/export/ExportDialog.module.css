@@ -68,12 +68,17 @@
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-.datasetOptions label:hover .datasetOption {
+.datasetOptions label:hover input:not(:disabled) + .datasetOption {
   background: var(--color-control-hover-surface);
 }
 
-.datasetOptions label:active .datasetOption {
+.datasetOptions label:active input:not(:disabled) + .datasetOption {
   background: var(--color-control-active-surface);
+}
+
+.datasetOptions input:disabled + .datasetOption {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
 }
 
 .datasetOptions input:checked + .datasetOption {
@@ -86,7 +91,8 @@
   outline-offset: var(--focus-offset);
 }
 
-.assignmentDescription {
+.assignmentDescription,
+.pdfDescription {
   margin-bottom: 0 !important;
 }
 
@@ -108,6 +114,10 @@
 .form {
   display: grid;
   gap: var(--space-12);
+}
+
+.form > .datasetGroup {
+  margin-bottom: 0;
 }
 
 .primarySections {

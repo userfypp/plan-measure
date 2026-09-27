@@ -14,7 +14,7 @@ Live app: https://userfypp.github.io/plan-measure/
 - Use Snap for visible measurement geometry and Ortho for horizontal or vertical segments.
 - Manage measurements in the Measurements workspace, including visibility and grouping; review project-wide totals in Takeoff; and edit properties in Details.
 - Create reusable classification dimensions and values, assign them in Organization, and group measurements by one or more classification dimensions in a chosen order.
-- Export measurements from every page to CSV with configurable measurement, value, scale, classification, and optional audit-data columns, or export normalized classification assignments with PDF, page, measurement, dimension, value, and archive-status context.
+- Export measurements from every page to CSV with configurable measurement, value, scale, classification, and optional audit-data columns; export normalized classification assignments; or create an annotated PDF that preserves the original pages and adds the currently visible measurement geometry and value labels.
 - Export a project with its PDF and working data to a `.planmeasure` file, then import it later to continue working.
 - Choose System, Light, or Dark appearance and configure measurement display, deletion confirmation, and recovered-plan startup behavior in Settings.
 
@@ -31,7 +31,7 @@ The active PDF and session data are stored locally in IndexedDB for recovery aft
 3. Choose **Line**, **Polyline**, or **Polygon** in the Tool Rail and draw on the plan. Line uses two points, Polyline is open, and Polygon is closed. The Context Toolbar provides **Snap**, **Ortho**, **Finish**, and **Cancel** when they apply.
 4. Use **Select** to move a measurement or edit its vertices. The Context Toolbar provides rename, duplicate, **Details**, and delete actions for the selected measurement. Details provides measurement properties, rename, classification assignment, and delete; geometry editing remains in Select in the Viewer.
 5. Use **Classifications** in the Workspace to manage reusable dimensions and values. In **Measurements**, choose one or more dimensions in order to nest measurement groups; each group can be collapsed, and its visibility control applies to all measurements in that group.
-6. Choose **Export** in the App Bar and select **Measurements** to configure the existing measurement CSV. Optional audit data includes PDF name, measurement visibility and point count, canonical mm/mm² values, and scale ratio/reference metadata without changing the default export. Select **Classification assignments** to export one row per assigned classification with PDF/page/measurement context and separate dimension, value, and effective archive status. Hidden measurements are still exported.
+6. Choose **Export** in the App Bar. **CSV** keeps the existing **Measurements** and **Classification assignments** exports; hidden measurements are still included in CSV. **Annotated PDF** preserves the original PDF pages and adds only measurements that are currently visible, with value labels when **Labels** is enabled.
 7. Choose **Projects** to export a saved project or import a `.planmeasure` file. Import opens a new local project and keeps the projects already saved on this device.
 
 The active scale applies only to new measurements. Existing measurements keep the scale they were created with. Renaming a scale changes only its name. Recalibrating it or editing its reference points updates measurements linked to that scale; Plan Measure asks for confirmation first when the scale is already in use.
@@ -110,4 +110,4 @@ Tests use Vitest. GitHub Actions runs lint, tests, and a production build for pu
 - X/Y calibration handles different horizontal and vertical scale factors. It does not correct skew, perspective, local distortion, or nonlinear warping.
 - Projects are saved on this device. There is no account, cloud sync, or collaboration.
 - There is no undo/redo history.
-- Project files and CSV are available for export. Measurements are not written back into the PDF.
+- Project files, CSV, and annotated PDF copies are available for export. Annotated PDF export does not modify the source PDF.

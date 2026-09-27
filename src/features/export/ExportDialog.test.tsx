@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession } from "../../types/domain";
-import { CsvExportDialog } from "./CsvExportDialog";
+import { ExportDialog } from "./ExportDialog";
 
 const mocks = vi.hoisted(() => ({
   downloadCsv: vi.fn(),
@@ -72,26 +72,44 @@ function sessionFixture(): CurrentSession {
   };
 }
 
-function renderDialog(session = sessionFixture()) {
+function renderDialog(
+  session = sessionFixture(),
+  annotatedPdfExporter: (() => Promise<void>) | null = vi.fn(async () => undefined),
+) {
   const onClose = vi.fn();
   act(() => {
-    root!.render(<CsvExportDialog session={session} pageLabels={["1"]} onClose={onClose} />);
+    root!.render(
+      <ExportDialog
+        session={session}
+        pageLabels={["1"]}
+        onExportAnnotatedPdf={annotatedPdfExporter ?? undefined}
+        onClose={onClose}
+      />,
+    );
   });
-  return { onClose, session };
+  return { onClose, session, annotatedPdfExporter };
 }
 
 function dialog(): HTMLDialogElement {
   const element = document.querySelector<HTMLDialogElement>('[role="dialog"]');
-  if (!element) throw new Error("CSV export dialog was not rendered.");
+  if (!element) throw new Error("Export dialog was not rendered.");
   return element;
 }
 
-function datasetRadio(value: string): HTMLInputElement {
+function radio(name: string, value: string): HTMLInputElement {
   const input = dialog().querySelector<HTMLInputElement>(
-    `input[type="radio"][name="csv-data"][value="${value}"]`,
+    `input[type="radio"][name="${name}"][value="${value}"]`,
   );
-  if (!input) throw new Error(`CSV data option ${value} was not rendered.`);
+  if (!input) throw new Error(`${name} option ${value} was not rendered.`);
   return input;
+}
+
+function formatRadio(value: "csv" | "annotated-pdf") {
+  return radio("export-format", value);
+}
+
+function datasetRadio(value: "measurements" | "classification-assignments") {
+  return radio("csv-data", value);
 }
 
 function button(label: string): HTMLButtonElement | undefined {
@@ -127,7 +145,7 @@ beforeEach(() => {
   mocks.setError.mockReset();
   mocks.updateSettings.mockReset();
   container = document.createElement("div");
-  document.body.append(container);
+  document.body.appendChild(container);
   root = createRoot(container);
 });
 
@@ -139,17 +157,22 @@ afterEach(() => {
   container = null;
 });
 
-describe("CsvExportDialog", () => {
-  it("defaults to an accessible native-radio Measurements selector and shows measurement controls", () => {
+describe("ExportDialog", () => {
+  it("defaults to CSV measurements with accessible native-radio format and dataset selectors", () => {
     renderDialog();
 
-    const fieldset = datasetRadio("measurements").closest("fieldset");
-    expect(fieldset?.querySelector("legend")?.textContent).toBe("CSV data");
+    expect(dialog().getAttribute("aria-labelledby")).toBeTruthy();
+    expect(dialog().textContent).toContain("Export");
+    expect(formatRadio("csv").closest("fieldset")?.querySelector("legend")?.textContent).toBe(
+      "Export format",
+    );
+    expect(formatRadio("csv").checked).toBe(true);
+    expect(formatRadio("annotated-pdf").checked).toBe(false);
+    expect(
+      datasetRadio("measurements").closest("fieldset")?.querySelector("legend")?.textContent,
+    ).toBe("CSV data");
     expect(datasetRadio("measurements").checked).toBe(true);
     expect(datasetRadio("classification-assignments").checked).toBe(false);
-    expect(datasetRadio("measurements").tabIndex).toBe(0);
-    expect(dialog().textContent).not.toContain("Quick selection");
-    expect(dialog().textContent).not.toContain("Choose the columns to include in the export.");
     expect(button("Defaults")).toBeDefined();
     expect(button("All columns")).toBeDefined();
     expect(button("Required only")).toBeDefined();
@@ -207,7 +230,6 @@ describe("CsvExportDialog", () => {
     selectClassificationAssignments();
 
     expect(classificationRadio.checked).toBe(true);
-    expect(dialog().textContent).not.toContain("Quick selection");
     expect(button("Defaults")).toBeUndefined();
     expect(button("All columns")).toBeUndefined();
     expect(button("Required only")).toBeUndefined();
@@ -244,14 +266,78 @@ describe("CsvExportDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("returns to Measurements when the dialog is closed and opened again", () => {
+  it("switches to annotated PDF with focused export guidance and no CSV-only controls", () => {
+    renderDialog();
+
+    act(() => formatRadio("annotated-pdf").click());
+
+    expect(formatRadio("annotated-pdf").checked).toBe(true);
+    expect(dialog().querySelector('input[name="csv-data"]')).toBeNull();
+    expect(button("Defaults")).toBeUndefined();
+    expect(dialog().textContent).toContain("original PDF pages");
+    expect(dialog().textContent).toContain("Hidden measurements are omitted");
+    expect(button("Export PDF")).toBeDefined();
+  });
+
+  it("waits for annotated PDF generation, prevents duplicate actions, and closes after success", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const exporter = vi.fn(() => pending);
+    const { onClose } = renderDialog(sessionFixture(), exporter);
+    act(() => formatRadio("annotated-pdf").click());
+
+    act(() => button("Export PDF")!.click());
+
+    expect(exporter).toHaveBeenCalledOnce();
+    expect(button("Exporting…")?.disabled).toBe(true);
+    expect(button("Cancel")?.disabled).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release();
+      await pending;
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(mocks.downloadCsv).not.toHaveBeenCalled();
+    expect(mocks.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("reports an annotated PDF export failure and closes the dialog", async () => {
+    const exporter = vi.fn(async () => {
+      throw new Error("Could not write annotated PDF.");
+    });
+    const { onClose } = renderDialog(sessionFixture(), exporter);
+    act(() => formatRadio("annotated-pdf").click());
+
+    await act(async () => {
+      button("Export PDF")!.click();
+      await Promise.resolve();
+    });
+
+    expect(mocks.setError).toHaveBeenCalledWith("Could not write annotated PDF.");
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("disables annotated PDF export until the source PDF runtime is available", () => {
+    renderDialog(sessionFixture(), null);
+
+    expect(formatRadio("annotated-pdf").disabled).toBe(true);
+    expect(formatRadio("csv").disabled).toBe(false);
+  });
+
+  it("returns to CSV Measurements when the dialog is closed and opened again", () => {
     renderDialog();
     selectClassificationAssignments();
-    expect(datasetRadio("classification-assignments").checked).toBe(true);
+    act(() => formatRadio("annotated-pdf").click());
+    expect(formatRadio("annotated-pdf").checked).toBe(true);
 
     act(() => root!.render(null));
     renderDialog();
 
+    expect(formatRadio("csv").checked).toBe(true);
     expect(datasetRadio("measurements").checked).toBe(true);
     expect(datasetRadio("classification-assignments").checked).toBe(false);
   });
