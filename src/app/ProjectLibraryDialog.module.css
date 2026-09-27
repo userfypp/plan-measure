@@ -1,6 +1,6 @@
-.intro {
-  max-width: 560px;
-  margin-bottom: var(--space-16) !important;
+.localNote {
+  margin-bottom: var(--space-12) !important;
+  font-size: var(--font-size-secondary);
 }
 
 .projectList {
@@ -13,9 +13,9 @@
 
 .project {
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-16);
   padding: var(--space-12);
   border: var(--border-width) solid var(--color-divider);
@@ -25,6 +25,12 @@
 
 .projectInfo {
   min-width: 0;
+}
+
+.projectActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
 }
 
 .projectName {
@@ -94,18 +100,24 @@
 
 .actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-8);
   margin-top: var(--space-16);
 }
 
 .discardConfirmation p {
-  max-width: 560px;
+  max-width: 420px;
 }
 
 @media (max-width: 520px) {
   .project {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
     gap: var(--space-8);
+  }
+
+  .projectActions {
+    justify-self: end;
   }
 
   .actions > * {

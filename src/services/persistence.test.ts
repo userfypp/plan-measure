@@ -29,6 +29,7 @@ import {
   beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
   activateSavedProject,
+  discardSavedProject,
   listSavedProjects,
   loadSavedProject,
   loadSavedSession,
@@ -46,6 +47,40 @@ import {
 
 beforeEach(resetPersistenceForTests);
 afterEach(resetPersistenceForTests);
+
+function rejectReusedStoredBlobs() {
+  const storedBlobs = new WeakSet<Blob>();
+  const get = IDBObjectStore.prototype.get;
+  const put = IDBObjectStore.prototype.put;
+  const getSpy = vi.spyOn(IDBObjectStore.prototype, "get").mockImplementation(function (
+    this: IDBObjectStore,
+    key: IDBValidKey | IDBKeyRange,
+  ) {
+    const request = get.call(this, key);
+    if (this.name === "pdfs") {
+      request.addEventListener("success", () => {
+        const record = request.result as { blob?: Blob } | undefined;
+        if (record?.blob) storedBlobs.add(record.blob);
+      });
+    }
+    return request;
+  });
+  const putSpy = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (
+    this: IDBObjectStore,
+    value: unknown,
+    key?: IDBValidKey,
+  ) {
+    const blob = (value as { blob?: Blob }).blob;
+    if (this.name === "pdfs" && blob && storedBlobs.has(blob)) {
+      throw new DOMException("Store-backed Blob could not be written", "UnknownError");
+    }
+    return put.call(this, value, key);
+  });
+  return () => {
+    getSpy.mockRestore();
+    putSpy.mockRestore();
+  };
+}
 
 function legacySession(withCalibration: boolean): SessionV1 {
   return {
@@ -2049,6 +2084,20 @@ describe("session persistence", () => {
     expect(await restored?.pdfBlob.text()).toBe("pdf");
   });
 
+  it("stores uploaded PDF bytes independently of the browser File handle", async () => {
+    const file = new File(["pdf"], "plan.pdf", { lastModified: 1, type: "application/pdf" });
+    const session = createEmptySession(
+      { name: file.name, size: file.size, lastModified: file.lastModified },
+      1,
+    );
+
+    await replaceSavedSession(session, file, null, "file-backed-project");
+
+    const saved = await loadSavedProject("file-backed-project");
+    expect(saved.pdfBlob).not.toBeInstanceOf(File);
+    expect(await saved.pdfBlob.text()).toBe("pdf");
+  });
+
   it("keeps multiple local projects and saves the outgoing project before switching", async () => {
     const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 2);
     const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
@@ -2099,6 +2148,164 @@ describe("session persistence", () => {
     expect((await listSavedProjects()).map((project) => project.id)).toEqual([projectBId]);
   });
 
+  it("discards the selected inactive project without disturbing the active project", async () => {
+    const activeSession = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const archivedSession = createEmptySession({ name: "Archive.pdf", size: 8, lastModified: 4 }, 2);
+    const activeId = "active-project";
+    const archivedId = "archived-project";
+    let revision = await replaceSavedSession(
+      activeSession,
+      new Blob(["active-pdf"]),
+      null,
+      activeId,
+    );
+    revision = await replaceSavedSession(
+      archivedSession,
+      new Blob(["archived-pdf"]),
+      revision,
+      archivedId,
+      activeSession,
+    );
+    revision = (await activateSavedProject(activeId, revision)).revision;
+
+    await expect(discardSavedProject(archivedId, revision)).resolves.toBe(false);
+
+    expect((await loadSavedSession())?.projectId).toBe(activeId);
+    expect((await listSavedProjects()).map((project) => project.id)).toEqual([activeId]);
+  });
+
+  it("opens, replaces, and autosaves without writing a Blob read from IndexedDB", async () => {
+    const projectA = createEmptySession({ name: "A.pdf", size: 1, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B.pdf", size: 1, lastModified: 2 }, 1);
+    const projectC = createEmptySession({ name: "C.pdf", size: 1, lastModified: 3 }, 1);
+    let revision = await replaceSavedSession(projectA, new Blob(["A"]), null, "project-a");
+    revision = await replaceSavedSession(
+      projectB,
+      new Blob(["B"]),
+      revision,
+      "project-b",
+      projectA,
+    );
+    revision = (await activateSavedProject("project-a", revision)).revision;
+
+    const restoreBlobWrites = rejectReusedStoredBlobs();
+    try {
+      const editedA = {
+        ...projectA,
+        settings: { ...projectA.settings, showLabels: false },
+      };
+      revision = await saveSessionMetadata(editedA, revision);
+      const pageExitA = {
+        ...editedA,
+        settings: { ...editedA.settings, showMeasurements: false },
+      };
+      revision = await beginSessionMetadataSaveOnPageExit(
+        pageExitA,
+        () => revision,
+        new Blob(["A"]),
+      )!;
+      revision = (await activateSavedProject("project-b", revision, pageExitA)).revision;
+      revision = await replaceSavedSession(
+        projectC,
+        new Blob(["C"]),
+        revision,
+        "project-c",
+        projectB,
+      );
+
+      expect((await loadSavedSession())?.projectId).toBe("project-c");
+      expect((await loadSavedProject("project-a")).session.settings.showLabels).toBe(false);
+      expect((await loadSavedProject("project-a")).session.settings.showMeasurements).toBe(false);
+      expect(await (await loadSavedProject("project-b")).pdfBlob.text()).toBe("B");
+    } finally {
+      restoreBlobWrites();
+    }
+  });
+
+  it("rejects an invalid outgoing snapshot before changing the active project records", async () => {
+    const projectA = createEmptySession({ name: "A.pdf", size: 1, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B.pdf", size: 1, lastModified: 2 }, 1);
+    let revision = await replaceSavedSession(projectA, new Blob(["A"]), null, "project-a");
+    revision = await replaceSavedSession(
+      projectB,
+      new Blob(["B"]),
+      revision,
+      "project-b",
+      projectA,
+    );
+    await activateSavedProject("project-a", revision);
+    const activeBefore = await loadSavedSession();
+    if (!activeBefore) throw new Error("Expected project A to be active.");
+
+    const historical = v3MeasuredSession();
+    historical.pages[1]!.measurements[0] = {
+      id: "historical-crossing-polygon",
+      type: "polygon",
+      name: "Historical crossing polygon",
+      calibrationId: "v3-scale",
+      points: [
+        { x: 0, y: 0 },
+        { x: 6, y: 5 },
+        { x: 0, y: 4 },
+        { x: 4, y: 0 },
+      ],
+    };
+    const invalidSession = deserializeSessionForRecovery(JSON.stringify(historical)).session;
+    expect(() => serializeSession(invalidSession)).toThrow("invalid");
+
+    await expect(
+      activateSavedProject("project-b", activeBefore.revision, invalidSession),
+    ).rejects.toThrow("invalid");
+    await expect(
+      replaceSavedSession(
+        createEmptySession({ name: "C.pdf", size: 1, lastModified: 3 }, 1),
+        new Blob(["C"]),
+        activeBefore.revision,
+        "project-c",
+        invalidSession,
+      ),
+    ).rejects.toThrow("invalid");
+
+    const activeAfter = await loadSavedSession();
+    expect(activeAfter?.projectId).toBe("project-a");
+    expect(activeAfter?.revision).toBe(activeBefore.revision);
+    expect(await activeAfter?.pdfBlob.text()).toBe("A");
+    expect((await loadSavedProject("project-a")).session.pdf.name).toBe("A.pdf");
+    expect((await loadSavedProject("project-b")).session.pdf.name).toBe("B.pdf");
+    expect((await listSavedProjects()).map((project) => project.id)).toEqual([
+      "project-a",
+      "project-b",
+    ]);
+  });
+
+  it("discards an active project and keeps the other projects saved", async () => {
+    const activeSession = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const archivedSession = createEmptySession({ name: "Archive.pdf", size: 8, lastModified: 4 }, 2);
+    const activeId = "active-project";
+    const archivedId = "archived-project";
+    let revision = await replaceSavedSession(
+      activeSession,
+      new Blob(["active-pdf"]),
+      null,
+      activeId,
+    );
+    revision = await replaceSavedSession(
+      archivedSession,
+      new Blob(["archived-pdf"]),
+      revision,
+      archivedId,
+      activeSession,
+    );
+    await activateSavedProject(activeId, revision);
+    const activeProject = await loadSavedSession();
+    if (!activeProject) throw new Error("Expected an active project.");
+
+    await expect(discardSavedProject(activeId, activeProject.revision)).resolves.toBe(true);
+
+    expect(await loadSavedSession()).toBeNull();
+    expect((await listSavedProjects()).map((project) => project.id)).toEqual([archivedId]);
+  });
+
   it("keeps the revision for an unchanged recovery autosave", async () => {
     const session = createEmptySession({ name: "plan.pdf", size: 3, lastModified: 1 }, 1);
     const revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
@@ -2111,7 +2318,7 @@ describe("session persistence", () => {
     let revision = await replaceSavedSession(session, new Blob(["pdf"]), null);
     session.settings.showLabels = false;
 
-    const exitSave = beginSessionMetadataSaveOnPageExit(session, () => revision);
+    const exitSave = beginSessionMetadataSaveOnPageExit(session, () => revision, new Blob(["pdf"]));
     expect(exitSave).not.toBeNull();
     revision = await exitSave!;
 
@@ -2128,10 +2335,10 @@ describe("session persistence", () => {
     const latest = structuredClone(first);
     latest.settings.showMeasurements = false;
 
-    const firstSave = saveSessionMetadata(first, revision).then((nextRevision) => {
+    const firstSave = saveSessionMetadata(first, revision, new Blob(["pdf"])).then((nextRevision) => {
       revision = nextRevision;
     });
-    const exitSave = beginSessionMetadataSaveOnPageExit(latest, () => revision);
+    const exitSave = beginSessionMetadataSaveOnPageExit(latest, () => revision, new Blob(["pdf"]));
     expect(exitSave).not.toBeNull();
     await firstSave;
     revision = await exitSave!;
@@ -2219,7 +2426,11 @@ describe("session persistence", () => {
     tabB.session.settings.showMeasurements = false;
     await saveSessionMetadata(tabB.session, tabB.revision);
     tabA.session.settings.showLabels = false;
-    const staleExitSave = beginSessionMetadataSaveOnPageExit(tabA.session, () => tabA.revision);
+    const staleExitSave = beginSessionMetadataSaveOnPageExit(
+      tabA.session,
+      () => tabA.revision,
+      new Blob(["shared-pdf"]),
+    );
 
     await expect(staleExitSave).rejects.toBeInstanceOf(PersistenceConflictError);
     const restored = await loadSavedSession();

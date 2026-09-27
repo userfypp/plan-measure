@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useReducer, type React
 import type { RatioCalibrationInput } from "../features/calibration/ratioCalibration";
 import type { CalibrationReferenceKey } from "../types/domain";
 
-export interface ReplacePdfPayload { pdfId: string; fileName?: string }
+export interface ReplacePdfPayload { pdfId: string; fileName?: string; recoveryProtected?: boolean }
 export interface RecalibrationPayload { pageNumber: number; calibrationId: string; calibrationName: string; measurementCount: number }
 export interface SetScaleRatioPayload {
   pageNumber: number;

@@ -46,6 +46,7 @@ vi.mock("./usePdfSessionLifecycle", async () => {
         refreshSavedProjects: async () => [],
         continueRecovery: () => undefined,
         discardRecovery: () => undefined,
+        discardProject: async () => undefined,
         continueWithoutRecovery: () => undefined,
         showDiscardRecoveryConfirmation: () => undefined,
         hideDiscardRecoveryConfirmation: () => undefined,

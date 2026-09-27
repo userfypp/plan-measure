@@ -190,6 +190,7 @@ function PlanMeasureApp() {
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
   const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
+  const [pendingDiscardProjectId, setPendingDiscardProjectId] = useState<string | null>(null);
   const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
@@ -261,12 +262,14 @@ function PlanMeasureApp() {
     recoveryIssue,
     confirmDiscardRecovery,
     loading,
+    projectOperationPending,
     autosaveWarning,
     autosaveUnavailable,
     chooseFile,
     openProject,
     refreshSavedProjects,
     discardRecovery,
+    discardProject,
     continueWithoutRecovery,
     showDiscardRecoveryConfirmation,
     hideDiscardRecoveryConfirmation,
@@ -1013,7 +1016,6 @@ function PlanMeasureApp() {
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-      onOpenPdf={() => fileInputRef.current?.click()}
       onExport={() => setCsvExportDialogOpen(true)}
       onOpenProjects={() => {
         setProjectLibraryOpen(true);
@@ -1315,9 +1317,10 @@ function PlanMeasureApp() {
         }
         projects={savedProjects}
         currentSessionLoaded={Boolean(session)}
-        opening={loading}
-        confirmDiscard={confirmDiscardRecovery}
+        opening={loading || projectOperationPending}
+        pendingDiscardProjectId={pendingDiscardProjectId}
         onOpenProject={(projectId) => {
+          setPendingDiscardProjectId(null);
           setProjectLibraryOpen(false);
           setDismissInitialProjectLibrary(true);
           if (session && savedProjects.find((project) => project.id === projectId)?.isCurrent) {
@@ -1326,14 +1329,20 @@ function PlanMeasureApp() {
           void openProject(projectId);
         }}
         onOpenPdf={() => {
+          setPendingDiscardProjectId(null);
           setProjectLibraryOpen(false);
           setDismissInitialProjectLibrary(true);
           fileInputRef.current?.click();
         }}
-        onRequestDiscard={showDiscardRecoveryConfirmation}
-        onCancelDiscard={hideDiscardRecoveryConfirmation}
-        onConfirmDiscard={() => void discardRecovery()}
+        onRequestDiscard={setPendingDiscardProjectId}
+        onCancelDiscard={() => setPendingDiscardProjectId(null)}
+        onConfirmDiscard={(projectId) => {
+          setPendingDiscardProjectId(null);
+          if (!session) setProjectLibraryOpen(true);
+          void discardProject(projectId);
+        }}
         onClose={() => {
+          setPendingDiscardProjectId(null);
           setProjectLibraryOpen(false);
           if (recovery && !session) setDismissInitialProjectLibrary(true);
         }}

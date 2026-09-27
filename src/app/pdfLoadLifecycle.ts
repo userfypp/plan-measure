@@ -22,6 +22,17 @@ export class PdfLoadLifecycle {
   }
 }
 
+export function scheduleRetiredPdfRelease(
+  retiredPdfs: LoadedPdf[],
+  schedule: (callback: VoidFunction) => void,
+  destroy: (loaded: LoadedPdf) => Promise<void>,
+): void {
+  const releaseBatch = retiredPdfs.splice(0);
+  schedule(() => {
+    void Promise.all(releaseBatch.map((loaded) => destroy(loaded)));
+  });
+}
+
 export function canActivatePdf<T>(
   lifecycle: PdfLoadLifecycle,
   loadGeneration: number,
@@ -36,12 +47,10 @@ export function canActivatePdf<T>(
 }
 
 export interface PdfReplacementState {
-  sessionLoaded: boolean;
-  pdfRuntimeLoaded: boolean;
   pdfActivating: boolean;
   recoveryProtected: boolean;
 }
 
 export function shouldConfirmPdfReplacement(state: PdfReplacementState): boolean {
-  return Object.values(state).some(Boolean);
+  return state.pdfActivating || state.recoveryProtected;
 }

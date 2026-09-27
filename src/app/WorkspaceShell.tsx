@@ -65,7 +65,7 @@ export function WorkspaceShell({
   sourcePageLabels = null,
   logicalPageBounds = null,
   emptyState,
-  dropOverlay = "Drop PDF to replace current session",
+  dropOverlay = "Drop PDF to open as a new project",
   onAuthoringCapabilityChange,
   authoringIntentScopeKey = "default",
 }: WorkspaceShellProps) {

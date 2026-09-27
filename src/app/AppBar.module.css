@@ -54,7 +54,6 @@
   white-space: nowrap;
 }
 
-.openAction,
 .exportAction,
 .projectsAction,
 .feedbackAction,
@@ -62,7 +61,6 @@
   min-height: var(--target-current);
 }
 
-.openAction,
 .exportAction,
 .projectsAction {
   border-color: transparent;
@@ -203,7 +201,6 @@
     gap: var(--space-4);
   }
 
-  .actions .openAction,
   .actions .exportAction,
   .actions .projectsAction,
   .actions .feedbackAction {

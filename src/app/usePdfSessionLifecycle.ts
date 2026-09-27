@@ -3,6 +3,7 @@ import { enqueueAutosave, isAutosaveReady, isSessionPersistable } from "./autosa
 import {
   canActivatePdf,
   PdfLoadLifecycle,
+  scheduleRetiredPdfRelease,
   shouldConfirmPdfReplacement,
 } from "./pdfLoadLifecycle";
 import { createEmptySession } from "./sessionState";
@@ -15,6 +16,8 @@ import type { CurrentSession } from "../types/domain";
 import {
   activateSavedProject,
   beginSessionMetadataSaveOnPageExit,
+  copyPdfBlob,
+  discardSavedProject,
   discardSavedSession,
   listSavedProjects,
   loadSavedProject,
@@ -87,11 +90,14 @@ export function usePdfSessionLifecycle({
   setError,
 }: PdfSessionLifecycleOptions) {
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const activeProjectOperationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const activeProjectOperationCountRef = useRef(0);
   const persistenceGenerationRef = useRef(0);
   const persistenceRevisionRef = useRef<string | null | undefined>(undefined);
   const persistedSessionRef = useRef<CurrentSession | null>(null);
   const pdfLoadLifecycleRef = useRef(new PdfLoadLifecycle());
   const activePdfRef = useRef<LoadedPdf | null>(null);
+  const retiredPdfsRef = useRef<LoadedPdf[]>([]);
   const pendingPdfRef = useRef<PendingPdf | null>(null);
   const activatingPdfRef = useRef<LoadedPdf | null>(null);
   const disposedRef = useRef(false);
@@ -107,12 +113,52 @@ export function usePdfSessionLifecycle({
   const [confirmDiscardRecovery, setConfirmDiscardRecovery] = useState(false);
   const [loading, setLoading] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("inactive");
+  const autosaveStatusRef = useRef(autosaveStatus);
+  const currentSessionRef = useRef(session);
+  const [projectOperationPending, setProjectOperationPending] = useState(false);
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
+
+  function updateAutosaveStatus(status: AutosaveStatus) {
+    autosaveStatusRef.current = status;
+    setAutosaveStatus(status);
+  }
+
+  useEffect(() => {
+    currentSessionRef.current = session;
+  }, [session]);
+
+  function enqueueActiveProjectOperation<T>(operation: () => Promise<T>): Promise<T> {
+    activeProjectOperationCountRef.current += 1;
+    setProjectOperationPending(true);
+    const result = activeProjectOperationQueueRef.current.then(operation, operation);
+    activeProjectOperationQueueRef.current = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result.finally(() => {
+      activeProjectOperationCountRef.current = Math.max(
+        0,
+        activeProjectOperationCountRef.current - 1,
+      );
+      if (!disposedRef.current) {
+        setProjectOperationPending(activeProjectOperationCountRef.current > 0);
+      }
+    });
+  }
 
   const destroyPdf = useCallback(
     (loaded: LoadedPdf | null | undefined) => pdfLoadLifecycleRef.current.destroy(loaded),
     [],
   );
+
+  const releaseRetiredPdfs = useCallback(async () => {
+    const retiredPdfs = retiredPdfsRef.current.splice(0);
+    await Promise.all(retiredPdfs.map((loaded) => destroyPdf(loaded)));
+  }, [destroyPdf]);
+
+  useEffect(() => {
+    scheduleRetiredPdfRelease(retiredPdfsRef.current, queueMicrotask, destroyPdf);
+  }, [activePdf, destroyPdf]);
 
   const updateLoadingState = useCallback(() => {
     if (disposedRef.current) return;
@@ -141,10 +187,14 @@ export function usePdfSessionLifecycle({
     updateLoadingState();
   }
 
-  function publishPendingPdf(candidate: PendingPdf) {
+  function publishPendingPdf(candidate: PendingPdf, recoveryProtected: boolean) {
     const previous = pendingPdfRef.current;
     pendingPdfRef.current = candidate;
-    requestReplacePdf({ pdfId: candidate.pdfId, fileName: candidate.file.name });
+    requestReplacePdf({
+      pdfId: candidate.pdfId,
+      fileName: candidate.file.name,
+      recoveryProtected,
+    });
     if (previous && previous !== candidate) void destroyPdf(previous.loaded);
   }
 
@@ -157,15 +207,14 @@ export function usePdfSessionLifecycle({
   }
 
   const installActivePdf = useCallback(
-    async (loaded: LoadedPdf): Promise<boolean> => {
-      const previous = activePdfRef.current;
-      activePdfRef.current = loaded;
-      await destroyPdf(previous);
-      if (disposedRef.current || activePdfRef.current !== loaded) {
-        if (activePdfRef.current === loaded) activePdfRef.current = null;
-        await destroyPdf(loaded);
+    (loaded: LoadedPdf): boolean => {
+      if (disposedRef.current) {
+        void destroyPdf(loaded);
         return false;
       }
+      const previous = activePdfRef.current;
+      activePdfRef.current = loaded;
+      if (previous && previous !== loaded) retiredPdfsRef.current.push(previous);
       setActivePdf(loaded);
       return true;
     },
@@ -185,9 +234,14 @@ export function usePdfSessionLifecycle({
       activePdfRef.current = null;
       pendingPdfRef.current = null;
       activatingPdfRef.current = null;
-      void Promise.all([destroyPdf(active), destroyPdf(pending?.loaded), destroyPdf(activating)]);
+      void Promise.all([
+        destroyPdf(active),
+        destroyPdf(pending?.loaded),
+        destroyPdf(activating),
+        releaseRetiredPdfs(),
+      ]);
     };
-  }, [destroyPdf]);
+  }, [destroyPdf, releaseRetiredPdfs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,6 +290,7 @@ export function usePdfSessionLifecycle({
     };
     if (!isAutosaveReady(autosaveInputs)) return;
     const snapshot = autosaveInputs.snapshot;
+    const preparedPdfBlob = autosaveInputs.pdfBlob;
     const generation = persistenceGenerationRef.current;
     let queued = false;
     let beforeUnloadRegistered = false;
@@ -260,13 +315,14 @@ export function usePdfSessionLifecycle({
           persistenceRevisionRef.current = await saveSessionMetadata(
             currentSnapshot,
             expectedRevision,
+            preparedPdfBlob,
           );
         },
       )
         .then(() => {
           if (generation === persistenceGenerationRef.current) {
             persistedSessionRef.current = snapshot;
-            if (repairedHistoricalSession) setAutosaveStatus("available");
+            if (repairedHistoricalSession) updateAutosaveStatus("available");
             setAutosaveWarning(null);
           }
         })
@@ -277,12 +333,13 @@ export function usePdfSessionLifecycle({
           setAutosaveWarning(
             "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
           );
-          setAutosaveStatus("unavailable");
+          updateAutosaveStatus("unavailable");
         })
         .finally(removeBeforeUnload);
     };
     const timer = window.setTimeout(queueAutosave, 300);
     const handleBeforeUnload = () => {
+      if (generation !== persistenceGenerationRef.current) return;
       window.clearTimeout(timer);
       if (
         persistenceRevisionRef.current === null ||
@@ -290,13 +347,17 @@ export function usePdfSessionLifecycle({
       ) {
         return;
       }
-      const exitSave = beginSessionMetadataSaveOnPageExit(snapshot, () => {
-        const expectedRevision = persistenceRevisionRef.current;
-        if (expectedRevision === null || expectedRevision === undefined) {
-          throw new Error("Cannot autosave without a persisted session revision.");
-        }
-        return expectedRevision;
-      });
+      const exitSave = beginSessionMetadataSaveOnPageExit(
+        snapshot,
+        () => {
+          const expectedRevision = persistenceRevisionRef.current;
+          if (expectedRevision === null || expectedRevision === undefined) {
+            throw new Error("Cannot autosave without a persisted session revision.");
+          }
+          return expectedRevision;
+        },
+        preparedPdfBlob,
+      );
       if (!exitSave) {
         queueAutosave();
         return;
@@ -330,79 +391,116 @@ export function usePdfSessionLifecycle({
   }, [activePdf, autosaveStatus, pdfBlob, session]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
-    if (
-      disposedRef.current ||
-      !canActivatePdf(
-        pdfLoadLifecycleRef.current,
-        candidate.loadGeneration,
-        candidate,
-        pendingPdfRef.current,
-        requiresPendingConfirmation,
-      )
-    ) {
-      await destroyPdf(candidate.loaded);
-      return;
-    }
-    if (pendingPdfRef.current === candidate) {
-      pendingPdfRef.current = null;
-      closeDialog();
-    }
-    cancelWorkspaceCalibration();
-    closeConfirmation();
-    cancelReferenceEdit();
-    activatingPdfRef.current = candidate.loaded;
-    beginPdfActivation(candidate.loadGeneration);
-    persistenceGenerationRef.current += 1;
-    setAutosaveStatus("inactive");
-    try {
-      await saveQueueRef.current.catch(() => undefined);
-      if (disposedRef.current) return;
-
-      let saved = false;
+    await enqueueActiveProjectOperation(async () => {
+      if (
+        disposedRef.current ||
+        !canActivatePdf(
+          pdfLoadLifecycleRef.current,
+          candidate.loadGeneration,
+          candidate,
+          pendingPdfRef.current,
+          requiresPendingConfirmation,
+        )
+      ) {
+        await destroyPdf(candidate.loaded);
+        return;
+      }
+      if (pendingPdfRef.current === candidate) {
+        pendingPdfRef.current = null;
+        closeDialog();
+      }
+      activatingPdfRef.current = candidate.loaded;
+      beginPdfActivation(candidate.loadGeneration);
+      const previousAutosaveStatus = autosaveStatusRef.current;
+      const previousSession = currentSessionRef.current;
+      const previousPdf = activePdfRef.current;
+      const recoveryWasProtected = recoveryProtected;
+      persistenceGenerationRef.current += 1;
+      updateAutosaveStatus("inactive");
       try {
-        const expectedRevision = persistenceRevisionRef.current;
-        if (expectedRevision === undefined) {
-          throw new Error("Cannot replace a saved session whose revision is unknown.");
+        await saveQueueRef.current.catch(() => undefined);
+        if (
+          disposedRef.current ||
+          !pdfLoadLifecycleRef.current.isCurrent(candidate.loadGeneration)
+        ) {
+          if (autosaveStatusRef.current !== "unavailable") {
+            updateAutosaveStatus(previousAutosaveStatus);
+          }
+          await destroyPdf(candidate.loaded);
+          return;
         }
-        persistenceRevisionRef.current = await replaceSavedSession(
-          candidate.session,
-          candidate.file,
-          expectedRevision,
-          candidate.projectId,
-          session ?? undefined,
-        );
-        persistedSessionRef.current = candidate.session;
-        saved = true;
-      } catch (error) {
-        console.error("Could not save the new PDF session.", error);
-        setAutosaveStatus("unavailable");
-        setAutosaveWarning(
-          "The PDF is open, but autosave is unavailable. Your work may not survive a reload.",
-        );
-      }
-      if (disposedRef.current) return;
 
-      const installed = await installActivePdf(candidate.loaded);
-      if (!installed) return;
-      setPdfBlob(candidate.file);
-      loadSession(candidate.session);
-      resetWorkspace();
-      closeAllOverlays();
-      setRecovery(null);
-      setRecoveryProtected(false);
-      if (saved) {
-        setAutosaveStatus("available");
-        setAutosaveWarning(null);
-        void listSavedProjects().then(setSavedProjects).catch((error: unknown) => {
-          console.error("Could not refresh saved projects.", error);
-        });
-      } else {
-        setError("Autosave could not be started.");
+        let saved = false;
+        let preparedPdfBlob: Blob = candidate.file;
+        try {
+          preparedPdfBlob = await copyPdfBlob(candidate.file);
+          const expectedRevision = persistenceRevisionRef.current;
+          if (expectedRevision === undefined) {
+            throw new Error("Cannot replace a saved session whose revision is unknown.");
+          }
+          const revision = await replaceSavedSession(
+            candidate.session,
+            preparedPdfBlob,
+            expectedRevision,
+            candidate.projectId,
+            previousSession && isSessionPersistable(previousSession)
+              ? previousSession
+              : undefined,
+          );
+          persistenceRevisionRef.current = revision;
+          persistedSessionRef.current = candidate.session;
+          saved = true;
+        } catch (error) {
+          console.error("Could not save the new PDF session.", error);
+          if (previousSession || previousPdf || recoveryWasProtected) {
+            if (autosaveStatusRef.current !== "unavailable") {
+              updateAutosaveStatus(previousAutosaveStatus);
+            }
+            if (pdfLoadLifecycleRef.current.isCurrent(candidate.loadGeneration)) {
+              setError("The new PDF could not be saved. The current project remains open.");
+            }
+            await destroyPdf(candidate.loaded);
+            return;
+          }
+          updateAutosaveStatus("unavailable");
+          setAutosaveWarning(
+            "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
+          );
+        }
+        if (disposedRef.current) {
+          await destroyPdf(candidate.loaded);
+          return;
+        }
+
+        cancelWorkspaceCalibration();
+        closeConfirmation();
+        cancelReferenceEdit();
+        const installed = installActivePdf(candidate.loaded);
+        if (!installed) return;
+        setPdfBlob(preparedPdfBlob);
+        currentSessionRef.current = candidate.session;
+        loadSession(candidate.session);
+        if (pdfLoadLifecycleRef.current.isCurrent(candidate.loadGeneration)) setError(null);
+        resetWorkspace();
+        if (pdfLoadLifecycleRef.current.isCurrent(candidate.loadGeneration)) closeAllOverlays();
+        setRecovery(null);
+        setRecoveryProtected(false);
+        if (saved) {
+          updateAutosaveStatus("available");
+          setAutosaveWarning(null);
+          void listSavedProjects().then(setSavedProjects).catch((error: unknown) => {
+            console.error("Could not refresh saved projects.", error);
+          });
+        } else {
+          if (pdfLoadLifecycleRef.current.isCurrent(candidate.loadGeneration)) {
+            setError("Autosave could not be started.");
+          }
+        }
+      } finally {
+        if (activatingPdfRef.current === candidate.loaded) activatingPdfRef.current = null;
+        finishPdfActivation();
       }
-    } finally {
-      if (activatingPdfRef.current === candidate.loaded) activatingPdfRef.current = null;
-      finishPdfActivation();
-    }
+    });
   }
 
   async function chooseFile(file: File) {
@@ -432,14 +530,12 @@ export function usePdfSessionLifecycle({
       };
       if (
         shouldConfirmPdfReplacement({
-          sessionLoaded: Boolean(session),
-          pdfRuntimeLoaded: Boolean(activePdfRef.current),
           pdfActivating: Boolean(activatingPdfRef.current),
           recoveryProtected,
         })
       ) {
         handedOff = true;
-        publishPendingPdf(candidate);
+        publishPendingPdf(candidate, recoveryProtected);
         finishPdfLoad(loadGeneration);
       } else {
         handedOff = true;
@@ -458,19 +554,24 @@ export function usePdfSessionLifecycle({
   }
 
   async function openProject(projectId: string) {
-    const previousAutosaveStatus = autosaveStatus;
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     beginPdfLoad(loadGeneration);
     let loaded: LoadedPdf | null = null;
+    let previousAutosaveStatus: AutosaveStatus | null = null;
     try {
-      const openingCurrentRecovery = !session && recovery?.projectId === projectId;
-      const savedProject = openingCurrentRecovery
-        ? recovery
-        : await loadSavedProject(projectId);
+      const recoveryCandidate =
+        !currentSessionRef.current &&
+        recovery?.projectId === projectId &&
+        recovery.revision === persistenceRevisionRef.current
+          ? recovery
+          : null;
+      const savedProject = recoveryCandidate ?? (await loadSavedProject(projectId));
       if (!savedProject) throw new Error("The selected project is no longer available.");
-      loaded = await loadPdfRuntime(savedProject.pdfBlob);
+      const preparedPdfBlob = await copyPdfBlob(savedProject.pdfBlob);
+      loaded = await loadPdfRuntime(preparedPdfBlob);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
         await destroyPdf(loaded);
+        loaded = null;
         return;
       }
       if (loaded.document.numPages !== savedProject.session.pageCount) {
@@ -478,56 +579,98 @@ export function usePdfSessionLifecycle({
         loaded = null;
         throw new Error("The saved PDF does not match this project's page count.");
       }
-      let activatedRevision = persistenceRevisionRef.current;
-      if (!openingCurrentRecovery) {
-        persistenceGenerationRef.current += 1;
-        setAutosaveStatus("inactive");
-        await saveQueueRef.current.catch(() => undefined);
-        const expectedRevision = persistenceRevisionRef.current;
-        if (expectedRevision === null || expectedRevision === undefined) {
-          throw new Error("Cannot switch projects without a saved session revision.");
+      const installed = await enqueueActiveProjectOperation(async () => {
+        if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
+          await destroyPdf(loaded);
+          loaded = null;
+          return false;
         }
-        const activated = await activateSavedProject(projectId, expectedRevision, session ?? undefined);
-        activatedRevision = activated.revision;
+
+        previousAutosaveStatus = autosaveStatusRef.current;
+        const currentSession = currentSessionRef.current;
+        const openingCurrentRecovery =
+          recoveryCandidate !== null &&
+          !currentSession &&
+          recoveryCandidate.revision === persistenceRevisionRef.current;
+        let activatedRevision: string | null | undefined = openingCurrentRecovery
+          ? recoveryCandidate.revision
+          : persistenceRevisionRef.current;
+        if (!openingCurrentRecovery) {
+          persistenceGenerationRef.current += 1;
+          updateAutosaveStatus("inactive");
+          await saveQueueRef.current.catch(() => undefined);
+          if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
+            if (autosaveStatusRef.current !== "unavailable") {
+              updateAutosaveStatus(previousAutosaveStatus);
+            }
+            await destroyPdf(loaded);
+            loaded = null;
+            return false;
+          }
+          const expectedRevision = persistenceRevisionRef.current;
+          if (expectedRevision === undefined) {
+            throw new Error("Cannot switch projects without a saved session revision.");
+          }
+          const activated = await activateSavedProject(
+            projectId,
+            expectedRevision,
+            currentSession && isSessionPersistable(currentSession) ? currentSession : undefined,
+          );
+          activatedRevision = activated.revision;
+          persistenceRevisionRef.current = activated.revision;
+        }
+
+        if (!activatedRevision) throw new Error("The selected project has no active revision.");
+        const installedPdf = loaded;
+        if (!installedPdf) return false;
+        const didInstall = installActivePdf(installedPdf);
+        if (!didInstall) return false;
+        loaded = null;
+        persistenceRevisionRef.current = activatedRevision;
+        setPdfBlob(preparedPdfBlob);
+        currentSessionRef.current = savedProject.session;
+        persistedSessionRef.current = savedProject.session;
+        loadSession(savedProject.session);
+        if (pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) setError(null);
+        resetWorkspace(recoveredStartupWorkspace);
+        if (pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) closeAllOverlays();
+        if (savedProject.compatibility !== "current") {
+          updateAutosaveStatus("repair-required");
+          setAutosaveWarning(
+            savedProject.compatibility === "classification-repair-required"
+              ? savedProject.incompatibleMeasurementIds.length > 0
+                ? COMBINED_REPAIR_WARNING
+                : CLASSIFICATION_REPAIR_WARNING
+              : HISTORICAL_REPAIR_WARNING,
+          );
+        } else {
+          updateAutosaveStatus("available");
+          setAutosaveWarning(null);
+        }
+        setRecovery(null);
+        setRecoveryProtected(false);
+        setConfirmDiscardRecovery(false);
+        setRecoveryIssue(null);
+        return true;
+      });
+      if (installed) {
+        try {
+          setSavedProjects(await listSavedProjects());
+        } catch (error) {
+          console.error("Could not refresh saved projects.", error);
+        }
       }
-      const installed = await installActivePdf(loaded);
-      if (!installed) return;
-      loaded = null;
-      if (!activatedRevision) throw new Error("The selected project has no active revision.");
-      persistenceRevisionRef.current = activatedRevision;
-      setPdfBlob(savedProject.pdfBlob);
-      persistedSessionRef.current = savedProject.session;
-      loadSession(savedProject.session);
-      resetWorkspace(recoveredStartupWorkspace);
-      closeAllOverlays();
-      if (savedProject.compatibility !== "current") {
-        setAutosaveStatus("repair-required");
-        setAutosaveWarning(
-          savedProject.compatibility === "classification-repair-required"
-            ? savedProject.incompatibleMeasurementIds.length > 0
-              ? COMBINED_REPAIR_WARNING
-              : CLASSIFICATION_REPAIR_WARNING
-            : HISTORICAL_REPAIR_WARNING,
-        );
-      } else {
-        setAutosaveStatus("available");
-        setAutosaveWarning(null);
-      }
-      setRecovery(null);
-      setRecoveryProtected(false);
-      setConfirmDiscardRecovery(false);
-      setRecoveryIssue(null);
-      setSavedProjects(await listSavedProjects());
     } catch (error) {
       if (loaded) await destroyPdf(loaded);
-      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
       if (
-        session &&
-        activePdfRef.current &&
-        (previousAutosaveStatus === "available" || previousAutosaveStatus === "repair-required")
+        previousAutosaveStatus &&
+        autosaveStatusRef.current !== "unavailable" &&
+        currentSessionRef.current &&
+        activePdfRef.current
       ) {
-        setAutosaveStatus(previousAutosaveStatus);
+        updateAutosaveStatus(previousAutosaveStatus);
       }
+      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
       console.error("Saved PDF recovery failed.", error);
       setError("This project could not be opened. Its saved copy has been kept on this device.");
     } finally {
@@ -547,41 +690,143 @@ export function usePdfSessionLifecycle({
   }
 
   async function discardRecovery() {
-    pdfLoadLifecycleRef.current.begin();
+    const expectedRevision = recovery?.revision ?? persistenceRevisionRef.current;
+    const loadGeneration = pdfLoadLifecycleRef.current.begin();
     latestPdfLoadRef.current = null;
     updateLoadingState();
-    persistenceGenerationRef.current += 1;
-    setAutosaveStatus("inactive");
-    cancelWorkspaceCalibration();
-    closeConfirmation();
-    cancelReferenceEdit();
+    let previousAutosaveStatus: AutosaveStatus | null = null;
     try {
-      await saveQueueRef.current.catch(() => undefined);
-      const expectedRevision = persistenceRevisionRef.current;
-      if (expectedRevision === null || expectedRevision === undefined) {
-        throw new Error("Cannot discard a saved session whose revision is unknown.");
-      }
-      await discardSavedSession(expectedRevision);
-      persistenceRevisionRef.current = null;
-      persistedSessionRef.current = null;
-      if (disposedRef.current) return;
-      setRecovery(null);
-      setRecoveryIssue(null);
-      setRecoveryProtected(false);
-      setConfirmDiscardRecovery(false);
-      clearSession();
-      resetWorkspace();
-      closeAllOverlays();
-      setSavedProjects(await listSavedProjects());
+      await enqueueActiveProjectOperation(async () => {
+        if (expectedRevision === null || expectedRevision === undefined) {
+          throw new Error("Cannot discard a saved session whose revision is unknown.");
+        }
+        if (
+          disposedRef.current ||
+          !pdfLoadLifecycleRef.current.isCurrent(loadGeneration) ||
+          persistenceRevisionRef.current !== expectedRevision
+        ) {
+          throw new Error("The saved session changed before it could be discarded.");
+        }
+        previousAutosaveStatus = autosaveStatusRef.current;
+        persistenceGenerationRef.current += 1;
+        updateAutosaveStatus("inactive");
+        cancelWorkspaceCalibration();
+        closeConfirmation();
+        cancelReferenceEdit();
+        await saveQueueRef.current.catch(() => undefined);
+        if (
+          disposedRef.current ||
+          !pdfLoadLifecycleRef.current.isCurrent(loadGeneration) ||
+          persistenceRevisionRef.current !== expectedRevision
+        ) {
+          throw new Error("The saved session changed before it could be discarded.");
+        }
+        await discardSavedSession(expectedRevision);
+        persistenceRevisionRef.current = null;
+        persistedSessionRef.current = null;
+        currentSessionRef.current = null;
+        if (disposedRef.current) return;
+        setRecovery(null);
+        setRecoveryIssue(null);
+        setRecoveryProtected(false);
+        setConfirmDiscardRecovery(false);
+        clearSession();
+        resetWorkspace();
+        closeAllOverlays();
+        try {
+          setSavedProjects(await listSavedProjects());
+        } catch (error) {
+          console.error("Could not refresh saved projects.", error);
+        }
+      });
     } catch (error) {
+      if (
+        previousAutosaveStatus &&
+        autosaveStatusRef.current !== "unavailable" &&
+        currentSessionRef.current &&
+        activePdfRef.current
+      ) {
+        updateAutosaveStatus(previousAutosaveStatus);
+      }
+      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
       console.error("Could not discard the saved session.", error);
       setError("The saved session could not be discarded.");
     }
   }
 
+  async function discardProject(projectId: string) {
+    const loadGeneration = pdfLoadLifecycleRef.current.begin();
+    latestPdfLoadRef.current = null;
+    updateLoadingState();
+    let previousAutosaveStatus: AutosaveStatus | null = null;
+    try {
+      await enqueueActiveProjectOperation(async () => {
+        if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
+        const project = (await listSavedProjects()).find((candidate) => candidate.id === projectId);
+        if (!project) throw new Error("The selected project is no longer available.");
+        const discardingCurrent = project.isCurrent;
+        previousAutosaveStatus = autosaveStatusRef.current;
+        persistenceGenerationRef.current += 1;
+        updateAutosaveStatus("inactive");
+        if (discardingCurrent) {
+          cancelWorkspaceCalibration();
+          closeConfirmation();
+          cancelReferenceEdit();
+        }
+        await saveQueueRef.current.catch(() => undefined);
+        const expectedRevision = persistenceRevisionRef.current;
+        if (expectedRevision === undefined) {
+          throw new Error("Cannot discard a project whose active session revision is unknown.");
+        }
+        const discardedCurrent = await discardSavedProject(projectId, expectedRevision);
+        if (discardedCurrent) {
+          const previousPdf = activePdfRef.current;
+          activePdfRef.current = null;
+          if (previousPdf) retiredPdfsRef.current.push(previousPdf);
+          persistenceRevisionRef.current = null;
+          persistedSessionRef.current = null;
+          currentSessionRef.current = null;
+          if (disposedRef.current) return;
+          setActivePdf(null);
+          setPdfBlob(null);
+          setAutosaveWarning(null);
+          setRecovery(null);
+          setRecoveryIssue(null);
+          setRecoveryProtected(false);
+          setConfirmDiscardRecovery(false);
+          clearSession();
+          resetWorkspace();
+          closeAllOverlays();
+        } else if (
+          previousAutosaveStatus &&
+          autosaveStatusRef.current !== "unavailable"
+        ) {
+          updateAutosaveStatus(previousAutosaveStatus);
+        }
+        try {
+          setSavedProjects(await listSavedProjects());
+        } catch (error) {
+          console.error("Could not refresh saved projects.", error);
+        }
+      });
+    } catch (error) {
+      if (
+        previousAutosaveStatus &&
+        autosaveStatusRef.current !== "unavailable" &&
+        currentSessionRef.current &&
+        activePdfRef.current
+      ) {
+        updateAutosaveStatus(previousAutosaveStatus);
+      }
+      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
+      console.error("Could not discard the saved project.", error);
+      setError("The project could not be discarded.");
+    }
+  }
+
   function continueWithoutRecovery() {
     setRecoveryIssue(null);
-    setAutosaveStatus("inactive");
+    updateAutosaveStatus("inactive");
     setAutosaveWarning(
       "The previous saved session is protected. Opening another PDF will require confirmation.",
     );
@@ -622,6 +867,7 @@ export function usePdfSessionLifecycle({
     recoveryIssue,
     confirmDiscardRecovery,
     loading,
+    projectOperationPending,
     autosaveWarning,
     autosaveUnavailable: autosaveStatus === "unavailable" || autosaveStatus === "repair-required",
     chooseFile,
@@ -629,6 +875,7 @@ export function usePdfSessionLifecycle({
     refreshSavedProjects,
     continueRecovery,
     discardRecovery,
+    discardProject,
     continueWithoutRecovery,
     showDiscardRecoveryConfirmation,
     hideDiscardRecoveryConfirmation,

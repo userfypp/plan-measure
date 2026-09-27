@@ -17,7 +17,6 @@ interface AppShellProps {
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
-  onOpenPdf: () => void;
   onExport: () => void;
   onOpenProjects?: () => void;
   onUndo?: () => void;
@@ -40,7 +39,6 @@ export function AppShell({
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
-  onOpenPdf,
   onExport,
   onOpenProjects,
   onUndo,
@@ -70,7 +68,6 @@ export function AppShell({
         measurementDecimalPlaces={measurementDecimalPlaces}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-        onOpenPdf={onOpenPdf}
         onExport={onExport}
         onOpenProjects={onOpenProjects}
         onUndo={onUndo}

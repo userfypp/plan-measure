@@ -19,14 +19,20 @@ let closeDescriptor: PropertyDescriptor | undefined;
 function render({
   savedProjects = projects,
   currentSessionLoaded = true,
+  opening = false,
   onOpenProject = vi.fn(),
   onOpenPdf = vi.fn(),
+  onRequestDiscard = vi.fn(),
+  onConfirmDiscard = vi.fn(),
   onClose = vi.fn(),
 }: {
   savedProjects?: SavedProjectSummary[];
   currentSessionLoaded?: boolean;
+  opening?: boolean;
   onOpenProject?: (id: string) => void;
   onOpenPdf?: () => void;
+  onRequestDiscard?: (id: string) => void;
+  onConfirmDiscard?: (id: string) => void;
   onClose?: () => void;
 } = {}) {
   act(() => {
@@ -35,18 +41,18 @@ function render({
         open
         projects={savedProjects}
         currentSessionLoaded={currentSessionLoaded}
-        opening={false}
-        confirmDiscard={false}
+        opening={opening}
+        pendingDiscardProjectId={null}
         onOpenProject={onOpenProject}
         onOpenPdf={onOpenPdf}
-        onRequestDiscard={vi.fn()}
+        onRequestDiscard={onRequestDiscard}
         onCancelDiscard={vi.fn()}
-        onConfirmDiscard={vi.fn()}
+        onConfirmDiscard={onConfirmDiscard}
         onClose={onClose}
       />,
     );
   });
-  return { onOpenProject, onOpenPdf, onClose };
+  return { onOpenProject, onOpenPdf, onRequestDiscard, onConfirmDiscard, onClose };
 }
 
 beforeEach(() => {
@@ -92,17 +98,34 @@ describe("ProjectLibraryDialog", () => {
   it("shows saved project details and opens a selected project", () => {
     const callbacks = render();
 
-    expect(container?.textContent).toContain("Projects are saved on this device");
+    expect(container?.textContent).toContain("Saved on this device");
+    expect(container?.textContent).not.toContain("Open one to continue where you left off");
     expect(container?.textContent).toContain("Level 01.pdf");
     expect(container?.textContent).toContain("Current");
     expect(container?.textContent).toContain("4 pages");
+    const currentButton = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Current project Level 01.pdf"]',
+    );
+    expect(currentButton?.textContent).toBe("Current");
+    expect(currentButton?.getAttribute("aria-disabled")).toBe("true");
     const openButton = container?.querySelector<HTMLButtonElement>(
       'button[aria-label="Open project Level 02.pdf"]',
     );
     if (!openButton) throw new Error("The saved project action was not rendered.");
+    const projectRows = container?.querySelectorAll('[aria-label="Saved projects"] > li');
+    expect(projectRows).toHaveLength(2);
+    expect(
+      [...(projectRows ?? [])].map((row) => row.querySelectorAll('button').length),
+    ).toEqual([2, 2]);
     act(() => openButton.click());
 
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("other");
+    const discardButton = [...(projectRows?.[1]?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === "Discard",
+    );
+    if (!discardButton) throw new Error("The project discard action was not rendered.");
+    act(() => discardButton.click());
+    expect(callbacks.onRequestDiscard).toHaveBeenCalledWith("other");
   });
 
   it("offers a continue action before restoring the current project and supports an empty library", () => {
@@ -116,13 +139,31 @@ describe("ProjectLibraryDialog", () => {
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("current");
 
     render({ savedProjects: [], onOpenPdf });
-    expect(container?.textContent).toContain("No saved projects yet");
+    expect(container?.textContent).toContain("No saved projects");
     const openPdf = [...(container?.querySelectorAll("button") ?? [])].find(
       (button) => button.textContent === "Open PDF",
     );
     if (!openPdf) throw new Error("The new project action was not rendered.");
     act(() => openPdf.click());
     expect(callbacks.onOpenPdf).toHaveBeenCalledOnce();
+  });
+
+  it("disables project actions while a project operation is pending", () => {
+    render({ opening: true });
+
+    const projectButtons = container?.querySelectorAll<HTMLButtonElement>(
+      '[aria-label="Saved projects"] button',
+    );
+    expect(projectButtons).toHaveLength(4);
+    expect(
+      [...projectButtons!].every(
+        (button) => button.disabled || button.getAttribute("aria-disabled") === "true",
+      ),
+    ).toBe(true);
+    const openPdf = [...(container?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+      (button) => button.textContent === "Open PDF",
+    );
+    expect(openPdf?.disabled).toBe(true);
   });
 
   it("confirms removal of the pending current project while keeping other projects", () => {
@@ -135,7 +176,7 @@ describe("ProjectLibraryDialog", () => {
           projects={projects}
           currentSessionLoaded={false}
           opening={false}
-          confirmDiscard
+          pendingDiscardProjectId="current"
           onOpenProject={vi.fn()}
           onOpenPdf={vi.fn()}
           onRequestDiscard={vi.fn()}
@@ -145,17 +186,18 @@ describe("ProjectLibraryDialog", () => {
         />,
       );
     });
-    expect(container?.textContent).toContain("Other saved projects will remain available.");
+    expect(container?.textContent).toContain("Level 01.pdf");
+    expect(container?.textContent).toContain("Other projects stay saved.");
     const keep = [...(container?.querySelectorAll("button") ?? [])].find(
       (button) => button.textContent === "Keep project",
     );
     const discard = [...(container?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent === "Discard project",
+      (button) => button.textContent === "Discard",
     );
     if (!keep || !discard) throw new Error("Project discard confirmation actions were not rendered.");
     act(() => keep.click());
     act(() => discard.click());
     expect(onCancelDiscard).toHaveBeenCalledOnce();
-    expect(onConfirmDiscard).toHaveBeenCalledOnce();
+    expect(onConfirmDiscard).toHaveBeenCalledWith("current");
   });
 });

@@ -39,18 +39,25 @@ export function OverlayHost({
   if (activeOverlay?.kind === "dialog" && activeOverlay.descriptor.type === "replacePdf") {
     const dialog = activeOverlay.descriptor;
     const fileName = dialog.payload.fileName ?? "the selected PDF";
+    const recoveryProtected = dialog.payload.recoveryProtected === true;
     return (
       <ConfirmationDialog
         open
-        title="Replace current PDF?"
+        title={recoveryProtected ? "Replace unreadable session?" : "Open as a new project?"}
         description={
-          <>
-            Loading <strong>{fileName}</strong> will replace the currently saved local session and
-            all its measurements.
-          </>
+          recoveryProtected ? (
+            <>
+              Loading <strong>{fileName}</strong> will replace the saved session that could not be
+              read.
+            </>
+          ) : (
+            <>
+              Loading <strong>{fileName}</strong> will save the current project and open a new one.
+            </>
+          )
         }
-        intent="destructive"
-        confirmLabel="Replace PDF"
+        intent={recoveryProtected ? "destructive" : "warning"}
+        confirmLabel={recoveryProtected ? "Replace session" : "Open as new project"}
         onCancel={() => {
           closeDialog(dialog);
           onDialogCancel?.(dialog);

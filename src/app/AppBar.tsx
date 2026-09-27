@@ -17,7 +17,6 @@ interface AppBarProps {
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
-  onOpenPdf: () => void;
   onExport: () => void;
   onOpenProjects?: () => void;
   onUndo?: () => void;
@@ -47,7 +46,6 @@ export function AppBar({
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
-  onOpenPdf,
   onExport,
   onOpenProjects,
   onUndo,
@@ -77,14 +75,6 @@ export function AppBar({
         aria-label="Application actions"
         aria-orientation="horizontal"
       >
-        <Button
-          variant="ghost"
-          size="compact"
-          className={styles.openAction}
-          onClick={onOpenPdf}
-        >
-          Open PDF
-        </Button>
         {canExport && (
           <Button
             variant="ghost"

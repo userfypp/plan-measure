@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PDFDocumentProxy, PDFDocumentLoadingTask } from "pdfjs-dist";
 import type { LoadedPdf } from "../services/pdf";
-import { canActivatePdf, PdfLoadLifecycle, shouldConfirmPdfReplacement } from "./pdfLoadLifecycle";
+import {
+  canActivatePdf,
+  PdfLoadLifecycle,
+  scheduleRetiredPdfRelease,
+  shouldConfirmPdfReplacement,
+} from "./pdfLoadLifecycle";
 
 function fakeLoadedPdf() {
   const destroy = vi.fn().mockResolvedValue(undefined);
@@ -50,8 +55,33 @@ describe("PDF load lifecycle", () => {
     expect(canActivatePdf(lifecycle, generation, candidate, otherCandidate, true)).toBe(false);
   });
 
-  it("protects an unreadable saved session until replacement is explicitly confirmed", () => {
-    expect(shouldConfirmPdfReplacement({ sessionLoaded: false, pdfRuntimeLoaded: false, pdfActivating: false, recoveryProtected: true })).toBe(true);
-    expect(shouldConfirmPdfReplacement({ sessionLoaded: false, pdfRuntimeLoaded: false, pdfActivating: false, recoveryProtected: false })).toBe(false);
+  it("confirms only protected recovery or an in-progress PDF activation", () => {
+    expect(shouldConfirmPdfReplacement({ pdfActivating: false, recoveryProtected: true })).toBe(true);
+    expect(shouldConfirmPdfReplacement({ pdfActivating: false, recoveryProtected: false })).toBe(false);
+    expect(shouldConfirmPdfReplacement({ pdfActivating: true, recoveryProtected: false })).toBe(
+      true,
+    );
+  });
+
+  it("releases only PDFs retired when its post-commit callback was scheduled", () => {
+    const first = fakeLoadedPdf();
+    const second = fakeLoadedPdf();
+    const retiredPdfs = [first.loaded];
+    const scheduledCallbacks: VoidFunction[] = [];
+    const destroy = vi.fn(async (loaded: LoadedPdf) => {
+      await loaded.loadingTask.destroy();
+    });
+
+    scheduleRetiredPdfRelease(retiredPdfs, (callback) => scheduledCallbacks.push(callback), destroy);
+    retiredPdfs.push(second.loaded);
+    scheduledCallbacks[0]!();
+
+    expect(destroy).toHaveBeenCalledExactlyOnceWith(first.loaded);
+    expect(retiredPdfs).toEqual([second.loaded]);
+    expect(second.destroy).not.toHaveBeenCalled();
+
+    scheduleRetiredPdfRelease(retiredPdfs, (callback) => scheduledCallbacks.push(callback), destroy);
+    scheduledCallbacks[1]!();
+    expect(destroy).toHaveBeenNthCalledWith(2, second.loaded);
   });
 });

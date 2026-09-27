@@ -7,12 +7,12 @@ interface ProjectLibraryDialogProps {
   projects: SavedProjectSummary[];
   currentSessionLoaded: boolean;
   opening: boolean;
-  confirmDiscard: boolean;
+  pendingDiscardProjectId: string | null;
   onOpenProject: (projectId: string) => void;
   onOpenPdf: () => void;
-  onRequestDiscard: () => void;
+  onRequestDiscard: (projectId: string) => void;
   onCancelDiscard: () => void;
-  onConfirmDiscard: () => void;
+  onConfirmDiscard: (projectId: string) => void;
   onClose: () => void;
 }
 
@@ -25,7 +25,7 @@ export function ProjectLibraryDialog({
   projects,
   currentSessionLoaded,
   opening,
-  confirmDiscard,
+  pendingDiscardProjectId,
   onOpenProject,
   onOpenPdf,
   onRequestDiscard,
@@ -34,36 +34,41 @@ export function ProjectLibraryDialog({
   onClose,
 }: ProjectLibraryDialogProps) {
   if (!open) return null;
+  const pendingProject = projects.find((project) => project.id === pendingDiscardProjectId);
+  const confirmingDiscard = pendingDiscardProjectId !== null;
 
   return (
     <Dialog
       open
-      title={confirmDiscard ? "Discard saved project?" : "Your projects"}
-      size="large"
+      title={confirmingDiscard ? "Discard project?" : "Projects"}
+      size="medium"
       trapFocus
-      onClose={confirmDiscard ? onCancelDiscard : onClose}
+      onClose={confirmingDiscard ? onCancelDiscard : onClose}
     >
-      {confirmDiscard ? (
+      {confirmingDiscard ? (
         <div className={styles.discardConfirmation}>
           <p>
-            This removes the current project and its PDF from this device. Other saved projects will
-            remain available.
+            Remove <strong>{pendingProject?.name ?? "this project"}</strong> and its PDF from this
+            device? Other projects stay saved.
           </p>
           <div className={styles.actions}>
-            <Button variant="secondary" onClick={onCancelDiscard}>
+            <Button variant="secondary" disabled={opening} onClick={onCancelDiscard}>
               Keep project
             </Button>
-            <Button variant="danger" onClick={onConfirmDiscard}>
-              Discard project
+            <Button
+              variant="danger"
+              disabled={opening}
+              onClick={() => {
+                if (pendingDiscardProjectId) onConfirmDiscard(pendingDiscardProjectId);
+              }}
+            >
+              Discard
             </Button>
           </div>
         </div>
       ) : (
         <>
-          <p className={styles.intro}>
-            Projects are saved on this device. Open one to continue where you left off, or start a
-            new project from a PDF.
-          </p>
+          <p className={styles.localNote}>Saved on this device</p>
           {projects.length > 0 ? (
             <ul className={styles.projectList} aria-label="Saved projects">
               {projects.map((project) => {
@@ -81,25 +86,26 @@ export function ProjectLibraryDialog({
                         Saved {savedDate(project.savedAt)}
                       </p>
                     </div>
-                    <Button
-                      size="compact"
-                      variant={project.isCurrent ? "secondary" : "primary"}
-                      disabled={opening || isOpen}
-                      aria-label={`${isOpen ? "Current project" : project.isCurrent ? "Continue project" : "Open project"} ${project.name}`}
-                      onClick={() => onOpenProject(project.id)}
-                    >
-                      {isOpen ? "Open" : project.isCurrent ? "Continue" : "Open"}
-                    </Button>
-                    {project.isCurrent && !currentSessionLoaded && (
+                    <div className={styles.projectActions}>
+                      <Button
+                        size="compact"
+                        variant={project.isCurrent ? "primary" : "secondary"}
+                        disabled={opening || isOpen}
+                        disabledReason={isOpen ? "This project is already open." : undefined}
+                        aria-label={`${isOpen ? "Current project" : project.isCurrent ? "Continue project" : "Open project"} ${project.name}`}
+                        onClick={() => onOpenProject(project.id)}
+                      >
+                        {isOpen ? "Current" : project.isCurrent ? "Continue" : "Open"}
+                      </Button>
                       <Button
                         size="compact"
                         variant="dangerSecondary"
                         disabled={opening}
-                        onClick={onRequestDiscard}
+                        onClick={() => onRequestDiscard(project.id)}
                       >
                         Discard
                       </Button>
-                    )}
+                    </div>
                   </li>
                 );
               })}
@@ -113,12 +119,12 @@ export function ProjectLibraryDialog({
                   <path d="M18.5 8.25H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2" />
                 </svg>
               </span>
-              <h3>No saved projects yet</h3>
-              <p>Open a PDF to create your first project. Your work will be saved in this browser.</p>
+              <h3>No saved projects</h3>
+              <p>Open a PDF to start a project.</p>
             </div>
           )}
           <div className={styles.actions}>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="ghost" onClick={onClose}>
               Close
             </Button>
             <Button onClick={onOpenPdf} disabled={opening}>
