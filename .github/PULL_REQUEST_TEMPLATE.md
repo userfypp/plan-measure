@@ -8,7 +8,11 @@ docs: ... | refactor: ... | chore: ...
 Breaking changes: feat!: ... or fix!: ...
 -->
 
-<!-- What changed and why? -->
+<!--
+What changed and why? Write the first bullet as a complete, concrete description
+of the change and its user-visible effect. It is used automatically in release
+notes. See .github/RELEASING.md.
+-->
 
 ## Validation
 

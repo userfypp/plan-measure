@@ -1,23 +1,36 @@
 name: Release Please
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    secrets:
+      RELEASE_PLEASE_TOKEN:
+        required: true
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: release-please-main
-  cancel-in-progress: true
-
 jobs:
   release-please:
+    # Serialize only the mutating job, not the caller's entire CI run.
+    concurrency:
+      group: release-please-main
+      cancel-in-progress: false
+      queue: max
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
+      - name: Check Release Please token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "RELEASE_PLEASE_TOKEN is required to create release PRs that trigger CI." >&2
+            exit 1
+          fi
+
       - name: Create or update draft Release PR
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:

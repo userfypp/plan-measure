@@ -4,19 +4,24 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'push' && github.ref || github.run_id }}
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   verify:
     name: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    concurrency:
+      group: verify-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
     steps:
       - name: Check out repository
@@ -29,6 +34,16 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Validate pull request title
+        if: ${{ github.event_name == 'pull_request' }}
+        run: node .github/scripts/check-pr-title.mjs
+
+      - name: Test release automation
+        run: node --test .github/scripts/*.test-node.mjs
+
+      - name: Validate release metadata and preview notes
+        run: node .github/scripts/preview-release-notes.mjs
 
       - name: Validate React stack
         run: node .github/scripts/check-react-stack.mjs
@@ -44,3 +59,31 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  pages:
+    needs: verify
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
+
+  publish-release:
+    needs: [verify, pages]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: write
+    uses: ./.github/workflows/publish-release.yml
+
+  release-please:
+    needs: publish-release
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-please.yml
+    secrets:
+      RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
