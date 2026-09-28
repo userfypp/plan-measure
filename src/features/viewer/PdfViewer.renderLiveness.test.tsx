@@ -1149,6 +1149,117 @@ describe("PdfViewer render liveness", () => {
     expect(stageCursor()).toBe("crosshair");
   });
 
+  it("keeps a Safari cursor visible through stationary shortcuts and Space drag", async () => {
+    vi.spyOn(navigator, "vendor", "get").mockReturnValue("Apple Computer, Inc.");
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh) Safari/605.1.15");
+    const pdfPage = createPdfPage();
+    let navigation: ViewerNavigationModel | null = null;
+    await mountViewer(createPdfDocument({ 1: pdfPage.page }).document, {
+      registerNavigation: (next) => { navigation = next; },
+      onChooseTool: (tool) => workspaceProbe!.chooseTool(tool),
+    });
+
+    const viewer = container.querySelector<HTMLElement>('[role="region"]');
+    const cursor = container.querySelector<HTMLElement>('[aria-hidden="true"][data-cursor]');
+    if (!viewer || !cursor) throw new Error("Safari viewer cursor was not mounted.");
+    const hitTest = vi.fn().mockReturnValue(viewer);
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: hitTest });
+    vi.spyOn(viewer, "matches").mockImplementation((selector) => selector === ":hover");
+    const move = (x: number, y: number, pointerType = "mouse") =>
+      viewer.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true,
+        pointerType,
+        clientX: x,
+        clientY: y,
+      }));
+
+    expect(viewer.style.cursor).toBe("none");
+    expect(stageCursor()).toBe("none");
+    expect(cursor.style.visibility).not.toBe("visible");
+    await act(async () => move(120, 150, "touch"));
+    expect(cursor.style.visibility).not.toBe("visible");
+    await act(async () => move(120, 150));
+    expect(cursor.style.visibility).toBe("visible");
+    expect(cursor.style.transform).toBe("translate3d(120px, 150px, 0)");
+    await act(async () => move(125, 155, "pen"));
+    expect(cursor.style.visibility).toBe("visible");
+    expect(cursor.style.transform).toBe("translate3d(125px, 155px, 0)");
+    await act(async () => move(120, 150));
+
+    viewer.focus();
+    const key = (value: string, options: KeyboardEventInit = {}) =>
+      viewer.dispatchEvent(new KeyboardEvent("keydown", {
+        key: value,
+        bubbles: true,
+        cancelable: true,
+        ...options,
+      }));
+    await act(async () => key("l"));
+    expect(cursor.dataset.cursor).toBe("crosshair");
+    expect(cursor.style.visibility).toBe("visible");
+    await act(async () => key("s"));
+    await act(async () => key("o"));
+    expect(cursor.dataset.cursor).toBe("crosshair");
+    expect(cursor.style.transform).toBe("translate3d(120px, 150px, 0)");
+
+    await act(async () => navigation?.onZoomIn());
+    expect(cursor.style.visibility).toBe("visible");
+    await act(async () => key("c", { metaKey: true }));
+    await act(async () => key("v", { metaKey: true }));
+    expect(cursor.dataset.cursor).toBe("crosshair");
+    expect(cursor.style.visibility).toBe("visible");
+
+    await act(async () => key(" "));
+    expect(cursor.dataset.cursor).toBe("grab");
+    expect(cursor.style.visibility).toBe("visible");
+    const onMouseDown = konvaCapture.stages.at(-1)?.onMouseDown as
+      | ((event: unknown) => void)
+      | undefined;
+    const onMouseMove = konvaCapture.stages.at(-1)?.onMouseMove as
+      | ((event: unknown) => void)
+      | undefined;
+    if (!onMouseDown || !onMouseMove) throw new Error("Stage pan handlers were not captured.");
+    const panEvent = (x: number, y: number) => ({
+      target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) },
+      evt: { button: 0, preventDefault: vi.fn() },
+    });
+    await act(async () => {
+      onMouseDown(panEvent(120, 150));
+      move(140, 160);
+      onMouseMove(panEvent(140, 160));
+    });
+    await act(async () => key(" ", { repeat: true }));
+    expect(cursor.dataset.cursor).toBe("grabbing");
+    expect(cursor.style.visibility).toBe("visible");
+    expect(cursor.style.transform).toBe("translate3d(140px, 160px, 0)");
+
+    await act(async () => window.dispatchEvent(new Event("blur")));
+    expect(cursor.style.visibility).toBe("hidden");
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(cursor.style.visibility).toBe("visible");
+    expect(cursor.style.transform).toBe("translate3d(140px, 160px, 0)");
+    // A dialog covering the remembered location must not restore a second cursor.
+    hitTest.mockReturnValue(document.body);
+    await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
+    expect(cursor.style.visibility).toBe("hidden");
+    hitTest.mockReturnValue(viewer);
+    await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
+    expect(cursor.style.visibility).toBe("visible");
+    await act(async () => move(160, 180));
+    expect(cursor.style.visibility).toBe("visible");
+    await act(async () =>
+      viewer.dispatchEvent(new PointerEvent("pointerout", {
+        bubbles: true,
+        pointerType: "mouse",
+        relatedTarget: document.body,
+      })),
+    );
+    expect(cursor.style.visibility).toBe("hidden");
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(cursor.style.visibility).toBe("hidden");
+    delete (document as Partial<Document>).elementFromPoint;
+  });
+
   it("accepts calibration points on an exact screen edge without admitting outside pointers", async () => {
     const dimensions = { width: 595.276, height: 841.89 };
     const pdfPage = createPdfPage(resolvedRenderTask, dimensions);

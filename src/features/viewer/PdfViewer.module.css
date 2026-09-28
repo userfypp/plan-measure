@@ -20,6 +20,20 @@
   outline-offset: -3px;
 }
 
+.softwareCursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.softwareCursor img {
+  display: block;
+  max-width: none;
+}
+
 .pdfCanvas {
   position: absolute;
   display: block;

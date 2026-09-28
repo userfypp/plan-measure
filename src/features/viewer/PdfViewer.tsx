@@ -58,6 +58,10 @@ import {
 import { createMeasurementVertexDragCancellationRegistry } from "./measurementVertexDrag";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import styles from "./PdfViewer.module.css";
+import defaultCursor from "./cursors/default.png";
+import crosshairCursor from "./cursors/crosshair.png";
+import grabCursor from "./cursors/grab.png";
+import grabbingCursor from "./cursors/grabbing.png";
 import { LruRenderCache } from "./renderCache";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
 import {
@@ -80,9 +84,27 @@ import {
   useViewerBottomExclusion,
 } from "./viewerLayout";
 
+// Standard macOS NSCursor images at 2x resolution, with their logical sizes and
+// AppKit hotspots. Preserve the native shape and click location in the fallback.
+const SOFTWARE_CURSORS = {
+  default: { src: defaultCursor, width: 28, height: 40, x: 5, y: 5 },
+  crosshair: { src: crosshairCursor, width: 24, height: 24, x: 11, y: 11 },
+  grab: { src: grabCursor, width: 32, height: 32, x: 15, y: 16 },
+  grabbing: { src: grabbingCursor, width: 32, height: 32, x: 15, y: 16 },
+};
+
 const PDF_RENDER_DEBOUNCE_MS = 90;
 const MAX_PAN_CACHE_PIXELS = 4 * 1024 * 1024;
 const MAX_PAN_CACHE_DIMENSION = 4096;
+
+// WebKit on macOS hides NSCursor after a handled keydown until the mouse moves.
+// The viewer uses keyboard shortcuts while the pointer must remain visible.
+// See WebKit UIProcess/mac/WebViewImpl.mm, doneWithKeyEvent:
+// https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/mac/WebViewImpl.mm
+function needsSoftwareCursor(): boolean {
+  return navigator.vendor === "Apple Computer, Inc." &&
+    navigator.userAgent.includes("Macintosh");
+}
 
 function panCachePixelRatio(
   bounds: LogicalPageBounds,
@@ -232,6 +254,8 @@ export function PdfViewer({
     completeDraft,
   } = useWorkspaceState();
   const viewerRef = useRef<HTMLDivElement>(null);
+  const softwareCursorRef = useRef<HTMLDivElement>(null);
+  const softwarePointerRef = useRef<Point | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const candidateStageRef = useRef<Konva.Stage>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -846,14 +870,80 @@ export function PdfViewer({
     viewerRef.current?.focus({ preventScroll: true });
   }, []);
 
+  const softwareCursor = needsSoftwareCursor();
+  const updateSoftwareCursor = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const cursorElement = softwareCursorRef.current;
+    if (!cursorElement) return;
+    if (event.pointerType === "touch") {
+      softwarePointerRef.current = null;
+      cursorElement.style.visibility = "hidden";
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+    if (x < 0 || y < 0 || x >= bounds.width || y >= bounds.height) {
+      softwarePointerRef.current = null;
+      cursorElement.style.visibility = "hidden";
+      return;
+    }
+    softwarePointerRef.current = { x: event.clientX, y: event.clientY };
+    cursorElement.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    cursorElement.style.visibility = "visible";
+  }, []);
+
+  const hideSoftwareCursor = useCallback(() => {
+    if (softwareCursorRef.current) softwareCursorRef.current.style.visibility = "hidden";
+  }, []);
+
+  const leaveSoftwareCursor = useCallback(() => {
+    softwarePointerRef.current = null;
+    hideSoftwareCursor();
+  }, [hideSoftwareCursor]);
+
+  const restoreSoftwareCursor = useCallback(() => {
+    const viewer = viewerRef.current;
+    const cursorElement = softwareCursorRef.current;
+    const point = softwarePointerRef.current;
+    if (!viewer || !cursorElement || !point) return;
+    // A remembered position must still hit this viewer, not a dialog or toolbar.
+    const hit = window.document.elementFromPoint(point.x, point.y);
+    if (!hit || !viewer.contains(hit) || !viewer.matches(":hover")) {
+      hideSoftwareCursor();
+      return;
+    }
+    const bounds = viewer.getBoundingClientRect();
+    cursorElement.style.transform = `translate3d(${point.x - bounds.left}px, ${point.y - bounds.top}px, 0)`;
+    cursorElement.style.visibility = "visible";
+  }, [hideSoftwareCursor]);
+
+  useEffect(() => {
+    if (!softwareCursor) return;
+    window.addEventListener("blur", hideSoftwareCursor);
+    window.addEventListener("focus", restoreSoftwareCursor);
+    window.document.addEventListener("focusin", restoreSoftwareCursor);
+    const onVisibilityChange = () => {
+      if (window.document.visibilityState === "hidden") hideSoftwareCursor();
+      else restoreSoftwareCursor();
+    };
+    window.document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", hideSoftwareCursor);
+      window.removeEventListener("focus", restoreSoftwareCursor);
+      window.document.removeEventListener("focusin", restoreSoftwareCursor);
+      window.document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [hideSoftwareCursor, restoreSoftwareCursor, softwareCursor]);
+
   const handleViewerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       // A new pointer ownership attempt invalidates any older prepared/active
       // vertex gesture before Konva can reuse a stale `ready` drag element.
       cancelActiveVertexDrag();
       focusViewerSurface(event.target);
+      updateSoftwareCursor(event);
     },
-    [cancelActiveVertexDrag, focusViewerSurface],
+    [cancelActiveVertexDrag, focusViewerSurface, updateSoftwareCursor],
   );
 
   const handleViewerWheel = useCallback(
@@ -1231,7 +1321,7 @@ export function PdfViewer({
     // Konva owns the actual native pointer boundary inside React's Stage wrapper.
     // Reapply after every commit so state changes that retain the cursor value
     // also update that boundary.
-    stageRef.current?.getContent().style.setProperty("cursor", cursor);
+    stageRef.current?.getContent().style.setProperty("cursor", softwareCursor ? "none" : cursor);
   });
 
   const placementResolution = useMemo(() => {
@@ -1552,15 +1642,39 @@ export function PdfViewer({
       <div
         ref={viewerRef}
         className={styles.viewport}
-        style={{ cursor }}
+        style={{ cursor: softwareCursor ? "none" : cursor }}
         role="region"
         tabIndex={0}
         data-dialog-focus-fallback
         aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, or P to select a tool.`}
         onPointerDownCapture={handleViewerPointerDown}
+        onPointerEnter={softwareCursor ? updateSoftwareCursor : undefined}
+        onPointerMoveCapture={softwareCursor ? updateSoftwareCursor : undefined}
+        onPointerLeave={softwareCursor ? leaveSoftwareCursor : undefined}
+        onPointerCancelCapture={softwareCursor ? leaveSoftwareCursor : undefined}
         onWheelCapture={handleViewerWheel}
         onKeyDown={handleViewerKeyDown}
       >
+        {softwareCursor && (
+          <div
+            ref={softwareCursorRef}
+            className={styles.softwareCursor}
+            data-cursor={cursor}
+            aria-hidden="true"
+          >
+            <img
+              src={SOFTWARE_CURSORS[cursor].src}
+              width={SOFTWARE_CURSORS[cursor].width}
+              height={SOFTWARE_CURSORS[cursor].height}
+              style={{
+                marginLeft: -SOFTWARE_CURSORS[cursor].x,
+                marginTop: -SOFTWARE_CURSORS[cursor].y,
+              }}
+              alt=""
+              draggable={false}
+            />
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           className={styles.pdfCanvas}
