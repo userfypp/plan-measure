@@ -82,7 +82,7 @@ describe("measurement keyboard shortcuts", () => {
     );
   });
 
-  it("keeps Delete and Backspace on the existing unmodified shortcut policy", () => {
+  it("keeps Delete and Backspace available without modifiers", () => {
     expect(getMeasurementKeyboardAction(keyboardEvent("Delete", canvas()))).toBe(
       "delete-measurement",
     );
@@ -93,6 +93,15 @@ describe("measurement keyboard shortcuts", () => {
       getMeasurementKeyboardAction(keyboardEvent("Backspace", canvas(), { metaKey: true })),
     ).toBeNull();
   });
+
+  it.each(["button", "a", "[role='button']"])(
+    "allows deleting a selected measurement after %s receives focus",
+    (kind) => {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(getMeasurementKeyboardAction(keyboardEvent("Delete", target))).toBe("delete-measurement");
+      expect(getMeasurementKeyboardAction(keyboardEvent("Backspace", target))).toBe("delete-measurement");
+    },
+  );
 
   it.each(["input", "textarea", "select", "[contenteditable='true']"])(
     "does not delete a measurement while %s is editing text",
@@ -267,7 +276,7 @@ describe("viewer-local keyboard policy", () => {
     ).toEqual(action);
   });
 
-  it.each(["button", "a", "input", "textarea", "select"])(
+  it.each(["input", "textarea", "select"])(
     "does not consume viewer shortcuts while %s has focus",
     (kind) => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;
@@ -276,6 +285,24 @@ describe("viewer-local keyboard policy", () => {
       }
     },
   );
+
+  it.each(["button", "a", "[role='button']", "[role='link']"])(
+    "allows tools and zoom from %s while preserving activation keys",
+    (kind) => {
+      const target = new FakeHTMLElement(kind) as unknown as EventTarget;
+      expect(getViewerKeyboardAction(keyboardEvent("l", target), "select", null)).toEqual({ type: "choose-tool", tool: "line" });
+      expect(getViewerKeyboardAction(keyboardEvent("s", target), "select", null)).toBe("toggle-snap");
+      expect(getViewerKeyboardAction(keyboardEvent("+", target), "select", null)).toBe("zoom-in");
+      expect(getViewerKeyboardAction(keyboardEvent(" ", target), "select", null)).toBeNull();
+      expect(getViewerKeyboardAction(keyboardEvent("Enter", target), "line", null)).toBeNull();
+    },
+  );
+
+  it("ignores composition and editable descendants", () => {
+    const nested = new FakeHTMLElement("span", false, null, true) as unknown as EventTarget;
+    expect(getViewerKeyboardAction(keyboardEvent("l", nested), "select", null)).toBeNull();
+    expect(getViewerKeyboardAction(keyboardEvent("l", null, { isComposing: true }), "select", null)).toBeNull();
+  });
 
   it.each(["checkbox", "radio", "range"])(
     "preserves native Space for a focused %s",
@@ -396,11 +423,11 @@ describe("viewer keyboard policy", () => {
     ],
   };
 
-  it("restores the toolbar → viewer focus → shortcut flow", () => {
+  it("allows shortcuts immediately after toolbar interaction", () => {
     const toolbarButton = new FakeHTMLElement("button") as unknown as EventTarget;
     const canvas = new FakeHTMLElement("canvas") as unknown as EventTarget;
 
-    expect(getViewerKeyboardAction(keyboardEvent("l", toolbarButton), "select", null)).toBeNull();
+    expect(getViewerKeyboardAction(keyboardEvent("l", toolbarButton), "select", null)).toEqual({ type: "choose-tool", tool: "line" });
     expect(getViewerKeyboardAction(keyboardEvent("m", canvas), "select", null)).toEqual({
       type: "choose-tool",
       tool: "polyline",

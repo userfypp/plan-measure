@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -47,6 +46,7 @@ import {
   getDrawingKeyboardAction,
   getViewerKeyboardAction,
   shouldIgnoreGlobalKeyboardShortcut,
+  shouldIgnoreViewerKeyboardShortcut,
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
 import { buildDraftPreviewPoints } from "./draftPreview";
@@ -929,14 +929,18 @@ export function PdfViewer({
   }, []);
 
   const handleViewerKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    (event: KeyboardEvent) => {
+      if (shouldIgnoreViewerKeyboardShortcut(event)) return;
+      if (window.document.querySelector(
+        "dialog[open], [role='dialog'][aria-modal='true'], [data-layout-slot='viewer-interaction-shield']",
+      )) return;
       if (event.key === "Escape" && calibrationReferenceEditRef.current) {
         event.preventDefault();
         onCalibrationReferenceEditCancelRef.current();
         return;
       }
       const action = getViewerKeyboardAction(
-        event.nativeEvent,
+        event,
         activeToolRef.current,
         workspaceDraftRef.current,
       );
@@ -953,6 +957,11 @@ export function PdfViewer({
     },
     [executeKeyboardAction],
   );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleViewerKeyDown);
+    return () => window.removeEventListener("keydown", handleViewerKeyDown);
+  }, [handleViewerKeyDown]);
 
   useEffect(() => {
     function handleGlobalKeyUp(event: KeyboardEvent) {
@@ -1559,7 +1568,6 @@ export function PdfViewer({
         aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, or P to select a tool.`}
         onPointerDownCapture={handleViewerPointerDown}
         onWheelCapture={handleViewerWheel}
-        onKeyDown={handleViewerKeyDown}
       >
         <canvas
           ref={canvasRef}

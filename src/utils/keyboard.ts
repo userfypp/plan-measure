@@ -4,7 +4,7 @@ import { isMeasurementType, measurementPathSpecs } from "./geometry";
 export type KeyboardShortcutEvent = Pick<
   KeyboardEvent,
   "altKey" | "ctrlKey" | "defaultPrevented" | "key" | "metaKey" | "repeat" | "shiftKey" | "target"
->;
+> & { isComposing?: boolean };
 
 export function shouldIgnoreGlobalKeyboardShortcut(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -72,13 +72,13 @@ export type MeasurementKeyboardAction =
 /**
  * Application-level copy/paste stays available after non-editing application
  * controls receive focus. Editable controls and dialogs retain native clipboard
- * behavior, while Delete/Backspace keeps its existing stricter policy.
+ * behavior. Delete/Backspace follows the same non-editing focus policy as viewer shortcuts.
  */
 export function getMeasurementKeyboardAction(
   event: KeyboardShortcutEvent,
 ): MeasurementKeyboardAction | null {
   if (event.key === "Delete" || event.key === "Backspace") {
-    return shouldIgnoreKeyboardShortcut(event) ? null : "delete-measurement";
+    return shouldIgnoreViewerKeyboardShortcut(event) ? null : "delete-measurement";
   }
 
   if (
@@ -182,16 +182,29 @@ export function getDrawingKeyboardAction(
   return null;
 }
 
-/**
- * Single policy for viewer keyboard handling. Call this only from the focusable
- * viewer surface; controls and dialogs retain their own native keyboard behavior.
- */
+/** Keep editing and native control activation ahead of application shortcuts. */
+export function shouldIgnoreViewerKeyboardShortcut(event: KeyboardShortcutEvent): boolean {
+  if (event.defaultPrevented || event.isComposing || hasKeyboardShortcutModifier(event)) return true;
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  if (
+    target.isContentEditable ||
+    target.matches("input, textarea, select") ||
+    target.closest("input, textarea, select, [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']")
+  ) return true;
+  return (event.key === " " || event.key === "Enter") && Boolean(
+    target.matches("button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']") ||
+    target.closest("button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']"),
+  );
+}
+
+/** Application-wide viewer shortcuts, except editing and native control keys. */
 export function getViewerKeyboardAction(
   event: KeyboardShortcutEvent,
   tool: Tool,
   draft: DrawingDraft | null,
 ): ViewerKeyboardAction | null {
-  if (shouldIgnoreKeyboardShortcut(event)) return null;
+  if (shouldIgnoreViewerKeyboardShortcut(event)) return null;
 
   if (event.key === " ") return "start-pan";
   if (event.key === "+" || event.key === "=") return "zoom-in";

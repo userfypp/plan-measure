@@ -1017,7 +1017,7 @@ describe("PdfViewer render liveness", () => {
     expect(canvas().style.transform).toBe("");
   });
 
-  it("starts Space pan only from the focused viewer surface", async () => {
+  it("starts Space pan without viewer focus while preserving native button activation", async () => {
     const pdfPage = createPdfPage();
     const runtime = createPdfDocument({ 1: pdfPage.page });
 
@@ -1039,13 +1039,13 @@ describe("PdfViewer render liveness", () => {
     expect(nativeSpace.defaultPrevented).toBe(false);
     expect(konvaCapture.annotationLayers.at(-1)?.spacePan).toBe(false);
 
-    viewer.focus();
+    outsideControl.blur();
     const viewerSpace = new KeyboardEvent("keydown", {
       key: " ",
       bubbles: true,
       cancelable: true,
     });
-    await act(async () => viewer.dispatchEvent(viewerSpace));
+    await act(async () => document.body.dispatchEvent(viewerSpace));
     expect(viewerSpace.defaultPrevented).toBe(true);
     expect(konvaCapture.annotationLayers.at(-1)?.spacePan).toBe(true);
 
@@ -1091,6 +1091,41 @@ describe("PdfViewer render liveness", () => {
       window.dispatchEvent(new KeyboardEvent("keyup", { key: " " }));
     });
     outsideControl.remove();
+  });
+
+  it("dispatches viewer shortcuts once from outside controls and respects editing and overlays", async () => {
+    const chooseTool = vi.fn();
+    await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, {
+      onChooseTool: chooseTool,
+    });
+    const button = document.createElement("button");
+    const input = document.createElement("input");
+    const dialog = document.createElement("dialog");
+    document.body.append(button, input, dialog);
+    const press = (target: EventTarget, key: string) => {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    };
+    button.focus();
+    await act(async () => { expect(press(button, "l").defaultPrevented).toBe(true); });
+    expect(chooseTool).toHaveBeenCalledExactlyOnceWith("line");
+    expect(document.activeElement).toBe(button);
+    chooseTool.mockClear();
+    await act(async () => { press(document.body, "h"); });
+    expect(chooseTool).toHaveBeenCalledExactlyOnceWith("hand");
+    chooseTool.mockClear();
+    input.focus();
+    await act(async () => { expect(press(input, "l").defaultPrevented).toBe(false); });
+    dialog.setAttribute("open", "");
+    await act(async () => { expect(press(button, "l").defaultPrevented).toBe(false); });
+    expect(chooseTool).not.toHaveBeenCalled();
+    dialog.remove();
+    const viewer = container.querySelector<HTMLElement>('[role="region"]')!;
+    await act(async () => { press(viewer, "l"); });
+    expect(chooseTool).toHaveBeenCalledExactlyOnceWith("line");
+    button.remove();
+    input.remove();
   });
 
   it("updates the Stage cursor for stationary-pointer viewer state changes", async () => {
