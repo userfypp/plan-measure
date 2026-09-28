@@ -82,16 +82,6 @@ export function parseChangelog(changelog, version) {
   return entries.map(({ section, raw }) => ({ section, ...splitMetadata(raw) }));
 }
 
-function stripHtmlComments(value = "") {
-  let clean = value;
-  let previous;
-  do {
-    previous = clean;
-    clean = clean.replace(/<!--[^]*?-->/g, "");
-  } while (clean !== previous);
-  return clean;
-}
-
 // Use the first concrete Summary bullet, not validation commands, issue text,
 // generated prose, or an arbitrary sentence elsewhere in the PR description.
 export function summaryFromBody(body = "") {
