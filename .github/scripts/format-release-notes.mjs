@@ -38,6 +38,15 @@ function splitMetadata(value) {
   return { text, references, commit };
 }
 
+function stripHtmlComments(value = "") {
+  let current = value;
+  while (true) {
+    const next = current.replace(/<!--[^]*?-->/g, "");
+    if (next === current) return next;
+    current = next;
+  }
+}
+
 export function parseChangelog(changelog, version) {
   if (!isVersion(version)) throw new Error(`Expected an X.Y.Z version; received "${version}".`);
   const lines = changelog.replace(/\r\n/g, "\n").split("\n");
@@ -76,7 +85,7 @@ export function parseChangelog(changelog, version) {
 // Use the first concrete Summary bullet, not validation commands, issue text,
 // generated prose, or an arbitrary sentence elsewhere in the PR description.
 export function summaryFromBody(body = "") {
-  const clean = (body ?? "").replace(/<!--[^]*?-->/g, "").replace(/\r\n/g, "\n");
+  const clean = stripHtmlComments(body ?? "").replace(/\r\n/g, "\n");
   const sections = [...clean.matchAll(/^## Summary\s*\n([^]*?)(?=^#{1,2} |$(?![^]))/gim)];
   if (sections.length !== 1) return null;
   const lines = sections[0][1].trim().split("\n");
