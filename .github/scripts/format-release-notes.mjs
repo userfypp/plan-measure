@@ -82,6 +82,16 @@ export function parseChangelog(changelog, version) {
   return entries.map(({ section, raw }) => ({ section, ...splitMetadata(raw) }));
 }
 
+function stripHtmlComments(value = "") {
+  let clean = value;
+  let previous;
+  do {
+    previous = clean;
+    clean = clean.replace(/<!--[^]*?-->/g, "");
+  } while (clean !== previous);
+  return clean;
+}
+
 // Use the first concrete Summary bullet, not validation commands, issue text,
 // generated prose, or an arbitrary sentence elsewhere in the PR description.
 export function summaryFromBody(body = "") {
@@ -106,7 +116,7 @@ export function summaryFromBody(body = "") {
 }
 
 export function closingReferences(body = "", repository) {
-  const clean = (body ?? "").replace(/<!--[^]*?-->/g, "").replace(/```[^]*?```|`[^`]*`/g, "");
+  const clean = stripHtmlComments(body ?? "").replace(/```[^]*?```|`[^`]*`/g, "");
   const result = [];
   const pattern =
     /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:(https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/([1-9]\d*))|(?:([\w.-]+\/[\w.-]+)?#([1-9]\d*)))\b/gi;
