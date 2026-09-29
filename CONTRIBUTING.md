@@ -2,9 +2,9 @@
 
 ## Before opening an issue
 
-- Search the open issues first so related work stays together.
+- Search existing issues before opening a new one.
 - Use the bug report template for reproducible problems.
-- Use the feature request template for one focused improvement.
+- Use the feature request template for improvements.
 - Report security vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 - Keep each issue focused on one problem or proposal.
 
@@ -23,8 +23,9 @@ Before opening a pull request, run:
 
 ```bash
 npm run lint
-npm run test
+npm test
 npm run build
+git diff --check
 ```
 
 Use `npm run format` when formatting is part of the change. Keep generated or unrelated changes out of the pull request.
@@ -38,4 +39,4 @@ Use `npm run format` when formatting is part of the change. Keep generated or un
 - Update the README or other documentation when behavior or setup changes.
 - Do not commit PDFs, credentials, secrets, or other private files.
 
-Contributions are reviewed through GitHub pull requests. Note any known limitations or follow-up work.
+Mention any known limitations or follow-up work in the PR.

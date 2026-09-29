@@ -35,9 +35,9 @@ Each page can have multiple named scales. Choose **Add scale** in **Scales**:
 - **Custom ratio**: enter the denominator of a known 1:n scale.
 - **Standard ratios**: choose 1:20, 1:50, or 1:100.
 
-Reference distances accept mm, cm, m, decimal inches or feet, and feet-and-inches input. Select the active scale from the controls below the plan before drawing.
+Reference distances accept mm, cm, m, decimal inches or feet, and feet-and-inches input. Choose the active scale below the plan before drawing.
 
-The active scale applies only to new measurements. Existing measurements keep their original scale. Expand a scale to rename it, set its ratio, recalibrate it, or edit its reference points. Changing its calibration updates linked measurements, with confirmation when the scale is in use; renaming it only changes its name.
+New measurements use the active scale; existing ones keep their original scale. Expand a scale to rename it, set its ratio, recalibrate it, or edit its reference points. Calibration changes update linked measurements, with confirmation when the scale is in use. Renaming a scale leaves its calibration unchanged.
 
 To reuse a scale, choose its copy button in **Scales**, switch to another page, and choose **Apply copied scale** below the plan. The copied scale is independent of the original.
 
@@ -47,9 +47,9 @@ To reuse a scale, choose its copy button in **Scales**, switch to another page, 
 
 While drawing, use **Snap** to align points with visible measurement geometry and **Ortho** to constrain segments horizontally or vertically. **Cancel** or `Escape` discards the current drawing.
 
-With **Select**, move a measurement or drag its vertices to edit its geometry. The toolbar above the plan provides rename, duplicate, **Details**, and delete actions for the selected measurement. You can also copy and paste a measurement with the shortcuts below.
+With **Select**, move a measurement or drag its vertices to edit its geometry. Use the toolbar above the plan to rename, duplicate, inspect, or delete the selection. Copy and paste with the shortcuts below.
 
-In **Details**, review the measurement's results and scale, rename it, write a note and choose **Save note**, or assign classification values under **Organization**.
+Open **Details** to review results and the scale, rename the measurement, or add a note with **Save note**. Assign classification values under **Organization**.
 
 Create classification dimensions and values in **Classifications**. For example, a **Trade** dimension can contain **Electrical** and **Plumbing** values. Dimensions and values can be renamed, archived, and restored; archived entries keep their existing assignments.
 
@@ -57,7 +57,7 @@ Create classification dimensions and values in **Classifications**. For example,
 
 **Takeoff** totals measurements across all pages, including hidden measurements. Length totals cover Lines and Polylines; perimeter and area totals cover Polygons. Choose a **Breakdown** by page, type, or classification dimension. Measurements that cannot be calculated are excluded with a notice.
 
-Use **Undo** and **Redo** in the top bar or their keyboard shortcuts to reverse and restore edits to measurements, scales, classifications, and page labels. History keeps up to 100 edits and resets when a project is opened or the app is reloaded. A new edit after undo clears the redo history. Page navigation and display settings are not part of this history.
+Use **Undo** and **Redo** in the top bar or their shortcuts for measurement, scale, classification, and page-label edits. History holds up to 100 edits and resets when you open a project or reload the app. Editing after undo clears redo history. Navigation and display settings are excluded.
 
 ## View and settings
 
@@ -75,11 +75,11 @@ The controls below the plan let you change pages, zoom, or **Fit** the page to t
 
 Projects are autosaved on this device. Choose **Projects** in the top bar to continue or open a saved project, export it, import a project file, or discard a project after confirmation. Opening another PDF or importing a project creates a new local project and keeps existing saved projects.
 
-A `.planmeasure` export contains the PDF and working data so you can back up a project or import it on another device. Undo/redo history is not included.
+Export a `.planmeasure` file to back up the PDF and working data or transfer them to another device.
 
-PDF processing happens in the browser. Plan Measure has no account or cloud storage service, and the application code does not send plan or measurement data to a server. PDFs and project data are stored in IndexedDB; appearance, deletion-confirmation, and recovered-plan workspace preferences are stored in local storage.
+Plan Measure processes PDFs in your browser and does not send plans or measurements to a server. PDFs and projects stay in IndexedDB; appearance, deletion-confirmation, and startup workspace preferences stay in local storage.
 
-Completed changes are autosaved, with pending changes flushed when the tab is hidden or the page exits when possible. Drawing drafts, Snap, Ortho, zoom, pan, and undo/redo history are not persisted. Clearing browser site data removes locally saved projects; export `.planmeasure` files to keep backups.
+Completed edits are autosaved. Pending saves run when the tab is hidden or closed, when possible. Drafts, Snap, Ortho, zoom, pan, and undo/redo history are not saved. Clearing browser site data removes saved projects; keep `.planmeasure` backups.
 
 If local storage is unavailable or autosave fails, follow the warning shown by the app and export your work before leaving. Older saved data is migrated when possible; if it requires repair, autosave stays paused until the reported problems are resolved.
 
@@ -117,7 +117,7 @@ Use `Cmd` on macOS and `Ctrl` on Windows or Linux.
 | `Cmd/Ctrl+V`           | Paste a copied measurement                                               |
 | `Delete` / `Backspace` | Delete the selected measurement                                          |
 
-Application shortcuts remain available after using non-editing controls. Text fields, dialogs, and native control actions retain their normal keyboard behavior.
+Shortcuts work outside text fields and dialogs. Native control actions keep their usual keys.
 
 ## Limitations
 
