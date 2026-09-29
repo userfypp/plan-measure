@@ -2,43 +2,100 @@
 
 Plan Measure measures real-world distances, perimeters, and areas on architectural PDF plans in a desktop browser.
 
-Live app: https://userfypp.github.io/plan-measure/
+[Open Plan Measure](https://userfypp.github.io/plan-measure/)
 
 ![Plan Measure workspace](assets/screenshots/plan-measure-overview.png)
 
 ## Features
 
-- Open PDFs up to 100 MB and work across multiple pages.
-- Create multiple named scales per page with Uniform or X/Y calibration in metric, decimal imperial, or feet-and-inches input, enter a known 1:n ratio directly, or use standard 1:20, 1:50, and 1:100 presets.
-- Draw Line, Polyline, and Polygon measurements. Edit vertices or move a whole measurement.
-- Use Snap for visible measurement geometry and Ortho for horizontal or vertical segments.
-- Manage measurements in the Measurements workspace, including visibility and grouping; review project-wide totals in Takeoff; and edit properties in Details.
-- Create reusable classification dimensions and values, assign them in Organization, and group measurements by one or more classification dimensions in a chosen order.
-- Export measurements from every page to CSV with configurable measurement, value, scale, classification, and optional audit-data columns; export normalized classification assignments; or create an annotated PDF that preserves the original pages and adds the currently visible measurement geometry and value labels.
-- Export a project with its PDF and working data to a `.planmeasure` file, then import it later to continue working.
-- Choose System, Light, or Dark appearance and configure measurement display, deletion confirmation, and recovered-plan startup behavior in Settings.
+- Work with multi-page PDFs and save multiple projects locally.
+- Create named scales per page using reference distances, separate X/Y calibration, or a known 1:n ratio. Copy scales between pages.
+- Draw and edit Line, Polyline, and Polygon measurements with Snap and Ortho; duplicate or copy/paste measurements; undo and redo edits.
+- Add measurement notes and organize measurements with reusable classifications and nested groups.
+- Review project-wide length, perimeter, and area totals in Takeoff, with breakdowns by page, measurement type, or classification.
+- Customize page labels, display units, annotation visibility, decimal places, and appearance.
+- Export configurable CSV data, annotated PDFs, or portable `.planmeasure` projects.
 
-## Privacy
+## Quick start
 
-PDF processing happens in the browser. Plan Measure has no account or cloud storage service, and the application code does not send plan or measurement data to a server.
+1. Choose **Open PDF** in the top bar, or drop a PDF into the empty workspace.
+2. In **Scales**, choose **Add scale → Uniform**, mark the endpoints of a known distance on the plan, and enter its real-world length. If you already know the plan's scale, use **Custom ratio** or a standard ratio instead.
+3. Choose **Line**, **Polyline**, or **Polygon** from the tool rail and click to place points. A Line finishes after two points; use **Finish** or `Enter` to complete a Polyline or Polygon.
+4. Choose **Select** to inspect or edit a measurement. Open **Details** to rename it, add a note, or assign classifications.
+5. Open **Takeoff** from the workspace menu to review totals, or choose **Export** in the top bar to download results.
 
-The active PDF and session data are stored locally in IndexedDB for recovery after a reload. Theme, deletion-confirmation, and recovered-plan workspace preferences are stored separately in local storage.
+Use the menu at the top of the workspace panel to switch between **Scales**, **Measurements**, **Classifications**, and **Takeoff**. The controls below the plan handle pages, zoom, the active scale, and **View** options.
 
-## Using Plan Measure
+## Scales
 
-1. Choose **Open PDF** in the App Bar, or drop a PDF into the empty workspace.
-2. Open **Scales** in the Workspace and choose **Add scale**. Use **Uniform** for one reference, **X/Y** for separate horizontal and vertical references, **Custom ratio** to enter a known 1:n ratio directly, or a standard 1:20, 1:50, or 1:100 ratio. Manual references accept mm, cm, m, decimal inches or feet, and structured feet-and-inches input. Select the active scale from the Viewer Dock.
-3. Choose **Line**, **Polyline**, or **Polygon** in the Tool Rail and draw on the plan. Line uses two points, Polyline is open, and Polygon is closed. The Context Toolbar provides **Snap**, **Ortho**, **Finish**, and **Cancel** when they apply.
-4. Use **Select** to move a measurement or edit its vertices. The Context Toolbar provides rename, duplicate, **Details**, and delete actions for the selected measurement. Details provides measurement properties, rename, classification assignment, and delete; geometry editing remains in Select in the Viewer.
-5. Use **Classifications** in the Workspace to manage reusable dimensions and values. In **Measurements**, choose one or more dimensions in order to nest measurement groups; each group can be collapsed, and its visibility control applies to all measurements in that group.
-6. Choose **Export** in the App Bar. **CSV** keeps the existing **Measurements** and **Classification assignments** exports; hidden measurements are still included in CSV. **Annotated PDF** preserves the original PDF pages and adds only measurements that are currently visible, with value labels when **Labels** is enabled.
-7. Choose **Projects** to export a saved project or import a `.planmeasure` file. Import opens a new local project and keeps the projects already saved on this device.
+Each page can have multiple named scales. Choose **Add scale** in **Scales**:
 
-The active scale applies only to new measurements. Existing measurements keep the scale they were created with. Renaming a scale changes only its name. Recalibrating it or editing its reference points updates measurements linked to that scale; Plan Measure asks for confirmation first when the scale is already in use.
+- **Uniform**: mark one reference distance and enter its real-world length.
+- **X/Y**: mark separate horizontal and vertical references and enter each length when the plan has different scale factors along the two axes.
+- **Custom ratio**: enter the denominator of a known 1:n scale.
+- **Standard ratios**: choose 1:20, 1:50, or 1:100.
 
-**View** in the Viewer Dock controls display units, Polygon area display, and the visibility of labels, measurement geometry, and scale references. Lengths can use mm, cm, m, decimal inches, decimal feet, or feet-and-inches notation. Polygon area can follow the selected linear unit or display acres. Line and Polyline report length; Polygon reports perimeter and area. **Settings** controls appearance, measurement decimal places from 0 to 6, deletion confirmation, and the recovered-plan workspace. System appearance follows the operating system, and deletion confirmation is on by default. The recovered-plan workspace can be **Scales**, **Measurements**, or **Classifications** and defaults to **Scales**. It applies only to recovered sessions; new PDFs always open **Scales**. Decimal places affect displayed decimal measurement values, not feet-and-inches fraction precision or CSV precision.
+Reference distances accept mm, cm, m, decimal inches or feet, and feet-and-inches input. Select the active scale from the controls below the plan before drawing.
 
-## Shortcuts
+The active scale applies only to new measurements. Existing measurements keep their original scale. Expand a scale to rename it, set its ratio, recalibrate it, or edit its reference points. Changing its calibration updates linked measurements, with confirmation when the scale is in use; renaming it only changes its name.
+
+To reuse a scale, choose its copy button in **Scales**, switch to another page, and choose **Apply copied scale** below the plan. The copied scale is independent of the original.
+
+## Measurements and organization
+
+**Line** measures length between two points. **Polyline** measures length along an open path. **Polygon** measures the perimeter and area of a closed shape.
+
+While drawing, use **Snap** to align points with visible measurement geometry and **Ortho** to constrain segments horizontally or vertically. **Cancel** or `Escape` discards the current drawing.
+
+With **Select**, move a measurement or drag its vertices to edit its geometry. The toolbar above the plan provides rename, duplicate, **Details**, and delete actions for the selected measurement. You can also copy and paste a measurement with the shortcuts below.
+
+In **Details**, review the measurement's results and scale, rename it, write a note and choose **Save note**, or assign classification values under **Organization**.
+
+Create classification dimensions and values in **Classifications**. For example, a **Trade** dimension can contain **Electrical** and **Plumbing** values. Dimensions and values can be renamed, archived, and restored; archived entries keep their existing assignments.
+
+**Measurements** lists measurements on the current page. Choose one or more classification dimensions in order to create nested groups. Collapse groups or use measurement and group visibility controls to show or hide geometry.
+
+**Takeoff** totals measurements across all pages, including hidden measurements. Length totals cover Lines and Polylines; perimeter and area totals cover Polygons. Choose a **Breakdown** by page, type, or classification dimension. Measurements that cannot be calculated are excluded with a notice.
+
+Use **Undo** and **Redo** in the top bar or their keyboard shortcuts to reverse and restore edits to measurements, scales, classifications, and page labels. History keeps up to 100 edits and resets when a project is opened or the app is reloaded. A new edit after undo clears the redo history. Page navigation and display settings are not part of this history.
+
+## View and settings
+
+The controls below the plan let you change pages, zoom, or **Fit** the page to the viewer. Use the mouse wheel to zoom and **Hand** or hold `Space` to pan. Click the page label to set a custom label or restore the PDF's label.
+
+**View** controls:
+
+- **Display unit**: mm, cm, m, decimal inches, decimal feet, or feet-and-inches notation.
+- **Polygon area**: follow the selected linear unit or display acres.
+- **Labels**, **Measurements**, and **Calibration**: show or hide calculated labels, measurement geometry, and scale references.
+
+**Settings** controls System, Light, or Dark appearance, measurement decimal places from 0 to 6, confirmation before deleting measurements, and the workspace shown when reopening a saved plan. Decimal places affect displayed decimal values, not feet-and-inches fraction precision or CSV precision. New PDFs open in **Scales**.
+
+## Projects and local storage
+
+Projects are autosaved on this device. Choose **Projects** in the top bar to continue or open a saved project, export it, import a project file, or discard a project after confirmation. Opening another PDF or importing a project creates a new local project and keeps existing saved projects.
+
+A `.planmeasure` export contains the PDF and working data so you can back up a project or import it on another device. Undo/redo history is not included.
+
+PDF processing happens in the browser. Plan Measure has no account or cloud storage service, and the application code does not send plan or measurement data to a server. PDFs and project data are stored in IndexedDB; appearance, deletion-confirmation, and recovered-plan workspace preferences are stored in local storage.
+
+Completed changes are autosaved, with pending changes flushed when the tab is hidden or the page exits when possible. Drawing drafts, Snap, Ortho, zoom, pan, and undo/redo history are not persisted. Clearing browser site data removes locally saved projects; export `.planmeasure` files to keep backups.
+
+If local storage is unavailable or autosave fails, follow the warning shown by the app and export your work before leaving. Older saved data is migrated when possible; if it requires repair, autosave stays paused until the reported problems are resolved.
+
+## Export
+
+Choose **Export** in the top bar:
+
+- **CSV → Measurements** exports measurements from every page, including hidden ones. Choose measurement, value, scale, classification, note, page-label, and audit-data columns, or use **Defaults**, **All columns**, or **Required only**. Required columns stay enabled.
+- **CSV → Classification assignments** exports one row per assigned classification. Use `measurement_id` to relate assignments to the Measurements CSV.
+- **Annotated PDF** exports the original pages with currently visible measurement geometry. Hidden measurements are omitted, and value labels follow the **Labels** setting. The source PDF is unchanged.
+
+For an editable backup that includes the PDF, use **Projects → Export** instead.
+
+## Keyboard shortcuts
+
+Use `Cmd` on macOS and `Ctrl` on Windows or Linux.
 
 | Shortcut               | Action                                                                   |
 | ---------------------- | ------------------------------------------------------------------------ |
@@ -51,21 +108,27 @@ The active scale applies only to new measurements. Existing measurements keep th
 | `S`                    | Toggle Snap                                                              |
 | `Enter`                | Finish a valid Polyline or Polygon; leave an idle drawing tool           |
 | `Escape`               | Cancel the current drawing or scale workflow; leave an idle drawing tool |
-| `Space`                | Temporarily pan while the Viewer has focus                               |
+| Hold `Space`           | Temporarily pan                                                          |
 | `+` / `=`              | Zoom in                                                                  |
 | `-`                    | Zoom out                                                                 |
+| `Cmd/Ctrl+Z`           | Undo                                                                     |
+| `Cmd/Ctrl+Shift+Z`     | Redo                                                                     |
 | `Cmd/Ctrl+C`           | Copy the selected measurement                                            |
 | `Cmd/Ctrl+V`           | Paste a copied measurement                                               |
 | `Delete` / `Backspace` | Delete the selected measurement                                          |
 
-Viewer shortcuts do not replace normal text editing or dialog controls.
+Application shortcuts remain available after using non-editing controls. Text fields, dialogs, and native control actions retain their normal keyboard behavior.
+
+## Limitations
+
+- PDFs must be no larger than 100 MB; password-protected PDFs are not supported.
+- Precision drawing and geometry editing require a fine pointer and at least 480 × 360 px of unobscured viewer space.
+- X/Y calibration handles different horizontal and vertical scale factors. It does not correct skew, perspective, local distortion, or nonlinear warping.
+- Projects are saved in this browser on this device, with no cloud sync or collaboration.
 
 ## Local development
 
-Requirements:
-
-- Node.js 24
-- npm
+Requirements: Node.js 24 and npm.
 
 Install dependencies and start Vite:
 
@@ -80,34 +143,11 @@ Run the checks before opening a pull request:
 npm run lint
 npm test
 npm run build
+git diff --check
 ```
 
-Use `npm run format` when formatting is part of the change.
+Tests use Vitest. GitHub Actions runs lint, tests, and a production build for pull requests and pushes to `main`. See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Architecture
 
-Plan Measure uses React, TypeScript, Vite, PDF.js, Konva, and CSS Modules. Measurement and calibration geometry is stored in PDF page coordinates, so viewer zoom and pan do not change saved geometry.
-
-Persistent session data is kept separate from temporary interaction state.
-
-## Persistence
-
-Plan Measure keeps one recoverable local session. The active PDF and versioned session metadata are stored as separate IndexedDB records. Completed changes are autosaved, with pending changes flushed when the tab is hidden or the page exits when possible. Drawing drafts, Snap, Ortho, zoom, and pan are not persisted.
-
-On startup, a saved session can be continued or discarded. Opening another PDF replaces the saved session after confirmation. If IndexedDB is unavailable or autosave fails, the current tab can keep working but reload recovery is unavailable.
-
-The current session schema is V10. Recovery accepts V1 through V10 sessions and migrates older data to the current schema when possible. If historical data needs repair, it can be opened for repair, but autosave remains paused until the session is valid again.
-
-## Testing
-
-Tests use Vitest. GitHub Actions runs lint, tests, and a production build for pull requests and pushes to `main`.
-
-## Limitations
-
-- Precision drawing and geometry editing require a fine pointer and at least 480 × 360 px of unobscured Viewer space.
-- Password-protected PDFs are not supported.
-- Linear units are limited to mm, cm, m, in, and ft. Feet-and-inches is a display/input format, and acres are available only for Polygon area.
-- X/Y calibration handles different horizontal and vertical scale factors. It does not correct skew, perspective, local distortion, or nonlinear warping.
-- Projects are saved on this device. There is no account, cloud sync, or collaboration.
-- There is no undo/redo history.
-- Project files, CSV, and annotated PDF copies are available for export. Annotated PDF export does not modify the source PDF.
+Plan Measure uses React, TypeScript, Vite, PDF.js, Konva, and CSS Modules. Measurement and calibration geometry is stored in PDF page coordinates, so viewer zoom and pan do not change saved geometry. Persistent project data is kept separate from temporary interaction state.
