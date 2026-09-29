@@ -8,6 +8,7 @@ const SECTIONS = [
   "Improved",
   "Fixed",
   "Reverted",
+  "Documentation",
 ];
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 export const isVersion = (value) => VERSION.test(value);
@@ -159,6 +160,7 @@ export function renderNotes(entries, sources = new Map(), evidence) {
     ["Breaking changes", []],
     ["What's new", []],
     ["Improvements and fixes", []],
+    ["Documentation", []],
   ]);
   for (const entry of entries) {
     const source = entry.commit && sources.get(entry.commit.sha);
@@ -197,7 +199,9 @@ export function renderNotes(entries, sources = new Map(), evidence) {
       ? "Breaking changes"
       : entry.section === "Added"
         ? "What's new"
-        : "Improvements and fixes";
+        : entry.section === "Documentation"
+          ? "Documentation"
+          : "Improvements and fixes";
     sections
       .get(group)
       .push(`- ${sentence(text, entry.section)}${links.length ? ` (${links.join(", ")})` : ""}`);

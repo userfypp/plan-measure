@@ -63,8 +63,10 @@ Notes normalize initial capitalization and terminal punctuation, retain Markdown
 link the source PR and explicit `Closes` / `Fixes` / `Resolves` issue references,
 and retain a commit link if no PR/issue reference is available. Source PRs must
 match the actual squash commit; a mentioned issue is never assumed to be a PR.
-Breaking-change explanations are preserved in their own section. Existing hidden
-changelog types remain hidden; `ci:` alone does not create a new product release.
+Breaking-change explanations are preserved in their own section. Documentation
+PRs (`docs:`) appear in the **Documentation** section and can create a patch release
+on their own. Other hidden changelog types remain hidden; `ci:` alone does not
+create a new product release.
 
 A preview using only the local changelog is included in the CI job summary. To
 preview the enriched notes locally, with a GitHub token available as `GH_TOKEN`:

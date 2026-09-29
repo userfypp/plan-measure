@@ -209,6 +209,20 @@ test("old release recovery never downgrades Latest", async () => {
   }
 });
 
+test("publishes a documentation-only release with documentation notes", async () => {
+  const { api, state } = fixture();
+  const data = clone(metadata);
+  data.changelog = "## [3.0.0]\n\n### Documentation\n\n* document PDF export options\n";
+  assert.deepEqual(await publishRelease(api, context, async () => data), {
+    status: "published",
+    tag: "v3.0.0",
+  });
+  assert.equal(state.release.draft, false);
+  assert.match(state.release.body, /^## Documentation\n\n- Document PDF export options\./);
+  assert.doesNotMatch(state.release.body, /## What's new|## Improvements and fixes/);
+  assert.deepEqual(state.labels.map(({ name }) => name).sort(), [tagged, "unrelated"].sort());
+});
+
 test("manifest, lockfile and title inconsistencies fail before publishing", () => {
   for (const alter of [
     (data) => {

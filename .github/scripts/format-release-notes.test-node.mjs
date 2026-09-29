@@ -16,6 +16,44 @@ const entry = (text, section = "Added") =>
   `## [3.0.0](https://example.com)\n\n### ${section}\n\n* ${text}\n`;
 const metadata = `([#156](https://github.com/${repository}/issues/156)) ([aaaaaaa](https://github.com/${repository}/commit/${sha}))`;
 
+test("release configuration exposes documentation while keeping maintenance types hidden", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../../release-please-config.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(
+    config["changelog-sections"].filter(({ hidden }) => !hidden).map(({ type }) => type),
+    ["feat", "fix", "perf", "revert", "docs"],
+  );
+  assert.equal(
+    config["changelog-sections"].find(({ type }) => type === "docs").section,
+    "Documentation",
+  );
+});
+
+test("documentation-only and mixed releases retain documentation summaries and links", () => {
+  const sources = new Map([
+    [
+      sha,
+      {
+        repository,
+        number: 156,
+        body: "## Summary\n\n- Document PDF export options.\n\n## Related Issue\n\n- Closes #113",
+      },
+    ],
+  ]);
+  const documentation = entry(`document PDF export ${metadata}`, "Documentation");
+  const expected = `## Documentation\n\n- Document PDF export options. ([#156](https://github.com/${repository}/pull/156), [#113](https://github.com/${repository}/issues/113))\n`;
+  assert.equal(renderNotes(parseChangelog(documentation, "3.0.0"), sources), expected);
+  assert.equal(
+    renderNotes(parseChangelog(documentation + "\n### Fixed\n\n* fix export\n", "3.0.0"), sources),
+    `## Improvements and fixes\n\n- Fixed export.\n\n${expected}`,
+  );
+  assert.match(
+    renderNotes(parseChangelog(documentation, "3.0.0")),
+    /## Documentation\n\n- Document PDF export\./,
+  );
+});
+
 test("release notes use the concrete Summary and link PR plus related issue", () => {
   const entries = parseChangelog(
     entry(`export measurements as annotated PDF ${metadata}`),
@@ -145,6 +183,8 @@ test("Conventional Commit title validation accepts release and dependency PRs", 
     "chore(main): release 2.6.0",
     "chore(deps-dev): bump vite",
     "ci: harden releases",
+    "docs: explain PDF export",
+    "docs(readme): explain calibration",
   ])
     checkTitle(title);
   for (const title of ["Fix PDF", "feat: ", "unknown: change", "fix: one\nfeat: two", "fix(): bad"])
