@@ -1,129 +1,171 @@
+dialog.dialog {
+  width: min(1040px, calc(100vw - 32px));
+}
+
+dialog.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog > header,
+.dialog > div:last-child {
+  flex-shrink: 0;
+}
+
+.dialog .dialogBody {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;
   height: 1px;
-  padding: 0;
-  margin: -1px;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
-  border: 0;
 }
 
-.datasetGroup {
-  min-width: 0;
-  margin: 0 0 var(--space-12);
-  padding: 0;
-  border: 0;
+/* Preserve native fieldset disabling without its anonymous layout box. */
+.controls {
+  display: contents;
 }
 
-.datasetOptions {
+.controlsContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-16);
+}
+
+.exportFields {
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-panel);
+  gap: var(--space-16);
 }
 
-.datasetOptions label {
-  position: relative;
+.field {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.formatDescription {
+  padding-top: var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.field label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.field select {
+  width: 100%;
+  min-height: var(--control-height-regular);
+  text-align: left;
+  text-align-last: left;
+  padding-inline: var(--space-12) var(--space-24);
+}
+
+.columnSettings {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-width: 0;
-  cursor: pointer;
+  min-height: 0;
 }
 
-.datasetOptions label + label {
-  border-left: var(--border-width) solid var(--color-divider);
+.columnToolbar {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-divider);
 }
 
-.datasetOptions input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+.selectedCount {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
   white-space: nowrap;
 }
 
-.datasetOption {
-  min-height: var(--control-height-compact);
+.bulkActions {
   display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  padding: 0 var(--space-12);
-  color: var(--color-text-primary);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-base);
+  gap: var(--space-8);
+  padding-bottom: var(--space-4);
+}
+
+.sectionTabs {
+  display: flex;
+  gap: var(--space-16);
+}
+
+.sectionTabs button {
+  min-height: var(--control-height-regular);
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: var(--focus-width) solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-base);
-  text-align: center;
-  transition: var(--transition-interactive);
 }
 
-.datasetOptions label:first-child .datasetOption {
-  border-radius: var(--radius-control) 0 0 var(--radius-control);
+.sectionTabs button[aria-selected="true"] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text-primary);
 }
 
-.datasetOptions label:last-child .datasetOption {
-  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+.sectionTabs button:hover:not(:disabled) {
+  color: var(--color-accent);
 }
 
-.datasetOptions label:hover input:not(:disabled) + .datasetOption {
-  background: var(--color-control-hover-surface);
-}
-
-.datasetOptions label:active input:not(:disabled) + .datasetOption {
-  background: var(--color-control-active-surface);
-}
-
-.datasetOptions input:disabled + .datasetOption {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
-.datasetOptions input:checked + .datasetOption {
-  background: var(--color-control-active-surface);
-  font-weight: var(--font-weight-semibold);
-}
-
-.datasetOptions input:focus-visible + .datasetOption {
+.sectionTabs button:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
 
-.assignmentDescription,
-.pdfDescription {
-  margin-bottom: 0 !important;
+.panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  height: 300px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-16);
+  background: var(--color-surface-panel);
+  border: var(--border-width) solid var(--color-divider);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
 }
 
-.bulkActions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-8);
-  margin-bottom: var(--space-12);
-}
-
-.presetButton {
-  width: 100%;
-}
-
-.footerButton {
-  width: 112px;
+.panel[hidden] {
+  display: none;
 }
 
 .form {
-  display: grid;
-  gap: var(--space-12);
-}
-
-.form > .datasetGroup {
-  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .primarySections {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: var(--space-12);
+  gap: var(--space-24);
   align-items: start;
 }
 
@@ -133,7 +175,6 @@
   min-width: 0;
 }
 
-.additionalSection,
 .classificationSection {
   display: grid;
   gap: var(--space-4);
@@ -142,7 +183,7 @@
 
 .sectionTitle {
   margin: 0;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
 }
@@ -160,8 +201,13 @@
   row-gap: 0;
 }
 
+.panel.classificationPanel {
+  height: auto;
+}
+
 .classificationGrid {
-  gap: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-12);
 }
 
 .columnOption {
@@ -256,62 +302,39 @@
   border-color: var(--color-divider);
 }
 
-.classificationColumnsHeader,
 .classificationRow {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) repeat(3, 104px);
-  gap: var(--space-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-8);
   min-width: 0;
-  align-items: center;
-}
-
-.classificationColumnsHeader {
-  padding-bottom: var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-divider);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
 }
 
 .classificationDimension {
+  grid-column: 1 / -1;
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--space-4);
-  min-height: var(--target-current);
+  gap: var(--space-8);
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
 .classificationDimension > span:first-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
-.classificationOption {
-  grid-template-columns: 16px minmax(0, 1fr);
+.classificationOption,
+.classificationColumnLabel {
   min-width: 0;
 }
 
-.classificationOption.requiredOption {
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-}
-
-.classificationColumnLabel {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (max-width: 680px) {
+@media (max-width: 600px) {
   .primarySections {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-12);
@@ -327,6 +350,20 @@
 }
 
 @media (max-width: 520px) {
+  .exportFields {
+    grid-template-columns: 1fr;
+  }
+  .sectionTabs {
+    gap: var(--space-12);
+  }
+  .sectionTabs button {
+    font-size: var(--font-size-xs);
+  }
+  .panel {
+    height: auto;
+    padding: var(--space-12);
+  }
+
   .primarySections {
     grid-template-columns: 1fr;
     gap: var(--space-12);
@@ -347,44 +384,6 @@
   .additionalGrid {
     grid-template-columns: 1fr;
   }
-
-  .classificationColumnsHeader {
-    display: none;
-  }
-
-  .classificationRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-8);
-  }
-
-  .classificationDimension {
-    grid-column: 1 / -1;
-  }
-
-  .classificationOption {
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: var(--space-8);
-  }
-
-  .classificationColumnLabel {
-    position: static;
-    width: auto;
-    height: auto;
-    margin: 0;
-    overflow: visible;
-    clip: auto;
-    white-space: normal;
-  }
-}
-
-@media (max-width: 380px) {
-  .bulkActions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .datasetOption {
-    padding-inline: var(--space-8);
-  }
 }
 
 @media (forced-colors: active) {
@@ -396,5 +395,46 @@
 
   .columnOption input::before {
     display: none;
+  }
+}
+
+@media (max-height: 660px) and (min-width: 601px) {
+  .controlsContent {
+    gap: var(--space-12);
+  }
+  .field select {
+    min-height: var(--control-height-compact);
+  }
+  .panel {
+    height: 248px;
+    padding: var(--space-12);
+  }
+}
+
+@media (max-width: 900px) {
+  .columnToolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-4) var(--space-12);
+  }
+  .selectedCount {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding-bottom: var(--space-8);
+  }
+}
+
+@media (max-width: 760px) {
+  .columnToolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bulkActions {
+    grid-row: 1;
+    justify-content: flex-start;
+  }
+  .sectionTabs {
+    grid-row: 2;
+  }
+  .selectedCount {
+    grid-row: 3;
   }
 }

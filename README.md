@@ -14,7 +14,7 @@ Plan Measure measures real-world distances, perimeters, and areas on architectur
 - Add measurement notes and organize measurements with reusable classifications and nested groups.
 - Review project-wide length, perimeter, and area totals in Takeoff, with breakdowns by page, measurement type, or classification.
 - Customize page labels, display units, annotation visibility, decimal places, and appearance.
-- Export configurable CSV data, annotated PDFs, or portable `.planmeasure` projects.
+- Export configurable CSV data, XLSX or ODS spreadsheets, complete JSON data, annotated PDFs, or portable `.planmeasure` projects.
 
 ## Quick start
 
@@ -87,9 +87,15 @@ If local storage is unavailable or autosave fails, follow the warning shown by t
 
 Choose **Export** in the top bar:
 
-- **CSV → Measurements** exports measurements from every page, including hidden ones. Choose measurement, value, scale, classification, note, page-label, and audit-data columns, or use **Defaults**, **All columns**, or **Required only**. Required columns stay enabled.
+- **CSV → Measurements** exports measurements from every page, including hidden ones.
 - **CSV → Classification assignments** exports one row per assigned classification. Use `measurement_id` to relate assignments to the Measurements CSV.
+- **Excel workbook (.xlsx)** and **OpenDocument spreadsheet (.ods)** export both datasets as separate sheets in one file. Quantities are numeric cells; names, notes and identifiers are text.
+- **JSON data** exports all pages, measurements, geometry, scales and classifications without embedding the PDF. It includes hidden measurements and archived classifications, independently of column preferences and display units. See the [versioned JSON contract](docs/export-json.md).
 - **Annotated PDF** exports the original pages with currently visible measurement geometry. Hidden measurements are omitted, and value labels follow the **Labels** setting. The source PDF is unchanged.
+
+For CSV measurements and spreadsheets, choose columns in the tabbed options panel or apply **Defaults**, **All columns**, or **Required only**. Required columns stay enabled; classification columns and additional calibration or audit fields are organized into separate tabs. Successful exports remember the selected measurement columns.
+
+Spreadsheet exports reject unsupported cell text or data exceeding row, column or text-length limits instead of silently truncating it. Spreadsheet applications may limit numeric precision; Excel retains 15 significant digits. Use JSON when you need the original numeric representation for processing.
 
 For an editable backup that includes the PDF, use **Projects → Export** instead.
 

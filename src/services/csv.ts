@@ -8,6 +8,7 @@ import type {
   PageCalibration,
   PageState,
 } from "../types/domain";
+import { downloadExportFile } from "./exportDownload";
 import { getMeasurementCalibration } from "../utils/calibration";
 import {
   calibrationScaleX,
@@ -43,16 +44,16 @@ interface CsvRowContext {
   areaDisplay: AreaDisplay;
   scaleX: number;
   scaleY: number;
-  calibrationReferenceMm: string;
-  calibrationPageDistance: string;
-  calibrationMmPerPageUnit: string;
-  calibrationRatioDenominator: string;
-  calibrationRatioXDenominator: string;
-  calibrationRatioYDenominator: string;
-  calibrationXReferenceMm: string;
-  calibrationXPageSpan: string;
-  calibrationYReferenceMm: string;
-  calibrationYPageSpan: string;
+  calibrationReferenceMm: number | null;
+  calibrationPageDistance: number | null;
+  calibrationMmPerPageUnit: number | null;
+  calibrationRatioDenominator: number | null;
+  calibrationRatioXDenominator: number | null;
+  calibrationRatioYDenominator: number | null;
+  calibrationXReferenceMm: number | null;
+  calibrationXPageSpan: number | null;
+  calibrationYReferenceMm: number | null;
+  calibrationYPageSpan: number | null;
   classificationValues: ReadonlyMap<string, ClassificationValue | null>;
 }
 
@@ -88,7 +89,7 @@ interface CsvColumnDefinition {
   defaultEnabled: boolean;
   required: boolean;
   classification?: CsvClassificationMetadata;
-  extract: (context: CsvRowContext) => string | number;
+  extract: (context: CsvRowContext) => ExportCell;
 }
 
 const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
@@ -210,7 +211,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "number",
     defaultEnabled: false,
     required: false,
-    extract: (context) => String(context.scaleX),
+    extract: (context) => context.scaleX,
   },
   {
     id: "calibration_scale_y_mm_per_page_unit",
@@ -220,7 +221,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "number",
     defaultEnabled: false,
     required: false,
-    extract: (context) => String(context.scaleY),
+    extract: (context) => context.scaleY,
   },
   {
     id: "length",
@@ -231,9 +232,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: false,
     extract: (context) =>
-      context.spec.closed
-        ? ""
-        : formatCsvNumber(fromMillimetres(context.result.lengthMm ?? 0, context.unit)),
+      context.spec.closed ? null : fromMillimetres(context.result.lengthMm ?? 0, context.unit),
   },
   {
     id: "perimeter",
@@ -244,9 +243,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: false,
     extract: (context) =>
-      context.spec.closed
-        ? formatCsvNumber(fromMillimetres(context.result.perimeterMm ?? 0, context.unit))
-        : "",
+      context.spec.closed ? fromMillimetres(context.result.perimeterMm ?? 0, context.unit) : null,
   },
   {
     id: "area",
@@ -258,12 +255,10 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     required: false,
     extract: (context) =>
       context.spec.closed
-        ? formatCsvNumber(
-            context.areaDisplay === "ac"
-              ? fromSquareMillimetresToAcres(context.result.areaMm2 ?? 0)
-              : fromSquareMillimetres(context.result.areaMm2 ?? 0, context.unit),
-          )
-        : "",
+        ? context.areaDisplay === "ac"
+          ? fromSquareMillimetresToAcres(context.result.areaMm2 ?? 0)
+          : fromSquareMillimetres(context.result.areaMm2 ?? 0, context.unit)
+        : null,
   },
   {
     id: "unit",
@@ -324,8 +319,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "number",
     defaultEnabled: false,
     required: false,
-    extract: (context) =>
-      context.result.lengthMm === null ? "" : formatCsvNumber(context.result.lengthMm),
+    extract: (context) => context.result.lengthMm,
   },
   {
     id: "perimeter_mm",
@@ -335,8 +329,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "number",
     defaultEnabled: false,
     required: false,
-    extract: (context) =>
-      context.result.perimeterMm === null ? "" : formatCsvNumber(context.result.perimeterMm),
+    extract: (context) => context.result.perimeterMm,
   },
   {
     id: "area_mm2",
@@ -346,8 +339,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "number",
     defaultEnabled: false,
     required: false,
-    extract: (context) =>
-      context.result.areaMm2 === null ? "" : formatCsvNumber(context.result.areaMm2),
+    extract: (context) => context.result.areaMm2,
   },
   {
     id: "calibration_ratio_denominator",
@@ -597,11 +589,21 @@ function serializeCsvCell(value: string | number, type: CsvColumnType): string {
 function serializeCsv(
   headers: readonly string[],
   columnTypes: readonly CsvColumnType[],
-  rows: readonly (readonly (string | number)[])[],
+  rows: readonly (readonly ExportCell[])[],
+  formattedNumberColumns: ReadonlySet<string> = new Set(),
 ): string {
   const serializedHeader = headers.map((header) => serializeCsvCell(header, "text"));
   const serializedRows = rows.map((row) =>
-    row.map((value, index) => serializeCsvCell(value, columnTypes[index]!)),
+    row.map((value, index) =>
+      serializeCsvCell(
+        value === null
+          ? ""
+          : typeof value === "number" && formattedNumberColumns.has(headers[index]!)
+            ? formatCsvNumber(value)
+            : value,
+        columnTypes[index]!,
+      ),
+    ),
   );
   const contents = [serializedHeader, ...serializedRows].map((row) => row.join(",")).join("\r\n");
   return `\uFEFF${contents}\r\n`;
@@ -623,32 +625,30 @@ function createCsvRowContext(
   if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) {
     throw new RangeError("Calibration must produce finite audit values.");
   }
-  // Audit metadata uses String(number) for stable, locale-independent decimal serialization
-  // without arbitrary display rounding.
   const calibrationReferenceMm =
-    calibration.mode === "uniform" ? String(calibration.referenceDistanceMm) : "";
+    calibration.mode === "uniform" ? calibration.referenceDistanceMm : null;
   const calibrationPageDistanceValue =
-    calibration.mode === "uniform" ? String(distance(calibration.start, calibration.end)) : "";
+    calibration.mode === "uniform" ? distance(calibration.start, calibration.end) : null;
   const calibrationMmPerPageUnitValue =
-    calibration.mode === "uniform" ? String(millimetresPerPageUnit(calibration)) : "";
+    calibration.mode === "uniform" ? millimetresPerPageUnit(calibration) : null;
   const ratioDenominator = (scale: number) =>
-    String(practicalScaleRatioDenominator(scaleRatioDenominatorFromMillimetresPerPageUnit(scale)));
+    practicalScaleRatioDenominator(scaleRatioDenominatorFromMillimetresPerPageUnit(scale));
   const calibrationRatioDenominator =
-    calibration.mode === "uniform" ? ratioDenominator(scaleX) : "";
-  const calibrationRatioXDenominator = calibration.mode === "xy" ? ratioDenominator(scaleX) : "";
-  const calibrationRatioYDenominator = calibration.mode === "xy" ? ratioDenominator(scaleY) : "";
+    calibration.mode === "uniform" ? ratioDenominator(scaleX) : null;
+  const calibrationRatioXDenominator = calibration.mode === "xy" ? ratioDenominator(scaleX) : null;
+  const calibrationRatioYDenominator = calibration.mode === "xy" ? ratioDenominator(scaleY) : null;
   const calibrationXReferenceMm =
-    calibration.mode === "xy" ? String(calibration.xReference.referenceDistanceMm) : "";
+    calibration.mode === "xy" ? calibration.xReference.referenceDistanceMm : null;
   const calibrationXPageSpan =
     calibration.mode === "xy"
-      ? String(Math.abs(calibration.xReference.end.x - calibration.xReference.start.x))
-      : "";
+      ? Math.abs(calibration.xReference.end.x - calibration.xReference.start.x)
+      : null;
   const calibrationYReferenceMm =
-    calibration.mode === "xy" ? String(calibration.yReference.referenceDistanceMm) : "";
+    calibration.mode === "xy" ? calibration.yReference.referenceDistanceMm : null;
   const calibrationYPageSpan =
     calibration.mode === "xy"
-      ? String(Math.abs(calibration.yReference.end.y - calibration.yReference.start.y))
-      : "";
+      ? Math.abs(calibration.yReference.end.y - calibration.yReference.start.y)
+      : null;
   const unit = resolveLinearUnit(session.settings.displayUnit);
   const areaDisplay = session.settings.areaDisplay;
   const spec = measurementPathSpecs[measurement.type];
@@ -714,16 +714,24 @@ export class NoMeasurementsError extends Error {
   }
 }
 
-export function buildCsv(
+export type ExportCell = string | number | null;
+
+export interface ExportTable {
+  headers: string[];
+  columnTypes: CsvColumnType[];
+  rows: ExportCell[][];
+}
+
+export function buildMeasurementTable(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
   csvSettings?: CsvExportSettings,
-): string {
+): ExportTable {
   const settings = csvSettings ?? session.settings.csvExport;
   const columns = createCsvColumns(session).filter((column) =>
     isCsvColumnEnabled(column, settings),
   );
-  const rows: (string | number)[][] = [];
+  const rows: ExportCell[][] = [];
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
     if (!page) continue;
@@ -741,14 +749,38 @@ export function buildCsv(
         page,
         session,
       );
-      rows.push(columns.map((column) => column.extract(context)));
+      rows.push(
+        columns.map((column) => {
+          const value = column.extract(context);
+          if (typeof value === "number" && !Number.isFinite(value)) {
+            throw new RangeError(
+              `Measurement ${measurement.id} must produce finite export values.`,
+            );
+          }
+          return value;
+        }),
+      );
     }
   }
   if (rows.length === 0) throw new NoMeasurementsError();
-  return serializeCsv(
-    columns.map((column) => column.header),
-    columns.map((column) => column.type),
+  return {
+    headers: columns.map((column) => column.header),
+    columnTypes: columns.map((column) => column.type),
     rows,
+  };
+}
+
+export function buildCsv(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+  csvSettings?: CsvExportSettings,
+): string {
+  const table = buildMeasurementTable(session, pageLabels, csvSettings);
+  return serializeCsv(
+    table.headers,
+    table.columnTypes,
+    table.rows,
+    new Set(["length", "perimeter", "area", "length_mm", "perimeter_mm", "area_mm2"]),
   );
 }
 
@@ -786,10 +818,10 @@ const CLASSIFICATION_ASSIGNMENT_COLUMN_TYPES: readonly CsvColumnType[] = [
   "text",
 ];
 
-export function buildClassificationAssignmentsCsv(
+export function buildClassificationAssignmentsTable(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
-): string {
+): ExportTable {
   const rows: (string | number)[][] = [];
   let measurementCount = 0;
 
@@ -824,23 +856,23 @@ export function buildClassificationAssignmentsCsv(
   }
 
   if (measurementCount === 0) throw new NoMeasurementsError();
-  return serializeCsv(
-    CLASSIFICATION_ASSIGNMENT_HEADERS,
-    CLASSIFICATION_ASSIGNMENT_COLUMN_TYPES,
+  return {
+    headers: [...CLASSIFICATION_ASSIGNMENT_HEADERS],
+    columnTypes: [...CLASSIFICATION_ASSIGNMENT_COLUMN_TYPES],
     rows,
-  );
+  };
+}
+
+export function buildClassificationAssignmentsCsv(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+): string {
+  const table = buildClassificationAssignmentsTable(session, pageLabels);
+  return serializeCsv(table.headers, table.columnTypes, table.rows);
 }
 
 function downloadCsvFile(csv: string, fileName: string): void {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 250);
+  downloadExportFile(csv, fileName, "text/csv;charset=utf-8");
 }
 
 export function downloadCsv(

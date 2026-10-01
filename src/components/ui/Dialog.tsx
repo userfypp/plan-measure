@@ -27,6 +27,8 @@ export interface DialogProps {
   actions?: ReactNode;
   onClose: () => void;
   size?: DialogSize;
+  className?: string;
+  bodyClassName?: string;
   initialFocus?: RefObject<HTMLElement | null>;
   descriptionId?: string;
   modal?: boolean;
@@ -70,6 +72,8 @@ export function Dialog({
   actions,
   onClose,
   size = "medium",
+  className,
+  bodyClassName,
   initialFocus,
   descriptionId,
   modal = true,
@@ -193,7 +197,7 @@ export function Dialog({
   return (
     <dialog
       ref={dialogRef}
-      className={[styles.dialog, styles[size]].join(" ")}
+      className={[styles.dialog, styles[size], className].filter(Boolean).join(" ")}
       role="dialog"
       aria-modal={modal || undefined}
       data-focus-trap={trapFocus ? "" : undefined}
@@ -242,7 +246,7 @@ export function Dialog({
           {title}
         </h2>
       </header>
-      <div className={styles.body}>{children}</div>
+      <div className={[styles.body, bodyClassName].filter(Boolean).join(" ")}>{children}</div>
       {actions && <div className={styles.actions}>{actions}</div>}
     </dialog>
   );
