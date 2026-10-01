@@ -211,16 +211,76 @@ describe("AppBar", () => {
     expect(settings.getAttribute("aria-controls")).toBe(dialog?.id);
   });
 
-  it("keeps Feedback first-level with its destination and removes the empty More menu", () => {
+  it("opens Feedback options with the discussion and existing issue templates", () => {
     renderAppBar();
-    const feedback = container?.querySelector<HTMLAnchorElement>("a");
-    expect(feedback?.textContent).toBe("Feedback");
-    expect(feedback?.href).toBe("https://github.com/userfypp/plan-measure/discussions/1");
-    expect(feedback?.target).toBe("_blank");
-    expect(feedback?.rel).toBe("noopener noreferrer");
+    const feedback = buttonByLabel("Feedback");
+    expect(feedback.getAttribute("aria-haspopup")).toBe("menu");
+    expect(feedback.getAttribute("aria-expanded")).toBe("false");
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+
+    act(() => feedback.click());
+
+    const menu = document.querySelector<HTMLElement>('[role="menu"]');
+    expect(menu?.getAttribute("aria-label")).toBe("Feedback options");
+    expect(feedback.getAttribute("aria-expanded")).toBe("true");
+    expect(feedback.getAttribute("aria-controls")).toBe(menu?.id);
+    const links = Array.from(menu!.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]'));
+    expect(links.map((link) => [link.textContent, link.href])).toEqual([
+      ["Give feedback", "https://github.com/userfypp/plan-measure/discussions/1"],
+      [
+        "Request a feature",
+        "https://github.com/userfypp/plan-measure/issues/new?template=feature_request.yml",
+      ],
+      [
+        "Report a bug",
+        "https://github.com/userfypp/plan-measure/issues/new?template=bug_report.yml",
+      ],
+    ]);
+    for (const link of links) {
+      expect(link.target).toBe("_blank");
+      expect(link.rel).toBe("noopener noreferrer");
+    }
     expect(buttonByLabel("Settings")).toBeTruthy();
     expect(document.querySelector('button[aria-label="More actions"]')).toBeNull();
   });
+
+  it("navigates Feedback links with the keyboard and restores trigger focus on dismissal", () => {
+    renderAppBar();
+    const feedback = buttonByLabel("Feedback");
+    act(() => feedback.click());
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]'));
+    expect(document.activeElement).toBe(links[0]);
+    expect(links.map((link) => link.tabIndex)).toEqual([0, -1, -1]);
+    press("ArrowDown");
+    expect(document.activeElement).toBe(links[1]);
+    press("End");
+    expect(document.activeElement).toBe(links[2]);
+    press("Home");
+    expect(document.activeElement).toBe(links[0]);
+    press("Escape");
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(feedback.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(feedback);
+  });
+
+  it.each(["click", "Enter", " "])(
+    "activates a Feedback link with %s and closes the menu",
+    (activation) => {
+      renderAppBar();
+      const feedback = buttonByLabel("Feedback");
+      act(() => feedback.click());
+      press("ArrowDown");
+      const link = document.activeElement as HTMLAnchorElement;
+      const onClick = vi.fn((event: MouseEvent) => event.preventDefault());
+      link.addEventListener("click", onClick);
+      if (activation === "click") act(() => link.click());
+      else press(activation);
+
+      expect(onClick).toHaveBeenCalledOnce();
+      expect(document.querySelector('[role="menu"]')).toBeNull();
+      expect(document.activeElement).toBe(feedback);
+    },
+  );
 
   it("keeps Export unavailable before a document is open while retaining Feedback and Settings", () => {
     renderAppBar({ documentName: null, canExport: false });
@@ -228,6 +288,8 @@ describe("AppBar", () => {
     expect(container?.textContent).toContain("No PDF loaded");
     expect(container?.textContent).not.toContain("Export");
     expect(container?.textContent).toContain("Feedback");
+    act(() => buttonByLabel("Feedback").click());
+    expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
     expect(buttonByLabel("Settings")).toBeTruthy();
   });
 });

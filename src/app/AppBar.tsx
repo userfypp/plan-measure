@@ -1,12 +1,34 @@
 import { useRef } from "react";
-import { Button } from "../components/ui";
+import { AnchoredMenu, Button, type AnchoredMenuItem } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsPopover } from "./SettingsPopover";
 import styles from "./AppBar.module.css";
 
-const FEEDBACK_URL = "https://github.com/userfypp/plan-measure/discussions/1";
+const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
+  {
+    id: "feedback",
+    label: "Give feedback",
+    href: "https://github.com/userfypp/plan-measure/discussions/1",
+    target: "_blank",
+    rel: "noopener noreferrer",
+  },
+  {
+    id: "feature-request",
+    label: "Request a feature",
+    href: "https://github.com/userfypp/plan-measure/issues/new?template=feature_request.yml",
+    target: "_blank",
+    rel: "noopener noreferrer",
+  },
+  {
+    id: "bug-report",
+    label: "Report a bug",
+    href: "https://github.com/userfypp/plan-measure/issues/new?template=bug_report.yml",
+    target: "_blank",
+    rel: "noopener noreferrer",
+  },
+];
 
 interface AppBarProps {
   documentName: string | null;
@@ -122,14 +144,14 @@ export function AppBar({
         >
           Redo
         </Button>
-        <a
-          className={styles.feedbackAction}
-          href={FEEDBACK_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Feedback
-        </a>
+        <AnchoredMenu
+          trigger="Feedback"
+          triggerProps={{ className: styles.feedbackAction, "aria-label": "Feedback" }}
+          label="Feedback options"
+          items={FEEDBACK_ITEMS}
+          showMarkerColumn={false}
+          placement="bottom-end"
+        />
         <SettingsPopover
           trigger={<SettingsIcon />}
           triggerClassName={styles.iconTrigger}
