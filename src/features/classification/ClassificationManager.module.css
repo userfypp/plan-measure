@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
-  padding: 0 var(--space-4) var(--space-8);
+  padding: 0 var(--space-12) var(--space-8);
 }
 
 .list {

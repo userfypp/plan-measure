@@ -130,6 +130,7 @@ function PlanMeasureApp() {
     setMeasurementsVisibility,
     deleteMeasurement,
     addClassificationDimension,
+    applyClassificationTemplate,
     renameClassificationDimension,
     archiveClassificationDimension,
     restoreClassificationDimension,
@@ -1119,6 +1120,7 @@ function PlanMeasureApp() {
                   onCreateDimension={(name) =>
                     addClassificationDimension(crypto.randomUUID(), name)
                   }
+                  onApplyTemplate={applyClassificationTemplate}
                   onRenameDimension={renameClassificationDimension}
                   onArchiveDimension={archiveClassificationDimension}
                   onRestoreDimension={restoreClassificationDimension}

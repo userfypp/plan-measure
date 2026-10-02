@@ -17,6 +17,10 @@ function HistoryHarness() {
         {`${state.canUndo}:${state.canRedo}:${state.session?.classificationCatalog.dimensions.length ?? 0}`}
       </output>
       <button onClick={() => state.addClassificationDimension("trade", "Trade")}>Add</button>
+      <button onClick={() => state.applyClassificationTemplate([
+        { name: "Trade", values: ["Electrical", "Plumbing"] },
+        { name: "Floor", values: ["Ground"] },
+      ])}>Apply template</button>
       <button onClick={state.undo}>Undo</button>
       <button onClick={state.redo}>Redo</button>
       <button onClick={() => state.addClassificationDimension("status", "Status")}>Branch</button>
@@ -54,6 +58,16 @@ afterEach(() => {
 });
 
 describe("session undo and redo history", () => {
+  it("undoes a complete template application in one step and ignores repeated applications", () => {
+    const state = () => document.querySelector("[data-testid='history-state']")?.textContent;
+    click("Apply template");
+    expect(state()).toBe("true:false:2");
+    click("Apply template");
+    click("Undo");
+    expect(state()).toBe("false:true:0");
+    click("Redo");
+    expect(state()).toBe("true:false:2");
+  });
   it("undoes and redoes edits, and drops the redo branch after a new edit", () => {
     const state = () => document.querySelector("[data-testid='history-state']")?.textContent;
     // Loading starts a fresh history for a document.

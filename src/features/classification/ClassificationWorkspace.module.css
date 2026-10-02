@@ -13,3 +13,200 @@
   flex: 1 1 0;
   min-height: 0;
 }
+
+.workspace > .header {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-16);
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.header h2,
+.emptyState h3 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.header > button {
+  padding-inline: var(--space-8);
+  font-size: var(--font-size-secondary);
+}
+
+.library {
+  overflow-y: auto;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  overflow-wrap: anywhere;
+}
+
+.feedback {
+  margin: 0;
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  overflow-wrap: anywhere;
+}
+
+.feedback[role="alert"] {
+  color: var(--color-danger);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.emptyState {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-16);
+}
+
+.templates {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template {
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-16);
+  color: var(--color-text-primary);
+  list-style: none;
+  cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary:hover {
+  background: var(--color-control-hover-surface);
+}
+
+.disclosure > summary:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: calc(-1 * var(--focus-offset));
+}
+
+.templateSummary {
+  min-height: var(--geometry-scale-row-height);
+}
+
+.identity {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.identity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.chevron {
+  flex: 0 0 auto;
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  color: var(--color-text-secondary);
+  transform: rotate(-90deg);
+  transition: var(--transition-interactive);
+}
+
+.disclosure[open] > summary .chevron {
+  transform: rotate(0deg);
+}
+
+.templateBody {
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-4) var(--space-16) var(--space-16);
+}
+
+.preview {
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  overflow-wrap: anywhere;
+}
+
+.preview dt {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.preview dd {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.templateActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.templateActions > p {
+  flex-basis: 100%;
+}
+
+.disclosure > .saveSummary {
+  min-height: var(--control-height-compact);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.saveForm {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-16) var(--space-16);
+}
+
+.compactInput {
+  min-height: var(--control-height-compact);
+  padding-inline: var(--space-8);
+  font-size: var(--font-size-base);
+}
+
+.saveForm > button {
+  justify-self: start;
+}

@@ -30,6 +30,10 @@ import {
   getActiveCalibration,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
+import {
+  applyTemplateDimensions,
+  type ClassificationTemplateDimension,
+} from "../features/classification/classificationTemplates";
 import { classificationNameKey } from "../utils/classificationNames";
 import {
   MEASUREMENT_NAME_EMPTY_ERROR,
@@ -146,6 +150,7 @@ export type SessionAction =
       visible: boolean;
     }
   | { type: "DELETE_MEASUREMENT"; pageNumber: number; id: string }
+  | { type: "APPLY_CLASSIFICATION_TEMPLATE"; dimensions: ClassificationTemplateDimension[] }
   | { type: "ADD_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "ARCHIVE_CLASSIFICATION_DIMENSION"; id: string }
@@ -618,6 +623,25 @@ export function sessionReducer(
       }));
       return { ...state, session, error: null };
     }
+    case "APPLY_CLASSIFICATION_TEMPLATE": {
+      if (!state.session) return state;
+      try {
+        const catalog = applyTemplateDimensions(
+          state.session.classificationCatalog,
+          action.dimensions,
+        );
+        return {
+          ...state,
+          session:
+            catalog === state.session.classificationCatalog
+              ? state.session
+              : { ...state.session, classificationCatalog: catalog },
+          error: null,
+        };
+      } catch (error) {
+        return { ...state, error: error instanceof Error ? error.message : "Could not apply template." };
+      }
+    }
     case "ADD_CLASSIFICATION_DIMENSION": {
       if (!state.session) return state;
       const id = action.id.trim();
@@ -983,6 +1007,7 @@ interface SessionContextValue extends SessionState {
     visible: boolean,
   ) => void;
   deleteMeasurement: (pageNumber: number, id: string) => void;
+  applyClassificationTemplate: (dimensions: ClassificationTemplateDimension[]) => boolean;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
   archiveClassificationDimension: (id: string) => void;
@@ -1128,6 +1153,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "SET_MEASUREMENTS_VISIBILITY", pageNumber, measurementIds, visible }),
       deleteMeasurement: (pageNumber, id) =>
         applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
+      applyClassificationTemplate: (dimensions) =>
+        applyAction({ type: "APPLY_CLASSIFICATION_TEMPLATE", dimensions }).error === null,
       addClassificationDimension: (id, name) =>
         applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
       renameClassificationDimension: (id, name) =>

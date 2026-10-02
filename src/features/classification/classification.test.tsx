@@ -87,7 +87,7 @@ describe("classification surfaces", () => {
       /\.itemHeader\s*\{[^}]*align-items:\s*center;/s,
     );
     expect(managerCss).toMatch(
-      /\.body\s*\{[^}]*padding:\s*0 var\(--space-4\) var\(--space-8\);/s,
+      /\.body\s*\{[^}]*padding:\s*0 var\(--space-12\) var\(--space-8\);/s,
     );
     expect(managerCss).toMatch(/\.item\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);/s);
     expect(managerCss).not.toMatch(

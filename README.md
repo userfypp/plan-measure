@@ -53,6 +53,8 @@ Open **Details** to review results and the scale, rename the measurement, or add
 
 Create classification dimensions and values in **Classifications**. For example, a **Trade** dimension can contain **Electrical** and **Plumbing** values. Dimensions and values can be renamed, archived, and restored; archived entries keep their existing assignments.
 
+Open **Templates** in **Classifications** to save the active project dimensions and values as a named template. Templates stay in this browser and can be applied to other projects. Expand a saved template to preview its contents. **Apply to project** adds missing entries and reuses matching names without changing measurement assignments; restore matching archived entries first. Applying a template is one undoable edit. Deleting a saved template does not remove classifications already applied to a project.
+
 **Measurements** lists measurements on the current page. Choose one or more classification dimensions in order to create nested groups. Collapse groups or use measurement and group visibility controls to show or hide geometry.
 
 **Takeoff** totals measurements across all pages, including hidden measurements. Length totals cover Lines and Polylines; perimeter and area totals cover Polygons. Choose a **Breakdown** by page, type, or classification dimension. Measurements that cannot be calculated are excluded with a notice.
