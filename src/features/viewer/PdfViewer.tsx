@@ -246,6 +246,7 @@ export function PdfViewer({
     toggleSnap,
     chooseTool: chooseWorkspaceTool,
     selectedMeasurementId,
+    selectedMeasurementIds,
     selectMeasurement: selectWorkspaceMeasurement,
     clearSelection: clearWorkspaceSelection,
     startDraft,
@@ -415,8 +416,8 @@ export function PdfViewer({
     if (measurementId) onMeasurementEditActiveChange(measurementId, false);
   }, [onMeasurementEditActiveChange]);
   const selectMeasurement = useCallback(
-    (id: string) => {
-      selectWorkspaceMeasurement(id);
+    (id: string, additive = false) => {
+      selectWorkspaceMeasurement(id, additive);
       setError(null);
     },
     [selectWorkspaceMeasurement, setError],
@@ -1433,6 +1434,7 @@ export function PdfViewer({
       page,
       precisionAuthoringBlocked,
       selectedMeasurementId,
+      selectedMeasurementIds,
       showCalibration,
       showLabels,
       showMeasurements,
@@ -1456,6 +1458,7 @@ export function PdfViewer({
       page,
       precisionAuthoringBlocked,
       selectedMeasurementId,
+      selectedMeasurementIds,
       showCalibration,
       showLabels,
       showMeasurements,
@@ -1611,6 +1614,7 @@ export function PdfViewer({
     page,
     precisionAuthoringBlocked,
     selectedMeasurementId,
+    selectedMeasurementIds,
     showCalibration,
     showLabels,
     showMeasurements,
@@ -1747,6 +1751,7 @@ export function PdfViewer({
                   spacePan={spacePan}
                   isPanning={isPanning}
                   selectedMeasurementId={selectedMeasurementId}
+                  selectedMeasurementIds={selectedMeasurementIds}
                   activeMeasurementEditId={activeMeasurementEditId}
                   calibrationReferenceEdit={calibrationReferenceEdit}
                   measurementEditingBlocked={measurementEditingBlocked}

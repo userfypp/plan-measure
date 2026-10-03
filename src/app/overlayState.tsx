@@ -12,7 +12,9 @@ export interface SetScaleRatioPayload {
   calibration: RatioCalibrationInput;
 }
 export interface CalibrationReferenceEditConfirmationPayload { pageNumber: number; calibrationId: string; reference: CalibrationReferenceKey; calibrationName: string; measurementCount: number }
-export interface DeleteMeasurementPayload { pageNumber: number; measurementId: string; measurementName: string }
+export type DeleteMeasurementPayload =
+  | { pageNumber: number; measurementId: string; measurementName: string; measurementIds?: never }
+  | { measurementIds: string[] };
 
 export type DeleteClassificationPayload =
   | { target: "dimension"; dimensionId: string; name: string }

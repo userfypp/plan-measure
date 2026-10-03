@@ -124,7 +124,18 @@ export interface AssignClassificationValueCommand {
   valueId: string;
 }
 
+export interface BulkMeasurementCommand {
+  measurementIds: string[];
+  operation:
+    | { type: "visibility"; visible: boolean }
+    | { type: "classification"; dimensionId: string; valueId: string | null }
+    | { type: "delete" };
+}
+
 export type SessionAction =
+  | { type: "PASTE_MEASUREMENTS"; commands: readonly PasteMeasurementCommand[] }
+  | { type: "UPDATE_MEASUREMENTS"; commands: readonly UpdateMeasurementCommand[] }
+  | ({ type: "EDIT_MEASUREMENTS" } & BulkMeasurementCommand)
   | { type: "LOAD_SESSION"; session: CurrentSession }
   | { type: "CLEAR_SESSION" }
   | { type: "UPDATE_PAGE"; pageNumber: number }
@@ -480,6 +491,40 @@ export function sessionReducer(
       }));
       return { ...state, session, error: null };
     }
+    case "PASTE_MEASUREMENTS": {
+      if (!state.session || action.commands.length === 0) return state;
+      const first = action.commands[0]!;
+      if (action.commands.some((command) => command.pageNumber !== first.pageNumber || command.sourcePageNumber !== first.sourcePageNumber)) {
+        return { ...state, error: "Copy measurements from a single page at a time." };
+      }
+      let staged: SessionCommandResult = { ...state, error: null };
+      for (const command of action.commands) {
+        staged = sessionReducer(staged, { type: "PASTE_MEASUREMENT", ...command });
+        if (staged.error) return { ...state, error: staged.error };
+      }
+      return staged;
+    }
+    case "UPDATE_MEASUREMENTS": {
+      if (!state.session || action.commands.length === 0) return state;
+      const pageNumber = action.commands[0]!.pageNumber;
+      const page = state.session.pages[pageNumber];
+      const ids = new Set(action.commands.map((command) => command.id));
+      if (!page || ids.size !== action.commands.length || action.commands.some((command) => {
+        const measurement = page.measurements.find((candidate) => candidate.id === command.id);
+        return command.pageNumber !== pageNumber || !measurement || !hasValidMeasurementPoints(measurement.type, command.points);
+      })) return { ...state, error: "The selected measurements can no longer be moved together." };
+      const updates = new Map(action.commands.map((command) => [command.id, command.points]));
+      let changed = false;
+      const measurements = page.measurements.map((measurement) => {
+        const points = updates.get(measurement.id);
+        if (!points || points.every((point, index) => point.x === measurement.points[index]?.x && point.y === measurement.points[index]?.y) && points.length === measurement.points.length) return measurement;
+        changed = true;
+        return { ...measurement, points: points.map((point) => ({ ...point })) };
+      });
+      return changed
+        ? { ...state, session: updatePageState(state.session, pageNumber, (currentPage) => ({ ...currentPage, measurements })), error: null }
+        : { ...state, error: null };
+    }
     case "PASTE_MEASUREMENT": {
       if (!state.session) return state;
       const { pageNumber, id, sourcePageNumber, measurement } = action;
@@ -620,6 +665,64 @@ export function sessionReducer(
         ),
       }));
       return { ...state, session, error: null };
+    }
+    case "EDIT_MEASUREMENTS": {
+      if (!state.session) return state;
+      const ids = new Set(action.measurementIds);
+      const targets = Object.values(state.session.pages).flatMap((page) =>
+        page.measurements
+          .filter((measurement) => ids.has(measurement.id))
+          .map((measurement) => ({ pageNumber: page.pageNumber, measurement })),
+      );
+      if (targets.length !== ids.size)
+        return {
+          ...state,
+          error: "One or more selected measurements are no longer available.",
+        };
+      let result: SessionCommandResult = { ...state, error: null };
+      for (const { pageNumber, measurement } of targets) {
+        const operation = action.operation;
+        if (operation.type === "visibility") {
+          if (measurement.visible === operation.visible) continue;
+          result = sessionReducer(result, {
+            type: "SET_MEASUREMENT_VISIBILITY",
+            pageNumber,
+            id: measurement.id,
+            visible: operation.visible,
+          });
+        } else if (operation.type === "delete") {
+          result = sessionReducer(result, {
+            type: "DELETE_MEASUREMENT",
+            pageNumber,
+            id: measurement.id,
+          });
+        } else {
+          const dimension = state.session.classificationCatalog.dimensions.find(
+            (item) => item.id === operation.dimensionId,
+          );
+          if (!dimension)
+            return {
+              ...state,
+              error: "The classification dimension is no longer available.",
+            };
+          const currentValueId = measurement.classificationValueIds.find((id) =>
+            dimension.values.some((value) => value.id === id),
+          );
+          if (currentValueId === (operation.valueId ?? undefined)) continue;
+          result = sessionReducer(result, {
+            type:
+              operation.valueId === null
+                ? "REMOVE_CLASSIFICATION_VALUE"
+                : "ASSIGN_CLASSIFICATION_VALUE",
+            pageNumber,
+            measurementId: measurement.id,
+            dimensionId: operation.dimensionId,
+            valueId: operation.valueId ?? currentValueId!,
+          });
+        }
+        if (result.error) return { ...state, error: result.error };
+      }
+      return result;
     }
     case "DELETE_MEASUREMENT": {
       if (!state.session) return state;
@@ -1057,6 +1160,8 @@ interface SessionContextValue extends SessionState {
   updateCalibration: (command: UpdateCalibrationReferencePointsCommand) => void;
   addMeasurement: (command: AddMeasurementCommand) => boolean;
   pasteMeasurement: (command: PasteMeasurementCommand) => boolean;
+  pasteMeasurements: (commands: readonly PasteMeasurementCommand[]) => boolean;
+  updateMeasurements: (commands: readonly UpdateMeasurementCommand[]) => boolean;
   updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementNote: (pageNumber: number, id: string, note: string) => void;
@@ -1067,6 +1172,7 @@ interface SessionContextValue extends SessionState {
     visible: boolean,
   ) => void;
   deleteMeasurement: (pageNumber: number, id: string) => void;
+  editMeasurements: (command: BulkMeasurementCommand) => boolean;
   applyClassificationTemplate: (dimensions: ClassificationTemplateDimension[]) => boolean;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
@@ -1198,6 +1304,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           )
         );
       },
+      pasteMeasurements: (commands) => {
+        const result = applyAction({ type: "PASTE_MEASUREMENTS", commands });
+        return commands.length > 0 && result.error === null && commands.every((command) => result.session?.pages[command.pageNumber]?.measurements.some((measurement) => measurement.id === command.id));
+      },
+      updateMeasurements: (commands) => {
+        const result = applyAction({ type: "UPDATE_MEASUREMENTS", commands });
+        return commands.length > 0 && result.error === null && Boolean(result.session);
+      },
       updateMeasurement: (command) => {
         const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
         const measurement = result.session?.pages[command.pageNumber]?.measurements.find(
@@ -1213,6 +1327,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
       setMeasurementsVisibility: (pageNumber, measurementIds, visible) =>
         applyAction({ type: "SET_MEASUREMENTS_VISIBILITY", pageNumber, measurementIds, visible }),
+      editMeasurements: (command) => applyAction({ type: "EDIT_MEASUREMENTS", ...command }).error === null,
       deleteMeasurement: (pageNumber, id) =>
         applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
       applyClassificationTemplate: (dimensions) =>

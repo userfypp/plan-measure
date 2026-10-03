@@ -20,7 +20,7 @@ function VisibilityIcon({ visible }: { visible: boolean }) {
 
 export interface MeasurementRowProps {
   viewModel: MeasurementViewModel & { selected: boolean };
-  onSelectMeasurement: (measurementId: string) => void;
+  onSelectMeasurement: (measurementId: string, additive?: boolean) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
   selectionTabIndex?: number;
   visibilityTabIndex?: number;
@@ -56,7 +56,7 @@ export const MeasurementRow = memo(function MeasurementRow({
         aria-pressed={viewModel.selected}
         aria-describedby={detailsId}
         title={metadata}
-        onClick={() => onSelectMeasurement(viewModel.id)}
+        onClick={(event) => onSelectMeasurement(viewModel.id, event.shiftKey || event.ctrlKey || event.metaKey)}
       >
         <span className={styles.glyph} aria-hidden="true">
           <ToolIcon name={viewModel.type} />

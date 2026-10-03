@@ -59,6 +59,8 @@ Open **Templates** in **Classifications** to save the active project dimensions 
 
 **Takeoff** totals measurements across all pages, including hidden measurements. Length totals cover Lines and Polylines; perimeter and area totals cover Polygons. Choose a **Breakdown** by page, type, or classification dimension. Measurements that cannot be calculated are excluded with a notice.
 
+In **Select** mode, Shift/Ctrl/Cmd-click measurements on the plan or in the Measurements list to add or remove them from the selection. A normal click selects one measurement. The list supports selections across pages; filters do not clear the selection. Use the context bar above the plan to classify or delete selected measurements, use the eye button when multiple measurements are selected to hide them all or show them all if any are hidden, or clear the selection. Classification fields show **Mixed values** when assignments differ; choosing a value applies it to all selected measurements, and **Unclassified** removes that dimension. Each bulk action can be undone in one step. Move, duplicate, or copy a selection from one page as a group, preserving its arrangement. Drag any selected measurement to move the whole group; Escape cancels the move. Vertex editing remains available for single selections. Copy/paste also supports another page when the entire geometry fits, using that page’s active scale. Selections spanning pages cannot be moved, copied, or duplicated together.
+
 Use **Undo** and **Redo** in the top bar or their shortcuts for measurement, scale, classification, and page-label edits. History holds up to 100 edits and resets when you open a project or reload the app. Editing after undo clears redo history. Navigation and display settings are excluded.
 
 ## View and settings
@@ -121,9 +123,9 @@ Use `Cmd` on macOS and `Ctrl` on Windows or Linux.
 | `-`                    | Zoom out                                                                 |
 | `Cmd/Ctrl+Z`           | Undo                                                                     |
 | `Cmd/Ctrl+Shift+Z`     | Redo                                                                     |
-| `Cmd/Ctrl+C`           | Copy the selected measurement                                            |
-| `Cmd/Ctrl+V`           | Paste a copied measurement                                               |
-| `Delete` / `Backspace` | Delete the selected measurement                                          |
+| `Cmd/Ctrl+C`           | Copy the selected measurements                                           |
+| `Cmd/Ctrl+V`           | Paste the copied measurements                                            |
+| `Delete` / `Backspace` | Delete the selected measurements                                         |
 
 Shortcuts work outside text fields and dialogs. Native control actions keep their usual keys.
 

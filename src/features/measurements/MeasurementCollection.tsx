@@ -8,7 +8,7 @@ import styles from "./MeasurementCollection.module.css";
 export interface MeasurementCollectionProps {
   measurements: readonly (MeasurementViewModel & { selected: boolean })[];
   emptyMessage: string;
-  onSelectMeasurement: (measurementId: string) => void;
+  onSelectMeasurement: (measurementId: string, additive?: boolean) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
   groups?: readonly MeasurementGroupModel[];
   groupByDimensionId?: string | null;

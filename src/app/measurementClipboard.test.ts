@@ -8,6 +8,7 @@ import {
   measurementClipboardFitsPage,
   offsetMeasurementForSamePageDuplicate,
   pasteMeasurementClipboard,
+  pasteMeasurementsClipboard,
   registerMeasurementClipboardInvalidation,
 } from "./measurementClipboard";
 import type { PasteMeasurementCommand } from "./sessionState";
@@ -446,5 +447,47 @@ describe("measurement clipboard orchestration", () => {
       pasteMeasurement.mock.calls[1]![0].measurement.points,
     );
     expect(pasteMeasurement.mock.calls[0]![0].measurement.points[0]).toEqual({ x: 12, y: 12 });
+  });
+});
+
+describe("multiple measurement clipboard", () => {
+  it("uses one shared offset at edges and selects all copies after atomic acceptance", () => {
+    const first = { ...measurement, points: [{ x: 30, y: 30 }, { x: 40, y: 40 }] };
+    const second = { ...measurement, id: "second", points: [{ x: 85, y: 85 }, { x: 95, y: 90 }] };
+    const pasteMeasurements = vi.fn<(commands: readonly PasteMeasurementCommand[]) => boolean>(() => true);
+    const selectMeasurements = vi.fn();
+    let id = 0;
+    expect(pasteMeasurementsClipboard({
+      clipboard: { sourcePageNumber: 1, measurement: first, measurements: [first, second] },
+      pageNumber: 1, destinationBounds: { width: 100, height: 100, rotation: 0 },
+      destinationZoom: 1, pasteMeasurements, selectMeasurements, createId: () => `copy-${++id}`,
+    })).toEqual(["copy-1", "copy-2"]);
+    const commands = pasteMeasurements.mock.calls[0]![0];
+    expect(commands.map((command) => command.measurement.points[0])).toEqual([{ x: 18, y: 18 }, { x: 73, y: 73 }]);
+    expect(selectMeasurements).toHaveBeenCalledWith(["copy-1", "copy-2"]);
+    expect(first.points[0]).toEqual({ x: 30, y: 30 });
+  });
+
+  it("preserves the arrangement when neither common offset fits, and selection on rejection", () => {
+    const second = { ...measurement, id: "second", points: [{ x: 90, y: 90 }, { x: 100, y: 100 }] };
+    const sources = [measurement, second];
+    const pasteMeasurements = vi.fn<(commands: readonly PasteMeasurementCommand[]) => boolean>(() => false);
+    const selectMeasurements = vi.fn();
+    expect(pasteMeasurementsClipboard({
+      clipboard: { sourcePageNumber: 1, measurement, measurements: sources },
+      pageNumber: 1, destinationBounds: { width: 100, height: 100, rotation: 0 },
+      destinationZoom: 1, pasteMeasurements, selectMeasurements,
+    })).toBeNull();
+    expect(pasteMeasurements.mock.calls[0]![0].map((command) => command.measurement.points)).toEqual(sources.map((source) => source.points));
+    expect(selectMeasurements).not.toHaveBeenCalled();
+  });
+
+  it("checks every copied geometry against another page and preserves cross-page coordinates", () => {
+    const second = { ...measurement, id: "second", points: [{ x: 40, y: 40 }, { x: 50, y: 50 }] };
+    const clipboard = { sourcePageNumber: 1, measurement, measurements: [measurement, second] };
+    expect(measurementClipboardFitsPage(clipboard, 2, { width: 20, height: 20, rotation: 0 })).toBe(false);
+    const pasteMeasurements = vi.fn<(commands: readonly PasteMeasurementCommand[]) => boolean>(() => true);
+    pasteMeasurementsClipboard({ clipboard, pageNumber: 2, pasteMeasurements, selectMeasurements: vi.fn() });
+    expect(pasteMeasurements.mock.calls[0]![0].map((command) => command.measurement.points)).toEqual([measurement.points, second.points]);
   });
 });

@@ -161,6 +161,7 @@ interface PdfAnnotationLayerProps {
   isPanning: boolean;
 
   selectedMeasurementId: string | null;
+  selectedMeasurementIds?: readonly string[];
   activeMeasurementEditId: string | null;
 
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
@@ -176,7 +177,7 @@ interface PdfAnnotationLayerProps {
   showMeasurements: boolean;
   showLabels: boolean;
 
-  onSelectMeasurement: (id: string) => void;
+  onSelectMeasurement: (id: string, additive?: boolean) => void;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
   onCalibrationReferenceDragCancellationChange: (
     owner: object,
@@ -202,6 +203,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   spacePan,
   isPanning,
   selectedMeasurementId,
+  selectedMeasurementIds,
   activeMeasurementEditId,
   calibrationReferenceEdit,
   measurementEditingBlocked,
@@ -221,6 +223,15 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   onWholeMeasurementDragCancellationChange,
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
+  const [groupDragPreview, setGroupDragPreview] = useState<{ ownerId: string; delta: Point } | null>(null);
+  const previewGroupDrag = useCallback((ownerId: string, delta: Point | null) => {
+    setGroupDragPreview((current) => delta ? { ownerId, delta } : current?.ownerId === ownerId ? null : current);
+  }, []);
+  const selectedPageMeasurements = useMemo(() => page.measurements.filter((measurement) =>
+    selectedMeasurementIds?.includes(measurement.id)), [page.measurements, selectedMeasurementIds]);
+  const groupMoveAvailable = (selectedMeasurementIds?.length ?? 0) > 1 &&
+    selectedPageMeasurements.length === selectedMeasurementIds?.length &&
+    selectedPageMeasurements.every((measurement) => canDragWholeMeasurement(measurement, true, true));
   const showMeasurementLabels = showMeasurements && showLabels;
 
   const plannedLabelLayout = useMemo(() => {
@@ -457,7 +468,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
             bounds={bounds}
             zoom={transform.zoom}
             transform={transform}
-            selected={selectedMeasurementId === measurement.id}
+            selected={selectedMeasurementIds ? selectedMeasurementIds.includes(measurement.id) : selectedMeasurementId === measurement.id}
             selectable={
               activeTool === "select" &&
               !spacePan &&
@@ -465,15 +476,24 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
               !calibrationReferenceEdit &&
               !measurementEditingBlocked
             }
-            editable={measurementEditingEnabled(
+            editable={(selectedMeasurementIds?.length ?? 0) <= 1 && measurementEditingEnabled(
               activeTool,
               spacePan,
               isPanning,
               Boolean(calibrationReferenceEdit),
-              measurementEditingBlocked || !precisionAuthoringAvailable,
+              measurementEditingBlocked || !precisionAuthoringAvailable || (selectedMeasurementIds?.length ?? 0) > 1,
               activeMeasurementEditId,
               measurement.id,
             )}
+            wholeDragEditable={measurementEditingEnabled(
+              activeTool, spacePan, isPanning, Boolean(calibrationReferenceEdit),
+              measurementEditingBlocked || !precisionAuthoringAvailable || ((selectedMeasurementIds?.length ?? 0) > 1 && !groupMoveAvailable),
+              activeMeasurementEditId, measurement.id,
+            )}
+            groupMeasurements={groupMoveAvailable ? selectedPageMeasurements : undefined}
+            groupPreviewPoints={groupDragPreview && groupDragPreview.ownerId !== measurement.id && selectedMeasurementIds?.includes(measurement.id)
+              ? translateMeasurementPoints(measurement.points, groupDragPreview.delta) : null}
+            onGroupDragPreview={previewGroupDrag}
             showLabel={showLabels}
             page={page}
             displayUnit={displayUnit}
@@ -711,8 +731,12 @@ interface MeasurementShapeProps {
   selected: boolean;
   selectable: boolean;
   editable: boolean;
+  wholeDragEditable: boolean;
+  groupMeasurements?: readonly Measurement[];
+  groupPreviewPoints: Point[] | null;
+  onGroupDragPreview: (ownerId: string, delta: Point | null) => void;
   showLabel: boolean;
-  onSelectMeasurement: (id: string) => void;
+  onSelectMeasurement: (id: string, additive?: boolean) => void;
   onMeasurementEditActiveChange: (measurementId: string, active: boolean) => void;
   onWholeMeasurementDragCancellationChange: (
     measurementId: string,
@@ -743,6 +767,10 @@ const MeasurementShape = memo(function MeasurementShape({
   selected,
   selectable,
   editable,
+  wholeDragEditable,
+  groupMeasurements,
+  groupPreviewPoints,
+  onGroupDragPreview,
   showLabel,
   onSelectMeasurement,
   onMeasurementEditActiveChange,
@@ -752,7 +780,7 @@ const MeasurementShape = memo(function MeasurementShape({
   plannedOccupiedLabelRect,
   labelCollisionIndex,
 }: MeasurementShapeProps) {
-  const { updateMeasurement: updateSessionMeasurement } = useSessionState();
+  const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useSessionState();
   const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaLineNode>(null);
   const dragPreviewRef = useRef<{
@@ -776,6 +804,7 @@ const MeasurementShape = memo(function MeasurementShape({
   const wholeDragRef = useRef<{
     startScreen: Point;
     sourcePoints: Point[];
+    sourceMeasurements: readonly Measurement[];
     transform: ViewTransform;
     bounds: LogicalPageBounds;
   } | null>(null);
@@ -804,9 +833,10 @@ const MeasurementShape = memo(function MeasurementShape({
     ? visualRoles.measurementSelectedStroke
     : visualRoles.measurementDefaultStroke;
   const visibleMeasurement = useMemo<Measurement>(() => {
-    if (!dragPoints) return measurement;
-    return { ...measurement, points: dragPoints };
-  }, [dragPoints, measurement]);
+    const points = dragPoints ?? groupPreviewPoints;
+    if (!points) return measurement;
+    return { ...measurement, points };
+  }, [dragPoints, groupPreviewPoints, measurement]);
   const calibration = getMeasurementCalibration(page, visibleMeasurement);
   const flatPoints = useMemo(
     () => pointsToFlat(visibleMeasurement.points),
@@ -831,15 +861,15 @@ const MeasurementShape = memo(function MeasurementShape({
   );
   const labelDimensions = useMemo(
     () =>
-      !dragPoints && plannedLabelPlacement
+      !dragPoints && !groupPreviewPoints && plannedLabelPlacement
         ? null
         : labelText
           ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom)
           : null,
-    [dragPoints, labelText, plannedLabelPlacement, zoom],
+    [dragPoints, groupPreviewPoints, labelText, plannedLabelPlacement, zoom],
   );
   const labelPlacement = useMemo(() => {
-    if (!dragPoints && plannedLabelPlacement) return plannedLabelPlacement;
+    if (!dragPoints && !groupPreviewPoints && plannedLabelPlacement) return plannedLabelPlacement;
     if (!labelDimensions) return null;
     const insidePlacement = placeLabelInsideMeasurementGeometry(
       visibleMeasurement.type,
@@ -859,6 +889,7 @@ const MeasurementShape = memo(function MeasurementShape({
   }, [
     bounds,
     dragPoints,
+    groupPreviewPoints,
     labelCollisionIndex,
     labelDimensions,
     labelPoint,
@@ -870,7 +901,7 @@ const MeasurementShape = memo(function MeasurementShape({
   const wholeMeasurementDraggable = canDragWholeMeasurement(
     measurement,
     selected || wholeDragPrepared,
-    editable,
+    wholeDragEditable,
   );
   const manipulating = dragPoints !== null || vertexDragOwned;
 
@@ -990,6 +1021,7 @@ const MeasurementShape = memo(function MeasurementShape({
   }
 
   function renderWholeDragPreview(result: WholeMeasurementDragResult) {
+    if (wholeDragRef.current?.sourceMeasurements.length && wholeDragRef.current.sourceMeasurements.length > 1) onGroupDragPreview(measurement.id, result.delta);
     const preview = dragPreviewRef.current;
     if (!preview) {
       updateDragPoints(result.points);
@@ -1128,6 +1160,7 @@ const MeasurementShape = memo(function MeasurementShape({
   const clearCancelledWholeDrag = useCallback(() => {
     cancelPendingPreview();
     wholeDragRef.current = null;
+    onGroupDragPreview(measurement.id, null);
     setWholeDragPrepared(false);
     rejectedWholeDragRef.current = false;
     cancelledWholeDragRef.current = false;
@@ -1143,6 +1176,7 @@ const MeasurementShape = memo(function MeasurementShape({
     measurement.id,
     onMeasurementEditActiveChange,
     onWholeMeasurementDragCancellationChange,
+    onGroupDragPreview,
   ]);
 
   const cancelWholeDrag = useCallback(() => {
@@ -1164,10 +1198,11 @@ const MeasurementShape = memo(function MeasurementShape({
   useLayoutEffect(() => {
     const drag = wholeDragRef.current;
     if (!drag) return;
-    if (shouldCancelWholeMeasurementDrag(drag, selected, transform, bounds)) {
+    const current = groupMeasurements ?? [measurement];
+    if (shouldCancelWholeMeasurementDrag(drag, selected, transform, bounds) || !wholeDragEditable || current.length !== drag.sourceMeasurements.length || current.some((item, index) => item !== drag.sourceMeasurements[index])) {
       cancelWholeDrag();
     }
-  }, [bounds, cancelWholeDrag, selected, transform]);
+  }, [bounds, cancelWholeDrag, selected, transform, wholeDragEditable, groupMeasurements, measurement]);
 
   useLayoutEffect(() => {
     const active = vertexDragStateRef.current.active;
@@ -1320,6 +1355,7 @@ const MeasurementShape = memo(function MeasurementShape({
     wholeDragRef.current = {
       startScreen: pointer,
       sourcePoints: measurement.points.map((point) => ({ ...point })),
+      sourceMeasurements: groupMeasurements ?? [measurement],
       transform: { ...transform },
       bounds: { ...bounds },
     };
@@ -1328,6 +1364,7 @@ const MeasurementShape = memo(function MeasurementShape({
   }
 
   function prepareWholeMouseDrag(event: KonvaEventObject<MouseEvent>) {
+    if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) return;
     prepareWholeDrag(event, event.evt.button);
   }
 
@@ -1339,7 +1376,7 @@ const MeasurementShape = memo(function MeasurementShape({
     const drag = wholeDragRef.current;
     if (!drag) return null;
     const delta = constrainMeasurementTranslation(
-      drag.sourcePoints,
+      drag.sourceMeasurements.flatMap((item) => item.points),
       pageDeltaFromScreenDrag(drag.startScreen, pointer, drag.transform),
       drag.bounds,
     );
@@ -1396,7 +1433,13 @@ const MeasurementShape = memo(function MeasurementShape({
         finalDragPointsRef.current = points;
         updateDragPoints(points);
       },
-      commit: updateMeasurementPoints,
+      commit: (points) => {
+        const source = wholeDragRef.current?.sourceMeasurements;
+        if (!source || source.length === 1 || !result) return updateMeasurementPoints(points);
+        return updateMeasurements(source.map((item) => ({
+          pageNumber, id: item.id, points: translateMeasurementPoints(item.points, result.delta),
+        })));
+      },
     });
 
     if (outcome === "cancelled") {
@@ -1405,6 +1448,7 @@ const MeasurementShape = memo(function MeasurementShape({
     }
 
     wholeDragRef.current = null;
+    onGroupDragPreview(measurement.id, null);
     setWholeDragPrepared(false);
     if (outcome === "unchanged") {
       dragPointsRef.current = null;
@@ -1427,7 +1471,7 @@ const MeasurementShape = memo(function MeasurementShape({
   function select(event: KonvaEventObject<MouseEvent>) {
     if (!selectable) return;
     event.cancelBubble = true;
-    onSelectMeasurement(measurement.id);
+    onSelectMeasurement(measurement.id, event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey);
   }
 
   return (
@@ -1503,7 +1547,14 @@ const MeasurementShape = memo(function MeasurementShape({
               circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom
             }
             draggable
+            onClick={(event) => {
+              if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) select(event);
+            }}
             onMouseDown={(event) => {
+              if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) {
+                event.cancelBubble = true;
+                return;
+              }
               if (prepareVertexGesture(event.target, index, event.evt.button)) {
                 event.cancelBubble = true;
               }

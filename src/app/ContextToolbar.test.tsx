@@ -601,3 +601,45 @@ describe("ContextToolbar V2", () => {
     expect(container?.textContent).toContain("Editing Y reference");
   });
 });
+
+
+describe("selection actions in the context bar", () => {
+  const selectedMeasurements = ["one", "two"].map((id) => ({ id, name: id, type: "line" as const, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], calibrationId: "scale", visible: true, classificationValueIds: [] }));
+  it("keeps bulk editing in the selection context and hides single-only actions", () => {
+    const onEdit = vi.fn(() => true), onDelete = vi.fn(), onClear = vi.fn();
+    renderToolbar(props({ selectedMeasurements, classificationCatalog: { dimensions: [] }, onEditSelectedMeasurements: onEdit, onDeleteSelectedMeasurement: onDelete, onClearMeasurementSelection: onClear }));
+    expect(contextKind()).toBe("selection");
+    expect(container!.textContent).toContain("2 selected");
+    expect(buttonByText("Duplicate")).toBeTruthy();
+    expect(container!.textContent).not.toContain("Details");
+    const buttons = toolbarButtons();
+    expect(buttons.indexOf(buttonByText("Delete"))).toBeLessThan(buttons.indexOf(buttonByLabel("Hide selected measurements")));
+    expect(buttons.indexOf(buttonByLabel("Hide selected measurements"))).toBeLessThan(buttons.indexOf(buttonByLabel("Clear measurement selection")));
+    act(() => buttonByLabel("Hide selected measurements").click());
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(onEdit).toHaveBeenCalledWith({ measurementIds: ["one", "two"], operation: { type: "visibility", visible: false } });
+    act(() => buttonByText("Delete").click());
+    expect(onDelete).toHaveBeenCalledOnce();
+    act(() => buttonByLabel("Clear measurement selection").click());
+    expect(onClear).toHaveBeenCalledOnce();
+  });
+
+  it.each([false, true])("shows the whole selection directly when a measurement is hidden (mixed: %s)", (mixed) => {
+    const onEdit = vi.fn(() => true);
+    renderToolbar(props({
+      selectedMeasurements: selectedMeasurements.map((measurement, index) => ({ ...measurement, visible: mixed && index === 0 })),
+      onEditSelectedMeasurements: onEdit,
+    }));
+    act(() => buttonByLabel("Show selected measurements").click());
+    expect(onEdit).toHaveBeenCalledWith({ measurementIds: ["one", "two"], operation: { type: "visibility", visible: true } });
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("keeps classification alongside single-measurement actions without bulk visibility", () => {
+    renderToolbar(props({ selectedMeasurementName: "one", selectedMeasurements: selectedMeasurements.slice(0, 1), classificationCatalog: { dimensions: [] }, onEditSelectedMeasurements: vi.fn(() => true) }));
+    expect(buttonByText("Duplicate")).toBeTruthy();
+    expect(buttonByText("Details")).toBeTruthy();
+    expect(buttonByText("Classify")).toBeTruthy();
+    expect(container!.querySelector('button[aria-label="Hide selected measurements"]')).toBeNull();
+  });
+});

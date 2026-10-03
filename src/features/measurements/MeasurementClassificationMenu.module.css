@@ -1,0 +1,145 @@
+.trigger,
+.valueTrigger {
+  min-width: 0;
+  min-height: var(--geometry-context-control-height);
+  padding: 0 var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+  font: inherit;
+  transition: var(--transition-interactive);
+}
+
+.trigger:hover:not(:disabled),
+.valueTrigger:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.trigger:active:not(:disabled),
+.valueTrigger:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.trigger[aria-expanded="true"],
+.valueTrigger[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+}
+
+.trigger:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.triggerContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.triggerContent svg,
+.valueContent svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.popover,
+.valueMenu {
+  width: min(320px, calc(100vw - var(--space-24)));
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.popover {
+  max-height: min(480px, calc(100dvh - var(--space-24)));
+  padding: var(--space-16);
+}
+
+.heading {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+  padding-bottom: var(--space-12);
+  margin-bottom: var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.heading strong {
+  font-size: var(--font-size-base);
+}
+
+.heading span,
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.fields {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-16);
+}
+
+.field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-8);
+}
+
+.fieldLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+}
+
+.valueTrigger {
+  width: 100%;
+  min-height: var(--target-current);
+  text-align: left;
+}
+
+.valueContent {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size);
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.valueContent > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.valueMenu [role="menuitemradio"] {
+  padding-block: var(--space-8);
+}
+
+.option {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

@@ -98,8 +98,8 @@ export function OverlayHost({
       return (
         <DeleteConfirmation
           key="measurement"
-          title={`Delete “${confirmation.payload.measurementName}”?`}
-          description="This measurement will be removed from the current page. Its geometry and scale data will not be changed."
+          title={confirmation.payload.measurementIds ? `Delete ${confirmation.payload.measurementIds.length} ${confirmation.payload.measurementIds.length === 1 ? "measurement" : "measurements"}?` : `Delete “${confirmation.payload.measurementName}”?`}
+          description={confirmation.payload.measurementIds ? "The selected measurements will be removed. You can undo this change." : "This measurement will be removed from the current page. Its geometry and scale data will not be changed."}
           onCancel={() => {
             closeConfirmation(confirmation);
             onConfirmationCancel?.(confirmation);

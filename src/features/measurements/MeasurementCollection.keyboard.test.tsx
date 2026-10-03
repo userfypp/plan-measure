@@ -175,7 +175,7 @@ describe("MeasurementCollection keyboard model", () => {
     const callbacks = renderCollection();
     act(() => control("line-2", "selection").click());
     act(() => control("line-2", "visibility").click());
-    expect(callbacks.onSelectMeasurement).toHaveBeenCalledWith("line-2");
+    expect(callbacks.onSelectMeasurement).toHaveBeenCalledWith("line-2", false);
     expect(callbacks.onToggleVisibility).toHaveBeenCalledWith("line-2", false);
   });
 
@@ -349,5 +349,13 @@ describe("MeasurementCollection keyboard model", () => {
     expect(control("line-2", "selection").closest("[hidden]")).not.toBeNull();
     expect(control("polygon-1", "selection").closest("[hidden]")).toBeNull();
     expect(control("polygon-1", "selection").tabIndex).toBe(0);
+  });
+});
+
+describe("additive measurement selection", () => {
+  it.each(["shiftKey", "ctrlKey", "metaKey"])("forwards %s from row activation", (modifier) => {
+    const { onSelectMeasurement } = renderCollection();
+    act(() => control("line-2", "selection").dispatchEvent(new MouseEvent("click", { bubbles: true, [modifier]: true })));
+    expect(onSelectMeasurement).toHaveBeenCalledWith("line-2", true);
   });
 });

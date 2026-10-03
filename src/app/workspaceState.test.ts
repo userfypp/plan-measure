@@ -638,3 +638,49 @@ describe("workspace draft state", () => {
     expect(selected.draft).toBeNull();
   });
 });
+
+describe("multiple measurement selection", () => {
+  it("toggles additive selections and restores single-selection behavior", () => {
+    const first = workspaceReducer(initialWorkspaceState, { type: "SELECT_MEASUREMENT", id: "one" });
+    const multi = workspaceReducer({ ...first, measurementDetailsOpen: true }, { type: "SELECT_MEASUREMENT", id: "two", additive: true });
+    expect(multi.selectedMeasurementIds).toEqual(["one", "two"]);
+    expect(multi.selectedMeasurementId).toBeNull();
+    expect(multi.measurementDetailsOpen).toBe(false);
+    const toggled = workspaceReducer(multi, { type: "SELECT_MEASUREMENT", id: "one", additive: true });
+    expect(toggled.selectedMeasurementIds).toEqual(["two"]);
+    expect(toggled.selectedMeasurementId).toBe("two");
+    const replaced = workspaceReducer(multi, { type: "SELECT_MEASUREMENT", id: "two" });
+    expect(replaced.selectedMeasurementIds).toEqual(["two"]);
+    const cleared = workspaceReducer(multi, { type: "CLEAR_SELECTION" });
+    expect(cleared.selectedMeasurementIds).toEqual([]);
+    expect(workspaceReducer(multi, { type: "PAGE_CHANGED" }).selectedMeasurementIds).toEqual([]);
+    expect(workspaceReducer(multi, { type: "RESET_WORKSPACE" }).selectedMeasurementIds).toEqual([]);
+  });
+
+  it("reconciles measurements removed by undo without discarding surviving selections", () => {
+    const state = workspaceReducer(workspaceReducer(initialWorkspaceState, { type: "SELECT_MEASUREMENT", id: "one" }), { type: "SELECT_MEASUREMENT", id: "two", additive: true });
+    expect(workspaceReducer(state, { type: "RECONCILE_SELECTION", availableIds: ["one", "two"] })).toBe(state);
+    const remaining = workspaceReducer(state, { type: "RECONCILE_SELECTION", availableIds: ["two"] });
+    expect(remaining.selectedMeasurementIds).toEqual(["two"]);
+    expect(remaining.selectedMeasurementId).toBe("two");
+  });
+});
+
+describe("group clipboard and selection", () => {
+  it("selects all copied IDs together and snapshots every source independently", () => {
+    const measurements = ["one", "two"].map((id) => ({
+      id, name: id, type: "line" as const, calibrationId: "scale",
+      points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], classificationValueIds: ["value"], visible: true,
+    }));
+    const copied = workspaceReducer(initialWorkspaceState, { type: "COPY_MEASUREMENTS", pageNumber: 1, measurements });
+    measurements[1]!.points[0]!.x = 999;
+    measurements[0]!.classificationValueIds.push("changed");
+    expect(copied.measurementClipboard!.measurements![1]!.points[0]!.x).toBe(1);
+    expect(copied.measurementClipboard!.measurements![0]!.classificationValueIds).toEqual(["value"]);
+    expect(workspaceReducer(copied, { type: "PAGE_CHANGED" }).measurementClipboard).toBe(copied.measurementClipboard);
+    const selected = workspaceReducer({ ...copied, measurementDetailsOpen: true }, { type: "SELECT_MEASUREMENTS", ids: ["copy-1", "copy-2", "copy-1"] });
+    expect(selected.selectedMeasurementIds).toEqual(["copy-1", "copy-2"]);
+    expect(selected.selectedMeasurementId).toBeNull();
+    expect(selected.measurementDetailsOpen).toBe(false);
+  });
+});

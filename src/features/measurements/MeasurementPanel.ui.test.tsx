@@ -423,7 +423,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     expect(search.value).toBe("kitchen");
 
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Select measurement Kitchen"]')!.click());
-    expect(onSelectMeasurement).toHaveBeenCalledWith(2, "line-2");
+    expect(onSelectMeasurement).toHaveBeenCalledWith(2, "line-2", false);
   });
 
   it("shows project totals with accessible, compact breakdown controls", () => {

@@ -1,27 +1,24 @@
-import {
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import { Button } from "../components/ui";
+import { useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Button, IconButton } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { ToolIcon } from "../features/viewer/ToolIcon";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
 import { getShortcutLabel } from "../utils/keyboard";
-import {
-  MEASUREMENT_NAME_EMPTY_ERROR,
-  normalizeMeasurementName,
-} from "../utils/measurementName";
+import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils/measurementName";
 import { useWorkspaceState } from "./workspaceState";
+import type { ClassificationCatalog, Measurement } from "../types/domain";
+import type { BulkMeasurementCommand } from "./sessionState";
+import { MeasurementClassificationMenu } from "../features/measurements/MeasurementClassificationMenu";
 import styles from "./ContextToolbar.module.css";
 
 export interface ContextToolbarProps {
   selectedMeasurementId: string | null;
   selectedMeasurementName: string | null;
+  selectedMeasurements?: readonly Measurement[];
+  classificationCatalog?: ClassificationCatalog;
+  onEditSelectedMeasurements?: (command: BulkMeasurementCommand) => boolean;
+  onClearMeasurementSelection?: () => void;
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
@@ -237,6 +234,10 @@ function MeasurementNameEditor({
 export function ContextToolbar({
   selectedMeasurementId,
   selectedMeasurementName,
+  selectedMeasurements,
+  classificationCatalog,
+  onEditSelectedMeasurements,
+  onClearMeasurementSelection,
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
@@ -338,8 +339,7 @@ export function ContextToolbar({
   }
 
   if (isMeasurementType(activeTool)) {
-    const pathDraft =
-      draft?.type === "path" && draft.measurementType === activeTool ? draft : null;
+    const pathDraft = draft?.type === "path" && draft.measurementType === activeTool ? draft : null;
     const spec = measurementPathSpecs[activeTool];
     const showFinish = spec.maxVertices === null && pathDraft !== null;
     const canFinish = Boolean(pathDraft && pathDraft.points.length >= spec.minVertices);
@@ -417,15 +417,24 @@ export function ContextToolbar({
     );
   }
 
-  if (activeTool !== "select" || !selectedMeasurementName) return null;
+  const selectionCount = selectedMeasurements?.length ?? (selectedMeasurementName ? 1 : 0);
+  if (activeTool !== "select" || selectionCount === 0) return null;
+  const allSelectedVisible = selectedMeasurements?.every((measurement) => measurement.visible) ?? false;
+  const singleSelection = selectionCount === 1 && selectedMeasurementName !== null;
 
   return (
     <ToolbarComposite label="Selected measurement controls" contextKind="selection">
-      <MeasurementNameEditor
-        key={selectedMeasurementId ?? "none"}
-        name={selectedMeasurementName}
-        onRename={onRenameSelectedMeasurement}
-      />
+      {singleSelection ? (
+        <MeasurementNameEditor
+          key={selectedMeasurementId ?? "none"}
+          name={selectedMeasurementName}
+          onRename={onRenameSelectedMeasurement}
+        />
+      ) : (
+        <span className={styles.status} role="status">
+          {selectionCount} selected
+        </span>
+      )}
       <Divider />
       <Button
         className={styles.action}
@@ -436,7 +445,7 @@ export function ContextToolbar({
       >
         Duplicate
       </Button>
-      {!measurementDetailsOpen && (
+      {singleSelection && !measurementDetailsOpen && (
         <Button
           className={styles.action}
           variant="secondary"
@@ -446,6 +455,14 @@ export function ContextToolbar({
           Details
         </Button>
       )}
+      {selectedMeasurements && onEditSelectedMeasurements && classificationCatalog && (
+        <MeasurementClassificationMenu
+          measurements={selectedMeasurements}
+          catalog={classificationCatalog}
+          onEdit={onEditSelectedMeasurements}
+          triggerClassName={styles.action}
+        />
+      )}
       <Button
         className={styles.action}
         variant="dangerSecondary"
@@ -454,6 +471,37 @@ export function ContextToolbar({
       >
         Delete
       </Button>
+      {selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements && (
+        <IconButton
+          className={styles.selectionIconButton}
+          aria-label={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
+          tooltip={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
+          icon={
+            <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z" />
+              <circle cx="10" cy="10" r="2.2" />
+              {!allSelectedVisible && <path d="m3.5 3.5 13 13" />}
+            </svg>
+          }
+          onClick={() => onEditSelectedMeasurements({
+            measurementIds: selectedMeasurements.map((measurement) => measurement.id),
+            operation: { type: "visibility", visible: !allSelectedVisible },
+          })}
+        />
+      )}
+      {onClearMeasurementSelection && (
+        <IconButton
+          className={styles.selectionIconButton}
+          aria-label="Clear measurement selection"
+          tooltip="Clear selection"
+          icon={
+            <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
+              <path d="m5 5 10 10M15 5 5 15" />
+            </svg>
+          }
+          onClick={onClearMeasurementSelection}
+        />
+      )}
     </ToolbarComposite>
   );
 }

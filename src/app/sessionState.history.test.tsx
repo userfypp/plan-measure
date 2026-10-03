@@ -32,6 +32,22 @@ function HistoryHarness() {
       <button onClick={() => state.deleteClassificationDimension("trade")}>Delete dimension</button>
       <button onClick={() => state.deleteClassificationValue("trade", "electrical")}>Delete value</button>
       <output data-testid="session">{JSON.stringify(state.session)}</output>
+      <button onClick={() => {
+        const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 2);
+        for (const page of Object.values(session.pages)) page.measurements = [{ id: `line-${page.pageNumber}`, name: "Line", type: "line", calibrationId: "scale", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], visible: true, classificationValueIds: [] }];
+        state.loadSession(session);
+      }}>Load bulk session</button>
+      <button onClick={() => state.editMeasurements({ measurementIds: ["line-1", "line-2"], operation: { type: "visibility", visible: false } })}>Hide selected</button>
+      <button onClick={() => state.editMeasurements({ measurementIds: ["line-1", "line-2"], operation: { type: "delete" } })}>Delete selected</button>
+      <button onClick={() => {
+        const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+        session.pages[1]!.calibrations = [{ id: "scale", name: "Scale", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 }];
+        session.pages[1]!.activeCalibrationId = "scale";
+        session.pages[1]!.measurements = ["a", "b"].map((id) => ({ id, name: id, type: "line", calibrationId: "scale", points: [{ x: 10, y: 10 }, { x: 20, y: 10 }], visible: true, classificationValueIds: [] }));
+        state.loadSession(session);
+      }}>Load geometry batch</button>
+      <button onClick={() => state.pasteMeasurements(state.session!.pages[1]!.measurements.map((measurement) => ({ pageNumber: 1, sourcePageNumber: 1, id: `copy-${measurement.id}`, measurement })))}>Paste batch</button>
+      <button onClick={() => state.updateMeasurements(state.session!.pages[1]!.measurements.map((measurement) => ({ pageNumber: 1, id: measurement.id, points: measurement.points.map((point) => ({ x: point.x + 10, y: point.y + 10 })) })))}>Move batch</button>
       <button onClick={state.undo}>Undo</button>
       <button onClick={state.redo}>Redo</button>
       <button onClick={() => state.addClassificationDimension("status", "Status")}>Branch</button>
@@ -69,6 +85,19 @@ afterEach(() => {
 });
 
 describe("session undo and redo history", () => {
+  it.each(["Paste batch", "Move batch"])("undoes and redoes %s in a single step", (operation) => {
+    click("Load geometry batch");
+    const before = document.querySelector('[data-testid="session"]')!.textContent;
+    click(operation);
+    const after = document.querySelector('[data-testid="session"]')!.textContent;
+    expect(after).not.toBe(before);
+    click("Undo");
+    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(before);
+    expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe("false:true:0");
+    click("Redo");
+    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(after);
+  });
+
   it.each(["dimension", "value"])("undoes and redoes %s deletion together with assignments", (target) => {
     click("Load assigned session");
     const before = document.querySelector('[data-testid="session"]')!.textContent;
@@ -119,3 +148,17 @@ function HistoryHarnessWithSession() {
   }, [loadSession]);
   return <HistoryHarness />;
 }
+
+
+it.each(["Hide selected", "Delete selected"])("undoes and redoes %s across pages in a single step", (action) => {
+  click("Load bulk session");
+  const before = document.querySelector('[data-testid="session"]')!.textContent;
+  click(action);
+  const after = document.querySelector('[data-testid="session"]')!.textContent;
+  expect(after).not.toBe(before);
+  click("Undo");
+  expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(before);
+  expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe("false:true:0");
+  click("Redo");
+  expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(after);
+});

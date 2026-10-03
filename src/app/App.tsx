@@ -63,10 +63,9 @@ import {
 } from "../features/calibration/ratioCalibration";
 import {
   canDuplicateMeasurement,
-  duplicateMeasurement,
   isMeasurementClipboardActionBlocked,
   measurementClipboardFitsPage,
-  pasteMeasurementClipboard,
+  pasteMeasurementsClipboard,
   registerMeasurementClipboardInvalidation,
 } from "./measurementClipboard";
 import {
@@ -127,12 +126,13 @@ function PlanMeasureApp() {
     recalibrateCalibration,
     renameCalibration,
     updateCalibration,
-    pasteMeasurement,
+    pasteMeasurements,
     renameMeasurement,
     setMeasurementNote,
     setMeasurementVisibility,
     setMeasurementsVisibility,
     deleteMeasurement,
+    editMeasurements,
     addClassificationDimension,
     applyClassificationTemplate,
     renameClassificationDimension,
@@ -162,6 +162,7 @@ function PlanMeasureApp() {
   const {
     draft,
     selectedMeasurementId,
+    selectedMeasurementIds,
     measurementClipboard,
     calibrationFlow,
     calibrationCandidate,
@@ -173,8 +174,10 @@ function PlanMeasureApp() {
     pageChanged,
     chooseTool: chooseWorkspaceTool,
     selectMeasurement: selectWorkspaceMeasurement,
+    selectMeasurements: selectWorkspaceMeasurements,
     clearSelection,
-    copyMeasurement,
+    reconcileSelection,
+    copyMeasurements,
     copyScale,
     clearMeasurementClipboard,
     clearDraft,
@@ -376,9 +379,39 @@ function PlanMeasureApp() {
     [confirmMeasurementDeletion, openDeleteMeasurementConfirmation, performMeasurementDelete, session],
   );
 
+  useEffect(() => {
+    reconcileSelection(
+      Object.values(session?.pages ?? {}).flatMap((page) =>
+        page.measurements.map((measurement) => measurement.id),
+      ),
+    );
+  }, [session?.pages, reconcileSelection]);
+
+  const requestSelectedMeasurementsDelete = useCallback(() => {
+    if (!session || selectedMeasurementIds.length === 0) return;
+    const payload = {
+      measurementIds: [...selectedMeasurementIds],
+    };
+    if (confirmMeasurementDeletion) openDeleteMeasurementConfirmation(payload);
+    else if (
+      editMeasurements({
+        measurementIds: payload.measurementIds,
+        operation: { type: "delete" },
+      })
+    )
+      clearSelection();
+  }, [
+    session,
+    selectedMeasurementIds,
+    confirmMeasurementDeletion,
+    openDeleteMeasurementConfirmation,
+    editMeasurements,
+    clearSelection,
+  ]);
+
   const selectMeasurementFromPanel = useCallback(
-    (pageNumber: number, measurementId: string) => {
-      if (session?.currentPage !== pageNumber) {
+    (pageNumber: number, measurementId: string, additive = false) => {
+      if (!additive && session?.currentPage !== pageNumber) {
         if (
           draft ||
           calibrationFlow ||
@@ -392,7 +425,7 @@ function PlanMeasureApp() {
         pageChanged();
         updatePage(pageNumber);
       }
-      selectWorkspaceMeasurement(measurementId);
+      selectWorkspaceMeasurement(measurementId, additive);
       clearError();
     },
     [
@@ -482,38 +515,54 @@ function PlanMeasureApp() {
         ) {
           setError(
             destinationBounds
-              ? "The copied measurement does not fit within this page without changing its geometry."
+              ? "The copied measurements do not fit within this page without changing their geometry."
               : "Wait for this page to finish loading before pasting a measurement from another page.",
           );
           return;
         }
-        pasteMeasurementClipboard({
+        pasteMeasurementsClipboard({
           clipboard: measurementClipboard,
           pageNumber: page.pageNumber,
           destinationBounds,
           destinationZoom,
-          pasteMeasurement,
-          selectMeasurement: selectWorkspaceMeasurement,
+          pasteMeasurements,
+          selectMeasurements: selectWorkspaceMeasurements,
         });
         return;
       }
 
-      if (!selectedMeasurementId) return;
-      const measurement = page?.measurements.find(
-        (candidate) => candidate.id === selectedMeasurementId,
-      );
-      if (!measurement) return;
+      if (
+        action === "delete-measurement" &&
+        (selectedMeasurementIds.length > 1 ||
+          (selectedMeasurementIds.length === 1 &&
+            !page.measurements.some((measurement) => measurement.id === selectedMeasurementId)))
+      ) {
+        event.preventDefault();
+        requestSelectedMeasurementsDelete();
+        return;
+      }
       if (action === "copy-measurement") {
         const selection = window.getSelection();
         if (selection && !selection.isCollapsed) return;
-        applicationCopyRef.current = true;
+        if (selectedMeasurementIds.length === 0) return;
+        const measurements = page.measurements.filter((measurement) =>
+          selectedMeasurementIds.includes(measurement.id),
+        );
         event.preventDefault();
-        copyMeasurement(page.pageNumber, measurement);
+        if (measurements.length !== selectedMeasurementIds.length) {
+          setError("Select measurements from a single page to copy them together.");
+          return;
+        }
+        applicationCopyRef.current = true;
+        copyMeasurements(page.pageNumber, measurements);
         queueMicrotask(() => {
           applicationCopyRef.current = false;
         });
         return;
       }
+      if (!selectedMeasurementId) return;
+      const measurement = page.measurements.find((candidate) => candidate.id === selectedMeasurementId);
+      if (!measurement) return;
       event.preventDefault();
       requestMeasurementDelete({
         pageNumber: page.pageNumber,
@@ -524,16 +573,18 @@ function PlanMeasureApp() {
     window.addEventListener("keydown", handleMeasurementShortcut);
     return () => window.removeEventListener("keydown", handleMeasurementShortcut);
   }, [
-    copyMeasurement,
+    copyMeasurements,
     calibrationCandidate,
     calibrationFlow,
     calibrationReferenceEdit,
     draft,
     measurementClipboard,
-    pasteMeasurement,
+    pasteMeasurements,
     requestMeasurementDelete,
-    selectWorkspaceMeasurement,
+    requestSelectedMeasurementsDelete,
+    selectWorkspaceMeasurements,
     selectedMeasurementId,
+    selectedMeasurementIds,
     session,
     setError,
     viewerPageBounds,
@@ -831,7 +882,9 @@ function PlanMeasureApp() {
     }
     if (confirmation.type === "deleteMeasurement") {
       if (options?.dontAskAgain) setConfirmMeasurementDeletion(false);
-      performMeasurementDelete(confirmation.payload);
+      if (confirmation.payload.measurementIds) {
+        if (editMeasurements({ measurementIds: confirmation.payload.measurementIds, operation: { type: "delete" } })) clearSelection();
+      } else performMeasurementDelete(confirmation.payload);
       return;
     }
 
@@ -900,6 +953,9 @@ function PlanMeasureApp() {
       : session?.pages;
   const activePageCalibration = currentPage ? getActiveCalibration(currentPage) : null;
   const activeCalibration = activePageCalibration;
+  const selectedMeasurements = Object.values(session?.pages ?? {}).flatMap((page) =>
+    page.measurements.filter((measurement) => selectedMeasurementIds.includes(measurement.id)),
+  );
   const selectedMeasurement =
     currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
     null;
@@ -909,49 +965,39 @@ function PlanMeasureApp() {
     focusViewer();
   }, [closeMeasurementDetails, focusViewer, measurementDetailsOpen, selectedMeasurement]);
   const measurementEditActive = activeMeasurementEditId !== null;
-  const duplicateDisabled = currentPage && selectedMeasurement
-    ? !canDuplicateMeasurement(currentPage, selectedMeasurement) ||
-      isMeasurementClipboardActionBlocked("paste-measurement", {
-        measurementEditActive,
-        draftActive: Boolean(draft),
-        calibrationFlowActive: Boolean(calibrationFlow),
-        calibrationCandidateActive: Boolean(calibrationCandidate),
-        calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
-      })
-    : true;
+  const currentPageSelectedMeasurements = currentPage?.measurements.filter((measurement) =>
+    selectedMeasurementIds.includes(measurement.id),
+  ) ?? [];
+  const duplicateDisabled = !currentPage || currentPageSelectedMeasurements.length === 0 ||
+    currentPageSelectedMeasurements.length !== selectedMeasurementIds.length ||
+    currentPageSelectedMeasurements.some((measurement) => !canDuplicateMeasurement(currentPage, measurement)) ||
+    isMeasurementClipboardActionBlocked("paste-measurement", {
+      measurementEditActive,
+      draftActive: Boolean(draft),
+      calibrationFlowActive: Boolean(calibrationFlow),
+      calibrationCandidateActive: Boolean(calibrationCandidate),
+      calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
+    });
 
-  function duplicateSelectedMeasurement(measurementId: string) {
-    if (!currentPage || selectedMeasurementId !== measurementId) return;
-    const measurement = currentPage.measurements.find(
-      (candidate) => candidate.id === measurementId,
-    );
-    if (!measurement) return;
-    if (!canDuplicateMeasurement(currentPage, measurement)) return;
-    if (
-      isMeasurementClipboardActionBlocked("paste-measurement", {
-        measurementEditActive: activeMeasurementEditIdRef.current !== null,
-        draftActive: Boolean(draft),
-        calibrationFlowActive: Boolean(calibrationFlow),
-        calibrationCandidateActive: Boolean(calibrationCandidate),
-        calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
-      })
-    ) {
-      return;
-    }
-
+  function duplicateSelectedMeasurements() {
+    if (!currentPage || duplicateDisabled || activeMeasurementEditIdRef.current !== null) return;
     const destinationBounds =
       viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
     const destinationZoom =
       viewerPageZoomRef.current?.pageNumber === currentPage.pageNumber
         ? viewerPageZoomRef.current.zoom
         : null;
-    duplicateMeasurement({
-      measurement,
+    pasteMeasurementsClipboard({
+      clipboard: {
+        sourcePageNumber: currentPage.pageNumber,
+        measurement: currentPageSelectedMeasurements[0]!,
+        measurements: currentPageSelectedMeasurements,
+      },
       pageNumber: currentPage.pageNumber,
       destinationBounds,
       destinationZoom,
-      pasteMeasurement,
-      selectMeasurement: selectWorkspaceMeasurement,
+      pasteMeasurements,
+      selectMeasurements: selectWorkspaceMeasurements,
     });
   }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
@@ -1131,6 +1177,7 @@ function PlanMeasureApp() {
                   pageLabelOverrides={session.pageLabelOverrides}
                   sourcePageLabels={activePdf.pageLabels}
                   selectedMeasurementId={selectedMeasurementId}
+                  selectedMeasurementIds={selectedMeasurementIds}
                   onSelectMeasurement={selectMeasurementFromPanel}
                   onSetMeasurementVisibility={setMeasurementVisibility}
                   onSetMeasurementsVisibility={setMeasurementsVisibility}
@@ -1254,21 +1301,29 @@ function PlanMeasureApp() {
             <ContextToolbar
               selectedMeasurementId={selectedMeasurement?.id ?? null}
               selectedMeasurementName={selectedMeasurement?.name ?? null}
+              selectedMeasurements={selectedMeasurements}
+              classificationCatalog={session.classificationCatalog}
+              onEditSelectedMeasurements={editMeasurements}
+              onClearMeasurementSelection={() => {
+                clearSelection();
+                focusViewer();
+              }}
               duplicateDisabled={duplicateDisabled}
               referenceEditValid={calibrationReferenceEditIsValid}
               measurementEditActive={measurementEditActive}
               calibrationDialogOpen={Boolean(calibrationCandidate)}
               onDeleteSelectedMeasurement={() => {
-                if (!selectedMeasurement) return;
+                if (!selectedMeasurement) {
+                  requestSelectedMeasurementsDelete();
+                  return;
+                }
                 requestMeasurementDelete({
                   pageNumber: currentPage.pageNumber,
                   measurementId: selectedMeasurement.id,
                   measurementName: selectedMeasurement.name,
                 });
               }}
-              onDuplicateSelectedMeasurement={() => {
-                if (selectedMeasurement) duplicateSelectedMeasurement(selectedMeasurement.id);
-              }}
+              onDuplicateSelectedMeasurement={duplicateSelectedMeasurements}
               onRenameSelectedMeasurement={(name) => {
                 if (selectedMeasurement) {
                   renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name);

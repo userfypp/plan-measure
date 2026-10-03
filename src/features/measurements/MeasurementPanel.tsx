@@ -24,7 +24,8 @@ export interface MeasurementPanelProps {
   pageLabelOverrides: Readonly<Record<number, string>>;
   sourcePageLabels: readonly string[] | null;
   selectedMeasurementId: string | null;
-  onSelectMeasurement: (pageNumber: number, measurementId: string) => void;
+  selectedMeasurementIds?: readonly string[];
+  onSelectMeasurement: (pageNumber: number, measurementId: string, additive?: boolean) => void;
   onSetMeasurementVisibility: (pageNumber: number, measurementId: string, visible: boolean) => void;
   onSetMeasurementsVisibility: (
     pageNumber: number,
@@ -39,6 +40,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   pageLabelOverrides,
   sourcePageLabels,
   selectedMeasurementId,
+  selectedMeasurementIds,
   onSelectMeasurement,
   onSetMeasurementVisibility,
   onSetMeasurementsVisibility,
@@ -70,7 +72,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           candidatePage,
           measurement,
           displayUnit,
-          measurement.id === selectedMeasurementId,
+          selectedMeasurementIds ? selectedMeasurementIds.includes(measurement.id) : measurement.id === selectedMeasurementId,
           measurementDecimalPlaces,
           areaDisplay,
         ),
@@ -81,7 +83,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
         classificationValueIds: measurement.classificationValueIds,
       })),
     ),
-    [areaDisplay, displayUnit, measurementDecimalPlaces, pageLabelOverrides, pages, selectedMeasurementId, sourcePageLabels],
+    [areaDisplay, displayUnit, measurementDecimalPlaces, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
   );
   const measurements = allMeasurements.filter((measurement) =>
     measurement.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) &&
@@ -286,9 +288,9 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             ? getMeasurementEmptyMessage(page)
             : "No measurements match these filters."
         }
-        onSelectMeasurement={(measurementId) => {
+        onSelectMeasurement={(measurementId, additive) => {
           const result = measurements.find((candidate) => candidate.id === measurementId);
-          if (result) onSelectMeasurement(result.pageNumber, measurementId);
+          if (result) onSelectMeasurement(result.pageNumber, measurementId, additive);
         }}
         onToggleVisibility={(measurementId, visible) => {
           const result = measurements.find((candidate) => candidate.id === measurementId);

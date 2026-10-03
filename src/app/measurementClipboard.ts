@@ -59,7 +59,10 @@ export function measurementClipboardFitsPage(
 ): boolean {
   if (clipboard.sourcePageNumber === pageNumber) return true;
   return Boolean(
-    bounds && clipboard.measurement.points.every((point) => isPointInPage(point, bounds)),
+    bounds &&
+      (clipboard.measurements ?? [clipboard.measurement]).every((measurement) =>
+        measurement.points.every((point) => isPointInPage(point, bounds)),
+      ),
   );
 }
 
@@ -170,4 +173,65 @@ export function duplicateMeasurement({
     selectMeasurement,
     createId,
   });
+}
+
+interface PasteMeasurementsClipboardOptions {
+  clipboard: MeasurementClipboard;
+  pageNumber: number;
+  destinationBounds?: LogicalPageBounds | null;
+  destinationZoom?: number | null;
+  pasteMeasurements: (commands: readonly PasteMeasurementCommand[]) => boolean;
+  selectMeasurements: (ids: string[]) => void;
+  createId?: () => string;
+}
+
+/** Keep the entire copied arrangement together, including at page boundaries. */
+export function pasteMeasurementsClipboard({
+  clipboard,
+  pageNumber,
+  destinationBounds = null,
+  destinationZoom = null,
+  pasteMeasurements,
+  selectMeasurements,
+  createId = () => crypto.randomUUID(),
+}: PasteMeasurementsClipboardOptions): string[] | null {
+  const sources = clipboard.measurements ?? [clipboard.measurement];
+  if (sources.length === 0) return null;
+  let delta = 0;
+  if (
+    clipboard.sourcePageNumber === pageNumber &&
+    destinationBounds &&
+    destinationZoom &&
+    Number.isFinite(destinationZoom) &&
+    destinationZoom > 0
+  ) {
+    const offset = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / destinationZoom;
+    for (const candidate of [offset, -offset]) {
+      if (
+        sources.every((measurement) =>
+          measurement.points.every((point) =>
+            isPointInPage({ x: point.x + candidate, y: point.y + candidate }, destinationBounds),
+          ),
+        )
+      ) {
+        delta = candidate;
+        break;
+      }
+    }
+  }
+  const commands = sources.map((measurement) => ({
+    pageNumber,
+    sourcePageNumber: clipboard.sourcePageNumber,
+    id: createId(),
+    measurement: delta === 0
+      ? measurement
+      : {
+          ...measurement,
+          points: measurement.points.map((point) => ({ x: point.x + delta, y: point.y + delta })),
+        },
+  }));
+  if (!pasteMeasurements(commands)) return null;
+  const ids = commands.map((command) => command.id);
+  selectMeasurements(ids);
+  return ids;
 }

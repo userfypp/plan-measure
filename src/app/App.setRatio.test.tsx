@@ -75,6 +75,7 @@ vi.mock("./AppShell", () => ({
 }));
 
 vi.mock("./WorkspaceShell", async () => {
+  const { ViewerInteractionCommandsProvider } = await import("../features/viewer/ViewerInteractionCommands");
   const { useWorkspaceState } = await import("./workspaceState");
   function PendingDraftControl() {
     const { draft, startDraft } = useWorkspaceState();
@@ -99,13 +100,16 @@ vi.mock("./WorkspaceShell", async () => {
   return {
     WorkspaceShell: ({
       workspacePanel,
+      contextToolbar,
       emptyState,
     }: {
       workspacePanel?: ReactNode;
+      contextToolbar?: ReactNode;
       emptyState?: ReactNode;
     }) => (
       <main>
         {workspacePanel ?? emptyState}
+        <ViewerInteractionCommandsProvider>{contextToolbar}</ViewerInteractionCommandsProvider>
         <PendingDraftControl />
       </main>
     ),
@@ -122,17 +126,23 @@ vi.mock("./WorkspacePanel", () => ({
   ),
 }));
 
-vi.mock("../features/measurements/MeasurementPanel", () => ({
-  MeasurementPanel: ({
-    onSelectMeasurement,
-  }: {
-    onSelectMeasurement: (pageNumber: number, measurementId: string) => void;
-  }) => (
-    <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>
-      Select page 2 measurement
-    </button>
-  ),
-}));
+vi.mock("../features/measurements/MeasurementPanel", async () => {
+  const { useWorkspaceState } = await import("./workspaceState");
+  return {
+    MeasurementPanel: ({ onSelectMeasurement }: {
+      onSelectMeasurement: (pageNumber: number, measurementId: string, additive?: boolean) => void;
+    }) => {
+      const { selectedMeasurementIds } = useWorkspaceState();
+      return <>
+        <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>Select page 2 measurement</button>
+        <button type="button" onClick={() => onSelectMeasurement(1, "page-one-line", true)}>Toggle page 1 measurement</button>
+        <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line", true)}>Toggle page 2 measurement</button>
+        <button type="button" onClick={() => onSelectMeasurement(1, "page-one-second", true)}>Toggle second page 1 measurement</button>
+        <output data-testid="selected-measurements">{selectedMeasurementIds.join(",")}</output>
+      </>;
+    },
+  };
+});
 
 vi.mock("./WorkspaceDrawerContext", () => ({
   useWorkspaceDrawerPresentation: () => ({
@@ -461,5 +471,65 @@ describe("App Set ratio impact confirmation", () => {
     expect(document.querySelector('[role="alert"]')?.textContent).toContain(
       "The scale to update is no longer available.",
     );
+  });
+});
+
+
+describe("App multiple measurement selection", () => {
+  function assignedSession() {
+    const session = twoPageSession();
+    for (const page of Object.values(session.pages)) page.measurements = [{ id: page.pageNumber === 1 ? "page-one-line" : "page-two-line", name: "Line", type: "line", calibrationId: "scale", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], visible: true, classificationValueIds: [] }];
+    return session;
+  }
+
+  it("duplicates and copies a same-page group while rejecting mixed-page copies", async () => {
+    const session = assignedSession();
+    session.pages[1]!.calibrations = [{ ...uniformScale(), id: "scale" }];
+    session.pages[1]!.activeCalibrationId = "scale";
+    session.pages[1]!.measurements.push({ ...session.pages[1]!.measurements[0]!, id: "page-one-second", points: [{ x: 20, y: 20 }, { x: 30, y: 20 }] });
+    await renderApp(session);
+    act(() => buttonByText("Toggle page 1 measurement").click());
+    act(() => buttonByText("Toggle second page 1 measurement").click());
+    expect(buttonByText("Duplicate").disabled).toBe(false);
+    act(() => buttonByText("Duplicate").click());
+    expect(currentSession().pages[1]!.measurements).toHaveLength(4);
+    const newIds = currentSession().pages[1]!.measurements.slice(2).map((measurement) => measurement.id);
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe(newIds.join(","));
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true })));
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "v", ctrlKey: true, bubbles: true })));
+    expect(currentSession().pages[1]!.measurements).toHaveLength(6);
+    act(() => buttonByText("Toggle page 2 measurement").click());
+    expect(buttonByText("Duplicate").disabled).toBe(true);
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true })));
+    expect(document.querySelector('[role="alert"]')!.textContent).toContain("single page");
+    expect(currentSession().pages[1]!.measurements).toHaveLength(6);
+  });
+
+  it("keeps cross-page additive selections and confirms deleting the captured selection", async () => {
+    await renderApp(assignedSession());
+    act(() => buttonByText("Toggle page 1 measurement").click());
+    act(() => buttonByText("Toggle page 2 measurement").click());
+    expect(currentSession().currentPage).toBe(1);
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("page-one-line,page-two-line");
+    act(() => buttonByText("Delete").click());
+    expect(document.querySelector("dialog")!.textContent).toContain("Delete 2 measurements?");
+    act(() => dialogButtonByText("Cancel").click());
+    expect(currentSession().pages[1]!.measurements).toHaveLength(1);
+    expect(currentSession().pages[2]!.measurements).toHaveLength(1);
+    act(() => buttonByText("Delete").click());
+    act(() => dialogButtonByText("Delete").click());
+    expect(currentSession().pages[1]!.measurements).toEqual([]);
+    expect(currentSession().pages[2]!.measurements).toEqual([]);
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("");
+  });
+
+  it("deletes a single additive selection on another page via keyboard", async () => {
+    await renderApp(assignedSession());
+    act(() => buttonByText("Toggle page 2 measurement").click());
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+    expect(document.querySelector("dialog")!.textContent).toContain("Delete 1 measurement?");
+    act(() => dialogButtonByText("Delete").click());
+    expect(currentSession().pages[1]!.measurements).toHaveLength(1);
+    expect(currentSession().pages[2]!.measurements).toEqual([]);
   });
 });

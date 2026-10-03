@@ -11,7 +11,7 @@ export interface MeasurementGroupProps {
   measurements: readonly (MeasurementViewModel & { selected: boolean })[];
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  onSelectMeasurement: (measurementId: string) => void;
+  onSelectMeasurement: (measurementId: string, additive?: boolean) => void;
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
   onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void;
   rovingCell?: { measurementId: string; control: "selection" | "visibility" } | null;

@@ -15,6 +15,7 @@ export type WorkspaceModule = "measurements" | "takeoff" | "classifications" | "
 export interface WorkspaceState {
   activeTool: Tool;
   selectedMeasurementId: string | null;
+  selectedMeasurementIds: string[];
   measurementClipboard: MeasurementClipboard | null;
   scaleClipboard: ScaleClipboard | null;
   draft: DrawingDraft | null;
@@ -31,6 +32,7 @@ export interface WorkspaceState {
 export interface MeasurementClipboard {
   sourcePageNumber: number;
   measurement: Measurement;
+  measurements?: readonly Measurement[];
 }
 
 export interface ScaleClipboard {
@@ -42,8 +44,11 @@ export type WorkspaceAction =
   | { type: "RESET_WORKSPACE"; module?: WorkspaceModule }
   | { type: "PAGE_CHANGED" }
   | { type: "CHOOSE_TOOL"; tool: Tool }
-  | { type: "SELECT_MEASUREMENT"; id: string }
+  | { type: "SELECT_MEASUREMENT"; id: string; additive?: boolean }
+  | { type: "SELECT_MEASUREMENTS"; ids: string[] }
+  | { type: "COPY_MEASUREMENTS"; pageNumber: number; measurements: readonly Measurement[] }
   | { type: "CLEAR_SELECTION" }
+  | { type: "RECONCILE_SELECTION"; availableIds: string[] }
   | { type: "COPY_MEASUREMENT"; pageNumber: number; measurement: Measurement }
   | { type: "CLEAR_MEASUREMENT_CLIPBOARD" }
   | { type: "COPY_SCALE"; pageNumber: number; calibration: PageCalibration }
@@ -71,6 +76,7 @@ export type WorkspaceAction =
 export const initialWorkspaceState: WorkspaceState = {
   activeTool: "select",
   selectedMeasurementId: null,
+  selectedMeasurementIds: [],
   measurementClipboard: null,
   scaleClipboard: null,
   draft: null,
@@ -97,6 +103,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         ...state,
         activeTool: "select",
         selectedMeasurementId: null,
+        selectedMeasurementIds: [],
         draft: null,
         calibrationFlow: null,
         calibrationCandidate: null,
@@ -113,25 +120,70 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       }
       return { ...state, activeTool: action.tool, draft: null };
     case "SELECT_MEASUREMENT":
-      return state.selectedMeasurementId === action.id
-        ? state
-        : { ...state, selectedMeasurementId: action.id };
+      if (
+        !action.additive &&
+        state.selectedMeasurementIds.length === 1 &&
+        state.selectedMeasurementId === action.id
+      )
+        return state;
+      {
+        const ids = action.additive
+          ? state.selectedMeasurementIds.includes(action.id)
+            ? state.selectedMeasurementIds.filter((id) => id !== action.id)
+            : [...state.selectedMeasurementIds, action.id]
+          : [action.id];
+        return {
+          ...state,
+          selectedMeasurementIds: ids,
+          selectedMeasurementId: ids.length === 1 ? ids[0]! : null,
+          measurementDetailsOpen:
+            ids.length === 1 && state.measurementDetailsOpen,
+        };
+      }
+    case "SELECT_MEASUREMENTS": {
+      const ids = [...new Set(action.ids)];
+      return {
+        ...state,
+        selectedMeasurementIds: ids,
+        selectedMeasurementId: ids.length === 1 ? ids[0]! : null,
+        measurementDetailsOpen: false,
+      };
+    }
+    case "RECONCILE_SELECTION": {
+      const ids = state.selectedMeasurementIds.filter((id) =>
+        action.availableIds.includes(id),
+      );
+      if (ids.length === state.selectedMeasurementIds.length) return state;
+      return {
+        ...state,
+        selectedMeasurementIds: ids,
+        selectedMeasurementId: ids.length === 1 ? ids[0]! : null,
+        measurementDetailsOpen:
+          ids.length === 1 && state.measurementDetailsOpen,
+      };
+    }
     case "CLEAR_SELECTION":
-      return state.selectedMeasurementId === null && !state.measurementDetailsOpen
+      return state.selectedMeasurementIds.length === 0 && !state.measurementDetailsOpen
         ? state
-        : { ...state, selectedMeasurementId: null, measurementDetailsOpen: false };
+        : { ...state, selectedMeasurementId: null, selectedMeasurementIds: [], measurementDetailsOpen: false };
     case "COPY_MEASUREMENT":
+    case "COPY_MEASUREMENTS": {
+      const sources = action.type === "COPY_MEASUREMENT" ? [action.measurement] : action.measurements;
+      if (sources.length === 0) return state;
+      const measurements = sources.map((measurement) => ({
+        ...measurement,
+        points: measurement.points.map((point) => ({ ...point })),
+        classificationValueIds: [...measurement.classificationValueIds],
+      }));
       return {
         ...state,
         measurementClipboard: {
           sourcePageNumber: action.pageNumber,
-          measurement: {
-            ...action.measurement,
-            points: action.measurement.points.map((point) => ({ ...point })),
-            classificationValueIds: [...action.measurement.classificationValueIds],
-          },
+          measurement: measurements[0]!,
+          ...(action.type === "COPY_MEASUREMENTS" ? { measurements } : {}),
         },
       };
+    }
     case "CLEAR_MEASUREMENT_CLIPBOARD":
       return state.measurementClipboard === null ? state : { ...state, measurementClipboard: null };
     case "COPY_SCALE":
@@ -234,9 +286,12 @@ interface WorkspaceContextValue extends WorkspaceState {
   resetWorkspace: (module?: WorkspaceModule) => void;
   pageChanged: () => void;
   chooseTool: (tool: Tool) => void;
-  selectMeasurement: (id: string) => void;
+  selectMeasurement: (id: string, additive?: boolean) => void;
+  selectMeasurements: (ids: string[]) => void;
   clearSelection: () => void;
+  reconcileSelection: (availableIds: string[]) => void;
   copyMeasurement: (pageNumber: number, measurement: Measurement) => void;
+  copyMeasurements: (pageNumber: number, measurements: readonly Measurement[]) => void;
   copyScale: (pageNumber: number, calibration: PageCalibration) => void;
   clearMeasurementClipboard: () => void;
   startDraft: (draft: DrawingDraft) => void;
@@ -271,8 +326,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       resetWorkspace: (module?: WorkspaceModule) => dispatch({ type: "RESET_WORKSPACE", module }),
       pageChanged: () => dispatch({ type: "PAGE_CHANGED" }),
       chooseTool: (tool: Tool) => dispatch({ type: "CHOOSE_TOOL", tool }),
-      selectMeasurement: (id: string) => dispatch({ type: "SELECT_MEASUREMENT", id }),
+      selectMeasurement: (id: string, additive = false) => dispatch({ type: "SELECT_MEASUREMENT", id, additive }),
+      selectMeasurements: (ids: string[]) => dispatch({ type: "SELECT_MEASUREMENTS", ids }),
+      copyMeasurements: (pageNumber: number, measurements: readonly Measurement[]) =>
+        dispatch({ type: "COPY_MEASUREMENTS", pageNumber, measurements }),
       clearSelection: () => dispatch({ type: "CLEAR_SELECTION" }),
+      reconcileSelection: (availableIds: string[]) => dispatch({ type: "RECONCILE_SELECTION", availableIds }),
       copyMeasurement: (pageNumber: number, measurement: Measurement) =>
         dispatch({ type: "COPY_MEASUREMENT", pageNumber, measurement }),
       copyScale: (pageNumber: number, calibration: PageCalibration) =>
