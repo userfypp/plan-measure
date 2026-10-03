@@ -4,6 +4,28 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.7.0](https://github.com/userfypp/plan-measure/compare/v2.6.0...v2.7.0) (2026-10-03)
+
+
+### Added
+
+* add feedback, feature request, and bug report menu ([#169](https://github.com/userfypp/plan-measure/issues/169)) ([b286263](https://github.com/userfypp/plan-measure/commit/b286263e750993d7ffe7c3550f29dbe2342a8531))
+* add reusable classification templates ([#172](https://github.com/userfypp/plan-measure/issues/172)) ([cf461c2](https://github.com/userfypp/plan-measure/commit/cf461c2d389559960153411497fb3dedd39441fd))
+* add XLSX, ODS, and JSON exports ([#170](https://github.com/userfypp/plan-measure/issues/170)) ([80ed46f](https://github.com/userfypp/plan-measure/commit/80ed46f8e4a9184b499c0f74665db453c7e4e71d))
+* allow deleting classification dimensions and values ([#174](https://github.com/userfypp/plan-measure/issues/174)) ([9e66652](https://github.com/userfypp/plan-measure/commit/9e6665278b30370a5a92bdf11cb84d21e08d4aae))
+* **measurements:** add multi-selection and group editing ([#175](https://github.com/userfypp/plan-measure/issues/175)) ([e3ddf84](https://github.com/userfypp/plan-measure/commit/e3ddf84742b6fa96a6da731970d55276820344a6))
+
+
+### Fixed
+
+* enable application shortcuts outside viewer focus ([#163](https://github.com/userfypp/plan-measure/issues/163)) ([da307a2](https://github.com/userfypp/plan-measure/commit/da307a28dcc0717ae6703990aec86b66741b6000))
+* keep Safari viewer cursors visible during shortcuts and panning ([#161](https://github.com/userfypp/plan-measure/issues/161)) ([b1d3c94](https://github.com/userfypp/plan-measure/commit/b1d3c94b2ef6c4f68b49d8505427e42b9788ee25))
+
+
+### Documentation
+
+* improve documentation and update README screenchot ([#168](https://github.com/userfypp/plan-measure/issues/168)) ([6d2ae6c](https://github.com/userfypp/plan-measure/commit/6d2ae6cad9943758e8beb31ff9b4968207822550))
+
 ## [2.6.0](https://github.com/userfypp/plan-measure/compare/v2.5.1...v2.6.0) (2026-09-27)
 
 
