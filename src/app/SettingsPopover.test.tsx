@@ -29,9 +29,13 @@ interface RenderOptions {
   theme?: ThemePreference;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
+  confirmValueDeletion?: boolean;
+  confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  onConfirmValueDeletionChange?: (enabled: boolean) => void;
+  onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
@@ -39,9 +43,13 @@ function renderSettings({
   theme = "system",
   measurementDecimalPlaces = 2,
   confirmMeasurementDeletion = true,
+  confirmValueDeletion = true,
+  confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange = vi.fn(),
   onConfirmMeasurementDeletionChange = vi.fn(),
+  onConfirmValueDeletionChange,
+  onConfirmDimensionDeletionChange,
   onRecoveredPlanStartupWorkspaceChange = vi.fn(),
 }: RenderOptions = {}) {
   window.localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -52,9 +60,13 @@ function renderSettings({
           trigger={<span>gear</span>}
           measurementDecimalPlaces={measurementDecimalPlaces}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
+          confirmValueDeletion={confirmValueDeletion}
+          confirmDimensionDeletion={confirmDimensionDeletion}
           recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
           onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+          onConfirmValueDeletionChange={onConfirmValueDeletionChange}
+          onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
           onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
         />
         <button type="button">After settings</button>
@@ -255,30 +267,54 @@ describe("SettingsPopover", () => {
 
     expect(control.checked).toBe(false);
     expect(control.getAttribute("aria-label")).toBe("Confirm before deleting measurements");
-    expect(visibleLabel?.textContent).toBe("Confirm before deleting");
+    expect(visibleLabel?.textContent).toBe("Confirm before deleting measurements");
 
     act(() => visibleLabel?.click());
     expect(callbacks.onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(true);
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
+  it("shows independent classification confirmation switches with matching labels", () => {
+    const valueChange = vi.fn();
+    const dimensionChange = vi.fn();
+    renderSettings({ confirmValueDeletion: false, confirmDimensionDeletion: true,
+      onConfirmValueDeletionChange: valueChange, onConfirmDimensionDeletionChange: dimensionChange });
+    openSettings();
+    expect(dialog().textContent).toContain("CLASSIFICATIONS");
+    const values = dialog().querySelector<HTMLInputElement>('input[aria-label="Confirm before deleting values"]')!;
+    const dimensions = dialog().querySelector<HTMLInputElement>('input[aria-label="Confirm before deleting dimensions"]')!;
+    expect(values.checked).toBe(false);
+    expect(dimensions.checked).toBe(true);
+    for (const control of [values, dimensions]) {
+      const label = dialog().querySelector<HTMLLabelElement>(`label[for="${control.id}"]`)!;
+      expect(label.textContent?.trim()).toBe(control.getAttribute("aria-label"));
+      act(() => label.click());
+    }
+    expect(valueChange).toHaveBeenCalledWith(true);
+    expect(dimensionChange).toHaveBeenCalledWith(false);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(switchControl().checked).toBe(true);
+  });
+
   it("keeps exactly one Appearance option in the logical Tab order before the selects and switch", () => {
-    renderSettings({ theme: "light" });
+    renderSettings({ theme: "light", onConfirmValueDeletionChange: vi.fn(), onConfirmDimensionDeletionChange: vi.fn() });
     openSettings();
 
     const tabbable = Array.from(
       dialog().querySelectorAll<HTMLElement>("button, select, input"),
     ).filter((element) => element.tabIndex >= 0);
-    expect(tabbable).toHaveLength(4);
+    expect(tabbable).toHaveLength(6);
     expect(tabbable[0]?.getAttribute("role")).toBe("radio");
     expect(tabbable[0]?.textContent).toBe("Light");
     expect(tabbable[1]).toBe(selectByLabel("Recovered plan workspace"));
     expect(tabbable[2]).toBe(selectByLabel("Decimal places"));
     expect(tabbable[3]).toBe(switchControl());
+    expect(tabbable[4]?.getAttribute("aria-label")).toBe("Confirm before deleting values");
+    expect(tabbable[5]?.getAttribute("aria-label")).toBe("Confirm before deleting dimensions");
   });
 
   it("closes backward from the first setting and forward from the last setting", () => {
-    renderSettings();
+    renderSettings({ onConfirmValueDeletionChange: vi.fn(), onConfirmDimensionDeletionChange: vi.fn() });
     openSettings();
     const settingsTrigger = trigger();
     const first = radios()[0]!;
@@ -296,7 +332,7 @@ describe("SettingsPopover", () => {
     expect(document.activeElement).not.toBe(settingsTrigger);
 
     openSettings();
-    const last = switchControl();
+    const last = dialog().querySelector<HTMLInputElement>('input[aria-label="Confirm before deleting dimensions"]')!;
     act(() => last.focus());
     act(() => {
       last.dispatchEvent(

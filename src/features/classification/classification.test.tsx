@@ -58,10 +58,12 @@ describe("classification surfaces", () => {
         catalog={catalog}
         onCreateDimension={() => undefined}
         onRenameDimension={() => undefined}
+        onDeleteDimension={() => undefined}
         onArchiveDimension={() => undefined}
         onRestoreDimension={() => undefined}
         onCreateValue={() => undefined}
         onRenameValue={() => undefined}
+        onDeleteValue={() => undefined}
         onArchiveValue={() => undefined}
         onRestoreValue={() => undefined}
       />,
@@ -130,16 +132,18 @@ describe("classification surfaces", () => {
     expect(managerCss).not.toContain("@container (max-width: 320px)");
   });
 
-  it("renders archived dimensions with restore and preserved-assignment guidance only", () => {
+  it("renders archived dimensions with restore, actions, and preserved-assignment guidance", () => {
     const markup = renderToStaticMarkup(
       <ClassificationManager
         catalog={archivedCatalog}
         onCreateDimension={() => undefined}
         onRenameDimension={() => undefined}
+        onDeleteDimension={() => undefined}
         onArchiveDimension={() => undefined}
         onRestoreDimension={() => undefined}
         onCreateValue={() => undefined}
         onRenameValue={() => undefined}
+        onDeleteValue={() => undefined}
         onArchiveValue={() => undefined}
         onRestoreValue={() => undefined}
       />,
@@ -238,10 +242,12 @@ describe("classification surfaces", () => {
         catalog={{ dimensions: [] }}
         onCreateDimension={() => undefined}
         onRenameDimension={() => undefined}
+        onDeleteDimension={() => undefined}
         onArchiveDimension={() => undefined}
         onRestoreDimension={() => undefined}
         onCreateValue={() => undefined}
         onRenameValue={() => undefined}
+        onDeleteValue={() => undefined}
         onArchiveValue={() => undefined}
         onRestoreValue={() => undefined}
       />,
@@ -259,10 +265,12 @@ describe("classification surfaces", () => {
         catalog={catalog}
         onCreateDimension={() => undefined}
         onRenameDimension={() => undefined}
+        onDeleteDimension={() => undefined}
         onArchiveDimension={() => undefined}
         onRestoreDimension={() => undefined}
         onCreateValue={() => undefined}
         onRenameValue={() => undefined}
+        onDeleteValue={() => undefined}
         onArchiveValue={() => undefined}
         onRestoreValue={() => undefined}
       />,
@@ -280,10 +288,12 @@ describe("classification surfaces", () => {
         catalog={catalog}
         onCreateDimension={() => undefined}
         onRenameDimension={() => undefined}
+        onDeleteDimension={() => undefined}
         onArchiveDimension={() => undefined}
         onRestoreDimension={() => undefined}
         onCreateValue={() => undefined}
         onRenameValue={() => undefined}
+        onDeleteValue={() => undefined}
         onArchiveValue={() => undefined}
         onRestoreValue={() => undefined}
         disabled
@@ -309,10 +319,12 @@ describe("classification surfaces", () => {
           catalog={largeCatalog}
           onCreateDimension={() => undefined}
           onRenameDimension={() => undefined}
+          onDeleteDimension={() => undefined}
           onArchiveDimension={() => undefined}
           onRestoreDimension={() => undefined}
           onCreateValue={() => undefined}
           onRenameValue={() => undefined}
+          onDeleteValue={() => undefined}
           onArchiveValue={() => undefined}
           onRestoreValue={() => undefined}
         />,

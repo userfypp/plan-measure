@@ -21,6 +21,17 @@ function HistoryHarness() {
         { name: "Trade", values: ["Electrical", "Plumbing"] },
         { name: "Floor", values: ["Ground"] },
       ])}>Apply template</button>
+      <button onClick={() => {
+        const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+        session.classificationCatalog.dimensions = [{ id: "trade", name: "Trade", archived: true,
+          values: [{ id: "electrical", name: "Electrical", archived: true }] }];
+        session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line", calibrationId: "scale",
+          points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], visible: false, classificationValueIds: ["electrical"] }];
+        state.loadSession(session);
+      }}>Load assigned session</button>
+      <button onClick={() => state.deleteClassificationDimension("trade")}>Delete dimension</button>
+      <button onClick={() => state.deleteClassificationValue("trade", "electrical")}>Delete value</button>
+      <output data-testid="session">{JSON.stringify(state.session)}</output>
       <button onClick={state.undo}>Undo</button>
       <button onClick={state.redo}>Redo</button>
       <button onClick={() => state.addClassificationDimension("status", "Status")}>Branch</button>
@@ -58,6 +69,19 @@ afterEach(() => {
 });
 
 describe("session undo and redo history", () => {
+  it.each(["dimension", "value"])("undoes and redoes %s deletion together with assignments", (target) => {
+    click("Load assigned session");
+    const before = document.querySelector('[data-testid="session"]')!.textContent;
+    click(`Delete ${target}`);
+    const deleted = document.querySelector('[data-testid="session"]')!.textContent;
+    expect(JSON.parse(deleted!).pages[1].measurements[0].classificationValueIds).toEqual([]);
+    click("Undo");
+    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(before);
+    expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe("false:true:1");
+    click("Redo");
+    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(deleted);
+  });
+
   it("undoes a complete template application in one step and ignores repeated applications", () => {
     const state = () => document.querySelector("[data-testid='history-state']")?.textContent;
     click("Apply template");

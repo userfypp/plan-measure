@@ -51,7 +51,7 @@ With **Select**, move a measurement or drag its vertices to edit its geometry. U
 
 Open **Details** to review results and the scale, rename the measurement, or add a note with **Save note**. Assign classification values under **Organization**.
 
-Create classification dimensions and values in **Classifications**. For example, a **Trade** dimension can contain **Electrical** and **Plumbing** values. Dimensions and values can be renamed, archived, and restored; archived entries keep their existing assignments.
+Create classification dimensions and values in **Classifications**. For example, a **Trade** dimension can contain **Electrical** and **Plumbing** values. Dimensions and values can be renamed, archived, and restored; archived entries keep their existing assignments. Choose **Delete** from an entry’s actions menu to remove it and its assignments throughout the project. Deleting a dimension also removes all its values. Use **Undo** to restore a deleted entry and its assignments. Confirmation is enabled by default; **Don’t ask again** turns it off for that entry type, and **Settings** lets you enable it again.
 
 Open **Templates** in **Classifications** to save the active project dimensions and values as a named template. Templates stay in this browser and can be applied to other projects. Expand a saved template to preview its contents. **Apply to project** adds missing entries and reuses matching names without changing measurement assignments; restore matching archived entries first. Applying a template is one undoable edit. Deleting a saved template does not remove classifications already applied to a project.
 
@@ -71,7 +71,7 @@ The controls below the plan let you change pages, zoom, or **Fit** the page to t
 - **Polygon area**: follow the selected linear unit or display acres.
 - **Labels**, **Measurements**, and **Calibration**: show or hide calculated labels, measurement geometry, and scale references.
 
-**Settings** controls System, Light, or Dark appearance, measurement decimal places from 0 to 6, confirmation before deleting measurements, and the workspace shown when reopening a saved plan. Decimal places affect displayed decimal values, not feet-and-inches fraction precision or CSV precision. New PDFs open in **Scales**.
+**Settings** controls System, Light, or Dark appearance, measurement decimal places from 0 to 6, independent confirmation settings before deleting measurements, values, and dimensions, and the workspace shown when reopening a saved plan. Decimal places affect displayed decimal values, not feet-and-inches fraction precision or CSV precision. New PDFs open in **Scales**.
 
 ## Projects and local storage
 

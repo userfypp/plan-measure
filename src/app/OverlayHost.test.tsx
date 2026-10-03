@@ -33,6 +33,13 @@ function DeleteRequest() {
   );
 }
 
+function ClassificationDeleteRequest({ target }: { target: "dimension" | "value" }) {
+  const { requestDeleteClassification } = useOverlayState();
+  return <button onClick={() => requestDeleteClassification(target === "dimension"
+    ? { target, dimensionId: "trade", name: "Trade" }
+    : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" })}>Request classification delete</button>;
+}
+
 function SetRatioRequest() {
   const { requestSetScaleRatio } = useOverlayState();
   return (
@@ -179,6 +186,42 @@ describe("OverlayHost Set ratio confirmation", () => {
     act(() => buttonByText("Set ratio").click());
 
     expect(confirm).toHaveBeenCalledWith({ type: "setScaleRatio", payload: setRatioPayload });
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+});
+
+
+describe("OverlayHost classification deletion", () => {
+  it.each(["dimension", "value"] as const)("confirms or cancels deleting a %s", (target) => {
+    const confirm = vi.fn();
+    const cancel = vi.fn();
+    act(() => root!.render(<OverlayProvider>
+      <ClassificationDeleteRequest target={target} />
+      <OverlayHost onConfirmationConfirm={confirm} onConfirmationCancel={cancel} />
+    </OverlayProvider>));
+    act(() => buttonByText("Request classification delete").click());
+    const dialog = document.querySelector("dialog")!;
+    expect(dialog.textContent).toContain(`Delete ${target}`);
+    expect(dialog.textContent).toContain("assignments will be removed from the entire project");
+    expect(dialog.textContent).toContain("Measurements will be kept. You can undo this change.");
+    if (target === "dimension") expect(dialog.textContent).toContain("all its values");
+    const checkbox = dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    expect(checkbox.checked).toBe(false);
+    expect(document.activeElement).toBe(checkbox);
+    expect(dialog.textContent).toContain("Don’t ask again");
+    act(() => checkbox.click());
+    act(() => buttonByText("Cancel").click());
+    expect(confirm).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(document.querySelector("dialog")).toBeNull();
+    act(() => buttonByText("Request classification delete").click());
+    const reopenedCheckbox = document.querySelector<HTMLInputElement>('dialog input[type="checkbox"]')!;
+    expect(reopenedCheckbox.checked).toBe(false);
+    act(() => reopenedCheckbox.click());
+    act(() => buttonByText("Delete").click());
+    expect(confirm).toHaveBeenCalledWith({ type: "deleteClassification", payload: target === "dimension"
+      ? { target, dimensionId: "trade", name: "Trade" }
+      : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" } }, { dontAskAgain: true });
     expect(document.querySelector("dialog")).toBeNull();
   });
 });

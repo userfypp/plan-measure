@@ -153,10 +153,12 @@ export type SessionAction =
   | { type: "APPLY_CLASSIFICATION_TEMPLATE"; dimensions: ClassificationTemplateDimension[] }
   | { type: "ADD_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_DIMENSION"; id: string; name: string }
+  | { type: "DELETE_CLASSIFICATION_DIMENSION"; id: string }
   | { type: "ARCHIVE_CLASSIFICATION_DIMENSION"; id: string }
   | { type: "RESTORE_CLASSIFICATION_DIMENSION"; id: string }
   | { type: "ADD_CLASSIFICATION_VALUE"; dimensionId: string; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_VALUE"; dimensionId: string; id: string; name: string }
+  | { type: "DELETE_CLASSIFICATION_VALUE"; dimensionId: string; id: string }
   | { type: "ARCHIVE_CLASSIFICATION_VALUE"; dimensionId: string; id: string }
   | { type: "RESTORE_CLASSIFICATION_VALUE"; dimensionId: string; id: string }
   | ({ type: "ASSIGN_CLASSIFICATION_VALUE" } & AssignClassificationValueCommand)
@@ -519,7 +521,11 @@ export function sessionReducer(
             id,
             calibrationId: calibration.id,
             points: measurement.points.map((point) => ({ ...point })),
-            classificationValueIds: [...measurement.classificationValueIds],
+            classificationValueIds: measurement.classificationValueIds.filter((id) =>
+              state.session!.classificationCatalog.dimensions.some((dimension) =>
+                dimension.values.some((value) => value.id === id),
+              ),
+            ),
             visible: true,
           },
         ],
@@ -666,6 +672,60 @@ export function sessionReducer(
           classificationCatalog: {
             dimensions: [...dimensions, { id, name, archived: false, values: [] }],
           },
+        },
+        error: null,
+      };
+    }
+    case "DELETE_CLASSIFICATION_DIMENSION":
+    case "DELETE_CLASSIFICATION_VALUE": {
+      if (!state.session) return state;
+      const dimensions = state.session.classificationCatalog.dimensions;
+      const deletingDimension = action.type === "DELETE_CLASSIFICATION_DIMENSION";
+      const dimensionId = deletingDimension ? action.id : action.dimensionId;
+      const dimension = dimensions.find((candidate) => candidate.id === dimensionId);
+      if (!dimension) {
+        return { ...state, error: "The classification dimension is no longer available." };
+      }
+      if (!deletingDimension && !dimension.values.some((value) => value.id === action.id)) {
+        return { ...state, error: "The classification value is no longer available." };
+      }
+      const deletedValueIds = new Set(
+        deletingDimension ? dimension.values.map((value) => value.id) : [action.id],
+      );
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          classificationCatalog: {
+            dimensions: deletingDimension
+              ? dimensions.filter((candidate) => candidate.id !== dimensionId)
+              : dimensions.map((candidate) =>
+                  candidate.id === dimensionId
+                    ? {
+                        ...candidate,
+                        values: candidate.values.filter((value) => value.id !== action.id),
+                      }
+                    : candidate,
+                ),
+          },
+          pages: Object.fromEntries(
+            Object.entries(state.session.pages).map(([pageNumber, page]) => [
+              pageNumber,
+              {
+                ...page,
+                measurements: page.measurements.map((measurement) =>
+                  measurement.classificationValueIds.some((id) => deletedValueIds.has(id))
+                    ? {
+                        ...measurement,
+                        classificationValueIds: measurement.classificationValueIds.filter(
+                          (id) => !deletedValueIds.has(id),
+                        ),
+                      }
+                    : measurement,
+                ),
+              },
+            ]),
+          ),
         },
         error: null,
       };
@@ -1010,10 +1070,12 @@ interface SessionContextValue extends SessionState {
   applyClassificationTemplate: (dimensions: ClassificationTemplateDimension[]) => boolean;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
+  deleteClassificationDimension: (id: string) => void;
   archiveClassificationDimension: (id: string) => void;
   restoreClassificationDimension: (id: string) => void;
   addClassificationValue: (dimensionId: string, id: string, name: string) => void;
   renameClassificationValue: (dimensionId: string, id: string, name: string) => void;
+  deleteClassificationValue: (dimensionId: string, id: string) => void;
   archiveClassificationValue: (dimensionId: string, id: string) => void;
   restoreClassificationValue: (dimensionId: string, id: string) => void;
   assignClassificationValue: (command: AssignClassificationValueCommand) => void;
@@ -1159,6 +1221,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
       renameClassificationDimension: (id, name) =>
         applyAction({ type: "RENAME_CLASSIFICATION_DIMENSION", id, name }),
+      deleteClassificationDimension: (id) =>
+        applyAction({ type: "DELETE_CLASSIFICATION_DIMENSION", id }),
       archiveClassificationDimension: (id) =>
         applyAction({ type: "ARCHIVE_CLASSIFICATION_DIMENSION", id }),
       restoreClassificationDimension: (id) =>
@@ -1167,6 +1231,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "ADD_CLASSIFICATION_VALUE", dimensionId, id, name }),
       renameClassificationValue: (dimensionId, id, name) =>
         applyAction({ type: "RENAME_CLASSIFICATION_VALUE", dimensionId, id, name }),
+      deleteClassificationValue: (dimensionId, id) =>
+        applyAction({ type: "DELETE_CLASSIFICATION_VALUE", dimensionId, id }),
       archiveClassificationValue: (dimensionId, id) =>
         applyAction({ type: "ARCHIVE_CLASSIFICATION_VALUE", dimensionId, id }),
       restoreClassificationValue: (dimensionId, id) =>

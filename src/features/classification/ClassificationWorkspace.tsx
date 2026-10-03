@@ -10,10 +10,12 @@ export interface ClassificationWorkspaceProps {
   catalog: ClassificationCatalog;
   onCreateDimension: (name: string) => void;
   onRenameDimension: (dimensionId: string, name: string) => void;
+  onDeleteDimension: (dimensionId: string) => void;
   onArchiveDimension: (dimensionId: string) => void;
   onRestoreDimension: (dimensionId: string) => void;
   onCreateValue: (dimensionId: string, name: string) => void;
   onRenameValue: (dimensionId: string, valueId: string, name: string) => void;
+  onDeleteValue: (dimensionId: string, valueId: string) => void;
   onArchiveValue: (dimensionId: string, valueId: string) => void;
   onRestoreValue: (dimensionId: string, valueId: string) => void;
   onApplyTemplate?: (dimensions: ClassificationTemplateDimension[]) => boolean;
@@ -24,10 +26,12 @@ export function ClassificationWorkspace({
   catalog,
   onCreateDimension,
   onRenameDimension,
+  onDeleteDimension,
   onArchiveDimension,
   onRestoreDimension,
   onCreateValue,
   onRenameValue,
+  onDeleteValue,
   onArchiveValue,
   onRestoreValue,
   onApplyTemplate,
@@ -51,10 +55,12 @@ export function ClassificationWorkspace({
           catalog={catalog}
           onCreateDimension={onCreateDimension}
           onRenameDimension={onRenameDimension}
+          onDeleteDimension={onDeleteDimension}
           onArchiveDimension={onArchiveDimension}
           onRestoreDimension={onRestoreDimension}
           onCreateValue={onCreateValue}
           onRenameValue={onRenameValue}
+          onDeleteValue={onDeleteValue}
           onArchiveValue={onArchiveValue}
           onRestoreValue={onRestoreValue}
           disabled={disabled}

@@ -92,7 +92,9 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
       }),
     [props.catalog, props.pageLabelOverrides, props.pages, props.sourcePageLabels],
   );
-  const activeDimensionId = dimensionId ?? props.catalog.dimensions[0]?.id ?? null;
+  const activeDimensionId = props.catalog.dimensions.some((dimension) => dimension.id === dimensionId)
+    ? dimensionId
+    : props.catalog.dimensions[0]?.id ?? null;
   const grouped = useMemo(
     () =>
       breakdown === "none"

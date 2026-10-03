@@ -38,6 +38,8 @@ interface AppBarProps {
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
+  confirmValueDeletion?: boolean;
+  confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onExport: () => void;
   onOpenProjects?: () => void;
@@ -45,6 +47,8 @@ interface AppBarProps {
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  onConfirmValueDeletionChange?: (enabled: boolean) => void;
+  onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
@@ -67,6 +71,8 @@ export function AppBar({
   canRedo = false,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
+  confirmValueDeletion = true,
+  confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onExport,
   onOpenProjects,
@@ -74,6 +80,8 @@ export function AppBar({
   onRedo,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
+  onConfirmValueDeletionChange,
+  onConfirmDimensionDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: AppBarProps) {
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -157,9 +165,13 @@ export function AppBar({
           triggerClassName={styles.iconTrigger}
           measurementDecimalPlaces={measurementDecimalPlaces}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
+          confirmValueDeletion={confirmValueDeletion}
+          confirmDimensionDeletion={confirmDimensionDeletion}
           recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
           onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+          onConfirmValueDeletionChange={onConfirmValueDeletionChange}
+          onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
           onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
         />
       </div>

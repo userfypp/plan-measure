@@ -8,10 +8,12 @@ export interface ClassificationManagerProps {
   catalog: ClassificationCatalog;
   onCreateDimension: (name: string) => void;
   onRenameDimension: (dimensionId: string, name: string) => void;
+  onDeleteDimension: (dimensionId: string) => void;
   onArchiveDimension: (dimensionId: string) => void;
   onRestoreDimension: (dimensionId: string) => void;
   onCreateValue: (dimensionId: string, name: string) => void;
   onRenameValue: (dimensionId: string, valueId: string, name: string) => void;
+  onDeleteValue: (dimensionId: string, valueId: string) => void;
   onArchiveValue: (dimensionId: string, valueId: string) => void;
   onRestoreValue: (dimensionId: string, valueId: string) => void;
   disabled?: boolean;
@@ -35,10 +37,12 @@ export function ClassificationManager({
   catalog,
   onCreateDimension,
   onRenameDimension,
+  onDeleteDimension,
   onArchiveDimension,
   onRestoreDimension,
   onCreateValue,
   onRenameValue,
+  onDeleteValue,
   onArchiveValue,
   onRestoreValue,
   disabled = false,
@@ -235,6 +239,21 @@ export function ClassificationManager({
                             >
                               Restore
                             </Button>
+                            <AnchoredMenu
+                              trigger={<MoreActionsIcon />}
+                              triggerProps={{
+                                className: styles.dimensionMenuTrigger,
+                                "aria-label": `Actions for dimension ${dimension.name}`,
+                                disabled,
+                              }}
+                              label={`Actions for dimension ${dimension.name}`}
+                              showMarkerColumn={false}
+                              items={[{
+                                id: "delete",
+                                label: "Delete",
+                                onSelect: () => onDeleteDimension(dimension.id),
+                              }]}
+                            />
                           </div>
                         ) : (
                           <AnchoredMenu
@@ -261,6 +280,11 @@ export function ClassificationManager({
                                 label: "Archive (assignments preserved)",
                                 onSelect: () => archiveDimension(dimension.id),
                               },
+                              {
+                                id: "delete",
+                                label: "Delete",
+                                onSelect: () => onDeleteDimension(dimension.id),
+                              },
                             ]}
                           />
                         )}
@@ -278,11 +302,6 @@ export function ClassificationManager({
                           <li key={value.id} className={styles.valueItem}>
                             {editingValue ? (
                               renderRenameForm(styles.valueRenameForm)
-                            ) : dimension.archived ? (
-                              <span className={styles.readOnlyValue} title={value.name}>
-                                <span className={styles.valueName}>{value.name}</span>
-                                {value.archived && <Badge variant="neutral">Archived</Badge>}
-                              </span>
                             ) : (
                               <AnchoredMenu
                                 trigger={
@@ -306,8 +325,8 @@ export function ClassificationManager({
                                 }}
                                 label={`Actions for ${value.archived ? "archived " : ""}value ${value.name}`}
                                 showMarkerColumn={false}
-                                items={
-                                  value.archived
+                                items={[
+                                  ...(dimension.archived ? [] : value.archived
                                     ? [
                                         {
                                           id: "restore",
@@ -335,7 +354,13 @@ export function ClassificationManager({
                                           onSelect: () => archiveValue(dimension.id, value.id),
                                         },
                                       ]
-                                }
+                                  ),
+                                  {
+                                    id: "delete",
+                                    label: "Delete",
+                                    onSelect: () => onDeleteValue(dimension.id, value.id),
+                                  },
+                                ]}
                               />
                             )}
                           </li>

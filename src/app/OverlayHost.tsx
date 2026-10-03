@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ConfirmationDialog } from "../components/ui";
 import {
   getActiveOverlay,
@@ -72,10 +72,34 @@ export function OverlayHost({
 
   if (activeOverlay?.kind === "confirmation") {
     const confirmation = activeOverlay.descriptor;
+    if (confirmation.type === "deleteClassification") {
+      const { target, name } = confirmation.payload;
+      return (
+        <DeleteConfirmation
+          key={target}
+          title={`Delete ${target} “${name}”?`}
+          description={
+            target === "dimension"
+              ? "This dimension, all its values, and their assignments will be removed from the entire project. Measurements will be kept. You can undo this change."
+              : "This value and its assignments will be removed from the entire project. Measurements will be kept. You can undo this change."
+          }
+          onCancel={() => {
+            closeConfirmation(confirmation);
+            onConfirmationCancel?.(confirmation);
+          }}
+          onConfirm={(dontAskAgain) => {
+            closeConfirmation(confirmation);
+            onConfirmationConfirm?.(confirmation, { dontAskAgain });
+          }}
+        />
+      );
+    }
     if (confirmation.type === "deleteMeasurement") {
       return (
-        <DeleteMeasurementConfirmation
-          confirmation={confirmation}
+        <DeleteConfirmation
+          key="measurement"
+          title={`Delete “${confirmation.payload.measurementName}”?`}
+          description="This measurement will be removed from the current page. Its geometry and scale data will not be changed."
           onCancel={() => {
             closeConfirmation(confirmation);
             onConfirmationCancel?.(confirmation);
@@ -168,23 +192,24 @@ export function OverlayHost({
   return null;
 }
 
-function DeleteMeasurementConfirmation({
-  confirmation,
+function DeleteConfirmation({
+  title,
+  description,
   onConfirm,
   onCancel,
 }: {
-  confirmation: Extract<OverlayConfirmation, { type: "deleteMeasurement" }>;
+  title: ReactNode;
+  description: ReactNode;
   onConfirm: (dontAskAgain: boolean) => void;
   onCancel: () => void;
 }) {
   const [dontAskAgain, setDontAskAgain] = useState(false);
-  const { measurementName } = confirmation.payload;
 
   return (
     <ConfirmationDialog
       open
-      title={`Delete “${measurementName}”?`}
-      description="This measurement will be removed from the current page. Its geometry and scale data will not be changed."
+      title={title}
+      description={description}
       intent="destructive"
       confirmLabel="Delete"
       onCancel={onCancel}

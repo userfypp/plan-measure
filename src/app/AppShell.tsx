@@ -16,6 +16,8 @@ interface AppShellProps {
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
+  confirmValueDeletion?: boolean;
+  confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onExport: () => void;
   onOpenProjects?: () => void;
@@ -23,6 +25,8 @@ interface AppShellProps {
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  onConfirmValueDeletionChange?: (enabled: boolean) => void;
+  onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
   statusMessage?: string | null;
   statusTone?: StatusTone;
@@ -38,6 +42,8 @@ export function AppShell({
   canRedo = false,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
+  confirmValueDeletion = true,
+  confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onExport,
   onOpenProjects,
@@ -45,6 +51,8 @@ export function AppShell({
   onRedo,
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
+  onConfirmValueDeletionChange,
+  onConfirmDimensionDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
   statusMessage,
   statusTone = "error",
@@ -67,6 +75,8 @@ export function AppShell({
         canRedo={canRedo}
         measurementDecimalPlaces={measurementDecimalPlaces}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
+        confirmValueDeletion={confirmValueDeletion}
+        confirmDimensionDeletion={confirmDimensionDeletion}
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onExport={onExport}
         onOpenProjects={onOpenProjects}
@@ -74,6 +84,8 @@ export function AppShell({
         onRedo={onRedo}
         onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
         onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+        onConfirmValueDeletionChange={onConfirmValueDeletionChange}
+        onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
         onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
       />
       <div className={styles.statusRow}>

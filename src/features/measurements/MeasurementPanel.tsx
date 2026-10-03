@@ -47,14 +47,22 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
-  const [groupByDimensionIds, setGroupByDimensionIds] = useState<string[]>([]);
+  const [selectedGroupByDimensionIds, setGroupByDimensionIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [pageFilter, setPageFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState("");
-  const [classificationFilter, setClassificationFilter] = useState("");
+  const [selectedClassificationFilter, setClassificationFilter] = useState("");
   const [openControls, setOpenControls] = useState<"filters" | "grouping" | null>(null);
   const catalog = session?.classificationCatalog ?? { dimensions: [] };
+  const groupByDimensionIds = selectedGroupByDimensionIds.filter((id) =>
+    catalog.dimensions.some((dimension) => dimension.id === id),
+  );
+  const classificationFilter = catalog.dimensions.some((dimension) =>
+    dimension.values.some((value) => value.id === selectedClassificationFilter),
+  )
+    ? selectedClassificationFilter
+    : "";
   const allMeasurements = useMemo(
     () => Object.values(pages).flatMap((candidatePage) =>
       candidatePage.measurements.map((measurement) => ({

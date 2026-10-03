@@ -25,10 +25,12 @@ function createProps(overrides: Partial<ClassificationManagerProps> = {}): Class
     catalog,
     onCreateDimension: vi.fn(),
     onRenameDimension: vi.fn(),
+    onDeleteDimension: vi.fn(),
     onArchiveDimension: vi.fn(),
     onRestoreDimension: vi.fn(),
     onCreateValue: vi.fn(),
     onRenameValue: vi.fn(),
+    onDeleteValue: vi.fn(),
     onArchiveValue: vi.fn(),
     onRestoreValue: vi.fn(),
     ...overrides,
@@ -132,6 +134,37 @@ describe("ClassificationManager interactions", () => {
 
     expect(props.onArchiveDimension).toHaveBeenCalledWith("trade");
     expect(props.onArchiveValue).toHaveBeenCalledWith("trade", "electrical");
+  });
+
+  it.each([false, true])("requests dimension and value deletion when archived=%s", (archived) => {
+    const props = createProps({ catalog: {
+      dimensions: [{ ...catalog.dimensions[0]!, archived,
+        values: [{ ...catalog.dimensions[0]!.values[0]!, archived }] }],
+    } });
+    renderManager(props);
+    selectMenuItem("Actions for dimension Trade", "Delete");
+    selectMenuItem(`Actions for ${archived ? "archived " : ""}value Electrical`, "Delete");
+    expect(props.onDeleteDimension).toHaveBeenCalledWith("trade");
+    expect(props.onDeleteValue).toHaveBeenCalledWith("trade", "electrical");
+    expect(props.onArchiveDimension).not.toHaveBeenCalled();
+    expect(props.onArchiveValue).not.toHaveBeenCalled();
+  });
+
+  it("allows deleting an archived value without restoring it", () => {
+    const props = createProps({ catalog: {
+      dimensions: [{ ...catalog.dimensions[0]!,
+        values: [{ ...catalog.dimensions[0]!.values[0]!, archived: true }] }],
+    } });
+    renderManager(props);
+    selectMenuItem("Actions for archived value Electrical", "Delete");
+    expect(props.onDeleteValue).toHaveBeenCalledWith("trade", "electrical");
+    expect(props.onRestoreValue).not.toHaveBeenCalled();
+  });
+
+  it("disables deletion menus along with the catalog", () => {
+    renderManager(createProps({ disabled: true }));
+    expect(buttonByLabel("Actions for dimension Trade").disabled).toBe(true);
+    expect(buttonByLabel("Actions for value Electrical").disabled).toBe(true);
   });
 
   it("preserves inline create dimension and create value workflows", () => {

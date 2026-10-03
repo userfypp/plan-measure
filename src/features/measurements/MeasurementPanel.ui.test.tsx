@@ -124,6 +124,55 @@ afterEach(() => {
 });
 
 describe("MeasurementPanel and TakeoffWorkspace", () => {
+  it("ignores deleted filters and grouping dimensions, and restores them after undo", () => {
+    const activePage = page([measurement({ classificationValueIds: ["electrical"] })]);
+    const currentSession = session({ 1: activePage });
+    renderPanel(currentSession, activePage);
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click());
+    const group = document.querySelector<HTMLSelectElement>('[aria-label="Measurement grouping"] select')!;
+    act(() => { group.value = "trade"; group.dispatchEvent(new Event("change", { bubbles: true })); });
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Group by Trade"]')!.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
+    const filter = document.querySelector<HTMLSelectElement>('[aria-label="Measurement filters"] select[aria-label="Classification"]')
+      ?? Array.from(document.querySelectorAll<HTMLSelectElement>('[aria-label="Measurement filters"] select')).find((select) => Array.from(select.options).some((option) => option.value === "electrical"))!;
+    act(() => { filter.value = "electrical"; filter.dispatchEvent(new Event("change", { bubbles: true })); });
+    const rerender = (next: CurrentSession) => {
+      state.session = next;
+      act(() => root!.render(<MeasurementPanel page={next.pages[1]!} pages={next.pages}
+        pageLabelOverrides={next.pageLabelOverrides} sourcePageLabels={null} selectedMeasurementId={null}
+        onSelectMeasurement={() => undefined} onSetMeasurementVisibility={() => undefined} onSetMeasurementsVisibility={() => undefined} />));
+    };
+    const deleted = { ...currentSession, classificationCatalog: { dimensions: [] }, pages: {
+      1: page([measurement()]),
+    } };
+    rerender(deleted);
+    expect(container!.querySelector('[aria-label="Filters"]')).not.toBeNull();
+    expect(container!.textContent).not.toContain("Unknown classification");
+    expect(container!.querySelector('[data-measurement-id="line-1"][data-measurement-control="selection"]')).not.toBeNull();
+    rerender(currentSession);
+    expect(container!.querySelector('[aria-label="Filters, 1 active"]')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Group by Trade"]')).not.toBeNull();
+  });
+
+  it("uses an available Takeoff dimension after the selected dimension is deleted", () => {
+    const currentSession = session({ 1: page([measurement()]) });
+    currentSession.classificationCatalog.dimensions.push({ id: "status", name: "Status", archived: false, values: [] });
+    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    const render = () => act(() => root!.render(<TakeoffWorkspace pages={currentSession.pages} catalog={currentSession.classificationCatalog}
+      displayUnit="m" decimalPlaces={2} areaDisplay="auto" pageLabelOverrides={{}} sourcePageLabels={null} />));
+    render();
+    const breakdown = container.querySelector<HTMLSelectElement>('#takeoff-breakdown')!;
+    act(() => { breakdown.value = "classification"; breakdown.dispatchEvent(new Event("change", { bubbles: true })); });
+    const dimension = container.querySelector<HTMLSelectElement>('[aria-label="Dimension"]')!;
+    act(() => { dimension.value = "status"; dimension.dispatchEvent(new Event("change", { bubbles: true })); });
+    currentSession.classificationCatalog = { dimensions: currentSession.classificationCatalog.dimensions.filter((item) => item.id !== "status") };
+    render();
+    expect(container.querySelector<HTMLSelectElement>('[aria-label="Dimension"]')!.value).toBe("trade");
+    currentSession.classificationCatalog = { dimensions: [] };
+    render();
+    expect(container.textContent).toContain("No classification dimensions.");
+  });
+
   it("lets users choose and reorder classification dimensions for nested measurement groups", () => {
     const activePage = page([
       measurement({ classificationValueIds: ["electrical", "approved"] }),

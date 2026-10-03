@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createEmptySession, initialSessionState, sessionReducer } from "../../app/sessionState";
+import { deserializeSession, serializeSession } from "../../services/persistenceCodec";
 import { classificationNameKey } from "../../utils/classificationNames";
 
 function measuredState() {
@@ -50,6 +51,73 @@ function measuredState() {
 }
 
 describe("classification domain integration", () => {
+  it.each(["dimension", "value"] as const)("deletes a %s and only its assignments across all pages", (target) => {
+    const state = measuredState();
+    const session = state.session!;
+    session.pageCount = 2;
+    session.classificationCatalog.dimensions.push({ id: "status", name: "Status", archived: false,
+      values: [{ id: "approved", name: "Approved", archived: false }] });
+    session.pages[1]!.measurements[0]!.classificationValueIds = ["electrical", "approved"];
+    session.pages[2] = { ...session.pages[1]!, pageNumber: 2, measurements: [
+      { ...session.pages[1]!.measurements[0]!, id: "line-2", visible: false,
+        classificationValueIds: ["plumbing", "approved"] },
+    ] };
+    const before = structuredClone(session);
+    const result = sessionReducer(state, target === "dimension"
+      ? { type: "DELETE_CLASSIFICATION_DIMENSION", id: "trade" }
+      : { type: "DELETE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "electrical" });
+    expect(result.error).toBeNull();
+    expect(state.session).toEqual(before);
+    expect(result.session!.pages[1]!.measurements[0]).toEqual({
+      ...before.pages[1]!.measurements[0], classificationValueIds: ["approved"],
+    });
+    expect(result.session!.pages[2]!.measurements[0]).toEqual({
+      ...before.pages[2]!.measurements[0],
+      classificationValueIds: target === "dimension" ? ["approved"] : ["plumbing", "approved"],
+    });
+    expect(result.session!.classificationCatalog.dimensions[0]).toEqual(target === "dimension"
+      ? before.classificationCatalog.dimensions[1]
+      : { ...before.classificationCatalog.dimensions[0], values: [before.classificationCatalog.dimensions[0]!.values[1]] });
+    expect(deserializeSession(serializeSession(result.session!))).toEqual(result.session);
+  });
+
+  it.each(["dimension", "value"] as const)("deletes an archived %s", (target) => {
+    let state = measuredState();
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "electrical" });
+    state = sessionReducer(state, { type: "ARCHIVE_CLASSIFICATION_DIMENSION", id: "trade" });
+    const result = sessionReducer(state, target === "dimension"
+      ? { type: "DELETE_CLASSIFICATION_DIMENSION", id: "trade" }
+      : { type: "DELETE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "electrical" });
+    expect(result.error).toBeNull();
+    expect(result.session!.classificationCatalog.dimensions).toEqual(target === "dimension" ? [] : [
+      { ...state.session!.classificationCatalog.dimensions[0], values: [{ id: "plumbing", name: "Plumbing", archived: false }] },
+    ]);
+  });
+
+  it("rejects stale deletion targets without changing session data", () => {
+    const state = measuredState();
+    for (const action of [
+      { type: "DELETE_CLASSIFICATION_DIMENSION", id: "missing" },
+      { type: "DELETE_CLASSIFICATION_VALUE", dimensionId: "missing", id: "electrical" },
+      { type: "DELETE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "missing" },
+    ] as const) {
+      const result = sessionReducer(state, action);
+      expect(result.error).toMatch(/no longer available/);
+      expect(result.session).toBe(state.session);
+    }
+    expect(sessionReducer(initialSessionState, { type: "DELETE_CLASSIFICATION_DIMENSION", id: "missing" })).toBe(initialSessionState);
+  });
+
+  it("does not reintroduce deleted assignments when pasting a previously copied measurement", () => {
+    const state = measuredState();
+    const copied = { ...state.session!.pages[1]!.measurements[0]!, classificationValueIds: ["electrical"] };
+    const deleted = sessionReducer(state, { type: "DELETE_CLASSIFICATION_VALUE", dimensionId: "trade", id: "electrical" });
+    const pasted = sessionReducer(deleted, { type: "PASTE_MEASUREMENT", pageNumber: 1, sourcePageNumber: 1, id: "copy", measurement: copied });
+    expect(pasted.error).toBeNull();
+    expect(pasted.session!.pages[1]!.measurements[1]!.classificationValueIds).toEqual([]);
+    expect(copied.classificationValueIds).toEqual(["electrical"]);
+  });
+
   function withLocaleDefault(locale: "en-US" | "tr-TR", callback: () => void) {
     const original = Object.getOwnPropertyDescriptor(String.prototype, "toLocaleLowerCase")!;
     Object.defineProperty(String.prototype, "toLocaleLowerCase", {

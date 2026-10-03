@@ -76,6 +76,10 @@ import {
   isValidPageCalibration,
 } from "../utils/geometry";
 import {
+  readClassificationDeleteConfirmationPreference,
+  writeClassificationDeleteConfirmationPreference,
+} from "./classificationDeletePreference";
+import {
   readMeasurementDeleteConfirmationPreference,
   writeMeasurementDeleteConfirmationPreference,
 } from "./measurementDeletePreference";
@@ -132,10 +136,12 @@ function PlanMeasureApp() {
     addClassificationDimension,
     applyClassificationTemplate,
     renameClassificationDimension,
+    deleteClassificationDimension,
     archiveClassificationDimension,
     restoreClassificationDimension,
     addClassificationValue,
     renameClassificationValue,
+    deleteClassificationValue,
     archiveClassificationValue,
     restoreClassificationValue,
     assignClassificationValue,
@@ -143,6 +149,7 @@ function PlanMeasureApp() {
     updateSettings,
   } = useSessionState();
   const {
+    requestDeleteClassification,
     requestReplacePdf,
     closeDialog,
     requestRecalibration: openRecalibrationConfirmation,
@@ -197,6 +204,12 @@ function PlanMeasureApp() {
   const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
+  );
+  const [confirmValueDeletion, setConfirmValueDeletionState] = useState(
+    () => readClassificationDeleteConfirmationPreference("value"),
+  );
+  const [confirmDimensionDeletion, setConfirmDimensionDeletionState] = useState(
+    () => readClassificationDeleteConfirmationPreference("dimension"),
   );
   const [recoveredPlanStartupWorkspace, setRecoveredPlanStartupWorkspaceState] = useState(
     readRecoveredPlanStartupWorkspacePreference,
@@ -305,6 +318,16 @@ function PlanMeasureApp() {
   const setConfirmMeasurementDeletion = useCallback((enabled: boolean) => {
     setConfirmMeasurementDeletionState(enabled);
     writeMeasurementDeleteConfirmationPreference(enabled);
+  }, []);
+
+  const setConfirmValueDeletion = useCallback((enabled: boolean) => {
+    setConfirmValueDeletionState(enabled);
+    writeClassificationDeleteConfirmationPreference("value", enabled);
+  }, []);
+
+  const setConfirmDimensionDeletion = useCallback((enabled: boolean) => {
+    setConfirmDimensionDeletionState(enabled);
+    writeClassificationDeleteConfirmationPreference("dimension", enabled);
   }, []);
 
   const setRecoveredPlanStartupWorkspace = useCallback(
@@ -795,6 +818,17 @@ function PlanMeasureApp() {
     confirmation: OverlayConfirmation,
     options?: { dontAskAgain?: boolean },
   ) {
+    if (confirmation.type === "deleteClassification") {
+      const payload = confirmation.payload;
+      if (payload.target === "dimension") {
+        if (options?.dontAskAgain) setConfirmDimensionDeletion(false);
+        deleteClassificationDimension(payload.dimensionId);
+      } else {
+        if (options?.dontAskAgain) setConfirmValueDeletion(false);
+        deleteClassificationValue(payload.dimensionId, payload.valueId);
+      }
+      return;
+    }
     if (confirmation.type === "deleteMeasurement") {
       if (options?.dontAskAgain) setConfirmMeasurementDeletion(false);
       performMeasurementDelete(confirmation.payload);
@@ -1021,6 +1055,8 @@ function PlanMeasureApp() {
       canRedo={canRedo}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
+      confirmValueDeletion={confirmValueDeletion}
+      confirmDimensionDeletion={confirmDimensionDeletion}
       recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
       onExport={() => setExportDialogOpen(true)}
       onOpenProjects={() => {
@@ -1033,6 +1069,8 @@ function PlanMeasureApp() {
         updateSettings({ measurementDecimalPlaces })
       }
       onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
+      onConfirmValueDeletionChange={setConfirmValueDeletion}
+      onConfirmDimensionDeletionChange={setConfirmDimensionDeletion}
       onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
@@ -1122,12 +1160,32 @@ function PlanMeasureApp() {
                   }
                   onApplyTemplate={applyClassificationTemplate}
                   onRenameDimension={renameClassificationDimension}
+                  onDeleteDimension={(dimensionId) => {
+                    const dimension = session.classificationCatalog.dimensions.find(
+                      (item) => item.id === dimensionId,
+                    );
+                    if (dimension && !confirmDimensionDeletion) {
+                      deleteClassificationDimension(dimensionId);
+                    } else if (dimension) {
+                      requestDeleteClassification({ target: "dimension", dimensionId, name: dimension.name });
+                    }
+                  }}
                   onArchiveDimension={archiveClassificationDimension}
                   onRestoreDimension={restoreClassificationDimension}
                   onCreateValue={(dimensionId, name) =>
                     addClassificationValue(dimensionId, crypto.randomUUID(), name)
                   }
                   onRenameValue={renameClassificationValue}
+                  onDeleteValue={(dimensionId, valueId) => {
+                    const value = session.classificationCatalog.dimensions
+                      .find((item) => item.id === dimensionId)
+                      ?.values.find((item) => item.id === valueId);
+                    if (value && !confirmValueDeletion) {
+                      deleteClassificationValue(dimensionId, valueId);
+                    } else if (value) {
+                      requestDeleteClassification({ target: "value", dimensionId, valueId, name: value.name });
+                    }
+                  }}
                   onArchiveValue={archiveClassificationValue}
                   onRestoreValue={restoreClassificationValue}
                 />

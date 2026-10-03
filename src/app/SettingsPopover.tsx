@@ -28,9 +28,13 @@ export interface SettingsPopoverProps {
   triggerClassName?: string;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   confirmMeasurementDeletion?: boolean;
+  confirmValueDeletion?: boolean;
+  confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
+  onConfirmValueDeletionChange?: (enabled: boolean) => void;
+  onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
@@ -39,15 +43,22 @@ export function SettingsPopover({
   triggerClassName,
   measurementDecimalPlaces = null,
   confirmMeasurementDeletion = true,
+  confirmValueDeletion = true,
+  confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange,
   onConfirmMeasurementDeletionChange,
+  onConfirmValueDeletionChange,
+  onConfirmDimensionDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: SettingsPopoverProps) {
   const { preference, setPreference } = useTheme();
   const titleId = useId();
   const interfaceHeadingId = useId();
   const measurementsHeadingId = useId();
+  const classificationsHeadingId = useId();
+  const valueDeletionId = useId();
+  const dimensionDeletionId = useId();
   const appearanceLabelId = useId();
   const recoveredWorkspaceId = useId();
   const recoveredWorkspaceDescriptionId = useId();
@@ -196,7 +207,7 @@ export function SettingsPopover({
             {onConfirmMeasurementDeletionChange && (
               <div className={styles.settingRow}>
                 <label className={styles.settingLabel} htmlFor={deleteConfirmationId}>
-                  Confirm before deleting
+                  Confirm before deleting measurements
                 </label>
                 <Switch
                   id={deleteConfirmationId}
@@ -208,6 +219,45 @@ export function SettingsPopover({
             )}
           </div>
         </section>
+
+        {(onConfirmValueDeletionChange || onConfirmDimensionDeletionChange) && (
+          <>
+            <div className={styles.divider} aria-hidden="true" />
+            <section className={styles.section} aria-labelledby={classificationsHeadingId}>
+              <h3 id={classificationsHeadingId} className={styles.sectionHeading}>
+                CLASSIFICATIONS
+              </h3>
+              <div className={styles.settingList}>
+                {onConfirmValueDeletionChange && (
+                  <div className={styles.settingRow}>
+                    <label className={styles.settingLabel} htmlFor={valueDeletionId}>
+                      Confirm before deleting values
+                    </label>
+                    <Switch
+                      id={valueDeletionId}
+                      aria-label="Confirm before deleting values"
+                      checked={confirmValueDeletion}
+                      onChange={onConfirmValueDeletionChange}
+                    />
+                  </div>
+                )}
+                {onConfirmDimensionDeletionChange && (
+                  <div className={styles.settingRow}>
+                    <label className={styles.settingLabel} htmlFor={dimensionDeletionId}>
+                      Confirm before deleting dimensions
+                    </label>
+                    <Switch
+                      id={dimensionDeletionId}
+                      aria-label="Confirm before deleting dimensions"
+                      checked={confirmDimensionDeletion}
+                      onChange={onConfirmDimensionDeletionChange}
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </div>
     </Popover>
   );

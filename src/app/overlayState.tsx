@@ -14,8 +14,13 @@ export interface SetScaleRatioPayload {
 export interface CalibrationReferenceEditConfirmationPayload { pageNumber: number; calibrationId: string; reference: CalibrationReferenceKey; calibrationName: string; measurementCount: number }
 export interface DeleteMeasurementPayload { pageNumber: number; measurementId: string; measurementName: string }
 
+export type DeleteClassificationPayload =
+  | { target: "dimension"; dimensionId: string; name: string }
+  | { target: "value"; dimensionId: string; valueId: string; name: string };
+
 export type OverlayDialog = { type: "replacePdf"; payload: ReplacePdfPayload };
 export type OverlayConfirmation =
+  | { type: "deleteClassification"; payload: DeleteClassificationPayload }
   | { type: "recalibrateScale"; payload: RecalibrationPayload }
   | { type: "setScaleRatio"; payload: SetScaleRatioPayload }
   | { type: "saveCalibrationReferenceEdit"; payload: CalibrationReferenceEditConfirmationPayload }
@@ -29,6 +34,7 @@ export interface OverlayState { active: ActiveOverlay | null }
 export const initialOverlayState: OverlayState = { active: null };
 
 export type OverlayAction =
+  | { type: "REQUEST_DELETE_CLASSIFICATION"; payload: DeleteClassificationPayload }
   | { type: "REQUEST_REPLACE_PDF"; payload: ReplacePdfPayload }
   | { type: "CLOSE_DIALOG"; dialog?: OverlayDialog }
   | { type: "REQUEST_RECALIBRATION"; payload: RecalibrationPayload }
@@ -57,6 +63,9 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
     case "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT":
       if (state.active?.kind === "dialog") return state;
       return { active: { kind: "confirmation", descriptor: { type: "saveCalibrationReferenceEdit", payload: action.payload } } };
+    case "REQUEST_DELETE_CLASSIFICATION":
+      if (state.active?.kind === "dialog") return state;
+      return { active: { kind: "confirmation", descriptor: { type: "deleteClassification", payload: action.payload } } };
     case "REQUEST_DELETE_MEASUREMENT":
       if (state.active?.kind === "dialog") return state;
       return { active: { kind: "confirmation", descriptor: { type: "deleteMeasurement", payload: action.payload } } };
@@ -76,6 +85,7 @@ interface OverlayContextValue {
   requestRecalibration: (payload: RecalibrationPayload) => void;
   requestSetScaleRatio: (payload: SetScaleRatioPayload) => void;
   requestSaveCalibrationReferenceEdit: (payload: CalibrationReferenceEditConfirmationPayload) => void;
+  requestDeleteClassification: (payload: DeleteClassificationPayload) => void;
   requestDeleteMeasurement: (payload: DeleteMeasurementPayload) => void;
   closeConfirmation: (confirmation?: OverlayConfirmation) => void;
   closeAllOverlays: () => void;
@@ -106,6 +116,10 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT", payload }),
     [],
   );
+  const requestDeleteClassification = useCallback(
+    (payload: DeleteClassificationPayload) => dispatch({ type: "REQUEST_DELETE_CLASSIFICATION", payload }),
+    [],
+  );
   const requestDeleteMeasurement = useCallback(
     (payload: DeleteMeasurementPayload) =>
       dispatch({ type: "REQUEST_DELETE_MEASUREMENT", payload }),
@@ -127,6 +141,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     requestRecalibration,
     requestSetScaleRatio,
     requestSaveCalibrationReferenceEdit,
+    requestDeleteClassification,
     requestDeleteMeasurement,
     closeConfirmation,
     closeAllOverlays,
@@ -134,6 +149,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     closeAllOverlays,
     closeConfirmation,
     closeDialog,
+    requestDeleteClassification,
     requestDeleteMeasurement,
     requestRecalibration,
     requestReplacePdf,
