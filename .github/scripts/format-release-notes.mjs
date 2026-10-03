@@ -107,10 +107,28 @@ export function summaryFromBody(body = "") {
 }
 
 export function closingReferences(body = "", repository) {
-  const clean = stripHtmlComments(body ?? "").replace(/```[^]*?```|`[^`]*`/g, "");
+  let fence;
+  const clean = stripHtmlComments(body ?? "")
+    .split(/\r?\n/)
+    .map((line) => {
+      if (fence) {
+        const closing = line.match(/^ {0,3}(`+|~+)\s*$/);
+        if (closing && closing[1][0] === fence[0] && closing[1].length >= fence.length)
+          fence = undefined;
+        return "";
+      }
+      const opening = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (opening && !(opening[1][0] === "`" && opening[2].includes("`"))) {
+        fence = opening[1];
+        return "";
+      }
+      return line;
+    })
+    .join("\n")
+    .replace(/(?<!`)(`+)(?!`)[^]*?(?<!`)\1(?!`)/g, "");
   const result = [];
   const pattern =
-    /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:(https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/([1-9]\d*))|(?:([\w.-]+\/[\w.-]+)?#([1-9]\d*)))\b/gi;
+    /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+(?:(https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/([1-9]\d*))|(?:([\w.-]+\/[\w.-]+)?#([1-9]\d*)))\b/gi;
   for (const match of clean.matchAll(pattern)) {
     const repo = match[2] ?? match[4] ?? repository;
     const number = match[3] ?? match[5];

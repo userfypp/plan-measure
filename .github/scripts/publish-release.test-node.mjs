@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { publishRelease, releaseMetadata, collectSources } from "./publish-release.mjs";
 import { githubApi, pages, workflowContext } from "./github-api.mjs";
 import { planDeployment } from "./plan-pages-deployment.mjs";
+import { recoverRelease, recoveryContext } from "./recover-release.mjs";
 
 const repository = "userfypp/plan-measure";
 const root = `/repos/${repository}`;
@@ -275,6 +277,43 @@ test("GitHub API treats only explicit optional 404 as absence and never retries 
   await assert.rejects(() => api(`${root}/releases`), /HTTP 404/);
 });
 
+test("API diagnostics include bounded safe messages and request IDs, not raw responses", async () => {
+  let calls = 0;
+  const api = githubApi("private-token", async () => {
+    calls += 1;
+    return new Response(
+      JSON.stringify({
+        message: "Permission denied\nBearer private-token " + "x".repeat(500),
+        secret: "never-print-this",
+      }),
+      { status: 403, headers: { "x-github-request-id": "AB12:CD34" } },
+    );
+  });
+  await assert.rejects(
+    () => api(`${root}/issues/42/labels`, { method: "POST", body: { labels: [tagged] } }),
+    (error) => {
+      assert.match(error.message, /HTTP 403 — Permission denied Bearer \[redacted\]/);
+      assert.match(error.message, /request ID: AB12:CD34/);
+      assert.doesNotMatch(error.message, /private-token|never-print-this|\n/);
+      assert.ok(error.message.length < 450);
+      return true;
+    },
+  );
+  assert.equal(calls, 1);
+  const invalid = githubApi(
+    "private-token",
+    async () =>
+      new Response("<html>secret</html>", {
+        status: 503,
+        headers: { "x-github-request-id": "EF56" },
+      }),
+  );
+  await assert.rejects(
+    () => invalid(`${root}/releases`),
+    /^Error: GitHub GET .*HTTP 503 \(request ID: EF56\)$/,
+  );
+});
+
 test("pagination includes later pages and workflow context rejects untrusted events", async () => {
   const items = [];
   for await (const item of pages(
@@ -402,4 +441,202 @@ test("an existing draft can recover after losing the response to its update", as
   state.failAt = null;
   await run();
   assertPublished(state);
+});
+
+test("publication grants PR-label write access in both caller and reusable workflow", async () => {
+  const ci = await readFile(new URL("../workflows/ci.yml", import.meta.url), "utf8");
+  const publication = await readFile(
+    new URL("../workflows/publish-release.yml", import.meta.url),
+    "utf8",
+  );
+  const caller = ci.split("  publish-release:\n")[1]?.split("  release-please:\n")[0];
+  assert.ok(caller, "CI must call the publication workflow");
+  assert.match(caller, /permissions:\n(?:      [^\n]+\n)*      pull-requests: write\n/);
+  assert.match(publication, /permissions:\n(?:  [^\n]+\n)*  pull-requests: write\n/);
+  assert.match(publication, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+});
+
+test("a label permission failure recovers without rewriting an already published release", async () => {
+  const { state, api, run } = fixture();
+  await run();
+  const published = clone(state.release);
+  state.labels = [{ name: pending }, { name: "unrelated" }];
+  state.calls = [];
+  await assert.rejects(
+    () =>
+      publishRelease(
+        (path, options = {}) => {
+          if (path === `${root}/issues/42/labels` && options.method === "POST")
+            throw new Error("GitHub POST labels: HTTP 403");
+          return api(path, options);
+        },
+        context,
+        async () => clone(metadata),
+      ),
+    /HTTP 403/,
+  );
+  assert.deepEqual(state.release, published);
+  assert.equal((await run()).status, "already-published");
+  assert.deepEqual(state.release, published);
+  assert.deepEqual(
+    state.calls.filter(({ method }) => method !== "GET").map(({ path }) => path),
+    [`${root}/issues/42/labels`, `${root}/issues/42/labels/${encodeURIComponent(pending)}`],
+  );
+});
+
+function recoveryFixture() {
+  const base = fixture();
+  const run = {
+    path: ".github/workflows/ci.yml",
+    event: "push",
+    head_branch: "main",
+    status: "completed",
+    repository: { full_name: repository },
+    head_repository: { full_name: repository },
+    head_sha: sha,
+    run_attempt: 1,
+  };
+  const job = (name, extra = {}) => ({
+    name,
+    head_sha: sha,
+    status: "completed",
+    conclusion: "success",
+    ...extra,
+  });
+  const attempts = new Map([[1, [job("verify"), job("pages / deploy")]]]);
+  const api = (path, options) => {
+    if (path === `${root}/actions/runs/123`) return clone(run);
+    const jobs = path.match(
+      /\/actions\/runs\/123\/attempts\/(\d+)\/jobs\?per_page=100&page=(\d+)$/,
+    );
+    if (jobs) {
+      const items = attempts.get(Number(jobs[1])) ?? [];
+      const offset = (Number(jobs[2]) - 1) * 100;
+      return { total_count: items.length, jobs: clone(items.slice(offset, offset + 100)) };
+    }
+    return base.api(path, options);
+  };
+  let metadataReads = 0;
+  return {
+    ...base,
+    originalRun: run,
+    attempts,
+    job,
+    reads: () => metadataReads,
+    recover: () =>
+      recoverRelease(api, { repository, runId: "123" }, async (target) => {
+        assert.equal(target, sha, "metadata must come from the original CI SHA");
+        metadataReads += 1;
+        return clone(metadata);
+      }),
+  };
+}
+
+test("manual recovery publishes the original validated SHA and preserves published releases", async () => {
+  const { recover, state } = recoveryFixture();
+  assert.equal((await recover()).status, "published");
+  assertPublished(state);
+  const published = clone(state.release);
+  state.labels = [{ name: pending }, { name: "unrelated" }];
+  assert.equal((await recover()).status, "already-published");
+  assertPublished(state);
+  assert.deepEqual(state.release, published);
+  const writes = state.mutations;
+  await recover();
+  assert.equal(state.mutations, writes);
+});
+
+test("recovery accepts successful jobs across retries but never skipped or wrong-SHA evidence", async () => {
+  const { recover, originalRun, attempts, job, state } = recoveryFixture();
+  originalRun.run_attempt = 3;
+  attempts.set(1, [job("verify"), job("pages / deploy", { conclusion: "failure" })]);
+  attempts.set(2, [job("pages / deploy")]);
+  attempts.set(3, [job("pages / deploy", { conclusion: "skipped" })]);
+  await recover();
+  assert.match(state.release.body, /actions\/runs\/123\/attempts\/2/);
+  for (const jobs of [
+    [job("verify")],
+    [job("verify"), job("pages / deploy", { conclusion: "skipped" })],
+    [job("verify", { conclusion: "failure" }), job("pages / deploy")],
+    [job("verify"), job("pages / deploy", { head_sha: sourceSha })],
+    [job("verify", { head_sha: sourceSha }), job("pages / deploy")],
+    [job("verify"), job("pages / deploy"), job("pages / deploy")],
+  ]) {
+    const candidate = recoveryFixture();
+    candidate.attempts.set(1, jobs);
+    await assert.rejects(candidate.recover, /did not successfully validate and deploy/);
+    assert.equal(candidate.state.mutations, 0);
+    assert.equal(candidate.reads(), 0);
+  }
+});
+
+test("recovery reads the Actions jobs envelope and paginates validation evidence", async () => {
+  const { recover, attempts, job, state } = recoveryFixture();
+  attempts.set(1, [
+    ...Array.from({ length: 100 }, (_, index) => job(`other-${index}`)),
+    job("verify"),
+    job("pages / deploy"),
+  ]);
+  await recover();
+  assertPublished(state);
+});
+
+test("recovery rejects unrelated runs and non-release commits before writing", async () => {
+  for (const patch of [
+    { path: ".github/workflows/other.yml" },
+    { event: "pull_request" },
+    { head_branch: "feature" },
+    { status: "in_progress" },
+    { repository: { full_name: "other/repo" } },
+    { head_repository: { full_name: "other/fork" } },
+    { head_sha: "main" },
+    { run_attempt: 0 },
+    { run_attempt: "1" },
+  ]) {
+    const candidate = recoveryFixture();
+    Object.assign(candidate.originalRun, patch);
+    await assert.rejects(candidate.recover, /completed main CI run/);
+    assert.equal(candidate.state.mutations, 0);
+    assert.equal(candidate.reads(), 0);
+  }
+  const candidate = recoveryFixture();
+  candidate.state.pr = null;
+  await assert.rejects(candidate.recover, /not a merged Release Please PR/);
+  assert.equal(candidate.state.mutations, 0);
+});
+
+test("recovery context accepts only a manual main dispatch with a numeric original run ID", () => {
+  const env = {
+    GITHUB_REPOSITORY: repository,
+    GITHUB_SHA: sourceSha,
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    RECOVERY_RUN_ID: "123",
+  };
+  assert.deepEqual(recoveryContext(env), { repository, sha: sourceSha, runId: "123" });
+  for (const patch of [
+    { GITHUB_EVENT_NAME: "push" },
+    { GITHUB_REF: "refs/heads/feature" },
+    { RECOVERY_RUN_ID: "" },
+    { RECOVERY_RUN_ID: "123; echo bad" },
+    { GITHUB_SHA: "main" },
+  ])
+    assert.throws(() => recoveryContext({ ...env, ...patch }));
+});
+
+test("recovery workflow uses current code, original run input, and serialized publication", async () => {
+  const workflow = await readFile(
+    new URL("../workflows/recover-release.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /pull-requests: write/);
+  assert.match(workflow, /group: release-please-main/);
+  assert.match(workflow, /ref: \$\{\{ github.sha \}\}/);
+  assert.match(workflow, /fetch-depth: 0/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.match(workflow, /RECOVERY_RUN_ID: \$\{\{ inputs.run_id \}\}/);
+  assert.match(workflow, /needs: recover/);
+  assert.match(workflow, /uses: .\/.github\/workflows\/release-please.yml/);
 });

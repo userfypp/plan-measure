@@ -167,6 +167,49 @@ test("only explicit closing references become issue links", () => {
   );
 });
 
+test("closing references accept colons and ignore fenced and inline code examples", () => {
+  const body = [
+    "Closes: #12; FIXES: other/repo#7; resolves: https://github.com/another/repo/issues/9",
+    "~~~text",
+    "Closes #90",
+    "~~~",
+    "````markdown",
+    "```",
+    "Fixes #91",
+    "```",
+    "````",
+    "  ~~~",
+    "Resolves #92",
+    "  ~~~~",
+    "`Closes #93` and ``example ` fixes #94``",
+    "Closes #15",
+    "```",
+    "Closes #95", // An unclosed fence remains code through the end.
+  ].join("\n");
+  assert.deepEqual(
+    closingReferences(body, repository).map((ref) => ref.label),
+    ["#12", "other/repo#7", "another/repo#9", "#15"],
+  );
+});
+
+test("release summaries preserve inline code without guessing technical terms", () => {
+  const entries = parseChangelog(entry(`add export ${metadata}`), "3.0.0");
+  const sources = new Map([
+    [
+      sha,
+      {
+        repository,
+        number: 156,
+        body: "## Summary\n- Fix `setRatio` in `viewer.ts` with `--strict` and keep Show labels readable.",
+      },
+    ],
+  ]);
+  assert.match(
+    renderNotes(entries, sources),
+    /Fixed `setRatio` in `viewer\.ts` with `--strict` and keep Show labels readable\./,
+  );
+});
+
 test("all existing changelog versions render without invented validation claims", async () => {
   const changelog = await readFile(new URL("../../CHANGELOG.md", import.meta.url), "utf8");
   for (const version of ["2.3.0", "2.4.0", "2.5.0", "2.5.1", "2.6.0"]) {

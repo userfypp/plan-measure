@@ -11,6 +11,8 @@ Breaking changes: feat!: ... or fix!: ...
 <!--
 Describe the change and its effect in the first bullet; it becomes the
 release-note description. See .github/RELEASING.md.
+Use inline code (`…`) for commands, file paths, identifiers, flags, and literal
+values. This formatting is preserved in release notes; use plain text for UI labels.
 -->
 
 ## Validation

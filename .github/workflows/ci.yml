@@ -75,7 +75,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: write
-      pull-requests: read
+      pull-requests: write
       issues: write
     uses: ./.github/workflows/publish-release.yml
 

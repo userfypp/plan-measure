@@ -35,7 +35,23 @@ export function githubApi(token = process.env.GH_TOKEN, request = fetch) {
       signal: AbortSignal.timeout(30_000),
     });
     if (optional && response.status === 404) return null;
-    if (!response.ok) throw new Error(`GitHub ${method} ${path}: HTTP ${response.status}`);
+    if (!response.ok) {
+      // Log only GitHub's bounded message and request ID, never raw bodies or headers.
+      const error = await response.json().catch(() => null);
+      const message =
+        typeof error?.message === "string"
+          ? error.message
+              .replaceAll(token, "[redacted]")
+              .replace(/[\p{Cc}]/gu, " ")
+              .slice(0, 300)
+          : "";
+      const requestId = (response.headers.get("x-github-request-id") ?? "")
+        .replace(/[^\w:-]/g, "")
+        .slice(0, 100);
+      throw new Error(
+        `GitHub ${method} ${path}: HTTP ${response.status}${message ? ` — ${message}` : ""}${requestId ? ` (request ID: ${requestId})` : ""}`,
+      );
+    }
     if (response.status === 204) return null;
     return response.json();
   };

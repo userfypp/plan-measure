@@ -1,0 +1,54 @@
+name: Recover Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Original main CI run ID that validated and deployed the release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    concurrency:
+      group: release-please-main
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+      issues: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out current recovery code and release history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Recover the validated release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_RUN_ID: ${{ inputs.run_id }}
+        run: node .github/scripts/recover-release.mjs
+
+  release-please:
+    needs: recover
+    if: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-please.yml
+    secrets:
+      RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
