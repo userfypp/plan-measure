@@ -1,4 +1,5 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import type { AppErrorNotification } from "./state";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import { AppBar } from "./AppBar";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -32,6 +33,8 @@ interface AppShellProps {
   statusTone?: StatusTone;
   statusActions?: ReactNode;
   onDismissStatus?: () => void;
+  errorNotifications?: readonly AppErrorNotification[];
+  onDismissError?: (id: number) => void;
 }
 
 export function AppShell({
@@ -59,6 +62,8 @@ export function AppShell({
   statusTone = "error",
   statusActions,
   onDismissStatus,
+  errorNotifications = [],
+  onDismissError,
 }: AppShellProps) {
   const tabNavigationRootRef = useRef<HTMLDivElement>(null);
   useManagedTabNavigation(tabNavigationRootRef);
@@ -90,22 +95,71 @@ export function AppShell({
         onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
         onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
       />
-      <div className={styles.statusRow}>
-        {statusMessage ? (
-          <div className={`${styles.status} ${styles[statusTone]}`} role="alert">
-            <span>{statusMessage}</span>
-            {statusActions && <div className={styles.statusActions}>{statusActions}</div>}
-            {onDismissStatus && (
-              <button type="button" aria-label="Dismiss message" onClick={onDismissStatus}>
-                Dismiss
-              </button>
+      <div className={styles.content}>
+        {(statusMessage || errorNotifications.length > 0) && (
+          <div className={styles.statusRow}>
+            {statusMessage && (
+              <StatusNotification
+                key={`status:${statusMessage}`}
+                message={statusMessage}
+                tone={statusTone}
+                actions={statusActions}
+                onDismiss={onDismissStatus}
+              />
             )}
+            {errorNotifications.map(({ id, message }) => (
+              <StatusNotification
+                key={id}
+                message={message}
+                tone="error"
+                onDismiss={onDismissError ? () => onDismissError(id) : undefined}
+              />
+            ))}
           </div>
-        ) : (
-          <div className={styles.statusPlaceholder} aria-hidden="true" />
         )}
+        {children}
       </div>
-      <div className={styles.content}>{children}</div>
+    </div>
+  );
+}
+
+function StatusNotification({ message, tone, actions, onDismiss }: {
+  message: string;
+  tone: StatusTone;
+  actions?: ReactNode;
+  onDismiss?: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const dismissible = Boolean(onDismiss);
+  const dismiss = useEffectEvent(() => onDismiss?.());
+
+  useEffect(() => {
+    if (!dismissible || hovered || focused) return;
+    const timer = window.setTimeout(dismiss, 8000);
+    return () => window.clearTimeout(timer);
+  }, [dismissible, hovered, focused]);
+
+  return (
+    <div
+      className={[styles.status, styles[tone], actions ? styles.statusWithActions : ""]
+        .filter(Boolean)
+        .join(" ")}
+      role="alert"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
+    >
+      <span>{message}</span>
+      {onDismiss && (
+        <button type="button" aria-label="Dismiss message" onClick={onDismiss}>
+          Dismiss
+        </button>
+      )}
+      {actions && <div className={styles.statusActions}>{actions}</div>}
     </div>
   );
 }

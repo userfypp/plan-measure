@@ -131,7 +131,7 @@ export function usePdfSessionLifecycle({
     setAutosaveWarning(
       conflict
         ? "Autosave stopped because another tab changed the saved project. Export your edits before reloading the saved projects. The other tab's changes have been kept."
-        : "Autosave is unavailable. Retry saving or export your project before leaving this tab.",
+        : "Autosave unavailable. Retry or export before leaving.",
     );
     autosaveStatusRef.current = "unavailable";
     setAutosaveStatus("unavailable");

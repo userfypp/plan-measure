@@ -73,13 +73,16 @@ vi.mock("./AppShell", () => ({
     children,
     statusMessage,
     statusActions,
+    errorNotifications = [],
   }: {
     children: ReactNode;
     statusMessage?: string | null;
     statusActions?: ReactNode;
+    errorNotifications?: { id: number; message: string }[];
   }) => (
     <div>
       {statusMessage && <div role="alert">{statusMessage}{statusActions}</div>}
+      {errorNotifications.map(({ id, message }) => <div key={id} role="alert">{message}</div>)}
       {children}
     </div>
   ),

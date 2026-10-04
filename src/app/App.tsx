@@ -108,7 +108,7 @@ export function App() {
 }
 
 function PlanMeasureApp() {
-  const { state: appState, setError, clearError } = useAppState();
+  const { state: appState, setError, clearError, dismissError } = useAppState();
   const {
     session,
     canUndo,
@@ -1129,9 +1129,11 @@ function PlanMeasureApp() {
       onConfirmValueDeletionChange={setConfirmValueDeletion}
       onConfirmDimensionDeletionChange={setConfirmDimensionDeletion}
       onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
-      statusMessage={appState.error ?? autosaveWarning}
-      statusTone={appState.error ? "error" : "warning"}
-      statusActions={!appState.error && autosaveFailed ? (
+      errorNotifications={appState.errorNotifications}
+      onDismissError={dismissError}
+      statusMessage={autosaveWarning}
+      statusTone="warning"
+      statusActions={autosaveFailed ? (
         <>
           {canRetryAutosave && (
             <button type="button" disabled={projectOperationPending} onClick={() => void retryAutosave()}>
@@ -1147,11 +1149,9 @@ function PlanMeasureApp() {
         </>
       ) : undefined}
       onDismissStatus={
-        appState.error
-          ? clearError
-          : autosaveWarning && !autosaveUnavailable
-            ? dismissAutosaveWarning
-            : undefined
+        autosaveWarning && !autosaveUnavailable
+          ? dismissAutosaveWarning
+          : undefined
       }
     >
       {confirmAutosaveReload && (
