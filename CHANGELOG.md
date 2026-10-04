@@ -4,6 +4,21 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.7.1](https://github.com/userfypp/plan-measure/compare/v2.7.0...v2.7.1) (2026-10-04)
+
+
+### Fixed
+
+* **calibration:** reject diagonal X/Y reference authoring ([#177](https://github.com/userfypp/plan-measure/issues/177)) ([e67187a](https://github.com/userfypp/plan-measure/commit/e67187a89c63249cba6d44a5751b08ef01f953a0))
+* reopen terminated IndexedDB connections ([#181](https://github.com/userfypp/plan-measure/issues/181)) ([185f735](https://github.com/userfypp/plan-measure/commit/185f7351a9e78b18d9e2e4870da03dd7efff9dd5))
+* restore autosave recovery and improve error notifications ([#182](https://github.com/userfypp/plan-measure/issues/182)) ([9f8450d](https://github.com/userfypp/plan-measure/commit/9f8450df290b83507e231989c0167a4870b746a9))
+* resume autosave after redoing historical repairs ([#180](https://github.com/userfypp/plan-measure/issues/180)) ([5580822](https://github.com/userfypp/plan-measure/commit/5580822ba65c557c57e791eddfb1fdc4d36992a3))
+
+
+### Improved
+
+* accelerate large polygon validation ([#178](https://github.com/userfypp/plan-measure/issues/178)) ([f4f324e](https://github.com/userfypp/plan-measure/commit/f4f324e419875786d9fcb29d66edc84d7c20bdec))
+
 ## [2.7.0](https://github.com/userfypp/plan-measure/compare/v2.6.0...v2.7.0) (2026-10-03)
 
 
