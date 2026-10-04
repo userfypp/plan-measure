@@ -186,6 +186,65 @@ describe("path geometry", () => {
     expect(hasValidMeasurementPoints("polygon", simple)).toBe(true);
   });
 
+  it("validates a large convex ring and rejects a crossing near its end", () => {
+    const points = Array.from({ length: 10_000 }, (_, index) => ({
+      x: 50 + 40 * Math.cos((index / 10_000) * 2 * Math.PI),
+      y: 50 + 40 * Math.sin((index / 10_000) * 2 * Math.PI),
+    }));
+
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+    [points[9_990], points[9_992]] = [points[9_992]!, points[9_990]!];
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+  });
+
+  it("checks exact intersections when all diagonal edge boxes overlap", () => {
+    const points = Array.from({ length: 32 }, (_, index) => [
+      { x: 0, y: (index * 0.5) / 32 },
+      { x: 1, y: 1 + (index * 0.5) / 32 },
+    ]).flat();
+    points.push({ x: 0, y: 0.5 }, { x: -1, y: 0.5 }, { x: -1, y: -1 });
+
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+    [points[30], points[34]] = [points[34]!, points[30]!];
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+  });
+
+  it("rejects non-adjacent endpoint contacts across distant edge groups", () => {
+    const points = Array.from({ length: 64 }, (_, index) => ({
+      x: Math.cos((index / 64) * 2 * Math.PI),
+      y: Math.sin((index / 64) * 2 * Math.PI),
+    }));
+    points[48] = { ...points[16]! };
+
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+    expect(hasValidMeasurementPoints("polygon", [...points].reverse())).toBe(false);
+    expect(hasValidMeasurementPoints("polygon", [...points.slice(16), ...points.slice(0, 16)])).toBe(
+      false,
+    );
+  });
+
+  it("accepts a densely subdivided rectangle in either winding and across the closing edge", () => {
+    const points = Array.from({ length: 10_000 }, (_, index) => {
+      const offset = index % 2_500;
+      switch (Math.floor(index / 2_500)) {
+        case 0:
+          return { x: offset, y: 0 };
+        case 1:
+          return { x: 2_500, y: offset };
+        case 2:
+          return { x: 2_500 - offset, y: 2_500 };
+        default:
+          return { x: 0, y: 2_500 - offset };
+      }
+    });
+
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+    expect(hasValidMeasurementPoints("polygon", [...points].reverse())).toBe(true);
+    expect(hasValidMeasurementPoints("polygon", [...points.slice(1), points[0]!])).toBe(true);
+    points[points.length - 1] = { x: 1, y: 0 };
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+  });
+
   describe("strict polygon containment", () => {
     const square = [
       { x: 0, y: 0 },

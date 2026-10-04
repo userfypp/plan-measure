@@ -314,25 +314,148 @@ function adjacentEdgesOverlap(start: Point, shared: Point, end: Point): boolean 
   );
 }
 
+interface PolygonEdgeBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+interface PolygonEdgeTree extends PolygonEdgeBounds {
+  first: number;
+  last: number;
+  commonBounds: PolygonEdgeBounds;
+  children?: readonly [PolygonEdgeTree, PolygonEdgeTree];
+}
+
+function buildPolygonEdgeTree(
+  bounds: readonly PolygonEdgeBounds[],
+  first: number,
+  last: number,
+): PolygonEdgeTree {
+  if (last - first < 16) {
+    const node: PolygonEdgeTree = {
+      ...bounds[first]!,
+      first,
+      last,
+      commonBounds: { ...bounds[first]! },
+    };
+    for (let index = first + 1; index <= last; index += 1) {
+      const edge = bounds[index]!;
+      node.minX = Math.min(node.minX, edge.minX);
+      node.minY = Math.min(node.minY, edge.minY);
+      node.maxX = Math.max(node.maxX, edge.maxX);
+      node.maxY = Math.max(node.maxY, edge.maxY);
+      node.commonBounds.minX = Math.max(node.commonBounds.minX, edge.minX);
+      node.commonBounds.minY = Math.max(node.commonBounds.minY, edge.minY);
+      node.commonBounds.maxX = Math.min(node.commonBounds.maxX, edge.maxX);
+      node.commonBounds.maxY = Math.min(node.commonBounds.maxY, edge.maxY);
+    }
+    return node;
+  }
+  const middle = Math.floor((first + last) / 2);
+  const left = buildPolygonEdgeTree(bounds, first, middle);
+  const right = buildPolygonEdgeTree(bounds, middle + 1, last);
+  return {
+    first,
+    last,
+    minX: Math.min(left.minX, right.minX),
+    minY: Math.min(left.minY, right.minY),
+    maxX: Math.max(left.maxX, right.maxX),
+    maxY: Math.max(left.maxY, right.maxY),
+    commonBounds: {
+      minX: Math.max(left.commonBounds.minX, right.commonBounds.minX),
+      minY: Math.max(left.commonBounds.minY, right.commonBounds.minY),
+      maxX: Math.min(left.commonBounds.maxX, right.commonBounds.maxX),
+      maxY: Math.min(left.commonBounds.maxY, right.commonBounds.maxY),
+    },
+    children: [left, right],
+  };
+}
+
 function hasSimplePolygonRing(points: readonly Point[]): boolean {
-  for (let firstEdge = 0; firstEdge < points.length; firstEdge += 1) {
-    const firstStart = points[firstEdge]!;
-    const firstEnd = points[(firstEdge + 1) % points.length]!;
-    for (let secondEdge = firstEdge + 1; secondEdge < points.length; secondEdge += 1) {
-      const secondStart = points[secondEdge]!;
-      const secondEnd = points[(secondEdge + 1) % points.length]!;
-      const consecutive = secondEdge === firstEdge + 1;
-      const firstAndLast = firstEdge === 0 && secondEdge === points.length - 1;
-      if (consecutive) {
-        if (adjacentEdgesOverlap(firstStart, firstEnd, secondEnd)) return false;
-      } else if (firstAndLast) {
-        if (adjacentEdgesOverlap(firstEnd, firstStart, secondStart)) return false;
-      } else if (segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) {
-        return false;
-      }
+  // Adjacent edges may share only their common endpoint, including the closing pair.
+  for (let index = 0; index < points.length; index += 1) {
+    if (
+      adjacentEdgesOverlap(
+        points[index]!,
+        points[(index + 1) % points.length]!,
+        points[(index + 2) % points.length]!,
+      )
+    ) {
+      return false;
     }
   }
-  return true;
+
+  const bounds = points.map((start, index): PolygonEdgeBounds => {
+    const end = points[(index + 1) % points.length]!;
+    return {
+      minX: Math.min(start.x, end.x),
+      minY: Math.min(start.y, end.y),
+      maxX: Math.max(start.x, end.x),
+      maxY: Math.max(start.y, end.y),
+    };
+  });
+  const tree = buildPolygonEdgeTree(bounds, 0, points.length - 1);
+
+  function intersectsLaterEdge(index: number, node: PolygonEdgeTree): boolean {
+    const edge = bounds[index]!;
+    // Strict separation preserves endpoint contacts and collinear intersections.
+    // Overlapping boxes still require the existing exact intersection predicate.
+    if (
+      node.last <= index + 1 ||
+      node.maxX < edge.minX ||
+      edge.maxX < node.minX ||
+      node.maxY < edge.minY ||
+      edge.maxY < node.minY
+    ) {
+      return false;
+    }
+    // If every box contains the same point and this edge's box contains it too,
+    // traversal cannot prune any candidate. Scan the range directly instead.
+    const common = node.commonBounds;
+    const allBoxesOverlap =
+      common.minX <= common.maxX &&
+      common.minY <= common.maxY &&
+      edge.minX <= common.minX &&
+      common.minX <= edge.maxX &&
+      edge.minY <= common.minY &&
+      common.minY <= edge.maxY;
+    if (node.children && !allBoxesOverlap) {
+      return (
+        intersectsLaterEdge(index, node.children[0]) ||
+        intersectsLaterEdge(index, node.children[1])
+      );
+    }
+    const start = points[index]!;
+    const end = points[(index + 1) % points.length]!;
+    for (let other = Math.max(index + 2, node.first); other <= node.last; other += 1) {
+      if (index === 0 && other === points.length - 1) continue;
+      const candidate = bounds[other]!;
+      if (
+        !allBoxesOverlap &&
+        (candidate.maxX < edge.minX ||
+          edge.maxX < candidate.minX ||
+          candidate.maxY < edge.minY ||
+          edge.maxY < candidate.minY)
+      ) {
+        continue;
+      }
+      if (
+        segmentsIntersect(
+          start,
+          end,
+          points[other]!,
+          points[(other + 1) % points.length]!,
+        )
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return points.every((_point, index) => !intersectsLaterEdge(index, tree));
 }
 
 export function constrainOrthogonal(anchor: Point, candidate: Point): Point {

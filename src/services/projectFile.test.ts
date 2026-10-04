@@ -53,6 +53,21 @@ describe("portable project files", () => {
     expect(projectFileName(session.pdf.name)).toBe("Level 01.planmeasure");
   });
 
+  it("round trips a large polygon without changing or truncating its vertices", async () => {
+    const session = measuredSession();
+    const measurement = session.pages[2]!.measurements[0]!;
+    measurement.type = "polygon";
+    measurement.points = Array.from({ length: 10_000 }, (_, index) => ({
+      x: 50 + 40 * Math.cos((index / 10_000) * 2 * Math.PI),
+      y: 50 + 40 * Math.sin((index / 10_000) * 2 * Math.PI),
+    }));
+
+    const result = await readProjectFile(createProjectFile(session, new Blob(["%PDF-1.7"])));
+
+    expect(result.session).toEqual(session);
+    expect(result.session.pages[2]!.measurements[0]!.points).toHaveLength(10_000);
+  });
+
   it("rejects an unsupported header, truncated PDF, and mismatched export PDF", async () => {
     const session = measuredSession();
     const file = createProjectFile(session, new Blob(["%PDF-1.7"]));
