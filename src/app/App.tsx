@@ -12,7 +12,7 @@ import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { Modal } from "../components/Modal";
-import { Button } from "../components/ui";
+import { Button, ConfirmationDialog } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
 import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
@@ -269,6 +269,8 @@ function PlanMeasureApp() {
     });
   }, []);
 
+  const [confirmAutosaveReload, setConfirmAutosaveReload] = useState(false);
+
   const {
     activePdf,
     recovery,
@@ -281,6 +283,9 @@ function PlanMeasureApp() {
     projectOperationPending,
     autosaveWarning,
     autosaveUnavailable,
+    autosaveFailed,
+    canRetryAutosave,
+    retryAutosave,
     chooseFile,
     importProject,
     exportProject,
@@ -1126,6 +1131,21 @@ function PlanMeasureApp() {
       onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
       statusMessage={appState.error ?? autosaveWarning}
       statusTone={appState.error ? "error" : "warning"}
+      statusActions={!appState.error && autosaveFailed ? (
+        <>
+          {canRetryAutosave && (
+            <button type="button" disabled={projectOperationPending} onClick={() => void retryAutosave()}>
+              Retry saving
+            </button>
+          )}
+          <button type="button" disabled={projectOperationPending} onClick={() => void exportProject()}>
+            Export project
+          </button>
+          <button type="button" disabled={projectOperationPending} onClick={() => setConfirmAutosaveReload(true)}>
+            Reload saved projects
+          </button>
+        </>
+      ) : undefined}
       onDismissStatus={
         appState.error
           ? clearError
@@ -1134,6 +1154,17 @@ function PlanMeasureApp() {
             : undefined
       }
     >
+      {confirmAutosaveReload && (
+        <ConfirmationDialog
+          open
+          title="Reload saved projects?"
+          description="Reloading closes this session and discards edits that have not been saved. Export your project first to keep a copy of these edits."
+          confirmLabel="Reload saved projects"
+          cancelLabel="Keep editing"
+          onCancel={() => setConfirmAutosaveReload(false)}
+          onConfirm={() => window.location.reload()}
+        />
+      )}
       <input
         ref={fileInputRef}
         className={styles.hiddenInput}

@@ -30,6 +30,7 @@ interface AppShellProps {
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
   statusMessage?: string | null;
   statusTone?: StatusTone;
+  statusActions?: ReactNode;
   onDismissStatus?: () => void;
 }
 
@@ -56,6 +57,7 @@ export function AppShell({
   onRecoveredPlanStartupWorkspaceChange,
   statusMessage,
   statusTone = "error",
+  statusActions,
   onDismissStatus,
 }: AppShellProps) {
   const tabNavigationRootRef = useRef<HTMLDivElement>(null);
@@ -92,6 +94,7 @@ export function AppShell({
         {statusMessage ? (
           <div className={`${styles.status} ${styles[statusTone]}`} role="alert">
             <span>{statusMessage}</span>
+            {statusActions && <div className={styles.statusActions}>{statusActions}</div>}
             {onDismissStatus && (
               <button type="button" aria-label="Dismiss message" onClick={onDismissStatus}>
                 Dismiss

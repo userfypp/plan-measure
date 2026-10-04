@@ -11,6 +11,11 @@ import { createEmptySession, sessionReducer, type SessionCommandResult } from ".
 import { App } from "./App";
 
 const lifecycleHarness = vi.hoisted(() => ({
+  autosaveFailed: false,
+  canRetryAutosave: true,
+  projectOperationPending: false,
+  retryAutosave: vi.fn(),
+  exportProject: vi.fn(),
   initialSession: null as CurrentSession | null,
   latestSession: null as CurrentSession | null,
   loadSession: null as ((session: CurrentSession) => void) | null,
@@ -39,7 +44,12 @@ vi.mock("./usePdfSessionLifecycle", async () => {
         recoveryIssue: null,
         confirmDiscardRecovery: false,
         loading: false,
-        autosaveWarning: null,
+        autosaveWarning: lifecycleHarness.autosaveFailed ? "Autosave stopped" : null,
+        autosaveFailed: lifecycleHarness.autosaveFailed,
+        canRetryAutosave: lifecycleHarness.canRetryAutosave,
+        projectOperationPending: lifecycleHarness.projectOperationPending,
+        retryAutosave: lifecycleHarness.retryAutosave,
+        exportProject: lifecycleHarness.exportProject,
         autosaveUnavailable: false,
         chooseFile: () => undefined,
         openProject: () => undefined,
@@ -62,12 +72,14 @@ vi.mock("./AppShell", () => ({
   AppShell: ({
     children,
     statusMessage,
+    statusActions,
   }: {
     children: ReactNode;
     statusMessage?: string | null;
+    statusActions?: ReactNode;
   }) => (
     <div>
-      {statusMessage && <div role="alert">{statusMessage}</div>}
+      {statusMessage && <div role="alert">{statusMessage}{statusActions}</div>}
       {children}
     </div>
   ),
@@ -336,6 +348,11 @@ beforeEach(() => {
 afterEach(() => {
   if (root) act(() => root?.unmount());
   container?.remove();
+  lifecycleHarness.autosaveFailed = false;
+  lifecycleHarness.canRetryAutosave = true;
+  lifecycleHarness.projectOperationPending = false;
+  lifecycleHarness.retryAutosave.mockReset();
+  lifecycleHarness.exportProject.mockReset();
   lifecycleHarness.initialSession = null;
   lifecycleHarness.latestSession = null;
   lifecycleHarness.loadSession = null;
@@ -531,5 +548,45 @@ describe("App multiple measurement selection", () => {
     act(() => dialogButtonByText("Delete").click());
     expect(currentSession().pages[1]!.measurements).toHaveLength(1);
     expect(currentSession().pages[2]!.measurements).toEqual([]);
+  });
+});
+
+
+describe("App autosave recovery actions", () => {
+  it.each([true, false])(
+    "offers export and confirmed reload with retry available=%s",
+    async (canRetry) => {
+      lifecycleHarness.autosaveFailed = true;
+      lifecycleHarness.canRetryAutosave = canRetry;
+      await renderApp(buildSession(uniformScale()));
+      const original = currentSession();
+      const retryButton = Array.from(document.querySelectorAll("button")).find(
+        (button) => button.textContent?.trim() === "Retry saving",
+      );
+      expect(Boolean(retryButton)).toBe(canRetry);
+      if (retryButton) {
+        act(() => retryButton.click());
+        expect(lifecycleHarness.retryAutosave).toHaveBeenCalledOnce();
+      }
+      act(() => buttonByText("Export project").click());
+      expect(lifecycleHarness.exportProject).toHaveBeenCalledOnce();
+      act(() => buttonByText("Reload saved projects").click());
+      expect(document.querySelector("dialog")?.open).toBe(true);
+      expect(document.querySelector("dialog")?.textContent).toContain(
+        "discards edits that have not been saved",
+      );
+      act(() => dialogButtonByText("Keep editing").click());
+      expect(document.querySelector("dialog")?.open ?? false).toBe(false);
+      expect(currentSession()).toEqual(original);
+    },
+  );
+
+  it("disables recovery controls while a project operation is pending", async () => {
+    lifecycleHarness.autosaveFailed = true;
+    lifecycleHarness.projectOperationPending = true;
+    await renderApp(buildSession(uniformScale()));
+    for (const label of ["Retry saving", "Export project", "Reload saved projects"]) {
+      expect(buttonByText(label).disabled).toBe(true);
+    }
   });
 });

@@ -22,12 +22,19 @@
 .status {
   min-width: 0;
   min-height: 40px;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-16);
   padding: 7px var(--space-16);
   font-size: 13px;
+}
+
+.statusActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
 }
 
 .status span {

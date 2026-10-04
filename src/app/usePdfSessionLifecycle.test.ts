@@ -1015,7 +1015,10 @@ describe("autosave after undoing a repair", () => {
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     });
-    expect(lifecycle!.autosaveWarning).toContain("Autosave is unavailable");
+    expect(lifecycle!.autosaveWarning).toContain("another tab changed");
+    expect(save).toHaveBeenCalledOnce();
+    expect(lifecycle!.canRetryAutosave).toBe(false);
+    await act(async () => { await lifecycle!.retryAutosave(); });
     expect(save).toHaveBeenCalledOnce();
     const invalid = { ...edited, pdf: { ...edited.pdf, size: Number.NaN } };
     act(() => setHarnessSession!(invalid));
@@ -1024,9 +1027,177 @@ describe("autosave after undoing a repair", () => {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     });
     expect(save).toHaveBeenCalledOnce();
-    expect(lifecycle!.autosaveWarning).toContain("Autosave is unavailable");
+    expect(lifecycle!.autosaveWarning).toContain("another tab changed");
+    expect((await loadSavedSession())!.session).toEqual(external);
+    let downloaded: Blob | null = null;
+    vi.stubGlobal("URL", Object.assign(class extends URL {}, {
+      createObjectURL: (blob: Blob) => { downloaded = blob; return "blob:conflicted-project"; },
+      revokeObjectURL: vi.fn(),
+    }));
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    await act(async () => { await lifecycle!.exportProject(); });
+    expect(downloaded).not.toBeNull();
+    expect((await readProjectFile(downloaded!)).session).toEqual(edited);
     expect((await loadSavedSession())!.session).toEqual(external);
     expect(consoleError).toHaveBeenCalled();
+  });
+});
+
+describe("explicit autosave recovery", () => {
+  it("retries the same revision once and continues saving edits made during recovery", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const saved = (await loadSavedSession())!;
+    const originalSave = persistenceService.saveSessionMetadata;
+    const save = vi
+      .spyOn(persistenceService, "saveSessionMetadata")
+      .mockRejectedValueOnce(new DOMException("Temporary storage failure", "UnknownError"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const edited = {
+      ...saved.session,
+      settings: { ...saved.session.settings, displayUnit: "mm" as const },
+    };
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(lifecycle!.canRetryAutosave).toBe(true);
+    expect((await loadSavedSession())!.revision).toBe(saved.revision);
+    const latest = { ...edited, settings: { ...edited.settings, showLabels: false } };
+    act(() => setHarnessSession!(latest));
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const starting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    save.mockImplementationOnce(async (...args) => {
+      started();
+      await gate;
+      return originalSave(...args);
+    });
+    let retry!: Promise<void>;
+    act(() => {
+      retry = lifecycle!.retryAutosave();
+      void lifecycle!.retryAutosave();
+    });
+    await act(async () => {
+      await starting;
+    });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]![0]).toEqual(latest);
+    expect(save.mock.calls[1]![1]).toBe(saved.revision);
+    const duringRetry = { ...latest, settings: { ...latest.settings, displayUnit: "cm" as const } };
+    act(() => setHarnessSession!(duringRetry));
+    await act(async () => {
+      release();
+      await retry;
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect(lifecycle!.autosaveFailed).toBe(false);
+    expect(lifecycle!.autosaveWarning).toBeNull();
+    expect((await loadSavedSession())!.session).toEqual(duringRetry);
+    expect(save).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps work in memory after repeated failures and allows another explicit retry", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const saved = (await loadSavedSession())!;
+    const save = vi
+      .spyOn(persistenceService, "saveSessionMetadata")
+      .mockRejectedValueOnce(new DOMException("Full", "QuotaExceededError"))
+      .mockRejectedValueOnce(new DOMException("Still full", "QuotaExceededError"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const edited = { ...saved.session, settings: { ...saved.session.settings, showLabels: false } };
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    await act(async () => {
+      await lifecycle!.retryAutosave();
+    });
+    expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(lifecycle!.canRetryAutosave).toBe(true);
+    expect(harnessSession).toEqual(edited);
+    expect(await loadSavedSession()).toEqual(saved);
+    await act(async () => {
+      await lifecycle!.retryAutosave();
+    });
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(lifecycle!.autosaveFailed).toBe(false);
+    expect((await loadSavedSession())!.session).toEqual(edited);
+  });
+
+  it("does not adopt a new revision when another tab saves between failure and retry", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const saved = (await loadSavedSession())!;
+    const originalSave = persistenceService.saveSessionMetadata;
+    const save = vi
+      .spyOn(persistenceService, "saveSessionMetadata")
+      .mockRejectedValueOnce(new Error("Temporary failure"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const edited = {
+      ...saved.session,
+      settings: { ...saved.session.settings, displayUnit: "mm" as const },
+    };
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    const external = {
+      ...saved.session,
+      settings: { ...saved.session.settings, showLabels: false },
+    };
+    const externalRevision = await originalSave(external, saved.revision, saved.pdfBlob);
+    await act(async () => {
+      await lifecycle!.retryAutosave();
+    });
+    expect(lifecycle!.autosaveWarning).toContain("another tab changed");
+    expect(lifecycle!.canRetryAutosave).toBe(false);
+    expect(harnessSession).toEqual(edited);
+    expect(save.mock.calls[1]![1]).toBe(saved.revision);
+    const recovered = (await loadSavedSession())!;
+    expect(recovered.session).toEqual(external);
+    expect(recovered.revision).toBe(externalRevision);
+  });
+
+  it("can save a new project whose initial browser save failed", async () => {
+    await renderLifecycleHarness();
+    const replace = vi
+      .spyOn(persistenceService, "replaceSavedSession")
+      .mockRejectedValueOnce(new Error("Temporary initial failure"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await act(async () => {
+      await lifecycle!.chooseFile(
+        new File(["pdf"], "plan.pdf", { type: "application/pdf", lastModified: 1 }),
+      );
+    });
+    expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(await loadSavedSession()).toBeNull();
+    await act(async () => {
+      await lifecycle!.retryAutosave();
+    });
+    expect(replace).toHaveBeenCalledTimes(2);
+    expect(replace.mock.calls[1]![2]).toBeNull();
+    expect(lifecycle!.autosaveFailed).toBe(false);
+    expect((await loadSavedSession())!.session).toEqual(harnessSession);
+    expect(lifecycle!.savedProjects).toHaveLength(1);
   });
 });
 

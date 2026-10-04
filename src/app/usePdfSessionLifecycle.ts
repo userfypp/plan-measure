@@ -23,6 +23,7 @@ import {
   loadSavedProject,
   loadSavedSession,
   PersistenceLoadError,
+  PersistenceConflictError,
   replaceSavedSession,
   saveSessionMetadata,
   type SavedProjectSummary,
@@ -122,6 +123,19 @@ export function usePdfSessionLifecycle({
   const currentSessionRef = useRef(session);
   const [projectOperationPending, setProjectOperationPending] = useState(false);
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
+  const [autosaveRetryable, setAutosaveRetryable] = useState(false);
+
+  const reportAutosaveFailure = useCallback((error: unknown) => {
+    const conflict = error instanceof PersistenceConflictError;
+    setAutosaveRetryable(!conflict && persistenceRevisionRef.current !== undefined);
+    setAutosaveWarning(
+      conflict
+        ? "Autosave stopped because another tab changed the saved project. Export your edits before reloading the saved projects. The other tab's changes have been kept."
+        : "Autosave is unavailable. Retry saving or export your project before leaving this tab.",
+    );
+    autosaveStatusRef.current = "unavailable";
+    setAutosaveStatus("unavailable");
+  }, []);
 
   function updateAutosaveStatus(status: AutosaveStatus) {
     autosaveStatusRef.current = status;
@@ -351,10 +365,7 @@ export function usePdfSessionLifecycle({
           if (generation !== persistenceGenerationRef.current) return;
           persistenceGenerationRef.current += 1;
           console.error("IndexedDB autosave failed.", error);
-          setAutosaveWarning(
-            "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
-          );
-          updateAutosaveStatus("unavailable");
+          reportAutosaveFailure(error);
         })
         .finally(removeBeforeUnload);
     };
@@ -409,7 +420,7 @@ export function usePdfSessionLifecycle({
       removeBeforeUnload();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activePdf, autosaveStatus, pdfBlob, session]);
+  }, [activePdf, autosaveStatus, pdfBlob, reportAutosaveFailure, session]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
     await enqueueActiveProjectOperation(async () => {
@@ -483,10 +494,7 @@ export function usePdfSessionLifecycle({
             await destroyPdf(candidate.loaded);
             return;
           }
-          updateAutosaveStatus("unavailable");
-          setAutosaveWarning(
-            "Autosave is unavailable. Keep this tab open or export your measurements before leaving.",
-          );
+          reportAutosaveFailure(error);
         }
         if (disposedRef.current) {
           await destroyPdf(candidate.loaded);
@@ -946,6 +954,59 @@ export function usePdfSessionLifecycle({
     setConfirmDiscardRecovery(false);
   }
 
+  async function retryAutosave() {
+    if (
+      autosaveStatusRef.current !== "unavailable" ||
+      !autosaveRetryable ||
+      activeProjectOperationCountRef.current > 0
+    )
+      return;
+    await enqueueActiveProjectOperation(async () => {
+      const snapshot = currentSessionRef.current;
+      const projectId = activeProjectIdRef.current;
+      const expectedRevision = persistenceRevisionRef.current;
+      if (
+        !snapshot ||
+        !pdfBlob ||
+        !projectId ||
+        expectedRevision === undefined ||
+        disposedRef.current
+      )
+        return;
+      if (!isSessionPersistable(snapshot)) {
+        setError("Repair the invalid project data before retrying autosave.");
+        return;
+      }
+      const generation = persistenceGenerationRef.current;
+      try {
+        await saveQueueRef.current.catch(() => undefined);
+        if (disposedRef.current || generation !== persistenceGenerationRef.current) return;
+        const revision =
+          expectedRevision === null
+            ? await replaceSavedSession(snapshot, pdfBlob, expectedRevision, projectId)
+            : await saveSessionMetadata(snapshot, expectedRevision, pdfBlob);
+        if (disposedRef.current || generation !== persistenceGenerationRef.current) return;
+        persistenceRevisionRef.current = revision;
+        persistedSessionRef.current = snapshot;
+        setAutosaveRetryable(false);
+        const current = currentSessionRef.current;
+        const needsRepair = current !== null && !isSessionPersistable(current);
+        updateAutosaveStatus(needsRepair ? "repair-required" : "available");
+        setAutosaveWarning(needsRepair ? SNAPSHOT_REPAIR_WARNING : null);
+        try {
+          setSavedProjects(await listSavedProjects());
+        } catch (error) {
+          console.error("Could not refresh saved projects.", error);
+        }
+      } catch (error) {
+        if (disposedRef.current || generation !== persistenceGenerationRef.current) return;
+        persistenceGenerationRef.current += 1;
+        console.error("IndexedDB autosave retry failed.", error);
+        reportAutosaveFailure(error);
+      }
+    });
+  }
+
   function dismissAutosaveWarning() {
     if (autosaveStatus === "unavailable" || autosaveStatus === "repair-required") return;
     setAutosaveWarning(null);
@@ -976,6 +1037,9 @@ export function usePdfSessionLifecycle({
     loading,
     projectOperationPending,
     autosaveWarning,
+    autosaveFailed: autosaveStatus === "unavailable",
+    canRetryAutosave: autosaveStatus === "unavailable" && autosaveRetryable,
+    retryAutosave,
     autosaveUnavailable: autosaveStatus === "unavailable" || autosaveStatus === "repair-required",
     chooseFile,
     importProject,

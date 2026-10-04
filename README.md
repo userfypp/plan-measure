@@ -85,7 +85,7 @@ Plan Measure processes PDFs in your browser and does not send plans or measureme
 
 Completed edits are autosaved. Pending saves run when the tab is hidden or closed, when possible. Drafts, Snap, Ortho, zoom, pan, and undo/redo history are not saved. Clearing browser site data removes saved projects; keep `.planmeasure` backups.
 
-If local storage is unavailable or autosave fails, follow the warning shown by the app and export your work before leaving. Older saved data is migrated when possible; if it requires repair, autosave stays paused until the reported problems are resolved.
+If autosave fails, choose **Retry saving** to try again or **Export project** to keep your edits in a `.planmeasure` file. If another tab changed the saved project, export your edits and choose **Reload saved projects** to recover the saved version; reloading requires confirmation because it discards unsaved edits. Older saved data is migrated when possible; if it requires repair, autosave stays paused until the reported problems are resolved.
 
 ## Export
 
