@@ -18,6 +18,7 @@ import {
   isPointStrictlyInsidePolygon,
   isPredominantlyHorizontal,
   isPredominantlyVertical,
+  isAlignedXyReference,
   isOrthogonalSegment,
   isValidPageCalibration,
   pathLengthMm,
@@ -647,6 +648,36 @@ describe("geometry", () => {
     expect(isPredominantlyVertical({ x: 0, y: 0 }, { x: 1, y: 10 })).toBe(true);
     expect(isPredominantlyVertical({ x: 0, y: 0 }, { x: 10, y: 1 })).toBe(false);
   });
+
+  it.each(["x", "y"] as const)(
+    "limits authored %s references to 10%% cross-axis deviation",
+    (axis) => {
+      const start = { x: 0, y: 0 };
+      const point = (span: number, deviation: number): Point =>
+        axis === "x" ? { x: span, y: deviation } : { x: deviation, y: span };
+      for (const sign of [1, -1]) {
+        const boundary = point(sign * 100, sign * 10);
+        expect(isAlignedXyReference(start, boundary, axis)).toBe(true);
+        expect(isAlignedXyReference(boundary, start, axis)).toBe(true);
+        expect(isAlignedXyReference(start, point(sign * 100, sign * 10.01), axis)).toBe(false);
+        expect(isAlignedXyReference(start, point(sign * 100, sign * 50), axis)).toBe(false);
+      }
+      expect(isAlignedXyReference(start, start, axis)).toBe(false);
+      expect(isAlignedXyReference(start, point(0, 100), axis)).toBe(false);
+      expect(isAlignedXyReference(start, point(Infinity, 0), axis)).toBe(false);
+      expect(isAlignedXyReference(start, point(100, NaN), axis)).toBe(false);
+      expect(
+        isAlignedXyReference(point(-Number.MAX_VALUE, 0), point(Number.MAX_VALUE, 0), axis),
+      ).toBe(true);
+      expect(
+        isAlignedXyReference(
+          point(-Number.MAX_VALUE, -Number.MAX_VALUE / 2),
+          point(Number.MAX_VALUE, Number.MAX_VALUE / 2),
+          axis,
+        ),
+      ).toBe(false);
+    },
+  );
 
   it("recalibrates values while preserving geometry", () => {
     const points = [

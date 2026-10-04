@@ -6,6 +6,28 @@ import type {
   PageState,
   Point,
 } from "../types/domain";
+import { isAlignedXyReference, isValidPageCalibration } from "./geometry";
+
+export function isValidCalibrationForAuthoring(calibration: PageCalibration): boolean {
+  return (
+    isValidPageCalibration(calibration) &&
+    (calibration.mode === "uniform" ||
+      (isAlignedXyReference(calibration.xReference.start, calibration.xReference.end, "x") &&
+        isAlignedXyReference(calibration.yReference.start, calibration.yReference.end, "y")))
+  );
+}
+
+export function isValidCalibrationReferenceEdit(
+  calibration: PageCalibration,
+  reference: CalibrationReferenceKey,
+): boolean {
+  const selected = getCalibrationReference(calibration, reference);
+  return Boolean(
+    selected &&
+      isValidPageCalibration(calibration) &&
+      (reference === "uniform" || isAlignedXyReference(selected.start, selected.end, reference)),
+  );
+}
 
 export function findPageCalibration(
   page: Pick<PageState, "calibrations">,

@@ -730,6 +730,94 @@ describe("session domain reducer", () => {
     expect(invalidY.session).toEqual(xy.session);
   });
 
+  it.each(["x", "y"] as const)(
+    "rejects diagonal %s references in creation, recalibration, and editing",
+    (axis) => {
+      const state = addXyScale(loadedState(), "xy", "X/Y");
+      const existing = state.session!.pages[1]!.calibrations[0]!;
+      if (existing.mode !== "xy") throw new Error("Expected X/Y scale.");
+      const points = [{ x: 0, y: 0 }, axis === "x" ? { x: 100, y: 50 } : { x: 50, y: 100 }] as const;
+      const calibration = {
+        ...existing,
+        [axis === "x" ? "xReference" : "yReference"]: {
+          start: points[0],
+          end: points[1],
+          referenceDistanceMm: 1000,
+        },
+      };
+      const created = sessionReducer(state, {
+        type: "ADD_CALIBRATION",
+        pageNumber: 1,
+        id: "new-xy",
+        name: "New X/Y",
+        calibration,
+      });
+      const recalibrated = sessionReducer(state, {
+        type: "RECALIBRATE_CALIBRATION",
+        pageNumber: 1,
+        calibrationId: "xy",
+        calibration,
+      });
+      const edited = sessionReducer(state, {
+        type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+        pageNumber: 1,
+        calibrationId: "xy",
+        reference: axis,
+        points: [points[0], points[1]],
+      });
+      for (const result of [created, recalibrated, edited]) {
+        expect(result.session).toBe(state.session);
+        expect(result.error).not.toBeNull();
+      }
+    },
+  );
+
+  it("preserves saved diagonal calibrations and permits correcting one axis independently", () => {
+    const state = addXyScale(loadedState(), "xy", "X/Y");
+    const calibration = state.session!.pages[1]!.calibrations[0]!;
+    if (calibration.mode !== "xy") throw new Error("Expected X/Y scale.");
+    calibration.xReference.end = { x: 100, y: 50 };
+    calibration.yReference.end = { x: 50, y: 100 };
+    const before = lineLengthMm(
+      [
+        { x: 0, y: 0 },
+        { x: 100, y: 50 },
+      ],
+      calibration,
+    );
+    const recovered = deserializeSessionForRecovery(serializeSession(state.session!));
+    expect(recovered.compatibility).toBe("current");
+    const restored = sessionReducer(initialSessionState, {
+      type: "LOAD_SESSION",
+      session: recovered.session,
+    });
+    expect(restored.session).toEqual(state.session);
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: 100, y: 50 },
+        ],
+        restored.session!.pages[1]!.calibrations[0]!,
+      ),
+    ).toBe(before);
+    const edited = sessionReducer(restored, {
+      type: "UPDATE_CALIBRATION_REFERENCE_POINTS",
+      pageNumber: 1,
+      calibrationId: "xy",
+      reference: "x",
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+      ],
+    });
+    expect(edited.error).toBeNull();
+    const corrected = edited.session!.pages[1]!.calibrations[0]!;
+    if (corrected.mode !== "xy") throw new Error("Expected X/Y scale.");
+    expect(corrected.xReference.end).toEqual({ x: 100, y: 0 });
+    expect(corrected.yReference).toEqual(calibration.yReference);
+  });
+
   it("updates X/Y references independently and recalculates only linked measurements", () => {
     let state = addScale(loadedState(), "uniform", "Uniform", 1000);
     state = sessionReducer(state, {

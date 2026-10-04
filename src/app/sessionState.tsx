@@ -20,14 +20,12 @@ import type {
   UniformPageCalibration,
   XyPageCalibration,
 } from "../types/domain";
-import {
-  hasValidMeasurementPoints,
-  isValidPageCalibration,
-  measurementPathSpecs,
-} from "../utils/geometry";
+import { hasValidMeasurementPoints, measurementPathSpecs } from "../utils/geometry";
 import {
   findPageCalibration,
   getActiveCalibration,
+  isValidCalibrationForAuthoring,
+  isValidCalibrationReferenceEdit,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
 import {
@@ -329,7 +327,7 @@ export function sessionReducer(
         !page ||
         !id.trim() ||
         !name ||
-        !isValidPageCalibration({ ...calibration, id, name }) ||
+        !isValidCalibrationForAuthoring({ ...calibration, id, name }) ||
         findPageCalibration(page, id)
       ) {
         return {
@@ -1092,7 +1090,7 @@ function updateRecalibration(
     !page ||
     !existing ||
     existing.mode !== calibration.mode ||
-    !isValidPageCalibration({ ...calibration, id: existing.id, name: existing.name })
+    !isValidCalibrationForAuthoring({ ...calibration, id: existing.id, name: existing.name })
   ) {
     return {
       ...state,
@@ -1123,7 +1121,12 @@ function updateCalibrationReferencePoints(
   const calibration = page && findPageCalibration(page, calibrationId);
   const updatedCalibration =
     calibration && replaceCalibrationReferencePoints(calibration, reference, points);
-  if (!page || !calibration || !updatedCalibration || !isValidPageCalibration(updatedCalibration)) {
+  if (
+    !page ||
+    !calibration ||
+    !updatedCalibration ||
+    !isValidCalibrationReferenceEdit(updatedCalibration, reference)
+  ) {
     return {
       ...state,
       error: "Scale reference requires distinct points and a valid uniform, X, or Y orientation.",

@@ -251,6 +251,11 @@ describe("CalibrationDialog", () => {
       referenceLabel,
       includeName: false,
     });
+    expect(document.querySelector("dialog")?.textContent).toContain(
+      referenceLabel
+        ? "Enter the real-world distance along the reference's axis."
+        : "Enter the real-world distance between the two selected points.",
+    );
     const select = document.querySelector<HTMLSelectElement>('select[aria-label="Calibration unit"]')!;
     setSelectValue(select, "ft-in");
     setInputValue(document.getElementById("calibration-feet") as HTMLInputElement, "12");

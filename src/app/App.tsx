@@ -55,6 +55,7 @@ import {
   defaultCalibrationName,
   findPageCalibration,
   getActiveCalibration,
+  isValidCalibrationReferenceEdit,
   replaceCalibrationReferencePoints,
 } from "../utils/calibration";
 import {
@@ -68,12 +69,7 @@ import {
   pasteMeasurementsClipboard,
   registerMeasurementClipboardInvalidation,
 } from "./measurementClipboard";
-import {
-  isPredominantlyHorizontal,
-  isPredominantlyVertical,
-  isMeasurementType,
-  isValidPageCalibration,
-} from "../utils/geometry";
+import { isAlignedXyReference, isMeasurementType } from "../utils/geometry";
 import {
   readClassificationDeleteConfirmationPreference,
   writeClassificationDeleteConfirmationPreference,
@@ -835,7 +831,12 @@ function PlanMeasureApp() {
     const preview = edit && calibrationReferenceEditPreview(edit);
     const page = edit && session?.pages[edit.pageNumber];
     const calibration = page && edit && findPageCalibration(page, edit.calibrationId);
-    if (!edit || !preview || !calibration || !isValidPageCalibration(preview)) {
+    if (
+      !edit ||
+      !preview ||
+      !calibration ||
+      !isValidCalibrationReferenceEdit(preview, edit.reference)
+    ) {
       setError("Place the reference points in a valid position before saving.");
       return;
     }
@@ -930,7 +931,12 @@ function PlanMeasureApp() {
     ? calibrationReferenceEditPreview(calibrationReferenceEdit)
     : null;
   const calibrationReferenceEditIsValid = Boolean(
-    calibrationReferencePreview && isValidPageCalibration(calibrationReferencePreview),
+    calibrationReferencePreview &&
+      calibrationReferenceEdit &&
+      isValidCalibrationReferenceEdit(
+        calibrationReferencePreview,
+        calibrationReferenceEdit.reference,
+      ),
   );
   const previewPage =
     currentPage &&
@@ -1364,14 +1370,18 @@ function PlanMeasureApp() {
                   const flow = calibrationFlow;
                   if (!flow) return;
                   const phase = flow.phase;
-                  if (phase === "x" && !isPredominantlyHorizontal(points[0], points[1])) {
+                  if (phase === "x" && !isAlignedXyReference(points[0], points[1], "x")) {
                     chooseTool("calibrate");
-                    setError("X reference must be primarily horizontal (|dx| > |dy|).");
+                    setError(
+                      "X reference must be nearly horizontal. Place both points along the horizontal reference.",
+                    );
                     return;
                   }
-                  if (phase === "y" && !isPredominantlyVertical(points[0], points[1])) {
+                  if (phase === "y" && !isAlignedXyReference(points[0], points[1], "y")) {
                     chooseTool("calibrate");
-                    setError("Y reference must be primarily vertical (|dy| > |dx|).");
+                    setError(
+                      "Y reference must be nearly vertical. Place both points along the vertical reference.",
+                    );
                     return;
                   }
                   updateCalibrationCandidate(selectCalibrationReference(flow, points));

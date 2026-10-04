@@ -441,6 +441,26 @@ export function isPredominantlyVertical(start: Point, end: Point): boolean {
     : Math.abs(end.y / 2 - start.y / 2) > Math.abs(end.x / 2 - start.x / 2);
 }
 
+// Authoring tolerance only: keep the historical calibration validity contract
+// below unchanged so reopening saved projects does not alter their results.
+export function isAlignedXyReference(start: Point, end: Point, axis: "x" | "y"): boolean {
+  if (
+    ![start.x, start.y, end.x, end.y].every(Number.isFinite) ||
+    !hasValidAxisComponent(start, end, axis)
+  ) {
+    return false;
+  }
+  let dx = Math.abs(end.x - start.x);
+  let dy = Math.abs(end.y - start.y);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+    dx = Math.abs(end.x / 2 - start.x / 2);
+    dy = Math.abs(end.y / 2 - start.y / 2);
+  }
+  const span = axis === "x" ? dx : dy;
+  const deviation = axis === "x" ? dy : dx;
+  return deviation <= span * 0.1;
+}
+
 export function isValidXyCalibration(
   calibration: Extract<PageCalibration, { mode: "xy" }>,
 ): boolean {

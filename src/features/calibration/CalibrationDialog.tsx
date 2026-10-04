@@ -136,7 +136,9 @@ export function CalibrationDialog({
   return (
     <Modal title={title} onCancel={onCancel} modal={false} trapFocus>
       <p>
-        Enter the real-world distance between the two selected points.
+        {referenceLabel
+          ? "Enter the real-world distance along the reference's axis."
+          : "Enter the real-world distance between the two selected points."}
         {referenceLabel ? ` This is the ${referenceLabel} reference.` : ""}
       </p>
       <form onSubmit={submit} className={styles.form}>

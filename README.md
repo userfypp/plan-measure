@@ -31,7 +31,7 @@ Use the menu at the top of the workspace panel to switch between **Scales**, **M
 Each page can have multiple named scales. Choose **Add scale** in **Scales**:
 
 - **Uniform**: mark one reference distance and enter its real-world length.
-- **X/Y**: mark separate horizontal and vertical references and enter each length when the plan has different scale factors along the two axes.
+- **X/Y**: mark separate horizontal and vertical references and enter each real-world distance along its axis when the plan has different scale factors along the two axes. New or edited references allow a small placement deviation (at most 10% of the span along the intended axis); more diagonal references are rejected. Existing saved scales retain their results.
 - **Custom ratio**: enter the denominator of a known 1:n scale.
 - **Standard ratios**: choose 1:20, 1:50, or 1:100.
 
