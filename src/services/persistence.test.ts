@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import { forceCloseDatabase } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave, isSessionPersistable } from "../app/autosave";
 import {
@@ -2746,5 +2747,83 @@ describe("session persistence", () => {
     const session = currentMeasuredSession();
     session.pages[2]!.measurements[0]!.name = " ";
     expect(() => deserializeSession(serializeSession(session))).toThrow("invalid");
+  });
+});
+
+describe("IndexedDB connection recovery", () => {
+  const connections: IDBDatabase[] = [];
+  let openSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    connections.length = 0;
+    const nativeOpen = indexedDB.open.bind(indexedDB);
+    openSpy = vi.spyOn(indexedDB, "open").mockImplementation((name, version) => {
+      const request = nativeOpen(name, version);
+      request.addEventListener("success", () => connections.push(request.result));
+      return request;
+    });
+  });
+
+  afterEach(() => {
+    openSpy.mockRestore();
+  });
+
+  async function terminate(connection: IDBDatabase) {
+    const closed = new Promise<void>((resolve) => {
+      connection.addEventListener("close", () => resolve(), { once: true });
+    });
+    // fake-indexeddb's declaration expects a constructor; its implementation takes an instance.
+    forceCloseDatabase(connection as unknown as Parameters<typeof forceCloseDatabase>[0]);
+    await closed;
+  }
+
+  it("reopens once for concurrent reads after termination and preserves saved data", async () => {
+    const session = currentMeasuredSession();
+    await replaceSavedSession(session, new Blob(["pdf"]), null);
+    const saved = (await loadSavedSession())!;
+    await terminate(connections[0]!);
+
+    const [first, second, projects] = await Promise.all([
+      loadSavedSession(),
+      loadSavedSession(),
+      listSavedProjects(),
+    ]);
+    expect(first).toEqual(saved);
+    expect(second).toEqual(saved);
+    expect(projects).toHaveLength(1);
+    expect(openSpy).toHaveBeenCalledTimes(2);
+    await terminate(connections[1]!);
+    expect(await loadSavedSession()).toEqual(saved);
+    expect(openSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("reopens for writes after termination without weakening revision checks", async () => {
+    const session = currentMeasuredSession();
+    const pdf = new Blob(["pdf"]);
+    const revision = await replaceSavedSession(session, pdf, null);
+    await terminate(connections[0]!);
+    expect(beginSessionMetadataSaveOnPageExit(session, () => revision, pdf)).toBeNull();
+    const edited = { ...session, settings: { ...session.settings, showLabels: true } };
+    const nextRevision = await saveSessionMetadata(edited, revision, pdf);
+    expect(nextRevision).not.toBe(revision);
+    expect(openSpy).toHaveBeenCalledTimes(2);
+    await expect(saveSessionMetadata(session, revision, pdf)).rejects.toBeInstanceOf(
+      PersistenceConflictError,
+    );
+    expect((await loadSavedSession())!.session).toEqual(edited);
+    const exitSave = beginSessionMetadataSaveOnPageExit(edited, () => nextRevision, pdf);
+    expect(exitSave).not.toBeNull();
+    await expect(exitSave).resolves.toEqual(expect.any(String));
+  });
+
+  it("closes a connection on versionchange and invalidates both cached references", async () => {
+    await loadSavedSession();
+    const connection = connections[0]!;
+    connection.dispatchEvent(
+      new IDBVersionChangeEvent("versionchange", { oldVersion: 1, newVersion: 2 }),
+    );
+    expect(() => connection.transaction("sessions")).toThrow();
+    expect(await loadSavedSession()).toBeNull();
+    expect(openSpy).toHaveBeenCalledTimes(2);
   });
 });

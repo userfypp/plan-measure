@@ -70,22 +70,35 @@ let databaseInstance: IDBPDatabase<PlanMeasureDb> | null = null;
 
 function getDatabase(): Promise<IDBPDatabase<PlanMeasureDb>> {
   if (databasePromise) return databasePromise;
-  databasePromise = openDB<PlanMeasureDb>(DATABASE_NAME, 1, {
+  let connection: IDBPDatabase<PlanMeasureDb> | null = null;
+  const invalidate = () => {
+    // A late callback from an old connection must not clear its replacement.
+    if (databasePromise !== opening) return;
+    databasePromise = null;
+    databaseInstance = null;
+  };
+  const opening: Promise<IDBPDatabase<PlanMeasureDb>> = openDB<PlanMeasureDb>(DATABASE_NAME, 1, {
     upgrade(database) {
       database.createObjectStore("sessions", { keyPath: "key" });
       database.createObjectStore("pdfs", { keyPath: "key" });
     },
+    terminated: invalidate,
+    blocking() {
+      connection?.close();
+      invalidate();
+    },
   })
     .then((database) => {
-      databaseInstance = database;
+      connection = database;
+      if (databasePromise === opening) databaseInstance = database;
       return database;
     })
     .catch((error: unknown) => {
-      databasePromise = null;
-      databaseInstance = null;
+      invalidate();
       throw error;
     });
-  return databasePromise;
+  databasePromise = opening;
+  return opening;
 }
 
 export class PersistenceConflictError extends Error {
