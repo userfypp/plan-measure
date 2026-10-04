@@ -73,6 +73,8 @@ const HISTORICAL_REPAIR_WARNING =
   "Autosave is paused because one or more measurements from an older version need repair. Edit each invalid measurement to resume autosave automatically.";
 const CLASSIFICATION_REPAIR_WARNING =
   "Autosave is paused because classification names from an older version conflict. Rename each duplicate dimension or value to resume autosave automatically.";
+const SNAPSHOT_REPAIR_WARNING =
+  "Autosave is paused because this project contains invalid measurements or conflicting classification names. Repair them to resume autosave automatically.";
 const COMBINED_REPAIR_WARNING =
   "Autosave is paused because classification names conflict and one or more measurements need repair. Repair both to resume autosave automatically.";
 
@@ -283,10 +285,22 @@ export function usePdfSessionLifecycle({
   }, []);
 
   useEffect(() => {
-    const repairedHistoricalSession =
-      autosaveStatus === "repair-required" &&
-      session !== null &&
-      isSessionPersistable(session);
+    const canAutosave = autosaveStatus === "available" || autosaveStatus === "repair-required";
+    if (canAutosave && session !== null && !isSessionPersistable(session)) {
+      if (autosaveStatus === "available") {
+        let cancelled = false;
+        queueMicrotask(() => {
+          if (cancelled || autosaveStatusRef.current !== "available") return;
+          updateAutosaveStatus("repair-required");
+          setAutosaveWarning(SNAPSHOT_REPAIR_WARNING);
+        });
+        return () => {
+          cancelled = true;
+        };
+      }
+      return;
+    }
+    const repairedHistoricalSession = autosaveStatus === "repair-required" && session !== null;
     const autosaveInputs = {
       snapshot: session,
       pdfRuntimeReady: activePdf !== null,
@@ -327,8 +341,10 @@ export function usePdfSessionLifecycle({
         .then(() => {
           if (generation === persistenceGenerationRef.current) {
             persistedSessionRef.current = snapshot;
-            if (repairedHistoricalSession) updateAutosaveStatus("available");
-            setAutosaveWarning(null);
+            if (currentSessionRef.current === snapshot) {
+              if (repairedHistoricalSession) updateAutosaveStatus("available");
+              setAutosaveWarning(null);
+            }
           }
         })
         .catch((error: unknown) => {

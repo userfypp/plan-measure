@@ -19,7 +19,8 @@ import {
 } from "../services/persistence";
 import type { CurrentSession } from "../types/domain";
 import type { LoadedPdf } from "../services/pdf";
-import { createEmptySession } from "./sessionState";
+import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
+import { AppProvider } from "./state";
 import { createProjectFile, readProjectFile } from "../services/projectFile";
 import type { WorkspaceModule } from "./workspaceState";
 
@@ -36,6 +37,7 @@ let container: HTMLDivElement | null = null;
 let lifecycle: ReturnType<typeof usePdfSessionLifecycle> | null = null;
 let setHarnessSession: ((session: CurrentSession) => void) | null = null;
 let harnessSession: CurrentSession | null = null;
+let historyCommands: ReturnType<typeof useSessionState> | null = null;
 let resetWorkspaceCalls: Array<WorkspaceModule | undefined> = [];
 let replacementPromptCount = 0;
 let replacementPromptPayload: ReplacePdfPayload | null = null;
@@ -74,6 +76,7 @@ afterEach(async () => {
   lifecycle = null;
   setHarnessSession = null;
   harnessSession = null;
+  historyCommands = null;
   resetWorkspaceCalls = [];
   replacementPromptCount = 0;
   replacementPromptPayload = null;
@@ -91,18 +94,22 @@ afterEach(async () => {
 function LifecycleHarness({
   publish,
   recoveredStartupWorkspace,
+  history,
 }: {
   publish: (
     currentLifecycle: ReturnType<typeof usePdfSessionLifecycle>,
     updateSession: (session: CurrentSession) => void,
   ) => void;
   recoveredStartupWorkspace: WorkspaceModule;
+  history?: ReturnType<typeof useSessionState>;
 }) {
-  const [session, setSession] = useState<CurrentSession | null>(null);
+  const [localSession, setLocalSession] = useState<CurrentSession | null>(null);
+  const session = history ? history.session : localSession;
+  const setSession = history ? history.loadSession : setLocalSession;
   const currentLifecycle = usePdfSessionLifecycle({
     session,
     loadSession: (nextSession) => setSession(nextSession),
-    clearSession: () => setSession(null),
+    clearSession: () => (history ? history.clearSession() : setLocalSession(null)),
     resetWorkspace: (module) => resetWorkspaceCalls.push(module),
     recoveredStartupWorkspace,
     cancelWorkspaceCalibration: () => undefined,
@@ -125,8 +132,16 @@ function LifecycleHarness({
   useEffect(() => {
     harnessSession = session;
     publish(currentLifecycle, (nextSession) => setSession(nextSession));
-  }, [currentLifecycle, publish, session]);
+  }, [currentLifecycle, publish, session, setSession]);
   return createElement(PdfEffectProbe, { pdf: currentLifecycle.activePdf });
+}
+
+function HistoryLifecycleHarness(props: Parameters<typeof LifecycleHarness>[0]) {
+  const history = useSessionState();
+  useEffect(() => {
+    historyCommands = history;
+  }, [history]);
+  return createElement(LifecycleHarness, { ...props, history });
 }
 
 function PdfEffectProbe({ pdf }: { pdf: LoadedPdf | null }) {
@@ -139,7 +154,10 @@ function PdfEffectProbe({ pdf }: { pdf: LoadedPdf | null }) {
   return null;
 }
 
-async function renderLifecycleHarness(recoveredStartupWorkspace: WorkspaceModule = "scales") {
+async function renderLifecycleHarness(
+  recoveredStartupWorkspace: WorkspaceModule = "scales",
+  withHistory = false,
+) {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -151,7 +169,16 @@ async function renderLifecycleHarness(recoveredStartupWorkspace: WorkspaceModule
     setHarnessSession = updateSession;
   };
   await act(async () => {
-    root!.render(createElement(LifecycleHarness, { publish, recoveredStartupWorkspace }));
+    const props = { publish, recoveredStartupWorkspace };
+    root!.render(
+      withHistory
+        ? createElement(
+            AppProvider,
+            null,
+            createElement(SessionProvider, null, createElement(HistoryLifecycleHarness, props)),
+          )
+        : createElement(LifecycleHarness, props),
+    );
   });
   for (let attempt = 0; attempt < 20 && !lifecycle?.recoveryChecked; attempt += 1) {
     await act(async () => {
@@ -824,6 +851,182 @@ describe("workspace initialization", () => {
 
     expect(harnessSession?.pdf.name).toBe("First.pdf");
     expect(latestLifecycleError).toBe(laterLoadError);
+  });
+});
+
+describe("autosave after undoing a repair", () => {
+  it.each(["polygon", "classification"] as const)(
+    "pauses on Undo and resumes on Redo of a %s repair without disabling storage",
+    async (kind) => {
+      await seedRecoverySession();
+      const saved = (await loadSavedSession())!;
+      const historical = structuredClone(saved.session);
+      if (kind === "polygon") {
+        historical.pages[1]!.measurements.push({
+          id: "invalid-polygon",
+          name: "Historical polygon",
+          type: "polygon",
+          calibrationId: "scale-1",
+          classificationValueIds: [],
+          visible: true,
+          note: "",
+          points: [
+            { x: 0, y: 0 },
+            { x: 6, y: 5 },
+            { x: 0, y: 4 },
+            { x: 4, y: 0 },
+          ],
+        });
+      } else {
+        historical.classificationCatalog.dimensions.push(
+          { id: "first", name: "Trade", archived: false, values: [] },
+          { id: "second", name: "Trade", archived: false, values: [] },
+        );
+      }
+      expect(isSessionPersistable(historical)).toBe(false);
+      vi.spyOn(persistenceService, "loadSavedSession").mockResolvedValueOnce({
+        ...saved,
+        session: historical,
+        compatibility:
+          kind === "polygon" ? "historical-repair-required" : "classification-repair-required",
+        incompatibleMeasurementIds: kind === "polygon" ? ["invalid-polygon"] : [],
+      });
+      await renderLifecycleHarness("scales", true);
+      await act(async () => {
+        await lifecycle!.continueRecovery();
+      });
+      expect(lifecycle!.autosaveWarning).toContain("Autosave is paused");
+      const save = vi.spyOn(persistenceService, "saveSessionMetadata");
+      act(() => {
+        if (kind === "polygon") historyCommands!.deleteMeasurement(1, "invalid-polygon");
+        else historyCommands!.renameClassificationDimension("second", "System");
+      });
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      });
+      expect(save).toHaveBeenCalledOnce();
+      expect(lifecycle!.autosaveUnavailable).toBe(false);
+      expect(lifecycle!.autosaveWarning).toBeNull();
+      const repairedSaved = (await loadSavedSession())!;
+
+      await act(async () => {
+        historyCommands!.undo();
+      });
+      expect(isSessionPersistable(harnessSession!)).toBe(false);
+      expect(lifecycle!.autosaveWarning).toContain("Autosave is paused");
+      await act(async () => {
+        window.dispatchEvent(new Event("beforeunload"));
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+        document.dispatchEvent(new Event("visibilitychange"));
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      });
+      expect(save).toHaveBeenCalledOnce();
+      expect(await loadSavedSession()).toEqual(repairedSaved);
+
+      act(() => historyCommands!.redo());
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      });
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(isSessionPersistable(harnessSession!)).toBe(true);
+      expect(lifecycle!.autosaveUnavailable).toBe(false);
+      expect(lifecycle!.autosaveWarning).toBeNull();
+      expect((await loadSavedSession())!.session).toEqual(harnessSession);
+    },
+  );
+
+  it("keeps the repair warning when an older save finishes after an invalid snapshot is restored", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const valid = harnessSession!;
+    const edited = { ...valid, settings: { ...valid.settings, displayUnit: "mm" as const } };
+    const invalid = {
+      ...edited,
+      classificationCatalog: {
+        dimensions: [
+          { id: "one", name: "Trade", archived: false, values: [] },
+          { id: "two", name: "Trade", archived: false, values: [] },
+        ],
+      },
+    };
+    let releaseSave!: () => void;
+    let reportSaved!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    const saved = new Promise<void>((resolve) => {
+      reportSaved = resolve;
+    });
+    const originalSave = persistenceService.saveSessionMetadata;
+    const save = vi
+      .spyOn(persistenceService, "saveSessionMetadata")
+      .mockImplementationOnce(async (...args) => {
+        const revision = await originalSave(...args);
+        reportSaved();
+        await gate;
+        return revision;
+      });
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      await saved;
+    });
+    act(() => setHarnessSession!(invalid));
+    await act(async () => {
+      releaseSave();
+      await gate;
+    });
+    expect(lifecycle!.autosaveUnavailable).toBe(true);
+    expect(lifecycle!.autosaveWarning).toContain("Autosave is paused");
+    expect(save).toHaveBeenCalledOnce();
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(lifecycle!.autosaveUnavailable).toBe(false);
+    expect(lifecycle!.autosaveWarning).toBeNull();
+    expect((await loadSavedSession())!.session).toEqual(edited);
+  });
+
+  it("does not resume autosave or overwrite another tab after a revision conflict", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const saved = (await loadSavedSession())!;
+    const external = {
+      ...saved.session,
+      settings: { ...saved.session.settings, showLabels: false },
+    };
+    await persistenceService.saveSessionMetadata(external, saved.revision, saved.pdfBlob);
+    const save = vi.spyOn(persistenceService, "saveSessionMetadata");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const edited = {
+      ...saved.session,
+      settings: { ...saved.session.settings, displayUnit: "mm" as const },
+    };
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect(lifecycle!.autosaveWarning).toContain("Autosave is unavailable");
+    expect(save).toHaveBeenCalledOnce();
+    const invalid = { ...edited, pdf: { ...edited.pdf, size: Number.NaN } };
+    act(() => setHarnessSession!(invalid));
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect(save).toHaveBeenCalledOnce();
+    expect(lifecycle!.autosaveWarning).toContain("Autosave is unavailable");
+    expect((await loadSavedSession())!.session).toEqual(external);
+    expect(consoleError).toHaveBeenCalled();
   });
 });
 
