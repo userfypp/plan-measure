@@ -28,10 +28,10 @@ function RailHarness({
 }) {
   const { chooseTool } = useWorkspaceState();
   const capability = computeAuthoringCapability({
-    viewerSize: { width: 900, height: 700 },
+    viewerSize: { width: precisionAvailable ? 900 : 479, height: 700 },
     rightObstruction: 0,
     bottomExclusion: 0,
-    finePointer: precisionAvailable,
+    finePointer: true,
   });
   return (
     <AuthoringCapabilityProvider capability={capability}>
@@ -195,8 +195,8 @@ describe("ToolRail V2", () => {
       expect(button(tool).getAttribute("aria-disabled")).toBe("true");
       const reasonId = button(tool).getAttribute("aria-describedby");
       expect(reasonId).not.toBeNull();
-      expect(document.getElementById(reasonId!)?.textContent).toContain("fine pointer");
-      expect(button(tool).title).toContain("fine pointer");
+      expect(document.getElementById(reasonId!)?.textContent).toContain("480 px");
+      expect(button(tool).title).toContain("480 px");
     }
   });
 

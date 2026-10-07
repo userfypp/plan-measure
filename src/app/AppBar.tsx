@@ -37,6 +37,7 @@ interface AppBarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
@@ -46,6 +47,7 @@ interface AppBarProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
   onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
@@ -70,6 +72,7 @@ export function AppBar({
   canUndo = false,
   canRedo = false,
   measurementDecimalPlaces = null,
+  keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
@@ -79,6 +82,7 @@ export function AppBar({
   onUndo,
   onRedo,
   onMeasurementDecimalPlacesChange,
+  onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
   onConfirmDimensionDeletionChange,
@@ -164,11 +168,13 @@ export function AppBar({
           trigger={<SettingsIcon />}
           triggerClassName={styles.iconTrigger}
           measurementDecimalPlaces={measurementDecimalPlaces}
+          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
           confirmValueDeletion={confirmValueDeletion}
           confirmDimensionDeletion={confirmDimensionDeletion}
           recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+          onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
           onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
           onConfirmValueDeletionChange={onConfirmValueDeletionChange}
           onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}

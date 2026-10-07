@@ -8,13 +8,14 @@ import {
 function capability(
   width: number,
   height: number,
-  options: { rightObstruction?: number; bottomExclusion?: number; finePointer?: boolean } = {},
+  options: { rightObstruction?: number; bottomExclusion?: number; finePointer?: boolean; keyboardAuthoringEnabled?: boolean } = {},
 ) {
   return computeAuthoringCapability({
     viewerSize: { width, height },
     rightObstruction: options.rightObstruction ?? 0,
     bottomExclusion: options.bottomExclusion ?? 0,
     finePointer: options.finePointer ?? true,
+    keyboardAuthoringEnabled: options.keyboardAuthoringEnabled,
   });
 }
 
@@ -27,9 +28,19 @@ describe("precision authoring capability", () => {
     expect(capability(480, 359).available).toBe(false);
   });
 
-  it("requires a real fine pointer independently of viewer size", () => {
-    expect(capability(1200, 800, { finePointer: false }).available).toBe(false);
+  it("allows keyboard authoring without a fine pointer while retaining pointer capability", () => {
+    expect(capability(1200, 800, { finePointer: false, keyboardAuthoringEnabled: true }).available).toBe(true);
+    expect(capability(1200, 800, { finePointer: false }).finePointer).toBe(false);
+    expect(capability(1200, 800, { finePointer: false, keyboardAuthoringEnabled: true }).unavailableReason).toBeNull();
     expect(capability(1200, 800, { finePointer: true }).available).toBe(true);
+  });
+
+  it("gates coarse-pointer authoring until keyboard drawing is enabled", () => {
+    const result = capability(1200, 800, { finePointer: false });
+    expect(result.available).toBe(false);
+    expect(result.unavailableReason).toContain("Keyboard drawing and editing enabled in Settings");
+    expect(capability(479, 800, { finePointer: false, keyboardAuthoringEnabled: true }).available).toBe(false);
+    expect(capability(1200, 359, { finePointer: false, keyboardAuthoringEnabled: true }).available).toBe(false);
   });
 
   it("counts the Narrow drawer as obstruction without changing the physical Viewer rect", () => {

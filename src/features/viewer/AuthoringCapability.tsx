@@ -27,11 +27,13 @@ export function computeAuthoringCapability({
   rightObstruction,
   bottomExclusion,
   finePointer,
+  keyboardAuthoringEnabled = false,
 }: {
   viewerSize: ViewerSize;
   rightObstruction: number;
   bottomExclusion: number;
   finePointer: boolean;
+  keyboardAuthoringEnabled?: boolean;
 }): AuthoringCapability {
   const width = Math.max(0, viewerSize.width);
   const height = Math.max(0, viewerSize.height);
@@ -44,21 +46,23 @@ export function computeAuthoringCapability({
   const measured = width > 0 && height > 0;
   const widthAvailable = usableSize.width >= AUTHORING_MIN_USABLE_WIDTH;
   const heightAvailable = usableSize.height >= AUTHORING_MIN_USABLE_HEIGHT;
-  const available = measured && finePointer && widthAvailable && heightAvailable;
+  const available =
+    measured && widthAvailable && heightAvailable && (finePointer || keyboardAuthoringEnabled);
 
   let unavailableReason: string | null = null;
   if (measured && !available) {
-    if (!finePointer) {
-      unavailableReason = "Precision drawing and editing require a fine pointer.";
-    } else if (!widthAvailable && !heightAvailable) {
+    if (!widthAvailable && !heightAvailable) {
       unavailableReason =
         "Precision drawing and editing need at least 480 × 360 px of unobscured viewer space.";
     } else if (!widthAvailable) {
       unavailableReason =
         "Precision drawing and editing need at least 480 px of unobscured viewer width.";
-    } else {
+    } else if (!heightAvailable) {
       unavailableReason =
         "Precision drawing and editing need at least 360 px of unobscured viewer height.";
+    } else {
+      unavailableReason =
+        "Precision drawing and editing need a fine pointer or Keyboard drawing and editing enabled in Settings.";
     }
   }
 

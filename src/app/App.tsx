@@ -82,6 +82,10 @@ import {
   readRecoveredPlanStartupWorkspacePreference,
   writeRecoveredPlanStartupWorkspacePreference,
 } from "./recoveredPlanStartupPreference";
+import {
+  readKeyboardAuthoringPreference,
+  writeKeyboardAuthoringPreference,
+} from "./keyboardAuthoringPreference";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
@@ -201,6 +205,9 @@ function PlanMeasureApp() {
   const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
   const [pendingDiscardProjectId, setPendingDiscardProjectId] = useState<string | null>(null);
   const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
+  const [keyboardAuthoringEnabled, setKeyboardAuthoringEnabledState] = useState(
+    readKeyboardAuthoringPreference,
+  );
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
   );
@@ -317,6 +324,11 @@ function PlanMeasureApp() {
   const clearDragState = useCallback(() => {
     dragDepthRef.current = 0;
     setDragActive(false);
+  }, []);
+
+  const setKeyboardAuthoringEnabled = useCallback((enabled: boolean) => {
+    setKeyboardAuthoringEnabledState(enabled);
+    writeKeyboardAuthoringPreference(enabled);
   }, []);
 
   const setConfirmMeasurementDeletion = useCallback((enabled: boolean) => {
@@ -1111,6 +1123,7 @@ function PlanMeasureApp() {
       canUndo={canUndo}
       canRedo={canRedo}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
+      keyboardAuthoringEnabled={keyboardAuthoringEnabled}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       confirmValueDeletion={confirmValueDeletion}
       confirmDimensionDeletion={confirmDimensionDeletion}
@@ -1125,6 +1138,7 @@ function PlanMeasureApp() {
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }
+      onKeyboardAuthoringEnabledChange={setKeyboardAuthoringEnabled}
       onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
       onConfirmValueDeletionChange={setConfirmValueDeletion}
       onConfirmDimensionDeletionChange={setConfirmDimensionDeletion}
@@ -1195,6 +1209,7 @@ function PlanMeasureApp() {
       />
       {session && activePdf && currentPage && previewPage ? (
         <WorkspaceShell
+          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           dragActive={dragActive}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -1389,6 +1404,7 @@ function PlanMeasureApp() {
               }
             >
               <PdfViewer
+                keyboardAuthoringEnabled={keyboardAuthoringEnabled}
                 document={activePdf.document}
                 page={previewPage}
                 onPageChange={handlePageChange}
@@ -1431,6 +1447,7 @@ function PlanMeasureApp() {
                 measurementEditingBlocked={Boolean(calibrationFlow || calibrationCandidate)}
                 onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
                 onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
+                onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
               />
             </Suspense>
           }
@@ -1438,6 +1455,7 @@ function PlanMeasureApp() {
         />
       ) : (
         <WorkspaceShell
+          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           isEmpty
           dragActive={dragActive}
           onDragEnter={handleDragEnter}

@@ -182,12 +182,14 @@ describe("WorkspaceShell responsive layout", () => {
     viewer = <div data-testid="pdf">PDF</div>,
     onAuthoringCapabilityChange,
     authoringIntentScopeKey,
+    keyboardAuthoringEnabled = false,
   }: {
     panel?: ReactNode;
     viewerOverlay?: ReactNode;
     viewer?: ReactNode;
     onAuthoringCapabilityChange?: Parameters<typeof WorkspaceShell>[0]["onAuthoringCapabilityChange"];
     authoringIntentScopeKey?: string | number;
+    keyboardAuthoringEnabled?: boolean;
   } = {}) {
     act(() => {
       root.render(
@@ -205,6 +207,7 @@ describe("WorkspaceShell responsive layout", () => {
             viewer={viewer}
             onAuthoringCapabilityChange={onAuthoringCapabilityChange}
             authoringIntentScopeKey={authoringIntentScopeKey}
+            keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           />
         </WorkspaceProvider>,
       );
@@ -554,7 +557,8 @@ describe("WorkspaceShell responsive layout", () => {
   it.each([
     ["width", 479, 600, true],
     ["height", 768, 359, true],
-    ["coarse", 768, 600, false],
+    ["coarse with insufficient width", 479, 600, false],
+    ["coarse without keyboard drawing", 768, 600, false],
   ] as const)(
     "keeps a non-recoverable %s case gated without closing the drawer",
     (_case, width, height, fine) => {
@@ -576,6 +580,33 @@ describe("WorkspaceShell responsive layout", () => {
     },
   );
 
+  it("recomputes drawer recovery when coarse-pointer keyboard drawing is toggled", () => {
+    shellWidth = 768;
+    viewerWidth = 768;
+    viewerHeight = 600;
+    pointer.set(false);
+    const onStart = vi.fn();
+    const panel = <AuthoringPanel onStart={onStart} />;
+    renderShell({ panel });
+    act(() => launcher().click());
+    const entry = () => container.querySelector<HTMLButtonElement>('[data-testid="authoring-entry"]')!;
+    expect(entry().disabled).toBe(true);
+    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe("gated");
+    expect(container.querySelector('[data-testid="recoverable"]')?.textContent).toBe("false");
+
+    renderShell({ panel, keyboardAuthoringEnabled: true });
+    expect(entry().disabled).toBe(false);
+    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe("available");
+    expect(container.querySelector('[data-testid="recoverable"]')?.textContent).toBe("true");
+
+    renderShell({ panel, keyboardAuthoringEnabled: false });
+    expect(entry().disabled).toBe(true);
+    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe("gated");
+    expect(container.querySelector('[data-testid="recoverable"]')?.textContent).toBe("false");
+    expect(panelHost().hidden).toBe(false);
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
   it("drops a pending intent if capability fails to recover and never revives it on a later resize", () => {
     shellWidth = 768;
     viewerWidth = 768;
@@ -587,13 +618,14 @@ describe("WorkspaceShell responsive layout", () => {
 
     act(() => {
       entry.click();
-      pointer.set(false);
+      viewerHeight = 359;
+      viewerObserver().emit(768, 359);
     });
     expect(panelHost().hidden).toBe(true);
     expect(onStart).not.toHaveBeenCalled();
 
-    act(() => pointer.set(true));
     viewerWidth = 900;
+    viewerHeight = 600;
     act(() => viewerObserver().emit(900, 600));
     expect(onStart).not.toHaveBeenCalled();
   });

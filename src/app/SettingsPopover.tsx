@@ -27,11 +27,13 @@ export interface SettingsPopoverProps {
   trigger: ReactNode;
   triggerClassName?: string;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
   onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
@@ -42,11 +44,13 @@ export function SettingsPopover({
   trigger,
   triggerClassName,
   measurementDecimalPlaces = null,
+  keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange,
+  onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
   onConfirmDimensionDeletionChange,
@@ -60,6 +64,8 @@ export function SettingsPopover({
   const valueDeletionId = useId();
   const dimensionDeletionId = useId();
   const appearanceLabelId = useId();
+  const keyboardAuthoringId = useId();
+  const keyboardAuthoringDescriptionId = useId();
   const recoveredWorkspaceId = useId();
   const recoveredWorkspaceDescriptionId = useId();
   const decimalPlacesId = useId();
@@ -140,6 +146,26 @@ export function SettingsPopover({
                 })}
               </div>
             </div>
+
+            {onKeyboardAuthoringEnabledChange && (
+              <div className={styles.settingRow}>
+                <div className={styles.settingCopy}>
+                  <label className={styles.settingLabel} htmlFor={keyboardAuthoringId}>
+                    Keyboard drawing and editing
+                  </label>
+                  <span id={keyboardAuthoringDescriptionId} className={styles.description}>
+                    Use arrows to move a cursor, Space to place points and E to edit measurements.
+                  </span>
+                </div>
+                <Switch
+                  id={keyboardAuthoringId}
+                  aria-label="Keyboard drawing and editing"
+                  aria-describedby={keyboardAuthoringDescriptionId}
+                  checked={keyboardAuthoringEnabled}
+                  onChange={onKeyboardAuthoringEnabledChange}
+                />
+              </div>
+            )}
 
             {onRecoveredPlanStartupWorkspaceChange && (
               <div className={`${styles.settingRow} ${styles.stackOnNarrow}`}>

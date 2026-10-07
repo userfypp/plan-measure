@@ -20,11 +20,136 @@
   outline-offset: -3px;
 }
 
+.keyboardHelp {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.keyboardCursor {
+  position: absolute;
+  z-index: 4;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--color-text);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--color-surface);
+  pointer-events: none;
+}
+
+.keyboardCursor::before,
+.keyboardCursor::after {
+  content: "";
+  position: absolute;
+  background: var(--color-text);
+}
+
+.keyboardCursor::before {
+  left: 7px;
+  top: -6px;
+  width: 2px;
+  height: 28px;
+}
+.keyboardCursor::after {
+  top: 7px;
+  left: -6px;
+  height: 2px;
+  width: 28px;
+}
+
+.keyboardFeedback {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-12);
+  right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
+  width: min(420px, calc(100% - var(--viewer-right-obstruction, 0px) - 80px));
+  max-height: calc(100% - var(--viewer-dock-bottom-exclusion, 0px) - 60px);
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-8) var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-overlay);
+  font-size: 13px;
+  line-height: 1.45;
+  cursor: auto;
+}
+
+.keyboardFeedbackCopy {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+.keyboardFeedback p {
+  margin: 0;
+}
+.keyboardFeedback p + p {
+  margin-top: var(--space-8);
+}
+.keyboardFeedback kbd {
+  display: inline-block;
+  padding: 1px var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+}
+.keyboardHint {
+  color: var(--color-text-muted);
+}
+.keyboardFeedback button {
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.keyboardFeedback button:hover {
+  background: var(--color-control-hover-surface);
+}
+.keyboardFeedback button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.keyboardTarget {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+.keyboardTarget select {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-4) var(--space-8);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.keyboardMeasurementName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .softwareCursor {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 2;
+  z-index: 4;
   pointer-events: none;
   visibility: hidden;
 }

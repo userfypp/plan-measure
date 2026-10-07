@@ -129,10 +129,14 @@ Use `Cmd` on macOS and `Ctrl` on Windows or Linux.
 
 Shortcuts work outside text fields and dialogs. Native control actions keep their usual keys.
 
+Enable **Keyboard drawing and editing** in Settings (off by default, saved in this browser). With the PDF viewer focused, use the arrow keys to show and move a keyboard cursor (one screen pixel, or fifty with Shift; holding an arrow accelerates). Space places a point with the current drawing tool, using the same Snap and Ortho settings as pointer placement. Place two points for a Line or scale reference; press Enter to finish a Polyline or Polygon. Escape cancels the draft. The viewer pans automatically to keep the cursor visible; with Hand selected, arrows pan the view (Shift moves faster).
+
+In Select, Space selects the visible measurement at the cursor and Shift+Space adds or removes it from the selection. Measurements can also be selected from the keyboard-navigable workspace list. Press E in the focused viewer to preview a move of the selected measurements. For a single measurement, choose **Whole measurement** or a numbered **Vertex** in the help card. `N` and `Shift+N` cycle forward and backward; `[` and `]` also work. Arrows change the preview; Enter saves it as one undoable edit, and Escape discards it. Keyboard edits are cancelled on navigation, geometry/selection changes, pointer interaction, or loss of focus. The help card stays visible until dismissed; switching the mode off and on shows it again. During a scale reference edit, the selector or N chooses the endpoint, arrows adjust it, and Enter uses the normal Save workflow.
+
 ## Limitations
 
 - PDFs must be no larger than 100 MB; password-protected PDFs are not supported.
-- Precision drawing and geometry editing require a fine pointer and at least 480 × 360 px of unobscured viewer space.
+- Precision drawing and geometry editing require at least 480 × 360 px of unobscured viewer space. Pointer authoring requires a fine pointer; keyboard authoring does not.
 - X/Y calibration handles different horizontal and vertical scale factors. It does not correct skew, perspective, local distortion, or nonlinear warping.
 - Projects are saved in this browser on this device, with no cloud sync or collaboration.
 

@@ -30,6 +30,7 @@ interface ViewerShellProps {
   viewerOverlay?: ReactNode;
   sourcePageLabels?: readonly string[] | null;
   logicalPageBounds?: LogicalPageBounds | null;
+  keyboardAuthoringEnabled?: boolean;
   rightObstruction?: number;
   onAuthoringCapabilityChange?: (
     capability: AuthoringCapability,
@@ -44,6 +45,7 @@ export function ViewerShell({
   viewerOverlay,
   sourcePageLabels = null,
   logicalPageBounds = null,
+  keyboardAuthoringEnabled = false,
   rightObstruction = 0,
   onAuthoringCapabilityChange,
 }: ViewerShellProps) {
@@ -119,8 +121,9 @@ export function ViewerShell({
         rightObstruction,
         bottomExclusion: dockBottomExclusion,
         finePointer,
+        keyboardAuthoringEnabled,
       }),
-    [dockBottomExclusion, finePointer, rightObstruction, viewerFrameSize],
+    [dockBottomExclusion, finePointer, keyboardAuthoringEnabled, rightObstruction, viewerFrameSize],
   );
   const authoringCapabilityWithoutRightObstruction = useMemo(
     () =>
@@ -129,8 +132,9 @@ export function ViewerShell({
         rightObstruction: 0,
         bottomExclusion: dockBottomExclusion,
         finePointer,
+        keyboardAuthoringEnabled,
       }),
-    [dockBottomExclusion, finePointer, viewerFrameSize],
+    [dockBottomExclusion, finePointer, keyboardAuthoringEnabled, viewerFrameSize],
   );
   const viewerFrameStyle = {
     "--viewer-right-obstruction": `${authoringCapability.rightObstruction}px`,
