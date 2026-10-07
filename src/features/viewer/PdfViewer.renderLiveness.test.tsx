@@ -310,6 +310,7 @@ function ErrorProbe() {
 
 interface ViewerHarnessProps {
   document: PDFDocumentProxy;
+  keyboardAuthoringEnabled?: boolean;
   page?: PageState;
   registerNavigation?: ViewerNavigationRegistration;
   bottomExclusion?: number;
@@ -320,6 +321,7 @@ interface ViewerHarnessProps {
 
 function ViewerHarness({
   document,
+  keyboardAuthoringEnabled = true,
   page = createPageState(1),
   registerNavigation = noop,
   bottomExclusion = 0,
@@ -345,6 +347,7 @@ function ViewerHarness({
                   <ViewerNavigationProvider registerNavigation={registerNavigation}>
                     <PdfViewer
                       document={document}
+                      keyboardAuthoringEnabled={keyboardAuthoringEnabled}
                       page={page}
                       onPageChange={noop}
                       onPageBoundsChange={noop}
@@ -479,6 +482,7 @@ describe("PdfViewer render liveness", () => {
   async function mountViewer(
     document: PDFDocumentProxy,
     options: {
+      keyboardAuthoringEnabled?: boolean;
       page?: PageState;
       registerNavigation?: ViewerNavigationRegistration;
       strict?: boolean;
@@ -491,6 +495,7 @@ describe("PdfViewer render liveness", () => {
     const content = (
       <ViewerHarness
         document={document}
+        keyboardAuthoringEnabled={options.keyboardAuthoringEnabled}
         page={options.page}
         registerNavigation={options.registerNavigation}
         bottomExclusion={options.bottomExclusion}
@@ -1221,6 +1226,26 @@ describe("PdfViewer render liveness", () => {
     expect(cursor.style.transform).toBe("translate3d(125px, 155px, 0)");
     await act(async () => move(120, 150));
 
+    // Controls use the native cursor even while a drawing tool remains active.
+    const help = container.querySelector<HTMLElement>("[data-keyboard-controls]")!;
+    const dismiss = help.querySelector<HTMLButtonElement>("button")!;
+    await act(async () => dismiss.dispatchEvent(new PointerEvent("pointermove", {
+      bubbles: true, pointerType: "mouse", clientX: 120, clientY: 150,
+    })));
+    expect(cursor.style.visibility).toBe("hidden");
+    hitTest.mockReturnValue(dismiss);
+    await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
+    expect(cursor.style.visibility).toBe("hidden");
+    hitTest.mockReturnValue(viewer);
+    await act(async () => move(120, 150));
+    expect(cursor.style.visibility).toBe("visible");
+    hitTest.mockReturnValue(dismiss);
+    await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
+    expect(cursor.style.visibility).toBe("hidden");
+    hitTest.mockReturnValue(viewer);
+    await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
+    expect(cursor.style.visibility).toBe("visible");
+
     viewer.focus();
     const key = (value: string, options: KeyboardEventInit = {}) =>
       viewer.dispatchEvent(new KeyboardEvent("keydown", {
@@ -1527,6 +1552,198 @@ describe("PdfViewer render liveness", () => {
     const polygon = sessionProbe?.session?.pages[1]?.measurements[1];
     expect(polygon?.name).toBe("Polygon 1");
     expect(workspaceProbe?.selectedMeasurementId).toBe(polygon?.id);
+  });
+
+  it("reveals an edit cursor below a tall help card within the smallest usable viewport", async () => {
+    viewerRect = rect(480, 410);
+    const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    page.measurements = [{ id: "line", name: "Long name ".repeat(100), type: "line", visible: true,
+      classificationValueIds: [], calibrationId: "scale", points: [{x:300,y:300},{x:400,y:300}] }];
+    for (const [property, size] of [["offsetTop",76],["offsetLeft",64],["offsetWidth",400],["offsetHeight",236]] as const) {
+      vi.spyOn(HTMLElement.prototype, property, "get").mockImplementation(function(this: HTMLElement) {
+        return this.hasAttribute("data-keyboard-controls") ? size : 0;
+      });
+    }
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    await mountViewer(runtime.document, { page, bottomExclusion: 50,
+      authoringCapability: computeAuthoringCapability({ viewerSize: {width:480,height:410}, rightObstruction:0,bottomExclusion:50,finePointer:true }) });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => workspaceProbe!.selectMeasurement("line"));
+    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
+    await act(async () => { viewer.focus(); viewer.dispatchEvent(new KeyboardEvent("keydown", {key:"e",bubbles:true,cancelable:true})); });
+    const cursor = container.querySelector<HTMLElement>('[data-keyboard-cursor]')!;
+    expect(parseFloat(cursor.style.top)).toBeGreaterThanOrEqual(76 + 236 + 16);
+    expect(parseFloat(cursor.style.top)).toBeLessThanOrEqual(360 - 16);
+    expect(konvaCapture.annotationLayers.at(-1)!.measurementEditingBlocked).toBe(true);
+    expect(page.measurements[0]!.points).toEqual([{x:300,y:300},{x:400,y:300}]);
+  });
+
+  it("keeps keyboard authoring opt-in and discards an edit when the setting is switched off", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line", visible: true,
+      classificationValueIds: [], calibrationId: "scale", points: [{ x: 200, y: 200 }, { x: 300, y: 200 }] }];
+    const page = session.pages[1]!;
+    await mountViewer(runtime.document, { page, keyboardAuthoringEnabled: false });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => workspaceProbe!.selectMeasurement("line"));
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    const press = async (key: string) => act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })));
+    await press("ArrowRight"); await press("e");
+    expect(container.querySelector('[data-keyboard-cursor]')).toBeNull();
+    expect(container.querySelector('[data-keyboard-controls]')).toBeNull();
+    await mountViewer(runtime.document, { page, keyboardAuthoringEnabled: true });
+    await press("e"); await press("ArrowDown");
+    expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).not.toEqual(page.measurements[0]!.points);
+    // Interacting with the target selector must preserve the keyboard edit.
+    const select = container.querySelector<HTMLSelectElement>('[data-keyboard-controls] select')!;
+    await act(async () => select.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
+    await act(async () => { select.value = "1"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(container.querySelector('[data-keyboard-controls]')!.textContent).toContain("Keyboard editing");
+    expect(document.activeElement).toBe(viewer);
+    await press("ArrowDown");
+    await mountViewer(runtime.document, { page, keyboardAuthoringEnabled: false });
+    expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).toEqual(page.measurements[0]!.points);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(page.measurements[0]!.points);
+    await press("Enter");
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(page.measurements[0]!.points);
+  });
+
+  it("reveals the effective Ortho cursor through an axis change and keeps it outside the drawer", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
+    let navigation: ViewerNavigationModel | null = null;
+    await mountViewer(runtime.document, { page: session.pages[1],
+      authoringCapability: computeAuthoringCapability({ viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
+        rightObstruction: 300, bottomExclusion: 0, finePointer: true }),
+      registerNavigation: (next) => { navigation = next; } });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => { for (let i = 0; i < 4; i++) navigation?.onZoomIn(); });
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 110)); });
+    await act(async () => { workspaceProbe!.chooseTool("polyline"); workspaceProbe!.toggleOrthogonal(); });
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    const press = async (key: string, shiftKey = false) => act(async () => {
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }));
+    });
+    await press("ArrowRight");
+    await press(" ");
+    const first = workspaceProbe!.draft!.points[0]!;
+    for (const direction of ["ArrowRight", "ArrowDown"]) {
+      for (let i = 0; i < 70; i++) {
+        await press(direction, true);
+        const cursor = container.querySelector<HTMLElement>('[data-keyboard-cursor]')!;
+        expect(parseFloat(cursor.style.left)).toBeGreaterThanOrEqual(64 - 0.001);
+        expect(parseFloat(cursor.style.left)).toBeLessThanOrEqual(VIEWER_WIDTH - 300 - 16 + 0.001);
+        expect(parseFloat(cursor.style.top)).toBeGreaterThanOrEqual(64 - 0.001);
+        expect(parseFloat(cursor.style.top)).toBeLessThanOrEqual(VIEWER_HEIGHT - 16 + 0.001);
+      }
+    }
+    await press(" ");
+    expect(workspaceProbe!.draft!.points).toHaveLength(2);
+    expect(workspaceProbe!.draft!.points[1]!.x).toBeCloseTo(first.x);
+    expect(workspaceProbe!.draft!.points[1]!.y).toBeGreaterThan(first.y);
+  });
+
+  it("keeps the keyboard cursor visible through automatic pan without dropping an edit", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    const page = createPageState(1);
+    page.measurements = [{ id: "offscreen", name: "Line", type: "line", visible: true,
+      classificationValueIds: [], calibrationId: "scale", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] }];
+    let navigation: ViewerNavigationModel | null = null;
+    await mountViewer(runtime.document, { page, registerNavigation: (next) => { navigation = next; } });
+    const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = page;
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => navigation?.onZoomIn());
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 110)); });
+    await act(async () => workspaceProbe!.selectMeasurement("offscreen"));
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    const press = async (key: string, shiftKey = false) => act(async () => {
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }));
+    });
+    await press("e");
+    const cursor = container.querySelector<HTMLElement>('[data-keyboard-cursor]')!;
+    expect(parseFloat(cursor.style.left)).toBeGreaterThanOrEqual(64);
+    expect(parseFloat(cursor.style.top)).toBeGreaterThanOrEqual(48);
+    expect(konvaCapture.annotationLayers.at(-1)!.measurementEditingBlocked).toBe(true);
+    await press("ArrowDown", true);
+    expect(konvaCapture.annotationLayers.at(-1)!.measurementEditingBlocked).toBe(true);
+    const preview = (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points;
+    expect(preview).not.toEqual(page.measurements[0]!.points);
+    await press("Escape");
+    expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).toEqual(page.measurements[0]!.points);
+  });
+
+  it("blocks keyboard placement until the requested page raster is presented", async () => {
+    const pending = controlledRenderTask();
+    const runtime = createPdfDocument({ 1: createPdfPage().page, 2: createPdfPage(() => pending.task).page });
+    await mountViewer(runtime.document);
+    await act(async () => workspaceProbe!.chooseTool("calibrate"));
+    await mountViewer(runtime.document, { page: createPageState(2) });
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    const press = async (key: string) => act(async () => {
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    });
+    await press("ArrowRight");
+    await press(" ");
+    expect(workspaceProbe!.draft).toBeNull();
+    await act(async () => pending.resolve());
+    await press("ArrowRight");
+    await press(" ");
+    expect(workspaceProbe!.draft).toMatchObject({ type: "calibrate" });
+  });
+
+  it("authors and edits a Line through real keyboard events with one undoable commit", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1] = { ...session.pages[1]!, calibrations: [{
+      id: "scale-1", name: "Scale 1", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000,
+    }], activeCalibrationId: "scale-1", nextCalibrationNumber: 2 };
+    await mountViewer(runtime.document, { page: session.pages[1] });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => workspaceProbe!.chooseTool("line"));
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    const press = async (key: string, shiftKey = false) => {
+      const event = new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true });
+      await act(async () => viewer.dispatchEvent(event));
+      return event;
+    };
+    expect((await press("ArrowRight")).defaultPrevented).toBe(true);
+    const cursorBeforeMouse = container.querySelector('[data-keyboard-cursor]')?.getAttribute("style");
+    expect(cursorBeforeMouse).toBeTruthy();
+    const onMouseMove = konvaCapture.stages.at(-1)!.onMouseMove as (event: unknown) => void;
+    await act(async () => onMouseMove({
+      target: { getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }) },
+      evt: {},
+    }));
+    expect(container.querySelector('[data-keyboard-cursor]')?.getAttribute("style")).toBe(cursorBeforeMouse);
+    await press(" ");
+    await press("ArrowRight", true);
+    await press(" ");
+    const original = sessionProbe!.session!.pages[1]!.measurements[0]!;
+    expect(original.type).toBe("line");
+    expect(original.points).toHaveLength(2);
+    expect(workspaceProbe!.draft).toBeNull();
+    expect(workspaceProbe!.selectedMeasurementId).toBe(original.id);
+    await act(async () => workspaceProbe!.chooseTool("select"));
+    await mountViewer(runtime.document, { page: sessionProbe!.session!.pages[1] });
+    await press("e");
+    await press("ArrowDown", true);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(original.points);
+    const preview = (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points;
+    expect(preview).not.toEqual(original.points);
+    await press("Enter");
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(preview);
+    await act(async () => sessionProbe!.undo());
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(original.points);
+    await act(async () => sessionProbe!.redo());
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(preview);
   });
 
   it("selects a newly completed Line while keeping the Line tool armed", async () => {

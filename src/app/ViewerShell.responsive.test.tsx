@@ -106,10 +106,10 @@ describe("ViewerShell authoring geometry", () => {
     vi.unstubAllGlobals();
   });
 
-  function render(rightObstruction = 0) {
+  function render(rightObstruction = 0, keyboardAuthoringEnabled = false) {
     act(() => {
       root.render(
-        <ViewerShell rightObstruction={rightObstruction}>
+        <ViewerShell rightObstruction={rightObstruction} keyboardAuthoringEnabled={keyboardAuthoringEnabled}>
           <div>Viewer content</div>
         </ViewerShell>,
       );
@@ -167,14 +167,26 @@ describe("ViewerShell authoring geometry", () => {
     expect(frame().dataset.authoringCapability).toBe("available");
   });
 
-  it("tracks fine-pointer availability independently from geometry", () => {
-    render();
+  it("keeps enabled keyboard authoring available when a fine pointer is absent", () => {
+    render(0, true);
     expect(frame().dataset.authoringCapability).toBe("available");
 
     act(() => pointer.set(false));
-    expect(frame().dataset.authoringCapability).toBe("gated");
-    expect(frame().textContent).toContain("fine pointer");
+    expect(frame().dataset.authoringCapability).toBe("available");
+    expect(frame().textContent).not.toContain("fine pointer");
 
+    act(() => pointer.set(true));
+    expect(frame().dataset.authoringCapability).toBe("available");
+  });
+  it("reevaluates coarse-pointer capability when keyboard drawing is enabled and disabled", () => {
+    pointer.set(false);
+    render();
+    expect(frame().dataset.authoringCapability).toBe("gated");
+    expect(frame().textContent).toContain("Keyboard drawing and editing enabled in Settings");
+    render(0, true);
+    expect(frame().dataset.authoringCapability).toBe("available");
+    render(0, false);
+    expect(frame().dataset.authoringCapability).toBe("gated");
     act(() => pointer.set(true));
     expect(frame().dataset.authoringCapability).toBe("available");
   });

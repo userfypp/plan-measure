@@ -28,11 +28,13 @@ let container: HTMLDivElement | null = null;
 interface RenderOptions {
   theme?: ThemePreference;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
   onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
@@ -42,11 +44,13 @@ interface RenderOptions {
 function renderSettings({
   theme = "system",
   measurementDecimalPlaces = 2,
+  keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange = vi.fn(),
+  onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange = vi.fn(),
   onConfirmValueDeletionChange,
   onConfirmDimensionDeletionChange,
@@ -59,11 +63,13 @@ function renderSettings({
         <SettingsPopover
           trigger={<span>gear</span>}
           measurementDecimalPlaces={measurementDecimalPlaces}
+          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
           confirmValueDeletion={confirmValueDeletion}
           confirmDimensionDeletion={confirmDimensionDeletion}
           recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+          onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
           onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
           onConfirmValueDeletionChange={onConfirmValueDeletionChange}
           onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
@@ -202,6 +208,30 @@ describe("SettingsPopover", () => {
     expect(document.activeElement).toBe(radios()[2]);
   });
 
+  it.each([false, true])("exposes keyboard drawing with current state %s and can toggle it", (enabled) => {
+    const onChange = vi.fn();
+    renderSettings({ keyboardAuthoringEnabled: enabled, onKeyboardAuthoringEnabledChange: onChange });
+    openSettings();
+    const control = dialog().querySelector<HTMLInputElement>(
+      'input[role="switch"][aria-label="Keyboard drawing and editing"]',
+    )!;
+    const label = dialog().querySelector<HTMLLabelElement>(`label[for="${control.id}"]`)!;
+    const description = document.getElementById(control.getAttribute("aria-describedby")!);
+    expect(control.checked).toBe(enabled);
+    expect(label.textContent?.trim()).toBe("Keyboard drawing and editing");
+    expect(description?.textContent).toContain("arrows to move a cursor");
+    expect(description?.textContent).toContain("Space to place points and E to edit measurements");
+    act(() => label.click());
+    expect(onChange).toHaveBeenCalledWith(!enabled);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("defaults keyboard drawing to disabled when its setting is available", () => {
+    renderSettings({ onKeyboardAuthoringEnabledChange: vi.fn() });
+    openSettings();
+    expect(dialog().querySelector<HTMLInputElement>('input[aria-label="Keyboard drawing and editing"]')?.checked).toBe(false);
+  });
+
   it("renders the recovered workspace select with exact options and keeps the dialog open", () => {
     const callbacks = renderSettings({ recoveredPlanStartupWorkspace: "measurements" });
     openSettings();
@@ -297,20 +327,21 @@ describe("SettingsPopover", () => {
   });
 
   it("keeps exactly one Appearance option in the logical Tab order before the selects and switch", () => {
-    renderSettings({ theme: "light", onConfirmValueDeletionChange: vi.fn(), onConfirmDimensionDeletionChange: vi.fn() });
+    renderSettings({ theme: "light", onKeyboardAuthoringEnabledChange: vi.fn(), onConfirmValueDeletionChange: vi.fn(), onConfirmDimensionDeletionChange: vi.fn() });
     openSettings();
 
     const tabbable = Array.from(
       dialog().querySelectorAll<HTMLElement>("button, select, input"),
     ).filter((element) => element.tabIndex >= 0);
-    expect(tabbable).toHaveLength(6);
+    expect(tabbable).toHaveLength(7);
     expect(tabbable[0]?.getAttribute("role")).toBe("radio");
     expect(tabbable[0]?.textContent).toBe("Light");
-    expect(tabbable[1]).toBe(selectByLabel("Recovered plan workspace"));
-    expect(tabbable[2]).toBe(selectByLabel("Decimal places"));
-    expect(tabbable[3]).toBe(switchControl());
-    expect(tabbable[4]?.getAttribute("aria-label")).toBe("Confirm before deleting values");
-    expect(tabbable[5]?.getAttribute("aria-label")).toBe("Confirm before deleting dimensions");
+    expect(tabbable[1]?.getAttribute("aria-label")).toBe("Keyboard drawing and editing");
+    expect(tabbable[2]).toBe(selectByLabel("Recovered plan workspace"));
+    expect(tabbable[3]).toBe(selectByLabel("Decimal places"));
+    expect(tabbable[4]).toBe(switchControl());
+    expect(tabbable[5]?.getAttribute("aria-label")).toBe("Confirm before deleting values");
+    expect(tabbable[6]?.getAttribute("aria-label")).toBe("Confirm before deleting dimensions");
   });
 
   it("closes backward from the first setting and forward from the last setting", () => {

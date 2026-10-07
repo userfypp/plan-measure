@@ -1,6 +1,8 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
+  useId,
   useLayoutEffect,
   memo,
   useMemo,
@@ -37,6 +39,7 @@ import {
   logicalPageBoundsFromViewport,
   normalizeRotation,
   pdfRasterLayout,
+  pageToScreen,
   screenToPage,
   VIEWER_ZOOM_STEP,
   zoomViewAtPoint,
@@ -50,6 +53,8 @@ import {
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
 import { buildDraftPreviewPoints } from "./draftPreview";
+import { useKeyboardGeometry } from "./useKeyboardGeometry";
+import { KeyboardGeometryHelp } from "./KeyboardGeometryHelp";
 import {
   createWholeMeasurementDragCancellationRegistry,
   registerWholeMeasurementDragEnvironmentCancellation,
@@ -142,6 +147,8 @@ interface PdfViewerProps {
   measurementEditingBlocked: boolean;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
   onCalibrationReferenceEditCancel: () => void;
+  onCalibrationReferenceEditSave?: () => void;
+  keyboardAuthoringEnabled?: boolean;
 }
 
 function pointsToFlat(points: Point[]): number[] {
@@ -227,6 +234,8 @@ export function PdfViewer({
   measurementEditingBlocked,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceEditCancel,
+  onCalibrationReferenceEditSave = () => undefined,
+  keyboardAuthoringEnabled = false,
 }: PdfViewerProps) {
   const { setError } = useAppState();
   const onNavigationChange = useViewerNavigationRegistration();
@@ -236,7 +245,9 @@ export function PdfViewer({
   const canvasVisualRoles = useCanvasVisualRoles();
   const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
   const precisionAuthoringBlocked = !authoringCapability.available;
-  const { session, addMeasurement } = useSessionState();
+  const { session, addMeasurement, updateMeasurements } = useSessionState();
+  const keyboardHelpId = useId();
+  const keyboardHelpRef = useRef<HTMLDivElement | null>(null);
   const {
     activeTool,
     draft: workspaceDraft,
@@ -650,6 +661,90 @@ export function PdfViewer({
     [bounds, fitMode, safeViewer.size, transform],
   );
 
+  const showPage = Boolean(
+    pageReady &&
+    readyRaster?.page === pageRenderData &&
+    pageRenderData?.document === document &&
+    pageRenderData.pageNumber === page.pageNumber &&
+    bounds &&
+    viewerSize.width > 0 &&
+    viewerSize.height > 0,
+  );
+  const pageLoadFailed =
+    failedPageRequest?.document === document &&
+    failedPageRequest.pageNumber === page.pageNumber;
+  const canvasPageData =
+    !pageLoadFailed && displayedRaster?.page.document === document ? displayedRaster.page : null;
+  const isPresentedTarget = showPage && canvasPageData === pageRenderData;
+
+  const keyboardGeometry = useKeyboardGeometry({
+    document,
+    page,
+    bounds,
+    transform: viewTransform,
+    screenCenter: safeViewer.center ?? { x: 0, y: 0 },
+    tool: activeTool,
+    draft: workspaceDraft,
+    selectedIds: selectedMeasurementIds,
+    disabled: !keyboardAuthoringEnabled || precisionAuthoringBlocked || !pageReady ||
+      pageRenderData?.document !== document || pageRenderData?.pageNumber !== page.pageNumber,
+    editingBlocked: measurementEditingBlocked || Boolean(activeMeasurementEditId),
+    showMeasurements,
+    snap,
+    orthogonal,
+    targets: snapTargets,
+    referenceEdit: calibrationReferenceEdit,
+    onReferenceChange: onCalibrationReferencePointsChange,
+    onReferenceSave: onCalibrationReferenceEditSave,
+    onReferenceCancel: onCalibrationReferenceEditCancel,
+    placePoint: placeDrawingPoint,
+    previewPoint: (pointer, previewTransform) => {
+      setPlacementPointer(pointer);
+      if (activeTool === "calibrate" && bounds) setDraftPointer(screenToPage(pointer, previewTransform));
+    },
+    revealPoint: (point) => {
+      const effectivePoint = resolveDrawingPreview({
+        tool: activeTool, draft: workspaceDraft, rawPointerScreen: pageToScreen(point, viewTransform),
+        transform: viewTransform, bounds, snapEnabled: snap, orthogonal, targets: snapTargets,
+        spacePan, isPanning, calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
+        measurementEditActive: Boolean(activeMeasurementEditId),
+      })?.point ?? point;
+      const screen = pageToScreen(effectivePoint, viewTransform);
+      const usableWidth = safeViewer.size.width - authoringCapability.rightObstruction;
+      const x = Math.max(64, Math.min(usableWidth - 16, screen.x));
+      let y = Math.max(64, Math.min(safeViewer.size.height - 16, screen.y));
+      const help = keyboardHelpRef.current;
+      if (help && x >= help.offsetLeft - 16 && x <= help.offsetLeft + help.offsetWidth + 16 &&
+        y >= help.offsetTop - 16 && y <= help.offsetTop + help.offsetHeight + 16) {
+        y = Math.min(safeViewer.size.height - 16, help.offsetTop + help.offsetHeight + 16);
+      }
+      if (x === screen.x && y === screen.y) return viewTransform;
+      const next = {
+        ...viewTransform,
+        panX: viewTransform.panX + x - screen.x,
+        panY: viewTransform.panY + y - screen.y,
+      };
+      setFitMode(false);
+      commitTransform(next);
+      return next;
+    },
+    select: selectWorkspaceMeasurement,
+    cancelPointerEdit: () => {
+      cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
+    },
+    commit: updateMeasurements,
+    reportError: setError,
+  });
+  const { cancel: cancelKeyboardGeometry, editing: keyboardEditing } = keyboardGeometry;
+
+  const revealKeyboardCursorAfterHelpChange = useEffectEvent(() => keyboardGeometry.ensureCursorVisible());
+  useLayoutEffect(() => {
+    // The help changes height when an edit starts; measure the committed card before revealing its cursor.
+    revealKeyboardCursorAfterHelpChange();
+  }, [keyboardEditing, keyboardGeometry.editTarget, keyboardGeometry.editableMeasurement?.name, calibrationReferenceEdit]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const loadedPage = pageRenderData;
@@ -776,6 +871,7 @@ export function PdfViewer({
     (screenPoint: Point, factor: number) => {
       cancelActiveWholeMeasurementDrag();
       cancelActiveVertexDrag();
+      cancelKeyboardGeometry();
       cancelActiveCalibrationReferenceDrag();
       clearSnapFeedback();
       setFitMode(false);
@@ -799,6 +895,7 @@ export function PdfViewer({
       cancelActiveCalibrationReferenceDrag,
       cancelActiveVertexDrag,
       cancelActiveWholeMeasurementDrag,
+      cancelKeyboardGeometry,
       clearSnapFeedback,
       commitTransform,
     ],
@@ -875,7 +972,8 @@ export function PdfViewer({
   const updateSoftwareCursor = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const cursorElement = softwareCursorRef.current;
     if (!cursorElement) return;
-    if (event.pointerType === "touch") {
+    if (event.pointerType === "touch" ||
+      (event.target instanceof Element && event.target.closest("[data-keyboard-controls]"))) {
       softwarePointerRef.current = null;
       cursorElement.style.visibility = "hidden";
       return;
@@ -909,7 +1007,7 @@ export function PdfViewer({
     if (!viewer || !cursorElement || !point) return;
     // A remembered position must still hit this viewer, not a dialog or toolbar.
     const hit = window.document.elementFromPoint(point.x, point.y);
-    if (!hit || !viewer.contains(hit) || !viewer.matches(":hover")) {
+    if (!hit || !viewer.contains(hit) || hit.closest("[data-keyboard-controls]") || !viewer.matches(":hover")) {
       hideSoftwareCursor();
       return;
     }
@@ -938,13 +1036,22 @@ export function PdfViewer({
 
   const handleViewerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.target instanceof Element && event.target.closest("[data-keyboard-controls]")) return;
       // A new pointer ownership attempt invalidates any older prepared/active
       // vertex gesture before Konva can reuse a stale `ready` drag element.
       cancelActiveVertexDrag();
+      if (keyboardEditing) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelKeyboardGeometry();
+        return;
+      }
+      cancelKeyboardGeometry();
+      clearSnapFeedback();
       focusViewerSurface(event.target);
       updateSoftwareCursor(event);
     },
-    [cancelActiveVertexDrag, focusViewerSurface, updateSoftwareCursor],
+    [cancelActiveVertexDrag, cancelKeyboardGeometry, clearSnapFeedback, focusViewerSurface, keyboardEditing, updateSoftwareCursor],
   );
 
   const handleViewerWheel = useCallback(
@@ -1019,12 +1126,29 @@ export function PdfViewer({
     setSpacePan(false);
   }, []);
 
-  const handleViewerKeyDown = useCallback(
+  const handleViewerKeyDown = useEffectEvent(
     (event: KeyboardEvent) => {
       if (shouldIgnoreViewerKeyboardShortcut(event)) return;
       if (window.document.querySelector(
         "dialog[open], [role='dialog'][aria-modal='true'], [data-layout-slot='viewer-interaction-shield']",
       )) return;
+      if (viewerRef.current === event.target && !isPresentedTarget) return;
+      if (keyboardAuthoringEnabled && viewerRef.current === event.target && activeTool === "hand" && event.key.startsWith("Arrow")) {
+        const step = event.shiftKey ? 100 : 20;
+        event.preventDefault();
+        cancelKeyboardGeometry();
+        setFitMode(false);
+        commitTransform({
+          ...viewTransform,
+          panX: viewTransform.panX + (event.key === "ArrowLeft" ? step : event.key === "ArrowRight" ? -step : 0),
+          panY: viewTransform.panY + (event.key === "ArrowUp" ? step : event.key === "ArrowDown" ? -step : 0),
+        });
+        return;
+      }
+      if (viewerRef.current === event.target && keyboardGeometry.handleKeyDown(event)) {
+        event.preventDefault();
+        return;
+      }
       if (event.key === "Escape" && calibrationReferenceEditRef.current) {
         event.preventDefault();
         onCalibrationReferenceEditCancelRef.current();
@@ -1046,19 +1170,25 @@ export function PdfViewer({
       if (typeof action === "object" && action.tool === activeToolRef.current) return;
       executeKeyboardAction(action);
     },
-    [executeKeyboardAction],
   );
+
+  const handleKeyboardGeometryKeyUp = useEffectEvent((event: KeyboardEvent) => keyboardGeometry.handleKeyUp(event));
 
   useEffect(() => {
     window.addEventListener("keydown", handleViewerKeyDown);
-    return () => window.removeEventListener("keydown", handleViewerKeyDown);
-  }, [handleViewerKeyDown]);
+    window.addEventListener("keyup", handleKeyboardGeometryKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleViewerKeyDown);
+      window.removeEventListener("keyup", handleKeyboardGeometryKeyUp);
+    };
+  }, []);
 
   useEffect(() => {
     function handleGlobalKeyUp(event: KeyboardEvent) {
       if (event.key === " ") releaseSpacePan();
     }
     function cancelMeasurementEditForEnvironmentLoss() {
+      cancelKeyboardGeometry();
       cancelActiveWholeMeasurementDrag();
       cancelActiveVertexDrag();
       cancelActiveCalibrationReferenceDrag();
@@ -1094,6 +1224,7 @@ export function PdfViewer({
     clearSnapFeedback,
     executeKeyboardAction,
     finishPan,
+    cancelKeyboardGeometry,
     releaseSpacePan,
   ]);
 
@@ -1134,6 +1265,7 @@ export function PdfViewer({
   }
 
   function handleMouseMove(event: KonvaEventObject<MouseEvent>) {
+    if (keyboardGeometry.cursor) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
     const panDrag = panDragRef.current;
@@ -1193,6 +1325,7 @@ export function PdfViewer({
   }
 
   function handleStageClick(event: KonvaEventObject<MouseEvent>) {
+    if (!authoringCapability.finePointer) return;
     if (!isPrimaryViewerClick(event.evt.button)) return;
     if (suppressPanClickRef.current) {
       suppressPanClickRef.current = false;
@@ -1214,6 +1347,11 @@ export function PdfViewer({
     }
     const pointer = stagePointer(event);
     if (!pointer) return;
+    placeDrawingPoint(pointer);
+  }
+
+  function placeDrawingPoint(pointer: Point) {
+    if (!bounds || calibrationReferenceEdit) return;
     const draft = workspaceDraft;
 
     if (precisionAuthoringBlocked && (activeTool === "calibrate" || isMeasurementType(activeTool))) {
@@ -1339,7 +1477,8 @@ export function PdfViewer({
     return resolveDrawingPreview({
       tool: activeTool,
       draft: workspaceDraft,
-      rawPointerScreen: placementPointer,
+      rawPointerScreen: keyboardGeometry.cursor
+        ? pageToScreen(keyboardGeometry.cursor, viewTransform) : placementPointer,
       transform: viewTransform,
       bounds,
       snapEnabled: snap,
@@ -1356,6 +1495,7 @@ export function PdfViewer({
     bounds,
     calibrationReferenceEdit,
     isPanning,
+    keyboardGeometry.cursor,
     orthogonal,
     placementPointer,
     precisionAuthoringBlocked,
@@ -1367,6 +1507,7 @@ export function PdfViewer({
   ]);
   const draftPreviewPointer =
     workspaceDraft?.type === "path" ? (placementResolution?.point ?? null) : draftPointer;
+  const keyboardCursorPoint = keyboardGeometry.cursor && placementResolution ? placementResolution.point : keyboardGeometry.cursor;
   const closedDraftPreviewPoints = useMemo(
     () =>
       workspaceDraft?.type === "path" && measurementPathSpecs[workspaceDraft.measurementType].closed
@@ -1380,20 +1521,6 @@ export function PdfViewer({
   );
   const snapMarker = placementResolution?.snapMatch?.point ?? null;
 
-  const showPage = Boolean(
-    pageReady &&
-    readyRaster?.page === pageRenderData &&
-    pageRenderData?.document === document &&
-    pageRenderData.pageNumber === page.pageNumber &&
-    bounds &&
-    viewerSize.width > 0 &&
-    viewerSize.height > 0,
-  );
-  const pageLoadFailed =
-    failedPageRequest?.document === document &&
-    failedPageRequest.pageNumber === page.pageNumber;
-  const canvasPageData =
-    !pageLoadFailed && displayedRaster?.page.document === document ? displayedRaster.page : null;
   const candidatePageData =
     pageRenderData?.document === document &&
     pageRenderData.pageNumber === page.pageNumber &&
@@ -1406,7 +1533,6 @@ export function PdfViewer({
       ? 1
       : 0
     : displayedStageSlot;
-  const isPresentedTarget = showPage && canvasPageData === pageRenderData;
   const canvasLayoutPageData = canvasPageData ?? pageRenderData;
   const canvasTransform = isPresentedTarget ? viewTransform : presentedState.transform;
   const pdfCanvasLayout = canvasLayoutPageData
@@ -1660,6 +1786,10 @@ export function PdfViewer({
         tabIndex={0}
         data-dialog-focus-fallback
         aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, or P to select a tool.`}
+        aria-describedby={keyboardAuthoringEnabled ? keyboardHelpId : undefined}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) cancelKeyboardGeometry();
+        }}
         onPointerDownCapture={handleViewerPointerDown}
         onPointerEnter={softwareCursor ? updateSoftwareCursor : undefined}
         onPointerMoveCapture={softwareCursor ? updateSoftwareCursor : undefined}
@@ -1667,6 +1797,39 @@ export function PdfViewer({
         onPointerCancelCapture={softwareCursor ? leaveSoftwareCursor : undefined}
         onWheelCapture={handleViewerWheel}
       >
+        <span id={keyboardHelpId} className={styles.keyboardHelp}>
+          Enable keyboard drawing and editing in Settings. Arrow keys move the keyboard cursor; Shift moves faster and holding arrows accelerates. Space places a point or selects a measurement;
+          Shift Space adds to the selection. Enter completes a path. E edits the selection;
+          N or the edit selector chooses a vertex, arrows preview changes, Enter saves, and Escape cancels.
+        </span>
+        <span role="status" aria-live="polite" className={styles.keyboardHelp}>
+          {keyboardGeometry.announcement}
+          {keyboardGeometry.cursor && placementResolution?.snapMatch
+            ? ` Snapped to X ${placementResolution.point.x.toFixed(2)}, Y ${placementResolution.point.y.toFixed(2)}.` : ""}
+        </span>
+        {keyboardCursorPoint && (
+          <div
+            className={styles.keyboardCursor}
+            data-keyboard-cursor="true"
+            aria-hidden="true"
+            style={{
+              left: pageToScreen(keyboardCursorPoint, viewTransform).x,
+              top: pageToScreen(keyboardCursorPoint, viewTransform).y,
+            }}
+          />
+        )}
+        {keyboardAuthoringEnabled && (
+          <KeyboardGeometryHelp
+            helpRef={keyboardHelpRef}
+            hidden={precisionAuthoringBlocked}
+            referenceEditing={Boolean(calibrationReferenceEdit)}
+            editing={keyboardGeometry.editing}
+            measurement={keyboardGeometry.editableMeasurement}
+            target={calibrationReferenceEdit ? keyboardGeometry.referenceTarget : keyboardGeometry.editTarget}
+            onTargetChange={calibrationReferenceEdit ? keyboardGeometry.chooseReferenceTarget : keyboardGeometry.chooseEditTarget}
+            onReturnToViewer={() => viewerRef.current?.focus({ preventScroll: true })}
+          />
+        )}
         {softwareCursor && (
           <div
             ref={softwareCursorRef}
@@ -1744,7 +1907,7 @@ export function PdfViewer({
                   fill={canvasVisualRoles.pageHitRegionFill}
                 />
                 <PdfAnnotationLayer
-                  page={stage.page}
+                  page={stage.presented && isPresentedTarget && keyboardGeometry.editing ? keyboardGeometry.previewPage : stage.page}
                   bounds={stage.data.bounds}
                   transform={stage.transform}
                   activeTool={activeTool}
@@ -1754,8 +1917,8 @@ export function PdfViewer({
                   selectedMeasurementIds={selectedMeasurementIds}
                   activeMeasurementEditId={activeMeasurementEditId}
                   calibrationReferenceEdit={calibrationReferenceEdit}
-                  measurementEditingBlocked={measurementEditingBlocked}
-                  precisionAuthoringAvailable={!precisionAuthoringBlocked}
+                  measurementEditingBlocked={measurementEditingBlocked || keyboardGeometry.editing}
+                  precisionAuthoringAvailable={!precisionAuthoringBlocked && authoringCapability.finePointer}
                   visualRoles={canvasVisualRoles}
                   interactionTargetScreenPx={canvasInteractionTarget}
                   displayUnit={displayUnit}

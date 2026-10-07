@@ -44,6 +44,7 @@ interface WorkspaceShellProps {
   viewer?: ReactNode;
   sourcePageLabels?: readonly string[] | null;
   logicalPageBounds?: LogicalPageBounds | null;
+  keyboardAuthoringEnabled?: boolean;
   emptyState?: ReactNode;
   dropOverlay?: ReactNode;
   onAuthoringCapabilityChange?: (capability: AuthoringCapability) => void;
@@ -64,6 +65,7 @@ export function WorkspaceShell({
   viewer,
   sourcePageLabels = null,
   logicalPageBounds = null,
+  keyboardAuthoringEnabled = false,
   emptyState,
   dropOverlay = "Drop PDF to open as a new project",
   onAuthoringCapabilityChange,
@@ -299,6 +301,7 @@ export function WorkspaceShell({
           viewerOverlay={viewerOverlay}
           sourcePageLabels={sourcePageLabels}
           logicalPageBounds={logicalPageBounds}
+          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           rightObstruction={geometry.rightObstruction}
           onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
         >
