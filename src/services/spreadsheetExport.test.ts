@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CFB, read, utils } from "xlsx";
 import { createEmptySession } from "../app/sessionState";
-import { createCsvExportSettingsPreset } from "./csv";
+import { buildMeasurementTable, createCsvExportSettingsPreset } from "./csv";
 import { buildSpreadsheet, downloadSpreadsheet } from "./spreadsheetExport";
 import { downloadExportFile } from "./exportDownload";
 
@@ -246,14 +246,72 @@ for (const format of ["xlsx", "ods"] as const) {
       await expect(buildSpreadsheet(format, overflow)).rejects.toThrow(/finite/);
     });
 
-    it.each(["a".repeat(32_768), "invalid\u0000text", "lone\ud800surrogate"])(
-      "rejects unsupported cell text without truncating it",
-      async (name) => {
-        const session = fixture();
-        session.pages[1]!.measurements[0]!.name = name;
-        await expect(buildSpreadsheet(format, session)).rejects.toThrow("unsupported text");
-      },
-    );
+    it.each([
+      ["a".repeat(32_768), "text exceeds the 32,767-character limit"],
+      ["invalid\u0000text", "text contains a character that XLSX and ODS cannot store"],
+      ["lone\ud800surrogate", "text contains a character that XLSX and ODS cannot store"],
+    ])("identifies unsupported cell text without truncating it", async (name, reason) => {
+      const session = fixture();
+      session.pages[1]!.measurements[1]!.name = name;
+      const before = JSON.stringify(session);
+      vi.mocked(downloadExportFile).mockClear();
+      await expect(downloadSpreadsheet(format, session)).rejects.toThrow(
+        `Sheet "Measurements", row 3, field "name": ${reason}. Edit this field or export CSV or JSON instead.`,
+      );
+      expect(JSON.stringify(session)).toBe(before);
+      expect(downloadExportFile).not.toHaveBeenCalled();
+    });
+
+    it("identifies unsupported text in classification assignments with measurement columns disabled", async () => {
+      const session = fixture();
+      session.classificationCatalog.dimensions[0]!.name = "Invalid\u0000dimension";
+      await expect(
+        buildSpreadsheet(
+          format,
+          session,
+          null,
+          createCsvExportSettingsPreset(session, "required-only"),
+        ),
+      ).rejects.toThrow(
+        'Sheet "Classification assignments", row 2, field "classification_dimension": text contains a character that XLSX and ODS cannot store.',
+      );
+    });
+
+    it("identifies invalid header text without including the oversized header in the message", async () => {
+      const session = fixture();
+      session.classificationCatalog.dimensions[0]!.name = "a".repeat(32_768);
+      const settings = createCsvExportSettingsPreset(session, "all");
+      const columnIndex = buildMeasurementTable(session, null, settings).headers.findIndex(
+        (header) => header.startsWith("classification:"),
+      );
+      await expect(buildSpreadsheet(format, session, null, settings)).rejects.toThrow(
+        `Sheet "Measurements", row 1, field header in column ${columnIndex + 1}: text exceeds the 32,767-character limit. Edit this field or export CSV or JSON instead.`,
+      );
+    });
+
+    it("preserves text at the supported length boundary", async () => {
+      const session = fixture();
+      const name = "a".repeat(32_767);
+      session.pages[1]!.measurements[0]!.name = name;
+      const workbook = read(await buildSpreadsheet(format, session), { type: "array" });
+      const data = rows(workbook.Sheets.Measurements!);
+      expect(data[1]![data[0]!.indexOf("name")]).toBe(name);
+    });
+
+    it("keeps diagnostics compact when a valid field header is long", async () => {
+      const session = fixture();
+      const dimension = session.classificationCatalog.dimensions[0]!;
+      dimension.name = "a".repeat(200);
+      dimension.values[0]!.name = "invalid\u0000value";
+      const field = `${`classification:${dimension.name}`.slice(0, 80)}…`;
+      const before = JSON.stringify(session);
+      await expect(
+        buildSpreadsheet(format, session, null, createCsvExportSettingsPreset(session, "all")),
+      ).rejects.toThrow(
+        `Sheet "Measurements", row 2, field "${field}": text contains a character that XLSX and ODS cannot store.`,
+      );
+      expect(JSON.stringify(session)).toBe(before);
+    });
 
     it("rejects too many columns before the writer can truncate the data", async () => {
       const session = fixture();
