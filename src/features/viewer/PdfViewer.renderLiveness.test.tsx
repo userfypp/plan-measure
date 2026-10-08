@@ -1478,6 +1478,114 @@ describe("PdfViewer render liveness", () => {
     expect(container.textContent).not.toContain("Rendering page…");
   });
 
+  describe("polygon draft repeated vertices", () => {
+    const first = { x: 300, y: 400 };
+    const second = { x: 400, y: 400 };
+    const third = { x: 400, y: 500 };
+    const fourth = { x: 300, y: 500 };
+
+    async function prepare(snap: boolean, tool: "polygon" | "polyline" = "polygon") {
+      const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+      const page = session.pages[1]!;
+      page.calibrations = [{ id: "scale", name: "Scale", mode: "uniform",
+        start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 }];
+      page.activeCalibrationId = "scale";
+      page.measurements = [{ id: "snap-source", name: "Snap source", type: "line",
+        points: [first, second], visible: true, calibrationId: "scale", classificationValueIds: [] }];
+      await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, { page });
+      await act(async () => sessionProbe!.loadSession(session));
+      await act(async () => {
+        workspaceProbe!.chooseTool(tool);
+        workspaceProbe!.setSnap(snap);
+        workspaceProbe!.startDraft({ type: "path", measurementType: tool, points: [first, second] });
+      });
+    }
+
+    async function place(point: Point) {
+      const transform = {
+        zoom: parseFloat(canvas().style.height) / PAGE_HEIGHT,
+        panX: parseFloat(canvas().style.left),
+        panY: parseFloat(canvas().style.top),
+      };
+      const pointer = pageToScreen(point, transform);
+      const onClick = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
+      await act(async () => onClick({
+        target: { getStage: () => ({ getPointerPosition: () => pointer }) },
+        evt: { button: 0 },
+      }));
+    }
+
+    it.each([false, true])("rejects an early return to the first point and still finishes (Snap %s)", async (snap) => {
+      await prepare(snap);
+      const originalDraft = workspaceProbe!.draft;
+      // With Snap, a nearby click resolves to the existing measurement's first endpoint.
+      await place(snap ? { x: first.x + 2, y: first.y + 2 } : first);
+      expect(workspaceProbe!.draft).toBe(originalDraft);
+      expect(sessionProbe!.canUndo).toBe(false);
+      await place(third);
+      const validDraft = workspaceProbe!.draft;
+      await place(second);
+      expect(workspaceProbe!.draft).toBe(validDraft);
+      await place(fourth);
+      const completedPoints = workspaceProbe!.draft!.points;
+      expect(completedPoints).toHaveLength(4);
+      expect(completedPoints[2]!.x).toBeCloseTo(third.x, 10);
+      expect(completedPoints[2]!.y).toBeCloseTo(third.y, 10);
+      expect(completedPoints[3]!.x).toBeCloseTo(fourth.x, 10);
+      expect(completedPoints[3]!.y).toBeCloseTo(fourth.y, 10);
+      await act(async () => interactionProbe!.completeCurrentDraft());
+      expect(workspaceProbe!.draft).toBeNull();
+      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual(completedPoints);
+      await act(async () => sessionProbe!.undo());
+      expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(1);
+      expect(sessionProbe!.canUndo).toBe(false);
+    });
+
+    it.each([false, true])("rejects middle and last vertices while preserving valid closing (Snap %s)", async (snap) => {
+      await prepare(snap);
+      await place(third);
+      const validDraft = workspaceProbe!.draft;
+      const completedPoints = workspaceProbe!.draft!.points;
+      expect(completedPoints).toHaveLength(3);
+      await place(second);
+      expect(workspaceProbe!.draft).toBe(validDraft);
+      await place(third);
+      expect(workspaceProbe!.draft).toBe(validDraft);
+      await place(first);
+      expect(workspaceProbe!.draft).toBeNull();
+      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual(completedPoints);
+    });
+
+    it("still allows a polyline to revisit a nonconsecutive vertex", async () => {
+      await prepare(true, "polyline");
+      await place(first);
+      expect(workspaceProbe!.draft!.points).toEqual([first, second, first]);
+      await act(async () => interactionProbe!.completeCurrentDraft());
+      expect(workspaceProbe!.draft).toBeNull();
+      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.type).toBe("polyline");
+      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual([first, second, first]);
+    });
+
+    it("rejects the repeated Snap vertex through keyboard placement and permits continuing", async () => {
+      await prepare(true);
+      const originalDraft = workspaceProbe!.draft;
+      const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
+      const press = async (key: string, shiftKey = false) => act(async () => {
+        viewer.focus();
+        viewer.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }));
+      });
+      await press("ArrowRight");
+      await press(" ");
+      expect(workspaceProbe!.draft).toBe(originalDraft);
+      await press("ArrowDown", true);
+      await press(" ");
+      expect(workspaceProbe!.draft!.points).toHaveLength(3);
+      await press("Enter");
+      expect(workspaceProbe!.draft).toBeNull();
+      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.type).toBe("polygon");
+    });
+  });
+
   it("finishes a valid path through the canonical viewer command exactly once and ignores incomplete drafts", async () => {
     const pdfPage = createPdfPage();
     const runtime = createPdfDocument({ 1: pdfPage.page });

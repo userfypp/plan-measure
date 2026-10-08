@@ -1427,6 +1427,8 @@ export function PdfViewer({
       const last = pathDraft.points.at(-1);
       const effectivePoint = resolution.point;
       if (last && areEffectivelyIdentical(last, effectivePoint)) return;
+      if (measurementType === "polygon" &&
+        pathDraft.points.some((point) => areEffectivelyIdentical(point, effectivePoint))) return;
       if (spec.maxVertices === 2) {
         completePath(measurementType, [...pathDraft.points, effectivePoint], pathDraft);
         return;
