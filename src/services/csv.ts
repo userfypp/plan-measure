@@ -8,7 +8,7 @@ import type {
   PageCalibration,
   PageState,
 } from "../types/domain";
-import { downloadExportFile } from "./exportDownload";
+import { downloadExportFile, exportFileName } from "./exportDownload";
 import { getMeasurementCalibration } from "../utils/calibration";
 import {
   calibrationScaleX,
@@ -881,8 +881,7 @@ export function downloadCsv(
   csvSettings?: CsvExportSettings,
 ): void {
   const csv = buildCsv(session, pageLabels, csvSettings);
-  const baseName = session.pdf.name.replace(/\.pdf$/i, "");
-  downloadCsvFile(csv, `${baseName}-measurements.csv`);
+  downloadCsvFile(csv, exportFileName(session.pdf.name, "measurements", "csv"));
 }
 
 export function downloadClassificationAssignmentsCsv(
@@ -890,6 +889,5 @@ export function downloadClassificationAssignmentsCsv(
   pageLabels: readonly string[] | null = null,
 ): void {
   const csv = buildClassificationAssignmentsCsv(session, pageLabels);
-  const baseName = session.pdf.name.replace(/\.pdf$/i, "");
-  downloadCsvFile(csv, `${baseName}-classifications.csv`);
+  downloadCsvFile(csv, exportFileName(session.pdf.name, "classifications", "csv"));
 }

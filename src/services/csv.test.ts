@@ -4,6 +4,7 @@ import { createStandardScalePreset } from "../features/calibration/standardScale
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import type { CurrentSession, MeasurementDisplayUnit } from "../types/domain";
+import * as exportDownload from "./exportDownload";
 import {
   buildClassificationAssignmentsCsv,
   buildCsv,
@@ -1425,6 +1426,42 @@ describe("CSV export", () => {
     const session = createEmptySession({ name: "empty.pdf", size: 1, lastModified: 1 }, 1);
     expect(() => buildCsv(session)).toThrow(NoMeasurementsError);
   });
+
+  it.each([
+    ["sample.pdf", "sample"],
+    ["plan.PDF", "plan"],
+    ["folder\\Level/01.pdf", "folder_Level_01"],
+    ["Plán α.pdf", "Plán α"],
+    ["Level 01", "Level 01"],
+    [".pdf", "plan"],
+    ["", "plan"],
+  ])(
+    "uses safe CSV download filenames for %j without changing the contents",
+    (pdfName, baseName) => {
+      const download = vi.spyOn(exportDownload, "downloadExportFile").mockImplementation(() => {});
+      const session = classifiedMeasuredSession();
+      session.pdf.name = pdfName;
+
+      try {
+        downloadCsv(session);
+        expect(download).toHaveBeenNthCalledWith(
+          1,
+          buildCsv(session),
+          `${baseName}-measurements.csv`,
+          "text/csv;charset=utf-8",
+        );
+        downloadClassificationAssignmentsCsv(session);
+        expect(download).toHaveBeenNthCalledWith(
+          2,
+          buildClassificationAssignmentsCsv(session),
+          `${baseName}-classifications.csv`,
+          "text/csv;charset=utf-8",
+        );
+      } finally {
+        download.mockRestore();
+      }
+    },
+  );
 
   it("keeps the object URL alive until the browser has started the download", () => {
     const anchor = {
