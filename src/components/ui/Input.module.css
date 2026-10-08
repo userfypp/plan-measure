@@ -28,7 +28,7 @@
 
 .control::placeholder {
   color: var(--color-text-muted);
-  opacity: 0.72;
+  opacity: 1;
 }
 
 .control:focus-visible {
