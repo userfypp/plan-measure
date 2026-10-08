@@ -26,14 +26,14 @@ function hasInvalidXmlText(value: string): boolean {
   return false;
 }
 
-function validateTable(table: ExportTable): void {
+function validateTable(table: ExportTable, sheetName: string): void {
   if (table.rows.length + 1 > MAX_ROWS || table.headers.length > MAX_COLUMNS) {
     throw new Error(
       "The data exceeds spreadsheet row or column limits. Export CSV or JSON instead.",
     );
   }
-  for (const row of [table.headers, ...table.rows]) {
-    for (const value of row) {
+  for (const [rowIndex, row] of [table.headers, ...table.rows].entries()) {
+    for (const [columnIndex, value] of row.entries()) {
       if (typeof value === "number" && !Number.isFinite(value)) {
         throw new Error("Spreadsheet quantities must be finite numbers.");
       }
@@ -41,8 +41,17 @@ function validateTable(table: ExportTable): void {
         typeof value === "string" &&
         (value.length > MAX_CELL_LENGTH || hasInvalidXmlText(value))
       ) {
+        const header = table.headers[columnIndex]!;
+        const field =
+          rowIndex === 0
+            ? `header in column ${columnIndex + 1}`
+            : JSON.stringify(header.length > 80 ? `${header.slice(0, 80)}…` : header);
+        const reason =
+          value.length > MAX_CELL_LENGTH
+            ? "text exceeds the 32,767-character limit"
+            : "text contains a character that XLSX and ODS cannot store";
         throw new Error(
-          "A spreadsheet cell contains unsupported text. Export CSV or JSON instead.",
+          `Sheet "${sheetName}", row ${rowIndex + 1}, field ${field}: ${reason}. Edit this field or export CSV or JSON instead.`,
         );
       }
     }
@@ -57,8 +66,8 @@ export async function buildSpreadsheet(
 ): Promise<Uint8Array<ArrayBuffer>> {
   const measurements = buildMeasurementTable(session, pageLabels, settings);
   const assignments = buildClassificationAssignmentsTable(session, pageLabels);
-  validateTable(measurements);
-  validateTable(assignments);
+  validateTable(measurements, "Measurements");
+  validateTable(assignments, "Classification assignments");
   const tables = [
     ["Measurements", measurements],
     ["Classification assignments", assignments],
