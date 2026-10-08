@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from "react";
+import { Badge } from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -37,10 +38,16 @@ function Quantity({
   format: (value: number) => string;
 }) {
   if (quantity.kind === "absent") return null;
+  const value = quantity.kind === "value" ? format(quantity.value) : "Not calculable";
   return (
-    <div className={styles.quantity}>
+    <div className={styles.quantity} data-quantity={label.toLowerCase()}>
       <dt>{label}</dt>
-      <dd>{quantity.kind === "value" ? format(quantity.value) : "Not calculable"}</dd>
+      <dd
+        data-unavailable={quantity.kind === "unavailable" || undefined}
+        data-wide={value.length > 10 || undefined}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -50,14 +57,16 @@ function Quantities({
   displayUnit,
   decimalPlaces,
   areaDisplay,
+  summary = false,
 }: {
   group: MeasurementTotalGroup;
   displayUnit: MeasurementDisplayUnit;
   decimalPlaces: MeasurementDecimalPlaces;
   areaDisplay: AreaDisplay;
+  summary?: boolean;
 }) {
   return (
-    <dl className={styles.quantities}>
+    <dl className={summary ? styles.summaryQuantities : styles.quantities}>
       <Quantity
         label="Length"
         quantity={group.length}
@@ -92,9 +101,11 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
       }),
     [props.catalog, props.pageLabelOverrides, props.pages, props.sourcePageLabels],
   );
-  const activeDimensionId = props.catalog.dimensions.some((dimension) => dimension.id === dimensionId)
+  const activeDimensionId = props.catalog.dimensions.some(
+    (dimension) => dimension.id === dimensionId,
+  )
     ? dimensionId
-    : props.catalog.dimensions[0]?.id ?? null;
+    : (props.catalog.dimensions[0]?.id ?? null);
   const grouped = useMemo(
     () =>
       breakdown === "none"
@@ -121,17 +132,39 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
   return (
     <section className={styles.workspace} aria-label="Takeoff workspace">
       <section className={styles.projectTotals} aria-labelledby="project-totals-heading">
-        <h2 id="project-totals-heading">Project totals</h2>
+        <div className={styles.sectionHeading}>
+          <h2 id="project-totals-heading">Project totals</h2>
+          <span className={styles.scope}>All pages</span>
+        </div>
+        {overall.measurementCount > 0 && (
+          <p className={styles.summaryMeta}>
+            <span>
+              <strong>{overall.measurementCount}</strong> measurement
+              {overall.measurementCount === 1 ? "" : "s"}
+            </span>
+            <span className={styles.metaSeparator} aria-hidden="true">
+              ·
+            </span>
+            Includes hidden
+          </p>
+        )}
         {overallGroup && (
           <Quantities
             group={overallGroup}
             displayUnit={props.displayUnit}
             decimalPlaces={props.decimalPlaces}
             areaDisplay={props.areaDisplay}
+            summary
           />
         )}
         {overall.measurementCount === 0 && (
-          <p className={styles.message}>No measurements in this project.</p>
+          <div className={styles.emptyState}>
+            <span className={styles.emptyMark} aria-hidden="true">
+              Σ
+            </span>
+            <p className={styles.emptyTitle}>No measurements in this project.</p>
+            <p className={styles.message}>Draw a measurement to start your takeoff.</p>
+          </div>
         )}
         {overall.measurementCount > 0 &&
           (!overallGroup ||
@@ -141,7 +174,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
             <p className={styles.message}>No calculable quantities.</p>
           )}
         {overall.excludedCount > 0 && (
-          <p className={styles.notice}>
+          <p className={styles.notice} role="status">
             {overall.excludedCount} measurement{overall.excludedCount === 1 ? " was" : "s were"}{" "}
             excluded because {overall.excludedCount === 1 ? "it cannot" : "they cannot"} be
             calculated.
@@ -149,10 +182,8 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
         )}
       </section>
 
-      <section className={styles.breakdownControls}>
-        <label htmlFor="takeoff-breakdown">
-          Breakdown
-        </label>
+      <section className={styles.breakdownControls} aria-label="Breakdown controls">
+        <label htmlFor="takeoff-breakdown">Breakdown</label>
         <select
           id="takeoff-breakdown"
           value={breakdown}
@@ -184,21 +215,30 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
         )}
       </section>
 
+      {breakdown === "none" && overall.measurementCount > 0 && (
+        <p className={styles.breakdownHint}>Choose a breakdown to compare totals.</p>
+      )}
+
       {grouped && (
         <section className={styles.breakdownResults} aria-label={`Breakdown by ${breakdown}`}>
+          {grouped.groups.length > 0 && (
+            <p className={styles.resultsMeta}>
+              {grouped.groups.length} group{grouped.groups.length === 1 ? "" : "s"}
+            </p>
+          )}
           {grouped.groups.map((group) => (
             <section
               key={group.key}
               className={styles.group}
               aria-label={`${group.label}${group.archived ? " (archived)" : ""} totals`}
             >
-              <h3>
-                {group.label}
-                {group.archived ? " (archived)" : ""}
-              </h3>
-              <p>
-                {group.measurementCount} measurement{group.measurementCount === 1 ? "" : "s"}
-              </p>
+              <div className={styles.groupHeading}>
+                <h3>{group.label}</h3>
+                <p className={styles.groupMeta}>
+                  {group.measurementCount} measurement{group.measurementCount === 1 ? "" : "s"}
+                </p>
+                {group.archived && <Badge className={styles.archivedBadge}>Archived</Badge>}
+              </div>
               <Quantities
                 group={group}
                 displayUnit={props.displayUnit}
