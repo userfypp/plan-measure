@@ -131,6 +131,101 @@ test("publishes only the deployed commit with complete notes, then updates label
   assert.equal(state.mutations, mutations, "a completed retry must be read-only");
 });
 
+test("waits for a newly created tag to become visible without repeating creation", async () => {
+  for (const missingReads of [1, 4]) {
+    const { api, state } = fixture();
+    const waits = [];
+    let reads = 0;
+    const delayedApi = async (path, options) => {
+      if (path === `${root}/git/ref/tags/v3.0.0` && state.tagSha && reads++ < missingReads) {
+        assert.equal(options.optional, true);
+        return null;
+      }
+      return api(path, options);
+    };
+    const result = await publishRelease(
+      delayedApi,
+      context,
+      async () => clone(metadata),
+      async (ms) => {
+        waits.push(ms);
+      },
+    );
+    assert.equal(result.status, "published");
+    assertPublished(state);
+    assert.deepEqual(waits, [1_000, 2_000, 4_000, 8_000].slice(0, missingReads));
+    assert.equal(
+      state.calls.filter(({ path, method }) => path === `${root}/git/refs` && method === "POST")
+        .length,
+      1,
+    );
+  }
+});
+
+test("stops after bounded missing tag reads and allows recovery without recreating the tag", async () => {
+  const { api, state, run } = fixture();
+  const waits = [];
+  let reads = 0;
+  const missingApi = async (path, options) => {
+    if (path === `${root}/git/ref/tags/v3.0.0` && state.tagSha) {
+      assert.equal(options.optional, true);
+      reads += 1;
+      return null;
+    }
+    return api(path, options);
+  };
+  await assert.rejects(
+    publishRelease(
+      missingApi,
+      context,
+      async () => clone(metadata),
+      async (ms) => {
+        waits.push(ms);
+      },
+    ),
+    /Release tag v3.0.0 is still unavailable after creation/,
+  );
+  assert.equal(reads, 5);
+  assert.deepEqual(waits, [1_000, 2_000, 4_000, 8_000]);
+  assert.equal(state.mutations, 1);
+  assert.equal(state.tagSha, sha);
+  assert.equal(state.release, null);
+  assert.deepEqual(state.labels, pr.labels);
+  await run();
+  assertPublished(state);
+});
+
+test("does not retry other API failures or accept a conflicting newly created tag", async () => {
+  for (const failure of [403, 429, 500, "conflict"]) {
+    const { api, state } = fixture();
+    let waits = 0;
+    const failingApi = async (path, options) => {
+      if (path === `${root}/git/ref/tags/v3.0.0` && state.tagSha) {
+        if (failure === "conflict") return { object: { type: "commit", sha: sourceSha } };
+        throw new Error(`HTTP ${failure}`);
+      }
+      return api(path, options);
+    };
+    await assert.rejects(
+      publishRelease(
+        failingApi,
+        context,
+        async () => clone(metadata),
+        async () => {
+          waits += 1;
+        },
+      ),
+      failure === "conflict"
+        ? /does not point to the validated commit/
+        : new RegExp(`HTTP ${failure}`),
+    );
+    assert.equal(waits, 0);
+    assert.equal(state.mutations, 1);
+    assert.equal(state.release, null);
+    assert.deepEqual(state.labels, pr.labels);
+  }
+});
+
 test("every mutation boundary recovers, including a lost successful response", async () => {
   for (const failAfter of [false, true]) {
     // tag creation, draft creation, publication, tagged label, pending removal
