@@ -1,9 +1,7 @@
 # Security Policy
 
-Do not put private plans, credentials, personal data, or vulnerability details in a public issue.
+Report suspected vulnerabilities through [GitHub private vulnerability reporting](https://github.com/userfypp/plan-measure/security/advisories/new).
 
-## Reporting a vulnerability
+Include the affected version or commit, browser and platform, reproduction steps, and potential impact. Use a minimal, sanitized sample if needed.
 
-GitHub private vulnerability reporting is not enabled for this repository.
-
-Open a minimal issue asking the maintainer for a private contact method. Do not include exploit details or sensitive material. Once a private channel is arranged, share the steps to reproduce the issue, the affected browser or platform, and the expected impact.
+Keep vulnerability details private while we investigate and coordinate a fix. Do not include private plans, credentials, or personal data in reports or public issues. Use public issues for ordinary bugs and feature requests.

@@ -1,25 +1,19 @@
-# Contributing to Plan Measure
+# Contributing
 
-## Before opening an issue
+## Issues
 
-- Search existing issues before opening a new one.
-- Use the bug report template for reproducible problems.
-- Use the feature request template for improvements.
-- Report security vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
-- Keep each issue focused on one problem or proposal.
+Search existing issues, then use the bug or feature request template. Keep each issue focused and provide reproduction steps for bugs. Report vulnerabilities through the [security policy](SECURITY.md); never attach private plans or credentials.
 
-## Local development
+## Development
 
-Plan Measure requires Node.js 24 LTS and npm.
-
-Install dependencies and start the development server:
+Requires Node.js 24 and npm:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Before opening a pull request, run:
+Before opening a pull request:
 
 ```bash
 npm run lint
@@ -28,15 +22,15 @@ npm run build
 git diff --check
 ```
 
-Use `npm run format` when formatting is part of the change. Keep generated or unrelated changes out of the pull request.
+Use `npm run format` only when formatting is part of the change.
 
 ## Pull requests
 
-- Keep the change small and focused.
-- Link the relevant issue. Use `Closes #123` when the pull request fully resolves it.
-- Describe the user-visible behavior and how you validated it.
-- Include screenshots or a short recording when they clarify a UI change.
-- Update the README or other documentation when behavior or setup changes.
-- Do not commit PDFs, credentials, secrets, or other private files.
+- Keep changes focused; exclude generated or unrelated edits.
+- Use a Conventional Commit title, such as `feat:`, `fix:`, or `docs:`; add `!` for a breaking change. The squash commit title drives releases.
+- Follow the PR template. Describe the change and its effect in the first **Summary** bullet; it supplies the release-note description.
+- Record validation and known limitations. Include screenshots when useful.
+- Link the relevant issue with `Closes #123` when fully resolved.
+- Update the relevant documentation when behavior or setup changes.
 
-Mention any known limitations or follow-up work in the PR.
+See [Releasing](RELEASING.md) for publication and [Code of conduct](CODE_OF_CONDUCT.md) for community expectations.
