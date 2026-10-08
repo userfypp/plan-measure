@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
 import { githubApi, isMain, pages, workflowContext } from "./github-api.mjs";
 import { isVersion, parseChangelog, renderNotes } from "./format-release-notes.mjs";
 
@@ -134,7 +135,7 @@ async function reconcileLabels(api, root, prNumber) {
     throw new Error("Release label reconciliation failed.");
 }
 
-export async function publishRelease(api, context, readMetadata) {
+export async function publishRelease(api, context, readMetadata, wait = delay) {
   const { repository, sha } = context;
   const root = `/repos/${repository}`;
   const pr = await releasePullRequest(api, repository, sha);
@@ -179,9 +180,18 @@ export async function publishRelease(api, context, readMetadata) {
   }
   if (!tagExists) {
     await api(`${root}/git/refs`, { method: "POST", body: { ref: `refs/tags/${tag}`, sha } });
-    tagExists = await verifyTag(api, root, tag, sha);
+    // A successful creation can precede visibility through GitHub's read API.
+    // Retry only missing reads, never writes or a tag pointing to another commit.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      tagExists = await verifyTag(api, root, tag, sha, { optional: true });
+      if (tagExists) break;
+      if (attempt < 4) await wait(1_000 * 2 ** attempt);
+    }
   }
-  if (!tagExists) throw new Error("Release tag was not created.");
+  if (!tagExists)
+    throw new Error(
+      `Release tag ${tag} is still unavailable after creation. Retry release recovery.`,
+    );
   const draft = {
     tag_name: tag,
     target_commitish: sha,
