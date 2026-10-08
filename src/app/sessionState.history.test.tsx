@@ -8,9 +8,11 @@ import { createEmptySession, SessionProvider, useSessionState } from "./sessionS
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let historyProbe: ReturnType<typeof useSessionState>;
 
 function HistoryHarness() {
   const state = useSessionState();
+  useEffect(() => { historyProbe = state; }, [state]);
   return (
     <div>
       <output data-testid="history-state">
@@ -85,6 +87,66 @@ afterEach(() => {
 });
 
 describe("session undo and redo history", () => {
+  const unchangedOperations: [string, (state: ReturnType<typeof useSessionState>) => unknown][] = [
+    ["equal geometry with new point objects", (state) => state.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 10, y: 10 }, { x: 20, y: 10 }] })],
+    ["invalid geometry", (state) => state.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 10, y: 10 }, { x: 10, y: 10 }] })],
+    ["missing measurement geometry", (state) => state.updateMeasurement({ pageNumber: 1, id: "missing", points: [{ x: 10, y: 10 }, { x: 20, y: 10 }] })],
+    ["normalized equal name", (state) => state.renameMeasurement(1, "a", "  a  ")],
+    ["invalid name", (state) => state.renameMeasurement(1, "a", "  ")],
+    ["missing measurement name", (state) => state.renameMeasurement(1, "missing", "New")],
+    ["normalized equal note", (state) => state.setMeasurementNote(1, "a", "  Existing note  ")],
+    ["already absent note", (state) => state.setMeasurementNote(1, "b", "  ")],
+    ["missing measurement note", (state) => state.setMeasurementNote(1, "missing", "New")],
+    ["missing page geometry", (state) => state.updateMeasurement({ pageNumber: 2, id: "a", points: [{ x: 10, y: 10 }, { x: 20, y: 10 }] })],
+    ["missing page name", (state) => state.renameMeasurement(2, "a", "New")],
+    ["missing page note", (state) => state.setMeasurementNote(2, "a", "New")],
+  ];
+
+  it.each(unchangedOperations)("preserves Undo and Redo after %s", (_, operation) => {
+    click("Load geometry batch");
+    const session = structuredClone(historyProbe.session!);
+    session.pages[1]!.measurements[0]!.note = "Existing note";
+    act(() => historyProbe.loadSession(session));
+    const initial = historyProbe.session;
+    act(() => { operation(historyProbe); });
+    expect(historyProbe.session).toBe(initial);
+    expect(historyProbe.canUndo).toBe(false);
+    expect(historyProbe.canRedo).toBe(false);
+    act(() => { historyProbe.renameMeasurement(1, "a", "Changed"); });
+    const changed = historyProbe.session;
+    act(() => historyProbe.undo());
+    const undone = historyProbe.session;
+    act(() => { operation(historyProbe); });
+    expect(historyProbe.session).toBe(undone);
+    expect(historyProbe.canUndo).toBe(false);
+    expect(historyProbe.canRedo).toBe(true);
+    act(() => historyProbe.redo());
+    expect(historyProbe.session).toEqual(changed);
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(initial);
+    expect(historyProbe.canUndo).toBe(false);
+  });
+
+  it.each([
+    ["geometry", (state: ReturnType<typeof useSessionState>) => state.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 10, y: 10 }, { x: 30, y: 10 }] })],
+    ["name", (state: ReturnType<typeof useSessionState>) => state.renameMeasurement(1, "a", "New name")],
+    ["note", (state: ReturnType<typeof useSessionState>) => state.setMeasurementNote(1, "a", "New note")],
+  ] as const)("creates one Undo step and replaces Redo for a real %s edit", (_, operation) => {
+    click("Load geometry batch");
+    const initial = historyProbe.session;
+    act(() => { historyProbe.renameMeasurement(1, "a", "Discarded branch"); });
+    act(() => historyProbe.undo());
+    act(() => { operation(historyProbe); });
+    const changed = historyProbe.session;
+    expect(changed).not.toEqual(initial);
+    expect(historyProbe.canRedo).toBe(false);
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(initial);
+    expect(historyProbe.canUndo).toBe(false);
+    act(() => historyProbe.redo());
+    expect(historyProbe.session).toEqual(changed);
+  });
+
   it.each(["Paste batch", "Move batch"])("undoes and redoes %s in a single step", (operation) => {
     click("Load geometry batch");
     const before = document.querySelector('[data-testid="session"]')!.textContent;

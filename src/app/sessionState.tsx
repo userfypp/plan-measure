@@ -578,13 +578,19 @@ export function sessionReducer(
     case "UPDATE_MEASUREMENT": {
       if (!state.session) return state;
       const { pageNumber, id, points } = action;
+      const measurement = state.session.pages[pageNumber]?.measurements.find((item) => item.id === id);
+      if (
+        !measurement ||
+        !hasValidMeasurementPoints(measurement.type, points) ||
+        (points.length === measurement.points.length &&
+          points.every((point, index) =>
+            point.x === measurement.points[index]!.x && point.y === measurement.points[index]!.y))
+      ) return state;
       const session = updatePageState(state.session, pageNumber, (page) => ({
         ...page,
-        measurements: page.measurements.map((measurement) => {
-          if (measurement.id !== id) return measurement;
-          if (!hasValidMeasurementPoints(measurement.type, points)) return measurement;
-          return { ...measurement, points };
-        }),
+        measurements: page.measurements.map((measurement) =>
+          measurement.id === id ? { ...measurement, points } : measurement,
+        ),
       }));
       return { ...state, session };
     }
@@ -592,6 +598,8 @@ export function sessionReducer(
       if (!state.session) return state;
       const name = normalizeMeasurementName(action.name);
       if (!name) return { ...state, error: MEASUREMENT_NAME_EMPTY_ERROR };
+      const measurement = state.session.pages[action.pageNumber]?.measurements.find((item) => item.id === action.id);
+      if (!measurement || measurement.name === name) return { ...state, error: null };
       const session = updatePageState(state.session, action.pageNumber, (page) => ({
         ...page,
         measurements: page.measurements.map((measurement) =>
@@ -603,10 +611,12 @@ export function sessionReducer(
     case "SET_MEASUREMENT_NOTE": {
       if (!state.session) return state;
       const page = state.session.pages[action.pageNumber];
-      if (!page || !page.measurements.some((measurement) => measurement.id === action.id)) {
+      const measurement = page?.measurements.find((item) => item.id === action.id);
+      if (!measurement) {
         return { ...state, error: "The selected measurement is no longer available." };
       }
       const note = action.note.trim();
+      if ((measurement.note ?? "") === note) return { ...state, error: null };
       const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
         ...currentPage,
         measurements: currentPage.measurements.map((measurement) => {
