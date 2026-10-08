@@ -23,6 +23,7 @@ const captured = vi.hoisted(() => ({
   tags: [] as CapturedProps[],
   texts: [] as CapturedProps[],
   updateMeasurements: vi.fn(() => true),
+  updateMeasurement: vi.fn(() => true),
 }));
 
 vi.mock("react-konva", () => ({
@@ -69,7 +70,7 @@ vi.mock("konva/lib/shapes/Text", () => ({
 }));
 
 vi.mock("../../app/sessionState", () => ({
-  useSessionState: () => ({ updateMeasurement: vi.fn(() => true), updateMeasurements: captured.updateMeasurements }),
+  useSessionState: () => ({ updateMeasurement: captured.updateMeasurement, updateMeasurements: captured.updateMeasurements }),
 }));
 
 const noop = () => undefined;
@@ -169,6 +170,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     captured.updateMeasurements.mockClear();
+    captured.updateMeasurement.mockClear();
     captured.lines.length = 0;
     captured.circles.length = 0;
     captured.labels.length = 0;
@@ -307,6 +309,40 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       { pageNumber: 1, id: "polygon-1", points: [{ x: 60, y: 70 }, { x: 160, y: 70 }] },
       { pageNumber: 1, id: "second", points: [{ x: 560, y: 120 }, { x: 600, y: 120 }] },
     ]);
+  });
+
+  it.each([[1, false], [1, true], [2, false], [2, true]] as const)("cancels a %s-measurement drag (prepared only: %s) before synchronous and late dragend", (count, preparedOnly) => {
+    const page = pageWithMeasurement("line");
+    if (count === 2) page.measurements.push({ ...page.measurements[0]!, id: "second", points: [{ x: 250, y: 100 }, { x: 290, y: 100 }] });
+    const register = vi.fn();
+    renderLayer({ page, selectedMeasurementIds: page.measurements.map((item) => item.id), onWholeMeasurementDragCancellationChange: register });
+    let pointer = { x: 100, y: 100 };
+    let dragging = !preparedOnly;
+    const target = {
+      getStage: () => ({ getPointerPosition: () => pointer }),
+      position: vi.fn(), isDragging: () => dragging,
+      stopDrag: vi.fn(() => { dragging = false; end(event); }),
+    };
+    const event = { target, evt: { button: 0 }, cancelBubble: false };
+    const line = captured.lines[0]!;
+    // The Konva mock does not attach refs; attach the node as the real renderer does.
+    (line.ref as { current: typeof target | null }).current = target;
+    const end = line.onDragEnd as (event: unknown) => void;
+    act(() => (line.onMouseDown as (event: unknown) => void)(event));
+    pointer = { x: 300, y: 140 };
+    if (!preparedOnly) act(() => (line.onDragStart as (event: unknown) => void)(event));
+    const cancel = register.mock.calls.find((args) => typeof args[1] === "function")![1] as () => void;
+    act(cancel);
+    expect(target.stopDrag).toHaveBeenCalledOnce();
+    act(() => end(event));
+    expect(captured.updateMeasurements).not.toHaveBeenCalled();
+    expect(captured.updateMeasurement).not.toHaveBeenCalled();
+    const fresh = captured.lines.filter((item) => typeof item.onMouseDown === "function").at(-1)!;
+    act(() => (fresh.onMouseDown as (event: unknown) => void)(event));
+    pointer = { x: 340, y: 180 };
+    act(() => (fresh.onDragStart as (event: unknown) => void)(event));
+    act(() => (fresh.onDragEnd as (event: unknown) => void)(event));
+    expect(count === 1 ? captured.updateMeasurement : captured.updateMeasurements).toHaveBeenCalledOnce();
   });
 
   it.each(["source", "selection", "zoom"])("cancels a whole-selection drag when %s changes and ignores stale dragend", (change) => {

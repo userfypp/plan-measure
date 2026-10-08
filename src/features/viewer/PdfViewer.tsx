@@ -1133,6 +1133,16 @@ export function PdfViewer({
         "dialog[open], [role='dialog'][aria-modal='true'], [data-layout-slot='viewer-interaction-shield']",
       )) return;
       if (viewerRef.current === event.target && !isPresentedTarget) return;
+      if (event.key === "Escape" && (
+        wholeMeasurementDragCancellationRegistryRef.current.activeMeasurementId() !== null ||
+        vertexDragCancellationRegistryRef.current.activeOwner() !== null
+      )) {
+        event.preventDefault();
+        cancelActiveWholeMeasurementDrag();
+        cancelActiveVertexDrag();
+        clearSnapFeedback();
+        return;
+      }
       if (keyboardAuthoringEnabled && viewerRef.current === event.target && activeTool === "hand" && event.key.startsWith("Arrow")) {
         const step = event.shiftKey ? 100 : 20;
         event.preventDefault();
