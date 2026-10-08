@@ -1,7 +1,9 @@
 /* @vitest-environment jsdom */
 
+// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
+import { readFileSync } from "node:fs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { PDFDocument, PDFPage, degrees } from "pdf-lib";
+import { EncryptedPDFError, PDFDocument, PDFPage, degrees } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession, PageState } from "../../types/domain";
 import {
@@ -292,6 +294,45 @@ describe("annotated PDF export", () => {
     await expect(createAnnotatedPdf(sessionFixture(2), sourceDocument(source, 1))).rejects.toThrow(
       "saved page count",
     );
+  });
+
+  it("explains how to export an encrypted PDF without exposing pdf-lib internals", async () => {
+    const bytes = new Uint8Array(
+      readFileSync("src/features/export/fixtures/encrypted-empty-password.pdf"),
+    );
+    await expect(PDFDocument.load(bytes)).rejects.toThrow(new EncryptedPDFError().message);
+    const document = sourceDocument(bytes);
+
+    await expect(createAnnotatedPdf(sessionFixture(), document)).rejects.toMatchObject({
+      message:
+        "Annotated PDF export is not available for encrypted PDFs. Save an unencrypted copy in your PDF editor, then open that copy in Plan Measure to export an annotated PDF.",
+      cause: expect.objectContaining({ message: new EncryptedPDFError().message }),
+    });
+    expect(document.getPage).not.toHaveBeenCalled();
+  });
+
+  it("does not download a file when the source PDF is encrypted", async () => {
+    const bytes = new Uint8Array(
+      readFileSync("src/features/export/fixtures/encrypted-empty-password.pdf"),
+    );
+    const createObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click");
+
+    await expect(downloadAnnotatedPdf(sessionFixture(), sourceDocument(bytes))).rejects.toThrow(
+      "Annotated PDF export is not available for encrypted PDFs.",
+    );
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it("preserves unrelated PDF loading errors", async () => {
+    const error = new Error("Invalid PDF structure.");
+    vi.spyOn(PDFDocument, "load").mockRejectedValueOnce(error);
+
+    await expect(
+      createAnnotatedPdf(sessionFixture(), sourceDocument(new Uint8Array())),
+    ).rejects.toBe(error);
   });
 
   it("downloads the generated PDF with the annotated filename and PDF MIME type", async () => {

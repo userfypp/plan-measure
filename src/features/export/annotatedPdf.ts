@@ -304,7 +304,16 @@ export async function createAnnotatedPdf(
   }
 
   const [sourceBytes, pdfLib] = await Promise.all([sourceDocument.getData(), import("pdf-lib")]);
-  const output = await pdfLib.PDFDocument.load(sourceBytes);
+  const output = await pdfLib.PDFDocument.load(sourceBytes).catch((error: unknown) => {
+    // pdf-lib's compiled Error subclasses do not preserve their prototype.
+    if (error instanceof Error && error.message === new pdfLib.EncryptedPDFError().message) {
+      throw new Error(
+        "Annotated PDF export is not available for encrypted PDFs. Save an unencrypted copy in your PDF editor, then open that copy in Plan Measure to export an annotated PDF.",
+        { cause: error },
+      );
+    }
+    throw error;
+  });
   const pages = output.getPages();
   if (pages.length !== session.pageCount) {
     throw new Error("The source PDF does not match this project's saved page count.");
