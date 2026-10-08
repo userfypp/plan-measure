@@ -1478,6 +1478,66 @@ describe("PdfViewer render liveness", () => {
     expect(container.textContent).not.toContain("Rendering page…");
   });
 
+  it.each([false, true])("cancels registered whole and vertex gestures with Escape (keyboard mode %s)", async (keyboardAuthoringEnabled) => {
+    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+    session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line",
+      points: [{ x: 100, y: 100 }, { x: 200, y: 100 }], visible: true,
+      calibrationId: "scale", classificationValueIds: [] }];
+    await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, {
+      page: session.pages[1], keyboardAuthoringEnabled,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => { sessionProbe!.renameMeasurement(1, "line", "Renamed"); });
+    await act(async () => sessionProbe!.undo());
+    const original = sessionProbe!.session;
+    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
+    const props = konvaCapture.annotationLayers.at(-1)!;
+    const registerWhole = props.onWholeMeasurementDragCancellationChange as (id: string, cancel: (() => void) | null) => void;
+    const registerVertex = props.onVertexDragCancellationChange as (id: string, owner: object, cancel: (() => void) | null) => void;
+    for (const kind of ["whole", "vertex"] as const) {
+      const cancel = vi.fn();
+      if (kind === "whole") registerWhole("line", cancel);
+      else registerVertex("line", {}, cancel);
+      const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      await act(async () => { viewer.focus(); viewer.dispatchEvent(escape); });
+      expect(escape.defaultPrevented).toBe(true);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(sessionProbe!.session).toBe(original);
+      expect(sessionProbe!.canUndo).toBe(false);
+      expect(sessionProbe!.canRedo).toBe(true);
+      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      expect(cancel).toHaveBeenCalledOnce();
+    }
+    await act(async () => sessionProbe!.redo());
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.name).toBe("Renamed");
+  });
+
+  it("leaves Escape to inputs and blocking dialogs before cancelling a drag", async () => {
+    await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document);
+    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
+    const register = konvaCapture.annotationLayers.at(-1)!.onWholeMeasurementDragCancellationChange as (id: string, cancel: () => void) => void;
+    const cancel = vi.fn();
+    register("line", cancel);
+    const input = document.createElement("input");
+    document.body.append(input);
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    try {
+      await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      expect(cancel).not.toHaveBeenCalled();
+      document.body.append(dialog);
+      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      expect(cancel).not.toHaveBeenCalled();
+      dialog.remove();
+      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      expect(cancel).toHaveBeenCalledOnce();
+    } finally {
+      input.remove();
+      dialog.remove();
+    }
+  });
+
   describe("polygon draft repeated vertices", () => {
     const first = { x: 300, y: 400 };
     const second = { x: 400, y: 400 };
