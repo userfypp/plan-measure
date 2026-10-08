@@ -4,6 +4,24 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.8.0](https://github.com/userfypp/plan-measure/compare/v2.7.1...v2.8.0) (2026-10-08)
+
+
+### Added
+
+* add optional keyboard geometry creation and editing ([#187](https://github.com/userfypp/plan-measure/issues/187)) ([7e1d716](https://github.com/userfypp/plan-measure/commit/7e1d7161b0d9bf007bd49fe88b3ef96376583f8b))
+
+
+### Fixed
+
+* cancel measurement drags with Escape ([#191](https://github.com/userfypp/plan-measure/issues/191)) ([1845186](https://github.com/userfypp/plan-measure/commit/18451867b0b83db51b0766740a7e48391f46bc42))
+* explain encrypted PDF annotation export failures ([#192](https://github.com/userfypp/plan-measure/issues/192)) ([147c1eb](https://github.com/userfypp/plan-measure/commit/147c1eb2dcbd800f7cff2bd6bdd07d5229f689c4))
+* identify unsupported text in spreadsheet exports ([#195](https://github.com/userfypp/plan-measure/issues/195)) ([7de8db4](https://github.com/userfypp/plan-measure/commit/7de8db482d69cf23b099b50c62d5561f7d9ee7c2))
+* improve input placeholder contrast in both themes ([#193](https://github.com/userfypp/plan-measure/issues/193)) ([294ec89](https://github.com/userfypp/plan-measure/commit/294ec89123f30a391d2ae000d0aa1df075f90fc6))
+* normalize CSV download filenames ([#194](https://github.com/userfypp/plan-measure/issues/194)) ([9330117](https://github.com/userfypp/plan-measure/commit/93301171f2c5505b27a5b1d01fa81702f97190e3))
+* preserve measurement history for unchanged edits ([#189](https://github.com/userfypp/plan-measure/issues/189)) ([4560dda](https://github.com/userfypp/plan-measure/commit/4560ddaf14d0706a5aabfdf62ba852af1e5cbbec))
+* prevent repeated vertices in polygon drafts ([#190](https://github.com/userfypp/plan-measure/issues/190)) ([f8c1e23](https://github.com/userfypp/plan-measure/commit/f8c1e23387539d9bebec13d4aa06a721019c3152))
+
 ## [2.7.1](https://github.com/userfypp/plan-measure/compare/v2.7.0...v2.7.1) (2026-10-04)
 
 
