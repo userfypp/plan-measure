@@ -359,3 +359,133 @@ describe("additive measurement selection", () => {
     expect(onSelectMeasurement).toHaveBeenCalledWith("line-2", true);
   });
 });
+
+describe("large measurement collection", () => {
+  const largeMeasurements = Array.from({ length: 5000 }, (_, index) => ({
+    ...measurements[0]!,
+    id: `perf-${index}`,
+    name: `Measurement ${index}`,
+    selected: index === 0,
+  }));
+
+  it("bounds mounted rows and preserves Home/End focus across the entire model", () => {
+    renderCollection(largeMeasurements);
+    expect(container!.querySelectorAll('[role="listitem"]').length).toBeLessThan(40);
+    expect(control("perf-0", "selection").closest('[role="listitem"]')?.getAttribute("aria-setsize")).toBe("5000");
+    act(() => control("perf-0", "selection").focus());
+    press("End");
+    expect(document.activeElement).toBe(control("perf-4999", "selection"));
+    expect(control("perf-4999", "selection").closest('[role="listitem"]')?.getAttribute("aria-posinset")).toBe("5000");
+    press("ArrowUp");
+    expect(document.activeElement).toBe(control("perf-4998", "selection"));
+    press("ArrowRight");
+    expect(document.activeElement).toBe(control("perf-4998", "visibility"));
+    press("Home");
+    expect(document.activeElement).toBe(control("perf-0", "visibility"));
+  });
+
+  it("renders the scrolled window while keeping a focused row mounted", () => {
+    renderCollection(largeMeasurements);
+    act(() => control("perf-0", "selection").focus());
+    const collection = container!.querySelector<HTMLElement>('[aria-label="Measurement collection"]')!;
+    act(() => {
+      collection.scrollTop = 49 * 2500;
+      collection.dispatchEvent(new Event("scroll"));
+    });
+    expect(document.activeElement).toBe(control("perf-0", "selection"));
+    expect(control("perf-2500", "selection")).toBeDefined();
+    expect(container!.querySelector('[data-measurement-id="perf-1000"]')).toBeNull();
+    expect(container!.querySelectorAll('[role="listitem"]').length).toBeLessThan(40);
+  });
+
+  function renderManyGroups() {
+    act(() => root!.render(
+      <MeasurementCollection
+        measurements={largeMeasurements}
+        emptyMessage="Empty"
+        onSelectMeasurement={vi.fn()}
+        onToggleVisibility={vi.fn()}
+        groupByDimensionId="trade"
+        groups={largeMeasurements.map((measurement, index) => ({
+          key: `group-${index}`,
+          dimensionLabel: "Trade",
+          label: `Group ${index}`,
+          archived: false,
+          measurementIds: [measurement.id],
+          visibility: "visible" as const,
+        }))}
+        onSetMeasurementsVisibility={vi.fn()}
+      />,
+    ));
+  }
+
+  it("updates virtual offsets from observed variable row heights", () => {
+    let notify: ResizeObserverCallback | undefined;
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) { notify = callback; }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+    try {
+      renderCollection(largeMeasurements);
+      const row = control("perf-0", "selection").closest<HTMLElement>('[role="listitem"]')!;
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue({ height: 500 } as DOMRect);
+      const observation: ResizeObserverEntry = {
+        target: row,
+        contentRect: row.getBoundingClientRect(),
+        borderBoxSize: [],
+        contentBoxSize: [],
+        devicePixelContentBoxSize: [],
+      };
+      act(() => notify!([observation], {} as ResizeObserver));
+      expect(container!.querySelector('[data-measurement-id="perf-9"]')).toBeNull();
+      expect(control("perf-7", "selection")).toBeDefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("virtualizes group headers and navigates rows across offscreen groups", () => {
+    renderManyGroups();
+    expect(container!.querySelectorAll("header").length).toBeLessThan(20);
+    act(() => control("perf-0", "selection").focus());
+    press("End");
+    expect(document.activeElement).toBe(control("perf-4999", "selection"));
+    expect(control("perf-4999", "selection").closest('[aria-label="Trade · Group 4999 measurement group"]')).not.toBeNull();
+    press("Home");
+    expect(document.activeElement).toBe(control("perf-0", "selection"));
+  });
+
+  it("preserves Tab navigation to group controls beyond the mounted window", () => {
+    renderManyGroups();
+    const firstToggle = container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · Group 0 group"]')!;
+    act(() => firstToggle.focus());
+    for (let index = 0; index < 45; index += 1) press("Tab");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Collapse Trade · Group 22 group");
+    expect(container!.querySelectorAll("header").length).toBeLessThan(20);
+  });
+
+  it("excludes collapsed grouped rows from keyboard navigation", () => {
+    act(() => root!.render(
+      <MeasurementCollection
+        measurements={largeMeasurements}
+        emptyMessage="Empty"
+        onSelectMeasurement={vi.fn()}
+        onToggleVisibility={vi.fn()}
+        groupByDimensionId="trade"
+        groups={[
+          { key: "first", dimensionLabel: "Trade", label: "First", archived: false, measurementIds: ["perf-0"], visibility: "visible" },
+          { key: "remaining", dimensionLabel: "Trade", label: "Remaining", archived: false, measurementIds: largeMeasurements.slice(1).map((measurement) => measurement.id), visibility: "visible" },
+        ]}
+        onSetMeasurementsVisibility={vi.fn()}
+      />,
+    ));
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · First group"]')!.click());
+    expect(container!.querySelector('[data-measurement-id="perf-0"]')).toBeNull();
+    expect(control("perf-1", "selection").tabIndex).toBe(0);
+    act(() => control("perf-1", "selection").focus());
+    press("End");
+    expect(document.activeElement).toBe(control("perf-4999", "selection"));
+  });
+});

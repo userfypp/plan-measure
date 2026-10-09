@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, type ReactNode, type RefCallback } from "react";
 import { IconButton } from "../../components/ui";
 import type { MeasurementGroup as MeasurementGroupModel } from "./measurementGrouping";
 import { MeasurementRow } from "./MeasurementRow";
@@ -16,6 +16,10 @@ export interface MeasurementGroupProps {
   onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void;
   rovingCell?: { measurementId: string; control: "selection" | "visibility" } | null;
   children?: ReactNode;
+  rowsContent?: ReactNode;
+  headerRef?: RefCallback<HTMLElement>;
+  headerKey?: string;
+  headerPlaceholderHeight?: number;
 }
 
 const visibilityStateLabel = {
@@ -80,6 +84,10 @@ export function MeasurementGroup({
   onSetMeasurementsVisibility,
   rovingCell,
   children,
+  rowsContent,
+  headerRef,
+  headerKey,
+  headerPlaceholderHeight,
   depth = 0,
 }: MeasurementGroupProps) {
   const generatedId = useId();
@@ -104,7 +112,9 @@ export function MeasurementGroup({
 
   return (
     <section className={styles.group} aria-label={`${groupName} measurement group`}>
-      <header className={headerClassName} data-group-depth={depth}>
+      {headerPlaceholderHeight !== undefined ? (
+        <div aria-hidden="true" style={{ height: headerPlaceholderHeight }} />
+      ) : <header ref={headerRef} data-virtual-key={headerKey} className={headerClassName} data-group-depth={depth}>
         <button
           type="button"
           className={styles.toggle}
@@ -140,7 +150,7 @@ export function MeasurementGroup({
             />
           </>
         )}
-      </header>
+      </header>}
       <div
         id={listId}
         className={styles.list}
@@ -150,7 +160,7 @@ export function MeasurementGroup({
       >
         {children
           ? <div className={styles.childGroups}>{children}</div>
-          : measurements.map((measurement) => (
+          : rowsContent ?? measurements.map((measurement) => (
               <MeasurementRow
                 key={measurement.id}
                 viewModel={measurement}

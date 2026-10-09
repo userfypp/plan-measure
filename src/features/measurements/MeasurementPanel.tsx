@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { useSessionState } from "../../app/sessionState";
 import { Button, Popover } from "../../components/ui";
-import type { PageState } from "../../types/domain";
+import type { ClassificationCatalog, PageState } from "../../types/domain";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementsHeader } from "./MeasurementsHeader";
@@ -11,6 +11,8 @@ import {
   getMeasurementEmptyMessage,
 } from "./measurementViewModels";
 import styles from "./MeasurementPanel.module.css";
+
+const emptyClassificationCatalog: ClassificationCatalog = { dimensions: [] };
 
 export interface MeasurementDeleteRequest {
   pageNumber: number;
@@ -56,15 +58,24 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   const [visibilityFilter, setVisibilityFilter] = useState("");
   const [selectedClassificationFilter, setClassificationFilter] = useState("");
   const [openControls, setOpenControls] = useState<"filters" | "grouping" | null>(null);
-  const catalog = session?.classificationCatalog ?? { dimensions: [] };
-  const groupByDimensionIds = selectedGroupByDimensionIds.filter((id) =>
-    catalog.dimensions.some((dimension) => dimension.id === id),
+  const catalog = session?.classificationCatalog ?? emptyClassificationCatalog;
+  const groupByDimensionIds = useMemo(
+    () => selectedGroupByDimensionIds.filter((id) =>
+      catalog.dimensions.some((dimension) => dimension.id === id),
+    ),
+    [catalog, selectedGroupByDimensionIds],
   );
   const classificationFilter = catalog.dimensions.some((dimension) =>
     dimension.values.some((value) => value.id === selectedClassificationFilter),
   )
     ? selectedClassificationFilter
     : "";
+  const sourceMeasurementsById = useMemo(
+    () => new Map(Object.values(pages).flatMap((candidatePage) =>
+      candidatePage.measurements.map((measurement) => [measurement.id, measurement] as const),
+    )),
+    [pages],
+  );
   const allMeasurements = useMemo(
     () => Object.values(pages).flatMap((candidatePage) =>
       candidatePage.measurements.map((measurement) => ({
@@ -85,12 +96,20 @@ export const MeasurementPanel = memo(function MeasurementPanel({
     ),
     [areaDisplay, displayUnit, measurementDecimalPlaces, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
   );
-  const measurements = allMeasurements.filter((measurement) =>
-    measurement.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) &&
-    (!pageFilter || String(measurement.pageNumber) === pageFilter) &&
-    (!typeFilter || measurement.type === typeFilter) &&
-    (!visibilityFilter || String(measurement.visible) === visibilityFilter) &&
-    (!classificationFilter || measurement.classificationValueIds.includes(classificationFilter)),
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const measurements = useMemo(
+    () => allMeasurements.filter((measurement) =>
+      (!normalizedQuery || measurement.name.toLocaleLowerCase().includes(normalizedQuery)) &&
+      (!pageFilter || String(measurement.pageNumber) === pageFilter) &&
+      (!typeFilter || measurement.type === typeFilter) &&
+      (!visibilityFilter || String(measurement.visible) === visibilityFilter) &&
+      (!classificationFilter || measurement.classificationValueIds.includes(classificationFilter)),
+    ),
+    [allMeasurements, classificationFilter, normalizedQuery, pageFilter, typeFilter, visibilityFilter],
+  );
+  const measurementsById = useMemo(
+    () => new Map(measurements.map((measurement) => [measurement.id, measurement])),
+    [measurements],
   );
   const hasGroupBy = catalog.dimensions.length > 0;
   const activeFilterCount =
@@ -103,16 +122,18 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       catalog.dimensions.find((dimension) => dimension.id === dimensionId)?.name ??
       "Unknown classification",
   );
-  const groups = groupByDimensionIds.length
+  const groups = useMemo(() => groupByDimensionIds.length
     ? createMeasurementGroups(
         measurements.map((measurement) => ({
-          ...pages[measurement.pageNumber]!.measurements.find((item) => item.id === measurement.id)!,
+          ...sourceMeasurementsById.get(measurement.id)!,
           pageNumber: measurement.pageNumber,
         })),
         catalog,
         groupByDimensionIds,
       )
-    : undefined;
+    : undefined,
+    [catalog, groupByDimensionIds, measurements, sourceMeasurementsById],
+  );
 
   return (
     <aside
@@ -289,11 +310,11 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             : "No measurements match these filters."
         }
         onSelectMeasurement={(measurementId, additive) => {
-          const result = measurements.find((candidate) => candidate.id === measurementId);
+          const result = measurementsById.get(measurementId);
           if (result) onSelectMeasurement(result.pageNumber, measurementId, additive);
         }}
         onToggleVisibility={(measurementId, visible) => {
-          const result = measurements.find((candidate) => candidate.id === measurementId);
+          const result = measurementsById.get(measurementId);
           if (result) onSetMeasurementVisibility(result.pageNumber, measurementId, visible);
         }}
         groups={groups}
@@ -301,7 +322,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
         onSetMeasurementsVisibility={(measurementIds, visible) =>
           Object.entries(
             measurementIds.reduce<Record<number, string[]>>((byPage, measurementId) => {
-              const pageNumber = measurements.find((measurement) => measurement.id === measurementId)?.pageNumber;
+              const pageNumber = measurementsById.get(measurementId)?.pageNumber;
               if (pageNumber !== undefined) (byPage[pageNumber] ??= []).push(measurementId);
               return byPage;
             }, {}),
