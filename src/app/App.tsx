@@ -295,6 +295,7 @@ function PlanMeasureApp() {
     retryAutosave,
     chooseFile,
     importProject,
+    openSampleProject,
     exportProject,
     openProject,
     refreshSavedProjects,
@@ -1462,7 +1463,13 @@ function PlanMeasureApp() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          emptyState={<EmptyWorkspaceState onOpenPdf={() => fileInputRef.current?.click()} />}
+          emptyState={
+            <EmptyWorkspaceState
+              onOpenPdf={() => fileInputRef.current?.click()}
+              onOpenSample={() => void openSampleProject()}
+              disabled={!recoveryChecked || loading || projectOperationPending}
+            />
+          }
         />
       )}
 

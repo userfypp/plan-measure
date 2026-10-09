@@ -71,6 +71,13 @@
   color: var(--color-text-secondary);
 }
 
+.startActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
 .documentMark {
   width: 54px;
   height: 64px;

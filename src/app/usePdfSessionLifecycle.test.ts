@@ -654,6 +654,67 @@ describe("workspace initialization", () => {
     expect(latestLifecycleError).toContain("invalid or unsupported");
   });
 
+  it("loads the sample on demand through project import and preserves saved projects", async () => {
+    const previous = await seedRecoverySession();
+    await renderLifecycleHarness();
+    const sample = createEmptySession({ name: "Sample.pdf", size: 3, lastModified: 7 }, 1);
+    const fetchSample = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => createProjectFile(sample, new Blob(["pdf"])),
+    });
+    vi.stubGlobal("fetch", fetchSample);
+    expect(fetchSample).not.toHaveBeenCalled();
+    await act(async () => {
+      await lifecycle!.openSampleProject();
+    });
+    expect(fetchSample).toHaveBeenCalledOnce();
+    expect(harnessSession).toEqual(sample);
+    expect((await listSavedProjects()).map((project) => project.name)).toEqual([
+      "Sample.pdf",
+      previous.pdf.name,
+    ]);
+  });
+
+  it("reports a failed sample download without changing saved projects", async () => {
+    const previous = await seedRecoverySession();
+    await renderLifecycleHarness();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    await act(async () => {
+      await lifecycle!.openSampleProject();
+    });
+    expect(harnessSession).toBeNull();
+    expect((await loadSavedSession())?.session).toEqual(previous);
+    expect(latestLifecycleError).toContain("sample project could not be loaded");
+    expect(lifecycle!.loading).toBe(false);
+  });
+
+  it("ignores a sample download that completes after a newer PDF is opened", async () => {
+    await renderLifecycleHarness();
+    const sample = createEmptySession({ name: "Sample.pdf", size: 3, lastModified: 7 }, 1);
+    let finishDownload!: (response: { ok: boolean; blob: () => Promise<Blob> }) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finishDownload = resolve;
+          }),
+      ),
+    );
+    let sampleLoad!: Promise<void>;
+    await act(async () => {
+      sampleLoad = lifecycle!.openSampleProject();
+    });
+    expect(lifecycle!.loading).toBe(true);
+    await act(async () => {
+      await lifecycle!.chooseFile(new File(["new"], "New.pdf", { type: "application/pdf" }));
+      finishDownload({ ok: true, blob: async () => createProjectFile(sample, new Blob(["pdf"])) });
+      await sampleLoad;
+    });
+    expect(harnessSession?.pdf.name).toBe("New.pdf");
+    expect((await listSavedProjects()).map((project) => project.name)).toEqual(["New.pdf"]);
+  });
+
   it("keeps recoverable project data when an imported project cannot be saved", async () => {
     const previous = await seedRecoverySession();
     await renderLifecycleHarness();

@@ -337,7 +337,15 @@ export function WorkspaceShell({
   );
 }
 
-export function EmptyWorkspaceState({ onOpenPdf }: { onOpenPdf: () => void }) {
+export function EmptyWorkspaceState({
+  onOpenPdf,
+  onOpenSample,
+  disabled,
+}: {
+  onOpenPdf: () => void;
+  onOpenSample: () => void;
+  disabled: boolean;
+}) {
   return (
     <div className={styles.dropCard}>
       <div className={styles.documentMark} aria-hidden="true">
@@ -345,7 +353,14 @@ export function EmptyWorkspaceState({ onOpenPdf }: { onOpenPdf: () => void }) {
       </div>
       <h1>Drop a PDF here</h1>
       <p>or</p>
-      <Button onClick={onOpenPdf}>Open PDF</Button>
+      <div className={styles.startActions}>
+        <Button onClick={onOpenPdf} disabled={disabled}>
+          Open PDF
+        </Button>
+        <Button variant="secondary" onClick={onOpenSample} disabled={disabled}>
+          Try a sample
+        </Button>
+      </div>
       <small>PDF files up to 100 MB · Your plan stays in this browser</small>
     </div>
   );
