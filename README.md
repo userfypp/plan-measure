@@ -16,7 +16,7 @@ Measure distances, perimeters, and areas on architectural PDF plans in a desktop
 
 ## Quick start
 
-1. Choose **Open PDF** or drop a PDF into the workspace.
+1. Choose **Open PDF** or drop a PDF into the workspace. Use **Try a sample** to explore a prepared project.
 2. In **Scales**, choose **Add scale → Uniform**, mark a known distance, and enter its real-world length. Use **Custom ratio** if you know the plan's scale.
 3. Choose **Line**, **Polyline**, or **Polygon** and click to place points. Press `Enter` to finish a Polyline or Polygon.
 4. Use **Select** to edit a measurement and **Details** to name or classify it.

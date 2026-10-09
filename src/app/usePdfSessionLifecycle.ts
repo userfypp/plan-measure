@@ -34,6 +34,7 @@ import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
 import { createProjectFile, projectFileName, readProjectFile } from "../services/projectFile";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import type { WorkspaceModule } from "./workspaceState";
+import sampleProjectUrl from "../../assets/plan_measure_demo_floor_plan_clean_A3_1-50.planmeasure?url";
 
 async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
   const { loadPdf } = await import("../services/pdf");
@@ -586,14 +587,16 @@ export function usePdfSessionLifecycle({
     }
   }
 
-  async function importProject(file: File) {
+  async function importProject(file: Blob | Promise<Blob>) {
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     clearPendingPdf();
     beginPdfLoad(loadGeneration);
     let loaded: LoadedPdf | null = null;
     let handedOff = false;
     try {
-      const imported = await readProjectFile(file);
+      const projectFile = await file;
+      if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
+      const imported = await readProjectFile(projectFile);
       loaded = await loadPdfRuntime(imported.pdfBlob);
       if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
         await destroyPdf(loaded);
@@ -629,6 +632,16 @@ export function usePdfSessionLifecycle({
       setError(error instanceof Error ? error.message : "The project could not be imported.");
       finishPdfLoad(loadGeneration);
     }
+  }
+
+  async function openSampleProject() {
+    await importProject(
+      fetch(sampleProjectUrl).then((response) => {
+        if (!response.ok)
+          throw new Error("The sample project could not be loaded. Please try again.");
+        return response.blob();
+      }),
+    );
   }
 
   function downloadProject(sessionToExport: CurrentSession, projectPdf: Blob) {
@@ -1043,6 +1056,7 @@ export function usePdfSessionLifecycle({
     autosaveUnavailable: autosaveStatus === "unavailable" || autosaveStatus === "repair-required",
     chooseFile,
     importProject,
+    openSampleProject,
     exportProject,
     openProject,
     refreshSavedProjects,
