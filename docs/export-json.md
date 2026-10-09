@@ -1,6 +1,6 @@
 # JSON data export
 
-**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own `schemaVersion: 1`. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
+**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
 
 All pages, calibrations, measurements (including hidden measurements), and classification dimensions and values (including archived entries) are included. CSV column preferences and display units do not affect JSON. Numbers retain JavaScript's full numeric precision without display rounding. Strings, including notes, Unicode and formula-like text, are preserved exactly.
 
@@ -51,3 +51,11 @@ For example, one exported line within `pages[0].measurements` can be:
 ```
 
 Export fails when geometry or calibration is invalid, required references are missing or ambiguous, page numbering is inconsistent, or any exported number or derived quantity is nonfinite (`NaN` or infinity). Invalid numeric values are never silently converted to JSON `null`. Empty measurement collections are valid; JSON can export a document's calibrations and classification catalog without any measurements.
+
+## Schema version 2: optional Takeoff summary
+
+Version `2` preserves all version `1` fields and adds `takeoff`. Units are mm/mm²; all pages and hidden measurements are included, regardless of display settings.
+
+When selected, `projectTotals` contains `key`, `label`, `archived`, `measurementCount`, `excludedCount`, and `length`, `perimeter`, `area`. Each quantity is `{kind: "value", value: number}`, `{kind: "absent"}`, or `{kind: "unavailable"}`; aggregate overflow is unavailable.
+
+`breakdowns` contains the selected page, type and classification views in that order, with dimensions in catalog order. Each entry has `type`, `dimension` (`null` or `{id, name, archived}`), and `groups` using the same structure as `projectTotals`. Views are independent; do not add them together. Archived classifications and unassigned measurements remain included.

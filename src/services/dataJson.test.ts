@@ -319,3 +319,93 @@ describe("public JSON data export", () => {
     }
   });
 });
+
+describe("JSON Takeoff extension", () => {
+  it("preserves version 1 by default and adds a canonical version 2 summary on request", () => {
+    const session = fixture();
+    const original = JSON.parse(buildDataJson(session));
+    expect(original.schemaVersion).toBe(1);
+    expect(original.takeoff).toBeUndefined();
+    const extended = JSON.parse(
+      buildDataJson(session, null, {
+        breakdowns: ["page", "type"],
+        classificationDimensionIds: ["dimension"],
+      }),
+    );
+    expect(extended.schemaVersion).toBe(2);
+    expect(extended.pages).toEqual(original.pages);
+    expect(extended.classificationCatalog).toEqual(original.classificationCatalog);
+    expect(extended.takeoff).toMatchObject({
+      linearUnit: "mm",
+      areaUnit: "mm²",
+      allPages: true,
+      includesHidden: true,
+    });
+    expect(extended.takeoff.breakdowns.map((item: { type: string }) => item.type)).toEqual([
+      "page",
+      "type",
+      "classification",
+    ]);
+    const expectedLength = original.pages
+      .flatMap((page: { measurements: { lengthMm: number | null }[] }) => page.measurements)
+      .reduce(
+        (sum: number, measurement: { lengthMm: number | null }) =>
+          sum + (measurement.lengthMm ?? 0),
+        0,
+      );
+    expect(extended.takeoff.projectTotals.length).toEqual({ kind: "value", value: expectedLength });
+    expect(extended.takeoff.breakdowns[2].dimension).toEqual({
+      id: "dimension",
+      name: "Zone",
+      archived: true,
+    });
+  });
+  it("exports empty summaries and marks aggregate overflow explicitly without nonfinite JSON values", () => {
+    const empty = createEmptySession({ name: "Empty.pdf", size: 0, lastModified: 0 }, 1);
+    const selection = { breakdowns: [] as const, classificationDimensionIds: [] };
+    const report = JSON.parse(buildDataJson(empty, null, selection));
+    expect(report.takeoff.projectTotals).toMatchObject({
+      measurementCount: 0,
+      excludedCount: 0,
+      length: { kind: "absent" },
+    });
+    const large = fixture();
+    const page = large.pages[1]!;
+    page.calibrations = [
+      {
+        id: "large",
+        name: "Large",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 9e307,
+      },
+    ];
+    page.measurements = [0, 1].map((index) => ({
+      ...page.measurements[0]!,
+      id: String(index),
+      calibrationId: "large",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    }));
+    for (const other of Object.values(large.pages)) if (other !== page) other.measurements = [];
+    const contents = buildDataJson(large, null, selection);
+    expect(JSON.parse(contents).takeoff.projectTotals.length).toEqual({ kind: "unavailable" });
+    expect(contents).not.toContain("Infinity");
+  });
+});
+
+it("omits unselected project totals from JSON while preserving requested breakdowns", () => {
+  const data = JSON.parse(
+    buildDataJson(fixture(), null, {
+      includeProjectTotals: false,
+      breakdowns: ["page"],
+      classificationDimensionIds: [],
+    }),
+  );
+  expect(data.schemaVersion).toBe(2);
+  expect(data.takeoff).not.toHaveProperty("projectTotals");
+  expect(data.takeoff.breakdowns.map((view: { type: string }) => view.type)).toEqual(["page"]);
+});

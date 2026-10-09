@@ -63,15 +63,23 @@ export async function buildSpreadsheet(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
   settings?: CsvExportSettings,
+  additionalTables: readonly (readonly [string, ExportTable])[] = [],
 ): Promise<Uint8Array<ArrayBuffer>> {
   const measurements = buildMeasurementTable(session, pageLabels, settings);
   const assignments = buildClassificationAssignmentsTable(session, pageLabels);
-  validateTable(measurements, "Measurements");
-  validateTable(assignments, "Classification assignments");
   const tables = [
     ["Measurements", measurements],
     ["Classification assignments", assignments],
+    ...additionalTables,
   ] as const;
+  return buildSpreadsheetTables(format, tables);
+}
+
+export async function buildSpreadsheetTables(
+  format: SpreadsheetExportFormat,
+  tables: readonly (readonly [string, ExportTable])[],
+): Promise<Uint8Array<ArrayBuffer>> {
+  for (const [name, table] of tables) validateTable(table, name);
   if (format === "ods") {
     const { writeOds } = await import("./ods");
     return writeOds(tables);
@@ -109,8 +117,9 @@ export async function downloadSpreadsheet(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
   settings?: CsvExportSettings,
+  additionalTables: readonly (readonly [string, ExportTable])[] = [],
 ): Promise<void> {
-  const bytes = await buildSpreadsheet(format, session, pageLabels, settings);
+  const bytes = await buildSpreadsheet(format, session, pageLabels, settings, additionalTables);
   downloadExportFile(
     bytes,
     exportFileName(session.pdf.name, "measurements", format),

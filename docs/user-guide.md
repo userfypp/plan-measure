@@ -59,6 +59,8 @@ Older data is migrated when possible. If repair is required, autosave stays paus
 | Annotated PDF  | Original pages with visible measurements; labels follow the Labels setting. The source PDF is unchanged.                                        |
 | `.planmeasure` | PDF and editable project data, via **Projects → Export**.                                                                                       |
 
+**Takeoff summaries:** select project totals, page/type breakdowns, or classification dimensions in Export. Use **Data → Takeoff summary** for a standalone CSV/XLSX/ODS; otherwise add them to the dataset. CSV bundles separate files in a ZIP; workbooks add sheets. Summaries include hidden measurements, full precision, excluded counts and quantity statuses. JSON uses mm/mm²; other formats use display units (decimal feet for ft-in).
+
 CSV measurement and workbook columns are configurable; required columns stay enabled. Successful exports remember the selection. JSON ignores column preferences and display units.
 
 Spreadsheet exports reject unsupported text or values exceeding format limits. Spreadsheet applications can reduce numeric precision; use JSON for the original numeric representation.
