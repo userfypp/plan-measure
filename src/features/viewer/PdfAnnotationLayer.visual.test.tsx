@@ -160,6 +160,44 @@ function xyPage(): PageState {
 }
 
 describe("PdfAnnotationLayer V2 visual semantics", () => {
+  it("conserva el golden determinista de etiquetas, prioridad, zoom y visibilidad", () => {
+    let state = 20261010;
+    const random = () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+    const page = uniformPage();
+    page.measurements = Array.from({ length: 90 }, (_, index) => {
+      const x = random() * 570, y = random() * 770;
+      const type = (["line", "polyline", "polygon"] as const)[index % 3]!;
+      const radius = 8 + random() * 45;
+      const points = type === "line" ? [{ x, y }, { x: x + radius, y: y + radius / 3 }]
+        : Array.from({ length: 12 }, (_, vertex) => ({
+          x: x + radius * Math.cos(vertex * Math.PI / 6),
+          y: y + radius * Math.sin(vertex * Math.PI / 6),
+        }));
+      return { ...page.measurements[0]!, id: `golden-${index}`, type, points, visible: index % 11 !== 0 };
+    });
+    const result = [];
+    for (const zoom of [0.5, 1, 2, 4, 8]) {
+      for (const selectedMeasurementId of [null, "golden-37"]) {
+        for (const viewport of [undefined, { width: 320, height: 240 }]) {
+          captured.labels.length = 0;
+          captured.texts.length = 0;
+          renderLayer({ page, transform: { zoom, panX: -80, panY: -90 },
+            selectedMeasurementId, viewport, showCalibration: true });
+          result.push({ zoom, selectedMeasurementId, viewport,
+            labels: captured.labels.map(({ x, y }, index) => ({
+              x, y, text: captured.texts[index]?.text,
+              fontSize: captured.texts[index]?.fontSize,
+            })),
+          });
+        }
+      }
+    }
+    expect(result).toMatchSnapshot();
+  });
+
   it("culls off-screen geometry but retains selected shapes and handles", () => {
     const page = uniformPage();
     const base = page.measurements[0]!;
