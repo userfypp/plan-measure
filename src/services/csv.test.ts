@@ -8,6 +8,7 @@ import * as exportDownload from "./exportDownload";
 import {
   buildClassificationAssignmentsCsv,
   buildCsv,
+  buildCsvInBatches,
   createCsvExportSettingsPreset,
   downloadClassificationAssignmentsCsv,
   downloadCsv,
@@ -1498,5 +1499,38 @@ describe("CSV export", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+
+describe("CSV batch export", () => {
+  it.each(["m", "cm", "ft", "ft-in"] as const)("preserves every byte with %s, all columns, multiline text and hidden rows", async (unit) => {
+    const session = classifiedMeasuredSession();
+    session.settings.displayUnit = unit;
+    const originals = session.pages[1]!.measurements;
+    session.pages[1]!.measurements = Array.from({ length: 1000 }, (_, i) => ({
+      ...originals[i % originals.length]!, id: `batch-${i}`, visible: i % 2 === 0,
+      note: 'Commas, quotes "and" CRLF\r\n=SUM(A1:A2)',
+    }));
+    const yieldToMain = vi.fn(async () => {});
+    const settings = allColumns(session);
+    const sync = buildCsv(session, ["Ground\nFloor", "Roof"], settings);
+    const batched = await buildCsvInBatches(session, ["Ground\nFloor", "Roof"], settings, yieldToMain);
+    expect(new TextEncoder().encode(batched)).toEqual(new TextEncoder().encode(sync));
+    expect(yieldToMain).toHaveBeenCalled();
+  });
+
+  it("rejects an invalid measurement in a later batch without returning partial output", async () => {
+    const session = measuredSession();
+    const base = session.pages[1]!.measurements[0]!;
+    session.pages[1]!.measurements = Array.from({ length: 450 }, (_, i) => ({ ...base, id: `row-${i}` }));
+    session.pages[1]!.measurements[449] = { ...base, id: "invalid", type: "polygon", points: [] };
+    await expect(buildCsvInBatches(session, null, undefined, async () => {})).rejects.toThrow("Repair invalid Polygon");
+  });
+
+  it("keeps the no-measurements failure", async () => {
+    const session = measuredSession();
+    Object.values(session.pages).forEach((page) => { page.measurements = []; });
+    await expect(buildCsvInBatches(session)).rejects.toBeInstanceOf(NoMeasurementsError);
   });
 });
