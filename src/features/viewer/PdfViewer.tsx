@@ -1922,6 +1922,7 @@ export function PdfViewer({
                   page={stage.presented && isPresentedTarget && keyboardGeometry.editing ? keyboardGeometry.previewPage : stage.page}
                   bounds={stage.data.bounds}
                   transform={stage.transform}
+                  viewport={viewerSize}
                   activeTool={activeTool}
                   spacePan={spacePan}
                   isPanning={isPanning}

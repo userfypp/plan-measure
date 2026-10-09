@@ -155,6 +155,7 @@ interface PdfAnnotationLayerProps {
   page: PageState;
   bounds: LogicalPageBounds;
   transform: ViewTransform;
+  viewport?: { width: number; height: number };
 
   activeTool: Tool;
   spacePan: boolean;
@@ -199,6 +200,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   page,
   bounds,
   transform,
+  viewport,
   activeTool,
   spacePan,
   isPanning,
@@ -234,10 +236,37 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     selectedPageMeasurements.every((measurement) => canDragWholeMeasurement(measurement, true, true));
   const showMeasurementLabels = showMeasurements && showLabels;
 
+  // Geometry and formatted values depend on domain data, not pan or zoom.
+  const labelData = useMemo(() => new Map(page.measurements.map((measurement) => {
+    const calibration = getMeasurementCalibration(page, measurement);
+    const points = measurement.points;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const point of points) {
+      minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+      minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+    }
+    return [measurement.id, {
+      anchor: averagePoint(points),
+      minX, maxX, minY, maxY,
+      text: calibration && shouldRenderMeasurement(measurement, showMeasurementLabels) ? formatMeasurement(
+        measurement, calibration, displayUnit, measurementDecimalPlaces, areaDisplay,
+      ) : null,
+    }];
+  })), [page, displayUnit, measurementDecimalPlaces, areaDisplay, showMeasurementLabels]);
+
   const plannedLabelLayout = useMemo(() => {
     const placements = new Map<string, LabelPlacement>();
     const occupiedRects = new Map<string, OccupiedLabelRect>();
     const occupied = createLabelCollisionIndex();
+    const dimensionsByText = new Map<string, LabelDimensions>();
+    function measurementDimensions(text: string) {
+      let dimensions = dimensionsByText.get(text);
+      if (!dimensions) {
+        dimensions = measureLabelText(text, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, transform.zoom);
+        dimensionsByText.set(text, dimensions);
+      }
+      return dimensions;
+    }
     if (!bounds) return { placements, occupiedRects, occupied };
 
     function store(key: string, placement: LabelPlacement, dimensions: LabelDimensions) {
@@ -304,22 +333,11 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       );
       for (const measurement of orderedMeasurements) {
         if (!shouldRenderMeasurement(measurement, showMeasurementLabels)) continue;
-        const calibration = getMeasurementCalibration(page, measurement);
-        if (!calibration) continue;
-        const labelText = formatMeasurement(
-          measurement,
-          calibration,
-          displayUnit,
-          measurementDecimalPlaces,
-          areaDisplay,
-        );
+        const data = labelData.get(measurement.id)!;
+        if (data.text === null) continue;
         const key = `measurement:${measurement.id}`;
-        const dimensions = measureLabelText(
-          labelText,
-          MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX,
-          transform.zoom,
-        );
-        const fallbackAnchor = averagePoint(measurement.points);
+        const dimensions = measurementDimensions(data.text);
+        const fallbackAnchor = data.anchor;
         const placement =
           placeLabelInsideMeasurementGeometry(
             measurement.type,
@@ -346,6 +364,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     bounds,
     calibrationReferenceEdit,
     page,
+    labelData,
     selectedMeasurementId,
     displayUnit,
     areaDisplay,
@@ -354,6 +373,29 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     showMeasurementLabels,
     transform.zoom,
   ]);
+
+  const visibleMeasurements = useMemo(() => {
+    if (!viewport || isPanning) return page.measurements;
+    const padding = Math.max(32, interactionTargetScreenPx) / transform.zoom;
+    const left = -transform.panX / transform.zoom - padding;
+    const top = -transform.panY / transform.zoom - padding;
+    const right = (viewport.width - transform.panX) / transform.zoom + padding;
+    const bottom = (viewport.height - transform.panY) / transform.zoom + padding;
+    return page.measurements.filter((measurement) => {
+      // Keep editing ownership and selected handles mounted across viewport changes.
+      if (measurement.id === selectedMeasurementId ||
+          selectedMeasurementIds?.includes(measurement.id) ||
+          measurement.id === activeMeasurementEditId) return true;
+      const data = labelData.get(measurement.id)!;
+      if (data.maxX >= left && data.minX <= right && data.maxY >= top && data.minY <= bottom) return true;
+      const label = showMeasurementLabels
+        ? plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`) : undefined;
+      return Boolean(label && label.x + label.width >= left && label.x <= right &&
+        label.y + label.height >= top && label.y <= bottom);
+    });
+  }, [viewport, isPanning, page.measurements, transform, interactionTargetScreenPx,
+    selectedMeasurementId, selectedMeasurementIds, activeMeasurementEditId,
+    labelData, showMeasurementLabels, plannedLabelLayout]);
 
   return (
     <>
@@ -459,7 +501,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
             );
           });
         })}
-      {page.measurements
+      {visibleMeasurements
         .filter((measurement) => shouldRenderMeasurement(measurement, showMeasurements))
         .map((measurement) => (
           <MeasurementShape
