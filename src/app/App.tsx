@@ -989,6 +989,9 @@ function PlanMeasureApp() {
     focusViewer();
   }, [closeMeasurementDetails, focusViewer, measurementDetailsOpen, selectedMeasurement]);
   const measurementEditActive = activeMeasurementEditId !== null;
+  const summaryExportBlocked = Boolean(
+    draft || measurementEditActive || calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+  );
   const currentPageSelectedMeasurements = currentPage?.measurements.filter((measurement) =>
     selectedMeasurementIds.includes(measurement.id),
   ) ?? [];
@@ -1556,6 +1559,7 @@ function PlanMeasureApp() {
       {exportDialogOpen && session && (
         <ExportDialog
           session={session}
+          summaryBlocked={summaryExportBlocked}
           pageLabels={activePdf?.pageLabels ?? null}
           onExportAnnotatedPdf={
             activePdf

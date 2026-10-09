@@ -17,12 +17,19 @@ export interface MeasurementTotalGroup {
   label: string;
   archived: boolean;
   measurementCount: number;
+  excludedCount: number;
   length: TotalQuantity;
   perimeter: TotalQuantity;
   area: TotalQuantity;
 }
 
 export type MeasurementTotalsGrouping = "overall" | "page" | "type" | "classification";
+
+export interface TakeoffSelection {
+  includeProjectTotals?: boolean;
+  breakdowns: readonly ("page" | "type")[];
+  classificationDimensionIds: readonly string[];
+}
 
 interface LocatedMeasurement {
   page: PageState;
@@ -95,6 +102,7 @@ function aggregateGroup(
       label,
       archived,
       measurementCount: measurements.length,
+      excludedCount: calculated.filter((result) => result.excluded).length,
       length: sumQuantity(calculated.map((result) => result.length)),
       perimeter: sumQuantity(calculated.map((result) => result.perimeter)),
       area: sumQuantity(calculated.map((result) => result.area)),

@@ -609,6 +609,10 @@ function serializeCsv(
   return `\uFEFF${contents}\r\n`;
 }
 
+export function serializeExportTableCsv(table: ExportTable): string {
+  return serializeCsv(table.headers, table.columnTypes, table.rows);
+}
+
 function createCsvRowContext(
   pageNumber: number,
   pageLabel: string,

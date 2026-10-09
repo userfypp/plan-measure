@@ -7,6 +7,8 @@ import type { CurrentSession } from "../../types/domain";
 import { ExportDialog } from "./ExportDialog";
 
 const mocks = vi.hoisted(() => ({
+  downloadTakeoff: vi.fn(),
+  downloadCsvWithTakeoff: vi.fn(),
   downloadCsv: vi.fn(),
   downloadSpreadsheet: vi.fn(),
   downloadDataJson: vi.fn(),
@@ -34,6 +36,11 @@ vi.mock("../../services/csv", async (importOriginal) => {
 
 vi.mock("../../services/spreadsheetExport", () => ({
   downloadSpreadsheet: mocks.downloadSpreadsheet,
+}));
+vi.mock("../../services/takeoffExport", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/takeoffExport")>()),
+  downloadTakeoff: mocks.downloadTakeoff,
+  downloadCsvWithTakeoff: mocks.downloadCsvWithTakeoff,
 }));
 vi.mock("../../services/dataJson", () => ({ downloadDataJson: mocks.downloadDataJson }));
 
@@ -145,6 +152,8 @@ beforeEach(() => {
       this.dispatchEvent(new Event("close"));
     },
   });
+  mocks.downloadTakeoff.mockReset().mockResolvedValue(undefined);
+  mocks.downloadCsvWithTakeoff.mockReset().mockResolvedValue(undefined);
   mocks.downloadCsv.mockReset();
   mocks.downloadSpreadsheet.mockReset().mockResolvedValue(undefined);
   mocks.downloadDataJson.mockReset();
@@ -400,7 +409,7 @@ describe("ExportDialog", () => {
       act(() => button("Required only")!.click());
       choose("csv-data", "classification-assignments");
       choose("export-format", format);
-      expect(dialog().querySelector('select[name="csv-data"]')).toBeNull();
+      expect(select("csv-data").value).toBe("measurements");
       expect(dialog().querySelector('[role="tablist"]')).not.toBeNull();
       await act(async () => button(`Export ${format.toUpperCase()}`)!.click());
       expect(mocks.downloadSpreadsheet).toHaveBeenCalledWith(
@@ -491,4 +500,256 @@ describe("ExportDialog", () => {
       expect(onClose).toHaveBeenCalledOnce();
     },
   );
+});
+
+function measuredFixture() {
+  const session = sessionFixture();
+  session.pages[1]!.measurements = [
+    {
+      id: "missing",
+      name: "Missing scale",
+      type: "line",
+      calibrationId: "missing",
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+      classificationValueIds: [],
+      visible: false,
+    },
+  ];
+  return session;
+}
+describe("Takeoff summary export dialog", () => {
+  it.each(["csv", "xlsx", "ods"])(
+    "exports %s totals without measurement columns or saving column preferences",
+    async (format) => {
+      const { session, onClose } = renderDialog(measuredFixture());
+      choose("csv-data", "takeoff");
+      choose("export-format", format);
+      checkSummary("Project totals");
+      expect(dialog().querySelector('[aria-label="Measurement columns"]')).toBeNull();
+      expect(dialog().textContent).toContain("All pages · Includes hidden");
+      expect(dialog().querySelector('[role="status"]')?.textContent).toContain(
+        "1 measurement excluded",
+      );
+      await act(async () => button(`Export ${format.toUpperCase()}`)!.click());
+      expect(mocks.downloadTakeoff).toHaveBeenCalledWith(
+        format,
+        session,
+        {
+          includeProjectTotals: true,
+          breakdowns: [],
+          classificationDimensionIds: [],
+        },
+        ["1"],
+      );
+      expect(mocks.updateSettings).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalledOnce();
+    },
+  );
+  it("exports multiple selected breakdowns and retains them after a failure", async () => {
+    const { onClose } = renderDialog(measuredFixture());
+    choose("csv-data", "takeoff");
+    checkSummary("By page");
+    checkSummary("By type");
+    checkSummary("Trade");
+    mocks.downloadTakeoff.mockRejectedValueOnce(new Error("Cannot write this file."));
+    await act(async () => button("Export CSV")!.click());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(mocks.downloadTakeoff).toHaveBeenCalledWith(
+      "csv",
+      expect.anything(),
+      {
+        includeProjectTotals: false,
+        breakdowns: ["page", "type"],
+        classificationDimensionIds: ["trade"],
+      },
+      ["1"],
+    );
+    expect(mocks.setError).not.toHaveBeenCalled();
+    expect(dialog().querySelector('[role="alert"]')?.textContent).toBe("Cannot write this file.");
+    await act(async () => button("Export CSV")!.click());
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+  it("blocks empty summaries and summaries during an uncommitted edit", () => {
+    renderDialog();
+    choose("csv-data", "takeoff");
+    expect(button("Export CSV")!.disabled).toBe(true);
+    act(() =>
+      root!.render(
+        <ExportDialog
+          session={measuredFixture()}
+          pageLabels={null}
+          summaryBlocked
+          onClose={vi.fn()}
+        />,
+      ),
+    );
+    expect(button("Export CSV")!.disabled).toBe(true);
+    checkSummary("Project totals");
+    expect(dialog().querySelector('[role="alert"]')?.textContent).toContain("Finish or cancel");
+    checkSummary("Project totals");
+    choose("csv-data", "measurements");
+    expect(button("Export CSV")!.disabled).toBe(false);
+  });
+  it("prevents duplicate summary exports while the snapshot is being written", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocks.downloadTakeoff.mockReturnValue(pending);
+    const { onClose } = renderDialog(measuredFixture());
+    choose("csv-data", "takeoff");
+    choose("export-format", "xlsx");
+    checkSummary("Project totals");
+    act(() => button("Export XLSX")!.click());
+    act(() =>
+      dialog()
+        .querySelector("form")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+    );
+    expect(mocks.downloadTakeoff).toHaveBeenCalledOnce();
+    expect(select("csv-data").matches(":disabled")).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => {
+      release();
+      await pending;
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
+function checkSummary(text: string) {
+  const label = Array.from(dialog().querySelectorAll("label")).find(
+    (label) => label.textContent?.trim() === text,
+  );
+  if (!label) throw new Error(`Missing summary option ${text}`);
+  act(() => label.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+}
+
+describe("Combined Takeoff exports", () => {
+  it.each(["xlsx", "ods"])("adds selected summaries to the normal %s export", async (format) => {
+    const { session, onClose } = renderDialog(measuredFixture());
+    choose("export-format", format);
+    checkSummary("Project totals");
+    checkSummary("By page");
+    checkSummary("By type");
+    act(() => button("Classifications")!.click());
+    checkSummary("Trade");
+    act(() => button("Technical data")!.click());
+    expect(dialog().textContent).toContain("excluded counts and quantity statuses");
+    await act(async () => button(`Export ${format.toUpperCase()}`)!.click());
+    expect(mocks.downloadSpreadsheet).toHaveBeenCalledWith(
+      format,
+      session,
+      ["1"],
+      expect.anything(),
+      [
+        ["Project totals", expect.anything()],
+        ["By page", expect.anything()],
+        ["By type", expect.anything()],
+        ["By classification 1", expect.anything()],
+      ],
+    );
+    expect(mocks.downloadTakeoff).not.toHaveBeenCalled();
+    expect(mocks.updateSettings).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+  it("includes optional Takeoff in JSON and bundles separate CSV files on request", async () => {
+    const session = measuredFixture();
+    renderDialog(session);
+    choose("export-format", "json");
+    checkSummary("Project totals");
+    checkSummary("By page");
+    checkSummary("Trade");
+    expect(dialog().textContent).toContain("mm / mm²");
+    await act(async () => button("Export JSON")!.click());
+    expect(mocks.downloadDataJson).toHaveBeenCalledWith(session, ["1"], {
+      includeProjectTotals: true,
+      breakdowns: ["page"],
+      classificationDimensionIds: ["trade"],
+    });
+    choose("export-format", "csv");
+    expect(dialog().textContent).toContain("Project totals");
+    expect(dialog().textContent).toContain("ZIP with separate CSV files");
+    await act(async () => button("Export ZIP")!.click());
+    expect(mocks.downloadCsvWithTakeoff).toHaveBeenCalledWith(
+      session,
+      { includeProjectTotals: true, breakdowns: ["page"], classificationDimensionIds: ["trade"] },
+      ["1"],
+      expect.anything(),
+      "measurements",
+    );
+    expect(mocks.downloadCsv).not.toHaveBeenCalled();
+    expect(mocks.downloadTakeoff).not.toHaveBeenCalled();
+  });
+  it("blocks each selected summary during an uncommitted edit and enables raw export only when none remain", () => {
+    const session = measuredFixture();
+    act(() =>
+      root!.render(
+        <ExportDialog session={session} pageLabels={null} summaryBlocked onClose={vi.fn()} />,
+      ),
+    );
+    choose("export-format", "xlsx");
+    checkSummary("Project totals");
+    checkSummary("By type");
+    expect(button("Export XLSX")!.disabled).toBe(true);
+    checkSummary("Project totals");
+    expect(button("Export XLSX")!.disabled).toBe(true);
+    checkSummary("By type");
+    expect(button("Export XLSX")!.disabled).toBe(false);
+    checkSummary("By type");
+    const label = Array.from(dialog().querySelectorAll("label")).find(
+      (label) => label.textContent?.trim() === "By type",
+    )!;
+    expect(label.querySelector<HTMLInputElement>("input")!.checked).toBe(true);
+  });
+});
+
+describe("CSV summary bundles", () => {
+  it("exports a measurement CSV bundle using the selected breakdowns", async () => {
+    const { session, onClose } = renderDialog(measuredFixture());
+    checkSummary("Project totals");
+    checkSummary("By page");
+    await act(async () => button("Export ZIP")!.click());
+    expect(mocks.downloadCsvWithTakeoff).toHaveBeenCalledWith(
+      session,
+      { includeProjectTotals: true, breakdowns: ["page"], classificationDimensionIds: [] },
+      ["1"],
+      expect.anything(),
+      "measurements",
+    );
+    expect(mocks.updateSettings).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+  it("exports classification assignments with summaries without changing measurement column preferences", async () => {
+    const { session } = renderDialog(measuredFixture());
+    choose("csv-data", "classification-assignments");
+    checkSummary("Project totals");
+    checkSummary("Trade");
+    await act(async () => button("Export ZIP")!.click());
+    expect(mocks.downloadCsvWithTakeoff).toHaveBeenCalledWith(
+      session,
+      { includeProjectTotals: true, breakdowns: [], classificationDimensionIds: ["trade"] },
+      ["1"],
+      expect.anything(),
+      "classification-assignments",
+    );
+    expect(mocks.updateSettings).not.toHaveBeenCalled();
+  });
+});
+
+it("retains CSV bundle controls and preferences after a failed export", async () => {
+  const { onClose } = renderDialog(measuredFixture());
+  checkSummary("Project totals");
+  checkSummary("By type");
+  mocks.downloadCsvWithTakeoff.mockRejectedValueOnce(new Error("Bundle failed."));
+  await act(async () => button("Export ZIP")!.click());
+  expect(onClose).not.toHaveBeenCalled();
+  expect(mocks.updateSettings).not.toHaveBeenCalled();
+  expect(dialog().querySelector('[role="alert"]')?.textContent).toBe("Bundle failed.");
+  await act(async () => button("Export ZIP")!.click());
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(mocks.updateSettings).toHaveBeenCalledOnce();
 });

@@ -140,8 +140,8 @@ dialog.dialog[open] {
 .panel {
   flex: 0 1 auto;
   min-height: 0;
-  height: 300px;
-  max-height: 300px;
+  height: auto;
+  max-height: none;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-16);
@@ -201,12 +201,8 @@ dialog.dialog[open] {
   row-gap: 0;
 }
 
-.panel.classificationPanel {
-  height: auto;
-}
-
 .classificationGrid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: var(--space-12);
 }
 
@@ -304,10 +300,10 @@ dialog.dialog[open] {
 
 .classificationRow {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4) var(--space-8);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
   min-width: 0;
-  padding: var(--space-8);
+  padding: var(--space-12) var(--space-12) var(--space-4);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   background: var(--color-surface-raised);
@@ -406,7 +402,6 @@ dialog.dialog[open] {
     min-height: var(--control-height-compact);
   }
   .panel {
-    height: 248px;
     padding: var(--space-12);
   }
 }
@@ -436,5 +431,132 @@ dialog.dialog[open] {
   }
   .selectedCount {
     grid-row: 3;
+  }
+}
+
+.summaryScope {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-base);
+}
+
+.summaryNotice {
+  margin: 0;
+  color: var(--color-status-warning);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-base);
+}
+
+.summaryOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.summaryChoiceGroup {
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  min-width: 0;
+  padding: var(--space-12);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-panel);
+}
+
+.summaryChoiceGroup:only-child {
+  grid-column: 1 / -1;
+}
+
+.summaryChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-12);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.basicChoices {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.summaryChoice {
+  min-height: var(--control-height-compact);
+  padding: var(--space-4) var(--space-8);
+  overflow-wrap: anywhere;
+}
+
+.classificationSection > .summaryOptions {
+  margin-bottom: var(--space-12);
+}
+
+@media (max-width: 760px) {
+  .summaryOptions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .summaryChoices,
+  .basicChoices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.dialog .standaloneBody {
+  overflow: auto;
+}
+
+.jsonMode .exportFields {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.panel > .summaryOptions {
+  margin-bottom: var(--space-16);
+}
+
+.exportFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-16);
+  width: 100%;
+  min-height: var(--control-height-compact);
+}
+
+.footerInfo {
+  min-width: 0;
+  height: var(--control-height-compact);
+  display: flex;
+  align-items: center;
+}
+
+.footerScope {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-secondary);
+}
+
+.footerButtons {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.classificationFields {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+}
+
+@media (max-width: 760px) {
+  .exportFooter {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+  .footerButtons > button {
+    flex: 1;
   }
 }

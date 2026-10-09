@@ -1,3 +1,5 @@
+import { buildTakeoffSummary } from "./takeoffSummary";
+import type { TakeoffSelection } from "../features/measurements/measurementTotals";
 import type { Calibration, CurrentSession, PageCalibration, Point } from "../types/domain";
 import {
   calibrationScaleX,
@@ -56,6 +58,7 @@ function addUniqueId(ids: Set<string>, id: string, kind: string): void {
 export function buildDataJson(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
+  takeoffSelection?: TakeoffSelection,
 ): string {
   if (!Number.isSafeInteger(session.pageCount) || session.pageCount < 1) {
     throw new RangeError("JSON export requires a positive integer page count.");
@@ -153,7 +156,7 @@ export function buildDataJson(
 
   return JSON.stringify(
     {
-      schemaVersion: 1,
+      schemaVersion: takeoffSelection ? 2 : 1,
       pdf: {
         name: session.pdf.name,
         size: finiteNumber(session.pdf.size),
@@ -170,6 +173,16 @@ export function buildDataJson(
       },
       pages,
       classificationCatalog,
+      ...(takeoffSelection
+        ? {
+            takeoff: {
+              ...buildTakeoffSummary(session, takeoffSelection, pageLabels),
+              ...(takeoffSelection.includeProjectTotals === false
+                ? { projectTotals: undefined }
+                : {}),
+            },
+          }
+        : {}),
     },
     null,
     2,
@@ -179,9 +192,10 @@ export function buildDataJson(
 export function downloadDataJson(
   session: CurrentSession,
   pageLabels: readonly string[] | null = null,
+  takeoffSelection?: TakeoffSelection,
 ): void {
   downloadExportFile(
-    buildDataJson(session, pageLabels),
+    buildDataJson(session, pageLabels, takeoffSelection),
     exportFileName(session.pdf.name, "data", "json"),
     "application/json;charset=utf-8",
   );

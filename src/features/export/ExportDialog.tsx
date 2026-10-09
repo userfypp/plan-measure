@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge, Button, Dialog } from "../../components/ui";
 import { useAppState } from "../../app/state";
 import { useSessionState } from "../../app/sessionState";
@@ -16,12 +16,20 @@ import {
 } from "../../services/csv";
 import { downloadDataJson } from "../../services/dataJson";
 import { downloadSpreadsheet } from "../../services/spreadsheetExport";
+import { buildTakeoffSummary } from "../../services/takeoffSummary";
+import {
+  buildTakeoffTables,
+  downloadCsvWithTakeoff,
+  downloadTakeoff,
+} from "../../services/takeoffExport";
+import type { TakeoffSelection } from "../measurements/measurementTotals";
 import styles from "./ExportDialog.module.css";
 
 export interface ExportDialogProps {
   session: CurrentSession;
   pageLabels: readonly string[] | null;
   onExportAnnotatedPdf?: () => Promise<void>;
+  summaryBlocked?: boolean;
   onClose: () => void;
 }
 
@@ -51,13 +59,14 @@ const EXPORT_LABELS: Record<ExportFormat, string> = {
   json: "Export JSON",
   "annotated-pdf": "Export PDF",
 };
-type CsvDataset = "measurements" | "classification-assignments";
+type CsvDataset = "measurements" | "classification-assignments" | "takeoff";
 
 export function ExportDialog({
   session,
   pageLabels,
   onExportAnnotatedPdf,
   onClose,
+  summaryBlocked = false,
 }: ExportDialogProps) {
   const { setError } = useAppState();
   const { updateSettings } = useSessionState();
@@ -66,6 +75,17 @@ export function ExportDialog({
   }));
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [dataset, setDataset] = useState<CsvDataset>("measurements");
+  const [selection, setSelection] = useState<TakeoffSelection>({
+    includeProjectTotals: false,
+    breakdowns: [],
+    classificationDimensionIds: [],
+  });
+  const includeTakeoff = Boolean(
+    selection.includeProjectTotals ||
+    selection.breakdowns.length ||
+    selection.classificationDimensionIds.length,
+  );
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [exportInProgress, setExportInProgress] = useState(false);
   const formId = useId();
   const columnPanelId = useId();
@@ -76,7 +96,47 @@ export function ExportDialog({
   const exportInProgressRef = useRef(false);
   const descriptors = getCsvColumnDescriptors(session, draft);
   const isWorkbook = format === "xlsx" || format === "ods";
-  const hasMeasurementColumns = isWorkbook || (format === "csv" && dataset === "measurements");
+  const isSummary = (isWorkbook || format === "csv") && dataset === "takeoff";
+  const exportsTakeoff = includeTakeoff && (isWorkbook || format === "csv" || format === "json");
+  const hasMeasurementColumns =
+    !isSummary && (isWorkbook || (format === "csv" && dataset === "measurements"));
+  const summary = useMemo(() => {
+    if (!exportsTakeoff) return null;
+    try {
+      if (format === "json") {
+        const report = buildTakeoffSummary(session, selection, pageLabels);
+        const groups = [
+          report.projectTotals,
+          ...report.breakdowns.flatMap((breakdown) => breakdown.groups),
+        ];
+        return {
+          tables: {
+            linearUnit: report.linearUnit,
+            areaUnit: report.areaUnit,
+            excludedCount: report.projectTotals.excludedCount,
+            hasUnavailable: groups.some((group) =>
+              [group.length, group.perimeter, group.area].some(
+                (quantity) => quantity.kind === "unavailable",
+              ),
+            ),
+          },
+          error: null,
+        };
+      }
+      return { tables: buildTakeoffTables(session, selection, pageLabels), error: null };
+    } catch (error) {
+      return {
+        tables: null,
+        error: error instanceof Error ? error.message : "The summary cannot be exported.",
+      };
+    }
+  }, [exportsTakeoff, format, session, selection, pageLabels]);
+  const summaryBlockedMessage = summaryBlocked
+    ? "Finish or cancel the current edit before exporting the summary."
+    : summary?.error;
+  const excludedCount = summary?.tables?.excludedCount ?? 0;
+  const hasUnavailable = summary?.tables?.hasUnavailable ?? false;
+
   const formatDescription =
     format === "json"
       ? "Complete measurement data, geometry, scales, and classifications from all pages, including hidden measurements. Does not include the PDF."
@@ -92,9 +152,20 @@ export function ExportDialog({
     setDraft(createCsvExportSettingsPreset(session, preset));
   }
 
+  function updateSummarySelection(next: TakeoffSelection) {
+    setSummaryError(null);
+    setSelection(next);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (exportInProgressRef.current) return;
+    if (
+      exportInProgressRef.current ||
+      (isSummary && !includeTakeoff) ||
+      (exportsTakeoff && summaryBlockedMessage)
+    )
+      return;
+    setSummaryError(null);
     exportInProgressRef.current = true;
     setExportInProgress(true);
     try {
@@ -104,10 +175,29 @@ export function ExportDialog({
         }
         await onExportAnnotatedPdf();
       } else if (format === "json") {
-        downloadDataJson(session, pageLabels);
+        if (includeTakeoff) downloadDataJson(session, pageLabels, selection);
+        else downloadDataJson(session, pageLabels);
+      } else if (isSummary && (format === "csv" || format === "xlsx" || format === "ods")) {
+        await downloadTakeoff(format, session, selection, pageLabels);
       } else if (format === "xlsx" || format === "ods") {
-        await downloadSpreadsheet(format, session, pageLabels, draft);
+        if (includeTakeoff) {
+          const tables = buildTakeoffTables(session, selection, pageLabels);
+          await downloadSpreadsheet(format, session, pageLabels, draft, [
+            ...(tables.project.rows.length ? [["Project totals", tables.project] as const] : []),
+            ...tables.breakdowns,
+          ]);
+        } else await downloadSpreadsheet(format, session, pageLabels, draft);
         updateSettings({ csvExport: normalizeCsvExportSettings(session, draft) });
+      } else if (includeTakeoff) {
+        await downloadCsvWithTakeoff(
+          session,
+          selection,
+          pageLabels,
+          draft,
+          dataset === "classification-assignments" ? "classification-assignments" : "measurements",
+        );
+        if (dataset === "measurements")
+          updateSettings({ csvExport: normalizeCsvExportSettings(session, draft) });
       } else if (dataset === "classification-assignments") {
         downloadClassificationAssignmentsCsv(session, pageLabels);
       } else {
@@ -120,8 +210,12 @@ export function ExportDialog({
     } catch (error) {
       exportInProgressRef.current = false;
       setExportInProgress(false);
-      setError(error instanceof Error ? error.message : "The file could not be exported.");
-      onClose();
+      const message = error instanceof Error ? error.message : "The file could not be exported.";
+      if (exportsTakeoff) setSummaryError(message);
+      else {
+        setError(message);
+        onClose();
+      }
     }
   }
 
@@ -133,21 +227,57 @@ export function ExportDialog({
       open
       title="Export"
       size="large"
-      className={styles.dialog}
-      bodyClassName={styles.dialogBody}
+      className={`${styles.dialog} ${format === "json" ? styles.jsonMode : ""}`}
+      bodyClassName={`${styles.dialogBody} ${hasMeasurementColumns ? "" : styles.standaloneBody}`}
       descriptionId={formatDescription ? descriptionId : undefined}
       onClose={() => {
         if (!exportInProgressRef.current) onClose();
       }}
       actions={
-        <>
-          <Button size="compact" variant="secondary" disabled={exportInProgress} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="compact" type="submit" form={formId} disabled={exportInProgress}>
-            {exportInProgress ? "Exporting…" : EXPORT_LABELS[format]}
-          </Button>
-        </>
+        <div className={styles.exportFooter}>
+          <div className={styles.footerInfo}>
+            {exportsTakeoff ? (
+              <p className={styles.footerScope}>
+                All pages · Includes hidden
+                {summary?.tables && (
+                  <>
+                    {" "}
+                    · {summary.tables.linearUnit} / {summary.tables.areaUnit} · Full precision
+                  </>
+                )}
+                {format === "csv" && !isSummary && <> · ZIP with separate CSV files</>}
+              </p>
+            ) : isSummary ? (
+              <p className={styles.footerScope}>Select at least one summary.</p>
+            ) : null}
+          </div>
+          <div className={styles.footerButtons}>
+            <Button
+              size="compact"
+              variant="secondary"
+              disabled={exportInProgress}
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="compact"
+              type="submit"
+              form={formId}
+              disabled={
+                exportInProgress ||
+                (isSummary && !includeTakeoff) ||
+                Boolean(exportsTakeoff && summaryBlockedMessage)
+              }
+            >
+              {exportInProgress
+                ? "Exporting…"
+                : format === "csv" && includeTakeoff && !isSummary
+                  ? "Export ZIP"
+                  : EXPORT_LABELS[format]}
+            </Button>
+          </div>
+        </div>
       }
     >
       <form id={formId} className={styles.form} onSubmit={submit}>
@@ -161,7 +291,10 @@ export function ExportDialog({
                   name="export-format"
                   value={format}
                   aria-describedby={formatDescription ? descriptionId : undefined}
-                  onChange={(event) => setFormat(event.target.value as ExportFormat)}
+                  onChange={(event) => {
+                    setSummaryError(null);
+                    setFormat(event.target.value as ExportFormat);
+                  }}
                 >
                   {Object.entries(FORMAT_LABELS).map(([value, label]) => (
                     <option
@@ -179,21 +312,68 @@ export function ExportDialog({
                   </p>
                 )}
               </div>
-              {format === "csv" && (
+              {(format === "csv" || isWorkbook) && (
                 <div className={styles.field}>
                   <label htmlFor={datasetId}>Data</label>
                   <select
                     id={datasetId}
                     name="csv-data"
-                    value={dataset}
-                    onChange={(event) => setDataset(event.target.value as CsvDataset)}
+                    value={
+                      isWorkbook && dataset === "classification-assignments"
+                        ? "measurements"
+                        : dataset
+                    }
+                    onChange={(event) => {
+                      setSummaryError(null);
+                      setDataset(event.target.value as CsvDataset);
+                    }}
                   >
-                    <option value="measurements">Measurements</option>
-                    <option value="classification-assignments">Classification assignments</option>
+                    <option value="measurements">
+                      {isWorkbook ? "Measurements and classifications" : "Measurements"}
+                    </option>
+                    {format === "csv" && (
+                      <option value="classification-assignments">Classification assignments</option>
+                    )}
+                    <option value="takeoff">Takeoff summary</option>
                   </select>
                 </div>
               )}
             </div>
+            {(format === "json" ||
+              (format === "csv" && dataset === "classification-assignments")) && (
+              <SummaryOptions
+                session={session}
+                selection={selection}
+                section="all"
+                onChange={updateSummarySelection}
+              />
+            )}
+            {isSummary && (
+              <SummaryOptions
+                session={session}
+                selection={selection}
+                section="all"
+                onChange={updateSummarySelection}
+              />
+            )}
+            {exportsTakeoff && (
+              <>
+                {(excludedCount > 0 || hasUnavailable) && (
+                  <p className={styles.summaryNotice} role="status">
+                    {excludedCount > 0 &&
+                      `${excludedCount} measurement${excludedCount === 1 ? "" : "s"} excluded. `}
+                    {format === "json"
+                      ? "Non-calculable totals are identified in the summary."
+                      : "Missing or non-calculable quantities export as blank cells with a status."}
+                  </p>
+                )}
+                {(summaryBlockedMessage || summaryError) && (
+                  <p className={styles.summaryNotice} role="alert">
+                    {summaryBlockedMessage || summaryError}
+                  </p>
+                )}
+              </>
+            )}
             {hasMeasurementColumns && (
               <section className={styles.columnSettings} aria-label="Measurement columns">
                 <div className={styles.columnToolbar}>
@@ -277,6 +457,14 @@ export function ExportDialog({
                   aria-labelledby={`${columnPanelId}-measurement-tab`}
                   hidden={columnSection !== "measurement"}
                 >
+                  {(isWorkbook || format === "csv") && (
+                    <SummaryOptions
+                      session={session}
+                      selection={selection}
+                      section="basic"
+                      onChange={updateSummarySelection}
+                    />
+                  )}
                   <div className={styles.primarySections}>
                     {PRIMARY_SECTION_ORDER.map((section) => (
                       <section
@@ -302,7 +490,7 @@ export function ExportDialog({
                 </div>
                 {sectionDescriptors("classification").length > 0 && (
                   <div
-                    className={`${styles.panel} ${styles.classificationPanel}`}
+                    className={styles.panel}
                     role="tabpanel"
                     tabIndex={0}
                     id={`${columnPanelId}-classification`}
@@ -316,6 +504,14 @@ export function ExportDialog({
                       <h3 id={`${formId}-classification`} className={styles.visuallyHidden}>
                         {SECTION_TITLES.classification}
                       </h3>
+                      {(isWorkbook || format === "csv") && (
+                        <SummaryOptions
+                          session={session}
+                          selection={selection}
+                          section="classification"
+                          onChange={updateSummarySelection}
+                        />
+                      )}
                       <ClassificationGroups
                         descriptors={sectionDescriptors("classification")}
                         onChange={updateColumn}
@@ -332,6 +528,12 @@ export function ExportDialog({
                     aria-labelledby={`${columnPanelId}-additional-tab`}
                     hidden={columnSection !== "additional"}
                   >
+                    {(isWorkbook || format === "csv") && includeTakeoff && (
+                      <p className={styles.summaryScope}>
+                        Takeoff sheets include group and dimension IDs, excluded counts and quantity
+                        statuses.
+                      </p>
+                    )}
                     <div className={styles.additionalGrid}>
                       {sectionDescriptors("additional").map((descriptor) => (
                         <ColumnOption
@@ -390,14 +592,16 @@ function ClassificationGroups({
               </Badge>
             )}
           </div>
-          {group.columns.map((descriptor) => (
-            <ColumnOption
-              key={descriptor.id}
-              descriptor={descriptor}
-              onChange={onChange}
-              classification
-            />
-          ))}
+          <div className={styles.classificationFields}>
+            {group.columns.map((descriptor) => (
+              <ColumnOption
+                key={descriptor.id}
+                descriptor={descriptor}
+                onChange={onChange}
+                classification
+              />
+            ))}
+          </div>
         </section>
       ))}
     </div>
@@ -442,5 +646,88 @@ function ColumnOption({
         </Badge>
       )}
     </label>
+  );
+}
+
+function SummaryOptions({
+  session,
+  selection,
+  section,
+  onChange,
+}: {
+  session: CurrentSession;
+  selection: TakeoffSelection;
+  section: "basic" | "classification" | "all";
+  onChange: (selection: TakeoffSelection) => void;
+}) {
+  return (
+    <div className={styles.summaryOptions}>
+      {section !== "classification" && (
+        <div className={styles.summaryChoiceGroup} role="group" aria-label="Takeoff breakdowns">
+          <span className={styles.sectionTitle}>Takeoff summaries</span>
+          <div className={`${styles.summaryChoices} ${styles.basicChoices}`}>
+            <label className={`${styles.columnOption} ${styles.summaryChoice}`}>
+              <input
+                type="checkbox"
+                checked={selection.includeProjectTotals === true}
+                onChange={(event) =>
+                  onChange({ ...selection, includeProjectTotals: event.target.checked })
+                }
+              />
+              Project totals
+            </label>
+            {(["page", "type"] as const).map((breakdown) => (
+              <label key={breakdown} className={`${styles.columnOption} ${styles.summaryChoice}`}>
+                <input
+                  type="checkbox"
+                  checked={selection.breakdowns.includes(breakdown)}
+                  onChange={(event) =>
+                    onChange({
+                      ...selection,
+                      breakdowns: event.target.checked
+                        ? [...selection.breakdowns, breakdown]
+                        : selection.breakdowns.filter((value) => value !== breakdown),
+                    })
+                  }
+                />
+                {breakdown === "page" ? "By page" : "By type"}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      {section !== "basic" && session.classificationCatalog.dimensions.length > 0 && (
+        <div
+          className={styles.summaryChoiceGroup}
+          role="group"
+          aria-label="Takeoff classifications"
+        >
+          <span className={styles.sectionTitle}>Classification breakdowns</span>
+          <div className={styles.summaryChoices}>
+            {session.classificationCatalog.dimensions.map((dimension) => (
+              <label
+                key={dimension.id}
+                className={`${styles.columnOption} ${styles.summaryChoice}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selection.classificationDimensionIds.includes(dimension.id)}
+                  onChange={(event) =>
+                    onChange({
+                      ...selection,
+                      classificationDimensionIds: event.target.checked
+                        ? [...selection.classificationDimensionIds, dimension.id]
+                        : selection.classificationDimensionIds.filter((id) => id !== dimension.id),
+                    })
+                  }
+                />
+                {dimension.name}
+                {dimension.archived ? " (archived)" : ""}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
