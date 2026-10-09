@@ -62,25 +62,6 @@ export function shouldRenderMeasurement(
   return showMeasurements && measurement.visible;
 }
 
-export function createMeasurementViewModels(
-  page: PageState,
-  displayUnit: MeasurementDisplayUnit,
-  selectedMeasurementId: string | null,
-  measurementDecimalPlaces: MeasurementDecimalPlaces = 2,
-  areaDisplay: AreaDisplay = "auto",
-): Array<MeasurementViewModel & { selected: boolean }> {
-  return page.measurements.map((measurement) =>
-    createMeasurementViewModel(
-      page,
-      measurement,
-      displayUnit,
-      measurement.id === selectedMeasurementId,
-      measurementDecimalPlaces,
-      areaDisplay,
-    ),
-  );
-}
-
 export function getMeasurementEmptyMessage(page: PageState): string {
   return getActiveCalibration(page)
     ? "Choose Line, Polyline, or Polygon to add a measurement."
