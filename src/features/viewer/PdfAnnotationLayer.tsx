@@ -11,7 +11,7 @@ import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
 import type { Line as KonvaLineNode } from "konva/lib/shapes/Line";
 import { Circle, Group, Label, Line, Tag, Text } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useSessionState } from "../../app/sessionState";
+import { useMeasurementCommands } from "../../app/sessionState";
 import type {
   AreaDisplay,
   CalibrationReferenceKey,
@@ -819,7 +819,7 @@ const MeasurementShape = memo(function MeasurementShape({
   plannedOccupiedLabelRect,
   labelCollisionIndex,
 }: MeasurementShapeProps) {
-  const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useSessionState();
+  const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useMeasurementCommands();
   const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaLineNode>(null);
   const dragPreviewRef = useRef<{

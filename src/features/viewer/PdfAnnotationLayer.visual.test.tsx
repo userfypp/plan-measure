@@ -71,7 +71,7 @@ vi.mock("konva/lib/shapes/Text", () => ({
 }));
 
 vi.mock("../../app/sessionState", () => ({
-  useSessionState: () => ({ updateMeasurement: captured.updateMeasurement, updateMeasurements: captured.updateMeasurements }),
+  useMeasurementCommands: () => ({ updateMeasurement: captured.updateMeasurement, updateMeasurements: captured.updateMeasurements }),
 }));
 
 const noop = () => undefined;

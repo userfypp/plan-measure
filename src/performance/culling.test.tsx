@@ -14,7 +14,7 @@ vi.mock("react-konva", () => ({
 vi.mock("konva/lib/shapes/Text", () => ({ Text: class { width() { return 10; } height() { return 10; } } }));
 vi.mock("../app/sessionState", async (importOriginal) => ({
   ...await importOriginal<typeof import("../app/sessionState")>(),
-  useSessionState: () => ({ updateMeasurement: vi.fn(), updateMeasurements: vi.fn() }),
+  useMeasurementCommands: () => ({ updateMeasurement: vi.fn(), updateMeasurements: vi.fn() }),
 }));
 
 describe("presupuesto de montaje Konva", () => {
