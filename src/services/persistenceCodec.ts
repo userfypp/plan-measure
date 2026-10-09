@@ -791,6 +791,33 @@ export function serializeSession(session: CurrentSession): string {
   return JSON.stringify(session);
 }
 
+const preparedSnapshotBrand = Symbol("PreparedSessionSnapshot");
+
+export interface PreparedSessionSnapshot {
+  readonly [preparedSnapshotBrand]: true;
+  readonly serialized: string;
+}
+
+const preparedSnapshotSessions = new WeakMap<PreparedSessionSnapshot, CurrentSession>();
+
+/** Captures validated bytes for an immutable session snapshot before a queued save. */
+export function prepareSessionSnapshot(session: CurrentSession): PreparedSessionSnapshot {
+  const serialized = serializeSession(session);
+  const prepared = Object.freeze({ [preparedSnapshotBrand]: true as const, serialized });
+  preparedSnapshotSessions.set(prepared, session);
+  return prepared;
+}
+
+export function readPreparedSessionSnapshot(
+  session: CurrentSession,
+  prepared: PreparedSessionSnapshot,
+): string {
+  if (!preparedSnapshotSessions.has(prepared) || preparedSnapshotSessions.get(prepared) !== session) {
+    throw new Error("The prepared session snapshot does not match this session.");
+  }
+  return prepared.serialized;
+}
+
 export type SessionCompatibility =
   "current" | "historical-repair-required" | "classification-repair-required";
 

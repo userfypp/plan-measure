@@ -9,6 +9,7 @@ import { isSessionPersistable } from "./autosave";
 import { PdfLoadLifecycle } from "./pdfLoadLifecycle";
 import type { ReplacePdfPayload } from "./overlayState";
 import * as persistenceService from "../services/persistence";
+import * as persistenceCodec from "../services/persistenceCodec";
 import {
   activateSavedProject,
   listSavedProjects,
@@ -1327,6 +1328,48 @@ describe("page-exit autosave", () => {
       });
     }
     expect(savedDisplayUnit).toBe("mm");
+  });
+
+  it("reuses one validated snapshot for a queued save and a following beforeunload save", async () => {
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(
+        new File(["pdf"], "plan.pdf", { type: "application/pdf", lastModified: 1 }),
+      );
+    });
+    const activeSession = (await loadSavedSession())!.session;
+    const edited = {
+      ...activeSession,
+      settings: { ...activeSession.settings, displayUnit: "mm" as const },
+    };
+    const prepare = vi.spyOn(persistenceCodec, "prepareSessionSnapshot");
+    const originalSave = persistenceService.saveSessionMetadata;
+    const exitSave = vi.spyOn(persistenceService, "beginSessionMetadataSaveOnPageExit");
+    const save = vi
+      .spyOn(persistenceService, "saveSessionMetadata")
+      .mockImplementation((...args) => {
+        const pending = originalSave(...args);
+        window.dispatchEvent(new Event("beforeunload"));
+        return pending;
+      });
+    act(() => setHarnessSession!(edited));
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(edited);
+    const prepared = prepare.mock.results[0]!.value;
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        if ((await loadSavedSession())?.session.settings.displayUnit === "mm") break;
+      }
+    });
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0]![3]).toBe(prepared);
+    expect(exitSave).toHaveBeenCalledOnce();
+    expect(exitSave.mock.calls[0]![3]).toBe(prepared);
+    expect(prepare).toHaveBeenCalledOnce();
+    expect((await loadSavedSession())?.session).toEqual(edited);
+    expect(lifecycle!.autosaveUnavailable).toBe(false);
   });
 
   it("flushes the latest completed session when the page becomes hidden", async () => {

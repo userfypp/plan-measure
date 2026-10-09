@@ -29,6 +29,7 @@ import {
   type SavedProjectSummary,
   type SavedSession,
 } from "../services/persistence";
+import { prepareSessionSnapshot, type PreparedSessionSnapshot } from "../services/persistenceCodec";
 import type { LoadedPdf } from "../services/pdf";
 import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
 import { createProjectFile, projectFileName, readProjectFile } from "../services/projectFile";
@@ -301,7 +302,15 @@ export function usePdfSessionLifecycle({
 
   useEffect(() => {
     const canAutosave = autosaveStatus === "available" || autosaveStatus === "repair-required";
-    if (canAutosave && session !== null && !isSessionPersistable(session)) {
+    let preparedSnapshot: PreparedSessionSnapshot | undefined;
+    if (canAutosave && session !== null) {
+      try {
+        preparedSnapshot = prepareSessionSnapshot(session);
+      } catch {
+        // Historical repair states must remain in memory without scheduling a save.
+      }
+    }
+    if (canAutosave && session !== null && preparedSnapshot === undefined) {
       if (autosaveStatus === "available") {
         let cancelled = false;
         queueMicrotask(() => {
@@ -333,6 +342,12 @@ export function usePdfSessionLifecycle({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       beforeUnloadRegistered = false;
     };
+    const finishAutosave = () => {
+      removeBeforeUnload();
+      // The effect survives a successful save. Release its serialized payload
+      // rather than retaining it for the lifetime of the current session.
+      preparedSnapshot = undefined;
+    };
     const queueAutosave = () => {
       if (queued) return;
       queued = true;
@@ -350,6 +365,7 @@ export function usePdfSessionLifecycle({
             currentSnapshot,
             expectedRevision,
             preparedPdfBlob,
+            preparedSnapshot,
           );
         },
       )
@@ -368,7 +384,7 @@ export function usePdfSessionLifecycle({
           console.error("IndexedDB autosave failed.", error);
           reportAutosaveFailure(error);
         })
-        .finally(removeBeforeUnload);
+        .finally(finishAutosave);
     };
     const timer = window.setTimeout(queueAutosave, 300);
     const handleBeforeUnload = () => {
@@ -390,6 +406,7 @@ export function usePdfSessionLifecycle({
           return expectedRevision;
         },
         preparedPdfBlob,
+        preparedSnapshot,
       );
       if (!exitSave) {
         queueAutosave();
@@ -404,7 +421,7 @@ export function usePdfSessionLifecycle({
           }
         })
         .catch(() => undefined)
-        .finally(removeBeforeUnload);
+        .finally(finishAutosave);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "hidden") return;

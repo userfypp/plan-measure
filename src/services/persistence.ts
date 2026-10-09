@@ -9,6 +9,8 @@ import type { CurrentSession, PdfMetadata } from "../types/domain";
 import {
   deserializeSessionForRecovery,
   serializeSession,
+  readPreparedSessionSnapshot,
+  type PreparedSessionSnapshot,
   type SessionCompatibility,
 } from "./persistenceCodec";
 
@@ -588,8 +590,12 @@ export async function saveSessionMetadata(
   session: CurrentSession,
   expectedRevision: string,
   preparedPdfBlob?: Blob,
+  preparedSnapshot?: PreparedSessionSnapshot,
 ): Promise<string> {
-  const serialized = serializeSession(session);
+  const serialized =
+    preparedSnapshot === undefined
+      ? serializeSession(session)
+      : readPreparedSessionSnapshot(session, preparedSnapshot);
   const database = databaseInstance ?? (await getDatabase());
   let pdfBlob = preparedPdfBlob;
   if (!pdfBlob) {
@@ -679,10 +685,14 @@ export function beginSessionMetadataSaveOnPageExit(
   session: CurrentSession,
   expectedRevision: () => string,
   preparedPdfBlob: Blob,
+  preparedSnapshot?: PreparedSessionSnapshot,
 ): Promise<string> | null {
   const database = databaseInstance;
   if (!database) return null;
-  const serialized = serializeSession(session);
+  const serialized =
+    preparedSnapshot === undefined
+      ? serializeSession(session)
+      : readPreparedSessionSnapshot(session, preparedSnapshot);
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
   void transaction.done.catch(() => undefined);
   return saveSerializedSessionMetadata(
