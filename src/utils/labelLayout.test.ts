@@ -91,6 +91,29 @@ function potentialCollisions(
   return result;
 }
 
+describe("consulta booleana de colisiones", () => {
+  it("coincide con la visita ordenada incluso con overflow, referencias ignoradas y solapes densos", () => {
+    let seed = 20261010;
+    const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const index = createLabelCollisionIndex();
+    const rects = Array.from({ length: 1000 }, (_, i) => ({
+      x: random() * 1000 - 50, y: random() * 1000 - 50,
+      width: i % 50 === 0 ? 10000 : random() * 100, height: 20,
+    }));
+    rects.forEach((rect) => index.insert(rect));
+    for (let i = 0; i < 1000; i++) {
+      const candidate = { x: random() * 1200, y: random() * 1200, width: random() * 120, height: 20 };
+      const ignore = rects[i];
+      const gap = i % 5;
+      const legacy = index.somePotentialCollision(candidate, gap, (rect) => rect !== ignore && !(
+        candidate.x + candidate.width + gap <= rect.x || rect.x + rect.width + gap <= candidate.x ||
+        candidate.y + candidate.height + gap <= rect.y || rect.y + rect.height + gap <= candidate.y
+      ));
+      expect(index.hasCollision!(candidate, gap, ignore)).toBe(legacy);
+    }
+  });
+});
+
 describe("label placement within page bounds", () => {
   it("keeps a comfortably centered label centered", () => {
     const placement = placeLabelWithinBounds({ x: 50, y: 40 }, label, page, 1);
