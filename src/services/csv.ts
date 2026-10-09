@@ -726,16 +726,11 @@ export interface ExportTable {
   rows: ExportCell[][];
 }
 
-export function buildMeasurementTable(
+function* measurementRows(
   session: CurrentSession,
-  pageLabels: readonly string[] | null = null,
-  csvSettings?: CsvExportSettings,
-): ExportTable {
-  const settings = csvSettings ?? session.settings.csvExport;
-  const columns = createCsvColumns(session).filter((column) =>
-    isCsvColumnEnabled(column, settings),
-  );
-  const rows: ExportCell[][] = [];
+  pageLabels: readonly string[] | null,
+  columns: readonly CsvColumnDefinition[],
+): Generator<ExportCell[]> {
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber];
     if (!page) continue;
@@ -753,8 +748,7 @@ export function buildMeasurementTable(
         page,
         session,
       );
-      rows.push(
-        columns.map((column) => {
+      yield columns.map((column) => {
           const value = column.extract(context);
           if (typeof value === "number" && !Number.isFinite(value)) {
             throw new RangeError(
@@ -762,10 +756,21 @@ export function buildMeasurementTable(
             );
           }
           return value;
-        }),
-      );
+        });
     }
   }
+}
+
+export function buildMeasurementTable(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+  csvSettings?: CsvExportSettings,
+): ExportTable {
+  const settings = csvSettings ?? session.settings.csvExport;
+  const columns = createCsvColumns(session).filter((column) =>
+    isCsvColumnEnabled(column, settings),
+  );
+  const rows = Array.from(measurementRows(session, pageLabels, columns));
   if (rows.length === 0) throw new NoMeasurementsError();
   return {
     headers: columns.map((column) => column.header),
@@ -786,6 +791,62 @@ export function buildCsv(
     table.rows,
     new Set(["length", "perimeter", "area", "length_mm", "perimeter_mm", "area_mm2"]),
   );
+}
+
+function yieldCsvBatch(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      channel.port2.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
+/** Uses the canonical row builder and serializer, yielding between bounded batches. */
+export async function buildCsvInBatches(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+  csvSettings?: CsvExportSettings,
+  yieldToMainThread: () => Promise<void> = yieldCsvBatch,
+): Promise<string> {
+  const settings = csvSettings ?? session.settings.csvExport;
+  const columns = createCsvColumns(session).filter((column) => isCsvColumnEnabled(column, settings));
+  const headers = columns.map((column) => column.header);
+  const columnTypes = columns.map((column) => column.type);
+  const formattedColumns = new Set(["length", "perimeter", "area", "length_mm", "perimeter_mm", "area_mm2"]);
+  const prefix = serializeCsv(headers, columnTypes, [], formattedColumns);
+  const parts = [prefix];
+  let batch: ExportCell[][] = [];
+  let count = 0;
+  let batchStarted = performance.now();
+  function flush() {
+    parts.push(serializeCsv(headers, columnTypes, batch, formattedColumns).slice(prefix.length));
+    batch = [];
+  }
+  for (const row of measurementRows(session, pageLabels, columns)) {
+    batch.push(row);
+    count += 1;
+    if (batch.length >= 200 || performance.now() - batchStarted >= 8) {
+      flush();
+      await yieldToMainThread();
+      batchStarted = performance.now();
+    }
+  }
+  if (count === 0) throw new NoMeasurementsError();
+  if (batch.length) flush();
+  return parts.join("");
+}
+
+export async function downloadCsvInBatches(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null = null,
+  csvSettings?: CsvExportSettings,
+): Promise<void> {
+  const csv = await buildCsvInBatches(session, pageLabels, csvSettings);
+  downloadCsvFile(csv, exportFileName(session.pdf.name, "measurements", "csv"));
 }
 
 const CLASSIFICATION_ASSIGNMENT_HEADERS = [

@@ -44,6 +44,9 @@ import {
   deserializeSession,
   deserializeSessionForRecovery,
   serializeSession,
+  prepareSessionSnapshot,
+  readPreparedSessionSnapshot,
+  type PreparedSessionSnapshot,
 } from "./persistenceCodec";
 
 beforeEach(resetPersistenceForTests);
@@ -2826,4 +2829,176 @@ describe("IndexedDB connection recovery", () => {
     expect(await loadSavedSession()).toBeNull();
     expect(openSpy).toHaveBeenCalledTimes(2);
   });
+});
+
+describe("prepared autosave snapshots", () => {
+  it("captures identical validated bytes and authenticates both the token and source identity", () => {
+    const session = currentMeasuredSession();
+    const serialized = serializeSession(session);
+    const prepared = prepareSessionSnapshot(session);
+    expect(Object.isFrozen(prepared)).toBe(true);
+    expect(readPreparedSessionSnapshot(session, prepared)).toBe(serialized);
+    expect(() => readPreparedSessionSnapshot(structuredClone(session), prepared)).toThrow(
+      "does not match",
+    );
+    expect(() => readPreparedSessionSnapshot(session, { ...prepared })).toThrow("does not match");
+    expect(() =>
+      readPreparedSessionSnapshot(
+        session,
+        Object.freeze({ serialized }) as PreparedSessionSnapshot,
+      ),
+    ).toThrow("does not match");
+
+    session.pdf.size = Number.NaN;
+    expect(() => serializeSession(session)).toThrow("invalid");
+    expect(readPreparedSessionSnapshot(session, prepared)).toBe(serialized);
+  });
+
+  it("rejects invalid data and forged or mismatched tokens before any records are written", async () => {
+    const session = currentMeasuredSession();
+    const pdf = new Blob(["pdf"]);
+    const revision = await replaceSavedSession(session, pdf, null);
+    const before = await loadSavedSession();
+    const prepared = prepareSessionSnapshot(session);
+    const invalid = { ...session, pdf: { ...session.pdf, size: Number.NaN } };
+    const put = vi.spyOn(IDBObjectStore.prototype, "put");
+    try {
+      expect(() => prepareSessionSnapshot(invalid)).toThrow("invalid");
+      await expect(saveSessionMetadata(invalid, revision, pdf)).rejects.toThrow("invalid");
+      expect(() => beginSessionMetadataSaveOnPageExit(invalid, () => revision, pdf)).toThrow(
+        "invalid",
+      );
+      const mismatched = structuredClone(session);
+      for (const token of [prepared, { ...prepared }]) {
+        await expect(saveSessionMetadata(mismatched, revision, pdf, token)).rejects.toThrow(
+          "does not match",
+        );
+        expect(() =>
+          beginSessionMetadataSaveOnPageExit(mismatched, () => revision, pdf, token),
+        ).toThrow("does not match");
+      }
+      expect(put).not.toHaveBeenCalled();
+      expect(await loadSavedSession()).toEqual(before);
+    } finally {
+      put.mockRestore();
+    }
+  });
+
+  it("writes captured bytes to both the active session and saved project", async () => {
+    const session = currentMeasuredSession();
+    const pdf = new Blob(["pdf"]);
+    const projectId = crypto.randomUUID();
+    const revision = await replaceSavedSession(session, pdf, null, projectId);
+    const edited = { ...session, settings: { ...session.settings, showLabels: true } };
+    const serialized = serializeSession(edited);
+    const prepared = prepareSessionSnapshot(edited);
+    edited.pdf.size = Number.NaN;
+    const nextRevision = await saveSessionMetadata(edited, revision, pdf, prepared);
+    const restored = await loadSavedSession();
+    expect(restored?.revision).toBe(nextRevision);
+    expect((await readPersistenceRecords()).activeSession.serialized).toBe(serialized);
+    expect(restored!.session).toEqual(JSON.parse(serialized));
+    const database = await openPersistenceDatabase();
+    const transaction = database.transaction("sessions", "readonly");
+    const done = completeTransaction(transaction);
+    const project = await requestResult(transaction.objectStore("sessions").get(`project:${projectId}`));
+    await done;
+    database.close();
+    expect(project.serialized).toBe(serialized);
+    expect((await loadSavedProject(projectId))!.session).toEqual(JSON.parse(serialized));
+  });
+
+  it("retains live revision checking when a prepared page-exit save follows a started save", async () => {
+    const session = currentMeasuredSession();
+    const pdf = new Blob(["pdf"]);
+    let revision = await replaceSavedSession(session, pdf, null);
+    const first = { ...session, settings: { ...session.settings, showLabels: true } };
+    const latest = { ...first, settings: { ...first.settings, showMeasurements: false } };
+    const firstPrepared = prepareSessionSnapshot(first);
+    const latestPrepared = prepareSessionSnapshot(latest);
+    const serialized = latestPrepared.serialized;
+    first.pdf = { ...first.pdf, size: Number.NaN };
+    latest.pdf = { ...latest.pdf, size: Number.NaN };
+    const firstSave = saveSessionMetadata(first, revision, pdf, firstPrepared).then(
+      (savedRevision) => {
+        revision = savedRevision;
+      },
+    );
+    const exitSave = beginSessionMetadataSaveOnPageExit(
+      latest,
+      () => revision,
+      pdf,
+      latestPrepared,
+    );
+    expect(exitSave).not.toBeNull();
+    await firstSave;
+    revision = await exitSave!;
+    const restored = await loadSavedSession();
+    expect(restored?.revision).toBe(revision);
+    expect((await readPersistenceRecords()).activeSession.serialized).toBe(serialized);
+    expect(restored!.session).toEqual(JSON.parse(serialized));
+  });
+
+  it("allows only one concurrent prepared writer and keeps project records consistent", async () => {
+    const session = currentMeasuredSession();
+    const pdf = new Blob(["pdf"]);
+    const projectId = crypto.randomUUID();
+    const revision = await replaceSavedSession(session, pdf, null, projectId);
+    const first = { ...session, settings: { ...session.settings, showLabels: true } };
+    const second = { ...session, settings: { ...session.settings, showMeasurements: false } };
+    const results = await Promise.allSettled([
+      saveSessionMetadata(first, revision, pdf, prepareSessionSnapshot(first)),
+      saveSessionMetadata(second, revision, pdf, prepareSessionSnapshot(second)),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const failed = results.find((result) => result.status === "rejected");
+    expect(failed?.reason).toBeInstanceOf(PersistenceConflictError);
+    const winner = results[0]!.status === "fulfilled" ? first : second;
+    expect((await loadSavedSession())?.session).toEqual(winner);
+    expect((await loadSavedProject(projectId))?.session).toEqual(winner);
+  });
+
+  it("does not write partial prepared metadata when its PDF record is missing", async () => {
+    const session = currentMeasuredSession();
+    const pdf = new Blob(["pdf"]);
+    const revision = await replaceSavedSession(session, pdf, null);
+    const edited = { ...session, settings: { ...session.settings, showLabels: true } };
+    const prepared = prepareSessionSnapshot(edited);
+    await deleteProtectedPdf();
+    const before = await readPersistenceRecords();
+    await expect(saveSessionMetadata(edited, revision, pdf, prepared)).rejects.toThrow("without its PDF");
+    expect(await readPersistenceRecords()).toEqual(before);
+  });
+
+  it.each(["queued", "page-exit"])(
+    "rejects a stale prepared %s save without partial writes",
+    async (kind) => {
+      const session = currentMeasuredSession();
+      const pdf = new Blob(["pdf"]);
+      const projectId = crypto.randomUUID();
+      const staleRevision = await replaceSavedSession(session, pdf, null, projectId);
+      const stale = { ...session, settings: { ...session.settings, showLabels: true } };
+      const prepared = prepareSessionSnapshot(stale);
+      const current = { ...session, settings: { ...session.settings, showMeasurements: false } };
+      const revision = await saveSessionMetadata(current, staleRevision, pdf);
+      const save =
+        kind === "queued"
+          ? enqueueAutosave(
+              Promise.resolve(),
+              stale,
+              1,
+              () => true,
+              async (snapshot) => {
+                await saveSessionMetadata(snapshot, staleRevision, pdf, prepared);
+              },
+            )
+          : beginSessionMetadataSaveOnPageExit(stale, () => staleRevision, pdf, prepared);
+      await expect(save).rejects.toBeInstanceOf(PersistenceConflictError);
+      const restored = await loadSavedSession();
+      expect(restored?.revision).toBe(revision);
+      expect(restored?.session).toEqual(current);
+      expect((await loadSavedProject(projectId))?.session).toEqual(current);
+      expect(await restored?.pdfBlob.text()).toBe("pdf");
+    },
+  );
 });

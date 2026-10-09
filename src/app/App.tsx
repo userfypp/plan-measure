@@ -16,8 +16,6 @@ import { Button, ConfirmationDialog } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
 import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
-import { ExportDialog } from "../features/export/ExportDialog";
-import { downloadAnnotatedPdf } from "../features/export/annotatedPdf";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
@@ -96,6 +94,10 @@ function calibrationMeasurementCount(page: PageState, calibrationId: string): nu
   return page.measurements.filter((measurement) => measurement.calibrationId === calibrationId)
     .length;
 }
+
+const ExportDialog = lazy(() =>
+  import("../features/export/ExportDialog").then(({ ExportDialog }) => ({ default: ExportDialog })),
+);
 
 export function App() {
   return (
@@ -1557,17 +1559,22 @@ function PlanMeasureApp() {
       />
 
       {exportDialogOpen && session && (
-        <ExportDialog
-          session={session}
-          summaryBlocked={summaryExportBlocked}
-          pageLabels={activePdf?.pageLabels ?? null}
-          onExportAnnotatedPdf={
-            activePdf
-              ? () => downloadAnnotatedPdf(session, activePdf.document)
-              : undefined
-          }
-          onClose={() => setExportDialogOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <ExportDialog
+            session={session}
+            summaryBlocked={summaryExportBlocked}
+            pageLabels={activePdf?.pageLabels ?? null}
+            onExportAnnotatedPdf={
+              activePdf
+                ? async () => {
+                    const { downloadAnnotatedPdf } = await import("../features/export/annotatedPdf");
+                    await downloadAnnotatedPdf(session, activePdf.document);
+                  }
+                : undefined
+            }
+            onClose={() => setExportDialogOpen(false)}
+          />
+        </Suspense>
       )}
 
     </AppShell>

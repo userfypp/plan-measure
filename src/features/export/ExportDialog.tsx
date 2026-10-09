@@ -7,6 +7,7 @@ import {
   createCsvExportSettingsPreset,
   downloadClassificationAssignmentsCsv,
   downloadCsv,
+  downloadCsvInBatches,
   getCsvColumnDescriptors,
   normalizeCsvExportSettings,
   setCsvColumnEnabled,
@@ -201,7 +202,9 @@ export function ExportDialog({
       } else if (dataset === "classification-assignments") {
         downloadClassificationAssignmentsCsv(session, pageLabels);
       } else {
-        downloadCsv(session, pageLabels, draft);
+        if (Object.values(session.pages).reduce((count, page) => count + page.measurements.length, 0) > 500)
+          await downloadCsvInBatches(session, pageLabels, draft);
+        else downloadCsv(session, pageLabels, draft);
         updateSettings({ csvExport: normalizeCsvExportSettings(session, draft) });
       }
       exportInProgressRef.current = false;

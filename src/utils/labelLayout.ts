@@ -29,6 +29,23 @@ type OccupiedLabels = readonly OccupiedLabelRect[] | LabelCollisionIndex;
 
 const MAX_GRID_CELLS_PER_RECT = 64;
 
+const fractions = [0.5, 0.25, 0.75, 0.125, 0.875] as const;
+const polygonGrid = fractions
+  .flatMap((xFraction) =>
+    fractions.map((yFraction) => ({
+      xFraction,
+      yFraction,
+      distanceFromCenter:
+        (xFraction - 0.5) * (xFraction - 0.5) + (yFraction - 0.5) * (yFraction - 0.5),
+    })),
+  )
+  .sort(
+    (left, right) =>
+      left.distanceFromCenter - right.distanceFromCenter ||
+      left.yFraction - right.yFraction ||
+      left.xFraction - right.xFraction,
+  );
+
 function finiteNonNegative(value: number, fallback = 0): number {
   return Number.isFinite(value) ? Math.max(0, value) : fallback;
 }
@@ -426,23 +443,7 @@ function polygonInteriorAnchors(
   // The final fallback is intentionally a small, fixed grid. It improves
   // coverage of irregular concave interiors without turning layout into an
   // unbounded search or compromising the label-collision broad phase.
-  const fractions = [0.5, 0.25, 0.75, 0.125, 0.875] as const;
-  const grid = fractions
-    .flatMap((xFraction) =>
-      fractions.map((yFraction) => ({
-        xFraction,
-        yFraction,
-        distanceFromCenter:
-          (xFraction - 0.5) * (xFraction - 0.5) + (yFraction - 0.5) * (yFraction - 0.5),
-      })),
-    )
-    .sort(
-      (left, right) =>
-        left.distanceFromCenter - right.distanceFromCenter ||
-        left.yFraction - right.yFraction ||
-        left.xFraction - right.xFraction,
-    );
-  for (const { xFraction, yFraction } of grid) {
+  for (const { xFraction, yFraction } of polygonGrid) {
     add({
       x: minCenterX + (maxCenterX - minCenterX) * xFraction,
       y: minCenterY + (maxCenterY - minCenterY) * yFraction,

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type RefCallback } from "react";
 import { IconButton } from "../../components/ui";
 import { ToolIcon } from "../viewer/ToolIcon";
 import type { MeasurementViewModel } from "./measurementViewModels";
@@ -24,6 +24,10 @@ export interface MeasurementRowProps {
   onToggleVisibility: (measurementId: string, visible: boolean) => void;
   selectionTabIndex?: number;
   visibilityTabIndex?: number;
+  positionInSet?: number;
+  setSize?: number;
+  rowRef?: RefCallback<HTMLElement>;
+  virtualKey?: string;
 }
 
 export const MeasurementRow = memo(function MeasurementRow({
@@ -32,6 +36,10 @@ export const MeasurementRow = memo(function MeasurementRow({
   onToggleVisibility,
   selectionTabIndex = 0,
   visibilityTabIndex = 0,
+  positionInSet,
+  setSize,
+  rowRef,
+  virtualKey,
 }: MeasurementRowProps) {
   const detailsId = `measurement-details-${viewModel.id}`;
   const quantityLines =
@@ -42,6 +50,10 @@ export const MeasurementRow = memo(function MeasurementRow({
 
   return (
     <article
+      ref={rowRef}
+      data-virtual-key={virtualKey}
+      aria-posinset={positionInSet}
+      aria-setsize={setSize}
       className={[styles.row, viewModel.selected ? styles.selected : ""].filter(Boolean).join(" ")}
       role="listitem"
     >

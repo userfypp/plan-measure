@@ -160,6 +160,66 @@ function xyPage(): PageState {
 }
 
 describe("PdfAnnotationLayer V2 visual semantics", () => {
+  it("culls off-screen geometry but retains selected shapes and handles", () => {
+    const page = uniformPage();
+    const base = page.measurements[0]!;
+    page.measurements.push({ ...base, id: "offscreen", points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })) });
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false });
+    expect(captured.lines.filter((line) => line.name === "measurement-preview-line")).toHaveLength(1);
+    captured.lines.length = 0;
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, selectedMeasurementId: "offscreen" });
+    expect(captured.lines.filter((line) => line.name === "measurement-preview-line")).toHaveLength(2);
+  });
+
+  it("keeps labels at the same placements when viewport culling is enabled", () => {
+    const page = uniformPage();
+    renderLayer({ page });
+    const before = captured.labels.map(({ x, y }) => ({ x, y }));
+    captured.labels.length = 0;
+    renderLayer({ page, viewport: { width: 400, height: 300 } });
+    expect(captured.labels.map(({ x, y }) => ({ x, y }))).toEqual(before);
+  });
+
+  it("retains a visible label even when its geometry is outside the viewport", () => {
+    const page = pageWithMeasurement("line");
+    page.measurements[0]!.points = [{ x: 220, y: 70 }, { x: 221, y: 70 }];
+    const calibration = page.calibrations[0]!;
+    if (calibration.mode === "uniform") calibration.referenceDistanceMm = 1e18;
+    renderLayer({ page, viewport: { width: 400, height: 300 } });
+    expect(captured.lines).toHaveLength(1);
+    expect(captured.labels[0]!.x).toBeLessThan(200);
+  });
+
+  it("retains off-screen multiselection and active editing ownership", () => {
+    const page = uniformPage();
+    const base = page.measurements[0]!;
+    page.measurements.push({ ...base, id: "offscreen", points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })) });
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, selectedMeasurementIds: [base.id, "offscreen"] });
+    expect(captured.lines).toHaveLength(2);
+    captured.lines.length = 0;
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, activeMeasurementEditId: "offscreen" });
+    expect(captured.lines).toHaveLength(2);
+  });
+
+  it("mounts the complete scene for pan caching and restores viewport culling afterwards", () => {
+    const page = uniformPage();
+    const base = page.measurements[0]!;
+    page.measurements.push({ ...base, id: "offscreen", points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })) });
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, isPanning: true });
+    expect(captured.lines).toHaveLength(2);
+    captured.lines.length = 0;
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false });
+    expect(captured.lines).toHaveLength(1);
+  });
+
+  it("reveals a previously culled shape after pan without changing its page geometry", () => {
+    const page = uniformPage();
+    renderLayer({ page, viewport: { width: 100, height: 100 }, transform: { zoom: 2, panX: -800, panY: -800 }, showLabels: false });
+    expect(captured.lines).toHaveLength(0);
+    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false });
+    expect(captured.lines[0]!.points).toEqual(page.measurements[0]!.points.flatMap(({ x, y }) => [x, y]));
+  });
+
   let container: HTMLDivElement;
   let root: Root;
 
@@ -188,6 +248,9 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
 
   function renderLayer({
     page = uniformPage(),
+    viewport,
+    isPanning = false,
+    activeMeasurementEditId = null,
     selectedMeasurementId = null,
     selectedMeasurementIds,
     onSelectMeasurement = noop,
@@ -207,6 +270,9 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     onWholeMeasurementDragCancellationChange = noop,
   }: {
     page?: PageState;
+    viewport?: { width: number; height: number };
+    isPanning?: boolean;
+    activeMeasurementEditId?: string | null;
     selectedMeasurementId?: string | null;
     selectedMeasurementIds?: string[];
     onSelectMeasurement?: (id: string, additive?: boolean) => void;
@@ -237,12 +303,13 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           page={page}
           bounds={bounds}
           transform={transform}
+          viewport={viewport}
           activeTool="select"
           spacePan={false}
-          isPanning={false}
+          isPanning={isPanning}
           selectedMeasurementId={selectedMeasurementId}
           selectedMeasurementIds={selectedMeasurementIds}
-          activeMeasurementEditId={null}
+          activeMeasurementEditId={activeMeasurementEditId}
           calibrationReferenceEdit={calibrationReferenceEdit}
           measurementEditingBlocked={false}
           precisionAuthoringAvailable
