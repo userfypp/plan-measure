@@ -108,6 +108,13 @@ export interface UpdateMeasurementCommand {
   points: Point[];
 }
 
+export interface MoveCountItemCommand {
+  pageNumber: number;
+  sourceId: string;
+  targetId: string;
+  itemIndex: number;
+}
+
 export interface PasteMeasurementCommand {
   pageNumber: number;
   id: string;
@@ -131,6 +138,7 @@ export interface BulkMeasurementCommand {
 }
 
 export type SessionAction =
+  | ({ type: "MOVE_COUNT_ITEM" } & MoveCountItemCommand)
   | { type: "PASTE_MEASUREMENTS"; commands: readonly PasteMeasurementCommand[] }
   | { type: "UPDATE_MEASUREMENTS"; commands: readonly UpdateMeasurementCommand[] }
   | ({ type: "EDIT_MEASUREMENTS" } & BulkMeasurementCommand)
@@ -193,7 +201,7 @@ function createPageState(pageNumber: number): PageState {
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
   };
 }
 
@@ -207,7 +215,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     pdf,
     pageCount,
     currentPage: 1,
@@ -386,6 +394,7 @@ export function sessionReducer(
       if (!page || !measurement) {
         return { ...state, error: "The selected measurement is no longer available." };
       }
+      if (measurement.type === "count") return state;
       if (!calibration) {
         return { ...state, error: "The selected scale is no longer available." };
       }
@@ -394,7 +403,7 @@ export function sessionReducer(
         session: updatePageState(state.session, action.pageNumber, (currentPage) => ({
           ...currentPage,
           measurements: currentPage.measurements.map((currentMeasurement) =>
-            currentMeasurement.id === action.measurementId
+            currentMeasurement.id === action.measurementId && currentMeasurement.type !== "count"
               ? { ...currentMeasurement, calibrationId: action.calibrationId }
               : currentMeasurement,
           ),
@@ -457,7 +466,7 @@ export function sessionReducer(
       const duplicateId = Object.values(state.session.pages).some((candidatePage) =>
         candidatePage.measurements.some((measurement) => measurement.id === id),
       );
-      if (!page || !calibration) {
+      if (!page || (measurementType !== "count" && !calibration)) {
         return { ...state, error: "Select a valid scale before creating measurements." };
       }
       if (!id.trim() || duplicateId || !hasValidMeasurementPoints(measurementType, points)) {
@@ -478,10 +487,11 @@ export function sessionReducer(
           ...currentPage.measurements,
           {
             id,
-            type: measurementType,
+            ...(measurementType === "count"
+              ? { type: "count" as const, calibrationId: null }
+              : { type: measurementType, calibrationId: calibration!.id }),
             name: `${measurementPathSpecs[measurementType].label} ${currentPage.nextMeasurementNumber[measurementType]}`,
             points,
-            calibrationId: calibration.id,
             classificationValueIds: [],
             visible: true,
           },
@@ -501,6 +511,40 @@ export function sessionReducer(
         if (staged.error) return { ...state, error: staged.error };
       }
       return staged;
+    }
+    case "MOVE_COUNT_ITEM": {
+      if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      const source = page?.measurements.find((measurement) => measurement.id === action.sourceId);
+      const target = page?.measurements.find((measurement) => measurement.id === action.targetId);
+      if (
+        !page || source?.type !== "count" || target?.type !== "count" ||
+        source.id === target.id || !Number.isInteger(action.itemIndex) ||
+        action.itemIndex < 0 || action.itemIndex >= source.points.length ||
+        !hasValidMeasurementPoints("count", source.points) ||
+        !hasValidMeasurementPoints("count", target.points)
+      ) {
+        return { ...state, error: "Choose another count on this page to move the item." };
+      }
+      const point = source.points[action.itemIndex]!;
+      const measurements = page.measurements.flatMap((measurement) => {
+        if (measurement.id === source.id) {
+          const points = source.points.filter((_, index) => index !== action.itemIndex);
+          return points.length ? [{ ...source, points }] : [];
+        }
+        if (measurement.id === target.id) {
+          return [{ ...target, points: [...target.points, { ...point }] }];
+        }
+        return [measurement];
+      });
+      return {
+        ...state,
+        session: updatePageState(state.session, action.pageNumber, (currentPage) => ({
+          ...currentPage,
+          measurements,
+        })),
+        error: null,
+      };
     }
     case "UPDATE_MEASUREMENTS": {
       if (!state.session || action.commands.length === 0) return state;
@@ -534,7 +578,7 @@ export function sessionReducer(
       const duplicateId = Object.values(state.session.pages).some((candidatePage) =>
         candidatePage.measurements.some((candidate) => candidate.id === id),
       );
-      if (!page || !calibration) {
+      if (!page || (measurement.type !== "count" && !calibration)) {
         return {
           ...state,
           error:
@@ -562,7 +606,9 @@ export function sessionReducer(
           {
             ...measurement,
             id,
-            calibrationId: calibration.id,
+            ...(measurement.type === "count"
+              ? { type: "count" as const, calibrationId: null }
+              : { type: measurement.type, calibrationId: calibration!.id }),
             points: measurement.points.map((point) => ({ ...point })),
             classificationValueIds: measurement.classificationValueIds.filter((id) =>
               state.session!.classificationCatalog.dimensions.some((dimension) =>
@@ -1176,6 +1222,7 @@ interface SessionContextValue extends SessionState {
   pasteMeasurements: (commands: readonly PasteMeasurementCommand[]) => boolean;
   updateMeasurements: (commands: readonly UpdateMeasurementCommand[]) => boolean;
   updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
+  moveCountItem: (command: MoveCountItemCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementNote: (pageNumber: number, id: string, note: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
@@ -1337,6 +1384,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return commands.length > 0 && result.error === null && commands.every((command) => result.session?.pages[command.pageNumber]?.measurements.some((measurement) => measurement.id === command.id));
       },
       ...measurementCommands,
+      moveCountItem: (command) => {
+        const result = applyAction({ type: "MOVE_COUNT_ITEM", ...command });
+        return result.error === null && Boolean(result.session);
+      },
       renameMeasurement: (pageNumber, id, name) =>
         applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
       setMeasurementNote: (pageNumber, id, note) =>

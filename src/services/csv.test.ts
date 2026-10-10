@@ -1524,7 +1524,7 @@ describe("CSV batch export", () => {
     const session = measuredSession();
     const base = session.pages[1]!.measurements[0]!;
     session.pages[1]!.measurements = Array.from({ length: 450 }, (_, i) => ({ ...base, id: `row-${i}` }));
-    session.pages[1]!.measurements[449] = { ...base, id: "invalid", type: "polygon", points: [] };
+    session.pages[1]!.measurements[449] = { ...base, id: "invalid", type: "polygon", calibrationId: "scale", points: [] };
     await expect(buildCsvInBatches(session, null, undefined, async () => {})).rejects.toThrow("Repair invalid Polygon");
   });
 

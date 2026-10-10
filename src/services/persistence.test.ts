@@ -13,6 +13,7 @@ import { createStandardScalePreset } from "../features/calibration/standardScale
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import type {
   CurrentSession,
+  PathMeasurement,
   Point,
   SessionV1,
   SessionV2,
@@ -197,7 +198,7 @@ function v5MeasuredSession(): SessionV5 {
       measurements: page.measurements.map((measurement) => {
         const legacyMeasurement = { ...measurement };
         delete (legacyMeasurement as { visible?: boolean }).visible;
-        return legacyMeasurement;
+        return legacyMeasurement as PathMeasurement;
       }),
     };
   }
@@ -431,7 +432,7 @@ it("persists a custom Uniform ratio as the existing PageCalibration shape and pr
   await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
   const recovered = await loadSavedSession();
   const page = recovered?.session.pages[1];
-  expect(recovered?.session.schemaVersion).toBe(11);
+  expect(recovered?.session.schemaVersion).toBe(12);
   expect(page?.calibrations[0]).toEqual({ id: "custom-uniform", name: "Scale 1", ...calibration });
   expect(page?.activeCalibrationId).toBe("custom-uniform");
   expect(page?.measurements[0]?.calibrationId).toBe("custom-uniform");
@@ -1075,6 +1076,7 @@ describe("session persistence", () => {
     malformedPolygonV9.pages[2]!.measurements[0] = {
       ...malformedPolygonV9.pages[2]!.measurements[0]!,
       type: "polygon",
+      calibrationId: "custom-scale",
       points: [
         { x: 0, y: 0 },
         { x: 0, y: 0 },
@@ -1097,6 +1099,7 @@ describe("session persistence", () => {
     crossingV9.pages[2]!.measurements[0] = {
       ...crossingV9.pages[2]!.measurements[0]!,
       type: "polygon",
+      calibrationId: "custom-scale",
       points,
     };
 
@@ -1118,6 +1121,7 @@ describe("session persistence", () => {
     historical.pages[2]!.measurements[0] = {
       ...historical.pages[2]!.measurements[0]!,
       type: "polygon",
+      calibrationId: "custom-scale",
       points: [
         { x: 0, y: 0 },
         { x: 6, y: 5 },
@@ -1126,19 +1130,19 @@ describe("session persistence", () => {
       ],
     };
 
-    const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
+    const recovered = deserializeSessionForRecovery(JSON.stringify({ ...historical, schemaVersion: 11 }));
 
     expect(recovered.compatibility).toBe("historical-repair-required");
     expect(recovered.session.pageLabelOverrides).toEqual({ 2: "Detail-2" });
   });
 
-  it("migrates V7 to V11 with CSV defaults, two measurement decimals, automatic area display, and no page-label overrides", () => {
+  it("migrates V7 to V12 with CSV defaults, two measurement decimals, automatic area display, and no page-label overrides", () => {
     const v7 = v7MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v7));
 
     expect(migrated).toEqual({
       ...v7,
-      schemaVersion: 11,
+      schemaVersion: 12,
       pageLabelOverrides: {},
       settings: {
         ...v7.settings,
@@ -1155,7 +1159,7 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v8));
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v8.settings,
@@ -1171,7 +1175,7 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v9));
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v9.settings,
@@ -1181,7 +1185,7 @@ describe("session persistence", () => {
     expect(migrated.classificationCatalog).toEqual(v9.classificationCatalog);
   });
 
-  it("migrates V10 to V11 by adding only empty page-label overrides", () => {
+  it("migrates V10 to V12 with page-label and count defaults", () => {
     const v10 = v10MeasuredSession();
     v10.settings.displayUnit = "ft-in";
     v10.settings.areaDisplay = "ac";
@@ -1190,16 +1194,16 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v10,
-      schemaVersion: 11,
+      schemaVersion: 12,
       pageLabelOverrides: {},
     });
   });
 
-  it("migrates a V1 page without calibration to an empty V11 page", () => {
+  it("migrates a V1 page without calibration to an empty V12 page", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
@@ -1209,7 +1213,7 @@ describe("session persistence", () => {
     expect(page.activeCalibrationId).toBeNull();
     expect(page.nextCalibrationNumber).toBe(1);
     expect(page.measurements).toEqual([]);
-    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 1, polygon: 1 });
+    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 1, polygon: 1, count: 1 });
   });
 
   it("migrates V1 measurements to one deterministic Scale 1 without changing results", () => {
@@ -1240,6 +1244,7 @@ describe("session persistence", () => {
       line: legacyPage.nextLineNumber,
       polyline: 1,
       polygon: legacyPage.nextPolygonNumber,
+      count: 1,
     });
     expect(migrated.pdf).toEqual(legacy.pdf);
     expect(migrated.currentPage).toBe(legacy.currentPage);
@@ -1291,7 +1296,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -1307,7 +1312,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -1319,6 +1324,7 @@ describe("session persistence", () => {
       line: 2,
       polyline: 1,
       polygon: 1,
+      count: 1,
     });
   });
 
@@ -1326,7 +1332,7 @@ describe("session persistence", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -1366,7 +1372,7 @@ describe("session persistence", () => {
     };
     session.settings.measurementDecimalPlaces = 6;
     const serialized = serializeSession(session);
-    expect(JSON.parse(serialized).schemaVersion).toBe(11);
+    expect(JSON.parse(serialized).schemaVersion).toBe(12);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -1426,7 +1432,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -1450,7 +1456,7 @@ describe("session persistence", () => {
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(11);
+    expect(migrated.schemaVersion).toBe(12);
     expect(migrated.pdf).toEqual(v6.pdf);
     expect(migrated.settings).toEqual({
       ...v6.settings,
@@ -1474,7 +1480,7 @@ describe("session persistence", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(11);
+    expect(restored.schemaVersion).toBe(12);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
@@ -1778,7 +1784,7 @@ describe("session persistence", () => {
     const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
 
     expect(recovered.compatibility).toBe("classification-repair-required");
-    expect(recovered.session.schemaVersion).toBe(11);
+    expect(recovered.session.schemaVersion).toBe(12);
     expect(recovered.session.classificationCatalog.dimensions).toEqual([
       {
         id: "discipline",
@@ -1921,7 +1927,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(11);
+    expect(restored.schemaVersion).toBe(12);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -2507,7 +2513,7 @@ describe("session persistence", () => {
 
     const recovered = await loadSavedSession();
 
-    expect(recovered?.session.schemaVersion).toBe(11);
+    expect(recovered?.session.schemaVersion).toBe(12);
     expect(recovered?.session.pdf).toEqual(historical.pdf);
     expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
       "legacy-line",

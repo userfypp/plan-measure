@@ -20,14 +20,15 @@ Expand a scale to rename it or edit its calibration. To reuse it on another page
 ## Measurements and totals
 
 - **Line**: length between two points. **Polyline**: length along a path. **Polygon**: perimeter and area.
+- **Count** creates a count without a scale: click once per item, then choose **Done**. **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or Details. Each count shares a name, note, and classifications; move its markers with Select. In **Details → Items**, use **Move to…** to transfer an item to another count on the same page, or the trash button to remove it. Moving the last item removes the empty source count; Undo restores the transfer and its source count.
 - **Snap** aligns points with visible measurement geometry; **Ortho** constrains segments horizontally or vertically.
 - **Select** lets you move measurements or drag individual vertices. **Details** contains names, notes, and classification assignments.
-- Shift/Ctrl/Cmd-click adds or removes measurements from the selection. Bulk classification, visibility, and deletion support selections across pages. Moving, duplicating, and copying a group require a single-page selection; pasting onto another page uses its active scale and requires all geometry to fit.
+- Shift/Ctrl/Cmd-click adds or removes measurements from the selection. Bulk classification, visibility, and deletion support selections across pages. Moving, duplicating, and copying a group require a single-page selection; pasting onto another page uses its active scale for paths and requires all geometry to fit. Counts do not require a scale.
 - **Undo/Redo** covers measurement, scale, classification, and page-label edits. History resets on project opening or reload; navigation and display settings are excluded.
 
 In **Classifications**, create dimensions such as Trade with values such as Electrical. Archive entries to keep assignments; delete them to remove assignments throughout the project. **Templates** saves a reusable catalog locally. Applying a template adds missing entries and reuses matching names without changing measurement assignments; restore matching archived entries first.
 
-**Measurements** lists the current page and can group entries by classification dimensions. **Takeoff** totals all pages, including hidden measurements, with breakdowns by page, type, or classification. Lines and Polylines contribute length; Polygons contribute perimeter and area. Uncalculable measurements are excluded with a notice. Open a measurement count to inspect its sources, then select a measurement to open its page and details. Use **Inspect** on an exclusion notice to see the affected measurements and reasons.
+**Measurements** lists the current page and can group entries by classification dimensions. **Takeoff** totals all pages, including hidden measurements, with breakdowns by page, type, or classification. Lines and Polylines contribute length; Polygons contribute perimeter and area; Count markers contribute individual items. Uncalculable measurements are excluded with a notice. Open a measurement count to inspect its sources, then select a measurement to open its page and details. Use **Inspect** on an exclusion notice to see the affected measurements and reasons.
 
 ## View and settings
 
@@ -61,7 +62,7 @@ Older data is migrated when possible. If repair is required, autosave stays paus
 
 **Takeoff summaries:** select project totals, page/type breakdowns, or classification dimensions in Export. Use **Data → Takeoff summary** for a standalone CSV/XLSX/ODS; otherwise add them to the dataset. CSV bundles separate files in a ZIP; workbooks add sheets. Summaries include hidden measurements, full precision, excluded counts and quantity statuses. JSON uses mm/mm²; other formats use display units (decimal feet for ft-in).
 
-CSV measurement and workbook columns are configurable; required columns stay enabled. Successful exports remember the selection. JSON ignores column preferences and display units.
+The `count` column appears when Count markers are present; each count exports its number of points as a numeric quantity, with scale and physical quantities left blank. CSV measurement and workbook columns are configurable; required columns stay enabled. Successful exports remember the selection. JSON ignores column preferences and display units.
 
 Spreadsheet exports reject unsupported text or values exceeding format limits. Spreadsheet applications can reduce numeric precision; use JSON for the original numeric representation.
 
@@ -75,6 +76,7 @@ Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native
 | --------------------------------- | --------------------------------------------------- |
 | `V` / `H`                         | Select / Hand                                       |
 | `L` / `M` / `P`                   | Line / Polyline / Polygon                           |
+| `C`                               | Count                                               |
 | `S` / `O`                         | Toggle Snap / Ortho                                 |
 | `Enter` / `Escape`                | Finish / cancel drawing; leave an idle drawing tool |
 | Hold `Space`                      | Pan                                                 |

@@ -71,7 +71,7 @@ export function canDuplicateMeasurement(
   measurement: Measurement,
 ): boolean {
   return (
-    getMeasurementCalibration(page, measurement) !== null &&
+    (measurement.type === "count" || getMeasurementCalibration(page, measurement) !== null) &&
     hasValidMeasurementPoints(measurement.type, measurement.points)
   );
 }

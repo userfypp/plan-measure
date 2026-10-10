@@ -211,6 +211,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                   <option value="line">Line</option>
                   <option value="polyline">Polyline</option>
                   <option value="polygon">Polygon</option>
+                  <option value="count">Count</option>
                 </select>
               </label>
             </div>

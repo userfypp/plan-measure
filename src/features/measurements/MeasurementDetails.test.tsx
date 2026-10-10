@@ -53,7 +53,7 @@ const page: PageState = {
   activeCalibrationId: "active",
   nextCalibrationNumber: 3,
   measurements: [firstMeasurement, secondMeasurement],
-  nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1 },
+  nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, count: 1 },
 };
 
 const catalog: ClassificationCatalog = {
@@ -122,6 +122,88 @@ afterEach(() => {
 });
 
 describe("MeasurementDetails", () => {
+  it("keeps keyboard focus on the nearest remaining item after removal", () => {
+    let frame: FrameRequestCallback | undefined;
+    const animationFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    try {
+      const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null };
+      const props = createProps({ measurement: count, onRemoveCountItem: vi.fn() });
+      renderDetails(props);
+      const remove = container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 2"]')!;
+      act(() => { remove.focus(); remove.click(); });
+      renderDetails({ ...props, measurement: { ...count, points: [count.points[0]!] } });
+      act(() => frame!(0));
+      expect(document.activeElement).toBe(container!.querySelector('[aria-label="Remove item 1"]'));
+    } finally {
+      animationFrame.mockRestore();
+    }
+  });
+
+  it("offers direct item addition and a destination menu containing only other counts on this page", () => {
+    const onAddCountItems = vi.fn();
+    const onMoveCountItem = vi.fn();
+    const count: Measurement = { ...firstMeasurement, id: "count", name: "Plug", type: "count", calibrationId: null };
+    const target: Measurement = { ...count, id: "target", name: "Light", visible: false };
+    renderDetails(createProps({
+      measurement: count, page: { ...page, measurements: [count, target, firstMeasurement] },
+      onAddCountItems, onMoveCountItem, onRemoveCountItem: vi.fn(),
+    }));
+    act(() => buttonByText("Add items").click());
+    expect(onAddCountItems).toHaveBeenCalledOnce();
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Move item 2 to another count"]')!.click());
+    const menu = document.querySelector('[role="menu"][aria-label="Move item 2 to count"]')!;
+    const options = menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+    expect(Array.from(options, (option) => option.textContent)).toEqual(["Light (hidden)"]);
+    act(() => options[0]!.click());
+    expect(onMoveCountItem).toHaveBeenCalledExactlyOnceWith(1, "target");
+    expect(document.querySelector('[role="menu"][aria-label="Move item 2 to count"]')).toBeNull();
+    expect(container!.querySelectorAll('ul[aria-label="Items in Plug"] li')).toHaveLength(2);
+    expect(container!.querySelector('[aria-label="Remove item 2"] svg')).not.toBeNull();
+  });
+
+  it("disables transfers when no other count is available and respects blocked editing", () => {
+    const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null };
+    const onAddCountItems = vi.fn();
+    renderDetails(createProps({
+      measurement: count, page: { ...page, measurements: [count] },
+      onAddCountItems, onMoveCountItem: vi.fn(), onRemoveCountItem: vi.fn(),
+      addCountItemsDisabledReason: "Show this count before adding items",
+    }));
+    expect(container!.querySelector<HTMLButtonElement>('[aria-label="Move item 1 to another count"]')!.disabled).toBe(true);
+    act(() => buttonByText("Add items").click());
+    expect(onAddCountItems).not.toHaveBeenCalled();
+    renderDetails(createProps({
+      measurement: count, onRemoveCountItem: vi.fn(), assignmentDisabled: true,
+    }));
+    expect(container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 1"]')!.disabled).toBe(true);
+  });
+
+  it("shows Count properties without unavailable scale warnings", () => {
+    renderDetails(createProps({ measurement: { ...firstMeasurement, type: "count", calibrationId: null, points: [{ x: 20, y: 30 }] } }));
+    expect(container!.textContent).toContain("1 item");
+    expect(container!.textContent).not.toContain("Scale unavailable");
+    expect(container!.textContent).not.toContain("Unavailable");
+    expect(buttonByText("Rename")).toBeTruthy();
+    expect(buttonByText("Save note")).toBeTruthy();
+  });
+
+  it("removes an individual Count item and uses deletion for the last item", () => {
+    const onRemoveCountItem = vi.fn();
+    const onDelete = vi.fn();
+    const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null, points: [{ x: 20, y: 30 }, { x: 60, y: 70 }] };
+    renderDetails(createProps({ measurement: count, onRemoveCountItem, onDelete }));
+    expect(container!.textContent).toContain("2 items");
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 2"]')!.click());
+    expect(onRemoveCountItem).toHaveBeenCalledExactlyOnceWith(1);
+    expect(onDelete).not.toHaveBeenCalled();
+    renderDetails(createProps({ measurement: { ...count, points: [count.points[0]!] }, onRemoveCountItem, onDelete }));
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 1"]')!.click());
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
   it("derives result and linked scale from the selected measurement, not the active scale", () => {
     renderDetails(createProps());
 

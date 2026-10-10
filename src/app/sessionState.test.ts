@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CurrentSession, Measurement, MeasurementType } from "../types/domain";
+import type { CurrentSession, Measurement, PathMeasurementType } from "../types/domain";
 import { measurementResultsMm } from "../utils/geometry";
 import { translateMeasurementPoints } from "../features/viewer/measurementDrag";
 import {
@@ -14,10 +14,10 @@ function session(): CurrentSession {
 }
 
 describe("SessionState", () => {
-  it("creates a V11 session with empty page-label overrides and existing defaults", () => {
+  it("creates a V12 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(11);
+    expect(created.schemaVersion).toBe(12);
     expect(created.pageLabelOverrides).toEqual({});
     expect(created.settings.measurementDecimalPlaces).toBe(2);
     expect(created.settings.areaDisplay).toBe("auto");
@@ -34,7 +34,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(11);
+    expect(loaded.session?.schemaVersion).toBe(12);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -100,7 +100,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(11);
+    expect(state.session?.schemaVersion).toBe(12);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });
@@ -340,7 +340,7 @@ describe("SessionState", () => {
     ];
     const source: Measurement = {
       id: `${type}-move`,
-      type: type as MeasurementType,
+      type: type as PathMeasurementType,
       name: "Preserved name",
       calibrationId: calibration.id,
       points: points.map((point) => ({ ...point })),

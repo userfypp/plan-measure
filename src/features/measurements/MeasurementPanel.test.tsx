@@ -49,7 +49,7 @@ const page: PageState = {
   activeCalibrationId: "scale-1",
   nextCalibrationNumber: 2,
   measurements: [measurement],
-  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1 },
+  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, count: 1 },
 };
 
 function viewModel(selected = false, candidate = measurement) {
@@ -110,10 +110,10 @@ describe("measurement view models", () => {
 
   it("keeps the empty-state guidance local to the current page", () => {
     expect(getMeasurementEmptyMessage(page)).toBe(
-      "Choose Line, Polyline, or Polygon to add a measurement.",
+      "Choose Line, Polyline, Polygon, or Count to add a measurement.",
     );
     expect(getMeasurementEmptyMessage({ ...page, activeCalibrationId: null })).toBe(
-      "Select an available scale to begin measuring.",
+      "Choose Count, or select an available scale to begin measuring.",
     );
   });
 
@@ -139,6 +139,16 @@ describe("measurement view models", () => {
 });
 
 describe("MeasurementRow accessibility", () => {
+  it("shows Count metadata without a missing-scale warning", () => {
+    const markup = renderToStaticMarkup(<MeasurementRow
+      viewModel={{ ...viewModel(), type: "count", typeLabel: "Count", valueLabel: "3 items", calibrationSummary: "No scale required", hasCalibration: false }}
+      onSelectMeasurement={() => undefined} onToggleVisibility={() => undefined}
+    />);
+    expect(markup).toContain('title="Count"');
+    expect(markup).not.toContain("No scale required");
+    expect(markup).not.toContain("unavailable");
+  });
+
   it("exposes selection and visibility without legacy rename/delete row actions", () => {
     const measurementWithPage = { ...viewModel(), pageLabel: "A-101" };
     const markup = renderToStaticMarkup(

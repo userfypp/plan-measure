@@ -16,6 +16,7 @@ describe("viewer tool registry", () => {
       "line",
       "polyline",
       "polygon",
+      "count",
     ]);
     expect(toolRegistry.find((tool) => tool.id === "calibrate")?.inRail).toBe(false);
     expect(toolRegistry.find((tool) => tool.id === "orthogonal")?.inRail).toBe(false);
@@ -28,13 +29,14 @@ describe("viewer tool registry", () => {
     }
   });
 
-  it("keeps vertical keyboard navigation aligned with the compact five-tool rail", () => {
+  it("keeps vertical keyboard navigation aligned with the tool rail", () => {
     expect(getToolRailVerticalNeighbor("select", "down")).toBe("hand");
     expect(getToolRailVerticalNeighbor("hand", "down")).toBe("line");
     expect(getToolRailVerticalNeighbor("line", "down")).toBe("polyline");
     expect(getToolRailVerticalNeighbor("polyline", "down")).toBe("polygon");
-    expect(getToolRailVerticalNeighbor("polygon", "down")).toBe("select");
-    expect(getToolRailVerticalNeighbor("select", "up")).toBe("polygon");
+    expect(getToolRailVerticalNeighbor("polygon", "down")).toBe("count");
+    expect(getToolRailVerticalNeighbor("select", "up")).toBe("count");
+    expect(getToolRailVerticalNeighbor("count", "down")).toBe("select");
     expect(getToolRailVerticalNeighbor("snap", "down")).toBeNull();
   });
 

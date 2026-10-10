@@ -87,6 +87,59 @@ afterEach(() => {
 });
 
 describe("session undo and redo history", () => {
+  it("undoes and redoes each item transfer together, including removal of an empty source count", () => {
+    const session = createEmptySession({ name: "Count.pdf", size: 1, lastModified: 1 }, 1);
+    session.pages[1]!.measurements = [
+      { id: "source", name: "Plug", type: "count", calibrationId: null, points: [{ x: 20, y: 30 }, { x: 60, y: 70 }], visible: true, note: "Source note", classificationValueIds: [] },
+      { id: "target", name: "Light", type: "count", calibrationId: null, points: [{ x: 100, y: 110 }], visible: false, note: "Target note", classificationValueIds: [] },
+    ];
+    act(() => historyProbe.loadSession(session));
+    const command = { pageNumber: 1, sourceId: "source", targetId: "target", itemIndex: 0 };
+    act(() => { expect(historyProbe.moveCountItem(command)).toBe(true); });
+    const firstMove = structuredClone(historyProbe.session!);
+    act(() => { expect(historyProbe.moveCountItem(command)).toBe(true); });
+    const lastMove = structuredClone(historyProbe.session!);
+    expect(lastMove.pages[1]!.measurements).toHaveLength(1);
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(firstMove);
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(session);
+    act(() => historyProbe.redo());
+    expect(historyProbe.session).toEqual(firstMove);
+    act(() => historyProbe.redo());
+    expect(historyProbe.session).toEqual(lastMove);
+    act(() => { expect(historyProbe.moveCountItem(command)).toBe(false); });
+    expect(historyProbe.session).toEqual(lastMove);
+  });
+
+  it("undoes and redoes count creation, properties, classification, movement, and deletion without a scale", () => {
+    const session = createEmptySession({ name: "Count.pdf", size: 1, lastModified: 1 }, 1);
+    session.classificationCatalog.dimensions = [{ id: "trade", name: "Trade", archived: false, values: [{ id: "electrical", name: "Electrical", archived: false }] }];
+    act(() => historyProbe.loadSession(session));
+    const snapshots = [structuredClone(historyProbe.session!)];
+    for (const operation of [
+      () => historyProbe.addMeasurement({ pageNumber: 1, id: "count", measurementType: "count", points: [{ x: 20, y: 30 }] }),
+      () => historyProbe.updateMeasurement({ pageNumber: 1, id: "count", points: [{ x: 20, y: 30 }, { x: 60, y: 70 }, { x: 100, y: 110 }] }),
+      () => historyProbe.updateMeasurement({ pageNumber: 1, id: "count", points: [{ x: 20, y: 30 }, { x: 100, y: 110 }] }),
+      () => historyProbe.renameMeasurement(1, "count", "Socket"),
+      () => historyProbe.setMeasurementNote(1, "count", "Check on site"),
+      () => historyProbe.assignClassificationValue({ pageNumber: 1, measurementId: "count", dimensionId: "trade", valueId: "electrical" }),
+      () => historyProbe.updateMeasurement({ pageNumber: 1, id: "count", points: [{ x: 40, y: 50 }] }),
+      () => historyProbe.deleteMeasurement(1, "count"),
+    ]) {
+      act(() => { operation(); });
+      snapshots.push(structuredClone(historyProbe.session!));
+    }
+    for (const snapshot of snapshots.slice(0, -1).reverse()) {
+      act(() => historyProbe.undo());
+      expect(historyProbe.session).toEqual(snapshot);
+    }
+    for (const snapshot of snapshots.slice(1)) {
+      act(() => historyProbe.redo());
+      expect(historyProbe.session).toEqual(snapshot);
+    }
+  });
+
   const unchangedOperations: [string, (state: ReturnType<typeof useSessionState>) => unknown][] = [
     ["equal geometry with new point objects", (state) => state.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 10, y: 10 }, { x: 20, y: 10 }] })],
     ["invalid geometry", (state) => state.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 10, y: 10 }, { x: 10, y: 10 }] })],

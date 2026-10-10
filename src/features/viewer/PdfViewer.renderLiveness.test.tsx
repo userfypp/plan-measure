@@ -156,7 +156,7 @@ function createPageState(pageNumber: number): PageState {
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
   };
 }
 
@@ -1912,6 +1912,53 @@ describe("PdfViewer render liveness", () => {
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(original.points);
     await act(async () => sessionProbe!.redo());
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(preview);
+  });
+
+  it("places Count markers by pointer and keyboard without a scale, keeps the tool active, and supports undo", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    const session = createEmptySession({ name: "Count.pdf", size: 10, lastModified: 1 }, 1);
+    await mountViewer(runtime.document, { page: session.pages[1] });
+    await act(async () => sessionProbe!.loadSession(session));
+    await act(async () => workspaceProbe!.chooseTool("count"));
+    const point = { x: 20, y: 30 };
+    const transform = konvaCapture.annotationLayers.at(-1)!.transform as ViewTransform;
+    const onClick = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
+    await act(async () => onClick({
+      target: { getStage: () => ({ getPointerPosition: () => pageToScreen(point, transform) }) },
+      evt: { button: 0 },
+    }));
+    const first = sessionProbe!.session!.pages[1]!.measurements[0]!;
+    expect(first).toMatchObject({ name: "Count 1", type: "count", calibrationId: null });
+    expect(first.points).toHaveLength(1);
+    expect(first.points[0]!.x).toBeCloseTo(point.x, 12);
+    expect(first.points[0]!.y).toBeCloseTo(point.y, 12);
+    expect(workspaceProbe!.activeTool).toBe("count");
+    expect(workspaceProbe!.selectedMeasurementId).toBe(first.id);
+    expect(workspaceProbe!.draft).toBeNull();
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    for (const key of ["ArrowRight", " "]) {
+      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })));
+    }
+    expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(1);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toHaveLength(2);
+    await act(async () => sessionProbe!.undo());
+    expect(sessionProbe!.session!.pages[1]!.measurements).toEqual([first]);
+    await act(async () => sessionProbe!.redo());
+    expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(1);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toHaveLength(2);
+    await act(async () => workspaceProbe!.clearSelection());
+    const click = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
+    await act(async () => click({ target: { getStage: () => ({ getPointerPosition: () => pageToScreen({ x: 100, y: 100 }, transform) }) }, evt: { button: 0 } }));
+    expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(2);
+    expect(sessionProbe!.session!.pages[1]!.measurements[1]!.name).toBe("Count 2");
+    await act(async () => workspaceProbe!.chooseTool("select"));
+    await act(async () => workspaceProbe!.selectMeasurement(first.id));
+    await act(async () => workspaceProbe!.chooseTool("count"));
+    const resume = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
+    await act(async () => resume({ target: { getStage: () => ({ getPointerPosition: () => pageToScreen({ x: 120, y: 100 }, transform) }) }, evt: { button: 0 } }));
+    expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(2);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toHaveLength(3);
   });
 
   it("selects a newly completed Line while keeping the Line tool armed", async () => {

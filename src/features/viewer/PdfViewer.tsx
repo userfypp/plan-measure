@@ -245,7 +245,7 @@ export function PdfViewer({
   const canvasVisualRoles = useCanvasVisualRoles();
   const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
   const precisionAuthoringBlocked = !authoringCapability.available;
-  const { session, addMeasurement, updateMeasurements } = useSessionState();
+  const { session, addMeasurement, updateMeasurement, updateMeasurements } = useSessionState();
   const keyboardHelpId = useId();
   const keyboardHelpRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -1398,6 +1398,18 @@ export function PdfViewer({
         clearSnapFeedback();
         return;
       }
+      if (activeTool === "count") {
+        const point = clampPointToPage(screenToPage(pointer, viewTransform), bounds);
+        const count = selectedMeasurementIds.length === 1
+          ? session?.pages[page.pageNumber]?.measurements.find((measurement) => measurement.id === selectedMeasurementId && measurement.type === "count" && measurement.visible)
+          : undefined;
+        if (count) {
+          updateMeasurement({ pageNumber: page.pageNumber, id: count.id, points: [...count.points, point] });
+        } else {
+          completePath("count", [point]);
+        }
+        return;
+      }
       const measurementType = activeTool;
       if (
         !isSnapPointPlacementActive(
@@ -1797,7 +1809,7 @@ export function PdfViewer({
         role="region"
         tabIndex={0}
         data-dialog-focus-fallback
-        aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, or P to select a tool.`}
+        aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, P, or C to select a tool.`}
         aria-describedby={keyboardAuthoringEnabled ? keyboardHelpId : undefined}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) cancelKeyboardGeometry();

@@ -37,13 +37,13 @@ interface CsvRowContext {
   pageNumber: number;
   pageLabel: string;
   measurement: Measurement;
-  calibration: PageCalibration;
+  calibration: PageCalibration | null;
   spec: MeasurementPathSpec;
   result: ReturnType<typeof measurementResultsMm>;
   unit: LinearUnit;
   areaDisplay: AreaDisplay;
-  scaleX: number;
-  scaleY: number;
+  scaleX: number | null;
+  scaleY: number | null;
   calibrationReferenceMm: number | null;
   calibrationPageDistance: number | null;
   calibrationMmPerPageUnit: number | null;
@@ -151,7 +151,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "text",
     defaultEnabled: true,
     required: true,
-    extract: (context) => context.calibration.id,
+    extract: (context) => context.calibration?.id ?? null,
   },
   {
     id: "calibration_name",
@@ -161,7 +161,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "text",
     defaultEnabled: true,
     required: false,
-    extract: (context) => context.calibration.name,
+    extract: (context) => context.calibration?.name ?? null,
   },
   {
     id: "calibration_mode",
@@ -171,7 +171,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "text",
     defaultEnabled: true,
     required: false,
-    extract: (context) => context.calibration.mode,
+    extract: (context) => context.calibration?.mode ?? null,
   },
   {
     id: "calibration_reference_mm",
@@ -232,7 +232,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: false,
     extract: (context) =>
-      context.spec.closed ? null : fromMillimetres(context.result.lengthMm ?? 0, context.unit),
+      context.result.lengthMm === null ? null : fromMillimetres(context.result.lengthMm, context.unit),
   },
   {
     id: "perimeter",
@@ -261,6 +261,16 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
         : null,
   },
   {
+    id: "count",
+    header: "count",
+    label: "Count",
+    section: "values",
+    type: "number",
+    defaultEnabled: true,
+    required: false,
+    extract: (context) => context.measurement.type === "count" ? context.measurement.points.length : null,
+  },
+  {
     id: "unit",
     header: "unit",
     label: "Unit",
@@ -268,7 +278,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "text",
     defaultEnabled: true,
     required: true,
-    extract: (context) => context.unit,
+    extract: (context) => context.measurement.type === "count" ? "" : context.unit,
   },
   {
     id: "area_unit",
@@ -487,7 +497,11 @@ function createClassificationColumns(
 
 function createCsvColumns(session: CurrentSession): CsvColumnDefinition[] {
   return [
-    ...STATIC_CSV_COLUMNS,
+    ...STATIC_CSV_COLUMNS.filter(
+      (column) => column.id !== "count" || Object.values(session.pages).some((page) =>
+        page.measurements.some((measurement) => measurement.type === "count"),
+      ),
+    ),
     ...session.classificationCatalog.dimensions.flatMap(createClassificationColumns),
   ];
 }
@@ -621,36 +635,36 @@ function createCsvRowContext(
   session: CurrentSession,
 ): CsvRowContext {
   const calibration = getMeasurementCalibration(page, measurement);
-  if (!calibration) {
+  if (!calibration && measurement.type !== "count") {
     throw new Error(`Measurement ${measurement.id} has a missing calibration.`);
   }
-  const scaleX = calibrationScaleX(calibration);
-  const scaleY = calibrationScaleY(calibration);
-  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) {
+  const scaleX = calibration ? calibrationScaleX(calibration) : null;
+  const scaleY = calibration ? calibrationScaleY(calibration) : null;
+  if ((scaleX !== null && !Number.isFinite(scaleX)) || (scaleY !== null && !Number.isFinite(scaleY))) {
     throw new RangeError("Calibration must produce finite audit values.");
   }
   const calibrationReferenceMm =
-    calibration.mode === "uniform" ? calibration.referenceDistanceMm : null;
+    calibration?.mode === "uniform" ? calibration.referenceDistanceMm : null;
   const calibrationPageDistanceValue =
-    calibration.mode === "uniform" ? distance(calibration.start, calibration.end) : null;
+    calibration?.mode === "uniform" ? distance(calibration.start, calibration.end) : null;
   const calibrationMmPerPageUnitValue =
-    calibration.mode === "uniform" ? millimetresPerPageUnit(calibration) : null;
+    calibration?.mode === "uniform" ? millimetresPerPageUnit(calibration) : null;
   const ratioDenominator = (scale: number) =>
     practicalScaleRatioDenominator(scaleRatioDenominatorFromMillimetresPerPageUnit(scale));
   const calibrationRatioDenominator =
-    calibration.mode === "uniform" ? ratioDenominator(scaleX) : null;
-  const calibrationRatioXDenominator = calibration.mode === "xy" ? ratioDenominator(scaleX) : null;
-  const calibrationRatioYDenominator = calibration.mode === "xy" ? ratioDenominator(scaleY) : null;
+    calibration?.mode === "uniform" ? ratioDenominator(scaleX!) : null;
+  const calibrationRatioXDenominator = calibration?.mode === "xy" ? ratioDenominator(scaleX!) : null;
+  const calibrationRatioYDenominator = calibration?.mode === "xy" ? ratioDenominator(scaleY!) : null;
   const calibrationXReferenceMm =
-    calibration.mode === "xy" ? calibration.xReference.referenceDistanceMm : null;
+    calibration?.mode === "xy" ? calibration.xReference.referenceDistanceMm : null;
   const calibrationXPageSpan =
-    calibration.mode === "xy"
+    calibration?.mode === "xy"
       ? Math.abs(calibration.xReference.end.x - calibration.xReference.start.x)
       : null;
   const calibrationYReferenceMm =
-    calibration.mode === "xy" ? calibration.yReference.referenceDistanceMm : null;
+    calibration?.mode === "xy" ? calibration.yReference.referenceDistanceMm : null;
   const calibrationYPageSpan =
-    calibration.mode === "xy"
+    calibration?.mode === "xy"
       ? Math.abs(calibration.yReference.end.y - calibration.yReference.start.y)
       : null;
   const unit = resolveLinearUnit(session.settings.displayUnit);
@@ -736,10 +750,10 @@ function* measurementRows(
     if (!page) continue;
     for (const measurement of page.measurements) {
       if (
-        measurement.type === "polygon" &&
+        (measurement.type === "polygon" || measurement.type === "count") &&
         !hasValidMeasurementPoints(measurement.type, measurement.points)
       ) {
-        throw new Error("Repair invalid Polygon measurements before exporting CSV.");
+        throw new Error(`Repair invalid ${measurementPathSpecs[measurement.type].label} measurements before exporting CSV.`);
       }
       const context = createCsvRowContext(
         pageNumber,

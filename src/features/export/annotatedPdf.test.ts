@@ -54,7 +54,7 @@ function pageFixture(): PageState {
         ],
       },
     ],
-    nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1 },
+    nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, count: 1 },
   };
 }
 
@@ -69,7 +69,7 @@ function sessionFixture(pageCount = 1): CurrentSession {
     };
   }
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount,
     currentPage: 1,
@@ -165,7 +165,7 @@ describe("annotated PDF export", () => {
 
     const missingScale = {
       ...page,
-      measurements: [{ ...page.measurements[0]!, calibrationId: "missing" }],
+      measurements: [{ ...page.measurements[0]!, type: "line" as const, calibrationId: "missing" }],
     };
     const withoutScaleLabel = planAnnotatedPdfMeasurements(
       missingScale,
@@ -247,6 +247,24 @@ describe("annotated PDF export", () => {
     expect(drawText.mock.calls[0]?.[1]?.size).toBe(6);
   });
 
+  it("exports unscaled Count markers as circles and labels, respecting visibility", async () => {
+    const source = await sourcePdf();
+    const session = sessionFixture();
+    const page = session.pages[1]!;
+    page.calibrations = [];
+    page.activeCalibrationId = null;
+    page.measurements = [{ id: "count", name: "Socket", type: "count", calibrationId: null, points: [{ x: 20, y: 30 }, { x: 60, y: 80 }], visible: true, classificationValueIds: [] }];
+    const drawCircle = vi.spyOn(PDFPage.prototype, "drawCircle");
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    await createAnnotatedPdf(session, sourceDocument(source));
+    expect(drawCircle).toHaveBeenCalledTimes(2);
+    expect(drawText.mock.calls.some(([text]) => text === "2 items")).toBe(true);
+    page.measurements[0]!.visible = false;
+    drawCircle.mockClear();
+    await createAnnotatedPdf(session, sourceDocument(source));
+    expect(drawCircle).not.toHaveBeenCalled();
+  });
+
   it("exports polyline segments and a closed polygon using the shared measurement styles", async () => {
     const source = await sourcePdf();
     const session = sessionFixture();
@@ -255,6 +273,7 @@ describe("annotated PDF export", () => {
         ...session.pages[1]!.measurements[0]!,
         id: "polyline",
         type: "polyline",
+        calibrationId: "scale-1",
         points: [
           { x: 10, y: 20 },
           { x: 80, y: 20 },
@@ -265,6 +284,7 @@ describe("annotated PDF export", () => {
         ...session.pages[1]!.measurements[0]!,
         id: "polygon",
         type: "polygon",
+        calibrationId: "scale-1",
         points: [
           { x: 120, y: 20 },
           { x: 180, y: 20 },

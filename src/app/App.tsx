@@ -127,6 +127,8 @@ function PlanMeasureApp() {
     renameCalibration,
     updateCalibration,
     pasteMeasurements,
+    updateMeasurements,
+    moveCountItem,
     renameMeasurement,
     setMeasurementNote,
     setMeasurementVisibility,
@@ -683,7 +685,7 @@ function PlanMeasureApp() {
     if (isMeasurementType(tool) && precisionAuthoringBlocked) {
       return;
     }
-    if (isMeasurementType(tool) && (!currentPage || !activePageCalibration)) {
+    if (isMeasurementType(tool) && (!currentPage || (tool !== "count" && !activePageCalibration))) {
       clearDraft();
       chooseWorkspaceTool("select");
       setError("Select a valid scale before creating measurements.");
@@ -1076,7 +1078,27 @@ function PlanMeasureApp() {
     line: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
     polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
+    count: {
+      enabled: !primaryToolsLocked && !precisionAuthoringBlocked,
+      disabledReason: primaryToolsLocked ? primaryToolLockReason : precisionAuthoringDisabledReason,
+    },
   };
+  const addCountItemsDisabledReason = !selectedMeasurement?.visible
+    ? "Show this count before adding items"
+    : primaryToolsLocked
+      ? primaryToolLockReason
+      : precisionAuthoringBlocked
+        ? precisionAuthoringDisabledReason
+        : measurementEditActive
+          ? "Finish or cancel the current edit first"
+          : undefined;
+  function beginAddingCountItems() {
+    if (selectedMeasurement?.type !== "count" || addCountItemsDisabledReason) return;
+    selectWorkspaceMeasurement(selectedMeasurement.id);
+    closeMeasurementDetails();
+    chooseTool("count");
+    focusViewer();
+  }
   const calibrationDialog =
     calibrationCandidate && session && calibrationCandidatePage ? (
       <CalibrationDialog
@@ -1368,6 +1390,28 @@ function PlanMeasureApp() {
                       setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
                     }
                     onAssignClassification={assignClassification}
+                    onAddCountItems={beginAddingCountItems}
+                    addCountItemsDisabledReason={addCountItemsDisabledReason}
+                    onMoveCountItem={(itemIndex, targetId) => {
+                      if (!moveCountItem({
+                        pageNumber: currentPage.pageNumber,
+                        sourceId: selectedMeasurement.id,
+                        targetId,
+                        itemIndex,
+                      })) return;
+                      if (selectedMeasurement.points.length === 1) {
+                        chooseTool("select");
+                        selectWorkspaceMeasurement(targetId);
+                        focusMeasurementDetails();
+                      }
+                    }}
+                    onRemoveCountItem={(index) => {
+                      updateMeasurements([{
+                        pageNumber: currentPage.pageNumber,
+                        id: selectedMeasurement.id,
+                        points: selectedMeasurement.points.filter((_, pointIndex) => pointIndex !== index),
+                      }]);
+                    }}
                     onDelete={() =>
                       requestMeasurementDelete({
                         pageNumber: currentPage.pageNumber,
@@ -1389,6 +1433,8 @@ function PlanMeasureApp() {
               selectedMeasurements={selectedMeasurements}
               classificationCatalog={session.classificationCatalog}
               onEditSelectedMeasurements={editMeasurements}
+              onAddCountItems={beginAddingCountItems}
+              addCountItemsDisabledReason={addCountItemsDisabledReason}
               onClearMeasurementSelection={() => {
                 clearSelection();
                 focusViewer();

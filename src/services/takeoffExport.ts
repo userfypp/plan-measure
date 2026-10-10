@@ -69,6 +69,8 @@ export function buildTakeoffTables(
     "area",
     "area_status",
     "area_unit",
+    "count",
+    "count_status",
   ];
   const table = (
     groups: readonly MeasurementTotalGroup[],
@@ -76,7 +78,7 @@ export function buildTakeoffTables(
   ): ExportTable => ({
     headers: [...headers],
     columnTypes: headers.map((header) =>
-      ["measurement_count", "excluded_count", "length", "perimeter", "area"].includes(header)
+      ["measurement_count", "excluded_count", "length", "perimeter", "area", "count"].includes(header)
         ? "number"
         : "text",
     ),
@@ -99,6 +101,7 @@ export function buildTakeoffTables(
           : fromSquareMillimetres(value, linearUnit),
       ),
       areaUnit,
+      ...convertQuantity(group.count, (value) => value),
     ]),
   });
   const project = table(

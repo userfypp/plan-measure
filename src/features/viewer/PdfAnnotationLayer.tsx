@@ -248,7 +248,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     return [measurement.id, {
       anchor: averagePoint(points),
       minX, maxX, minY, maxY,
-      text: calibration && shouldRenderMeasurement(measurement, showMeasurementLabels) ? formatMeasurement(
+      text: (calibration || measurement.type === "count") && shouldRenderMeasurement(measurement, showMeasurementLabels) ? formatMeasurement(
         measurement, calibration, displayUnit, measurementDecimalPlaces, areaDisplay,
       ) : null,
     }];
@@ -821,7 +821,8 @@ const MeasurementShape = memo(function MeasurementShape({
 }: MeasurementShapeProps) {
   const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useMeasurementCommands();
   const measurementGroupRef = useRef<KonvaGroup>(null);
-  const wholeDragNodeRef = useRef<KonvaLineNode>(null);
+  const wholeDragNodeRef = useRef<KonvaNode>(null);
+  const wholeDragNodeOriginRef = useRef<Point>({ x: 0, y: 0 });
   const dragPreviewRef = useRef<{
     layer: KonvaLayer;
     source: KonvaGroup;
@@ -887,7 +888,7 @@ const MeasurementShape = memo(function MeasurementShape({
   );
   const labelText = useMemo(
     () =>
-      calibration
+      calibration || visibleMeasurement.type === "count"
         ? formatMeasurement(
             visibleMeasurement,
             calibration,
@@ -942,6 +943,8 @@ const MeasurementShape = memo(function MeasurementShape({
     selected || wholeDragPrepared,
     wholeDragEditable,
   );
+  const countUsesWholeDrag = measurement.type === "count" &&
+    (measurement.points.length === 1 || (groupMeasurements?.length ?? 0) > 1);
   const manipulating = dragPoints !== null || vertexDragOwned;
 
   function startDragPreview(node: KonvaNode, renderInitial: () => void): boolean {
@@ -1025,7 +1028,7 @@ const MeasurementShape = memo(function MeasurementShape({
     }
     preview.line.points(pointsToFlat(points));
     points.forEach((point, index) => preview.handles[index]?.position(point));
-    if (preview.label && preview.text && calibration) {
+    if (preview.label && preview.text && (calibration || measurement.type === "count")) {
       const currentMeasurement = { ...measurement, points };
       const text = formatMeasurement(
         currentMeasurement,
@@ -1206,7 +1209,7 @@ const MeasurementShape = memo(function MeasurementShape({
     finalDragPointsRef.current = null;
     dragPointsRef.current = null;
     const node = wholeDragNodeRef.current;
-    if (node) node.position({ x: 0, y: 0 });
+    if (node) node.position(wholeDragNodeOriginRef.current);
     setDragPoints(null);
     onWholeMeasurementDragCancellationChange(measurement.id, null);
     onMeasurementEditActiveChange(measurement.id, false);
@@ -1228,7 +1231,7 @@ const MeasurementShape = memo(function MeasurementShape({
     finalDragPointsRef.current = null;
     dragPointsRef.current = null;
     if (node) {
-      node.position({ x: 0, y: 0 });
+      node.position(wholeDragNodeOriginRef.current);
       node.stopDrag();
     }
     if (cancelledWholeDragRef.current) clearCancelledWholeDrag();
@@ -1384,6 +1387,7 @@ const MeasurementShape = memo(function MeasurementShape({
   function prepareWholeDrag<E extends MouseEvent | TouchEvent>(
     event: KonvaEventObject<E>,
     button: number,
+    countIndex = 0,
   ) {
     if (wholeDragRef.current) return;
     wholeDragRef.current = null;
@@ -1391,6 +1395,10 @@ const MeasurementShape = memo(function MeasurementShape({
     if (!canStartWholeMeasurementDrag(wholeMeasurementDraggable, button)) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
+    if (measurement.type === "count") {
+      wholeDragNodeRef.current = event.target;
+      wholeDragNodeOriginRef.current = measurement.points[countIndex]!;
+    }
     wholeDragRef.current = {
       startScreen: pointer,
       sourcePoints: measurement.points.map((point) => ({ ...point })),
@@ -1402,13 +1410,13 @@ const MeasurementShape = memo(function MeasurementShape({
     onWholeMeasurementDragCancellationChange(measurement.id, cancelWholeDrag);
   }
 
-  function prepareWholeMouseDrag(event: KonvaEventObject<MouseEvent>) {
+  function prepareWholeMouseDrag(event: KonvaEventObject<MouseEvent>, countIndex = 0) {
     if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) return;
-    prepareWholeDrag(event, event.evt.button);
+    prepareWholeDrag(event, event.evt.button, countIndex);
   }
 
-  function prepareWholeTouchDrag(event: KonvaEventObject<TouchEvent>) {
-    prepareWholeDrag(event, 0);
+  function prepareWholeTouchDrag(event: KonvaEventObject<TouchEvent>, countIndex = 0) {
+    prepareWholeDrag(event, 0, countIndex);
   }
 
   function wholeDragResultFromPointer(pointer: Point): WholeMeasurementDragResult | null {
@@ -1428,7 +1436,7 @@ const MeasurementShape = memo(function MeasurementShape({
   }
 
   function resetWholeDragTarget(event: KonvaEventObject<MouseEvent>) {
-    event.target.position({ x: 0, y: 0 });
+    event.target.position(wholeDragNodeOriginRef.current);
   }
 
   function handleWholeDragStart(event: KonvaEventObject<MouseEvent>) {
@@ -1517,7 +1525,10 @@ const MeasurementShape = memo(function MeasurementShape({
     <Group ref={measurementGroupRef}>
       <Line
         name="measurement-preview-line"
-        ref={wholeDragNodeRef}
+        visible={measurement.type !== "count"}
+        ref={(node) => {
+          if (measurement.type !== "count") wholeDragNodeRef.current = node;
+        }}
         points={flatPoints}
         closed={measurementPathSpecs[measurement.type].closed}
         fill={
@@ -1571,25 +1582,31 @@ const MeasurementShape = memo(function MeasurementShape({
           />
         </Label>
       )}
-      {shouldRenderMeasurementVertexHandles(selected, vertexDragOwned, editable) &&
+      {(measurement.type === "count" || shouldRenderMeasurementVertexHandles(selected, vertexDragOwned, editable)) &&
         visibleMeasurement.points.map((point, index) => (
           <Circle
             key={index}
             name="measurement-preview-handle"
             x={point.x}
             y={point.y}
-            radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
+            radius={(measurement.type === "count" ? CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx : CANVAS_VISUAL_METRICS.handleRadiusScreenPx) / zoom}
             fill={visualRoles.handleFill}
-            stroke={visualRoles.handleStroke}
+            stroke={measurement.type === "count" ? stroke : visualRoles.handleStroke}
             strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
             hitStrokeWidth={
               circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom
             }
-            draggable
+            draggable={measurement.type === "count" ? selected && (countUsesWholeDrag ? wholeMeasurementDraggable : editable) : editable}
+            dragDistance={countUsesWholeDrag ? MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX : undefined}
             onClick={(event) => {
-              if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) select(event);
+              if (measurement.type === "count" || event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) select(event);
             }}
             onMouseDown={(event) => {
+              if (countUsesWholeDrag) {
+                prepareWholeMouseDrag(event, index);
+                return;
+              }
+              if (!editable || (measurement.type === "count" && !selected)) return;
               if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) {
                 event.cancelBubble = true;
                 return;
@@ -1599,6 +1616,11 @@ const MeasurementShape = memo(function MeasurementShape({
               }
             }}
             onTouchStart={(event) => {
+              if (countUsesWholeDrag) {
+                prepareWholeTouchDrag(event, index);
+                return;
+              }
+              if (!editable || (measurement.type === "count" && !selected)) return;
               // Touch has no mouse button, but Konva treats touchstart as a
               // legitimate draggable start. Preserve the pre-#38 behavior by
               // giving it the same owned preparation as a primary mouse drag.
@@ -1607,6 +1629,10 @@ const MeasurementShape = memo(function MeasurementShape({
               }
             }}
             onDragStart={(event) => {
+              if (countUsesWholeDrag) {
+                handleWholeDragStart(event);
+                return;
+              }
               event.cancelBubble = true;
               const preparation = vertexDragPreparationRef.current;
               vertexDragPreparationRef.current = null;
@@ -1643,6 +1669,10 @@ const MeasurementShape = memo(function MeasurementShape({
               });
             }}
             onDragMove={(event) => {
+              if (countUsesWholeDrag) {
+                handleWholeDragMove(event);
+                return;
+              }
               event.cancelBubble = true;
               const drag = getActiveMeasurementVertexDrag(
                 vertexDragStateRef.current,
@@ -1663,6 +1693,10 @@ const MeasurementShape = memo(function MeasurementShape({
               });
             }}
             onDragEnd={(event) => {
+              if (countUsesWholeDrag) {
+                handleWholeDragEnd(event);
+                return;
+              }
               event.cancelBubble = true;
               const drag = getActiveMeasurementVertexDrag(
                 vertexDragStateRef.current,

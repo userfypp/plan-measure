@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Measurement, MeasurementType, PageCalibration, Point } from "../../types/domain";
+import type { PathMeasurement, PathMeasurementType, PageCalibration, Point } from "../../types/domain";
 import { fitToScreen, isPointInPage, pageToScreen, rotatedPageBounds } from "../../utils/coordinates";
 import { measurementResultsMm } from "../../utils/geometry";
 import {
@@ -35,7 +35,7 @@ const calibration: PageCalibration = {
   },
 };
 
-function measurement(type: MeasurementType, points: Point[]): Measurement {
+function measurement(type: PathMeasurementType, points: Point[]): PathMeasurement {
   return {
     id: `${type}-1`,
     type,
