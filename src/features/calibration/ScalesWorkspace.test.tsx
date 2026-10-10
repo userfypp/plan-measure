@@ -236,10 +236,12 @@ describe("ScalesWorkspace", () => {
     const inactive = buttonByLabel("Expand scale Survey correction");
     const activeRow = active.closest<HTMLElement>('[role="listitem"]');
     const inactiveRow = inactive.closest<HTMLElement>('[role="listitem"]');
+    const activeClass = styles.active;
     if (!activeRow) throw new Error("Active scale row was not rendered.");
     if (!inactiveRow) throw new Error("Inactive scale row was not rendered.");
-    expect(activeRow.classList.contains(styles.active)).toBe(true);
-    expect(inactiveRow.classList.contains(styles.active)).toBe(false);
+    if (!activeClass) throw new Error("Active scale styling was not defined.");
+    expect(activeRow.classList.contains(activeClass)).toBe(true);
+    expect(inactiveRow.classList.contains(activeClass)).toBe(false);
     expect(activeRow.textContent).not.toContain("Active");
     expect(activeRow.textContent).not.toContain("✓");
     expect(activeRow.textContent).not.toContain("···");
