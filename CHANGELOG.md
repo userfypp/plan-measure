@@ -4,6 +4,32 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.9.0](https://github.com/userfypp/plan-measure/compare/v2.8.0...v2.9.0) (2026-10-10)
+
+
+### Added
+
+* add configurable takeoff summaries to data exports ([#218](https://github.com/userfypp/plan-measure/issues/218)) ([687bb93](https://github.com/userfypp/plan-measure/commit/687bb9347f01d4b55e7bdfdd66e759327cef42ba))
+* add native item counting ([#222](https://github.com/userfypp/plan-measure/issues/222)) ([1a9c8a7](https://github.com/userfypp/plan-measure/commit/1a9c8a73f97ee116e62d6d441f7f944c19244103))
+* **app:** add an editable sample project ([#217](https://github.com/userfypp/plan-measure/issues/217)) ([7749f99](https://github.com/userfypp/plan-measure/commit/7749f9981ee76dab0f6f22ce468f2b14ea6ec94b))
+* open source measurements from takeoff totals ([#221](https://github.com/userfypp/plan-measure/issues/221)) ([7afa5f0](https://github.com/userfypp/plan-measure/commit/7afa5f057cfec26c330ef52be3e868123829526b))
+
+
+### Fixed
+
+* **takeoff:** improve visual hierarchy and compact layout ([#200](https://github.com/userfypp/plan-measure/issues/200)) ([c85cdb9](https://github.com/userfypp/plan-measure/commit/c85cdb90b2f4881caf0e732910d88f0c328f7f4d))
+
+
+### Improved
+
+* optimize annotation rendering and CSV export with performance regression tests ([#220](https://github.com/userfypp/plan-measure/issues/220)) ([a9d3c0c](https://github.com/userfypp/plan-measure/commit/a9d3c0c136845e4e05ce26aa070f4c59b714ab30))
+* optimize measurement rendering, autosave, CSV export and startup loading ([#219](https://github.com/userfypp/plan-measure/issues/219)) ([c7eb89c](https://github.com/userfypp/plan-measure/commit/c7eb89cb7ad5f69210e06c25ec0be94f05a23c33))
+
+
+### Documentation
+
+* simplify and update repository documentation ([#198](https://github.com/userfypp/plan-measure/issues/198)) ([1e8bebe](https://github.com/userfypp/plan-measure/commit/1e8bebe7cf7c7abbe47c3017a45cfb2327b83b65))
+
 ## [2.8.0](https://github.com/userfypp/plan-measure/compare/v2.7.1...v2.8.0) (2026-10-08)
 
 
