@@ -38,14 +38,14 @@ Use the controls below the plan for pages, zoom, **Fit**, active scale, and **Vi
 
 ## Projects and recovery
 
-**Projects** opens, imports, exports, and deletes local projects. Opening another PDF or importing a project keeps existing projects. Export `.planmeasure` files to back up or transfer the PDF and editable data.
+**Projects** opens, imports, exports, and deletes local projects. Opening another PDF or importing a project keeps existing projects. Click the save status in the application bar → **Export backup (.planmeasure)**, or use **Projects → Export**, to download a file with the PDF and editable data.
 
-Completed edits autosave in IndexedDB. Drafts, Snap, Ortho, zoom, pan, and undo history are not saved. Browser site-data deletion removes saved projects.
+The save status shows **Saving…**, **Saved on this device** after confirmation, or **Couldn't save**; repair, another-tab, and storage problems have their own labels. Completed edits autosave in IndexedDB only in this browser. Drafts, Snap, Ortho, zoom, pan, and undo history are not saved. The app requests persistent storage after a confirmed save when supported; the browser may deny it or ask for permission. Clearing site data still removes saved projects, so keep downloaded backups.
 
 If saving fails:
 
 1. Use **Retry saving** when available.
-2. Use **Export project** to preserve your current edits.
+2. Use **Export backup (.planmeasure)** in the save status, or **Export project** in the warning, to preserve your current edits.
 3. If another tab changed the project, use **Reload saved projects** after exporting. Reloading discards unsaved edits.
 
 Older data is migrated when possible. If repair is required, autosave stays paused until the reported problems are resolved.

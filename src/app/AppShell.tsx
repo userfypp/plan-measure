@@ -9,6 +9,7 @@ import styles from "./AppShell.module.css";
 type StatusTone = "error" | "warning";
 
 interface AppShellProps {
+  saveStatus?: ReactNode;
   children: ReactNode;
   documentName: string | null;
   canExport: boolean;
@@ -40,6 +41,7 @@ interface AppShellProps {
 }
 
 export function AppShell({
+  saveStatus,
   children,
   documentName,
   canExport,
@@ -79,6 +81,7 @@ export function AppShell({
       data-tab-navigation-root
     >
       <AppBar
+        saveStatus={saveStatus}
         documentName={documentName}
         canExport={canExport}
         savedProjectCount={savedProjectCount}

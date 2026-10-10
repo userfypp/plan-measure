@@ -172,11 +172,36 @@
   stroke-width: 1.5;
 }
 
+@media (max-width: 1000px) {
+  .withSaveStatus {
+    height: auto;
+    min-height: var(--geometry-app-bar-height-narrow);
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .withSaveStatus .identityGroup {
+    flex-basis: 0;
+    min-height: var(--geometry-app-bar-height-narrow);
+  }
+
+  .withSaveStatus .actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}
+
 @media (any-pointer: coarse) {
   .appBar {
     height: var(--geometry-app-bar-height-narrow);
     padding-right: var(--space-4);
     padding-left: var(--space-12);
+  }
+
+  .withSaveStatus {
+    height: auto;
+    min-height: var(--geometry-app-bar-height-narrow);
   }
 }
 
@@ -188,6 +213,10 @@
     height: var(--geometry-app-bar-height-narrow);
     padding-right: var(--space-4);
     padding-left: var(--space-12);
+  }
+
+  .withSaveStatus {
+    height: auto;
   }
 }
 

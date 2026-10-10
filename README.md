@@ -28,7 +28,7 @@ See the [user guide](docs/user-guide.md) for scales, editing, exports, recovery,
 
 PDFs and measurements are processed in your browser and are not sent to a server. Projects autosave on this device; there is no cloud sync.
 
-**Use Projects → Export to keep a `.planmeasure` backup**, including the PDF. Clearing browser site data removes saved projects. JSON and spreadsheet exports are not editable project backups.
+**Use the save status → Export backup or Projects → Export to keep a `.planmeasure` backup**, including the PDF and editable data. Persistent browser storage is requested after a confirmed save when supported; clearing site data still removes saved projects. JSON and spreadsheet exports are not editable project backups.
 
 - PDF size limit: 100 MB. PDFs that require a password cannot be opened.
 - Drawing and geometry editing need at least 480 × 360 px of unobscured viewer space and a fine pointer or keyboard authoring enabled in Settings.

@@ -9,6 +9,7 @@ import { isSessionPersistable } from "./autosave";
 import { PdfLoadLifecycle } from "./pdfLoadLifecycle";
 import type { ReplacePdfPayload } from "./overlayState";
 import * as persistenceService from "../services/persistence";
+import * as storagePersistence from "../services/storagePersistence";
 import * as persistenceCodec from "../services/persistenceCodec";
 import {
   activateSavedProject,
@@ -50,6 +51,128 @@ let lifecycleRuntimeEvents: Array<
   { type: "viewer-cleanup" | "destroy"; pdf: LoadedPdf }
 > = [];
 const originalStructuredClone = globalThis.structuredClone;
+
+describe("confirmed save status and persistence requests", () => {
+  it("requests only after the initial content write confirms and never waits for the browser permission", async () => {
+    const persist = vi.fn(() => new Promise<boolean>(() => undefined));
+    const persisted = vi.fn().mockResolvedValue(false);
+    const request = vi
+      .spyOn(storagePersistence, "requestPersistentStorageAfterSave")
+      .mockImplementation(
+        storagePersistence.createStoragePersistenceRequest(() => ({
+          secure: true,
+          storage: { persist, persisted },
+        })),
+      );
+    await renderLifecycleHarness();
+    expect(request).not.toHaveBeenCalled();
+    expect(persisted).not.toHaveBeenCalled();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = persistenceService.replaceSavedSession;
+    vi.spyOn(persistenceService, "replaceSavedSession").mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    let opening!: Promise<void>;
+    act(() => {
+      opening = lifecycle!.chooseFile(new File(["pdf"], "plan.pdf", { type: "application/pdf" }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).not.toBe("saved");
+    expect(request).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+    await act(async () => {
+      release();
+      await opening;
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+    expect(persist).toHaveBeenCalledOnce();
+    const edited = {
+      ...harnessSession!,
+      settings: { ...harnessSession!.settings, showLabels: false },
+    };
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+    expect((await loadSavedSession())!.session).toEqual(edited);
+    expect(persist).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the latest edit Saving until its own IndexedDB write confirms", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const starting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const original = persistenceService.saveSessionMetadata;
+    vi.spyOn(persistenceService, "saveSessionMetadata").mockImplementationOnce(async (...args) => {
+      started();
+      await gate;
+      return original(...args);
+    });
+    const edited = {
+      ...harnessSession!,
+      settings: { ...harnessSession!.settings, showLabels: false },
+    };
+    act(() => setHarnessSession!(edited));
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saving");
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      await starting;
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saving");
+    expect((await loadSavedSession())!.session).not.toEqual(edited);
+    const latest = { ...edited, settings: { ...edited.settings, showMeasurements: false } };
+    act(() => setHarnessSession!(latest));
+    await act(async () => {
+      release();
+      await gate;
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saving");
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+    const saved = (await loadSavedSession())!;
+    expect(saved.session).toEqual(latest);
+    expect(saved.session.schemaVersion).toBe(latest.schemaVersion);
+    expect(Object.keys(saved.session)).toEqual(Object.keys(latest));
+  });
+
+  it("shows Storage unavailable when the initial browser save fails, with no recoverable copy", async () => {
+    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(
+      new DOMException("Storage unavailable", "SecurityError"),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(new File(["pdf"], "plan.pdf", { type: "application/pdf" }));
+    });
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("unavailable");
+    expect(lifecycle!.activePdf).not.toBeNull();
+    expect(await loadSavedSession()).toBeNull();
+  });
+});
 
 beforeEach(async () => {
   // jsdom's structuredClone drops Blob data; IndexedDB preserves it in browsers.
@@ -958,6 +1081,7 @@ describe("autosave after undoing a repair", () => {
         await lifecycle!.continueRecovery();
       });
       expect(lifecycle!.autosaveWarning).toContain("Autosave is paused");
+      expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("repair-required");
       const save = vi.spyOn(persistenceService, "saveSessionMetadata");
       act(() => {
         if (kind === "polygon") historyCommands!.deleteMeasurement(1, "invalid-polygon");
@@ -976,6 +1100,7 @@ describe("autosave after undoing a repair", () => {
       });
       expect(isSessionPersistable(harnessSession!)).toBe(false);
       expect(lifecycle!.autosaveWarning).toContain("Autosave is paused");
+      expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("repair-required");
       await act(async () => {
         window.dispatchEvent(new Event("beforeunload"));
         Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
@@ -1044,6 +1169,7 @@ describe("autosave after undoing a repair", () => {
     });
     expect(lifecycle!.autosaveUnavailable).toBe(true);
     expect(lifecycle!.autosaveWarning).toContain("Autosave is paused");
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("repair-required");
     expect(save).toHaveBeenCalledOnce();
     act(() => setHarnessSession!(edited));
     await act(async () => {
@@ -1078,6 +1204,7 @@ describe("autosave after undoing a repair", () => {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     });
     expect(lifecycle!.autosaveWarning).toContain("another tab changed");
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("conflict");
     expect(save).toHaveBeenCalledOnce();
     expect(lifecycle!.canRetryAutosave).toBe(false);
     await act(async () => { await lifecycle!.retryAutosave(); });
@@ -1090,6 +1217,7 @@ describe("autosave after undoing a repair", () => {
     });
     expect(save).toHaveBeenCalledOnce();
     expect(lifecycle!.autosaveWarning).toContain("another tab changed");
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("conflict");
     expect((await loadSavedSession())!.session).toEqual(external);
     let downloaded: Blob | null = null;
     vi.stubGlobal("URL", Object.assign(class extends URL {}, {
@@ -1127,6 +1255,7 @@ describe("explicit autosave recovery", () => {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     });
     expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("failed");
     expect(lifecycle!.canRetryAutosave).toBe(true);
     expect((await loadSavedSession())!.revision).toBe(saved.revision);
     const latest = { ...edited, settings: { ...edited.settings, showLabels: false } };
@@ -1165,6 +1294,7 @@ describe("explicit autosave recovery", () => {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     });
     expect(lifecycle!.autosaveFailed).toBe(false);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
     expect(lifecycle!.autosaveWarning).toBeNull();
     expect((await loadSavedSession())!.session).toEqual(duringRetry);
     expect(save).toHaveBeenCalledTimes(3);
@@ -1191,6 +1321,7 @@ describe("explicit autosave recovery", () => {
       await lifecycle!.retryAutosave();
     });
     expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("failed");
     expect(lifecycle!.canRetryAutosave).toBe(true);
     expect(harnessSession).toEqual(edited);
     expect(await loadSavedSession()).toEqual(saved);
@@ -1199,6 +1330,7 @@ describe("explicit autosave recovery", () => {
     });
     expect(save).toHaveBeenCalledTimes(3);
     expect(lifecycle!.autosaveFailed).toBe(false);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
     expect((await loadSavedSession())!.session).toEqual(edited);
   });
 
@@ -1231,6 +1363,7 @@ describe("explicit autosave recovery", () => {
       await lifecycle!.retryAutosave();
     });
     expect(lifecycle!.autosaveWarning).toContain("another tab changed");
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("conflict");
     expect(lifecycle!.canRetryAutosave).toBe(false);
     expect(harnessSession).toEqual(edited);
     expect(save.mock.calls[1]![1]).toBe(saved.revision);
@@ -1251,6 +1384,7 @@ describe("explicit autosave recovery", () => {
       );
     });
     expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("unavailable");
     expect(await loadSavedSession()).toBeNull();
     await act(async () => {
       await lifecycle!.retryAutosave();
@@ -1258,6 +1392,7 @@ describe("explicit autosave recovery", () => {
     expect(replace).toHaveBeenCalledTimes(2);
     expect(replace.mock.calls[1]![2]).toBeNull();
     expect(lifecycle!.autosaveFailed).toBe(false);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
     expect((await loadSavedSession())!.session).toEqual(harnessSession);
     expect(lifecycle!.savedProjects).toHaveLength(1);
   });

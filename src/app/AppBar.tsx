@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { AnchoredMenu, Button, type AnchoredMenuItem } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { MeasurementDecimalPlaces } from "../types/domain";
@@ -31,6 +31,7 @@ const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
 ];
 
 interface AppBarProps {
+  saveStatus?: ReactNode;
   documentName: string | null;
   canExport: boolean;
   savedProjectCount?: number;
@@ -66,6 +67,7 @@ function SettingsIcon() {
 }
 
 export function AppBar({
+  saveStatus,
   documentName,
   canExport,
   savedProjectCount = 0,
@@ -92,7 +94,10 @@ export function AppBar({
   const actionsFocus = useRovingFocusGroup(actionsRef, { orientation: "horizontal" });
 
   return (
-    <header className={styles.appBar} aria-label="Application bar">
+    <header
+      className={[styles.appBar, saveStatus ? styles.withSaveStatus : ""].filter(Boolean).join(" ")}
+      aria-label="Application bar"
+    >
       <div className={styles.identityGroup}>
         <div className={styles.brand}>Plan Measure</div>
         <span className={styles.identityDivider} aria-hidden="true" />
@@ -101,6 +106,7 @@ export function AppBar({
         </div>
       </div>
 
+      {saveStatus}
       <div
         ref={actionsRef}
         {...actionsFocus}
