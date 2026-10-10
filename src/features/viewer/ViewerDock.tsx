@@ -14,6 +14,8 @@ type ViewerSettings = Pick<
 
 export interface ViewerDockProps {
   navigation: ViewerNavigationModel;
+  pagesOpen?: boolean;
+  onTogglePages?: () => void;
   sourcePageLabel: string | null;
   customPageLabel: string | null;
   effectivePageLabel: string;
@@ -90,6 +92,8 @@ function EyeIcon() {
 
 export function ViewerDock({
   navigation,
+  pagesOpen = false,
+  onTogglePages,
   sourcePageLabel,
   customPageLabel,
   effectivePageLabel,
@@ -196,6 +200,18 @@ export function ViewerDock({
         aria-label="Page navigation"
         aria-orientation="horizontal"
       >
+        {onTogglePages && (
+          <Button
+            className={styles.pagesTrigger}
+            variant="ghost"
+            size="compact"
+            aria-pressed={pagesOpen}
+            aria-controls="page-browser"
+            onClick={onTogglePages}
+          >
+            Pages
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="compact"

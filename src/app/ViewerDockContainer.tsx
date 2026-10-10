@@ -11,10 +11,14 @@ import { useWorkspaceState } from "./workspaceState";
 
 export function ViewerDockContainer({
   navigation,
+  pagesOpen = false,
+  onTogglePages,
   sourcePageLabels,
   logicalPageBounds,
 }: {
   navigation: ViewerNavigationModel;
+  pagesOpen?: boolean;
+  onTogglePages?: () => void;
   sourcePageLabels: readonly string[] | null;
   logicalPageBounds: LogicalPageBounds | null;
 }) {
@@ -60,6 +64,8 @@ export function ViewerDockContainer({
   return (
     <ViewerDock
       navigation={navigation}
+      pagesOpen={pagesOpen}
+      onTogglePages={onTogglePages}
       sourcePageLabel={pdfPageLabel}
       customPageLabel={customPageLabel}
       effectivePageLabel={effectivePageLabel(

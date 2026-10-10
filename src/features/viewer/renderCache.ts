@@ -14,6 +14,7 @@ export class LruRenderCache<T> {
   constructor(
     private readonly maxEntries = MAX_RENDER_CACHE_ENTRIES,
     private readonly maxPixels = MAX_RENDER_CACHE_PIXELS,
+    private readonly dispose?: (value: T) => void,
   ) {}
 
   get(key: string): T | undefined {
@@ -28,6 +29,7 @@ export class LruRenderCache<T> {
     if (pixels <= 0 || pixels > this.maxPixels) return;
     const previous = this.entries.get(key);
     if (previous) {
+      if (previous.value !== value) this.dispose?.(previous.value);
       this.totalPixels -= previous.pixels;
       this.entries.delete(key);
     }
@@ -39,11 +41,15 @@ export class LruRenderCache<T> {
       if (!oldestKey) break;
       const oldest = this.entries.get(oldestKey);
       this.entries.delete(oldestKey);
-      if (oldest) this.totalPixels -= oldest.pixels;
+      if (oldest) {
+        this.totalPixels -= oldest.pixels;
+        this.dispose?.(oldest.value);
+      }
     }
   }
 
   clear(): void {
+    this.entries.forEach((entry) => this.dispose?.(entry.value));
     this.entries.clear();
     this.totalPixels = 0;
   }

@@ -7,6 +7,7 @@ import {
   type DragEventHandler,
   type ReactNode,
 } from "react";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Button } from "../components/ui";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import type { LogicalPageBounds } from "../types/domain";
@@ -43,6 +44,7 @@ interface WorkspaceShellProps {
   viewerOverlay?: ReactNode;
   viewerTransientOverlay?: ReactNode;
   viewer?: ReactNode;
+  pdfDocument?: PDFDocumentProxy;
   sourcePageLabels?: readonly string[] | null;
   logicalPageBounds?: LogicalPageBounds | null;
   keyboardAuthoringEnabled?: boolean;
@@ -65,6 +67,7 @@ export function WorkspaceShell({
   viewerOverlay,
   viewerTransientOverlay,
   viewer,
+  pdfDocument,
   sourcePageLabels = null,
   logicalPageBounds = null,
   keyboardAuthoringEnabled = false,
@@ -302,6 +305,7 @@ export function WorkspaceShell({
           contextToolbar={contextToolbar}
           viewerOverlay={viewerOverlay}
           viewerTransientOverlay={viewerTransientOverlay}
+          pdfDocument={pdfDocument}
           sourcePageLabels={sourcePageLabels}
           logicalPageBounds={logicalPageBounds}
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}

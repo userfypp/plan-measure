@@ -22,6 +22,7 @@ import { pageToScreen, pdfRasterLayout, screenToPage } from "../../utils/coordin
 import { PdfViewer } from "./PdfViewer";
 import { createScaleCheckStore, type ScaleCheckStore } from "../calibration/scaleCheckState";
 import { ScaleCheckPanel } from "../calibration/ScaleCheckPanel";
+import { mainPdfBusy } from "./pdfRenderPriority";
 import { MAX_RENDER_CACHE_PIXELS } from "./renderCache";
 import {
   AuthoringCapabilityProvider,
@@ -520,6 +521,23 @@ describe("PdfViewer render liveness", () => {
       root.render(options.strict ? <StrictMode>{content}</StrictMode> : content);
     });
   }
+
+  it("releases thumbnail priority after the main raster settles, including Strict Mode", async () => {
+    const pdfPage = createPdfPage();
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    await mountViewer(runtime.document, { strict: true });
+    expect(mainPdfBusy(runtime.document)).toBe(false);
+  });
+
+  it("holds thumbnail priority while the main render is pending and releases it on completion", async () => {
+    const task = controlledRenderTask();
+    const pdfPage = createPdfPage(() => task.task);
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    await mountViewer(runtime.document);
+    expect(mainPdfBusy(runtime.document)).toBe(true);
+    await act(async () => task.resolve());
+    expect(mainPdfBusy(runtime.document)).toBe(false);
+  });
 
   it("starts rasterization when the mounted viewer is already non-zero before ResizeObserver publishes", async () => {
     const pdfPage = createPdfPage();

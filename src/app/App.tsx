@@ -12,6 +12,7 @@ import { ContextToolbar } from "./ContextToolbar";
 import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
+import { usePdfPageLabels } from "./usePdfPageLabels";
 import { Modal } from "../components/Modal";
 import { Button, ConfirmationDialog } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
@@ -392,6 +393,8 @@ function PlanMeasureApp() {
     closeAllOverlays,
     setError,
   });
+
+  const sourcePageLabels = usePdfPageLabels(activePdf);
 
   const clearDragState = useCallback(() => {
     dragDepthRef.current = 0;
@@ -1334,7 +1337,8 @@ function PlanMeasureApp() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          sourcePageLabels={activePdf.pageLabels}
+          pdfDocument={activePdf.document}
+          sourcePageLabels={sourcePageLabels}
           logicalPageBounds={
             viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null
           }
@@ -1346,7 +1350,7 @@ function PlanMeasureApp() {
                   page={previewPage}
                   pages={previewPages ?? session.pages}
                   pageLabelOverrides={session.pageLabelOverrides}
-                  sourcePageLabels={activePdf.pageLabels}
+                  sourcePageLabels={sourcePageLabels}
                   selectedMeasurementId={selectedMeasurementId}
                   selectedMeasurementIds={selectedMeasurementIds}
                   onSelectMeasurement={selectMeasurementFromPanel}
@@ -1365,7 +1369,7 @@ function PlanMeasureApp() {
                   decimalPlaces={session.settings.measurementDecimalPlaces}
                   areaDisplay={session.settings.areaDisplay}
                   pageLabelOverrides={session.pageLabelOverrides}
-                  sourcePageLabels={activePdf.pageLabels}
+                  sourcePageLabels={sourcePageLabels}
                 />
               }
               classifications={
@@ -1725,7 +1729,7 @@ function PlanMeasureApp() {
           <ExportDialog
             session={session}
             summaryBlocked={summaryExportBlocked}
-            pageLabels={activePdf?.pageLabels ?? null}
+            pageLabels={sourcePageLabels}
             onExportAnnotatedPdf={
               activePdf
                 ? async () => {

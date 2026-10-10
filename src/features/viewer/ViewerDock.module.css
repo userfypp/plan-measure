@@ -94,6 +94,7 @@
 }
 
 .pageTrigger[aria-expanded="true"]:not(:disabled),
+.pagesTrigger[aria-pressed="true"]:not(:disabled),
 .scaleTrigger[aria-expanded="true"]:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger[aria-expanded="true"]:not(:disabled) {
   border-color: var(--color-accent);

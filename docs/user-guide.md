@@ -32,7 +32,7 @@ In **Classifications**, create dimensions such as Trade with values such as Elec
 
 ## View and settings
 
-Use the controls below the plan for pages, zoom, **Fit**, active scale, and **View**. Click a page label to rename it. **View** sets display units and the visibility of labels, geometry, and calibration references; polygon area can also use acres.
+Use the controls below the plan for previous/next pages, zoom, **Fit**, active scale, and **View**. Open **Pages**, search a label (Enter opens a single match), or enter a physical number in **Go to page** and press Enter. Thumbnails load only for visible rows and nearby pages. Click the label below the plan to rename it; the browser also shows existing custom labels. **View** sets display units and annotation visibility; polygon area can also use acres.
 
 **Settings** contains appearance, displayed decimal places, deletion confirmations, the workspace used when reopening projects, and keyboard authoring. Displayed decimal places do not change CSV precision or feet-and-inches fractions.
 

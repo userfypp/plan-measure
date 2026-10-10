@@ -70,6 +70,7 @@ import crosshairCursor from "./cursors/crosshair.png";
 import grabCursor from "./cursors/grab.png";
 import grabbingCursor from "./cursors/grabbing.png";
 import { LruRenderCache } from "./renderCache";
+import { setMainPdfBusy, setMainPdfPage } from "./pdfRenderPriority";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
 import {
   extractSnapTargets,
@@ -282,6 +283,8 @@ export function PdfViewer({
   const cachedPanGroupRef = useRef<Konva.Group | null>(null);
   const draftPreviewGroupRef = useRef<Konva.Group>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
+  const mainRenderOwnerRef = useRef({});
+  const panOwnerRef = useRef({});
   const activePageRequestRef = useRef({ document, pageNumber: page.pageNumber });
   const viewerMountedRef = useRef(false);
   const pageRenderTasksRef = useRef(new WeakMap<PDFPageProxy, Set<RenderTask>>());
@@ -633,6 +636,7 @@ export function PdfViewer({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          setMainPdfBusy(document, mainRenderOwnerRef.current, false);
           setFailedPageRequest({ document, pageNumber: page.pageNumber });
           setDisplayedRaster(null);
           setError(pdfRenderErrorMessage(error));
@@ -664,6 +668,19 @@ export function PdfViewer({
         : transform,
     [bounds, fitMode, safeViewer.size, transform],
   );
+
+  useLayoutEffect(() => {
+    const owner = mainRenderOwnerRef.current;
+    setMainPdfPage(document, page.pageNumber);
+    setMainPdfBusy(document, owner, true);
+    return () => setMainPdfBusy(document, owner, false);
+  }, [document, page.pageNumber, viewTransform.zoom]);
+
+  useLayoutEffect(() => {
+    const owner = panOwnerRef.current;
+    setMainPdfBusy(document, owner, isPanning);
+    return () => setMainPdfBusy(document, owner, false);
+  }, [document, isPanning]);
 
   const showPage = Boolean(
     pageReady &&
@@ -754,6 +771,7 @@ export function PdfViewer({
     const loadedPage = pageRenderData;
     if (!canvas || !loadedPage || viewerSize.width <= 0 || viewerSize.height <= 0) return;
 
+    setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, true);
     const requestId = ++renderRequestRef.current;
     const layout = pdfRasterLayout(
       loadedPage.bounds,
@@ -782,6 +800,7 @@ export function PdfViewer({
           ? recentRaster.canvas
           : undefined);
       if (reusableRaster) {
+        setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, false);
         recentRasterRef.current = {
           document: loadedPage.document,
           cacheKey,
@@ -798,6 +817,7 @@ export function PdfViewer({
       rasterCanvas.height = layout.backingHeight;
       const context = rasterCanvas.getContext("2d", { alpha: false });
       if (!context) {
+        setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, false);
         setAnnotationPreparationPage(null);
         setError("The PDF canvas could not be created.");
         return;
@@ -817,6 +837,7 @@ export function PdfViewer({
         .then(() => {
           if (requestId !== renderRequestRef.current) return;
           renderTaskRef.current = null;
+          setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, false);
           renderCacheRef.current.set(
             cacheKey,
             rasterCanvas,
@@ -834,6 +855,7 @@ export function PdfViewer({
         .catch((error: unknown) => {
           if (requestId !== renderRequestRef.current) return;
           renderTaskRef.current = null;
+          setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, false);
           const message = pdfRenderErrorMessage(error);
           if (message) {
             setAnnotationPreparationPage(null);
