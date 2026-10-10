@@ -219,6 +219,25 @@ export function planAnnotatedPdfMeasurements(
   return planned;
 }
 
+type GraphicsStateOptions = { opacity?: number; borderOpacity?: number; blendMode?: string };
+type GraphicsStateEmbedder = { maybeEmbedGraphicsState(options: GraphicsStateOptions): unknown };
+
+/**
+ * pdf-lib embeds a new ExtGState for every call that has an opacity and looks up a free
+ * key by scanning the existing ones, which is quadratic over thousands of shapes. Reuse
+ * one ExtGState per distinct opacity; the drawing operations are unchanged.
+ */
+function shareGraphicsStates(page: PDFPage) {
+  const target = page as unknown as GraphicsStateEmbedder;
+  const embed = target.maybeEmbedGraphicsState.bind(page);
+  const keys = new Map<string, unknown>();
+  target.maybeEmbedGraphicsState = (options) => {
+    const id = `${options.opacity}|${options.borderOpacity}|${options.blendMode}`;
+    if (!keys.has(id)) keys.set(id, embed(options));
+    return keys.get(id);
+  };
+}
+
 function drawMeasurementGeometry(
   page: PDFPage,
   viewport: PdfViewportLike,
@@ -348,6 +367,7 @@ export async function createAnnotatedPdf(
       height: font.heightAtSize(LABEL_FONT_SIZE_PDF_PT) + LABEL_PADDING_PDF_PT * 2,
     }));
     const outputPage = pages[pageNumber - 1]!;
+    shareGraphicsStates(outputPage);
 
     for (const plan of plans) {
       drawMeasurementGeometry(outputPage, viewport, plan.measurement, pdfLib);
