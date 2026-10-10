@@ -62,6 +62,8 @@ import {
 } from "./measurementDrag";
 import { createMeasurementVertexDragCancellationRegistry } from "./measurementVertexDrag";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
+import { ScaleCheckLine } from "./ScaleCheckLine";
+import type { ScaleCheckStore } from "../calibration/scaleCheckState";
 import styles from "./PdfViewer.module.css";
 import defaultCursor from "./cursors/default.png";
 import crosshairCursor from "./cursors/crosshair.png";
@@ -143,6 +145,7 @@ interface PdfViewerProps {
   onChooseTool: (tool: Tool) => void;
   onCalibrationCandidate: (points: [Point, Point]) => void;
   onCalibrationCancel: () => void;
+  scaleCheckStore?: ScaleCheckStore;
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
   measurementEditingBlocked: boolean;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
@@ -231,6 +234,7 @@ export function PdfViewer({
   onCalibrationCandidate,
   onCalibrationCancel,
   calibrationReferenceEdit,
+  scaleCheckStore,
   measurementEditingBlocked,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceEditCancel,
@@ -1978,6 +1982,14 @@ export function PdfViewer({
                 clipWidth={stage.data.bounds.width}
                 clipHeight={stage.data.bounds.height}
               >
+                {scaleCheckStore && (
+                  <ScaleCheckLine
+                    store={scaleCheckStore}
+                    pageNumber={stage.data.pageNumber}
+                    zoom={viewTransform.zoom}
+                    stroke={canvasVisualRoles.calibrationStroke}
+                  />
+                )}
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
                   closedDraftPreviewPoints.length >= 3 && (
