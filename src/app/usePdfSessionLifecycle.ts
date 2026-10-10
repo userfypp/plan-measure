@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createSaveStatusStore } from "./saveStatus";
+import { requestPersistentStorageAfterSave } from "../services/storagePersistence";
 import { enqueueAutosave, isAutosaveReady, isSessionPersistable } from "./autosave";
 import {
   canActivatePdf,
@@ -95,6 +97,7 @@ export function usePdfSessionLifecycle({
   closeAllOverlays,
   setError,
 }: PdfSessionLifecycleOptions) {
+  const [saveStatusStore] = useState(createSaveStatusStore);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const activeProjectOperationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const activeProjectOperationCountRef = useRef(0);
@@ -129,6 +132,9 @@ export function usePdfSessionLifecycle({
 
   const reportAutosaveFailure = useCallback((error: unknown) => {
     const conflict = error instanceof PersistenceConflictError;
+    saveStatusStore.set(
+      conflict ? "conflict" : persistenceRevisionRef.current == null ? "unavailable" : "failed",
+    );
     setAutosaveRetryable(!conflict && persistenceRevisionRef.current !== undefined);
     setAutosaveWarning(
       conflict
@@ -137,7 +143,25 @@ export function usePdfSessionLifecycle({
     );
     autosaveStatusRef.current = "unavailable";
     setAutosaveStatus("unavailable");
-  }, []);
+  }, [saveStatusStore]);
+
+  useLayoutEffect(() => {
+    if (!session) saveStatusStore.set("inactive");
+    else if (autosaveStatus === "repair-required") saveStatusStore.set("repair-required");
+    else if (autosaveStatus === "available") {
+      saveStatusStore.set(session === persistedSessionRef.current ? "saved" : "saving");
+    }
+  }, [session, autosaveStatus, saveStatusStore]);
+
+  const confirmSavedSnapshot = useCallback(
+    (snapshot: CurrentSession, blob: Blob) => {
+      requestPersistentStorageAfterSave(snapshot.pageCount > 0 && blob.size > 0);
+      if (currentSessionRef.current === snapshot && autosaveStatusRef.current === "available") {
+        saveStatusStore.set("saved");
+      }
+    },
+    [saveStatusStore],
+  );
 
   function updateAutosaveStatus(status: AutosaveStatus) {
     autosaveStatusRef.current = status;
@@ -311,6 +335,7 @@ export function usePdfSessionLifecycle({
       }
     }
     if (canAutosave && session !== null && preparedSnapshot === undefined) {
+      saveStatusStore.set("repair-required");
       if (autosaveStatus === "available") {
         let cancelled = false;
         queueMicrotask(() => {
@@ -333,6 +358,7 @@ export function usePdfSessionLifecycle({
     };
     if (!isAutosaveReady(autosaveInputs)) return;
     const snapshot = autosaveInputs.snapshot;
+    if (snapshot !== persistedSessionRef.current) saveStatusStore.set("saving");
     const preparedPdfBlob = autosaveInputs.pdfBlob;
     const generation = persistenceGenerationRef.current;
     let queued = false;
@@ -372,6 +398,7 @@ export function usePdfSessionLifecycle({
         .then(() => {
           if (generation === persistenceGenerationRef.current) {
             persistedSessionRef.current = snapshot;
+            confirmSavedSnapshot(snapshot, preparedPdfBlob);
             if (currentSessionRef.current === snapshot) {
               if (repairedHistoricalSession) updateAutosaveStatus("available");
               setAutosaveWarning(null);
@@ -418,6 +445,7 @@ export function usePdfSessionLifecycle({
           if (generation === persistenceGenerationRef.current) {
             persistenceRevisionRef.current = revision;
             persistedSessionRef.current = snapshot;
+            confirmSavedSnapshot(snapshot, preparedPdfBlob);
           }
         })
         .catch(() => undefined)
@@ -438,7 +466,7 @@ export function usePdfSessionLifecycle({
       removeBeforeUnload();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activePdf, autosaveStatus, pdfBlob, reportAutosaveFailure, session]);
+  }, [activePdf, autosaveStatus, pdfBlob, reportAutosaveFailure, session, saveStatusStore, confirmSavedSnapshot]);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
     await enqueueActiveProjectOperation(async () => {
@@ -499,6 +527,7 @@ export function usePdfSessionLifecycle({
           );
           persistenceRevisionRef.current = revision;
           persistedSessionRef.current = candidate.session;
+          requestPersistentStorageAfterSave(candidate.session.pageCount > 0 && preparedPdfBlob.size > 0);
           saved = true;
         } catch (error) {
           console.error("Could not save the new PDF session.", error);
@@ -535,6 +564,7 @@ export function usePdfSessionLifecycle({
         setRecovery(null);
         setRecoveryProtected(false);
         if (saved) {
+          saveStatusStore.set("saved");
           updateAutosaveStatus("available");
           setAutosaveWarning(null);
           try {
@@ -756,6 +786,7 @@ export function usePdfSessionLifecycle({
           );
           activatedRevision = activated.revision;
           persistenceRevisionRef.current = activated.revision;
+          requestPersistentStorageAfterSave(savedProject.session.pageCount > 0 && preparedPdfBlob.size > 0);
         }
 
         if (!activatedRevision) throw new Error("The selected project has no active revision.");
@@ -1011,6 +1042,7 @@ export function usePdfSessionLifecycle({
       try {
         await saveQueueRef.current.catch(() => undefined);
         if (disposedRef.current || generation !== persistenceGenerationRef.current) return;
+        saveStatusStore.set("saving");
         const revision =
           expectedRevision === null
             ? await replaceSavedSession(snapshot, pdfBlob, expectedRevision, projectId)
@@ -1018,6 +1050,7 @@ export function usePdfSessionLifecycle({
         if (disposedRef.current || generation !== persistenceGenerationRef.current) return;
         persistenceRevisionRef.current = revision;
         persistedSessionRef.current = snapshot;
+        confirmSavedSnapshot(snapshot, pdfBlob);
         setAutosaveRetryable(false);
         const current = currentSessionRef.current;
         const needsRepair = current !== null && !isSessionPersistable(current);
@@ -1066,6 +1099,7 @@ export function usePdfSessionLifecycle({
     confirmDiscardRecovery,
     loading,
     projectOperationPending,
+    saveStatusStore,
     autosaveWarning,
     autosaveFailed: autosaveStatus === "unavailable",
     canRetryAutosave: autosaveStatus === "unavailable" && autosaveRetryable,

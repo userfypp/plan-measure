@@ -9,8 +9,10 @@ import { getMeasurementCalibration } from "../utils/calibration";
 import { lineLengthMm } from "../utils/geometry";
 import { createEmptySession, sessionReducer, type SessionCommandResult } from "./sessionState";
 import { App } from "./App";
+import { createSaveStatusStore, type SaveStatusStore } from "./saveStatus";
 
 const lifecycleHarness = vi.hoisted(() => ({
+  saveStatusStore: undefined as SaveStatusStore | undefined,
   autosaveFailed: false,
   canRetryAutosave: true,
   projectOperationPending: false,
@@ -37,6 +39,7 @@ vi.mock("./usePdfSessionLifecycle", async () => {
         }
       }, [loadSession, session]);
       return {
+        saveStatusStore: lifecycleHarness.saveStatusStore,
         activePdf: { document: {} },
         recovery: null,
         savedProjects: [],
@@ -70,12 +73,14 @@ vi.mock("./usePdfSessionLifecycle", async () => {
 
 vi.mock("./AppShell", () => ({
   AppShell: ({
+    saveStatus,
     children,
     onExport,
     statusMessage,
     statusActions,
     errorNotifications = [],
   }: {
+    saveStatus?: ReactNode;
     children: ReactNode;
     onExport?: () => void;
     statusMessage?: string | null;
@@ -83,6 +88,7 @@ vi.mock("./AppShell", () => ({
     errorNotifications?: { id: number; message: string }[];
   }) => (
     <div>
+      {saveStatus}
       {onExport && <button onClick={onExport}>Open export</button>}
       {statusMessage && <div role="alert">{statusMessage}{statusActions}</div>}
       {errorNotifications.map(({ id, message }) => <div key={id} role="alert">{message}</div>)}
@@ -354,6 +360,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  lifecycleHarness.saveStatusStore = undefined;
   if (root) act(() => root?.unmount());
   container?.remove();
   lifecycleHarness.autosaveFailed = false;
@@ -579,6 +586,25 @@ describe("App multiple measurement selection", () => {
 
 
 describe("App autosave recovery actions", () => {
+  it("hides status in an empty workspace and connects backup and retry to the existing lifecycle actions", async () => {
+    const store = createSaveStatusStore();
+    lifecycleHarness.saveStatusStore = store;
+    await act(async () => {
+      root!.render(<App />);
+    });
+    expect(container!.querySelector('[role="status"]')).toBeNull();
+    store.set("failed");
+    act(() => lifecycleHarness.loadSession!(buildSession(uniformScale())));
+    const trigger = container!.querySelector<HTMLButtonElement>(
+      'button[aria-label="Couldn\'t save. Save status and backups"]',
+    )!;
+    act(() => trigger.click());
+    act(() => buttonByText("Export backup (.planmeasure)").click());
+    expect(lifecycleHarness.exportProject).toHaveBeenCalledOnce();
+    expect(lifecycleHarness.exportProject).toHaveBeenCalledWith();
+    act(() => buttonByText("Retry saving").click());
+    expect(lifecycleHarness.retryAutosave).toHaveBeenCalledOnce();
+  });
   it.each([true, false])(
     "offers export and confirmed reload with retry available=%s",
     async (canRetry) => {

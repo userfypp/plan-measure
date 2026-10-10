@@ -5,6 +5,7 @@ import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
 import { OverlayProvider, useOverlayState, type OverlayConfirmation } from "./overlayState";
 import { OverlayHost } from "./OverlayHost";
 import { AppShell, LoadingOverlay } from "./AppShell";
+import { SaveStatusIndicator } from "./SaveStatusIndicator";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { WorkspacePanel } from "./WorkspacePanel";
 import { ContextToolbar } from "./ContextToolbar";
@@ -310,6 +311,7 @@ function PlanMeasureApp() {
     confirmDiscardRecovery,
     loading,
     projectOperationPending,
+    saveStatusStore,
     autosaveWarning,
     autosaveUnavailable,
     autosaveFailed,
@@ -1170,6 +1172,16 @@ function PlanMeasureApp() {
 
   return (
     <AppShell
+      saveStatus={session && saveStatusStore ? (
+        <SaveStatusIndicator
+          store={saveStatusStore}
+          pending={projectOperationPending}
+          canRetry={canRetryAutosave}
+          onExport={() => void exportProject()}
+          onRetry={() => void retryAutosave()}
+          onReload={() => setConfirmAutosaveReload(true)}
+        />
+      ) : undefined}
       documentName={session?.pdf.name ?? null}
       canExport={Boolean(session)}
       savedProjectCount={savedProjects.length}
