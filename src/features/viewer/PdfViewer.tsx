@@ -303,7 +303,7 @@ export function PdfViewer({
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
   const wheelSettleTimerRef = useRef<number | null>(null);
-  const [wheelGesture, setWheelGesture] = useState<{ transform: ViewTransform; cached: boolean } | null>(null);
+  const [wheelGesture, setWheelGesture] = useState<{ transform: ViewTransform; cached: boolean; pageNumber: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
   const wholeMeasurementDragCancellationRegistryRef = useRef(
     createWholeMeasurementDragCancellationRegistry(),
@@ -1103,7 +1103,11 @@ export function PdfViewer({
   const handleViewerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       // Pointer gestures must start from annotations planned for the current zoom.
-      if (wheelSettleTimerRef.current !== null) flushSync(settleWheelZoom);
+      if (wheelSettleTimerRef.current !== null) {
+        flushSync(settleWheelZoom);
+        // The hit graph still holds the last gesture frame; redraw it before Konva hit-tests.
+        annotationLayerRef.current?.draw();
+      }
       if (event.target instanceof Element && event.target.closest("[data-keyboard-controls]")) return;
       // A new pointer ownership attempt invalidates any older prepared/active
       // vertex gesture before Konva can reuse a stale `ready` drag element.
@@ -1556,7 +1560,7 @@ export function PdfViewer({
           settled.panY >= -1 &&
           settled.panX + bounds.width * settled.zoom <= viewerSize.width + 1 &&
           settled.panY + bounds.height * settled.zoom <= viewerSize.height + 1;
-        setWheelGesture((current) => current ?? { transform: settled, cached: pageVisible });
+        setWheelGesture((current) => current ?? { transform: settled, cached: pageVisible, pageNumber: page.pageNumber });
         if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
         wheelSettleTimerRef.current = window.setTimeout(settleWheelZoom, WHEEL_ZOOM_SETTLE_MS);
       }
@@ -1564,9 +1568,10 @@ export function PdfViewer({
     });
   }
 
-  const wheelBitmapCached = wheelGesture?.cached ?? false;
+  const activeWheelGesture = wheelGesture?.pageNumber === page.pageNumber ? wheelGesture : null;
+  const wheelBitmapCached = activeWheelGesture?.cached ?? false;
   const annotationsStatic = isPanning || wheelBitmapCached;
-  const layerZoom = (wheelGesture?.transform ?? viewTransform).zoom;
+  const layerZoom = (activeWheelGesture?.transform ?? viewTransform).zoom;
   const cursor = isPanning
     ? "grabbing"
     : activeTool === "hand" || spacePan
@@ -2019,7 +2024,7 @@ export function PdfViewer({
                 <PdfAnnotationLayer
                   page={stage.presented && isPresentedTarget && keyboardGeometry.editing ? keyboardGeometry.previewPage : stage.page}
                   bounds={stage.data.bounds}
-                  transform={stage.presented && wheelGesture ? wheelGesture.transform : stage.transform}
+                  transform={stage.presented && activeWheelGesture ? activeWheelGesture.transform : stage.transform}
                   cullTransform={stage.transform}
                   viewport={viewerSize}
                   activeTool={activeTool}
