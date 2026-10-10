@@ -4,6 +4,15 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.10.0](https://github.com/userfypp/plan-measure/compare/v2.9.0...v2.10.0) (2026-10-10)
+
+
+### Added
+
+* check scales against another known distance ([#225](https://github.com/userfypp/plan-measure/issues/225)) ([e137990](https://github.com/userfypp/plan-measure/commit/e137990b22599323ec40f12b9d2cd6dff562e6e4))
+* **pages:** add a searchable page browser with thumbnails ([#226](https://github.com/userfypp/plan-measure/issues/226)) ([61aa0e0](https://github.com/userfypp/plan-measure/commit/61aa0e0ecc964e6ab5941dd71f18cccf4ab2c69c))
+* show save status and quick backup access ([#223](https://github.com/userfypp/plan-measure/issues/223)) ([b9a5a68](https://github.com/userfypp/plan-measure/commit/b9a5a681c496a4ec29a369d48fdc67c8d5462483))
+
 ## [2.9.0](https://github.com/userfypp/plan-measure/compare/v2.8.0...v2.9.0) (2026-10-10)
 
 
