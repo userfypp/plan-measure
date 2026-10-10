@@ -155,6 +155,8 @@ interface PdfAnnotationLayerProps {
   page: PageState;
   bounds: LogicalPageBounds;
   transform: ViewTransform;
+  /** Live view used only to choose mounted measurements; defaults to `transform`. */
+  cullTransform?: ViewTransform;
   viewport?: { width: number; height: number };
 
   activeTool: Tool;
@@ -200,6 +202,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   page,
   bounds,
   transform,
+  cullTransform = transform,
   viewport,
   activeTool,
   spacePan,
@@ -373,11 +376,11 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
 
   const visibleMeasurements = useMemo(() => {
     if (!viewport || isPanning) return page.measurements;
-    const padding = Math.max(32, interactionTargetScreenPx) / transform.zoom;
-    const left = -transform.panX / transform.zoom - padding;
-    const top = -transform.panY / transform.zoom - padding;
-    const right = (viewport.width - transform.panX) / transform.zoom + padding;
-    const bottom = (viewport.height - transform.panY) / transform.zoom + padding;
+    const padding = Math.max(32, interactionTargetScreenPx) / cullTransform.zoom;
+    const left = -cullTransform.panX / cullTransform.zoom - padding;
+    const top = -cullTransform.panY / cullTransform.zoom - padding;
+    const right = (viewport.width - cullTransform.panX) / cullTransform.zoom + padding;
+    const bottom = (viewport.height - cullTransform.panY) / cullTransform.zoom + padding;
     return page.measurements.filter((measurement) => {
       // Keep editing ownership and selected handles mounted across viewport changes.
       if (measurement.id === selectedMeasurementId ||
@@ -390,7 +393,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       return Boolean(label && label.x + label.width >= left && label.x <= right &&
         label.y + label.height >= top && label.y <= bottom);
     });
-  }, [viewport, isPanning, page.measurements, transform, interactionTargetScreenPx,
+  }, [viewport, isPanning, page.measurements, cullTransform, interactionTargetScreenPx,
     selectedMeasurementId, selectedMeasurementIds, activeMeasurementEditId,
     labelData, showMeasurementLabels, plannedLabelLayout]);
 

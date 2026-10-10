@@ -80,7 +80,7 @@ export function prepareSession(session, count) {
         : { x: x + k * 0.5, y: y + 4 * Math.sin(k / 3) });
     return { id: 'perf-' + i, name: 'Audit ' + i, calibrationId: 'perf-cal', type, points, classificationValueIds: [], visible: true };
   });
-  pg.nextMeasurementNumber = { line: count + 1, polyline: count + 1, polygon: count + 1 };
+  pg.nextMeasurementNumber = { ...pg.nextMeasurementNumber, line: count + 1, polyline: count + 1, polygon: count + 1 };
   session.classificationCatalog = { dimensions: [{ id: 'perf-dimension', name: 'Perf group', archived: false, values: [] }] };
   return session;
 }

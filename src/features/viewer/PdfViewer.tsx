@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
+import { flushSync } from "react-dom";
 import { Circle, Group, Layer, Line, Rect, Stage } from "react-konva";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
@@ -107,6 +108,11 @@ const SOFTWARE_CURSORS = {
 };
 
 const PDF_RENDER_DEBOUNCE_MS = 90;
+// With many measurements, wheel zoom only scales the page group: the annotations keep their last
+// settled zoom (and, when the whole page is visible, a cached bitmap) until the wheel has been
+// idle this long.
+const WHEEL_ZOOM_SETTLE_MS = 120;
+const WHEEL_ZOOM_MIN_MEASUREMENTS = 200;
 const MAX_PAN_CACHE_PIXELS = 4 * 1024 * 1024;
 const MAX_PAN_CACHE_DIMENSION = 4096;
 
@@ -296,6 +302,8 @@ export function PdfViewer({
   const recentRasterRef = useRef<RecentRaster | null>(null);
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
+  const wheelSettleTimerRef = useRef<number | null>(null);
+  const [wheelGesture, setWheelGesture] = useState<{ transform: ViewTransform; cached: boolean } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
   const wholeMeasurementDragCancellationRegistryRef = useRef(
     createWholeMeasurementDragCancellationRegistry(),
@@ -911,6 +919,7 @@ export function PdfViewer({
       if (wheelZoomFrameRef.current !== null) {
         window.cancelAnimationFrame(wheelZoomFrameRef.current);
       }
+      if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
       if (suppressPanClickTimerRef.current !== null) {
         window.clearTimeout(suppressPanClickTimerRef.current);
       }
@@ -1085,8 +1094,16 @@ export function PdfViewer({
     };
   }, [hideSoftwareCursor, restoreSoftwareCursor, softwareCursor]);
 
+  const settleWheelZoom = useCallback(() => {
+    if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
+    wheelSettleTimerRef.current = null;
+    setWheelGesture(null);
+  }, []);
+
   const handleViewerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      // Pointer gestures must start from annotations planned for the current zoom.
+      if (wheelSettleTimerRef.current !== null) flushSync(settleWheelZoom);
       if (event.target instanceof Element && event.target.closest("[data-keyboard-controls]")) return;
       // A new pointer ownership attempt invalidates any older prepared/active
       // vertex gesture before Konva can reuse a stale `ready` drag element.
@@ -1102,7 +1119,7 @@ export function PdfViewer({
       focusViewerSurface(event.target);
       updateSoftwareCursor(event);
     },
-    [cancelActiveVertexDrag, cancelKeyboardGeometry, clearSnapFeedback, focusViewerSurface, keyboardEditing, updateSoftwareCursor],
+    [cancelActiveVertexDrag, cancelKeyboardGeometry, clearSnapFeedback, focusViewerSurface, keyboardEditing, settleWheelZoom, updateSoftwareCursor],
   );
 
   const handleViewerWheel = useCallback(
@@ -1528,10 +1545,28 @@ export function PdfViewer({
       wheelZoomFrameRef.current = null;
       const nextZoom = pendingWheelZoomRef.current;
       pendingWheelZoomRef.current = null;
-      if (nextZoom) zoomAround(nextZoom.point, nextZoom.factor);
+      if (!nextZoom) return;
+      if (page.measurements.length >= WHEEL_ZOOM_MIN_MEASUREMENTS) {
+        const settled = transformRef.current;
+        // Every measurement is mounted while the whole page is visible, so a bitmap of the
+        // page group stays complete however far the gesture zooms.
+        const pageVisible =
+          bounds !== null &&
+          settled.panX >= -1 &&
+          settled.panY >= -1 &&
+          settled.panX + bounds.width * settled.zoom <= viewerSize.width + 1 &&
+          settled.panY + bounds.height * settled.zoom <= viewerSize.height + 1;
+        setWheelGesture((current) => current ?? { transform: settled, cached: pageVisible });
+        if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
+        wheelSettleTimerRef.current = window.setTimeout(settleWheelZoom, WHEEL_ZOOM_SETTLE_MS);
+      }
+      zoomAround(nextZoom.point, nextZoom.factor);
     });
   }
 
+  const wheelBitmapCached = wheelGesture?.cached ?? false;
+  const annotationsStatic = isPanning || wheelBitmapCached;
+  const layerZoom = (wheelGesture?.transform ?? viewTransform).zoom;
   const cursor = isPanning
     ? "grabbing"
     : activeTool === "hand" || spacePan
@@ -1773,8 +1808,8 @@ export function PdfViewer({
     }
 
     const group = pageGroupRef.current;
-    if (isPanning && isPresentedTarget && bounds && group) {
-      const pixelRatio = panCachePixelRatio(bounds, viewTransform.zoom, devicePixelRatio);
+    if (annotationsStatic && isPresentedTarget && bounds && group) {
+      const pixelRatio = panCachePixelRatio(bounds, layerZoom, devicePixelRatio);
       if (pixelRatio !== null) {
         try {
           // Capture after React has updated the pan-specific handles and hit state.
@@ -1809,7 +1844,8 @@ export function PdfViewer({
     devicePixelRatio,
     displayUnit,
     document,
-    isPanning,
+    annotationsStatic,
+    layerZoom,
     measurementDecimalPlaces,
     measurementEditingBlocked,
     page,
@@ -1821,7 +1857,6 @@ export function PdfViewer({
     showMeasurements,
     isPresentedTarget,
     spacePan,
-    viewTransform.zoom,
     viewerSize.width,
     viewerSize.height,
   ]);
@@ -1961,7 +1996,7 @@ export function PdfViewer({
           >
             <Layer
               ref={stage.presented ? annotationLayerRef : candidateAnnotationLayerRef}
-              listening={stage.presented ? !isPanning && isPresentedTarget : true}
+              listening={stage.presented ? !annotationsStatic && isPresentedTarget : true}
               {...(stage.presented ? {} : candidateDrawEvents)}
             >
               <Group
@@ -1984,11 +2019,12 @@ export function PdfViewer({
                 <PdfAnnotationLayer
                   page={stage.presented && isPresentedTarget && keyboardGeometry.editing ? keyboardGeometry.previewPage : stage.page}
                   bounds={stage.data.bounds}
-                  transform={stage.transform}
+                  transform={stage.presented && wheelGesture ? wheelGesture.transform : stage.transform}
+                  cullTransform={stage.transform}
                   viewport={viewerSize}
                   activeTool={activeTool}
                   spacePan={spacePan}
-                  isPanning={isPanning}
+                  isPanning={isPanning || (stage.presented && wheelBitmapCached)}
                   selectedMeasurementId={selectedMeasurementId}
                   selectedMeasurementIds={selectedMeasurementIds}
                   activeMeasurementEditId={activeMeasurementEditId}
