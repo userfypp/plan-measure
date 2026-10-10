@@ -13,7 +13,10 @@ interface CalibrationDialogProps {
   initialName: string;
   title: string;
   referenceLabel?: string;
+  distanceLabel?: string;
   includeName?: boolean;
+  confirmLabel?: string;
+  confirmationError?: string | null;
   onConfirm: (calibration: { name: string; referenceDistanceMm: number }) => void;
   onCancel: () => void;
 }
@@ -81,7 +84,10 @@ export function CalibrationDialog({
   initialName,
   title,
   referenceLabel,
+  distanceLabel = "Reference distance",
   includeName = true,
+  confirmLabel = "Save scale",
+  confirmationError,
   onConfirm,
   onCancel,
 }: CalibrationDialogProps) {
@@ -93,6 +99,7 @@ export function CalibrationDialog({
   const [fractionSixteenths, setFractionSixteenths] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
+  const displayError = error || confirmationError;
 
   function changeUnit(nextUnit: CalibrationInputUnit) {
     setUnit(nextUnit);
@@ -135,13 +142,13 @@ export function CalibrationDialog({
 
   return (
     <Modal title={title} onCancel={onCancel} modal={false} trapFocus>
-      <p>
-        {referenceLabel
-          ? "Enter the real-world distance along the reference's axis."
-          : "Enter the real-world distance between the two selected points."}
-        {referenceLabel ? ` This is the ${referenceLabel} reference.` : ""}
-      </p>
       <form onSubmit={submit} className={styles.form}>
+        <p>
+          {referenceLabel
+            ? "Enter the real-world distance along the reference's axis."
+            : "Enter the real-world distance between the two selected points."}
+          {referenceLabel ? ` This is the ${referenceLabel} reference.` : ""}
+        </p>
         {includeName && (
           <Input
             id="calibration-name"
@@ -155,13 +162,13 @@ export function CalibrationDialog({
           {unit !== "ft-in" && (
             <Input
               id="calibration-distance"
-              label="Reference distance"
+              label={distanceLabel}
               type="number"
               min="0"
               step="any"
               value={distance}
-              aria-describedby={error ? errorId : undefined}
-              className={error ? styles.invalidControl : undefined}
+              aria-describedby={displayError ? errorId : undefined}
+              className={displayError ? styles.invalidControl : undefined}
               onChange={(event) => {
                 setDistance(event.target.value);
                 setError(null);
@@ -190,10 +197,10 @@ export function CalibrationDialog({
         {unit === "ft-in" && (
           <fieldset
             className={styles.architecturalGroup}
-            aria-describedby={error ? errorId : undefined}
-            aria-invalid={error ? true : undefined}
+            aria-describedby={displayError ? errorId : undefined}
+            aria-invalid={displayError ? true : undefined}
           >
-            <legend>Reference distance</legend>
+            <legend>{distanceLabel}</legend>
             <div className={styles.architecturalInputs}>
               <div className={styles.inputWithSuffix}>
                 <Input
@@ -205,8 +212,8 @@ export function CalibrationDialog({
                   step="1"
                   inputMode="numeric"
                   value={feet}
-                  aria-describedby={error ? errorId : undefined}
-                  className={error ? styles.invalidControl : undefined}
+                  aria-describedby={displayError ? errorId : undefined}
+                  className={displayError ? styles.invalidControl : undefined}
                   onChange={(event) => {
                     setFeet(event.target.value);
                     setError(null);
@@ -226,8 +233,8 @@ export function CalibrationDialog({
                   step="1"
                   inputMode="numeric"
                   value={inches}
-                  aria-describedby={error ? errorId : undefined}
-                  className={error ? styles.invalidControl : undefined}
+                  aria-describedby={displayError ? errorId : undefined}
+                  className={displayError ? styles.invalidControl : undefined}
                   onChange={(event) => {
                     setInches(event.target.value);
                     setError(null);
@@ -242,7 +249,7 @@ export function CalibrationDialog({
                 <select
                   id="calibration-fraction"
                   aria-label="Fractional inches"
-                  aria-describedby={error ? errorId : undefined}
+                  aria-describedby={displayError ? errorId : undefined}
                   value={fractionSixteenths}
                   onChange={(event) => {
                     setFractionSixteenths(Number(event.target.value));
@@ -259,14 +266,14 @@ export function CalibrationDialog({
             </div>
           </fieldset>
         )}
-        {error && (
+        {displayError && (
           <p id={errorId} className={styles.error} role="alert">
-            {error}
+            {displayError}
           </p>
         )}
         <div className={styles.actions}>
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button type="submit">Save scale</Button>
+          <Button type="submit">{confirmLabel}</Button>
         </div>
       </form>
     </Modal>

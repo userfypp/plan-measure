@@ -1,18 +1,29 @@
 .form {
   display: grid;
-  gap: 8px;
+  gap: var(--space-16);
+}
+
+.form > p {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
 }
 
 .inputRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(144px, max-content);
-  gap: 8px;
+  gap: var(--space-12);
   align-items: end;
 }
 
 .unitOnlyRow {
-  grid-template-columns: minmax(144px, 180px);
-  justify-content: end;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.unitOnlyRow .unitField {
+  grid-template-columns: auto minmax(144px, 180px);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
 }
 
 .unitField {
@@ -21,14 +32,17 @@
   color: var(--color-text);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
 }
 
 .unitField select {
   width: 100%;
   min-width: 0;
   min-height: var(--control-height-regular);
-  padding: 0 var(--space-16) 0 var(--space-8);
-  background-color: var(--color-surface);
+  padding: 0 var(--space-12);
+  background-color: var(--color-surface-field);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-regular);
 }
 
 .unitField select:focus-visible {
@@ -95,7 +109,8 @@
   border-radius: var(--radius-control);
   background-color: var(--color-surface-field);
   color: var(--color-text);
-  font: inherit;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-regular);
 }
 
 .fractionField select:focus-visible {
@@ -118,7 +133,7 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-8);
-  margin-top: 16px;
+  margin-top: var(--space-8);
 }
 
 @media (max-width: 520px) {

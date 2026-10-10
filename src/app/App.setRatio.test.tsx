@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession, PageCalibration } from "../types/domain";
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { getMeasurementCalibration } from "../utils/calibration";
+import { formatLinearValue } from "../utils/format";
+import { toMillimetres } from "../utils/units";
+import type { LinearUnit } from "../types/domain";
 import { lineLengthMm } from "../utils/geometry";
 import { createEmptySession, sessionReducer, type SessionCommandResult } from "./sessionState";
 import { App } from "./App";
@@ -18,6 +21,8 @@ const lifecycleHarness = vi.hoisted(() => ({
   projectOperationPending: false,
   retryAutosave: vi.fn(),
   exportProject: vi.fn(),
+  autosave: vi.fn(),
+  measurementRenders: vi.fn(),
   initialSession: null as CurrentSession | null,
   latestSession: null as CurrentSession | null,
   loadSession: null as ((session: CurrentSession) => void) | null,
@@ -31,6 +36,7 @@ vi.mock("./usePdfSessionLifecycle", async () => {
       loadSession: (session: CurrentSession) => void;
     }) => {
       const { session, loadSession } = options;
+      useEffect(() => { if (session) lifecycleHarness.autosave(session); }, [session]);
       lifecycleHarness.latestSession = session;
       lifecycleHarness.loadSession = loadSession;
       useEffect(() => {
@@ -101,7 +107,9 @@ vi.mock("./AppShell", () => ({
 vi.mock("./WorkspaceShell", async () => {
   const { ViewerInteractionCommandsProvider } = await import("../features/viewer/ViewerInteractionCommands");
   const { useWorkspaceState } = await import("./workspaceState");
+  const { useSessionState } = await import("./sessionState");
   function PendingDraftControl() {
+    const { canUndo, canRedo } = useSessionState();
     const { draft, startDraft } = useWorkspaceState();
     return (
       <>
@@ -117,6 +125,7 @@ vi.mock("./WorkspaceShell", async () => {
         >
           Start pending drawing
         </button>
+        <output data-testid="history">{`${canUndo}:${canRedo}`}</output>
         <output data-testid="pending-draft">{draft ? `${draft.type}:${draft.points.length}` : ""}</output>
       </>
     );
@@ -126,14 +135,21 @@ vi.mock("./WorkspaceShell", async () => {
       workspacePanel,
       contextToolbar,
       emptyState,
+      viewer,
+      viewerOverlay,
+      viewerTransientOverlay,
     }: {
       workspacePanel?: ReactNode;
       contextToolbar?: ReactNode;
       emptyState?: ReactNode;
+      viewer?: ReactNode;
+      viewerOverlay?: ReactNode;
+      viewerTransientOverlay?: ReactNode;
     }) => (
       <main>
         {workspacePanel ?? emptyState}
         <ViewerInteractionCommandsProvider>{contextToolbar}</ViewerInteractionCommandsProvider>
+        {viewer}{viewerOverlay}{viewerTransientOverlay}
         <PendingDraftControl />
       </main>
     ),
@@ -144,9 +160,9 @@ vi.mock("./WorkspaceShell", async () => {
 vi.mock("./WorkspacePanel", () => ({
   WorkspacePanel: ({ measurements, scales, takeoff }: { measurements: ReactNode; scales: ReactNode; takeoff: ReactNode }) => (
     <aside>
-      {measurements}
-      {scales}
-      {takeoff}
+      <div>{measurements}</div>
+      <div>{scales}</div>
+      <div>{takeoff}</div>
     </aside>
   ),
 }));
@@ -157,6 +173,7 @@ vi.mock("../features/measurements/MeasurementPanel", async () => {
     MeasurementPanel: ({ onSelectMeasurement }: {
       onSelectMeasurement: (pageNumber: number, measurementId: string, additive?: boolean) => void;
     }) => {
+      lifecycleHarness.measurementRenders();
       const { selectedMeasurementIds, measurementDetailsOpen } = useWorkspaceState();
       return <>
         <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>Select page 2 measurement</button>
@@ -187,6 +204,22 @@ vi.mock("./WorkspaceDrawerContext", () => ({
     },
   }),
 }));
+
+vi.mock("../features/viewer/PdfViewer", async () => {
+  const { useWorkspaceState } = await import("./workspaceState");
+  return { PdfViewer: ({ onCalibrationCandidate, onPageChange, onChooseTool }: {
+    onCalibrationCandidate: (points: [{ x: number; y: number }, { x: number; y: number }]) => void;
+    onPageChange: (page: number) => void;
+    onChooseTool: (tool: "hand") => void;
+  }) => {
+    const { chooseTool } = useWorkspaceState();
+    return <>
+      <button onClick={() => { chooseTool("select"); onCalibrationCandidate([{ x: 0, y: 0 }, { x: 10, y: 20 }]); }}>Mark check points</button>
+      <button onClick={() => onPageChange(2)}>Next viewer page</button>
+      <button onClick={() => onChooseTool("hand")}>Choose hand tool</button>
+    </>;
+  } };
+});
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -368,6 +401,7 @@ afterEach(() => {
   lifecycleHarness.projectOperationPending = false;
   lifecycleHarness.retryAutosave.mockReset();
   lifecycleHarness.exportProject.mockReset();
+  lifecycleHarness.autosave.mockReset();
   lifecycleHarness.initialSession = null;
   lifecycleHarness.latestSession = null;
   lifecycleHarness.loadSession = null;
@@ -670,5 +704,178 @@ describe("App Takeoff source navigation", () => {
     expect(currentSession().currentPage).toBe(1);
     expect(container!.querySelector('[data-testid="pending-draft"]')!.textContent).toBe("path:1");
     expect(container!.querySelector('[data-testid="details-open"]')!.textContent).toBe("false");
+  });
+});
+
+describe("App scale check", () => {
+  async function startCheck(initial: CurrentSession) {
+    await renderApp(initial);
+    lifecycleHarness.autosave.mockClear();
+    const name = initial.pages[1]!.calibrations[0]!.name;
+    if (initial.pages[1]!.activeCalibrationId !== initial.pages[1]!.calibrations[0]!.id)
+      act(() => buttonByLabel(`Expand scale ${name}`).click());
+    await act(async () => {
+      buttonByLabel(`Check scale ${name}`).click();
+      await import("../features/calibration/ScaleCheckPanel");
+    });
+  }
+  function submitDistance(value: string) {
+    setInputValue(document.querySelector<HTMLInputElement>("#calibration-distance")!, value);
+    act(() =>
+      document
+        .querySelector("form")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+    );
+  }
+  it.each([uniformScale(), xyScale()])(
+    "checks $mode without changing session, history, autosave or measurement renders",
+    async (scale) => {
+      const initial = buildSession(scale, { withMeasurement: true });
+      const before = structuredClone(initial);
+      await startCheck(initial);
+      const persisted = currentSession();
+      act(() => buttonByText("Mark check points").click());
+      expect(document.querySelector("dialog")?.textContent).toContain("Check scale");
+      const renders = lifecycleHarness.measurementRenders.mock.calls.length;
+      submitDistance("1");
+      expect(lifecycleHarness.measurementRenders).toHaveBeenCalledTimes(renders);
+      const status = document.querySelector('[role="status"][aria-live="polite"]');
+      expect(status?.textContent).toContain("Measured distance:");
+      expect(status?.textContent).toContain("Real distance: 1.00 m");
+      expect(status?.textContent).toContain("Difference (measured − real):");
+      expect(status?.getAttribute("aria-atomic")).toBe("true");
+      expect(document.querySelector('[data-layout-slot="scale-check-interaction-shield"]')).toBeNull();
+      expect(document.querySelector("dialog")).toBeNull();
+      expect(document.querySelector(`[role="group"][aria-label="Scale check: ${scale.name}"]`)).not.toBeNull();
+      expect(currentSession()).toEqual(before);
+      expect(currentSession()).toBe(persisted);
+      expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("false:false");
+      expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+      act(() => buttonByText("Dismiss").click());
+      expect(document.querySelector("dialog")).toBeNull();
+      expect(currentSession()).toBe(persisted);
+      expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["mm", "cm", "m", "in", "ft", "ft-in"])(
+    "uses the calibration parser for %s input",
+    async (unit) => {
+      await startCheck(buildSession(uniformScale()));
+      expect(
+        document.querySelector('[data-layout-slot="scale-check-interaction-shield"]'),
+      ).toBeNull();
+      expect(document.querySelector('[role="status"][aria-live="polite"]')?.textContent).toBe("");
+      act(() => buttonByText("Mark check points").click());
+      expect(
+        document.querySelector('[data-layout-slot="scale-check-interaction-shield"]'),
+      ).not.toBeNull();
+      const select = document.querySelector<HTMLSelectElement>(
+        'select[aria-label="Calibration unit"]',
+      )!;
+      act(() => {
+        select.value = unit;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      if (unit === "ft-in") {
+        setInputValue(document.querySelector<HTMLInputElement>("#calibration-feet")!, "1");
+        setInputValue(document.querySelector<HTMLInputElement>("#calibration-inches")!, "6");
+        act(() =>
+          document
+            .querySelector("form")!
+            .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+        );
+      } else submitDistance("1.5");
+      const real = formatLinearValue(
+        unit === "ft-in" ? 457.2 : toMillimetres(1.5, unit as LinearUnit),
+        "m",
+      );
+      expect(document.querySelector('[role="status"][aria-live="polite"]')?.textContent).toContain(
+        `Real distance: ${real}`,
+      );
+    },
+  );
+  it("clears a pending check when another tool is selected", async () => {
+    await startCheck(buildSession(uniformScale()));
+    act(() => buttonByText("Choose hand tool").click());
+    expect(document.querySelector('[aria-label="Check scale controls"]')).toBeNull();
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+  });
+  it("handles Escape before the deferred panel can mount", async () => {
+    await renderApp(buildSession(uniformScale()));
+    lifecycleHarness.autosave.mockClear();
+    act(() => {
+      buttonByLabel("Check scale Ground floor").click();
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await act(async () => {
+      await import("../features/calibration/ScaleCheckPanel");
+    });
+    expect(document.querySelector('[aria-label="Check scale controls"]')).toBeNull();
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+  });
+  it("does not create history when completing a check", async () => {
+    await startCheck(buildSession(uniformScale(), { withMeasurement: true }));
+    act(() => buttonByText("Mark check points").click());
+    submitDistance("1");
+    expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("false:false");
+  });
+  it("does not consume Escape needed by the viewer to cancel a measurement drag", async () => {
+    await startCheck(buildSession(uniformScale(), { withMeasurement: true }));
+    act(() => buttonByText("Mark check points").click());
+    submitDistance("1");
+    const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    act(() => window.dispatchEvent(escape));
+    expect(escape.defaultPrevented).toBe(false);
+    expect(document.querySelector('[role="group"][aria-label="Scale check: Ground floor"]')).toBeNull();
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+  });
+  it("does not enqueue autosave when completing a check", async () => {
+    await startCheck(buildSession(uniformScale(), { withMeasurement: true }));
+    act(() => buttonByText("Mark check points").click());
+    submitDistance("1");
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+  });
+  it("validates the shared input and cancels both marking and the result with Escape", async () => {
+    const initial = buildSession(uniformScale());
+    await startCheck(initial);
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(document.querySelector('[aria-label="Check scale controls"]')).toBeNull();
+    await act(async () => buttonByLabel("Check scale Ground floor").click());
+    act(() => buttonByText("Mark check points").click());
+    for (const value of ["0", "-1", "text"]) {
+      submitDistance(value);
+      expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+        "Enter a distance greater than zero.",
+      );
+    }
+    submitDistance("1e308");
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      "Enter a valid distance that is not excessively large.",
+    );
+    submitDistance("1e-300");
+    expect(document.querySelector('[role="status"][aria-live="polite"]')?.textContent).toContain(
+      "Unavailable:",
+    );
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+  });
+  it.each(["page", "scale", "project"])("clears a result on %s changes", async (change) => {
+    const initial = buildSession(uniformScale(), { withOtherScale: true });
+    initial.pages[1]!.activeCalibrationId = "target-scale";
+    initial.pageCount = 2;
+    initial.pages[2] = { ...initial.pages[1]!, pageNumber: 2 };
+    await startCheck(initial);
+    act(() => buttonByText("Mark check points").click());
+    submitDistance("1");
+    if (change === "page") act(() => buttonByText("Next viewer page").click());
+    else {
+      const next = structuredClone(currentSession());
+      if (change === "scale") next.pages[1]!.activeCalibrationId = "other-scale";
+      else next.pdf.name = "another.pdf";
+      act(() => lifecycleHarness.loadSession!(next));
+    }
+    expect(document.querySelector("dialog")).toBeNull();
   });
 });

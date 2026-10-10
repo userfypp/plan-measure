@@ -30,6 +30,7 @@ export interface ScalesWorkspaceProps {
   onAddPresetScale: (ratio: StandardScalePresetRatio) => void;
   onSetRatio: (calibrationId: string, calibration: RatioCalibrationInput) => void;
   onRenameScale: (calibrationId: string, name: string) => void;
+  onCheckScale?: (calibration: PageCalibration) => void;
   onRecalibrate: (calibrationId: string) => void;
   onEditReference: (calibration: PageCalibration, reference: CalibrationReferenceKey) => void;
   onCopyScale: (calibration: PageCalibration) => void;
@@ -109,6 +110,7 @@ export function ScalesWorkspace({
   onSetRatio,
   onRenameScale,
   onRecalibrate,
+  onCheckScale,
   onEditReference,
   onCopyScale,
 }: ScalesWorkspaceProps) {
@@ -208,21 +210,40 @@ export function ScalesWorkspace({
               <div className={styles.scaleSummary}>
                 <span className={styles.scaleIdentity}>
                   <strong title={calibration.name}>{calibration.name}</strong>
-                  <span>{metadata.detailLabel}</span>
+                  <span className={styles.scaleMetadata}>
+                    <span title={metadata.detailLabel}>{metadata.detailLabel}</span>
+                    {(active || inspected) && onCheckScale && (
+                      <span className={styles.checkScaleControl}>
+                        <Button
+                          variant="ghost"
+                          size="compact"
+                          className={styles.checkScaleButton}
+                          aria-label={`Check scale ${calibration.name}`}
+                          title={`Check scale ${calibration.name}`}
+                          disabled={spatialActionsDisabled}
+                          disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                          onClick={() => workspace.requestPrecisionAuthoring(() => onCheckScale(calibration))}
+                        >
+                          Check
+                        </Button>
+                      </span>
+                    )}
+                  </span>
                 </span>
-                {active && <span className={styles.activeLabel}>Active</span>}
-                <Button
-                  variant="ghost"
-                  size="compact"
-                  className={styles.copyScaleButton}
-                  aria-label={`Copy scale ${calibration.name}`}
-                  title={`Copy scale ${calibration.name}`}
-                  disabled={actionsDisabled}
-                  disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
-                  onClick={() => onCopyScale(calibration)}
-                >
-                  <CopyIcon />
-                </Button>
+                <span className={styles.copyScaleControl}>
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    className={styles.copyScaleButton}
+                    aria-label={`Copy scale ${calibration.name}`}
+                    title={`Copy scale ${calibration.name}`}
+                    disabled={actionsDisabled}
+                    disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                    onClick={() => onCopyScale(calibration)}
+                  >
+                    <CopyIcon />
+                  </Button>
+                </span>
                 <Button
                   variant="ghost"
                   size="compact"

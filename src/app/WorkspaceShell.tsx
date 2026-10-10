@@ -41,6 +41,7 @@ interface WorkspaceShellProps {
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
   viewerOverlay?: ReactNode;
+  viewerTransientOverlay?: ReactNode;
   viewer?: ReactNode;
   sourcePageLabels?: readonly string[] | null;
   logicalPageBounds?: LogicalPageBounds | null;
@@ -62,6 +63,7 @@ export function WorkspaceShell({
   toolRail,
   contextToolbar,
   viewerOverlay,
+  viewerTransientOverlay,
   viewer,
   sourcePageLabels = null,
   logicalPageBounds = null,
@@ -299,6 +301,7 @@ export function WorkspaceShell({
           toolRail={toolRail}
           contextToolbar={contextToolbar}
           viewerOverlay={viewerOverlay}
+          viewerTransientOverlay={viewerTransientOverlay}
           sourcePageLabels={sourcePageLabels}
           logicalPageBounds={logicalPageBounds}
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}

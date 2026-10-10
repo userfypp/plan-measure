@@ -12,6 +12,7 @@ import { scaleByRatio } from "../../utils/units";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createPageCalibrationFromRatio } from "./ratioCalibration";
 import { ScalesWorkspace, type ScalesWorkspaceProps } from "./ScalesWorkspace";
+import styles from "./ScalesWorkspace.module.css";
 
 const scalesCss = readFileSync("src/features/calibration/ScalesWorkspace.module.css", "utf8");
 
@@ -234,12 +235,18 @@ describe("ScalesWorkspace", () => {
     const active = buttonByLabel("Expand scale Ground floor, active");
     const inactive = buttonByLabel("Expand scale Survey correction");
     const activeRow = active.closest<HTMLElement>('[role="listitem"]');
+    const inactiveRow = inactive.closest<HTMLElement>('[role="listitem"]');
+    const activeClass = styles.active;
     if (!activeRow) throw new Error("Active scale row was not rendered.");
-    expect(activeRow.textContent).toContain("Active");
+    if (!inactiveRow) throw new Error("Inactive scale row was not rendered.");
+    if (!activeClass) throw new Error("Active scale styling was not defined.");
+    expect(activeRow.classList.contains(activeClass)).toBe(true);
+    expect(inactiveRow.classList.contains(activeClass)).toBe(false);
+    expect(activeRow.textContent).not.toContain("Active");
     expect(activeRow.textContent).not.toContain("✓");
     expect(activeRow.textContent).not.toContain("···");
     expect(activeRow.textContent).toContain("Ground floor");
-    expect(inactive.textContent).not.toContain("Active");
+    expect(inactiveRow.textContent).not.toContain("Active");
     expect(container?.textContent).toContain(scaleDisplayMetadata(uniform).detailLabel);
     expect(container?.textContent).toContain(scaleDisplayMetadata(xy).detailLabel);
     expect(active.getAttribute("aria-expanded")).toBe("false");

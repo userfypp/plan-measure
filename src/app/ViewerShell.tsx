@@ -28,6 +28,7 @@ interface ViewerShellProps {
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
   viewerOverlay?: ReactNode;
+  viewerTransientOverlay?: ReactNode;
   sourcePageLabels?: readonly string[] | null;
   logicalPageBounds?: LogicalPageBounds | null;
   keyboardAuthoringEnabled?: boolean;
@@ -43,6 +44,7 @@ export function ViewerShell({
   toolRail,
   contextToolbar,
   viewerOverlay,
+  viewerTransientOverlay,
   sourcePageLabels = null,
   logicalPageBounds = null,
   keyboardAuthoringEnabled = false,
@@ -195,6 +197,7 @@ export function ViewerShell({
                 </div>
               </div>
             )}
+            {viewerTransientOverlay}
             {authoringCapability.measured && !authoringCapability.available && (
               <div className={styles.authoringNotice} role="status">
                 {authoringCapability.unavailableReason}

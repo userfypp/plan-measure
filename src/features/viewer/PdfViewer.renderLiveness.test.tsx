@@ -20,6 +20,8 @@ import { loadPdf } from "../../services/pdf";
 import type { PageState, Point, Tool, ViewTransform } from "../../types/domain";
 import { pageToScreen, pdfRasterLayout, screenToPage } from "../../utils/coordinates";
 import { PdfViewer } from "./PdfViewer";
+import { createScaleCheckStore, type ScaleCheckStore } from "../calibration/scaleCheckState";
+import { ScaleCheckPanel } from "../calibration/ScaleCheckPanel";
 import { MAX_RENDER_CACHE_PIXELS } from "./renderCache";
 import {
   AuthoringCapabilityProvider,
@@ -317,6 +319,8 @@ interface ViewerHarnessProps {
   authoringCapability?: AuthoringCapability;
   onChooseTool?: (tool: Tool) => void;
   onCalibrationCandidate?: (points: [Point, Point]) => void;
+  scaleCheckStore?: ScaleCheckStore;
+  showScaleCheckPanel?: boolean;
 }
 
 function ViewerHarness({
@@ -333,6 +337,8 @@ function ViewerHarness({
   }),
   onChooseTool = noop,
   onCalibrationCandidate = noop,
+  scaleCheckStore,
+  showScaleCheckPanel = false,
 }: ViewerHarnessProps) {
   return (
     <ThemeProvider>
@@ -356,12 +362,14 @@ function ViewerHarness({
                       onMeasurementEditActiveChange={noop}
                       onChooseTool={onChooseTool}
                       onCalibrationCandidate={onCalibrationCandidate}
+                      scaleCheckStore={scaleCheckStore}
                       onCalibrationCancel={noop}
                       calibrationReferenceEdit={null}
                       measurementEditingBlocked={false}
                       onCalibrationReferencePointsChange={noop}
                       onCalibrationReferenceEditCancel={noop}
                     />
+                    {showScaleCheckPanel && scaleCheckStore && <ScaleCheckPanel store={scaleCheckStore} />}
                   </ViewerNavigationProvider>
                 </ViewerBottomExclusionProvider>
               </AuthoringCapabilityProvider>
@@ -490,6 +498,8 @@ describe("PdfViewer render liveness", () => {
       authoringCapability?: AuthoringCapability;
       onChooseTool?: (tool: Tool) => void;
       onCalibrationCandidate?: (points: [Point, Point]) => void;
+      scaleCheckStore?: ScaleCheckStore;
+      showScaleCheckPanel?: boolean;
     } = {},
   ) {
     const content = (
@@ -502,6 +512,8 @@ describe("PdfViewer render liveness", () => {
         authoringCapability={options.authoringCapability}
         onChooseTool={options.onChooseTool}
         onCalibrationCandidate={options.onCalibrationCandidate}
+        scaleCheckStore={options.scaleCheckStore}
+        showScaleCheckPanel={options.showScaleCheckPanel}
       />
     );
     await act(async () => {
@@ -1538,6 +1550,46 @@ describe("PdfViewer render liveness", () => {
     }
   });
 
+  it("cancels measurement drags with Escape while a scale check result card is visible", async () => {
+    const session = createEmptySession({ name: "check.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = { id: "scale", name: "Scale", mode: "uniform" as const,
+      start: { x: 0, y: 0 }, end: { x: 100, y: 0 }, referenceDistanceMm: 1000 };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line",
+      points: [{ x: 100, y: 100 }, { x: 200, y: 100 }], visible: true,
+      calibrationId: calibration.id, classificationValueIds: [] }];
+    const store = createScaleCheckStore();
+    await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, {
+      page: session.pages[1], scaleCheckStore: store, showScaleCheckPanel: true,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    const original = sessionProbe!.session!;
+    await act(async () => {
+      store.begin({ pageNumber: 1, workspaceVersion: workspaceProbe!.workspaceVersion,
+        activeCalibrationId: calibration.id, calibration: original.pages[1]!.calibrations[0]! });
+      store.select([{ x: 10, y: 10 }, { x: 110, y: 10 }]);
+      store.complete(1000);
+    });
+    expect(container.querySelector('[role="group"][aria-label="Scale check: Scale"]')).not.toBeNull();
+    expect(container.querySelector("dialog")).toBeNull();
+    const props = konvaCapture.annotationLayers.at(-1)!;
+    const cancelWhole = vi.fn();
+    const cancelVertex = vi.fn();
+    (props.onWholeMeasurementDragCancellationChange as (id: string, cancel: () => void) => void)("line", cancelWhole);
+    (props.onVertexDragCancellationChange as (id: string, owner: object, cancel: () => void) => void)("line", {}, cancelVertex);
+    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
+    await act(async () => {
+      viewer.focus();
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(cancelWhole).toHaveBeenCalledOnce();
+    expect(cancelVertex).toHaveBeenCalledOnce();
+    expect(sessionProbe!.session).toBe(original);
+    expect(sessionProbe!.canUndo).toBe(false);
+    expect(sessionProbe!.canRedo).toBe(false);
+  });
+
   describe("polygon draft repeated vertices", () => {
     const first = { x: 300, y: 400 };
     const second = { x: 400, y: 400 };
@@ -1844,6 +1896,74 @@ describe("PdfViewer render liveness", () => {
     expect(preview).not.toEqual(page.measurements[0]!.points);
     await press("Escape");
     expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).toEqual(page.measurements[0]!.points);
+  });
+
+  it("checks through the calibration keyboard flow without history or annotation renders on result updates", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    const session = createEmptySession({ name: "check.pdf", size: 10, lastModified: 1 }, 1);
+    const calibration = {
+      id: "scale",
+      name: "Scale",
+      mode: "uniform" as const,
+      start: { x: 0, y: 0 },
+      end: { x: 100, y: 0 },
+      referenceDistanceMm: 1000,
+    };
+    session.pages[1]!.calibrations = [calibration];
+    session.pages[1]!.activeCalibrationId = calibration.id;
+    const store = createScaleCheckStore();
+    await mountViewer(runtime.document, {
+      page: session.pages[1],
+      scaleCheckStore: store,
+      onCalibrationCandidate: store.select,
+    });
+    await act(async () => sessionProbe!.loadSession(session));
+    const original = sessionProbe!.session;
+    await act(async () => {
+      store.begin({
+        pageNumber: 1,
+        workspaceVersion: 0,
+        activeCalibrationId: calibration.id,
+        calibration,
+      });
+      workspaceProbe!.chooseTool("calibrate");
+      workspaceProbe!.setSnap(true);
+      workspaceProbe!.setOrthogonal(true);
+    });
+    const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    await act(async () => viewer.focus());
+    const press = async (key: string) =>
+      act(async () => {
+        viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      });
+    await press("ArrowRight");
+    await press(" ");
+    await press(" ");
+    expect(container.querySelector('[data-testid="viewer-error"]')!.textContent).toContain(
+      "Choose two distinct calibration points.",
+    );
+    expect(store.getSnapshot()!.points).toBeNull();
+    await press("ArrowRight");
+    await press("ArrowDown");
+    await press(" ");
+    expect(store.getSnapshot()!.points).toHaveLength(2);
+    // Calibration ignores Snap/Ortho, including the diagonal second point.
+    expect(store.getSnapshot()!.points![1].x).not.toBe(store.getSnapshot()!.points![0].x);
+    expect(store.getSnapshot()!.points![1].y).not.toBe(store.getSnapshot()!.points![0].y);
+    const annotationRenders = konvaCapture.annotationLayers.length;
+    const shapeRenders = konvaCapture.circles.length;
+    await act(async () => store.complete(1000));
+    expect(konvaCapture.annotationLayers).toHaveLength(annotationRenders);
+    expect(konvaCapture.circles).toHaveLength(shapeRenders);
+    const temporary = konvaCapture.lines.at(-1)!;
+    expect(temporary.listening).toBe(false);
+    expect(temporary.points).toEqual(store.getSnapshot()!.points!.flatMap(({ x, y }) => [x, y]));
+    await act(async () => store.clear());
+    expect(konvaCapture.annotationLayers).toHaveLength(annotationRenders);
+    expect(sessionProbe!.session).toBe(original);
+    expect(sessionProbe!.session).toEqual(session);
+    expect(sessionProbe!.canUndo).toBe(false);
+    expect(sessionProbe!.canRedo).toBe(false);
   });
 
   it("blocks keyboard placement until the requested page raster is presented", async () => {

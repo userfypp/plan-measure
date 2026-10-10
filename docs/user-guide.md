@@ -15,7 +15,7 @@ Each page supports multiple named scales. In **Scales → Add scale**, choose:
 
 Reference input accepts metric units, decimal inches or feet, and feet-and-inches notation. Choose the active scale below the plan before drawing. Existing measurements keep their assigned scale; recalibrating it updates their results.
 
-Expand a scale to rename it or edit its calibration. To reuse it on another page, copy it in **Scales**, switch pages, and choose **Apply copied scale**. The copy is independent.
+Expand a scale to rename it or edit its calibration. Choose **Check** in a scale row, mark two points, and enter their known distance to see the measured distance and signed absolute and percentage differences; dismiss or press Escape to clear the temporary result without changing scales or measurements. To reuse it on another page, copy it in **Scales**, switch pages, and choose **Apply copied scale**. The copy is independent.
 
 ## Measurements and totals
 

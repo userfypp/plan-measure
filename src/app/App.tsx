@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { AppProvider, useAppState } from "./state";
 import { SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
@@ -85,10 +85,17 @@ import {
   readKeyboardAuthoringPreference,
   writeKeyboardAuthoringPreference,
 } from "./keyboardAuthoringPreference";
+import { createScaleCheckStore } from "../features/calibration/scaleCheckState";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
   import("../features/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+);
+
+const ScaleCheckPanel = lazy(() =>
+  import("../features/calibration/ScaleCheckPanel").then((module) => ({
+    default: module.ScaleCheckPanel,
+  })),
 );
 
 function calibrationMeasurementCount(page: PageState, calibrationId: string): number {
@@ -163,6 +170,7 @@ function PlanMeasureApp() {
     closeAllOverlays,
   } = useOverlayState();
   const {
+    activeTool,
     draft,
     selectedMeasurementId,
     selectedMeasurementIds,
@@ -196,6 +204,45 @@ function PlanMeasureApp() {
     openMeasurementDetails,
     closeMeasurementDetails,
   } = useWorkspaceState();
+  const [scaleCheckStore] = useState(createScaleCheckStore);
+  const [scaleCheckLoaded, setScaleCheckLoaded] = useState(false);
+  useLayoutEffect(() => {
+    const check = scaleCheckStore.getSnapshot();
+    if (!check) return;
+    const page = session?.pages[session.currentPage];
+    const valid =
+      page &&
+      check.pageNumber === page.pageNumber &&
+      check.activeCalibrationId === page.activeCalibrationId &&
+      check.workspaceVersion === workspaceVersion &&
+      page.calibrations.includes(check.calibration);
+    if (!valid || (!check.points && activeTool !== "calibrate")) {
+      scaleCheckStore.clear();
+      if (activeTool === "calibrate" && !calibrationFlow && !calibrationReferenceEdit) {
+        clearDraft();
+        chooseWorkspaceTool("select");
+      }
+    }
+  }, [
+    session,
+    workspaceVersion,
+    activeTool,
+    calibrationFlow,
+    calibrationReferenceEdit,
+    clearDraft,
+    chooseWorkspaceTool,
+    scaleCheckStore,
+  ]);
+  useEffect(() => {
+    function escape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || !scaleCheckStore.getSnapshot()) return;
+      scaleCheckStore.clear();
+      clearDraft();
+      chooseWorkspaceTool("select");
+    }
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [scaleCheckStore, clearDraft, chooseWorkspaceTool]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectFileInputRef = useRef<HTMLInputElement>(null);
   const applicationCopyRef = useRef(false);
@@ -460,6 +507,7 @@ function PlanMeasureApp() {
           setError("Finish or cancel the current measurement or scale workflow before switching pages.");
           return;
         }
+        scaleCheckStore.clear();
         pageChanged();
         updatePage(pageNumber);
       }
@@ -475,6 +523,7 @@ function PlanMeasureApp() {
       pageChanged,
       selectWorkspaceMeasurement,
       session?.currentPage,
+      scaleCheckStore,
       setError,
       updatePage,
     ],
@@ -482,12 +531,13 @@ function PlanMeasureApp() {
 
   const handlePageChange = useCallback(
     (pageNumber: number) => {
+      scaleCheckStore.clear();
       pageChanged();
       closeConfirmation();
       clearError();
       updatePage(pageNumber);
     },
-    [clearError, closeConfirmation, pageChanged, updatePage],
+    [clearError, closeConfirmation, pageChanged, updatePage, scaleCheckStore],
   );
 
   const handleViewerPageBoundsChange = useCallback(
@@ -674,6 +724,7 @@ function PlanMeasureApp() {
   }
 
   function chooseTool(tool: Tool) {
+    if (tool !== "calibrate") scaleCheckStore.clear();
     if (calibrationReferenceEdit && tool !== "calibrate") {
       setError("Finish or cancel the scale reference edit first.");
       return;
@@ -699,6 +750,7 @@ function PlanMeasureApp() {
   }
 
   function cancelCalibration() {
+    scaleCheckStore.clear();
     cancelWorkspaceCalibration();
     clearDraft();
     chooseWorkspaceTool("select");
@@ -707,6 +759,7 @@ function PlanMeasureApp() {
   }
 
   function beginRecalibration(pageNumber: number, calibrationId: string) {
+    scaleCheckStore.clear();
     if (calibrationReferenceEdit) return;
     if (authoringCapabilityRef.current?.available !== true) return;
     const calibration =
@@ -718,6 +771,7 @@ function PlanMeasureApp() {
   }
 
   function beginNewCalibration(mode: "uniform" | "xy") {
+    scaleCheckStore.clear();
     if (calibrationReferenceEdit) return;
     if (authoringCapabilityRef.current?.available !== true) return;
     if (!currentPage) return;
@@ -1361,6 +1415,20 @@ function PlanMeasureApp() {
                   page={currentPage}
                   displayUnit={session.settings.displayUnit}
                   actionsDisabled={calibrationActionsDisabled}
+                  onCheckScale={(calibration) => {
+                    if (calibrationActionsDisabled || measurementEditActive || draft) return;
+                    setScaleCheckLoaded(true);
+                    scaleCheckStore.begin({
+                      pageNumber: currentPage.pageNumber,
+                      activeCalibrationId: currentPage.activeCalibrationId,
+                      workspaceVersion,
+                      calibration,
+                    });
+                    clearDraft();
+                    chooseWorkspaceTool("calibrate");
+                    clearError();
+                    focusViewer();
+                  }}
                   onAddScale={beginNewCalibration}
                   onAddCustomRatioScale={addCustomRatioScale}
                   onAddPresetScale={addStandardScalePreset}
@@ -1486,6 +1554,11 @@ function PlanMeasureApp() {
             />
           }
           viewerOverlay={calibrationDialog}
+          viewerTransientOverlay={scaleCheckLoaded ? (
+            <Suspense fallback={null}>
+              <ScaleCheckPanel store={scaleCheckStore} />
+            </Suspense>
+          ) : null}
           viewer={
             <Suspense
               fallback={
@@ -1504,7 +1577,12 @@ function PlanMeasureApp() {
                 activeMeasurementEditId={activeMeasurementEditId}
                 onMeasurementEditActiveChange={handleMeasurementEditActiveChange}
                 onChooseTool={chooseTool}
+                scaleCheckStore={scaleCheckStore}
                 onCalibrationCandidate={(points) => {
+                  if (scaleCheckStore.getSnapshot()) {
+                    scaleCheckStore.select(points);
+                    return;
+                  }
                   const flow = calibrationFlow;
                   if (!flow) return;
                   const phase = flow.phase;

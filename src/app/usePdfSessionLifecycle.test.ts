@@ -24,6 +24,7 @@ import type { LoadedPdf } from "../services/pdf";
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
 import { AppProvider } from "./state";
 import { createProjectFile, readProjectFile } from "../services/projectFile";
+import { createScaleCheckStore } from "../features/calibration/scaleCheckState";
 import type { WorkspaceModule } from "./workspaceState";
 
 vi.mock("../services/pdf", () => ({
@@ -1535,5 +1536,48 @@ describe("page-exit autosave", () => {
       });
     }
     expect(savedDisplayUnit).toBe("cm");
+  });
+});
+
+describe("scale check autosave boundary", () => {
+  it("never activates Saving or writes metadata for a completed or discarded check", async () => {
+    await seedRecoverySession();
+    await renderLifecycleHarness("scales", true);
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    const before = harnessSession!;
+    const savedBefore = (await loadSavedSession())!;
+    const save = vi.spyOn(persistenceService, "saveSessionMetadata");
+    const status = vi.spyOn(lifecycle!.saveStatusStore, "set");
+    const store = createScaleCheckStore();
+    const calibration = before.pages[1]!.calibrations[0]!;
+    act(() => {
+      store.begin({
+        pageNumber: 1,
+        workspaceVersion: 0,
+        activeCalibrationId: calibration.id,
+        calibration,
+      });
+      store.select([
+        { x: 30, y: 40 },
+        { x: 140, y: 40 },
+      ]);
+      store.complete(1100);
+    });
+    expect(harnessSession).toBe(before);
+    expect(historyCommands!.canUndo).toBe(false);
+    expect(historyCommands!.canRedo).toBe(false);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+    act(() => store.clear());
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+    expect(save).not.toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalledWith("saving");
+    expect(await loadSavedSession()).toEqual(savedBefore);
   });
 });
