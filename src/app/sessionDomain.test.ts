@@ -218,7 +218,7 @@ describe("session domain reducer", () => {
 
     const page = state.session!.pages[1]!;
     expect(page.measurements[0]).toMatchObject({ type: "polyline", name: "Polyline 1" });
-    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 2, polygon: 1 });
+    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 2, polygon: 1, count: 1 });
   });
 
   it("creates the first calibration and makes it active", () => {

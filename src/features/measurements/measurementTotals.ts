@@ -9,6 +9,7 @@ import {
   hasValidMeasurementPoints,
   isValidPageCalibration,
   measurementResultsMm,
+  measurementPathSpecs,
 } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { createMeasurementGroups } from "./measurementGrouping";
@@ -25,6 +26,7 @@ export interface MeasurementTotalGroup {
   length: TotalQuantity;
   perimeter: TotalQuantity;
   area: TotalQuantity;
+  count: TotalQuantity;
 }
 
 export type MeasurementTotalsGrouping = "overall" | "page" | "type" | "classification";
@@ -54,6 +56,7 @@ interface CalculatedMeasurement {
   length: number | null;
   perimeter: number | null;
   area: number | null;
+  count: number | null;
   excluded: boolean;
   exclusionReason: TakeoffExclusionReason | null;
 }
@@ -73,12 +76,24 @@ function sumQuantity(values: readonly (number | null)[]): TotalQuantity {
 }
 
 function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasurement {
+  if (measurement.measurement.type === "count") {
+    const valid = hasValidMeasurementPoints("count", measurement.measurement.points);
+    return {
+      length: null,
+      perimeter: null,
+      area: null,
+      count: valid ? measurement.measurement.points.length : null,
+      excluded: !valid,
+      exclusionReason: valid ? null : "invalid-geometry",
+    };
+  }
   const calibration = getMeasurementCalibration(measurement.page, measurement.measurement);
   if (!calibration)
     return {
       length: null,
       perimeter: null,
       area: null,
+      count: null,
       excluded: true,
       exclusionReason: "missing-scale",
     };
@@ -87,6 +102,7 @@ function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasur
       length: null,
       perimeter: null,
       area: null,
+      count: null,
       excluded: true,
       exclusionReason: "invalid-geometry",
     };
@@ -99,6 +115,7 @@ function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasur
         length: null,
         perimeter: null,
         area: null,
+      count: null,
         excluded: true,
         exclusionReason: "nonfinite-result",
       };
@@ -107,6 +124,7 @@ function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasur
       length: result.lengthMm,
       perimeter: result.perimeterMm,
       area: result.areaMm2,
+      count: null,
       excluded: false,
       exclusionReason: null,
     };
@@ -116,6 +134,7 @@ function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasur
         length: null,
         perimeter: null,
         area: null,
+      count: null,
         excluded: true,
         exclusionReason: isValidPageCalibration(calibration) ? "nonfinite-result" : "invalid-scale",
       };
@@ -144,6 +163,7 @@ function aggregateGroup(
       length: sumQuantity(calculated.map((result) => result.length)),
       perimeter: sumQuantity(calculated.map((result) => result.perimeter)),
       area: sumQuantity(calculated.map((result) => result.area)),
+      count: sumQuantity(calculated.map((result) => result.count)),
     },
     excludedCount: calculated.filter((result) => result.excluded).length,
   };
@@ -219,13 +239,13 @@ export function createMeasurementTotals({
       });
     }
   } else if (grouping === "type") {
-    const types: readonly MeasurementType[] = ["line", "polyline", "polygon"];
+    const types: readonly MeasurementType[] = ["line", "polyline", "polygon", "count"];
     for (const type of types) {
       const measurements = allMeasurements.filter(({ measurement }) => measurement.type === type);
       if (!measurements.length) continue;
       groupInputs.push({
         key: `type:${type}`,
-        label: type === "polyline" ? "Polyline" : type === "polygon" ? "Polygon" : "Line",
+        label: measurementPathSpecs[type].label,
         measurements,
       });
     }

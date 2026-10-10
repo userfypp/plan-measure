@@ -12,6 +12,7 @@ export type ToolIconName =
   | "line"
   | "polyline"
   | "polygon"
+  | "count"
   | "calibrate"
   | "orthogonal"
   | "snap";
@@ -83,6 +84,14 @@ export const toolRegistry: readonly ToolDefinition[] = [
     description: "Draw a closed polygon",
     shortcut: getToolShortcutLabel("polygon"),
     icon: "polygon",
+    inRail: true,
+  },
+  {
+    id: "count",
+    label: shortcutLabelForTool("count"),
+    description: "Mark multiple items in a count without a scale",
+    shortcut: getToolShortcutLabel("count"),
+    icon: "count",
     inRail: true,
   },
   {

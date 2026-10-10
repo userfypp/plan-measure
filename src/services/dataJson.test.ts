@@ -384,6 +384,7 @@ describe("JSON Takeoff extension", () => {
     page.measurements = [0, 1].map((index) => ({
       ...page.measurements[0]!,
       id: String(index),
+      type: "line" as const,
       calibrationId: "large",
       points: [
         { x: 0, y: 0 },

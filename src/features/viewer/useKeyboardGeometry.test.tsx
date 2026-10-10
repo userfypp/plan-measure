@@ -51,7 +51,7 @@ beforeEach(() => {
     calibrations: [],
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
-    nextMeasurementNumber: { line: 2, polygon: 1, polyline: 1 },
+    nextMeasurementNumber: { line: 2, polygon: 1, polyline: 1, count: 1 },
     measurements: [line],
   };
   options = {

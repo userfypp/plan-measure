@@ -14,7 +14,11 @@ describe("bundled sample project", () => {
     expect(pdfBytes).toEqual(new Uint8Array(originalPdf));
     const pdf = await PDFDocument.load(pdfBytes);
     expect(pdf.getPageCount()).toBe(session.pageCount);
-    expect(Object.values(session.pages).flatMap((page) => page.measurements)).toHaveLength(5);
+    expect(Object.values(session.pages).flatMap((page) => page.measurements)).toHaveLength(6);
+    const count = session.pages[1]!.measurements.find((measurement) => measurement.type === "count");
+    expect(count).toMatchObject({ name: "Plugs", visible: true, calibrationId: null });
+    expect(count!.points).toHaveLength(6);
+    expect(session.pages[1]!.nextMeasurementNumber.count).toBe(5);
     for (const page of Object.values(session.pages)) {
       const { width, height } = pdf.getPage(page.pageNumber - 1).getSize();
       for (const calibration of page.calibrations)
@@ -27,6 +31,10 @@ describe("bundled sample project", () => {
           expect(point.y).toBeLessThanOrEqual(height);
         }
         const calibration = getMeasurementCalibration(page, measurement);
+        if (measurement.type === "count") {
+          expect(calibration).toBeNull();
+          continue;
+        }
         expect(calibration).not.toBeNull();
         const results = measurementResultsMm(measurement, calibration!);
         for (const quantity of Object.values(results)) {

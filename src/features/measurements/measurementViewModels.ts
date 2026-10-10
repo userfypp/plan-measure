@@ -37,7 +37,7 @@ export function createMeasurementViewModel(
     type: measurement.type,
     name: measurement.name,
     typeLabel: measurementPathSpecs[measurement.type].label,
-    valueLabel: calibration
+    valueLabel: calibration || measurement.type === "count"
       ? formatMeasurement(
           measurement,
           calibration,
@@ -46,7 +46,7 @@ export function createMeasurementViewModel(
           areaDisplay,
         )
       : "Scale unavailable",
-    calibrationSummary: calibration
+    calibrationSummary: measurement.type === "count" ? "No scale required" : calibration
       ? `${calibration.name} · ${calibrationMode}`
       : "Scale unavailable",
     hasCalibration: calibration !== null,
@@ -64,8 +64,8 @@ export function shouldRenderMeasurement(
 
 export function getMeasurementEmptyMessage(page: PageState): string {
   return getActiveCalibration(page)
-    ? "Choose Line, Polyline, or Polygon to add a measurement."
+    ? "Choose Line, Polyline, Polygon, or Count to add a measurement."
     : page.calibrations.length > 0
-      ? "Select an available scale to begin measuring."
-      : "Add a scale to begin measuring.";
+      ? "Choose Count, or select an available scale to begin measuring."
+      : "Choose Count, or add a scale to begin measuring.";
 }

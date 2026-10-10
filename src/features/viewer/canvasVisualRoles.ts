@@ -68,6 +68,7 @@ export const CANVAS_VISUAL_METRICS = Object.freeze({
   draftPreviewStrokeScreenPx: 1.6,
   calibrationStrokeScreenPx: 1.5,
   calibrationEmphasizedStrokeScreenPx: 2,
+  countMarkerRadiusScreenPx: 6,
   handleRadiusScreenPx: 3,
   handleStrokeScreenPx: 2,
   interactionTargetFineScreenPx: 32,

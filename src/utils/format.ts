@@ -147,11 +147,14 @@ export function formatAreaValue(
 
 export function formatMeasurement(
   measurement: Pick<Measurement, "type" | "points">,
-  calibration: PageCalibration,
+  calibration: PageCalibration | null,
   displayUnit: MeasurementDisplayUnit,
   decimalPlaces: MeasurementDecimalPlaces = DEFAULT_MEASUREMENT_DECIMAL_PLACES,
   areaDisplay: AreaDisplay = "auto",
 ): string {
+  if (measurement.type === "count") {
+    return `${measurement.points.length} ${measurement.points.length === 1 ? "item" : "items"}`;
+  }
   if (
     measurement.type === "polygon" &&
     !hasValidMeasurementPoints(measurement.type, measurement.points)

@@ -37,6 +37,10 @@ export function keyboardHitMeasurement(
 ): KeyboardMeasurement | null {
   for (const measurement of [...measurements].reverse()) {
     if (!measurement.visible) continue;
+    if (measurement.type === "count") {
+      if (measurement.points.some((marker) => distance(point, marker) * zoom <= 8)) return measurement;
+      continue;
+    }
     if (measurement.type === "polygon" && isPointStrictlyInsidePolygon(point, measurement.points))
       return measurement;
     const edgeCount = measurement.points.length - (measurement.type === "polygon" ? 0 : 1);

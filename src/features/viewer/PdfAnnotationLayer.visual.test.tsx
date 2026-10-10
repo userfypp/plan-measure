@@ -108,7 +108,7 @@ function uniformPage(): PageState {
         ],
       },
     ],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 2 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 2, count: 1 },
   };
 }
 
@@ -129,7 +129,7 @@ function pageWithMeasurement(type: "line" | "polyline" | "polygon"): PageState {
         : page.measurements[0]!.points;
   return {
     ...page,
-    measurements: [{ ...page.measurements[0]!, type, points }],
+    measurements: [{ ...page.measurements[0]!, type, calibrationId: "scale-1", points }],
   };
 }
 
@@ -156,7 +156,7 @@ function xyPage(): PageState {
     activeCalibrationId: "xy-1",
     nextCalibrationNumber: 2,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
   };
 }
 
@@ -177,7 +177,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
           x: x + radius * Math.cos(vertex * Math.PI / 6),
           y: y + radius * Math.sin(vertex * Math.PI / 6),
         }));
-      return { ...page.measurements[0]!, id: `golden-${index}`, type, points, visible: index % 11 !== 0 };
+      return { ...page.measurements[0]!, id: `golden-${index}`, type, calibrationId: "scale-1", points, visible: index % 11 !== 0 };
     });
     const result = [];
     for (const zoom of [0.5, 1, 2, 4, 8]) {
@@ -199,11 +199,81 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(result).toMatchSnapshot();
   });
 
+  it("renders an unscaled Count marker and label at constant screen size with selection and visibility", () => {
+    const page = uniformPage();
+    page.calibrations = [];
+    page.activeCalibrationId = null;
+    page.measurements = [{ id: "count", name: "Socket", type: "count", calibrationId: null, points: [{ x: 30, y: 40 }], visible: true, classificationValueIds: [] }];
+    const select = vi.fn();
+    renderLayer({ page, onSelectMeasurement: select });
+    expect(captured.circles[0]).toMatchObject({ x: 30, y: 40, radius: 3, draggable: false });
+    expect(captured.texts[0]!.text).toBe("1 item");
+    expect(Number(captured.labels[0]!.x)).toBeGreaterThan(33);
+    expect(captured.lines[0]!.visible).toBe(false);
+    const click = captured.circles[0]!.onClick as (event: unknown) => void;
+    click({ evt: {}, cancelBubble: false });
+    expect(select).toHaveBeenCalledWith("count", undefined);
+    page.measurements[0]!.visible = false;
+    captured.circles.length = 0;
+    renderLayer({ page });
+    expect(captured.circles).toHaveLength(0);
+  });
+
+  it("renders every item in a Count and edits one marker without moving its peers", () => {
+    const page = uniformPage();
+    page.calibrations = [];
+    page.activeCalibrationId = null;
+    page.measurements = [{ id: "count", name: "Plug", type: "count", calibrationId: null, points: [{ x: 30, y: 40 }, { x: 100, y: 110 }], visible: true, classificationValueIds: [] }];
+    renderLayer({ page, selectedMeasurementId: "count" });
+    expect(captured.circles).toHaveLength(2);
+    expect(captured.texts[0]!.text).toBe("2 items");
+    const marker = captured.circles[1]!;
+    let pointer = { x: 200, y: 220 };
+    const node = { getStage: () => ({ getPointerPosition: () => pointer }), position: vi.fn(), stopDrag: vi.fn(), isDragging: () => false };
+    const event = { target: node, evt: { button: 0 }, cancelBubble: false };
+    act(() => (marker.onMouseDown as (event: unknown) => void)(event));
+    pointer = { x: 240, y: 260 };
+    act(() => (marker.onDragStart as (event: unknown) => void)(event));
+    act(() => (marker.onDragEnd as (event: unknown) => void)(event));
+    expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({ pageNumber: 1, id: "count", points: [{ x: 30, y: 40 }, { x: 120, y: 130 }] });
+  });
+
+  it.each([false, true])("moves selected unscaled Count markers together (cancelled: %s)", (cancelled) => {
+    const page = uniformPage();
+    page.calibrations = [];
+    page.activeCalibrationId = null;
+    page.measurements = [
+      { id: "count-1", name: "Socket", type: "count", calibrationId: null, points: [{ x: 30, y: 40 }, { x: 100, y: 110 }], visible: true, classificationValueIds: [] },
+      { id: "count-2", name: "Socket", type: "count", calibrationId: null, points: [{ x: 60, y: 80 }], visible: true, classificationValueIds: [] },
+    ];
+    const register = vi.fn();
+    renderLayer({ page, selectedMeasurementIds: ["count-1", "count-2"], onWholeMeasurementDragCancellationChange: register });
+    const marker = captured.circles[1]!;
+    expect(marker.draggable).toBe(true);
+    let pointer = { x: 60, y: 80 };
+    const target = { getStage: () => ({ getPointerPosition: () => pointer }), position: vi.fn(), stopDrag: vi.fn(), isDragging: () => false };
+    const event = { target, evt: { button: 0 }, cancelBubble: false };
+    act(() => (marker.onMouseDown as (event: unknown) => void)(event));
+    pointer = { x: 100, y: 100 };
+    act(() => (marker.onDragStart as (event: unknown) => void)(event));
+    if (cancelled) {
+      const cancel = register.mock.calls.find((args) => typeof args[1] === "function")![1] as () => void;
+      act(cancel);
+    }
+    act(() => (marker.onDragEnd as (event: unknown) => void)(event));
+    expect(target.position).toHaveBeenCalledWith({ x: 100, y: 110 });
+    if (cancelled) expect(captured.updateMeasurements).not.toHaveBeenCalled();
+    else expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
+      { pageNumber: 1, id: "count-1", points: [{ x: 50, y: 50 }, { x: 120, y: 120 }] },
+      { pageNumber: 1, id: "count-2", points: [{ x: 80, y: 90 }] },
+    ]);
+  });
+
   it("ejecuta el layout global una vez por zoom y ninguna por paso de pan con 5000 mediciones", () => {
     const page = uniformPage();
     const source = page.measurements[0]!;
     page.measurements = Array.from({ length: 5000 }, (_, index) => ({
-      ...source, id: `budget-${index}`, type: "line" as const,
+      ...source, id: `budget-${index}`, type: "line" as const, calibrationId: "scale-1",
       points: [{ x: (index % 100) * 90, y: Math.floor(index / 100) * 90 },
         { x: (index % 100) * 90 + 60, y: Math.floor(index / 100) * 90 }],
     }));
@@ -455,7 +525,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     const event = { target, evt: { button: 0 }, cancelBubble: false };
     const line = captured.lines[0]!;
     // The Konva mock does not attach refs; attach the node as the real renderer does.
-    (line.ref as { current: typeof target | null }).current = target;
+    (line.ref as (node: typeof target) => void)(target);
     const end = line.onDragEnd as (event: unknown) => void;
     act(() => (line.onMouseDown as (event: unknown) => void)(event));
     pointer = { x: 300, y: 140 };

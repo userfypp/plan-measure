@@ -46,6 +46,7 @@ export function buildTakeoffSummary(
     length: { kind: "absent" as const },
     perimeter: { kind: "absent" as const },
     area: { kind: "absent" as const },
+    count: { kind: "absent" as const },
   };
   const breakdowns: TakeoffSummary["breakdowns"] = [];
   for (const type of ["page", "type"] as const) {

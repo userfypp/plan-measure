@@ -114,7 +114,7 @@ export function buildDataJson(
       const calibration = page!.calibrations.find(
         (candidate) => candidate.id === measurement.calibrationId,
       );
-      if (!calibration) {
+      if (!calibration && measurement.type !== "count") {
         throw new Error(`Measurement ${measurement.id} has a missing calibration.`);
       }
       const assignedDimensions = new Set<string>();
@@ -130,7 +130,7 @@ export function buildDataJson(
         }
         assignedDimensions.add(dimensionId);
       }
-      const results = measurementResultsMm(measurement, calibration);
+      const results = measurementResultsMm(measurement, calibration ?? null);
       for (const result of Object.values(results)) {
         if (result !== null) finiteNumber(result);
       }
@@ -144,6 +144,7 @@ export function buildDataJson(
         points: measurement.points.map(pointData),
         classificationValueIds: [...measurement.classificationValueIds],
         ...results,
+        ...(measurement.type === "count" ? { count: measurement.points.length } : {}),
       };
     });
     return {
@@ -156,7 +157,9 @@ export function buildDataJson(
 
   return JSON.stringify(
     {
-      schemaVersion: takeoffSelection ? 2 : 1,
+      schemaVersion: Object.values(session.pages).some((page) =>
+        page.measurements.some((measurement) => measurement.type === "count"),
+      ) ? 3 : takeoffSelection ? 2 : 1,
       pdf: {
         name: session.pdf.name,
         size: finiteNumber(session.pdf.size),

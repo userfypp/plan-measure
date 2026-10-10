@@ -16,6 +16,7 @@ import {
   type TakeoffMeasurementSource,
   type TakeoffExclusionReason,
 } from "./measurementTotals";
+import { measurementPathSpecs } from "../../utils/geometry";
 import { ToolIcon } from "../viewer/ToolIcon";
 import styles from "./TakeoffWorkspace.module.css";
 
@@ -87,6 +88,7 @@ function Quantities({
         quantity={group.area}
         format={(value) => formatAreaValue(value, displayUnit, areaDisplay, decimalPlaces)}
       />
+      <Quantity label="Count" quantity={group.count} format={String} />
     </dl>
   );
 }
@@ -152,10 +154,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
       <section className={styles.projectTotals} aria-labelledby="project-totals-heading">
         <div className={styles.sectionHeading}>
           <h2 id="project-totals-heading">Project totals</h2>
-          <span className={styles.scope}>All pages</span>
-        </div>
-        {overall.measurementCount > 0 && (
-          <p className={styles.summaryMeta}>
+          {overall.measurementCount > 0 && (
             <SourceToggle
               count={overall.measurementCount}
               label="Project totals"
@@ -163,12 +162,8 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
               controls={`${sourceListId}-overall`}
               onClick={() => toggleSources("overall")}
             />
-            <span className={styles.metaSeparator} aria-hidden="true">
-              ·
-            </span>
-            Includes hidden
-          </p>
-        )}
+          )}
+        </div>
         {overallGroup && (
           <Quantities
             group={overallGroup}
@@ -192,7 +187,8 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
           (!overallGroup ||
             (overallGroup.length.kind === "absent" &&
               overallGroup.perimeter.kind === "absent" &&
-              overallGroup.area.kind === "absent")) && (
+              overallGroup.area.kind === "absent" &&
+              overallGroup.count.kind === "absent")) && (
             <p className={styles.message}>No calculable quantities.</p>
           )}
         {overall.excludedCount > 0 && (
@@ -295,7 +291,8 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
               />
               {group.length.kind === "absent" &&
                 group.perimeter.kind === "absent" &&
-                group.area.kind === "absent" && (
+                group.area.kind === "absent" &&
+                group.count.kind === "absent" && (
                   <p className={styles.message}>No calculable quantities.</p>
                 )}
               {sourceList(group.key, grouped.sourcesByGroup.get(group.key) ?? [])}
@@ -305,6 +302,9 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
             <p className={styles.message}>No classification dimensions.</p>
           )}
         </section>
+      )}
+      {overall.measurementCount > 0 && (
+        <p className={styles.scope}>All pages · Includes hidden</p>
       )}
     </section>
   );
@@ -379,11 +379,7 @@ function SourceMeasurements({
             <span className={styles.sourceText}>
               <span className={styles.sourceName}>{measurement.name}</span>
               <span className={styles.sourceMeta}>
-                {measurement.type === "polyline"
-                  ? "Polyline"
-                  : measurement.type === "polygon"
-                    ? "Polygon"
-                    : "Line"}{" "}
+                {measurementPathSpecs[measurement.type].label}{" "}
                 · Page {pageNumber}
                 {pageLabel !== `Page ${pageNumber}` ? ` · ${pageLabel}` : ""}
                 {!measurement.visible ? " · Hidden" : ""}

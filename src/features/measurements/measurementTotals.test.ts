@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { ClassificationCatalog, Measurement, PageState } from "../../types/domain";
+import type { PathMeasurement, ClassificationCatalog, Measurement, PageState } from "../../types/domain";
 import { createMeasurementTotals } from "./measurementTotals";
 import { TakeoffWorkspace } from "./TakeoffWorkspace";
 
@@ -21,10 +21,10 @@ const catalog: ClassificationCatalog = {
 
 function measurement(
   id: string,
-  type: Measurement["type"],
+  type: PathMeasurement["type"],
   points: Measurement["points"],
-  overrides: Partial<Measurement> = {},
-): Measurement {
+  overrides: Partial<PathMeasurement> = {},
+): PathMeasurement {
   return {
     id,
     type,
@@ -57,7 +57,7 @@ function page(
     activeCalibrationId: "scale",
     nextCalibrationNumber: 2,
     measurements,
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
   };
 }
 

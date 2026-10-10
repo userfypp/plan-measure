@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CurrentSession, Measurement, PageState } from "../../types/domain";
+import type { PathMeasurement, CurrentSession, Measurement, PageState } from "../../types/domain";
 
 const state = vi.hoisted(() => ({
   session: null as CurrentSession | null,
@@ -21,7 +21,7 @@ import { TakeoffWorkspace } from "./TakeoffWorkspace";
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-function measurement(overrides: Partial<Measurement> = {}): Measurement {
+function measurement(overrides: Partial<PathMeasurement> = {}): PathMeasurement {
   return {
     id: "line-1",
     type: "line",
@@ -53,13 +53,13 @@ function page(measurements: Measurement[]): PageState {
     activeCalibrationId: "scale",
     nextCalibrationNumber: 2,
     measurements,
-    nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1 },
+    nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, count: 1 },
   };
 }
 
 function session(pages: Record<number, PageState>, withCatalog = true): CurrentSession {
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     pageCount: Object.keys(pages).length,
     currentPage: 1,
     pages,
@@ -124,6 +124,16 @@ afterEach(() => {
 });
 
 describe("MeasurementPanel and TakeoffWorkspace", () => {
+  it("filters Count markers independently of paths", () => {
+    const activePage = page([measurement(), { id: "count-1", type: "count", name: "Socket", points: [{ x: 1, y: 2 }], calibrationId: null, classificationValueIds: [], visible: true }]);
+    renderPanel(session({ 1: activePage }), activePage);
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
+    const type = Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find((select) => Array.from(select.options).some((option) => option.textContent === "All types"))!;
+    act(() => { type.value = "count"; type.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(container!.querySelector('[data-measurement-id="count-1"][data-measurement-control="selection"]')).not.toBeNull();
+    expect(container!.querySelector('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toBeNull();
+  });
+
   it("ignores deleted filters and grouping dimensions, and restores them after undo", () => {
     const activePage = page([measurement({ classificationValueIds: ["electrical"] })]);
     const currentSession = session({ 1: activePage });

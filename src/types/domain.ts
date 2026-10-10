@@ -161,15 +161,17 @@ export interface SessionV3 {
   settings: LegacySessionSettings;
 }
 
-export type MeasurementType = "line" | "polyline" | "polygon";
+export type PathMeasurementType = "line" | "polyline" | "polygon";
+export type MeasurementType = PathMeasurementType | "count";
 
 export interface PathMeasurementV4 extends MeasurementBase {
-  type: MeasurementType;
+  type: PathMeasurementType;
   points: Point[];
 }
 
 export type MeasurementV4 = PathMeasurementV4;
 
+export type PathMeasurementCounters = Record<PathMeasurementType, number>;
 export type MeasurementCounters = Record<MeasurementType, number>;
 
 export interface PageStateV4 {
@@ -178,7 +180,7 @@ export interface PageStateV4 {
   activeCalibrationId: string | null;
   nextCalibrationNumber: number;
   measurements: MeasurementV4[];
-  nextMeasurementNumber: MeasurementCounters;
+  nextMeasurementNumber: PathMeasurementCounters;
 }
 
 export interface SessionV4 {
@@ -219,7 +221,7 @@ export interface ClassificationCatalog {
 
 /** Measurement shape persisted by schema V5, before per-measurement visibility. */
 export interface PathMeasurementV5 extends MeasurementBase {
-  type: MeasurementType;
+  type: PathMeasurementType;
   points: Point[];
   classificationValueIds: string[];
 }
@@ -232,7 +234,7 @@ export interface PageStateV5 {
   activeCalibrationId: string | null;
   nextCalibrationNumber: number;
   measurements: MeasurementV5[];
-  nextMeasurementNumber: MeasurementCounters;
+  nextMeasurementNumber: PathMeasurementCounters;
 }
 
 export interface SessionV5 {
@@ -245,16 +247,21 @@ export interface SessionV5 {
   classificationCatalog: ClassificationCatalogV6;
 }
 
-/** Current measurement shape, shared by schema V6, V7, and V8 sessions. */
+/** Calibrated path shape used by historical sessions and current measurements. */
 export interface PathMeasurement extends MeasurementBase {
-  type: MeasurementType;
+  type: PathMeasurementType;
   points: Point[];
   classificationValueIds: string[];
   visible: boolean;
   note?: string;
 }
 
-export type Measurement = PathMeasurement;
+export interface CountMeasurement extends Omit<PathMeasurement, "type" | "calibrationId"> {
+  type: "count";
+  calibrationId: null;
+}
+
+export type Measurement = PathMeasurement | CountMeasurement;
 
 export interface PageState {
   pageNumber: number;
@@ -326,7 +333,12 @@ export interface SessionV11 {
   classificationCatalog: ClassificationCatalog;
 }
 
-export type CurrentSession = SessionV11;
+export interface SessionV12 extends Omit<SessionV11, "schemaVersion" | "pages"> {
+  schemaVersion: 12;
+  pages: Record<number, PageState>;
+}
+
+export type CurrentSession = SessionV12;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

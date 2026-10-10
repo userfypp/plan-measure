@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LogicalPageBounds, Measurement, Point, ViewTransform } from "../../types/domain";
+import type { PathMeasurement, LogicalPageBounds, Point, ViewTransform } from "../../types/domain";
 import { pageToScreen } from "../../utils/coordinates";
 import { constrainOrthogonal } from "../../utils/geometry";
 import { buildDraftPreviewPoints } from "./draftPreview";
@@ -21,10 +21,10 @@ const bounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
 
 function measurement(
   id: string,
-  type: Measurement["type"],
+  type: PathMeasurement["type"],
   points: Point[],
   visible = true,
-): Measurement {
+): PathMeasurement {
   return {
     id,
     type,
@@ -59,6 +59,11 @@ function resolveAtPagePoint(
 }
 
 describe("snap target extraction", () => {
+  it("uses Count item positions as targets without inventing connecting segments", () => {
+    const targets = extractSnapTargets([{ id: "count", name: "Plug", type: "count", calibrationId: null, points: [{ x: 10, y: 20 }, { x: 50, y: 60 }], visible: true, classificationValueIds: [] }], true);
+    expect(targets.map(({ kind }) => kind)).toEqual(["vertex", "vertex"]);
+  });
+
   it("extracts Line vertices and its finite segment", () => {
     const targets = extractSnapTargets(
       [measurement("line", "line", [{ x: 10, y: 20 }, { x: 30, y: 40 }])],
@@ -1280,6 +1285,7 @@ describe("Snap interaction scope", () => {
     expect(isSnapPointPlacementActive("line", false, false, false, false)).toBe(true);
     expect(isSnapPointPlacementActive("polyline", false, false, false, false)).toBe(true);
     expect(isSnapPointPlacementActive("polygon", false, false, false, false)).toBe(true);
+    expect(isSnapPointPlacementActive("count", false, false, false, false)).toBe(false);
     expect(isSnapPointPlacementActive("calibrate", false, false, false, false)).toBe(false);
     expect(isSnapPointPlacementActive("select", false, false, false, false)).toBe(false);
     expect(isSnapPointPlacementActive("hand", false, false, false, false)).toBe(false);

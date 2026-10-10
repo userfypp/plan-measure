@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, Input } from "../../components/ui";
+import { AnchoredMenu, Button, IconButton, Input } from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -33,6 +33,10 @@ export interface MeasurementDetailsProps {
   onRename: (name: string) => void;
   onSaveNote: (note: string) => void;
   onAssignClassification: (measurementId: string, dimensionId: string, valueId: string | null) => void;
+  onRemoveCountItem?: (index: number) => void;
+  onMoveCountItem?: (index: number, targetId: string) => void;
+  onAddCountItems?: () => void;
+  addCountItemsDisabledReason?: string;
   onDelete: () => void;
 }
 
@@ -49,6 +53,10 @@ export function MeasurementDetails({
   onRename,
   onSaveNote,
   onAssignClassification,
+  onRemoveCountItem,
+  onMoveCountItem,
+  onAddCountItems,
+  addCountItemsDisabledReason,
   onDelete,
 }: MeasurementDetailsProps) {
   const [renaming, setRenaming] = useState(false);
@@ -71,6 +79,9 @@ export function MeasurementDetails({
       : "Scale unavailable";
   const [perimeterResult, areaResult] = viewModel.valueLabel.split(" · ");
   const polygonResults = measurement.type === "polygon" && perimeterResult && areaResult;
+  const otherCounts = page.measurements.filter(
+    (candidate) => candidate.type === "count" && candidate.id !== measurement.id,
+  );
 
   function submitRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,19 +186,106 @@ export function MeasurementDetails({
             <span>Type</span>
             <strong>{viewModel.typeLabel}</strong>
           </div>
-          <div className={[styles.propertyRow, styles.scaleRow].join(" ")}>
-            <span>Scale</span>
-            <strong title={calibration ? scaleLabel : undefined}>{scaleLabel}</strong>
-          </div>
-          <div className={styles.propertyRow}>
-            <span>Mode</span>
-            <strong>{scaleMetadata?.modeLabel ?? "Unavailable"}</strong>
-          </div>
+          {measurement.type !== "count" && (
+            <>
+              <div className={[styles.propertyRow, styles.scaleRow].join(" ")}>
+                <span>Scale</span>
+                <strong title={calibration ? scaleLabel : undefined}>{scaleLabel}</strong>
+              </div>
+              <div className={styles.propertyRow}>
+                <span>Mode</span>
+                <strong>{scaleMetadata?.modeLabel ?? "Unavailable"}</strong>
+              </div>
+            </>
+          )}
           <div className={styles.propertyRow}>
             <span>Page</span>
             <strong>{page.pageNumber}</strong>
           </div>
         </section>
+
+        {measurement.type === "count" && onRemoveCountItem && (
+          <section className={styles.section} aria-label="Count items">
+            <div className={styles.itemsHeader}>
+              <h3>Items</h3>
+              {onAddCountItems && (
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  disabled={assignmentDisabled || Boolean(addCountItemsDisabledReason)}
+                  disabledReason={addCountItemsDisabledReason}
+                  onClick={onAddCountItems}
+                >
+                  Add items
+                </Button>
+              )}
+            </div>
+            <ul className={styles.itemsList} aria-label={`Items in ${measurement.name}`}>
+              {measurement.points.map((_, index) => (
+                <li className={styles.itemRow} key={index}>
+                  <span>Item {index + 1}</span>
+                  <div className={styles.itemActions}>
+                    {onMoveCountItem && (
+                      <AnchoredMenu
+                        trigger="Move to…"
+                        triggerProps={{
+                          className: styles.itemMove,
+                          "aria-label": `Move item ${index + 1} to another count`,
+                          disabled: assignmentDisabled || otherCounts.length === 0,
+                          title: otherCounts.length === 0 ? "Create another count on this page first" : undefined,
+                        }}
+                        label={`Move item ${index + 1} to count`}
+                        placement="bottom-end"
+                        showMarkerColumn={false}
+                        items={otherCounts.map((count) => ({
+                          id: count.id,
+                          label: `${count.name}${count.visible ? "" : " (hidden)"}`,
+                          onSelect: () => onMoveCountItem(index, count.id),
+                        }))}
+                      />
+                    )}
+                    <IconButton
+                      className={styles.itemRemove}
+                      aria-label={`Remove item ${index + 1}`}
+                      tooltip={`Remove item ${index + 1}`}
+                      tone="danger"
+                      disabled={assignmentDisabled}
+                      data-count-item-remove
+                      onClick={(event) => {
+                        if (measurement.points.length === 1) {
+                          onDelete();
+                          return;
+                        }
+                        const list = event.currentTarget.closest("ul");
+                        onRemoveCountItem(index);
+                        window.requestAnimationFrame(() => {
+                          list?.querySelectorAll<HTMLButtonElement>("[data-count-item-remove]")[
+                            Math.min(index, measurement.points.length - 2)
+                          ]?.focus({ preventScroll: true });
+                        });
+                      }}
+                      icon={
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M3.5 5h13M7.5 5V3.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V5" />
+                          <path d="m5.5 7 .6 9.1a1.5 1.5 0 0 0 1.5 1.4h4.8a1.5 1.5 0 0 0 1.5-1.4l.6-9.1M8.5 8.5v6M11.5 8.5v6" />
+                        </svg>
+                      }
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className={`${styles.section} ${styles.noteSection}`} aria-label="Measurement note">
           <div className={styles.noteHeader}>

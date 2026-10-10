@@ -388,6 +388,7 @@ describe("tool keyboard shortcuts", () => {
     expect(getToolShortcutLabel("line")).toBe("L");
     expect(getToolShortcutLabel("polyline")).toBe("M");
     expect(getToolShortcutLabel("polygon")).toBe("P");
+    expect(getToolShortcutLabel("count")).toBe("C");
     expect(getShortcutLabel("toggle-orthogonal")).toBe("O");
     expect(getShortcutLabel("toggle-snap")).toBe("S");
     expect(viewerShortcuts.map((shortcut) => shortcut.key.toUpperCase())).toEqual([
@@ -396,6 +397,7 @@ describe("tool keyboard shortcuts", () => {
       "L",
       "M",
       "P",
+      "C",
       "O",
       "S",
     ]);

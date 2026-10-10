@@ -404,6 +404,8 @@ export function extractSnapTargets(
       });
     });
 
+    if (measurement.type === "count") return;
+
     const segmentCount = measurementPathSpecs[measurement.type].closed
       ? measurement.points.length
       : Math.max(0, measurement.points.length - 1);
@@ -747,6 +749,7 @@ export function isSnapPointPlacementActive(
 ): tool is MeasurementType {
   return (
     isMeasurementType(tool) &&
+    tool !== "count" &&
     !spacePan &&
     !isPanning &&
     !calibrationReferenceEditActive &&

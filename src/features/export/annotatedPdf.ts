@@ -181,7 +181,7 @@ export function planAnnotatedPdfMeasurements(
     let label: AnnotatedPdfLabelPlan | null = null;
     if (settings.showLabels) {
       const calibration = getMeasurementCalibration(page, measurement);
-      if (calibration) {
+      if (calibration || measurement.type === "count") {
         const text = formatMeasurement(
           measurement,
           calibration,
@@ -226,11 +226,25 @@ function drawMeasurementGeometry(
   pdfLib: typeof import("pdf-lib"),
 ) {
   const points = measurement.points.map((point) => pdfPoint(viewport, point));
-  if (points.length < 2) return;
 
   const strokeColor = parseHexColor(exportVisualRoles.measurementDefaultStroke);
   const fillColor = parseHexColor(exportVisualRoles.measurementDefaultFill);
   const stroke = pdfLib.rgb(strokeColor.red, strokeColor.green, strokeColor.blue);
+
+  if (measurement.type === "count") {
+    for (const point of points) {
+      page.drawCircle({
+        x: point.x,
+        y: point.y,
+        size: CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx * logicalUnitScale(viewport),
+        borderColor: stroke,
+        borderWidth: MEASUREMENT_STROKE_PDF_PT * logicalUnitScale(viewport),
+        color: pdfLib.rgb(1, 1, 1),
+      });
+    }
+    return;
+  }
+  if (points.length < 2) return;
 
   if (measurementPathSpecs[measurement.type].closed && points.length >= 3) {
     const path = points

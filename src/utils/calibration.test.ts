@@ -25,7 +25,7 @@ const page: PageState = {
   activeCalibrationId: "scale-1",
   nextCalibrationNumber: 3,
   measurements: [],
-  nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1 },
+  nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
 };
 
 describe("page calibration resolution", () => {

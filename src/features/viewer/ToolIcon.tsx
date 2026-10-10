@@ -23,7 +23,7 @@ const strokeSvgProps = {
  * Filled silhouettes preserve the source outline/rounding at small sizes while
  * currentColor keeps the artwork compatible with every existing UI state.
  */
-const tracedIconPaths: Record<Exclude<ToolIconName, "calibrate">, string> = {
+const tracedIconPaths: Record<Exclude<ToolIconName, "calibrate" | "count">, string> = {
   select:
     "M13.52 20.36 L12.91 20.36 L12.61 20.06 L10.55 15.82 L10.36 15.64 L8.06 18.18 L7.58 18.3 L7.03 17.88 L7.03 16.67 L6.91 16.55 L6.91 14.48 L6.79 14.36 L6.79 12.06 L6.67 11.94 L6.67 10.12 L6.55 10 L6.55 7.94 L6.42 7.82 L6.42 6 L6.3 5.88 L6.3 3.94 L6.61 3.64 L7.21 3.64 L7.45 3.76 L8.18 4.48 L8.3 4.48 L8.91 5.09 L9.03 5.09 L9.52 5.58 L9.64 5.58 L10.36 6.3 L10.48 6.3 L12.67 8.24 L12.79 8.24 L13.39 8.85 L13.52 8.85 L14.24 9.58 L14.36 9.58 L15.09 10.3 L15.21 10.3 L15.82 10.91 L15.94 10.91 L16.67 11.64 L16.79 11.64 L17.39 12.24 L17.52 12.24 L17.7 12.55 L17.7 13.03 L17.58 13.27 L17.27 13.45 L15.45 13.58 L15.33 13.7 L14.48 13.7 L14.36 13.82 L13.94 13.88 L14.42 14.85 L14.42 15.09 L15.88 17.88 L16.12 18.73 L15.7 19.27 Z M13.7 18.85 L14.67 18.36 L12.12 13.15 L12.55 12.61 L13.27 12.61 L13.39 12.48 L14.24 12.48 L14.36 12.36 L15.39 12.3 L14 11.03 L13.88 11.03 L13.27 10.42 L13.15 10.42 L12.42 9.7 L12.3 9.7 L10.97 8.48 L10.85 8.48 L10.12 7.76 L10 7.76 L9.39 7.15 L9.27 7.15 L7.82 5.82 L7.76 7.45 L7.88 7.58 L7.88 10 L8 10.12 L8 12.06 L8.12 12.18 L8.24 15.82 L8.3 15.88 L8.42 15.76 L10.24 13.82 L10.85 13.82 L11.15 14.12 L13.45 18.85 Z",
   hand:
@@ -41,6 +41,14 @@ const tracedIconPaths: Record<Exclude<ToolIconName, "calibrate">, string> = {
 };
 
 export function ToolIcon({ name }: ToolIconProps) {
+  if (name === "count") {
+    return (
+      <svg {...strokeSvgProps} aria-hidden="true">
+        <circle cx="12" cy="12" r="8.05" />
+        <path d="M12 8v8M8 12h8" />
+      </svg>
+    );
+  }
   if (name !== "calibrate") {
     return (
       <svg {...baseSvgProps} aria-hidden="true">

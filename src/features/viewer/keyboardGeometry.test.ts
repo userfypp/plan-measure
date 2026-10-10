@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LogicalPageBounds, Measurement, Point } from "../../types/domain";
+import type { PathMeasurement, LogicalPageBounds, Measurement, Point } from "../../types/domain";
 import {
   keyboardEditPreview,
   keyboardHitMeasurement,
@@ -9,7 +9,7 @@ import type { SnapTarget } from "./snapping";
 
 const bounds: LogicalPageBounds = { width: 100, height: 80, rotation: 0 };
 
-function measurement(id: string, points: Point[], type: Measurement["type"] = "line"): Measurement {
+function measurement(id: string, points: Point[], type: PathMeasurement["type"] = "line"): PathMeasurement {
   return {
     id,
     type,

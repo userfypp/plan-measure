@@ -146,7 +146,7 @@ describe("atomic measurement geometry batches", () => {
     expect(pasted.session!.pages[1]!.measurements.slice(2).map((measurement) => measurement.calibrationId)).toEqual(["scale", "scale"]);
     for (const invalid of [
       { ...commands[1]!, id: commands[0]!.id },
-      { ...commands[1]!, measurement: { ...commands[1]!.measurement, calibrationId: "missing" } },
+      { ...commands[1]!, measurement: { ...commands[1]!.measurement, type: "line" as const, calibrationId: "missing" } },
       { ...commands[1]!, sourcePageNumber: 2 },
     ]) {
       const rejected = sessionReducer(state, { type: "PASTE_MEASUREMENTS", commands: [commands[0]!, invalid] });

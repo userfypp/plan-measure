@@ -105,7 +105,7 @@ afterEach(() => {
 });
 
 describe("ToolRail V2", () => {
-  it("renders exactly the five mutually exclusive primary tools", () => {
+  it("renders exactly the six mutually exclusive primary tools", () => {
     renderRail();
 
     expect(toolButtons().map((candidate) => candidate.dataset.toolId)).toEqual([
@@ -114,6 +114,7 @@ describe("ToolRail V2", () => {
       "line",
       "polyline",
       "polygon",
+      "count",
     ]);
     expect(container?.querySelector('[data-tool-id="snap"]')).toBeNull();
     expect(container?.querySelector('[data-tool-id="orthogonal"]')).toBeNull();
@@ -148,7 +149,7 @@ describe("ToolRail V2", () => {
     press("ArrowDown");
     expect(document.activeElement).toBe(button("polyline"));
     press("End");
-    expect(document.activeElement).toBe(button("polygon"));
+    expect(document.activeElement).toBe(button("count"));
     press("Home");
     expect(document.activeElement).toBe(button("select"));
     expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toHaveLength(1);
@@ -164,7 +165,7 @@ describe("ToolRail V2", () => {
     expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toEqual([button("select")]);
   });
 
-  it("uses one Narrow launcher and exposes the same five tools on demand", () => {
+  it("uses one Narrow launcher and exposes the same six tools on demand", () => {
     renderRail({}, { narrow: true });
     const launcher = container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]');
     expect(launcher).not.toBeNull();
@@ -179,6 +180,7 @@ describe("ToolRail V2", () => {
       "line",
       "polyline",
       "polygon",
+      "count",
     ]);
     expect(container?.querySelector('[role="toolbar"]')?.getAttribute("aria-orientation")).toBe(
       "vertical",
@@ -190,7 +192,7 @@ describe("ToolRail V2", () => {
     renderRail({}, { precisionAvailable: false });
     expect(button("select").disabled).toBe(false);
     expect(button("hand").disabled).toBe(false);
-    for (const tool of ["line", "polyline", "polygon"]) {
+    for (const tool of ["line", "polyline", "polygon", "count"]) {
       expect(button(tool).disabled).toBe(false);
       expect(button(tool).getAttribute("aria-disabled")).toBe("true");
       const reasonId = button(tool).getAttribute("aria-describedby");
@@ -273,7 +275,7 @@ describe("ToolRail V2", () => {
     const firstLauncher = container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]');
     if (!firstLauncher) throw new Error("Tools launcher was not rendered.");
     act(() => firstLauncher.click());
-    expect(toolButtons()).toHaveLength(5);
+    expect(toolButtons()).toHaveLength(6);
 
     act(() => {
       root!.render(

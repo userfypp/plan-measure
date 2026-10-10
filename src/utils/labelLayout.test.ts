@@ -378,7 +378,7 @@ describe("inside measurement label placement", () => {
   const insidePage = { width: 140, height: 120 };
 
   function inside(
-    type: "line" | "polyline" | "polygon",
+    type: "line" | "polyline" | "polygon" | "count",
     points: Array<{ x: number; y: number }>,
     dimensions: LabelDimensions = label,
     zoom = 1,
@@ -395,6 +395,18 @@ describe("inside measurement label placement", () => {
       4,
     );
   }
+
+  it.each([1, 2, 0.5])("keeps Count labels beside the marker at zoom %s", (zoom) => {
+    const point = { x: 60, y: 60 };
+    const placement = inside("count", [point], label, zoom)!;
+    expect((placement.x - point.x) * zoom).toBeCloseTo(8);
+    expect(placement.y + label.height / 2).toBe(point.y);
+    const blocked = { ...placement, ...label };
+    const alternative = inside("count", [point], label, zoom, [blocked])!;
+    expect(alternative.x + label.width).toBeLessThan(point.x);
+    const edge = inside("count", [{ x: insidePage.width - 1, y: 60 }], label, zoom)!;
+    expect(edge.x + label.width).toBeLessThan(insidePage.width - 1);
+  });
 
   describe("Line", () => {
     it.each([

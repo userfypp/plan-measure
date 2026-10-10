@@ -123,6 +123,7 @@ export const viewerShortcuts: readonly ViewerShortcut[] = [
   { key: "l", label: "Line", action: { type: "choose-tool", tool: "line" } },
   { key: "m", label: "Polyline", action: { type: "choose-tool", tool: "polyline" } },
   { key: "p", label: "Polygon", action: { type: "choose-tool", tool: "polygon" } },
+  { key: "c", label: "Count", action: { type: "choose-tool", tool: "count" } },
   { key: "o", label: "Ortho 90°", action: "toggle-orthogonal" },
   { key: "s", label: "Snap", action: "toggle-snap" },
 ];
@@ -178,7 +179,7 @@ export function getDrawingKeyboardAction(
       ? "complete-path"
       : null;
   }
-  if (tool === "line" && !draft) return "exit-tool";
+  if ((tool === "line" || tool === "count") && !draft) return "exit-tool";
   return null;
 }
 

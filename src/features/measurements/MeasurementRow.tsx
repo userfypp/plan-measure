@@ -44,7 +44,8 @@ export const MeasurementRow = memo(function MeasurementRow({
   const detailsId = `measurement-details-${viewModel.id}`;
   const quantityLines =
     viewModel.type === "polygon" ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
-  const metadata = `${viewModel.typeLabel} · ${viewModel.calibrationSummary.split(" · ")[0]}${
+  const scaleSummary = viewModel.type === "count" ? "" : ` · ${viewModel.calibrationSummary.split(" · ")[0]}`;
+  const metadata = `${viewModel.typeLabel}${scaleSummary}${
     viewModel.pageLabel ? ` · ${viewModel.pageLabel}` : ""
   }`;
 
@@ -81,7 +82,7 @@ export const MeasurementRow = memo(function MeasurementRow({
             ))}
           </span>
           <span
-            className={[styles.metadata, !viewModel.hasCalibration ? styles.unavailable : ""]
+            className={[styles.metadata, viewModel.type !== "count" && !viewModel.hasCalibration ? styles.unavailable : ""]
               .filter(Boolean)
               .join(" ")}
           >

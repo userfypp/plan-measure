@@ -134,6 +134,40 @@ afterEach(() => {
 });
 
 describe("ContextToolbar V2", () => {
+  it("offers Add items for a selected count and respects drawing restrictions", () => {
+    const onAddCountItems = vi.fn();
+    const count = { id: "count", name: "Plug", type: "count" as const, calibrationId: null, points: [{ x: 1, y: 2 }], classificationValueIds: [], visible: true };
+    const selection = props({ selectedMeasurements: [count], selectedMeasurementId: count.id, selectedMeasurementName: count.name, onAddCountItems });
+    renderToolbar(selection);
+    act(() => buttonByText("Add items").click());
+    expect(onAddCountItems).toHaveBeenCalledOnce();
+    renderToolbar({ ...selection, addCountItemsDisabledReason: "Show this count before adding items" });
+    act(() => buttonByText("Add items").click());
+    expect(onAddCountItems).toHaveBeenCalledOnce();
+  });
+
+  it("shows explicit Count creation and completion controls without path drawing aids", () => {
+    renderToolbar();
+    act(() => workspace!.chooseTool("count"));
+    expect(container!.textContent).toContain("Click to start a count");
+    expect(container!.querySelector('button[aria-label^="Snap"]')).toBeNull();
+    expect(container!.querySelector('button[aria-label^="Ortho"]')).toBeNull();
+    expect(toolbarButtons().map((button) => button.textContent?.trim())).toEqual(["New count", "Done"]);
+  });
+
+  it("starts another count explicitly and finishes adding items", () => {
+    const clear = vi.fn();
+    const count = { id: "count", name: "Plug", type: "count" as const, calibrationId: null, points: [{ x: 1, y: 2 }], classificationValueIds: [], visible: true };
+    renderToolbar(props({ selectedMeasurements: [count], selectedMeasurementId: count.id, selectedMeasurementName: count.name, onClearMeasurementSelection: clear }));
+    act(() => workspace!.chooseTool("count"));
+    expect(container!.textContent).toContain("Click to add items");
+    expect(buttonByLabel("Rename selected measurement Plug")).toBeTruthy();
+    act(() => buttonByText("New count").click());
+    expect(clear).toHaveBeenCalledOnce();
+    act(() => buttonByText("Done").click());
+    expect(workspace!.activeTool).toBe("select");
+  });
+
   it("is absent in idle Select without a selection", () => {
     renderToolbar();
     expect(contextKind()).toBeNull();

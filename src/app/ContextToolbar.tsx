@@ -19,6 +19,8 @@ export interface ContextToolbarProps {
   classificationCatalog?: ClassificationCatalog;
   onEditSelectedMeasurements?: (command: BulkMeasurementCommand) => boolean;
   onClearMeasurementSelection?: () => void;
+  onAddCountItems?: () => void;
+  addCountItemsDisabledReason?: string;
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
@@ -238,6 +240,8 @@ export function ContextToolbar({
   classificationCatalog,
   onEditSelectedMeasurements,
   onClearMeasurementSelection,
+  onAddCountItems,
+  addCountItemsDisabledReason,
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
@@ -335,6 +339,47 @@ export function ContextToolbar({
       >
         <span className={styles.status}>Editing geometry</span>
       </div>
+    );
+  }
+
+  if (activeTool === "count") {
+    const count =
+      selectedMeasurements?.length === 1 &&
+      selectedMeasurements[0]?.type === "count" &&
+      selectedMeasurements[0].visible
+        ? selectedMeasurements[0]
+        : null;
+    return (
+      <ToolbarComposite label="Count drawing controls" contextKind="drawing" drawingTool="count">
+        <span className={styles.toolIdentity} role="status">
+          {count ? "Click to add items" : "Click to start a count"}
+        </span>
+        {count && (
+          <MeasurementNameEditor
+            key={count.id}
+            name={count.name}
+            onRename={onRenameSelectedMeasurement}
+          />
+        )}
+        <Divider />
+        <Button
+          className={styles.action}
+          variant="ghost"
+          size="compact"
+          disabled={!count}
+          onClick={onClearMeasurementSelection}
+        >
+          New count
+        </Button>
+        <Button
+          className={styles.action}
+          variant="ghost"
+          size="compact"
+          onClick={onExitDrawingTool}
+        >
+          Done
+        </Button>
+      </ToolbarComposite>
     );
   }
 
@@ -436,6 +481,18 @@ export function ContextToolbar({
         </span>
       )}
       <Divider />
+      {singleSelection && selectedMeasurements?.[0]?.type === "count" && onAddCountItems && (
+        <Button
+          className={styles.action}
+          variant="secondary"
+          size="compact"
+          disabled={Boolean(addCountItemsDisabledReason)}
+          disabledReason={addCountItemsDisabledReason}
+          onClick={onAddCountItems}
+        >
+          Add items
+        </Button>
+      )}
       <Button
         className={styles.action}
         variant="secondary"

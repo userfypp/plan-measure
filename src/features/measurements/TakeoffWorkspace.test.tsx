@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../../app/sessionState";
-import type { Measurement } from "../../types/domain";
+import type { PathMeasurement } from "../../types/domain";
 import { TakeoffWorkspace } from "./TakeoffWorkspace";
 
 let container: HTMLDivElement;
@@ -29,7 +29,7 @@ function fixture() {
         referenceDistanceMm: 1000,
       },
     ];
-  const measurement = (id: string, overrides: Partial<Measurement> = {}): Measurement => ({
+  const measurement = (id: string, overrides: Partial<PathMeasurement> = {}): PathMeasurement => ({
     id,
     name: id,
     type: "line",
@@ -93,6 +93,33 @@ afterEach(() => {
 });
 
 describe("Takeoff source measurements", () => {
+  it("places Count after physical quantities in project totals and page breakdowns", () => {
+    const session = fixture();
+    session.pages[1]!.measurements.push(
+      {
+        id: "polygon", name: "Room", type: "polygon", calibrationId: "scale",
+        points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }],
+        visible: true, classificationValueIds: [],
+      },
+      {
+        id: "count", name: "Plugs", type: "count", calibrationId: null,
+        points: [{ x: 0, y: 0 }, { x: 10, y: 10 }],
+        visible: true, classificationValueIds: [],
+      },
+    );
+    render(session);
+    const labels = (section: Element) => Array.from(section.querySelectorAll("dt"), (dt) => dt.textContent);
+    expect(labels(container.querySelector('[aria-labelledby="project-totals-heading"]')!)).toEqual(["Length", "Perimeter", "Area", "Count"]);
+    choose("page");
+    expect(labels(container.querySelector('[aria-label="Page 1 totals"]')!)).toEqual(["Length", "Perimeter", "Area", "Count"]);
+  });
+  it("keeps scope information at the foot of the workspace and source access beside the heading", () => {
+    render();
+    const workspace = container.querySelector('[aria-label="Takeoff workspace"]')!;
+    expect(workspace.lastElementChild?.textContent).toBe("All pages · Includes hidden");
+    expect(button("Show measurements in Project totals").parentElement).toBe(container.querySelector("h2")!.parentElement);
+    expect(container.querySelector('[aria-labelledby="project-totals-heading"]')!.textContent).not.toContain("Includes hidden");
+  });
   it("opens project sources, including hidden and excluded entries, using their page and ID", () => {
     const onOpen = render();
     act(() => button("Show measurements in Project totals").click());
@@ -129,7 +156,7 @@ describe("Takeoff source measurements", () => {
     expect(container.textContent).toContain("Assigned scale is missing.");
     session.pages[1] = {
       ...session.pages[1]!,
-      measurements: session.pages[1]!.measurements.map((m) => ({ ...m, calibrationId: "scale" })),
+      measurements: session.pages[1]!.measurements.map((m) => ({ ...m, type: "line" as const, calibrationId: "scale" })),
     };
     render({ ...session, pages: { ...session.pages } });
     expect(button("Inspect excluded measurements")).toBeNull();

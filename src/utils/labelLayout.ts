@@ -506,8 +506,8 @@ function collidesWithOccupied(
 
 /**
  * Returns one automatic inside placement when the rendered label genuinely fits
- * the measurement geometry. Returning null is deliberate: callers must then use
- * the pre-existing placement sequence unchanged.
+ * the measurement geometry, or beside a Count marker. Returning null is
+ * deliberate: callers must then use the pre-existing placement sequence unchanged.
  */
 export function placeLabelInsideMeasurementGeometry(
   type: MeasurementType,
@@ -523,6 +523,29 @@ export function placeLabelInsideMeasurementGeometry(
   const safeScale = safeZoom(zoom);
   const gap = finiteNonNegative(gapScreenPx) / safeScale;
   let placement: LabelPlacement | null = null;
+
+  if (type === "count" && points[0]) {
+    const point = points[0];
+    const horizontalOffset = dimensions.width / 2 + 2 * gap;
+    const verticalOffset = dimensions.height / 2 + 2 * gap;
+    let fallback: LabelPlacement | null = null;
+    for (const anchor of [
+      { x: point.x + horizontalOffset, y: point.y },
+      { x: point.x - horizontalOffset, y: point.y },
+      { x: point.x, y: point.y - verticalOffset },
+      { x: point.x, y: point.y + verticalOffset },
+    ]) {
+      const candidate = centeredPlacementWithoutClamping(
+        anchor, dimensions, page, zoom, marginScreenPx,
+      );
+      if (!candidate) continue;
+      fallback ??= candidate;
+      if (!collidesWithOccupied({ ...candidate, ...dimensions }, occupied, gap, ignoreOccupied)) {
+        return candidate;
+      }
+    }
+    return fallback;
+  }
 
   if (type === "line" || type === "polyline") {
     const segmentCandidates: SegmentLabelCandidate[] = [];

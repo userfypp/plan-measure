@@ -22,13 +22,14 @@ export interface AxisAlignedRect {
 }
 
 export const measurementPathSpecs: Record<MeasurementType, MeasurementPathSpec> = {
+  count: { label: "Count", minVertices: 1, maxVertices: null, closed: false },
   line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false },
   polyline: { label: "Polyline", minVertices: 2, maxVertices: null, closed: false },
   polygon: { label: "Polygon", minVertices: 3, maxVertices: null, closed: true },
 };
 
 export function isMeasurementType(value: string): value is MeasurementType {
-  return value === "line" || value === "polyline" || value === "polygon";
+  return value === "line" || value === "polyline" || value === "polygon" || value === "count";
 }
 
 export function hasValidMeasurementPoints(
@@ -51,9 +52,10 @@ export function hasValidMeasurementPointSequence(
     points.length >= spec.minVertices &&
     (spec.maxVertices === null || points.length <= spec.maxVertices) &&
     points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)) &&
-    points.every(
-      (point, index) => index === 0 || !areEffectivelyIdentical(points[index - 1]!, point),
-    )
+    (type === "count" ||
+      points.every(
+        (point, index) => index === 0 || !areEffectivelyIdentical(points[index - 1]!, point),
+      ))
   );
 }
 
@@ -756,8 +758,12 @@ export function polygonResultsMm(
 
 export function measurementResultsMm(
   measurement: Pick<Measurement, "type" | "points">,
-  calibration: Calibration | PageCalibration,
+  calibration: Calibration | PageCalibration | null,
 ): { lengthMm: number | null; perimeterMm: number | null; areaMm2: number | null } {
+  if (measurement.type === "count") {
+    return { lengthMm: null, perimeterMm: null, areaMm2: null };
+  }
+  if (!calibration) throw new RangeError("Measurement requires a calibration.");
   const spec = measurementPathSpecs[measurement.type];
   if (!spec.closed) {
     return {
