@@ -27,7 +27,7 @@ Expand a scale to rename it or edit its calibration. To reuse it on another page
 
 In **Classifications**, create dimensions such as Trade with values such as Electrical. Archive entries to keep assignments; delete them to remove assignments throughout the project. **Templates** saves a reusable catalog locally. Applying a template adds missing entries and reuses matching names without changing measurement assignments; restore matching archived entries first.
 
-**Measurements** lists the current page and can group entries by classification dimensions. **Takeoff** totals all pages, including hidden measurements, with breakdowns by page, type, or classification. Lines and Polylines contribute length; Polygons contribute perimeter and area. Uncalculable measurements are excluded with a notice.
+**Measurements** lists the current page and can group entries by classification dimensions. **Takeoff** totals all pages, including hidden measurements, with breakdowns by page, type, or classification. Lines and Polylines contribute length; Polygons contribute perimeter and area. Uncalculable measurements are excluded with a notice. Open a measurement count to inspect its sources, then select a measurement to open its page and details. Use **Inspect** on an exclusion notice to see the affected measurements and reasons.
 
 ## View and settings
 

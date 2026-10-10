@@ -401,3 +401,16 @@ describe("createMeasurementTotals", () => {
     ).toContain("ac");
   });
 });
+
+
+it("reports exclusion causes without changing calculation or grouping semantics", () => {
+ const missing = measurement("missing", "line", [{x:0,y:0},{x:10,y:0}], {calibrationId:"gone"});
+ const invalid = measurement("invalid", "line", [{x:0,y:0},{x:0,y:0}]);
+ const badScale = page(2,[measurement("bad-scale","line",[{x:0,y:0},{x:10,y:0}])], 0);
+ const huge = page(3,[measurement("overflow","line",[{x:0,y:0},{x:100,y:0}])], 1e308);
+ const result=totals({1:page(1,[missing,invalid]),2:badScale,3:huge});
+ expect(result.excludedMeasurements.map(source=>[source.pageNumber,source.measurement.id,source.exclusionReason])).toEqual([[1,"missing","missing-scale"],[1,"invalid","invalid-geometry"],[2,"bad-scale","invalid-scale"],[3,"overflow","nonfinite-result"]]);
+ expect(result.sourcesByGroup.get("overall")).toHaveLength(4);
+ expect(result.groups[0]!.length).toEqual({kind:"absent"});
+ expect(result.excludedCount).toBe(4);
+});
