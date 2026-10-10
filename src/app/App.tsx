@@ -95,9 +95,7 @@ function calibrationMeasurementCount(page: PageState, calibrationId: string): nu
     .length;
 }
 
-const ExportDialog = lazy(() =>
-  import("../features/export/ExportDialog").then(({ ExportDialog }) => ({ default: ExportDialog })),
-);
+type ExportDialogComponent = typeof import("../features/export/ExportDialog").ExportDialog;
 
 export function App() {
   return (
@@ -204,6 +202,26 @@ function PlanMeasureApp() {
   const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [ExportDialog, setExportDialog] = useState<ExportDialogComponent | null>(null);
+  const openExportDialog = useCallback(() => {
+    if (ExportDialog) {
+      setExportDialogOpen(true);
+      return;
+    }
+    // Load on demand before mounting: a new Suspense fallback would delay its
+    // first successful commit even when this small chunk is already downloaded.
+    void import("../features/export/ExportDialog").then(
+      ({ ExportDialog: component }) => {
+        setExportDialog(() => component);
+        setExportDialogOpen(true);
+      },
+      (error: unknown) => {
+        // Preserve the lazy component's render-time error propagation.
+        setExportDialog(() => function FailedExportDialog() { throw error; });
+        setExportDialogOpen(true);
+      },
+    );
+  }, [ExportDialog]);
   const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
   const [pendingDiscardProjectId, setPendingDiscardProjectId] = useState<string | null>(null);
   const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
@@ -1134,7 +1152,7 @@ function PlanMeasureApp() {
       confirmValueDeletion={confirmValueDeletion}
       confirmDimensionDeletion={confirmDimensionDeletion}
       recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-      onExport={() => setExportDialogOpen(true)}
+      onExport={openExportDialog}
       onOpenProjects={() => {
         setProjectLibraryOpen(true);
         void refreshSavedProjects();
@@ -1558,8 +1576,7 @@ function PlanMeasureApp() {
         }}
       />
 
-      {exportDialogOpen && session && (
-        <Suspense fallback={null}>
+      {exportDialogOpen && session && ExportDialog && (
           <ExportDialog
             session={session}
             summaryBlocked={summaryExportBlocked}
@@ -1574,7 +1591,6 @@ function PlanMeasureApp() {
             }
             onClose={() => setExportDialogOpen(false)}
           />
-        </Suspense>
       )}
 
     </AppShell>

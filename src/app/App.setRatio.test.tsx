@@ -71,16 +71,19 @@ vi.mock("./usePdfSessionLifecycle", async () => {
 vi.mock("./AppShell", () => ({
   AppShell: ({
     children,
+    onExport,
     statusMessage,
     statusActions,
     errorNotifications = [],
   }: {
     children: ReactNode;
+    onExport?: () => void;
     statusMessage?: string | null;
     statusActions?: ReactNode;
     errorNotifications?: { id: number; message: string }[];
   }) => (
     <div>
+      {onExport && <button onClick={onExport}>Open export</button>}
       {statusMessage && <div role="alert">{statusMessage}{statusActions}</div>}
       {errorNotifications.map(({ id, message }) => <div key={id} role="alert">{message}</div>)}
       {children}
@@ -362,6 +365,24 @@ afterEach(() => {
   vi.restoreAllMocks();
   root = null;
   container = null;
+});
+
+describe("App export diferido", () => {
+  it("abre el módulo resuelto y conserva cierre, reapertura y sesión", async () => {
+    await renderApp(twoPageSession());
+    const before = currentSession();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => {
+      buttonByText("Open export").click();
+      await vi.dynamicImportSettled();
+    });
+    expect(buttonByText("Export CSV")).toBeDefined();
+    act(() => buttonByText("Cancel").click());
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    act(() => buttonByText("Open export").click());
+    expect(buttonByText("Export CSV")).toBeDefined();
+    expect(currentSession()).toBe(before);
+  });
 });
 
 describe("App Set ratio impact confirmation", () => {

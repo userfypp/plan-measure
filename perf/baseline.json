@@ -1,0 +1,2439 @@
+{
+  "schema": 1,
+  "samples": 5,
+  "environment": {
+    "sourceCommit": "8e96e5e9632b6fd3d7807110716762eb8b5a26e6",
+    "sourceDirty": true,
+    "sourceDiffSha256": "a70948e7c23a427db18be5727b68dad0e3bbcd9e4c5b680fdf33ca6e1da8caaf",
+    "node": "v24.20.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "osRelease": "27.0.0",
+    "indexHtmlSha256": "8b66689ff10c00a594a1715674b78519792b4e8dc2d18319cb3e620d37a4ff62",
+    "startupFiles": [
+      {
+        "file": "assets/index-CoG1ArDR.js",
+        "sha256": "c123a24652e1587744ef1cc8a983bfd7c12dde9e309f8d380b9c8133a723ace0"
+      },
+      {
+        "file": "assets/rolldown-runtime-hePW80VL.js",
+        "sha256": "580ad8c58061a4dde99bde0a56905e382f0568516ee2f5b84dbfb52085709021"
+      },
+      {
+        "file": "assets/format-BGR5cejC.js",
+        "sha256": "634f6be619b4eb5bab1b8e56cf3dd969ac9fe9b8472c28c8b60c44e18bb48632"
+      }
+    ]
+  },
+  "createdAt": "2026-10-10T06:27:19.825Z",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "dpr": 2
+  },
+  "fixture": {
+    "seed": 20261009,
+    "pdfCBytes": 99559199
+  },
+  "rawSamples": [
+    {
+      "name": "M1000/1x/pan",
+      "sample": 0,
+      "calibrationMs": 3.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 50,
+        "heapBytes": 35384160,
+        "elapsedMs": 3114.1485410000005,
+        "fps": 59.40148985361178
+      },
+      "gestureTiming": {
+        "acquireMs": 40.154209000000264,
+        "releaseMs": 34.85279199999968,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/zoom",
+      "sample": 0,
+      "calibrationMs": 3.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 66.60000000000036,
+        "heapBytes": 41267844,
+        "elapsedMs": 5117.495999999999,
+        "fps": 47.81032624672136
+      },
+      "gestureTiming": {
+        "actions": 76
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/drag",
+      "sample": 0,
+      "calibrationMs": 3.300000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 100,
+        "heapBytes": 65973036,
+        "elapsedMs": 4140.454792,
+        "fps": 57.443404915431096
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/firstCSV",
+      "sample": 0,
+      "calibrationMs": 3.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.599999999998545,
+        "heapBytes": 84860408,
+        "elapsedMs": 163.60675000000265
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/closeCSV",
+      "sample": 0,
+      "calibrationMs": 3.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.21399999999994,
+        "heapBytes": 85486192,
+        "elapsedMs": 40.265457999998034
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/panel",
+      "sample": 0,
+      "calibrationMs": 3.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.29999999999927,
+        "heapBytes": 40309992,
+        "elapsedMs": 170.59579200000007
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/pan",
+      "sample": 0,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 3,
+        "maxPauseMs": 283.3000000000002,
+        "heapBytes": 157618148,
+        "elapsedMs": 3507.028374999998,
+        "fps": 52.98278775379357
+      },
+      "gestureTiming": {
+        "acquireMs": 153.59579200000007,
+        "releaseMs": 169.16004200000316,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/zoom",
+      "sample": 0,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 33,
+        "maxPauseMs": 416.59999999999945,
+        "heapBytes": 190167328,
+        "elapsedMs": 5915.403333000002,
+        "fps": 10.226721209181102
+      },
+      "gestureTiming": {
+        "actions": 15
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/drag",
+      "sample": 0,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 366.59999999999854,
+        "heapBytes": 225217060,
+        "elapsedMs": 5631.617833000004,
+        "fps": 48.39168801594722
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/firstCSV",
+      "sample": 0,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 116.60000000000218,
+        "heapBytes": 239940980,
+        "elapsedMs": 278.09883300000365
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/closeCSV",
+      "sample": 0,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.60000000000218,
+        "heapBytes": 241855424,
+        "elapsedMs": 37.43041700000322
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/panel",
+      "sample": 0,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 166.79999999999927,
+        "heapBytes": 265038348,
+        "elapsedMs": 313.7066249999989
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/1x/open",
+      "sample": 0,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 105,
+        "heapBytes": 6263088,
+        "elapsedMs": 2998.513165999997
+      }
+    },
+    {
+      "name": "M1000/4x/pan",
+      "sample": 0,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 4,
+        "maxPauseMs": 267,
+        "heapBytes": 35391700,
+        "elapsedMs": 2167.7022910000014,
+        "fps": 44.34999538020882
+      },
+      "gestureTiming": {
+        "acquireMs": 97.44487499999377,
+        "releaseMs": 117.6180830000012,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/zoom",
+      "sample": 0,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 32,
+        "maxPauseMs": 351,
+        "heapBytes": 39164992,
+        "elapsedMs": 5467.862499999996,
+        "fps": 13.213918660987769
+      },
+      "gestureTiming": {
+        "actions": 23
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/drag",
+      "sample": 0,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 5,
+        "maxPauseMs": 332.89999999999964,
+        "heapBytes": 61270268,
+        "elapsedMs": 4625.580417000005,
+        "fps": 47.46012482664501
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/firstCSV",
+      "sample": 0,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 99.70000000000073,
+        "heapBytes": 80181424,
+        "elapsedMs": 292.37208299999475
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/closeCSV",
+      "sample": 0,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 17.5,
+        "heapBytes": 53784684,
+        "elapsedMs": 31.629790999999386
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/panel",
+      "sample": 0,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 149.8000000000029,
+        "heapBytes": 70015440,
+        "elapsedMs": 305.68762500000594
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/pan",
+      "sample": 0,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 4,
+        "maxPauseMs": 1232.5,
+        "heapBytes": 152577532,
+        "elapsedMs": 3734.7817499999946,
+        "fps": 26.015824057942538
+      },
+      "gestureTiming": {
+        "acquireMs": 547.5297920000012,
+        "releaseMs": 649.2645409999968,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/zoom",
+      "sample": 0,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 10,
+        "maxPauseMs": 1600,
+        "heapBytes": 176627732,
+        "elapsedMs": 6775.466625000001,
+        "fps": 3.40866987773287
+      },
+      "gestureTiming": {
+        "actions": 6
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/drag",
+      "sample": 0,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 1466.6000000000022,
+        "heapBytes": 245429556,
+        "elapsedMs": 8915.571125000002,
+        "fps": 26.489768887990934
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/firstCSV",
+      "sample": 0,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 1,
+        "maxPauseMs": 449.2000000000007,
+        "heapBytes": 238590908,
+        "elapsedMs": 873.4863749999931
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/closeCSV",
+      "sample": 0,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.39999999999782,
+        "heapBytes": 254677524,
+        "elapsedMs": 38.653707999998005
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/panel",
+      "sample": 0,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 649.2000000000007,
+        "heapBytes": 267182876,
+        "elapsedMs": 923.2787500000122
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/4x/open",
+      "sample": 0,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 433,
+        "heapBytes": 6268996,
+        "elapsedMs": 3461.9498329999915
+      }
+    },
+    {
+      "name": "M1000/1x/pan",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 51,
+        "heapBytes": 35420632,
+        "elapsedMs": 3090.3283329999977,
+        "fps": 59.021922428302
+      },
+      "gestureTiming": {
+        "acquireMs": 45.513374999994994,
+        "releaseMs": 35.30062500000349,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/zoom",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 66.69999999999982,
+        "heapBytes": 49735824,
+        "elapsedMs": 5076.263708999992,
+        "fps": 47.88460401600094
+      },
+      "gestureTiming": {
+        "actions": 74
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/drag",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 100,
+        "heapBytes": 62962872,
+        "elapsedMs": 4157.357957999993,
+        "fps": 57.49753410157095
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/firstCSV",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 32.38000000000102,
+        "heapBytes": 81915408,
+        "elapsedMs": 162.34787500000675
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/closeCSV",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 16.61200000000099,
+        "heapBytes": 82541132,
+        "elapsedMs": 28.241500000003725
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/panel",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.29999999999927,
+        "heapBytes": 40264252,
+        "elapsedMs": 160.52724999998463
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/pan",
+      "sample": 1,
+      "calibrationMs": 4.100000001490116,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 3,
+        "maxPauseMs": 300,
+        "heapBytes": 150001344,
+        "elapsedMs": 3487.017832999991,
+        "fps": 52.56656995950913
+      },
+      "gestureTiming": {
+        "acquireMs": 159.7288750000007,
+        "releaseMs": 166.9029580000206,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/zoom",
+      "sample": 1,
+      "calibrationMs": 4.100000001490116,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 31,
+        "maxPauseMs": 399.90000000000055,
+        "heapBytes": 145277740,
+        "elapsedMs": 5801.191667000006,
+        "fps": 9.7210930043531
+      },
+      "gestureTiming": {
+        "actions": 15
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/drag",
+      "sample": 1,
+      "calibrationMs": 4.100000001490116,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 366.7000000000007,
+        "heapBytes": 254354804,
+        "elapsedMs": 5638.950292000023,
+        "fps": 48.28259518949144
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/firstCSV",
+      "sample": 1,
+      "calibrationMs": 4.100000001490116,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 99.90000000000146,
+        "heapBytes": 188447292,
+        "elapsedMs": 276.99366700000246
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/closeCSV",
+      "sample": 1,
+      "calibrationMs": 4.100000001490116,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.38199999999779,
+        "heapBytes": 190270196,
+        "elapsedMs": 42.85812500002794
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/panel",
+      "sample": 1,
+      "calibrationMs": 4.100000001490116,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 166.6999999999971,
+        "heapBytes": 187219956,
+        "elapsedMs": 307.8172499999928
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/1x/open",
+      "sample": 1,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 105,
+        "heapBytes": 6265860,
+        "elapsedMs": 3101.096292000002
+      }
+    },
+    {
+      "name": "M1000/4x/pan",
+      "sample": 1,
+      "calibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 4,
+        "maxPauseMs": 283.2999999999997,
+        "heapBytes": 35395816,
+        "elapsedMs": 2213.742125000019,
+        "fps": 44.37601883716718
+      },
+      "gestureTiming": {
+        "acquireMs": 96.09791699997731,
+        "releaseMs": 114.66808299999684,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/zoom",
+      "sample": 1,
+      "calibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 33,
+        "maxPauseMs": 366.8000000000002,
+        "heapBytes": 36767700,
+        "elapsedMs": 5403.763249999989,
+        "fps": 11.857780742221326
+      },
+      "gestureTiming": {
+        "actions": 20
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/drag",
+      "sample": 1,
+      "calibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 5,
+        "maxPauseMs": 350.90000000000146,
+        "heapBytes": 53169544,
+        "elapsedMs": 4650.418375000008,
+        "fps": 47.03851548172081
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/firstCSV",
+      "sample": 1,
+      "calibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 116.69999999999709,
+        "heapBytes": 72150660,
+        "elapsedMs": 288.4819580000185
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/closeCSV",
+      "sample": 1,
+      "calibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.44800000000032,
+        "heapBytes": 72755228,
+        "elapsedMs": 38.05449999999837
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/panel",
+      "sample": 1,
+      "calibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 149.3000000000029,
+        "heapBytes": 40349880,
+        "elapsedMs": 308.02008300001035
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/pan",
+      "sample": 1,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 4,
+        "maxPauseMs": 1200,
+        "heapBytes": 142092448,
+        "elapsedMs": 3705.170958999981,
+        "fps": 25.743862121309828
+      },
+      "gestureTiming": {
+        "acquireMs": 545.6680829999968,
+        "releaseMs": 624.9908749999886,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/zoom",
+      "sample": 1,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 12,
+        "maxPauseMs": 1783.4000000000015,
+        "heapBytes": 173586220,
+        "elapsedMs": 7453.573249999987,
+        "fps": 3.2329328088801126
+      },
+      "gestureTiming": {
+        "actions": 6
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/drag",
+      "sample": 1,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 1382.4000000000015,
+        "heapBytes": 235150576,
+        "elapsedMs": 8854.588416000013,
+        "fps": 27.34463276836158
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/firstCSV",
+      "sample": 1,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 1,
+        "maxPauseMs": 416.59999999999854,
+        "heapBytes": 234033940,
+        "elapsedMs": 814.554833000002
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/closeCSV",
+      "sample": 1,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.358000000000175,
+        "heapBytes": 250186364,
+        "elapsedMs": 34.832041999994544
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/panel",
+      "sample": 1,
+      "calibrationMs": 10.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 650.9000000000015,
+        "heapBytes": 262803196,
+        "elapsedMs": 919.5178749999905
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/4x/open",
+      "sample": 1,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 422,
+        "heapBytes": 6268220,
+        "elapsedMs": 3420.7927499999932
+      }
+    },
+    {
+      "name": "M1000/1x/pan",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 50.899999999999864,
+        "heapBytes": 35398236,
+        "elapsedMs": 3067.1354580000043,
+        "fps": 59.040349675412465
+      },
+      "gestureTiming": {
+        "acquireMs": 44.05354100000113,
+        "releaseMs": 35.52291699999478,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/zoom",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 66.60000000000036,
+        "heapBytes": 58156464,
+        "elapsedMs": 5129.231041999999,
+        "fps": 48.631862658939525
+      },
+      "gestureTiming": {
+        "actions": 75
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/drag",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 82.39999999999964,
+        "heapBytes": 75005716,
+        "elapsedMs": 4126.713416999992,
+        "fps": 57.93939393941486
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/firstCSV",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 17,
+        "heapBytes": 42046544,
+        "elapsedMs": 160.12433400002192
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/closeCSV",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 32.280000000000655,
+        "heapBytes": 42673580,
+        "elapsedMs": 36.004707999993116
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/panel",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 32.89999999999782,
+        "heapBytes": 61559956,
+        "elapsedMs": 164.3809159999946
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/pan",
+      "sample": 2,
+      "calibrationMs": 4.400000002235174,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 3,
+        "maxPauseMs": 283.1999999999998,
+        "heapBytes": 160733772,
+        "elapsedMs": 3477.2510410000104,
+        "fps": 52.83520036956906
+      },
+      "gestureTiming": {
+        "acquireMs": 159.7986249999958,
+        "releaseMs": 168.9730409999902,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/zoom",
+      "sample": 2,
+      "calibrationMs": 4.400000002235174,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 32,
+        "maxPauseMs": 400.60000000000036,
+        "heapBytes": 149709928,
+        "elapsedMs": 5595.918999999994,
+        "fps": 10.031527658357508
+      },
+      "gestureTiming": {
+        "actions": 15
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/drag",
+      "sample": 2,
+      "calibrationMs": 4.400000002235174,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 350.09999999999854,
+        "heapBytes": 247038268,
+        "elapsedMs": 5632.900708000001,
+        "fps": 48.333214869565005
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/firstCSV",
+      "sample": 2,
+      "calibrationMs": 4.400000002235174,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 100,
+        "heapBytes": 188329288,
+        "elapsedMs": 277.1542500000214
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/closeCSV",
+      "sample": 2,
+      "calibrationMs": 4.400000002235174,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.382000000001426,
+        "heapBytes": 190153732,
+        "elapsedMs": 39.88295800000196
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/panel",
+      "sample": 2,
+      "calibrationMs": 4.400000002235174,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 166.70000000000073,
+        "heapBytes": 203096988,
+        "elapsedMs": 319.6827920000069
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/1x/open",
+      "sample": 2,
+      "calibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 101,
+        "heapBytes": 6263708,
+        "elapsedMs": 3049.0448329999927
+      }
+    },
+    {
+      "name": "M1000/4x/pan",
+      "sample": 2,
+      "calibrationMs": 9.599999997764826,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 4,
+        "maxPauseMs": 284.2999999999997,
+        "heapBytes": 35411480,
+        "elapsedMs": 2228.9567079999833,
+        "fps": 42.81593654231824
+      },
+      "gestureTiming": {
+        "acquireMs": 100.19837499997811,
+        "releaseMs": 123.97350000002189,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/zoom",
+      "sample": 2,
+      "calibrationMs": 9.599999997764826,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 36,
+        "maxPauseMs": 367.5,
+        "heapBytes": 43049692,
+        "elapsedMs": 5490.503499999992,
+        "fps": 12.393606357189343
+      },
+      "gestureTiming": {
+        "actions": 21
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/drag",
+      "sample": 2,
+      "calibrationMs": 9.599999997764826,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 5,
+        "maxPauseMs": 334.2000000000007,
+        "heapBytes": 66048932,
+        "elapsedMs": 4698.542042000045,
+        "fps": 47.775455359816476
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/firstCSV",
+      "sample": 2,
+      "calibrationMs": 9.599999997764826,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 99.79999999999927,
+        "heapBytes": 55830040,
+        "elapsedMs": 289.23191700002644
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/closeCSV",
+      "sample": 2,
+      "calibrationMs": 9.599999997764826,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 17.599999999998545,
+        "heapBytes": 56430236,
+        "elapsedMs": 46.134167000011075
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/panel",
+      "sample": 2,
+      "calibrationMs": 9.599999997764826,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 150.29999999999927,
+        "heapBytes": 72677600,
+        "elapsedMs": 307.82750000001397
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/pan",
+      "sample": 2,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 4,
+        "maxPauseMs": 1316.5999999999995,
+        "heapBytes": 153236756,
+        "elapsedMs": 3918.026750000019,
+        "fps": 24.558710667694633
+      },
+      "gestureTiming": {
+        "acquireMs": 591.3039589999826,
+        "releaseMs": 697.3500830000266,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/zoom",
+      "sample": 2,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 14,
+        "maxPauseMs": 1666.6000000000004,
+        "heapBytes": 161066068,
+        "elapsedMs": 7942.817875000008,
+        "fps": 3.0298439630359035
+      },
+      "gestureTiming": {
+        "actions": 6
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/drag",
+      "sample": 2,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 6,
+        "maxPauseMs": 1382.5,
+        "heapBytes": 320201036,
+        "elapsedMs": 8823.269749999978,
+        "fps": 27.439819486809665
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/firstCSV",
+      "sample": 2,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 1,
+        "maxPauseMs": 433.40000000000146,
+        "heapBytes": 173901680,
+        "elapsedMs": 930.2764999999781
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/closeCSV",
+      "sample": 2,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 17.600000000002183,
+        "heapBytes": 189959364,
+        "elapsedMs": 60.8403330000001
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/panel",
+      "sample": 2,
+      "calibrationMs": 10,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 650.0999999999985,
+        "heapBytes": 161348496,
+        "elapsedMs": 935.4538750000065
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/4x/open",
+      "sample": 2,
+      "calibrationMs": 9.899999998509884,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 499.0999999999999,
+        "heapBytes": 6268504,
+        "elapsedMs": 3460.8241670000134
+      }
+    },
+    {
+      "name": "M1000/1x/pan",
+      "sample": 3,
+      "calibrationMs": 4.699999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 50,
+        "heapBytes": 35437916,
+        "elapsedMs": 3087.117249999952,
+        "fps": 59.110100682053925
+      },
+      "gestureTiming": {
+        "acquireMs": 44.99804200005019,
+        "releaseMs": 37.11524999997346,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/zoom",
+      "sample": 3,
+      "calibrationMs": 4.699999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 50,
+        "heapBytes": 68221812,
+        "elapsedMs": 5087.108707999985,
+        "fps": 47.88743496769497
+      },
+      "gestureTiming": {
+        "actions": 75
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/drag",
+      "sample": 3,
+      "calibrationMs": 4.699999999254942,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 99.89999999999964,
+        "heapBytes": 74196808,
+        "elapsedMs": 4146.247167000023,
+        "fps": 57.61037955071508
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/firstCSV",
+      "sample": 3,
+      "calibrationMs": 4.699999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.399999999999636,
+        "heapBytes": 42045064,
+        "elapsedMs": 147.60775000002468
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/closeCSV",
+      "sample": 3,
+      "calibrationMs": 4.699999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 16.69999999999891,
+        "heapBytes": 42670032,
+        "elapsedMs": 31.47074999997858
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/panel",
+      "sample": 3,
+      "calibrationMs": 4.699999999254942,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.400000000001455,
+        "heapBytes": 61375756,
+        "elapsedMs": 168.7424170000013
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/pan",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 3,
+        "maxPauseMs": 282.8000000000002,
+        "heapBytes": 173157720,
+        "elapsedMs": 3445.7627499999944,
+        "fps": 52.313415484782304
+      },
+      "gestureTiming": {
+        "acquireMs": 174.15595799998846,
+        "releaseMs": 162.00437499996042,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/zoom",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 33,
+        "maxPauseMs": 383.3000000000011,
+        "heapBytes": 220759396,
+        "elapsedMs": 5495.780375000031,
+        "fps": 10.711303148038187
+      },
+      "gestureTiming": {
+        "actions": 15
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/drag",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 365.7000000000007,
+        "heapBytes": 225711064,
+        "elapsedMs": 5643.725375000038,
+        "fps": 48.40082263669882
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/firstCSV",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 99,
+        "heapBytes": 240430428,
+        "elapsedMs": 284.37670899997465
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/closeCSV",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.28199999999924,
+        "heapBytes": 242346356,
+        "elapsedMs": 38.35608300002059
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/panel",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 166.70000000000073,
+        "heapBytes": 265538164,
+        "elapsedMs": 300.50391699996544
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/1x/open",
+      "sample": 3,
+      "calibrationMs": 4.199999999254942,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 101,
+        "heapBytes": 6263236,
+        "elapsedMs": 3108.853375000006
+      }
+    },
+    {
+      "name": "M1000/4x/pan",
+      "sample": 3,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 4,
+        "maxPauseMs": 283.7999999999997,
+        "heapBytes": 37719608,
+        "elapsedMs": 2371.8447910000104,
+        "fps": 40.555954543508754
+      },
+      "gestureTiming": {
+        "acquireMs": 110.27724999998463,
+        "releaseMs": 127.69879200001014,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/zoom",
+      "sample": 3,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 33,
+        "maxPauseMs": 366.60000000000036,
+        "heapBytes": 62165392,
+        "elapsedMs": 5515.395709000004,
+        "fps": 11.124890574840759
+      },
+      "gestureTiming": {
+        "actions": 18
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/drag",
+      "sample": 3,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 5,
+        "maxPauseMs": 315.8000000000011,
+        "heapBytes": 45785256,
+        "elapsedMs": 4609.841542000009,
+        "fps": 48.05079033766009
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/firstCSV",
+      "sample": 3,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 117.60000000000218,
+        "heapBytes": 69808712,
+        "elapsedMs": 309.20316699997056
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/closeCSV",
+      "sample": 3,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 17.400000000001455,
+        "heapBytes": 70469984,
+        "elapsedMs": 46.30274999997346
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/panel",
+      "sample": 3,
+      "calibrationMs": 9.699999999254942,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 150.20000000000073,
+        "heapBytes": 54790836,
+        "elapsedMs": 308.797957999981
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/pan",
+      "sample": 3,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 4,
+        "maxPauseMs": 1216.8000000000002,
+        "heapBytes": 167507548,
+        "elapsedMs": 3746.4422090000007,
+        "fps": 25.42962685367581
+      },
+      "gestureTiming": {
+        "acquireMs": 544.0126250000321,
+        "releaseMs": 633.4282079999684,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/zoom",
+      "sample": 3,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 14,
+        "maxPauseMs": 1615.8999999999996,
+        "heapBytes": 226646624,
+        "elapsedMs": 7738.003333000001,
+        "fps": 3.3742570145605644
+      },
+      "gestureTiming": {
+        "actions": 6
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/drag",
+      "sample": 3,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 6,
+        "maxPauseMs": 1349.2000000000007,
+        "heapBytes": 217527688,
+        "elapsedMs": 8877.223540999985,
+        "fps": 27.395407041634257
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/firstCSV",
+      "sample": 3,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 1,
+        "maxPauseMs": 417.7000000000007,
+        "heapBytes": 216471232,
+        "elapsedMs": 828.3435000000172
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/closeCSV",
+      "sample": 3,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 32.60000000000218,
+        "heapBytes": 232536540,
+        "elapsedMs": 35.75154200004181
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/panel",
+      "sample": 3,
+      "calibrationMs": 10.199999999254942,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 650.0999999999985,
+        "heapBytes": 253657136,
+        "elapsedMs": 908.7254170000087
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/4x/open",
+      "sample": 3,
+      "calibrationMs": 9.899999998509884,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 421,
+        "heapBytes": 6268460,
+        "elapsedMs": 3435.8260840000003
+      }
+    },
+    {
+      "name": "M1000/1x/pan",
+      "sample": 4,
+      "calibrationMs": 4.800000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 49.899999999999864,
+        "heapBytes": 35387184,
+        "elapsedMs": 3095.836916,
+        "fps": 59.098982722428545
+      },
+      "gestureTiming": {
+        "acquireMs": 43.75041699997382,
+        "releaseMs": 34.77983299997868,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/zoom",
+      "sample": 4,
+      "calibrationMs": 4.800000000745058,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 66.59999999999945,
+        "heapBytes": 62283348,
+        "elapsedMs": 5100.711249999993,
+        "fps": 48.470996216876514
+      },
+      "gestureTiming": {
+        "actions": 75
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/drag",
+      "sample": 4,
+      "calibrationMs": 4.800000000745058,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 82.60000000000036,
+        "heapBytes": 72609772,
+        "elapsedMs": 4106.599667000002,
+        "fps": 57.72462673842634
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/firstCSV",
+      "sample": 4,
+      "calibrationMs": 4.800000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 17.5,
+        "heapBytes": 64262872,
+        "elapsedMs": 161.76591699995333
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/closeCSV",
+      "sample": 4,
+      "calibrationMs": 4.800000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.38000000000102,
+        "heapBytes": 64886808,
+        "elapsedMs": 36.57808300002944
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/1x/panel",
+      "sample": 4,
+      "calibrationMs": 4.800000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 33.29999999999927,
+        "heapBytes": 81542672,
+        "elapsedMs": 169.85195799998473
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/pan",
+      "sample": 4,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 3,
+        "maxPauseMs": 284.1999999999998,
+        "heapBytes": 170374184,
+        "elapsedMs": 3459.3661250000005,
+        "fps": 52.73375249909248
+      },
+      "gestureTiming": {
+        "acquireMs": 173.5540419999743,
+        "releaseMs": 165.30058399995323,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/zoom",
+      "sample": 4,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 31,
+        "maxPauseMs": 400,
+        "heapBytes": 248219652,
+        "elapsedMs": 5599.124958000029,
+        "fps": 10.257913247363652
+      },
+      "gestureTiming": {
+        "actions": 15
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/drag",
+      "sample": 4,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 366.59999999999854,
+        "heapBytes": 235219004,
+        "elapsedMs": 5643.703041000001,
+        "fps": 48.237213591544304
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/firstCSV",
+      "sample": 4,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 100,
+        "heapBytes": 244941252,
+        "elapsedMs": 288.41104199999245
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/closeCSV",
+      "sample": 4,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 16.700000000000728,
+        "heapBytes": 246764344,
+        "elapsedMs": 26.764916999964043
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/1x/panel",
+      "sample": 4,
+      "calibrationMs": 4.399999998509884,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 166.70000000000073,
+        "heapBytes": 270299456,
+        "elapsedMs": 299.91016600001603
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/1x/open",
+      "sample": 4,
+      "calibrationMs": 4.5,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 101,
+        "heapBytes": 6265432,
+        "elapsedMs": 3068.813124999986
+      }
+    },
+    {
+      "name": "M1000/4x/pan",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 4,
+        "maxPauseMs": 266.60000000000036,
+        "heapBytes": 35413540,
+        "elapsedMs": 2180.423833000008,
+        "fps": 44.364342159958355
+      },
+      "gestureTiming": {
+        "acquireMs": 97.83199999999488,
+        "releaseMs": 121.54495799995493,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/zoom",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 31,
+        "maxPauseMs": 366.6999999999998,
+        "heapBytes": 39113768,
+        "elapsedMs": 5652.9027910000295,
+        "fps": 11.686793922862535
+      },
+      "gestureTiming": {
+        "actions": 21
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/drag",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 5,
+        "maxPauseMs": 333.3000000000011,
+        "heapBytes": 60957908,
+        "elapsedMs": 4621.652208000014,
+        "fps": 47.710958339643234
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/firstCSV",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 116.59999999999854,
+        "heapBytes": 79934380,
+        "elapsedMs": 290.9887090000557
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/closeCSV",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 16.899999999997817,
+        "heapBytes": 53377904,
+        "elapsedMs": 27.36954100005096
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M1000/4x/panel",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 150.10000000000218,
+        "heapBytes": 69653612,
+        "elapsedMs": 304.48595800000476
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/pan",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 4,
+        "maxPauseMs": 1300.8999999999996,
+        "heapBytes": 142071244,
+        "elapsedMs": 3835.2323750000214,
+        "fps": 25.086889487015604
+      },
+      "gestureTiming": {
+        "acquireMs": 553.3482500000391,
+        "releaseMs": 689.0691670000087,
+        "actions": 90
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/zoom",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 11,
+        "maxPauseMs": 1667.5,
+        "heapBytes": 168277908,
+        "elapsedMs": 7408.511083999998,
+        "fps": 3.3882684592862247
+      },
+      "gestureTiming": {
+        "actions": 5
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/drag",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 1499.0999999999985,
+        "heapBytes": 219541364,
+        "elapsedMs": 9052.862709000008,
+        "fps": 26.414385340562212
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/firstCSV",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 1,
+        "maxPauseMs": 433.3000000000029,
+        "heapBytes": 246087384,
+        "elapsedMs": 832.2047909999965
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/closeCSV",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 32.59200000000055,
+        "heapBytes": 234603088,
+        "elapsedMs": 38.81058299995493
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "M5000/4x/panel",
+      "sample": 4,
+      "calibrationMs": 9.900000002235174,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 665.7999999999993,
+        "heapBytes": 258815076,
+        "elapsedMs": 941.3892080000369
+      },
+      "persistence": "IndexedDB + reapertura"
+    },
+    {
+      "name": "PDF-C/4x/open",
+      "sample": 4,
+      "calibrationMs": 10.200000002980232,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 419,
+        "heapBytes": 6268296,
+        "elapsedMs": 3443.346833000076
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "M1000/1x/pan",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "rawMedianFps": 59.098982722428545,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 50.899999999999864,
+        "heapBytes": 35398236,
+        "elapsedMs": 3067.1354580000043,
+        "fps": 59.040349675412465
+      }
+    },
+    {
+      "name": "M1000/1x/zoom",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "rawMedianFps": 47.88743496769497,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 66.60000000000036,
+        "heapBytes": 58156464,
+        "elapsedMs": 5129.231041999999,
+        "fps": 48.631862658939525
+      }
+    },
+    {
+      "name": "M1000/1x/drag",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "rawMedianFps": 57.61037955071508,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 1,
+        "maxPauseMs": 91.3978723707503,
+        "heapBytes": 72609772,
+        "elapsedMs": 4126.713416999992,
+        "fps": 57.93939393941486
+      }
+    },
+    {
+      "name": "M1000/1x/firstCSV",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 30.55744681864903,
+        "heapBytes": 64262872,
+        "elapsedMs": 160.12433400002192
+      }
+    },
+    {
+      "name": "M1000/1x/closeCSV",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 29.902916667207293,
+        "heapBytes": 64886808,
+        "elapsedMs": 32.76786602145113
+      }
+    },
+    {
+      "name": "M1000/1x/panel",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 32.89999999999782,
+        "heapBytes": 61375756,
+        "elapsedMs": 164.34932743856805
+      }
+    },
+    {
+      "name": "M5000/1x/pan",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "rawMedianFps": 52.73375249909248,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 3,
+        "maxPauseMs": 283.3000000000002,
+        "heapBytes": 160733772,
+        "elapsedMs": 3507.028374999998,
+        "fps": 52.98278775379357
+      }
+    },
+    {
+      "name": "M5000/1x/zoom",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "rawMedianFps": 10.226721209181102,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 32,
+        "maxPauseMs": 392.42619061380134,
+        "heapBytes": 190167328,
+        "elapsedMs": 5626.632290663566,
+        "fps": 10.264819002685433
+      }
+    },
+    {
+      "name": "M5000/1x/drag",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "rawMedianFps": 48.333214869565005,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 366.59999999999854,
+        "heapBytes": 235219004,
+        "elapsedMs": 5631.617833000004,
+        "fps": 48.39168801594722
+      }
+    },
+    {
+      "name": "M5000/1x/firstCSV",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 101.35714289268516,
+        "heapBytes": 239940980,
+        "elapsedMs": 281.85624573519294
+      }
+    },
+    {
+      "name": "M5000/1x/closeCSV",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 33.60000000000218,
+        "heapBytes": 241855424,
+        "elapsedMs": 38.976527123319144
+      }
+    },
+    {
+      "name": "M5000/1x/panel",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 166.79999999999927,
+        "heapBytes": 265038348,
+        "elapsedMs": 312.4172738954329
+      }
+    },
+    {
+      "name": "PDF-C/1x/open",
+      "calibrationMs": 4.300000000745058,
+      "referenceCalibrationMs": 4.300000000745058,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 102.61363641616758,
+        "heapBytes": 6263708,
+        "elapsedMs": 3049.0448329999927
+      }
+    },
+    {
+      "name": "M1000/4x/pan",
+      "calibrationMs": 9.800000000745058,
+      "referenceCalibrationMs": 9.800000000745058,
+      "rawMedianFps": 44.34999538020882,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 4,
+        "maxPauseMs": 283.2999999999997,
+        "heapBytes": 35411480,
+        "elapsedMs": 2213.742125000019,
+        "fps": 44.37601883716718
+      }
+    },
+    {
+      "name": "M1000/4x/zoom",
+      "calibrationMs": 9.800000000745058,
+      "referenceCalibrationMs": 9.800000000745058,
+      "rawMedianFps": 11.857780742221326,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 1000,
+        "longTasks": 33,
+        "maxPauseMs": 366.8000000000002,
+        "heapBytes": 39164992,
+        "elapsedMs": 5572.255459428967,
+        "fps": 11.857780742221326
+      }
+    },
+    {
+      "name": "M1000/4x/drag",
+      "calibrationMs": 9.800000000745058,
+      "referenceCalibrationMs": 9.800000000745058,
+      "rawMedianFps": 47.710958339643234,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 1000,
+        "longTasks": 5,
+        "maxPauseMs": 329.93333328392725,
+        "heapBytes": 60957908,
+        "elapsedMs": 4650.418375000008,
+        "fps": 47.56047614327214
+      }
+    },
+    {
+      "name": "M1000/4x/firstCSV",
+      "calibrationMs": 9.800000000745058,
+      "referenceCalibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 115.42222220493643,
+        "heapBytes": 72150660,
+        "elapsedMs": 288.4819580000185
+      }
+    },
+    {
+      "name": "M1000/4x/closeCSV",
+      "calibrationMs": 9.800000000745058,
+      "referenceCalibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 1000,
+        "longTasks": 0,
+        "maxPauseMs": 17.57938144598721,
+        "heapBytes": 56430236,
+        "elapsedMs": 38.05449999999837
+      }
+    },
+    {
+      "name": "M1000/4x/panel",
+      "calibrationMs": 9.800000000745058,
+      "referenceCalibrationMs": 9.800000000745058,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 1000,
+        "longTasks": 2,
+        "maxPauseMs": 149.3000000000029,
+        "heapBytes": 69653612,
+        "elapsedMs": 308.02008300001035
+      }
+    },
+    {
+      "name": "M5000/4x/pan",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "rawMedianFps": 25.42962685367581,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 4,
+        "maxPauseMs": 1270.6185567986272,
+        "heapBytes": 152577532,
+        "elapsedMs": 3850.290464213261,
+        "fps": 25.235349334265933
+      }
+    },
+    {
+      "name": "M5000/4x/zoom",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "rawMedianFps": 3.3742570145605644,
+      "metrics": {
+        "domNodes": 591,
+        "mountedShapes": 5000,
+        "longTasks": 12,
+        "maxPauseMs": 1666.6000000000004,
+        "heapBytes": 173586220,
+        "elapsedMs": 7483.3445276033735,
+        "fps": 3.3299207933873882
+      }
+    },
+    {
+      "name": "M5000/4x/drag",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "rawMedianFps": 27.34463276836158,
+      "metrics": {
+        "domNodes": 660,
+        "mountedShapes": 5000,
+        "longTasks": 5,
+        "maxPauseMs": 1382.5,
+        "heapBytes": 235150576,
+        "elapsedMs": 8823.269749999978,
+        "fps": 27.439819486809665
+      }
+    },
+    {
+      "name": "M5000/4x/firstCSV",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 1,
+        "maxPauseMs": 433.40000000000146,
+        "heapBytes": 234033940,
+        "elapsedMs": 840.6108998102073
+      }
+    },
+    {
+      "name": "M5000/4x/closeCSV",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "metrics": {
+        "domNodes": 662,
+        "mountedShapes": 5000,
+        "longTasks": 0,
+        "maxPauseMs": 32.386407764647764,
+        "heapBytes": 234603088,
+        "elapsedMs": 39.20260908201259
+      }
+    },
+    {
+      "name": "M5000/4x/panel",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "metrics": {
+        "domNodes": 698,
+        "mountedShapes": 5000,
+        "longTasks": 2,
+        "maxPauseMs": 650.0999999999985,
+        "heapBytes": 258815076,
+        "elapsedMs": 935.4538750000065
+      }
+    },
+    {
+      "name": "PDF-C/4x/open",
+      "calibrationMs": 10,
+      "referenceCalibrationMs": 10,
+      "metrics": {
+        "domNodes": 193,
+        "mountedShapes": 0,
+        "longTasks": 1,
+        "maxPauseMs": 425.25252531653285,
+        "heapBytes": 6268460,
+        "elapsedMs": 3461.9498329999915
+      }
+    }
+  ],
+  "browser": "145.0.7632.6",
+  "targetFailures": [
+    "M5000/1x/zoom/fps real: 10.23 < objetivo 30",
+    "M1000/4x/zoom/fps real: 11.86 < objetivo 30"
+  ]
+}

@@ -1,0 +1,59 @@
+name: Performance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  size:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run perf:size
+      - run: npm run perf:selftest
+
+  e2e:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            perf/package-lock.json
+      - name: Aviso sobre variabilidad
+        run: echo '::warning::Los runners compartidos son ruidosos. Confirma cualquier fallo e2e en la misma máquina; nunca actualices la base automáticamente.'
+      - run: npm ci
+      - run: npm ci --prefix perf
+      - run: ./perf/node_modules/.bin/playwright install --with-deps chromium
+      - run: npm run build
+      - name: Benchmark en modo normal (cron y ejecución manual; sin actualizar base)
+        run: npm run perf:e2e
+      - name: Métricas para diagnóstico
+        if: always()
+        run: |
+          if [ -f perf/results/latest.json ]; then
+            node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("perf/results/latest.json")); console.log(JSON.stringify({browser:r.browser,scenarios:r.scenarios},null,2));'
+          fi

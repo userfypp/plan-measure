@@ -10,6 +10,7 @@ import type {
   PageState,
   Point,
 } from "../../types/domain";
+import * as labelLayout from "../../utils/labelLayout";
 import { isAxisAlignedRectStrictlyInsidePolygon } from "../../utils/geometry";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
@@ -70,7 +71,7 @@ vi.mock("konva/lib/shapes/Text", () => ({
 }));
 
 vi.mock("../../app/sessionState", () => ({
-  useSessionState: () => ({ updateMeasurement: captured.updateMeasurement, updateMeasurements: captured.updateMeasurements }),
+  useMeasurementCommands: () => ({ updateMeasurement: captured.updateMeasurement, updateMeasurements: captured.updateMeasurements }),
 }));
 
 const noop = () => undefined;
@@ -160,6 +161,67 @@ function xyPage(): PageState {
 }
 
 describe("PdfAnnotationLayer V2 visual semantics", () => {
+  it("conserva el golden determinista de etiquetas, prioridad, zoom y visibilidad", () => {
+    let state = 20261010;
+    const random = () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+    const page = uniformPage();
+    page.measurements = Array.from({ length: 90 }, (_, index) => {
+      const x = random() * 570, y = random() * 770;
+      const type = (["line", "polyline", "polygon"] as const)[index % 3]!;
+      const radius = 8 + random() * 45;
+      const points = type === "line" ? [{ x, y }, { x: x + radius, y: y + radius / 3 }]
+        : Array.from({ length: 12 }, (_, vertex) => ({
+          x: x + radius * Math.cos(vertex * Math.PI / 6),
+          y: y + radius * Math.sin(vertex * Math.PI / 6),
+        }));
+      return { ...page.measurements[0]!, id: `golden-${index}`, type, points, visible: index % 11 !== 0 };
+    });
+    const result = [];
+    for (const zoom of [0.5, 1, 2, 4, 8]) {
+      for (const selectedMeasurementId of [null, "golden-37"]) {
+        for (const viewport of [undefined, { width: 320, height: 240 }]) {
+          captured.labels.length = 0;
+          captured.texts.length = 0;
+          renderLayer({ page, transform: { zoom, panX: -80, panY: -90 },
+            selectedMeasurementId, viewport, showCalibration: true });
+          result.push({ zoom, selectedMeasurementId, viewport,
+            labels: captured.labels.map(({ x, y }, index) => ({
+              x, y, text: captured.texts[index]?.text,
+              fontSize: captured.texts[index]?.fontSize,
+            })),
+          });
+        }
+      }
+    }
+    expect(result).toMatchSnapshot();
+  });
+
+  it("ejecuta el layout global una vez por zoom y ninguna por paso de pan con 5000 mediciones", () => {
+    const page = uniformPage();
+    const source = page.measurements[0]!;
+    page.measurements = Array.from({ length: 5000 }, (_, index) => ({
+      ...source, id: `budget-${index}`, type: "line" as const,
+      points: [{ x: (index % 100) * 90, y: Math.floor(index / 100) * 90 },
+        { x: (index % 100) * 90 + 60, y: Math.floor(index / 100) * 90 }],
+    }));
+    const bounds = { width: 10000, height: 10000, rotation: 0 as const };
+    const viewport = { width: 300, height: 300 };
+    const layout = vi.spyOn(labelLayout, "createLabelCollisionIndex");
+    try {
+      renderLayer({ page, bounds, viewport });
+      expect(layout).toHaveBeenCalledTimes(1);
+      for (let step = 1; step <= 5; step++) {
+        renderLayer({ page, bounds, viewport, transform: { zoom: 2, panX: step * -50, panY: -50 } });
+      }
+      expect(layout).toHaveBeenCalledTimes(1);
+      renderLayer({ page, bounds, viewport, transform: { zoom: 3, panX: -250, panY: -50 } });
+      expect(layout).toHaveBeenCalledTimes(2);
+    } finally { layout.mockRestore(); }
+  });
+
   it("culls off-screen geometry but retains selected shapes and handles", () => {
     const page = uniformPage();
     const base = page.measurements[0]!;

@@ -1203,6 +1203,8 @@ interface SessionContextValue extends SessionState {
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
+type MeasurementCommands = Pick<SessionContextValue, "updateMeasurement" | "updateMeasurements">;
+const MeasurementCommandsContext = createContext<MeasurementCommands | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { setError } = useAppState();
@@ -1271,6 +1273,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setError(null);
     updateHistoryState();
   }, [setError, updateHistoryState]);
+  const measurementCommands = useMemo<MeasurementCommands>(() => ({
+    updateMeasurements: (commands) => {
+      const result = applyAction({ type: "UPDATE_MEASUREMENTS", commands });
+      return commands.length > 0 && result.error === null && Boolean(result.session);
+    },
+    updateMeasurement: (command) => {
+      const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
+      const measurement = result.session?.pages[command.pageNumber]?.measurements.find(
+        (candidate) => candidate.id === command.id,
+      );
+      return measurement ? pointsEqual(measurement.points, command.points) : false;
+    },
+  }), [applyAction]);
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
@@ -1321,17 +1336,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const result = applyAction({ type: "PASTE_MEASUREMENTS", commands });
         return commands.length > 0 && result.error === null && commands.every((command) => result.session?.pages[command.pageNumber]?.measurements.some((measurement) => measurement.id === command.id));
       },
-      updateMeasurements: (commands) => {
-        const result = applyAction({ type: "UPDATE_MEASUREMENTS", commands });
-        return commands.length > 0 && result.error === null && Boolean(result.session);
-      },
-      updateMeasurement: (command) => {
-        const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
-        const measurement = result.session?.pages[command.pageNumber]?.measurements.find(
-          (candidate) => candidate.id === command.id,
-        );
-        return measurement ? pointsEqual(measurement.points, command.points) : false;
-      },
+      ...measurementCommands,
       renameMeasurement: (pageNumber, id, name) =>
         applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
       setMeasurementNote: (pageNumber, id, note) =>
@@ -1371,13 +1376,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "REMOVE_CLASSIFICATION_VALUE", ...command }),
       updateSettings: (settings) => applyAction({ type: "UPDATE_SETTINGS", settings }),
     }),
-    [applyAction, historyState, redo, session, undo],
+    [applyAction, historyState, measurementCommands, redo, session, undo],
   );
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={value}>
+      <MeasurementCommandsContext.Provider value={measurementCommands}>
+        {children}
+      </MeasurementCommandsContext.Provider>
+    </SessionContext.Provider>
+  );
 }
 
 export function useSessionState(): SessionContextValue {
   const context = useContext(SessionContext);
   if (!context) throw new Error("useSessionState must be used inside SessionProvider.");
+  return context;
+}
+
+/** Commands stay stable while persistent state changes, including export preferences. */
+export function useMeasurementCommands(): MeasurementCommands {
+  const context = useContext(MeasurementCommandsContext);
+  if (!context) throw new Error("useMeasurementCommands must be used inside SessionProvider.");
   return context;
 }

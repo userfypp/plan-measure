@@ -18,6 +18,7 @@ export interface OccupiedLabelRect extends LabelPlacement, LabelDimensions {}
 
 export interface LabelCollisionIndex {
   insert(rect: OccupiedLabelRect): void;
+  hasCollision?(candidate: OccupiedLabelRect, gap: number, ignore?: OccupiedLabelRect | null): boolean;
   somePotentialCollision(
     candidate: OccupiedLabelRect,
     gap: number,
@@ -139,6 +140,23 @@ class UniformLabelCollisionIndex implements LabelCollisionIndex {
         else this.buckets.set(key, [entry]);
       }
     }
+  }
+
+  hasCollision(candidate: OccupiedLabelRect, gap: number, ignore?: OccupiedLabelRect | null): boolean {
+    const visit = (entry: { rect: OccupiedLabelRect }) =>
+      entry.rect !== ignore && overlapsWithGap(candidate, entry.rect, gap);
+    if (this.cellSize === null) return this.all.some(visit);
+    const range = gridCellRange(candidate, gap, this.cellSize);
+    if (!range) return this.all.some(visit);
+    if (this.overflow.some(visit)) return true;
+    // Collision is a pure boolean query: bucket order and duplicate candidates
+    // cannot change it. Keep ordered visitation for the public callback API.
+    for (let y = range.minY; y <= range.maxY; y++) {
+      for (let x = range.minX; x <= range.maxX; x++) {
+        if (this.buckets.get(gridCellKey(x, y))?.some(visit)) return true;
+      }
+    }
+    return false;
   }
 
   somePotentialCollision(
@@ -477,7 +495,10 @@ function collidesWithOccupied(
     return overlapsWithGap(candidate, rect, gap);
   };
   if (!Array.isArray(occupied)) {
-    return (occupied as LabelCollisionIndex).somePotentialCollision(candidate, gap, visit);
+    const index = occupied as LabelCollisionIndex;
+    return index.hasCollision
+      ? index.hasCollision(candidate, gap, ignoreOccupied)
+      : index.somePotentialCollision(candidate, gap, visit);
   }
   for (const rect of occupied) if (visit(rect)) return true;
   return false;
