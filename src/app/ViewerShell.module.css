@@ -82,6 +82,10 @@
   pointer-events: none;
 }
 
+.dockWithPages {
+  z-index: 5;
+}
+
 .authoringNotice {
   position: absolute;
   z-index: 2;
@@ -110,4 +114,15 @@
         var(--space-12)
     );
   }
+}
+
+.pagesLoading {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  width: min(var(--geometry-workspace-panel-width), 100%);
+  padding: var(--space-16);
+  background: var(--color-surface-panel);
+  color: var(--color-text-secondary);
 }

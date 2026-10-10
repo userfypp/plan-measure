@@ -7,6 +7,7 @@ import os from 'node:os';
 import { chromium } from 'playwright';
 import { generateFixtures } from './fixtures.mjs';
 import { measureSize } from './size.mjs';
+import { pageBrowserBenchmarks } from './page-browser.mjs';
 import { instrument, ready, seed, calibration, measure, gesture, drag } from './browser.mjs';
 import { checkStartup, median, compareResults, fpsWarnings } from './budgets.mjs';
 
@@ -14,6 +15,8 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const repo = process.env.PLAN_MEASURE_REPO || path.dirname(root);
 const update = process.argv.includes('--update-baseline');
 const strict = process.argv.includes('--strict');
+const recordPageBrowserBaseline = process.argv.includes('--record-page-browser-baseline');
+const pageBrowserOnly = recordPageBrowserBaseline || process.argv.includes('--page-browser-only');
 const samples = Number(process.env.PERF_SAMPLES || 5);
 const counts = process.env.PERF_COUNT ? [Number(process.env.PERF_COUNT)] : [1000, 5000];
 const cpus = process.env.PERF_CPU ? [Number(process.env.PERF_CPU)] : [1, 4];
@@ -77,6 +80,7 @@ async function record(name, sample, c, action, { fps = false } = {}) {
 try {
   browser = await chromium.launch(process.env.PERF_BROWSER_CHANNEL ? { channel: process.env.PERF_BROWSER_CHANNEL } : {});
   output.browser = browser.version();
+  if (!pageBrowserOnly) {
   for (let sample = 0; sample < samples; sample++) for (const cpu of cpus) {
     for (const count of counts) {
       const c = await context(cpu);
@@ -152,4 +156,6 @@ try {
     if (failures.length) throw Error('Presupuestos incumplidos:\n' + failures.join('\n'));
     console.log('Todos los presupuestos e2e en verde.');
   }
+  }
+  if (process.env.PERF_SKIP_PDF !== '1') await pageBrowserBenchmarks({ context, root, fixtures, samples, cpus, environment, browser: output.browser, recordBaseline: recordPageBrowserBaseline });
 } finally { await browser?.close(); server?.kill('SIGTERM'); }

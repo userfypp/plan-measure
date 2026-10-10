@@ -206,6 +206,9 @@ vi.mock("./WorkspaceDrawerContext", () => ({
 }));
 
 vi.mock("../features/viewer/PdfViewer", async () => {
+  const { useState } = await import("react");
+  const { PageBrowserHost } = await import("../features/pages/PageBrowserHost");
+  const pdf = { numPages: 2, getPage: vi.fn().mockRejectedValue(new Error("Thumbnail unavailable in App harness")) } as unknown as import("pdfjs-dist").PDFDocumentProxy;
   const { useWorkspaceState } = await import("./workspaceState");
   return { PdfViewer: ({ onCalibrationCandidate, onPageChange, onChooseTool }: {
     onCalibrationCandidate: (points: [{ x: number; y: number }, { x: number; y: number }]) => void;
@@ -213,7 +216,10 @@ vi.mock("../features/viewer/PdfViewer", async () => {
     onChooseTool: (tool: "hand") => void;
   }) => {
     const { chooseTool } = useWorkspaceState();
+    const [pagesOpen, setPagesOpen] = useState(false);
     return <>
+      <button onClick={() => setPagesOpen(!pagesOpen)}>Pages</button>
+      {pagesOpen && <PageBrowserHost document={pdf} sourceLabels={["i", "ii"]} onNavigate={onPageChange} onClose={() => setPagesOpen(false)} />}
       <button onClick={() => { chooseTool("select"); onCalibrationCandidate([{ x: 0, y: 0 }, { x: 10, y: 20 }]); }}>Mark check points</button>
       <button onClick={() => onPageChange(2)}>Next viewer page</button>
       <button onClick={() => onChooseTool("hand")}>Choose hand tool</button>
@@ -877,5 +883,50 @@ describe("App scale check", () => {
       act(() => lifecycleHarness.loadSession!(next));
     }
     expect(document.querySelector("dialog")).toBeNull();
+  });
+});
+
+
+describe("App page browser navigation purity", () => {
+  beforeEach(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
+  afterEach(() => vi.unstubAllGlobals());
+  it("keeps opening/search local and uses the same navigation effects as the viewer controls", async () => {
+    const session = buildSession(uniformScale(), { withMeasurement: true });
+    session.pageCount = 2;
+    session.pages[2] = { ...session.pages[1]!, pageNumber: 2, measurements: [] };
+    const pagesBefore = structuredClone(session.pages);
+    await renderApp(session);
+    await act(async () => vi.dynamicImportSettled());
+    lifecycleHarness.autosave.mockClear();
+    act(() => buttonByText("Pages").click());
+    const search = container!.querySelector<HTMLInputElement>('[aria-label="Search labels"]')!;
+    setInputValue(search, " ii ");
+    expect(currentSession().pages).toEqual(pagesBefore);
+    expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("false:false");
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+    act(() => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(currentSession().currentPage).toBe(2);
+    expect(currentSession().pages).toEqual(pagesBefore);
+    expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("false:false");
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("");
+    expect(lifecycleHarness.autosave).toHaveBeenCalledTimes(1);
+    expect(lifecycleHarness.autosave).toHaveBeenLastCalledWith(currentSession());
+  });
+  it("blocks page-browser navigation during a draft exactly as the existing previous/next controls", async () => {
+    await renderApp(twoPageSession());
+    await act(async () => vi.dynamicImportSettled());
+    act(() => buttonByText("Pages").click());
+    act(() => buttonByText("Start pending drawing").click());
+    const search = container!.querySelector<HTMLInputElement>('[aria-label="Search labels"]')!;
+    setInputValue(search, "ii");
+    lifecycleHarness.autosave.mockClear();
+    act(() => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(currentSession().currentPage).toBe(1);
+    expect(container!.querySelector('[data-testid="pending-draft"]')!.textContent).toBe("path:1");
+    expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
+    act(() => buttonByText("Next viewer page").click());
+    expect(currentSession().currentPage).toBe(2);
+    expect(container!.querySelector('[data-testid="pending-draft"]')!.textContent).toBe("");
+    expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("false:false");
   });
 });

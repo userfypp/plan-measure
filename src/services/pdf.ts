@@ -27,6 +27,7 @@ export interface LoadedPdf {
   document: PDFDocumentProxy;
   loadingTask: PDFDocumentLoadingTask;
   pageLabels: string[] | null;
+  pageLabelsReady?: Promise<string[] | null>;
 }
 
 export async function readPdfPageLabels(document: PDFDocumentProxy): Promise<string[] | null> {
@@ -40,8 +41,7 @@ export async function readPdfPageLabels(document: PDFDocumentProxy): Promise<str
       return null;
     }
     return pageLabels;
-  } catch (error) {
-    console.warn("PDF.js page labels could not be read; continuing without them.", error);
+  } catch {
     return null;
   }
 }
@@ -56,8 +56,8 @@ export async function loadPdf(blob: Blob): Promise<LoadedPdf> {
   });
   try {
     const document = await Promise.race([loadingTask.promise, passwordRequested]);
-    const pageLabels = await readPdfPageLabels(document);
-    return { document, loadingTask, pageLabels };
+    const pageLabelsReady = readPdfPageLabels(document);
+    return { document, loadingTask, pageLabels: null, pageLabelsReady };
   } catch (error) {
     console.error("PDF.js failed to load the document.", error);
     await loadingTask.destroy().catch(() => undefined);

@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useLayoutEffect,
   useMemo,
@@ -7,6 +9,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   ViewerNavigationProvider,
   type ViewerNavigationModel,
@@ -23,12 +26,17 @@ import {
 import { ViewerDockContainer } from "./ViewerDockContainer";
 import styles from "./ViewerShell.module.css";
 
+const PageBrowserHost = lazy(() =>
+  import("../features/pages/PageBrowserHost").then((module) => ({ default: module.PageBrowserHost })),
+);
+
 interface ViewerShellProps {
   children?: ReactNode;
   toolRail?: ReactNode;
   contextToolbar?: ReactNode;
   viewerOverlay?: ReactNode;
   viewerTransientOverlay?: ReactNode;
+  pdfDocument?: PDFDocumentProxy;
   sourcePageLabels?: readonly string[] | null;
   logicalPageBounds?: LogicalPageBounds | null;
   keyboardAuthoringEnabled?: boolean;
@@ -45,6 +53,7 @@ export function ViewerShell({
   contextToolbar,
   viewerOverlay,
   viewerTransientOverlay,
+  pdfDocument,
   sourcePageLabels = null,
   logicalPageBounds = null,
   keyboardAuthoringEnabled = false,
@@ -54,11 +63,23 @@ export function ViewerShell({
   const [navigation, setNavigation] = useState<
     Pick<ViewerNavigationModel, "pageNumber" | "pageCount" | "zoom"> | null
   >(null);
+  const [pageBrowserDocument, setPageBrowserDocument] = useState<PDFDocumentProxy | null>(null);
+  const pagesOpen = Boolean(pdfDocument && pageBrowserDocument === pdfDocument);
+  const closePages = useCallback(() => {
+    setPageBrowserDocument(null);
+    window.document
+      .querySelector<HTMLButtonElement>('[aria-controls="page-browser"]')
+      ?.focus({ preventScroll: true });
+  }, []);
   const [dockBottomExclusion, setDockBottomExclusion] = useState(0);
   const [viewerFrameSize, setViewerFrameSize] = useState({ width: 0, height: 0 });
   const navigationActionsRef = useRef<
     Pick<ViewerNavigationModel, "onPageChange" | "onZoomIn" | "onZoomOut" | "onFit"> | null
   >(null);
+  const navigatePage = useCallback(
+    (number: number) => navigationActionsRef.current?.onPageChange(number),
+    [],
+  );
   const viewerFrameRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   const finePointer = useFinePointerAvailable();
@@ -198,6 +219,18 @@ export function ViewerShell({
               </div>
             )}
             {viewerTransientOverlay}
+            {pagesOpen && pdfDocument && (
+              <Suspense
+                fallback={<div role="status" className={styles.pagesLoading}>Loading pages…</div>}
+              >
+                <PageBrowserHost
+                  document={pdfDocument}
+                  sourceLabels={sourcePageLabels}
+                  onNavigate={navigatePage}
+                  onClose={closePages}
+                />
+              </Suspense>
+            )}
             {authoringCapability.measured && !authoringCapability.available && (
               <div className={styles.authoringNotice} role="status">
                 {authoringCapability.unavailableReason}
@@ -209,8 +242,14 @@ export function ViewerShell({
               </ViewerNavigationProvider>
             </ViewerBottomExclusionProvider>
             {navigation && (
-              <div className={styles.dock} ref={dockRef}>
+              <div className={`${styles.dock} ${pagesOpen ? styles.dockWithPages : ""}`} ref={dockRef}>
                 <ViewerDockContainer
+                  pagesOpen={pagesOpen}
+                  onTogglePages={
+                    pdfDocument
+                      ? () => setPageBrowserDocument(pagesOpen ? null : pdfDocument)
+                      : undefined
+                  }
                   sourcePageLabels={sourcePageLabels}
                   logicalPageBounds={logicalPageBounds}
                   navigation={{
