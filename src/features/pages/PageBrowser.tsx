@@ -24,6 +24,8 @@ import styles from "./PageBrowser.module.css";
 interface PageBrowserProps {
   document: PDFDocumentProxy;
   labels: readonly string[] | null;
+  /** Source PDF size, used to pause previews that would need an expensive decode. */
+  fileBytes?: number;
   currentPage: number;
   navigationDisabled: boolean;
   onNavigate: (number: number) => void;
@@ -64,6 +66,7 @@ function Thumbnail({ number, source }: { number: number; source?: HTMLCanvasElem
 export function PageBrowser({
   document,
   labels,
+  fileBytes = 0,
   currentPage,
   navigationDisabled,
   onNavigate,
@@ -78,7 +81,11 @@ export function PageBrowser({
     top: Math.max(0, (currentPage - 1) * PAGE_ROW_HEIGHT),
     height: 320,
   });
-  const [thumbnails, setThumbnails] = useState(new Map<number, HTMLCanvasElement>());
+  const [previews, setPreviews] = useState({
+    thumbnails: new Map<number, HTMLCanvasElement>(),
+    deferred: false,
+  });
+  const thumbnails = previews.thumbnails;
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -105,22 +112,26 @@ export function PageBrowser({
 
   useEffect(() => {
     let live = true;
-    const queue = new ThumbnailQueue(document, () => {
-      if (!live) return;
-      const next = new Map<number, HTMLCanvasElement>();
-      for (const number of wantedRef.current) {
-        const canvas = queue.get(number);
-        if (canvas) next.set(number, canvas);
-      }
-      setThumbnails(next);
-    });
+    const queue = new ThumbnailQueue(
+      document,
+      () => {
+        if (!live) return;
+        const next = new Map<number, HTMLCanvasElement>();
+        for (const number of wantedRef.current) {
+          const canvas = queue.get(number);
+          if (canvas) next.set(number, canvas);
+        }
+        setPreviews({ thumbnails: next, deferred: queue.deferred });
+      },
+      fileBytes,
+    );
     queueRef.current = queue;
     return () => {
       live = false;
       queue.dispose();
       queueRef.current = null;
     };
-  }, [document]);
+  }, [document, fileBytes]);
   useEffect(() => {
     wantedRef.current = prioritizedPages;
     queueRef.current?.setWindow(prioritizedPages);
@@ -310,6 +321,23 @@ export function PageBrowser({
           <span className={styles.notice}>
             Finish or cancel the current drawing or scale workflow before changing pages.
           </span>
+        )}
+        {previews.deferred && (
+          <div className={styles.previewNotice}>
+            <span id={`${id}-previews`}>Previews are paused to save memory on this PDF.</span>
+            <Button
+              variant="secondary"
+              size="compact"
+              aria-describedby={`${id}-previews`}
+              onClick={() => {
+                queueRef.current?.loadDeferred();
+                // The button disappears once loading starts; keep focus inside the panel.
+                (listRef.current ?? searchRef.current)?.focus({ preventScroll: true });
+              }}
+            >
+              Load previews
+            </Button>
+          </div>
         )}
         <span role="status" aria-live="polite" aria-atomic="true" className={styles.srOnly}>
           {pages.length} {pages.length === 1 ? "page matches" : "pages match"}

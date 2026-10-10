@@ -25,4 +25,16 @@ describe("LruRenderCache", () => {
     expect(cache.size).toBe(0);
     expect(cache.pixels).toBe(0);
   });
+
+  it("finds an entry without changing which raster is evicted next", () => {
+    const cache = new LruRenderCache<string>(2, 10);
+    cache.set("1:a", "page-1", 4);
+    cache.set("2:a", "page-2", 4);
+
+    expect(cache.find((key) => key.startsWith("1:"))).toBe("page-1");
+    expect(cache.find((key) => key.startsWith("3:"))).toBeUndefined();
+    cache.set("3:a", "page-3", 4);
+
+    expect(cache.get("1:a")).toBeUndefined();
+  });
 });

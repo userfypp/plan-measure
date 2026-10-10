@@ -22,7 +22,7 @@ import { pageToScreen, pdfRasterLayout, screenToPage } from "../../utils/coordin
 import { PdfViewer } from "./PdfViewer";
 import { createScaleCheckStore, type ScaleCheckStore } from "../calibration/scaleCheckState";
 import { ScaleCheckPanel } from "../calibration/ScaleCheckPanel";
-import { mainPdfBusy } from "./pdfRenderPriority";
+import { mainPdfBusy, mainPdfRaster, mainPdfRenderMs } from "./pdfRenderPriority";
 import { MAX_RENDER_CACHE_PIXELS } from "./renderCache";
 import {
   AuthoringCapabilityProvider,
@@ -537,6 +537,24 @@ describe("PdfViewer render liveness", () => {
     expect(mainPdfBusy(runtime.document)).toBe(true);
     await act(async () => task.resolve());
     expect(mainPdfBusy(runtime.document)).toBe(false);
+  });
+
+  it("offers thumbnails only a completed background of the same document, with its render cost", async () => {
+    const task = controlledRenderTask();
+    const pdfPage = createPdfPage(() => task.task);
+    const runtime = createPdfDocument({ 1: pdfPage.page });
+    await mountViewer(runtime.document);
+    expect(mainPdfRaster(runtime.document, 1)).toBeUndefined();
+    expect(mainPdfRenderMs(runtime.document, 1)).toBeUndefined();
+    await act(async () => task.resolve());
+    const raster = mainPdfRaster(runtime.document, 1);
+    const [options] = pdfPage.render.mock.calls[0] as unknown as [{ canvas: HTMLCanvasElement }];
+    expect(raster).toBe(options.canvas);
+    expect(mainPdfRaster(runtime.document, 2)).toBeUndefined();
+    expect(mainPdfRenderMs(runtime.document, 1)).toBeGreaterThanOrEqual(0);
+    await act(async () => root.unmount());
+    expect(mainPdfRaster(runtime.document, 1)).toBeUndefined();
+    root = createRoot(container);
   });
 
   it("starts rasterization when the mounted viewer is already non-zero before ResizeObserver publishes", async () => {

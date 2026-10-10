@@ -30,6 +30,7 @@ export function PageBrowserHost({
     <PageBrowser
       document={document}
       labels={labels}
+      fileBytes={session.pdf.size}
       currentPage={session.currentPage}
       navigationDisabled={Boolean(draft || calibrationFlow || calibrationReferenceEdit)}
       onNavigate={onNavigate}

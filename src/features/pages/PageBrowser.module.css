@@ -165,6 +165,16 @@
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
+.previewNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
 .list {
   flex: 1;
   min-height: 0;

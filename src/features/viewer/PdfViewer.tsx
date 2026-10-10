@@ -70,7 +70,12 @@ import crosshairCursor from "./cursors/crosshair.png";
 import grabCursor from "./cursors/grab.png";
 import grabbingCursor from "./cursors/grabbing.png";
 import { LruRenderCache } from "./renderCache";
-import { setMainPdfBusy, setMainPdfPage } from "./pdfRenderPriority";
+import {
+  setMainPdfBusy,
+  setMainPdfPage,
+  setMainPdfRasterSource,
+  setMainPdfRenderMs,
+} from "./pdfRenderPriority";
 import { isPrimaryViewerClick, startsViewerPan } from "./navigation";
 import {
   extractSnapTargets,
@@ -676,6 +681,20 @@ export function PdfViewer({
     return () => setMainPdfBusy(document, owner, false);
   }, [document, page.pageNumber, viewTransform.zoom]);
 
+  // Thumbnails copy a completed background from the existing caches instead of decoding again.
+  useEffect(
+    () =>
+      setMainPdfRasterSource(document, (pageNumber) => {
+        if (cachedDocumentRef.current !== document) return undefined;
+        const prefix = `${pageNumber}:`;
+        const recent = recentRasterRef.current;
+        if (recent?.document === document && recent.cacheKey.startsWith(prefix))
+          return recent.canvas;
+        return renderCacheRef.current.find((key) => key.startsWith(prefix));
+      }),
+    [document],
+  );
+
   useLayoutEffect(() => {
     const owner = panOwnerRef.current;
     setMainPdfBusy(document, owner, isPanning);
@@ -826,6 +845,7 @@ export function PdfViewer({
         scale: layout.rasterScale,
         rotation: loadedPage.bounds.rotation,
       });
+      const startedAt = performance.now();
       const renderTask = loadedPage.pdfPage.render({
         canvas: rasterCanvas,
         canvasContext: context,
@@ -837,6 +857,11 @@ export function PdfViewer({
         .then(() => {
           if (requestId !== renderRequestRef.current) return;
           renderTaskRef.current = null;
+          setMainPdfRenderMs(
+            loadedPage.document,
+            loadedPage.pageNumber,
+            performance.now() - startedAt,
+          );
           setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, false);
           renderCacheRef.current.set(
             cacheKey,

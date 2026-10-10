@@ -11,6 +11,7 @@ import {
   pageBrowserLabel,
   parsePhysicalPage,
 } from "./pageBrowserModel";
+import { DEFERRED_PREVIEW_FILE_BYTES } from "./thumbnailQueue";
 
 let root: Root, container: HTMLDivElement;
 let pdf: PDFDocumentProxy;
@@ -94,6 +95,35 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("page browser", () => {
+  it("pauses previews of a large PDF behind one panel-level Load previews button", async () => {
+    await act(async () =>
+      root.render(
+        <PageBrowser
+          document={pdf}
+          labels={null}
+          fileBytes={DEFERRED_PREVIEW_FILE_BYTES}
+          currentPage={1}
+          navigationDisabled={false}
+          onNavigate={navigate}
+          onClose={close}
+        />,
+      ),
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(10));
+    expect(pdf.getPage).not.toHaveBeenCalled();
+    const buttons = [...container.querySelectorAll("button")].filter(
+      (button) => button.textContent === "Load previews",
+    );
+    expect(buttons).toHaveLength(1);
+    expect(list().contains(buttons[0]!)).toBe(false);
+    const description = document.getElementById(buttons[0]!.getAttribute("aria-describedby")!);
+    expect(description?.textContent).toMatch(/Previews are paused/);
+    await act(async () => buttons[0]!.click());
+    await act(async () => vi.advanceTimersByTimeAsync(10));
+    expect(pdf.getPage).toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Load previews");
+    expect(document.activeElement).toBe(list());
+  });
   it("mounts only the 500-page visible window plus margin, with fixed-height rows and bounded DOM", async () => {
     await mount(400);
     const rows = container.querySelectorAll<HTMLElement>('[role="option"]');

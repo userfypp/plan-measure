@@ -5,12 +5,21 @@ interface Priority {
   owners: Set<object>;
   listeners: Set<() => void>;
   pageNumber: number;
+  // Reads a completed main raster on demand; the registry never holds a canvas itself.
+  rasterSource: ((pageNumber: number) => HTMLCanvasElement | undefined) | null;
+  renderMs: Map<number, number>;
 }
 const priorities = new WeakMap<PDFDocumentProxy, Priority>();
 function priority(document: PDFDocumentProxy): Priority {
   let value = priorities.get(document);
   if (!value) {
-    value = { owners: new Set(), listeners: new Set(), pageNumber: 1 };
+    value = {
+      owners: new Set(),
+      listeners: new Set(),
+      pageNumber: 1,
+      rasterSource: null,
+      renderMs: new Map(),
+    };
     priorities.set(document, value);
   }
   return value;
@@ -37,4 +46,25 @@ export function subscribePdfPriority(document: PDFDocumentProxy, listener: () =>
   return () => {
     value.listeners.delete(listener);
   };
+}
+export function setMainPdfRasterSource(
+  document: PDFDocumentProxy,
+  source: (pageNumber: number) => HTMLCanvasElement | undefined,
+) {
+  const value = priority(document);
+  value.rasterSource = source;
+  return () => {
+    if (value.rasterSource === source) value.rasterSource = null;
+  };
+}
+export function mainPdfRaster(document: PDFDocumentProxy, pageNumber: number) {
+  return priority(document).rasterSource?.(pageNumber);
+}
+// Keep the cheapest completed render: zooming into a vector page must not mark it as heavy.
+export function setMainPdfRenderMs(document: PDFDocumentProxy, pageNumber: number, ms: number) {
+  const { renderMs } = priority(document);
+  renderMs.set(pageNumber, Math.min(ms, renderMs.get(pageNumber) ?? Infinity));
+}
+export function mainPdfRenderMs(document: PDFDocumentProxy, pageNumber: number) {
+  return priority(document).renderMs.get(pageNumber);
 }

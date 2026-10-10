@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import { mainPdfBusy, setMainPdfBusy, setMainPdfPage } from "../viewer/pdfRenderPriority";
 import {
+  mainPdfBusy,
+  mainPdfRenderMs,
+  setMainPdfBusy,
+  setMainPdfPage,
+  setMainPdfRasterSource,
+  setMainPdfRenderMs,
+} from "../viewer/pdfRenderPriority";
+import {
+  DEFERRED_PREVIEW_FILE_BYTES,
+  DEFERRED_PREVIEW_RENDER_MS,
   MAX_THUMBNAILS,
   MAX_THUMBNAIL_PIXELS,
   ThumbnailQueue,
+  thumbnailFromRaster,
   thumbnailViewport,
 } from "./thumbnailQueue";
 
@@ -57,18 +67,26 @@ function pdfDouble({ automatic = false, rotation = 0, width = 800, height = 600 
   };
 }
 const queues: ThumbnailQueue[] = [];
-function queue(document: PDFDocumentProxy) {
-  const result = new ThumbnailQueue(document, vi.fn());
+function queue(document: PDFDocumentProxy, fileBytes = 0) {
+  const result = new ThumbnailQueue(document, vi.fn(), fileBytes);
   queues.push(result);
   return result;
 }
 async function tick() {
   await vi.advanceTimersByTimeAsync(1);
 }
+function raster(width: number, height: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+let drawImage: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.useFakeTimers();
+  drawImage = vi.fn();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    drawImage: vi.fn(),
+    drawImage,
   } as unknown as CanvasRenderingContext2D);
 });
 afterEach(async () => {
@@ -233,4 +251,72 @@ describe("demand-driven thumbnails", () => {
       expect(viewport.width > viewport.height).toBe(rotation % 180 === 0);
     },
   );
+  it("copies a completed main background without decoding the page again", async () => {
+    Object.defineProperty(window, "devicePixelRatio", { value: 2, configurable: true });
+    const pdf = pdfDouble({ automatic: true });
+    const background = raster(2400, 1800);
+    setMainPdfPage(pdf.document, 1);
+    setMainPdfRasterSource(pdf.document, (number) => (number === 1 ? background : undefined));
+    const thumbnails = queue(pdf.document);
+    thumbnails.setWindow([1, 2]);
+    await tick();
+    await tick();
+    expect(pdf.getPage.mock.calls).toEqual([[2]]);
+    const thumbnail = thumbnails.get(1)!;
+    expect([thumbnail.width, thumbnail.height]).toEqual([208, 156]);
+    expect(drawImage).toHaveBeenCalledWith(background, 0, 0, 208, 156);
+    expect(background.width).toBe(2400); // The viewer keeps ownership of its raster.
+  });
+  it("stops reusing a background once the viewer withdraws its source", async () => {
+    const pdf = pdfDouble();
+    const withdraw = setMainPdfRasterSource(pdf.document, () => raster(800, 600));
+    withdraw();
+    const thumbnails = queue(pdf.document);
+    thumbnails.setWindow([1]);
+    await tick();
+    expect(pdf.getPage.mock.calls).toEqual([[1]]);
+  });
+  it.each([0, 90])(
+    "keeps the orientation of a background rendered with rotation %s",
+    (rotation) => {
+      const background = rotation ? raster(1800, 2400) : raster(2400, 1800);
+      const thumbnail = thumbnailFromRaster(background, 1)!;
+      expect(thumbnail.width > thumbnail.height).toBe(rotation === 0);
+      expect(thumbnail.width).toBeLessThanOrEqual(144);
+      expect(thumbnail.height).toBeLessThanOrEqual(104);
+    },
+  );
+  it("pauses decodes of unrendered pages in a large file until previews are requested", async () => {
+    const pdf = pdfDouble({ automatic: true });
+    setMainPdfPage(pdf.document, 1);
+    setMainPdfRasterSource(pdf.document, (number) => (number === 1 ? raster(800, 600) : undefined));
+    const thumbnails = queue(pdf.document, DEFERRED_PREVIEW_FILE_BYTES);
+    thumbnails.setWindow([1, 2, 3]);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(thumbnails.get(1)).toBeDefined();
+    expect(pdf.getPage).not.toHaveBeenCalled();
+    expect(thumbnails.deferred).toBe(true);
+    thumbnails.loadDeferred();
+    expect(thumbnails.deferred).toBe(false);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(pdf.getPage.mock.calls).toEqual([[2], [3]]);
+    expect(pdf.maximum()).toBe(1);
+  });
+  it("pauses decodes while the current page was expensive to render", async () => {
+    const pdf = pdfDouble({ automatic: true });
+    setMainPdfPage(pdf.document, 4);
+    setMainPdfRenderMs(pdf.document, 4, DEFERRED_PREVIEW_RENDER_MS);
+    const thumbnails = queue(pdf.document, DEFERRED_PREVIEW_FILE_BYTES - 1);
+    thumbnails.setWindow([5]);
+    await tick();
+    expect(pdf.getPage).not.toHaveBeenCalled();
+    expect(thumbnails.deferred).toBe(true);
+    // A cheaper render of the same page, such as the fit view after zooming in, wins.
+    setMainPdfRenderMs(pdf.document, 4, DEFERRED_PREVIEW_RENDER_MS - 1);
+    setMainPdfRenderMs(pdf.document, 4, DEFERRED_PREVIEW_RENDER_MS * 2);
+    expect(mainPdfRenderMs(pdf.document, 4)).toBe(DEFERRED_PREVIEW_RENDER_MS - 1);
+    thumbnails.setWindow([5]);
+    await tick();
+    expect(pdf.getPage.mock.calls).toEqual([[5]]);
+  });
 });

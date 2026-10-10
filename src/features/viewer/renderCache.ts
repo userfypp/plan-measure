@@ -25,6 +25,12 @@ export class LruRenderCache<T> {
     return entry.value;
   }
 
+  /** Looks up an entry without changing its recency. */
+  find(matches: (key: string) => boolean): T | undefined {
+    for (const [key, entry] of this.entries) if (matches(key)) return entry.value;
+    return undefined;
+  }
+
   set(key: string, value: T, pixels: number): void {
     if (pixels <= 0 || pixels > this.maxPixels) return;
     const previous = this.entries.get(key);

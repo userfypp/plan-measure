@@ -1,6 +1,12 @@
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { LruRenderCache } from "../viewer/renderCache";
-import { mainPdfBusy, mainPdfPage, subscribePdfPriority } from "../viewer/pdfRenderPriority";
+import {
+  mainPdfBusy,
+  mainPdfPage,
+  mainPdfRaster,
+  mainPdfRenderMs,
+  subscribePdfPriority,
+} from "../viewer/pdfRenderPriority";
 
 export const THUMBNAIL_WIDTH = 144;
 export const THUMBNAIL_HEIGHT = 104;
@@ -12,17 +18,44 @@ export const MAX_THUMBNAIL_WINDOW = Math.floor(
   MAX_THUMBNAIL_PIXELS / (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * THUMBNAIL_MAX_DPR ** 2),
 );
 
+// Decoding a page that is not rendered yet can expand its images far beyond the thumbnail size,
+// so heavy documents wait for an explicit request instead of loading those previews automatically.
+export const DEFERRED_PREVIEW_FILE_BYTES = 32 * 1024 * 1024;
+export const DEFERRED_PREVIEW_RENDER_MS = 750;
+
+function thumbnailDensity(dpr: number) {
+  return Math.min(THUMBNAIL_MAX_DPR, Math.max(1, dpr));
+}
 export function thumbnailViewport(page: PDFPageProxy, dpr: number) {
   const logical = page.getViewport({ scale: 1 }); // Includes the PDF's intrinsic rotation.
-  const density = Math.min(THUMBNAIL_MAX_DPR, Math.max(1, dpr));
   const scale =
-    Math.min(THUMBNAIL_WIDTH / logical.width, THUMBNAIL_HEIGHT / logical.height) * density;
+    Math.min(THUMBNAIL_WIDTH / logical.width, THUMBNAIL_HEIGHT / logical.height) *
+    thumbnailDensity(dpr);
   if (!(scale > 0 && Number.isFinite(scale))) throw new Error("Invalid thumbnail bounds");
   return page.getViewport({ scale });
 }
 function releaseCanvas(canvas: HTMLCanvasElement) {
   canvas.width = 0;
   canvas.height = 0;
+}
+/** Downscales a completed page background, which already includes the page rotation. */
+export function thumbnailFromRaster(source: HTMLCanvasElement, dpr: number) {
+  const scale =
+    Math.min(THUMBNAIL_WIDTH / source.width, THUMBNAIL_HEIGHT / source.height) *
+    thumbnailDensity(dpr);
+  if (!(scale > 0 && Number.isFinite(scale))) return null;
+  const canvas = window.document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(source.width * scale));
+  canvas.height = Math.max(1, Math.floor(source.height * scale));
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) {
+    releaseCanvas(canvas);
+    return null;
+  }
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
 interface Request {
   number: number;
@@ -44,12 +77,15 @@ export class ThumbnailQueue {
   private completedWindow = new Set<number>();
   private wanted: number[] = [];
   private active: Request | null = null;
+  private loadRequested = false;
+  private reportedDeferred = false;
   private disposed = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly unsubscribe: () => void;
   constructor(
     private readonly document: PDFDocumentProxy,
     private readonly notify: () => void,
+    private readonly fileBytes = 0,
   ) {
     this.unsubscribe = subscribePdfPriority(document, this.schedule);
     waitingQueues.add(this.schedule);
@@ -62,6 +98,34 @@ export class ThumbnailQueue {
   }
   get pixels() {
     return this.cache.pixels;
+  }
+  /** Whether a wanted page still needs a full decode that waits for loadDeferred(). */
+  get deferred() {
+    return (
+      !this.automatic() &&
+      this.wanted.some((number) => this.pending(number) && !mainPdfRaster(this.document, number))
+    );
+  }
+  loadDeferred() {
+    this.loadRequested = true;
+    this.notify();
+    this.schedule();
+  }
+  private automatic() {
+    const renderMs = mainPdfRenderMs(this.document, mainPdfPage(this.document)) ?? 0;
+    return (
+      this.loadRequested ||
+      (this.fileBytes < DEFERRED_PREVIEW_FILE_BYTES && renderMs < DEFERRED_PREVIEW_RENDER_MS)
+    );
+  }
+  private pending(number: number) {
+    return !this.failed.has(number) && !this.completedWindow.has(number) && !this.get(number);
+  }
+  private store(number: number, canvas: HTMLCanvasElement) {
+    this.cache.set(String(number), canvas, canvas.width * canvas.height);
+    // A caller larger than the cache must finish rather than rerender evicted rows forever.
+    this.completedWindow.add(number);
+    this.notify();
   }
   setWindow(numbers: number[]) {
     this.wanted = numbers;
@@ -88,11 +152,28 @@ export class ThumbnailQueue {
   };
   private async pump() {
     if (this.disposed || this.active || thumbnailOwner || mainPdfBusy(this.document)) return;
+    const automatic = this.automatic();
     const number = this.wanted.find(
-      (number) =>
-        !this.failed.has(number) && !this.completedWindow.has(number) && !this.get(number),
+      (number) => this.pending(number) && (automatic || mainPdfRaster(this.document, number)),
     );
-    if (number === undefined) return;
+    if (number === undefined) {
+      if (this.deferred !== this.reportedDeferred) {
+        this.reportedDeferred = !this.reportedDeferred;
+        this.notify();
+      }
+      return;
+    }
+    const source = mainPdfRaster(this.document, number);
+    if (source) {
+      const canvas = thumbnailFromRaster(source, window.devicePixelRatio || 1);
+      if (canvas) this.store(number, canvas);
+      else {
+        this.failed.add(number);
+        this.notify();
+      }
+      this.schedule();
+      return;
+    }
     const request: Request = { number, cancelled: false };
     this.active = request;
     thumbnailOwner = request;
@@ -110,11 +191,8 @@ export class ThumbnailQueue {
       request.task = page.render({ canvas, canvasContext: context, viewport });
       await request.task.promise;
       if (request.cancelled || this.disposed || !this.wanted.includes(number)) return;
-      this.cache.set(String(number), canvas, canvas.width * canvas.height);
-      // A caller larger than the cache must finish rather than rerender evicted rows forever.
-      this.completedWindow.add(number);
+      this.store(number, canvas);
       canvas = undefined; // Cache owns and explicitly releases the backing store.
-      this.notify();
     } catch {
       if (!request.cancelled && !this.disposed) {
         this.failed.add(number); // One attempt per page for this panel lifetime.
