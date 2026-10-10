@@ -2025,7 +2025,7 @@ export function PdfViewer({
                   page={stage.presented && isPresentedTarget && keyboardGeometry.editing ? keyboardGeometry.previewPage : stage.page}
                   bounds={stage.data.bounds}
                   transform={stage.presented && activeWheelGesture ? activeWheelGesture.transform : stage.transform}
-                  cullTransform={stage.transform}
+                  cullTransform={stage.presented && activeWheelGesture?.cached ? activeWheelGesture.transform : stage.transform}
                   viewport={viewerSize}
                   activeTool={activeTool}
                   spacePan={spacePan}
