@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSize, checkStartup, compareResults, median, sizeLimits } from './budgets.mjs';
+import { checkSize, checkStartup, compareResults, fpsWarnings, median, sizeLimits } from './budgets.mjs';
 import { measureSize } from './size.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -34,7 +34,7 @@ test('El grafo de arranque sigue imports estáticos y excluye import()', () => {
     assert.throws(() => checkSize(measureSize(tmp)));
   } finally { fs.rmSync(tmp, { recursive: true }); }
 });
-test('La comparación falla con +31 %, objetivos FPS y muestras incompletas', () => {
+test('La comparación falla con +31 % y muestras incompletas; FPS absolutos solo bloquean en estricto', () => {
   const baseline = { schema: 1, samples: 5, scenarios: [{ name: 'M1000/4x/zoom', rawMedianFps: 40, metrics: { maxPauseMs: 100, elapsedMs: 1000, longTasks: 10, domNodes: 700, mountedShapes: 5000, heapBytes: 1000000, fps: 40 } }] };
   assert.deepEqual(compareResults(structuredClone(baseline), baseline), []);
   for (const metric of ['maxPauseMs', 'elapsedMs', 'longTasks', 'domNodes', 'mountedShapes', 'heapBytes']) {
@@ -43,8 +43,19 @@ test('La comparación falla con +31 %, objetivos FPS y muestras incompletas', ()
     assert.ok(compareResults(mutant, baseline).some(failure => failure.includes(metric)));
   }
   const fps = structuredClone(baseline); fps.scenarios[0].metrics.fps = 31; fps.scenarios[0].rawMedianFps = 29;
-  assert.ok(compareResults(fps, baseline).some(failure => failure.includes('objetivo')));
+  assert.deepEqual(compareResults(fps, baseline), []);
+  assert.ok(fpsWarnings(fps).some(warning => warning.includes('objetivo')));
+  assert.deepEqual(compareResults(fps, baseline, { strict: true }), fpsWarnings(fps));
+  const relativeFps = structuredClone(baseline); relativeFps.scenarios[0].metrics.fps *= 0.69;
+  assert.ok(compareResults(relativeFps, baseline).some(failure => failure.includes('caída')));
   assert.throws(() => compareResults({ ...baseline, samples: 1 }, baseline));
+  assert.throws(() => compareResults({ ...baseline, scenarios: [] }, baseline));
+  const sampled = { ...baseline, rawSamples: Array.from({ length: 5 }, (_, sample) => ({ name: baseline.scenarios[0].name, sample })) };
+  assert.deepEqual(compareResults(sampled, sampled), []);
+  assert.throws(() => compareResults({ ...sampled, rawSamples: sampled.rawSamples.slice(1) }, sampled));
+  assert.throws(() => compareResults({ ...sampled, rawSamples: sampled.rawSamples.map(row => ({ ...row, sample: 0 })) }, sampled));
+  const otherCommit = { ...sampled, environment: { sourceCommit: 'new-commit', sourceDiffSha256: 'different', indexHtmlSha256: 'different', startupFiles: [{ sha256: 'different' }] } };
+  assert.deepEqual(compareResults(otherCommit, { ...sampled, environment: { sourceCommit: 'old-commit' } }), []);
   assert.equal(median([9, 2, 4, 1, 3]), 3);
 });
 

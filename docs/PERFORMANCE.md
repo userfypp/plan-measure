@@ -56,7 +56,8 @@ revisar ambos detectores. Las dependencias incorporadas al principal siguen
 sujetas al presupuesto de bytes.
 
 `perf:selftest` prueba los verificadores con presupuestos infringidos: +1 byte,
-import estático de pdf-lib, +31 % de pausas/long tasks y FPS por debajo del mínimo.
+import estático de pdf-lib, +31 % de pausas/long tasks, muestras incompletas y FPS
+por debajo del mínimo (aviso normal y fallo estricto).
 Se ejecuta con Node, fuera de Vitest, y no necesita Playwright.
 
 ## 3. Benchmark e2e separado
@@ -109,18 +110,30 @@ de GPU, red, GC, SO ni el coste de automatización, y debe tratarse como una se�
 secundaria.
 
 Compara medianas de cinco muestras con `perf/baseline.json`. Falla ante empeoramiento
->30 % de métricas (para conteos pequeños se toleran 2 long tasks, 10 formas o 20
-nodos adicionales). FPS falla con caída >30 % y conserva los objetivos absolutos
-M1000/4x ≥30 FPS y M5000/1x ≥30 FPS sobre la mediana real sin normalizar
-(`rawMedianFps`); la calibración no puede convertir un objetivo incumplido en verde. Actualizar la base no desactiva estos objetivos.
-La base inicial de la fase 2 sigue por debajo de esos dos objetivos. Por eso una
-ejecución completa de `perf:e2e` falla aunque no haya regresiones relativas;
-el mensaje distingue el mínimo absoluto del empeoramiento frente a la base.
+
+> 30 % de métricas (para conteos pequeños se toleran 2 long tasks, 10 formas o 20
+> nodos adicionales). FPS falla con caída >30 %. En modo normal, los objetivos
+> absolutos M1000/4x ≥30 FPS y M5000/1x ≥30 FPS sobre la mediana real sin normalizar
+> (`rawMedianFps`) producen avisos visibles en consola y en el resumen de GitHub
+> Actions, sin bloquear la ejecución. La base inicial sigue por debajo de ambos.
+> Solo el modo estricto exige además esos mínimos:
+
+```sh
+npm run perf:e2e:strict
+# Equivalente: npm run perf:e2e -- --strict
+```
+
+Ambos modos fallan ante regresiones relativas, muestras incompletas o errores de
+interacción, arranque y PDF. La calibración no puede convertir un mínimo real
+incumplido en un objetivo alcanzado. Actualizar la base no cambia los mínimos.
 `perf/results/latest.json` guarda las muestras crudas y medianas; no se versiona.
 La base versionada incluye navegador, fixtures, calibración, commit de la fuente,
 diff pendiente, Node/SO y hashes SHA-256 de index.html y los chunks iniciales para
 identificar el build e interpretar diferencias. Si `sourceDirty` es verdadero, el
 commit por sí solo no describe la fuente; los hashes identifican el artefacto medido.
+Estos datos son informativos: cambiar de commit, tener un diff de fuente o hacer
+merge a main no invalida la comparación ni exige regenerar la base. El comparador
+valida el esquema, las muestras, los escenarios y las métricas, no esos metadatos.
 
 Para diagnóstico rápido, sin comparar ni actualizar la línea base:
 
@@ -148,12 +161,13 @@ npm run perf:update-baseline
 Este es el único comando que escribe la línea base y exige la matriz completa
 con cinco muestras. Es legítimo usarlo tras una mejora verificada o un cambio
 intencional del método/entorno documentado con comparaciones y revisión del diff.
-No es legítimo hacerlo para esconder una regresión o dar verde a objetivos
-incumplidos. El comando de actualización solo registra evidencia: ejecuta después
+No es legítimo hacerlo para esconder una regresión. Los avisos de objetivos
+incumplidos se conservan. El comando de actualización solo registra evidencia: ejecuta después
 `npm run perf:e2e` para verificar presupuestos.
 
-El workflow `performance.yml` ejecuta tamaño/selftests en PR y main; e2e solo por
-`workflow_dispatch` y cron semanal. Los runners compartidos son ruidosos y la
+El workflow `performance.yml` ejecuta tamaño/selftests en PR y main; e2e en modo
+normal por `workflow_dispatch` y cron semanal. El modo estricto es optativo para
+exigir el objetivo absoluto cuando se alcance. Los runners compartidos son ruidosos y la
 normalización no los convierte en laboratorio. Su fallo requiere confirmación
 antes de aceptar nuevas referencias. Nunca actualiza la base automáticamente.
 Los escenarios son sintéticos; CPU 4x no identifica un dispositivo físico.

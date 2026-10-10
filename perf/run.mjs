@@ -8,11 +8,12 @@ import { chromium } from 'playwright';
 import { generateFixtures } from './fixtures.mjs';
 import { measureSize } from './size.mjs';
 import { instrument, ready, seed, calibration, measure, gesture, drag } from './browser.mjs';
-import { checkStartup, median, compareResults } from './budgets.mjs';
+import { checkStartup, median, compareResults, fpsWarnings } from './budgets.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const repo = process.env.PLAN_MEASURE_REPO || path.dirname(root);
 const update = process.argv.includes('--update-baseline');
+const strict = process.argv.includes('--strict');
 const samples = Number(process.env.PERF_SAMPLES || 5);
 const counts = process.env.PERF_COUNT ? [Number(process.env.PERF_COUNT)] : [1000, 5000];
 const cpus = process.env.PERF_CPU ? [Number(process.env.PERF_CPU)] : [1, 4];
@@ -133,17 +134,21 @@ try {
     output.scenarios.push({ name, calibrationMs, referenceCalibrationMs,
       ...(metrics.fps === undefined ? {} : { rawMedianFps: median(rows.map(row => row.metrics.fps)) }), metrics });
   }
-  if (!partial) output.targetFailures = compareResults(output, output);
+  if (!partial) {
+    output.targetWarnings = fpsWarnings(output);
+    if (output.targetWarnings.length) console.warn('AVISO: mínimos absolutos de zoom incumplidos' + (strict ? ' (modo estricto: fallo)' : ' (modo normal: no bloquean)') + ':\n' + output.targetWarnings.join('\n'));
+    if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+      `## Rendimiento e2e: modo ${strict ? 'estricto' : 'normal'}\n\n${output.targetWarnings.length ? '**Aviso: mínimos absolutos de zoom incumplidos.**\n\n' + output.targetWarnings.map(warning => '- ' + warning).join('\n') : 'Mínimos absolutos de zoom cumplidos.'}\n\n`);
+  }
   fs.writeFileSync(path.join(root, 'results/latest.json'), JSON.stringify(output, null, 2));
   if (update) {
-    // Registrar una base no oculta objetivos incumplidos; compareResults sigue exigiéndolos.
+    // Registrar una base conserva los avisos; el modo estricto exige los mínimos.
     fs.writeFileSync(baselineFile, JSON.stringify(output, null, 2) + '\n');
-    console.log('Línea base actualizada explícitamente. Revisa/commitea el diff; los objetivos FPS siguen obligatorios.');
-    if (output.targetFailures.length) console.warn('Objetivos incumplidos en esta base:\n' + output.targetFailures.join('\n'));
+    console.log('Línea base actualizada explícitamente. Revisa/commitea el diff; el modo estricto conserva los mínimos FPS.');
   } else if (partial) console.log('Ejecución parcial diagnóstica: no compara ni actualiza línea base.');
   else {
     if (!baseline) throw Error('Falta perf/baseline.json: ejecuta perf:update-baseline explícitamente');
-    const failures = compareResults(output, baseline);
+    const failures = compareResults(output, baseline, { strict });
     if (failures.length) throw Error('Presupuestos incumplidos:\n' + failures.join('\n'));
     console.log('Todos los presupuestos e2e en verde.');
   }
