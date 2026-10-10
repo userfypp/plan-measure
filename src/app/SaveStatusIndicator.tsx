@@ -43,14 +43,7 @@ export function SaveStatusIndicator({
         {announcement}
       </span>
       <Popover
-        trigger={
-          <>
-            {label}
-            <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <path d="m6 8 4 4 4-4" />
-            </svg>
-          </>
-        }
+        trigger={label}
         triggerProps={{
           className: styles.trigger,
           "aria-label": `${label}. Save status and backups`,
