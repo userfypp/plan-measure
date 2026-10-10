@@ -136,10 +136,11 @@ vi.mock("./WorkspaceShell", async () => {
 });
 
 vi.mock("./WorkspacePanel", () => ({
-  WorkspacePanel: ({ measurements, scales }: { measurements: ReactNode; scales: ReactNode }) => (
+  WorkspacePanel: ({ measurements, scales, takeoff }: { measurements: ReactNode; scales: ReactNode; takeoff: ReactNode }) => (
     <aside>
       {measurements}
       {scales}
+      {takeoff}
     </aside>
   ),
 }));
@@ -150,13 +151,14 @@ vi.mock("../features/measurements/MeasurementPanel", async () => {
     MeasurementPanel: ({ onSelectMeasurement }: {
       onSelectMeasurement: (pageNumber: number, measurementId: string, additive?: boolean) => void;
     }) => {
-      const { selectedMeasurementIds } = useWorkspaceState();
+      const { selectedMeasurementIds, measurementDetailsOpen } = useWorkspaceState();
       return <>
         <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>Select page 2 measurement</button>
         <button type="button" onClick={() => onSelectMeasurement(1, "page-one-line", true)}>Toggle page 1 measurement</button>
         <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line", true)}>Toggle page 2 measurement</button>
         <button type="button" onClick={() => onSelectMeasurement(1, "page-one-second", true)}>Toggle second page 1 measurement</button>
         <output data-testid="selected-measurements">{selectedMeasurementIds.join(",")}</output>
+        <output data-testid="details-open">{String(measurementDetailsOpen)}</output>
       </>;
     },
   };
@@ -612,5 +614,35 @@ describe("App autosave recovery actions", () => {
     for (const label of ["Retry saving", "Export project", "Reload saved projects"]) {
       expect(buttonByText(label).disabled).toBe(true);
     }
+  });
+});
+
+
+describe("App Takeoff source navigation", () => {
+  function sourceSession() {
+    const session = twoPageSession();
+    session.pages[2]!.measurements = [{id: "hidden-source", name: "Hidden source", type: "line", calibrationId: "gone", points: [{x:0,y:0},{x:10,y:0}], visible: false, classificationValueIds: []}];
+    return session;
+  }
+  it("navigates to an excluded hidden source and opens details without changing it", async () => {
+    const session = sourceSession();
+    const before = structuredClone(session.pages);
+    await renderApp(session);
+    act(() => buttonByLabel("Inspect excluded measurements").click());
+    act(() => buttonByLabel("Open Hidden source on page 2").click());
+    expect(currentSession().currentPage).toBe(2);
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("hidden-source");
+    expect(container!.querySelector('[data-testid="details-open"]')!.textContent).toBe("true");
+    expect(currentSession().pages).toEqual(before);
+  });
+  it("preserves a pending drawing when source navigation is attempted", async () => {
+    await renderApp(sourceSession());
+    act(() => buttonByLabel("Show measurements in Project totals").click());
+    act(() => buttonByText("Start pending drawing").click());
+    expect(buttonByLabel("Open Hidden source on page 2").disabled).toBe(true);
+    act(() => buttonByLabel("Open Hidden source on page 2").click());
+    expect(currentSession().currentPage).toBe(1);
+    expect(container!.querySelector('[data-testid="pending-draft"]')!.textContent).toBe("path:1");
+    expect(container!.querySelector('[data-testid="details-open"]')!.textContent).toBe("false");
   });
 });

@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useId, useMemo, useState } from "react";
 import { Badge } from "../../components/ui";
 import type {
   AreaDisplay,
@@ -13,7 +13,10 @@ import {
   type MeasurementTotalGroup,
   type MeasurementTotalsGrouping,
   type TotalQuantity,
+  type TakeoffMeasurementSource,
+  type TakeoffExclusionReason,
 } from "./measurementTotals";
+import { ToolIcon } from "../viewer/ToolIcon";
 import styles from "./TakeoffWorkspace.module.css";
 
 type Breakdown = Exclude<MeasurementTotalsGrouping, "overall"> | "none";
@@ -26,6 +29,8 @@ export interface TakeoffWorkspaceProps {
   areaDisplay: AreaDisplay;
   pageLabelOverrides: Readonly<Record<number, string>>;
   sourcePageLabels: readonly string[] | null;
+  onOpenMeasurement?: (pageNumber: number, measurementId: string) => void;
+  navigationBlocked?: boolean;
 }
 
 function Quantity({
@@ -87,6 +92,10 @@ function Quantities({
 }
 
 export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWorkspaceProps) {
+  const sourceListId = useId();
+  const [expandedSources, setExpandedSources] = useState<string | null>(null);
+  const toggleSources = (key: string) =>
+    setExpandedSources((current) => (current === key ? null : key));
   const [breakdown, setBreakdown] = useState<Breakdown>("none");
   const [dimensionId, setDimensionId] = useState<string | null>(null);
   const overall = useMemo(
@@ -128,6 +137,15 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
     ],
   );
   const overallGroup = overall.groups[0];
+  const sourceList = (key: string, sources: readonly TakeoffMeasurementSource[]) =>
+    expandedSources === key && sources.length > 0 ? (
+      <SourceMeasurements
+        id={`${sourceListId}-${key}`}
+        sources={sources}
+        onOpen={props.onOpenMeasurement}
+        disabled={props.navigationBlocked}
+      />
+    ) : null;
 
   return (
     <section className={styles.workspace} aria-label="Takeoff workspace">
@@ -138,10 +156,13 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
         </div>
         {overall.measurementCount > 0 && (
           <p className={styles.summaryMeta}>
-            <span>
-              <strong>{overall.measurementCount}</strong> measurement
-              {overall.measurementCount === 1 ? "" : "s"}
-            </span>
+            <SourceToggle
+              count={overall.measurementCount}
+              label="Project totals"
+              expanded={expandedSources === "overall"}
+              controls={`${sourceListId}-overall`}
+              onClick={() => toggleSources("overall")}
+            />
             <span className={styles.metaSeparator} aria-hidden="true">
               ·
             </span>
@@ -157,6 +178,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
             summary
           />
         )}
+        {sourceList("overall", overall.sourcesByGroup.get("overall") ?? [])}
         {overall.measurementCount === 0 && (
           <div className={styles.emptyState}>
             <span className={styles.emptyMark} aria-hidden="true">
@@ -174,11 +196,27 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
             <p className={styles.message}>No calculable quantities.</p>
           )}
         {overall.excludedCount > 0 && (
-          <p className={styles.notice} role="status">
-            {overall.excludedCount} measurement{overall.excludedCount === 1 ? " was" : "s were"}{" "}
-            excluded because {overall.excludedCount === 1 ? "it cannot" : "they cannot"} be
-            calculated.
-          </p>
+          <div className={styles.notice}>
+            <p role="status">
+              {overall.excludedCount} measurement{overall.excludedCount === 1 ? " was" : "s were"}{" "}
+              excluded because {overall.excludedCount === 1 ? "it cannot" : "they cannot"} be
+              calculated.
+            </p>
+            <button
+              type="button"
+              className={styles.inspectButton}
+              aria-label="Inspect excluded measurements"
+              aria-expanded={expandedSources === "excluded"}
+              aria-controls={`${sourceListId}-excluded`}
+              onClick={() => toggleSources("excluded")}
+            >
+              Inspect
+            </button>
+          </div>
+        )}
+        {sourceList("excluded", overall.excludedMeasurements)}
+        {props.navigationBlocked && expandedSources !== null && (
+          <p className={styles.message}>Finish or cancel the current edit to open a measurement.</p>
         )}
       </section>
 
@@ -188,7 +226,10 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
           id="takeoff-breakdown"
           value={breakdown}
           data-viewer-shortcuts="enabled"
-          onChange={(event) => setBreakdown(event.target.value as Breakdown)}
+          onChange={(event) => {
+            setBreakdown(event.target.value as Breakdown);
+            setExpandedSources(null);
+          }}
         >
           <option value="none">None</option>
           <option value="page">Page</option>
@@ -202,7 +243,10 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
               aria-label="Dimension"
               value={activeDimensionId ?? ""}
               data-viewer-shortcuts="enabled"
-              onChange={(event) => setDimensionId(event.target.value || null)}
+              onChange={(event) => {
+                setDimensionId(event.target.value || null);
+                setExpandedSources(null);
+              }}
             >
               {props.catalog.dimensions.map((dimension) => (
                 <option key={dimension.id} value={dimension.id}>
@@ -234,9 +278,13 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
             >
               <div className={styles.groupHeading}>
                 <h3>{group.label}</h3>
-                <p className={styles.groupMeta}>
-                  {group.measurementCount} measurement{group.measurementCount === 1 ? "" : "s"}
-                </p>
+                <SourceToggle
+                  count={group.measurementCount}
+                  label={group.label}
+                  expanded={expandedSources === group.key}
+                  controls={`${sourceListId}-${group.key}`}
+                  onClick={() => toggleSources(group.key)}
+                />
                 {group.archived && <Badge className={styles.archivedBadge}>Archived</Badge>}
               </div>
               <Quantities
@@ -250,6 +298,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
                 group.area.kind === "absent" && (
                   <p className={styles.message}>No calculable quantities.</p>
                 )}
+              {sourceList(group.key, grouped.sourcesByGroup.get(group.key) ?? [])}
             </section>
           ))}
           {breakdown === "classification" && !activeDimensionId && (
@@ -260,3 +309,95 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
     </section>
   );
 });
+
+function SourceToggle({
+  count,
+  label,
+  expanded,
+  controls,
+  onClick,
+}: {
+  count: number;
+  label: string;
+  expanded: boolean;
+  controls: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.sourceToggle}
+      aria-label={`${expanded ? "Hide" : "Show"} measurements in ${label}`}
+      aria-expanded={expanded}
+      aria-controls={controls}
+      onClick={onClick}
+    >
+      <span>
+        {count} measurement{count === 1 ? "" : "s"}
+      </span>
+      <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="m6 8 4 4 4-4" />
+      </svg>
+    </button>
+  );
+}
+
+const exclusionMessages: Record<TakeoffExclusionReason, string> = {
+  "missing-scale": "Assigned scale is missing.",
+  "invalid-geometry": "Measurement points are invalid.",
+  "invalid-scale": "Assigned scale is invalid.",
+  "nonfinite-result": "Result exceeds the supported numeric range.",
+};
+
+function SourceMeasurements({
+  id,
+  sources,
+  onOpen,
+  disabled,
+}: {
+  id: string;
+  sources: readonly TakeoffMeasurementSource[];
+  onOpen?: (pageNumber: number, measurementId: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <ul id={id} className={styles.sourceList} aria-label="Source measurements">
+      {sources.map(({ measurement, pageNumber, pageLabel, exclusionReason }) => (
+        <li key={`${pageNumber}:${measurement.id}`}>
+          <button
+            type="button"
+            className={styles.sourceMeasurement}
+            data-measurement-id={measurement.id}
+            data-measurement-control="selection"
+            disabled={disabled || !onOpen}
+            aria-label={`Open ${measurement.name} on page ${pageNumber}`}
+            onClick={() => onOpen?.(pageNumber, measurement.id)}
+          >
+            <span className={styles.sourceGlyph} aria-hidden="true">
+              <ToolIcon name={measurement.type} />
+            </span>
+            <span className={styles.sourceText}>
+              <span className={styles.sourceName}>{measurement.name}</span>
+              <span className={styles.sourceMeta}>
+                {measurement.type === "polyline"
+                  ? "Polyline"
+                  : measurement.type === "polygon"
+                    ? "Polygon"
+                    : "Line"}{" "}
+                · Page {pageNumber}
+                {pageLabel !== `Page ${pageNumber}` ? ` · ${pageLabel}` : ""}
+                {!measurement.visible ? " · Hidden" : ""}
+              </span>
+              {exclusionReason && (
+                <span className={styles.sourceReason}>{exclusionMessages[exclusionReason]}</span>
+              )}
+            </span>
+            <span className={styles.sourceArrow} aria-hidden="true">
+              ›
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}

@@ -277,7 +277,7 @@ function PlanMeasureApp() {
         document.querySelectorAll<HTMLElement>(
           '[data-measurement-id][data-measurement-control="selection"]',
         ),
-      ).find((candidate) => candidate.dataset.measurementId === measurementId);
+      ).find((candidate) => candidate.dataset.measurementId === measurementId && !candidate.closest("[hidden]"));
       if (row && !row.closest("[hidden]")) {
         row.focus({ preventScroll: true });
         if (document.activeElement === row) return;
@@ -1012,6 +1012,13 @@ function PlanMeasureApp() {
   const summaryExportBlocked = Boolean(
     draft || measurementEditActive || calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
   );
+  const openTakeoffMeasurement = useCallback((pageNumber: number, measurementId: string) => {
+    if (summaryExportBlocked || !session?.pages[pageNumber]?.measurements.some((measurement) => measurement.id === measurementId)) return;
+    chooseWorkspaceTool("select");
+    selectMeasurementFromPanel(pageNumber, measurementId);
+    openMeasurementDetails();
+    focusMeasurementDetails();
+  }, [summaryExportBlocked, session, chooseWorkspaceTool, selectMeasurementFromPanel, openMeasurementDetails, focusMeasurementDetails]);
   const currentPageSelectedMeasurements = currentPage?.measurements.filter((measurement) =>
     selectedMeasurementIds.includes(measurement.id),
   ) ?? [];
@@ -1264,6 +1271,8 @@ function PlanMeasureApp() {
                   key={workspaceVersion}
                   pages={previewPages ?? session.pages}
                   catalog={session.classificationCatalog}
+                  onOpenMeasurement={openTakeoffMeasurement}
+                  navigationBlocked={summaryExportBlocked}
                   displayUnit={session.settings.displayUnit}
                   decimalPlaces={session.settings.measurementDecimalPlaces}
                   areaDisplay={session.settings.areaDisplay}

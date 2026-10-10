@@ -3,7 +3,9 @@
   min-height: 0;
   height: 100%;
   overflow: auto;
-  padding: var(--space-12);
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  padding: var(--space-12) var(--space-4);
   background: var(--color-surface-panel);
 }
 
@@ -248,14 +250,6 @@
   overflow-wrap: anywhere;
 }
 
-.groupMeta {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-  white-space: nowrap;
-}
-
 .archivedBadge {
   grid-column: 1 / -1;
   justify-self: start;
@@ -298,4 +292,132 @@
 
 .emptyState .message {
   margin: 0;
+}
+
+.sourceToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--control-height-compact);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-secondary);
+  white-space: nowrap;
+}
+
+.sourceToggle:hover:not(:disabled),
+.inspectButton:hover:not(:disabled) {
+  color: var(--color-accent);
+  background: transparent;
+}
+
+.sourceToggle:focus-visible,
+.inspectButton:focus-visible,
+.sourceMeasurement:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.chevron {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sourceToggle[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.notice p {
+  margin: 0;
+  flex: 1;
+}
+.inspectButton {
+  padding: 0;
+  min-height: var(--control-height-compact);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  flex-shrink: 0;
+}
+
+.sourceList {
+  list-style: none;
+  margin: var(--space-8) 0 0;
+  padding: 0;
+  max-height: min(480px, 50dvh);
+  overflow: auto;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+}
+.sourceList li + li {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+.sourceMeasurement {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: var(--space-8);
+  align-items: center;
+  width: 100%;
+  min-height: var(--target-current);
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-weight: var(--font-weight-regular);
+}
+.sourceGlyph {
+  width: 16px;
+  height: 16px;
+  color: var(--color-accent);
+}
+.sourceGlyph svg {
+  width: 100%;
+  height: 100%;
+}
+.sourceText {
+  display: grid;
+  min-width: 0;
+}
+.sourceName {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-secondary);
+  overflow-wrap: anywhere;
+}
+.sourceMeta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-secondary);
+  overflow-wrap: anywhere;
+}
+.sourceReason {
+  margin-top: var(--space-4);
+  color: var(--color-status-warning);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-secondary);
+}
+.sourceArrow {
+  color: var(--color-text-muted);
+}
+
+.sourceMeasurement:focus-visible {
+  outline-offset: -2px;
 }
