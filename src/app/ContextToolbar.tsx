@@ -72,7 +72,7 @@ function DetailsIcon() {
 function DeleteIcon() {
   return (
     <SelectionSvg>
-      <path d="M3.75 5.5h12.5M7.75 5.5V4a1.25 1.25 0 0 1 1.25-1.25h2A1.25 1.25 0 0 1 12.25 4v1.5M5.25 5.5l.7 9.9a1.75 1.75 0 0 0 1.75 1.6h4.6a1.75 1.75 0 0 0 1.75-1.6l.7-9.9M8.5 9v4.5M11.5 9v4.5" />
+      <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
     </SelectionSvg>
   );
 }
@@ -487,9 +487,6 @@ export function ContextToolbar({
         contextKind="drawing"
         drawingTool={activeTool}
       >
-        <span className={styles.toolIdentity} role="status">
-          {spec.label}
-        </span>
         {!pathDraft && selectedMeasurementName && (
           <MeasurementNameEditor
             key={selectedMeasurementId ?? "none"}

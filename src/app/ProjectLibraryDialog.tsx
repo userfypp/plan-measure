@@ -41,18 +41,7 @@ const exportIcon = (
 );
 const discardIcon = (
   <Icon>
-    <path d="M4 5.5h12M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M5.5 5.5l.7 10a1.5 1.5 0 0 0 1.5 1.4h4.6a1.5 1.5 0 0 0 1.5-1.4l.7-10M8.5 9v4.5M11.5 9v4.5" />
-  </Icon>
-);
-const importIcon = (
-  <Icon>
-    <path d="M10 13V4M6.5 7 10 3.5 13.5 7M4 12.5V15a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2.5" />
-  </Icon>
-);
-const openPdfIcon = (
-  <Icon>
-    <path d="M11.5 3H6a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 6 17h8a1.5 1.5 0 0 0 1.5-1.5V7L11.5 3Z" />
-    <path d="M11.5 3v4h4M10 9.5v4M8 11.5h4" />
+    <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
   </Icon>
 );
 
@@ -174,26 +163,24 @@ export function ProjectLibraryDialog({
             </div>
           )}
           <div className={styles.actions}>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" size="compact" onClick={onClose}>
               Close
             </Button>
             {currentSessionLoaded &&
               !projects.some((project) => project.id === activeProjectId) && (
                 <Button
                   variant="secondary"
+                  size="compact"
                   disabled={opening}
                   onClick={() => onExportProject()}
                 >
-                  <span className={styles.buttonIcon} aria-hidden="true">{exportIcon}</span>
                   Export current project
                 </Button>
               )}
-            <Button variant="secondary" disabled={opening} onClick={onImportProject}>
-              <span className={styles.buttonIcon} aria-hidden="true">{importIcon}</span>
+            <Button variant="secondary" size="compact" disabled={opening} onClick={onImportProject}>
               Import project
             </Button>
-            <Button onClick={onOpenPdf} disabled={opening}>
-              <span className={styles.buttonIcon} aria-hidden="true">{openPdfIcon}</span>
+            <Button size="compact" onClick={onOpenPdf} disabled={opening}>
               Open PDF
             </Button>
           </div>

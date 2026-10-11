@@ -178,7 +178,7 @@ describe("ContextToolbar V2", () => {
     act(() => workspace!.chooseTool("line"));
 
     expect(contextKind()).toBe("drawing");
-    expect(container?.textContent).toContain("Line");
+    expect(container?.querySelector("[aria-label=\"Line drawing controls\"]")).not.toBeNull();
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("false");
     expect(buttonByLabel("Ortho").getAttribute("aria-pressed")).toBe("false");
     expect(container?.textContent).not.toContain("Finish");

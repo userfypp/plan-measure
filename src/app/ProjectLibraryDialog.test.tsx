@@ -207,7 +207,7 @@ describe("ProjectLibraryDialog", () => {
     if (!exportCurrent) throw new Error("The current project export action was not rendered.");
     expect(
       [close, exportCurrent, importProject, openPdf].every((button) =>
-        button.classList.contains(buttonStyles.regular!),
+        button.classList.contains(buttonStyles.compact!),
       ),
     ).toBe(true);
     act(() => importProject.click());
