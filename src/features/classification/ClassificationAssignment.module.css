@@ -53,9 +53,9 @@
 
 .field select {
   width: 100%;
-  min-height: var(--control-height-regular);
+  min-height: var(--control-height-compact);
   padding: 0 var(--space-16) 0 var(--space-8);
-  background-color: var(--color-surface-panel);
+  background-color: var(--color-surface-field);
 }
 
 .valueTrigger {
