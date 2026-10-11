@@ -427,4 +427,26 @@ describe("Popover", () => {
     });
     expect(onOpenChange).toHaveBeenCalledTimes(1);
   });
+
+  it("sets the minimum width to the trigger width when matchTriggerWidth is set", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        <Popover trigger="Wide trigger" matchTriggerWidth role="dialog" aria-label="Sized">
+          <button type="button">Inside action</button>
+        </Popover>,
+      );
+    });
+    const button = container.querySelector("button")!;
+    button.getBoundingClientRect = () =>
+      ({ width: 180, height: 32, top: 0, left: 0, right: 180, bottom: 32, x: 0, y: 0, toJSON: () => ({}) });
+    act(() => button.click());
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(content.style.minWidth).toBe("180px");
+  });
 });

@@ -123,6 +123,7 @@ interface PopoverBaseProps {
   placement?: PopoverPlacement;
   initialFocus?: PopoverInitialFocus;
   dismissOnFocusLeave?: boolean;
+  matchTriggerWidth?: boolean;
   className?: string;
 }
 
@@ -148,6 +149,7 @@ export type PopoverProps = PopoverBaseProps & PopoverSemanticProps;
 interface PopoverPosition {
   left: number;
   top: number;
+  minWidth?: number;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -164,6 +166,7 @@ export function Popover({
   placement = "bottom-start",
   initialFocus = "first",
   dismissOnFocusLeave = false,
+  matchTriggerWidth = false,
   role,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
@@ -209,12 +212,15 @@ export function Popover({
       const content = contentRef.current?.getBoundingClientRect();
       if (!anchor || !content) return;
 
+      const contentWidth = matchTriggerWidth
+        ? Math.max(content.width, anchor.width)
+        : content.width;
       const preferredLeft =
-        placement === "bottom-end" ? anchor.right - content.width : anchor.left;
+        placement === "bottom-end" ? anchor.right - contentWidth : anchor.left;
       const left = clamp(
         preferredLeft,
         VIEWPORT_MARGIN_PX,
-        window.innerWidth - content.width - VIEWPORT_MARGIN_PX,
+        window.innerWidth - contentWidth - VIEWPORT_MARGIN_PX,
       );
       const below = anchor.bottom + POPOVER_GAP_PX;
       const above = anchor.top - content.height - POPOVER_GAP_PX;
@@ -228,7 +234,7 @@ export function Popover({
         VIEWPORT_MARGIN_PX,
         window.innerHeight - content.height - VIEWPORT_MARGIN_PX,
       );
-      setPosition({ left, top });
+      setPosition(matchTriggerWidth ? { left, top, minWidth: anchor.width } : { left, top });
     }
 
     updatePosition();
@@ -238,7 +244,7 @@ export function Popover({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen, placement]);
+  }, [isOpen, matchTriggerWidth, placement]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;

@@ -1,0 +1,63 @@
+.trigger {
+  composes: focusRing disabledSurface from "./controlStates.module.css";
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height-compact);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size-small);
+  align-items: center;
+  gap: var(--space-4);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4) 0 var(--space-8);
+  background-color: var(--color-surface-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background-color: var(--color-control-hover-surface);
+}
+
+.trigger:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background-color: var(--color-control-active-surface);
+}
+
+.trigger[aria-expanded="true"] {
+  border-color: var(--color-control-active-border);
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  fill: none;
+  stroke: var(--color-text-secondary);
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: var(--transition-transform);
+}
+
+.trigger[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.list {
+  max-height: var(--geometry-select-list-max-height);
+  overflow-y: auto;
+}

@@ -258,6 +258,7 @@
   --geometry-calibration-field-max-width: 180px;
   --geometry-calibration-fraction-min-width: 112px;
   --geometry-scale-add-menu-max-width: 224px;
+  --geometry-select-list-max-height: 280px;
   --geometry-page-browser-width: 240px;
   --geometry-page-goto-input-width: 48px;
   --geometry-page-thumbnail-width: 144px;
