@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { AnchoredMenu, Badge } from "../../components/ui";
+import { AnchoredMenu, Badge, Select } from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
 import styles from "./ClassificationAssignment.module.css";
 
@@ -122,23 +122,21 @@ export function ClassificationAssignment({
               {dimension.name}
               {dimension.archived ? " (archived)" : ""}
             </span>
-            <select
+            <Select
               id={fieldId}
-              data-viewer-shortcuts="enabled"
+              label={`${dimension.name}${dimension.archived ? " (archived)" : ""}`}
+              triggerProps={{ "data-viewer-shortcuts": "enabled" }}
               value={current?.id ?? ""}
               disabled={fieldDisabled}
-              onChange={(event) =>
-                onAssign(measurementId, dimension.id, event.target.value || null)
-              }
-            >
-              <option value="">Unclassified</option>
-              {options.map((value) => (
-                <option key={value.id} value={value.id}>
-                  {value.name}
-                  {value.archived ? " (archived)" : ""}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Unclassified" },
+                ...options.map((value) => ({
+                  value: value.id,
+                  label: `${value.name}${value.archived ? " (archived)" : ""}`,
+                })),
+              ]}
+              onChange={(valueId) => onAssign(measurementId, dimension.id, valueId || null)}
+            />
           </label>
         );
       })}

@@ -1,4 +1,4 @@
-import { Button } from "../../components/ui";
+import { Button, Select } from "../../components/ui";
 import styles from "./MeasurementsHeader.module.css";
 
 export interface MeasurementsHeaderProps {
@@ -35,23 +35,24 @@ export function MeasurementsHeader({
         <div className={styles.row} key={index}>
           <label className={styles.groupBy}>
             <span>{index === 0 ? "Group by" : "Then by"}</span>
-            <select
+            <Select
+              label={index === 0 ? "Group by" : "Then by"}
               value={groupByDimensionIds[index] ?? ""}
-              onChange={(event) => changeDimension(index, event.target.value)}
-            >
-              <option value="">None</option>
-              {dimensions
-                .filter(
-                  (dimension) =>
-                    index < groupByDimensionIds.length || !groupByDimensionIds.includes(dimension.id),
-                )
-                .map((dimension) => (
-                  <option key={dimension.id} value={dimension.id}>
-                    {dimension.name}
-                    {dimension.archived ? " (archived)" : ""}
-                  </option>
-                ))}
-            </select>
+              options={[
+                { value: "", label: "None" },
+                ...dimensions
+                  .filter(
+                    (dimension) =>
+                      index < groupByDimensionIds.length ||
+                      !groupByDimensionIds.includes(dimension.id),
+                  )
+                  .map((dimension) => ({
+                    value: dimension.id,
+                    label: `${dimension.name}${dimension.archived ? " (archived)" : ""}`,
+                  })),
+              ]}
+              onChange={(dimensionId) => changeDimension(index, dimensionId)}
+            />
           </label>
           {index === 0 && groupByDimensionIds.length > 0 && (
             <Button

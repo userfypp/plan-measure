@@ -194,7 +194,7 @@ export function shouldIgnoreViewerKeyboardShortcut(event: KeyboardShortcutEvent)
   if (
     target.isContentEditable ||
     target.matches("input, textarea, select") ||
-    target.closest("input, textarea, select, [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']")
+    target.closest("input, textarea, select, [data-select-trigger], [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']")
   ) return true;
   return (event.key === " " || event.key === "Enter") && Boolean(
     target.matches("button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']") ||

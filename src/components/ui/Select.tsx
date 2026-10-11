@@ -18,10 +18,14 @@ export interface SelectProps<T extends string> {
   describedBy?: string;
   disabled?: boolean;
   className?: string;
-  triggerProps?: PopoverTriggerProps & Record<`data-${string}`, string | undefined> & {
-    name?: string;
-  };
+  triggerProps?: PopoverTriggerProps &
+    Record<`data-${string}`, string | undefined> & {
+      name?: string;
+    };
 }
+
+/** Lets viewer shortcuts ignore typing on the trigger, as they do for a native select. */
+const SELECT_TRIGGER_ATTRIBUTES = { "data-select-trigger": "true" };
 
 function ChevronIcon() {
   return (
@@ -64,6 +68,7 @@ export function Select<T extends string>({
       }
       triggerProps={{
         ...restTriggerProps,
+        ...SELECT_TRIGGER_ATTRIBUTES,
         id,
         disabled,
         "aria-label": labelledBy ? undefined : label,

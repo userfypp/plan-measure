@@ -216,14 +216,6 @@
   font-weight: var(--font-weight-medium);
 }
 
-.filterRow select {
-  width: 100%;
-  min-width: 0;
-  height: var(--control-height-compact);
-  color: var(--color-text-primary);
-  font: inherit;
-}
-
 .clearFilters {
   justify-self: end;
 }

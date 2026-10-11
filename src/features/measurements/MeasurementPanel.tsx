@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { useSessionState } from "../../app/sessionState";
-import { Button, Popover } from "../../components/ui";
+import { Button, Popover, Select } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
 import { MEASUREMENT_TYPES, measurementPathSpecs } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
@@ -186,64 +186,72 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             <div className={styles.filterRow}>
               <label>
                 <span>Page</span>
-                <select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}>
-                  <option value="">All pages</option>
-                  {Object.values(pages)
-                    .sort((a, b) => a.pageNumber - b.pageNumber)
-                    .map((candidatePage) => {
-                      const label =
-                        effectivePageLabel(
-                          candidatePage.pageNumber,
-                          pageLabelOverrides,
-                          sourcePageLabels,
-                        ) || `Page ${candidatePage.pageNumber}`;
-                      return (
-                        <option key={candidatePage.pageNumber} value={candidatePage.pageNumber}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                </select>
+                <Select
+                  label="Page"
+                  value={pageFilter}
+                  options={[
+                    { value: "", label: "All pages" },
+                    ...Object.values(pages)
+                      .sort((a, b) => a.pageNumber - b.pageNumber)
+                      .map((candidatePage) => ({
+                        value: String(candidatePage.pageNumber),
+                        label:
+                          effectivePageLabel(
+                            candidatePage.pageNumber,
+                            pageLabelOverrides,
+                            sourcePageLabels,
+                          ) || `Page ${candidatePage.pageNumber}`,
+                      })),
+                  ]}
+                  onChange={setPageFilter}
+                />
               </label>
               <label>
                 <span>Type</span>
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                  <option value="">All types</option>
-                  {MEASUREMENT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {measurementPathSpecs[type].label}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  label="Type"
+                  value={typeFilter}
+                  options={[
+                    { value: "", label: "All types" },
+                    ...MEASUREMENT_TYPES.map((type) => ({
+                      value: type as string,
+                      label: measurementPathSpecs[type].label,
+                    })),
+                  ]}
+                  onChange={setTypeFilter}
+                />
               </label>
             </div>
             <div className={styles.filterRow}>
               <label>
                 <span>Visibility</span>
-                <select
+                <Select
+                  label="Visibility"
                   value={visibilityFilter}
-                  onChange={(event) => setVisibilityFilter(event.target.value)}
-                >
-                  <option value="">All</option>
-                  <option value="true">Visible</option>
-                  <option value="false">Hidden</option>
-                </select>
+                  options={[
+                    { value: "", label: "All" },
+                    { value: "true", label: "Visible" },
+                    { value: "false", label: "Hidden" },
+                  ]}
+                  onChange={setVisibilityFilter}
+                />
               </label>
               <label>
                 <span>Classification</span>
-                <select
+                <Select
+                  label="Classification"
                   value={classificationFilter}
-                  onChange={(event) => setClassificationFilter(event.target.value)}
-                >
-                  <option value="">All classifications</option>
-                  {catalog.dimensions.flatMap((dimension) =>
-                    dimension.values.map((value) => (
-                      <option key={value.id} value={value.id}>
-                        {dimension.name}: {value.name}
-                      </option>
-                    )),
-                  )}
-                </select>
+                  options={[
+                    { value: "", label: "All classifications" },
+                    ...catalog.dimensions.flatMap((dimension) =>
+                      dimension.values.map((value) => ({
+                        value: value.id,
+                        label: `${dimension.name}: ${value.name}`,
+                      })),
+                    ),
+                  ]}
+                  onChange={setClassificationFilter}
+                />
               </label>
             </div>
             {activeFilterCount > 0 && (

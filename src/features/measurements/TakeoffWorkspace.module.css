@@ -176,20 +176,6 @@
   line-height: var(--line-height-secondary);
 }
 
-.breakdownControls select {
-  width: 100%;
-  min-height: var(--control-height-compact);
-  color: var(--color-text-primary);
-  font: inherit;
-  text-align: left;
-  text-align-last: left;
-}
-
-.breakdownControls select:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
 .dimension {
   grid-column: 1 / -1;
   display: grid;

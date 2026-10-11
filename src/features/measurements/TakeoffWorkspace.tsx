@@ -1,5 +1,5 @@
 import { memo, useId, useMemo, useState } from "react";
-import { Badge, Button } from "../../components/ui";
+import { Badge, Button, Select } from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -219,39 +219,38 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
 
       <section className={styles.breakdownControls} aria-label="Breakdown controls">
         <label htmlFor="takeoff-breakdown">Breakdown</label>
-        <select
+        <Select<Breakdown>
           id="takeoff-breakdown"
+          label="Breakdown"
+          triggerProps={{ "data-viewer-shortcuts": "enabled" }}
           value={breakdown}
-          data-viewer-shortcuts="enabled"
-          onChange={(event) => {
-            setBreakdown(event.target.value as Breakdown);
+          options={[
+            { value: "none", label: "None" },
+            { value: "page", label: "Page" },
+            { value: "type", label: "Type" },
+            { value: "classification", label: "Classification" },
+          ]}
+          onChange={(nextBreakdown) => {
+            setBreakdown(nextBreakdown);
             setExpandedSources(null);
           }}
-        >
-          <option value="none">None</option>
-          <option value="page">Page</option>
-          <option value="type">Type</option>
-          <option value="classification">Classification</option>
-        </select>
+        />
         {breakdown === "classification" && (
           <label className={styles.dimension}>
             <span>Dimension</span>
-            <select
-              aria-label="Dimension"
+            <Select
+              label="Dimension"
+              triggerProps={{ "data-viewer-shortcuts": "enabled" }}
               value={activeDimensionId ?? ""}
-              data-viewer-shortcuts="enabled"
-              onChange={(event) => {
-                setDimensionId(event.target.value || null);
+              options={props.catalog.dimensions.map((dimension) => ({
+                value: dimension.id,
+                label: `${dimension.name}${dimension.archived ? " (archived)" : ""}`,
+              }))}
+              onChange={(nextDimensionId) => {
+                setDimensionId(nextDimensionId || null);
                 setExpandedSources(null);
               }}
-            >
-              {props.catalog.dimensions.map((dimension) => (
-                <option key={dimension.id} value={dimension.id}>
-                  {dimension.name}
-                  {dimension.archived ? " (archived)" : ""}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         )}
       </section>

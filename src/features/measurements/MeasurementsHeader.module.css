@@ -27,20 +27,6 @@
   font-weight: var(--font-weight-medium);
 }
 
-.groupBy select {
-  width: 100%;
-  min-width: 0;
-  height: var(--control-height-compact);
-  max-width: none;
-  color: var(--color-text-primary);
-  font: inherit;
-}
-
-.groupBy select:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
 @container measurement-panel (max-width: 220px) {
   .row {
     grid-template-columns: minmax(0, 1fr);

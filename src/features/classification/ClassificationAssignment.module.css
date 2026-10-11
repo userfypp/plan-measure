@@ -51,13 +51,6 @@
   overflow-wrap: anywhere;
 }
 
-.field select {
-  width: 100%;
-  min-height: var(--control-height-compact);
-  padding: 0 var(--space-16) 0 var(--space-8);
-  background-color: var(--color-surface-field);
-}
-
 .valueTrigger {
   composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
   width: 100%;

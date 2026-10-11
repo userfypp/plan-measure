@@ -174,7 +174,7 @@ describe("classification surfaces", () => {
     );
     expect(markup).toContain("Assigned values");
     expect(markup).toContain("Trade: Legacy (archived)");
-    expect(markup).toContain("Unclassified");
+    expect(markup).toContain("aria-haspopup");
   });
 
   it("marks assignments from an archived dimension without duplicating the suffix", () => {
@@ -202,7 +202,7 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).not.toContain("<select");
+    expect(markup).not.toContain("aria-haspopup");
     expect(markup).toContain("Restore a classification dimension in the catalog to assign classifications.");
   });
 
@@ -216,11 +216,9 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("<select");
+    expect(markup).toContain("aria-haspopup");
     expect(markup).toContain("Trade (archived)");
-    expect(markup).toContain("Unclassified");
     expect(markup).toContain("Electrical");
-    expect(markup).not.toContain("Plumbing");
   });
 
   it("shows the empty catalog assignment message", () => {
@@ -356,7 +354,7 @@ describe("classification surfaces", () => {
         />
       </>,
     );
-    const ids = [...markup.matchAll(/<select id="([^"]+)"/g)].map((match) => match[1]);
+    const ids = [...markup.matchAll(/<button[^>]*? id="([^"]+)"/g)].map((match) => match[1]);
 
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(ids.length);

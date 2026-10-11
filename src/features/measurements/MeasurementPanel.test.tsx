@@ -353,10 +353,9 @@ describe("measurement grouping surfaces", () => {
     expect(markup).not.toContain("<h2");
     expect(markup).not.toContain('aria-label="1 measurements"');
     expect(markup).toContain("Group by");
-    expect(markup).toContain("<select");
-    expect(markup).toContain('<option value="">None</option>');
-    expect(markup).toContain('<option value="trade" selected="">Trade</option>');
-    expect(markup).toContain("Legacy trade (archived)");
+    expect(markup).toContain('aria-label="Group by"');
+    expect(markup).toContain('aria-haspopup="menu"');
+    expect(markup).toContain(">Trade</span>");
     expect(markup).not.toContain('data-viewer-shortcuts="enabled"');
   });
 
