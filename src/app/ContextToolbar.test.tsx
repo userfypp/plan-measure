@@ -173,7 +173,7 @@ describe("ContextToolbar V2", () => {
     expect(contextKind()).toBeNull();
   });
 
-  it("shows armed Line aids and separate Discard and Back to Select actions without inventing Finish", () => {
+  it("shows armed Line aids and a Discard points action without inventing Finish", () => {
     renderToolbar();
     act(() => workspace!.chooseTool("line"));
 
@@ -182,7 +182,6 @@ describe("ContextToolbar V2", () => {
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("false");
     expect(buttonByLabel("Ortho").getAttribute("aria-pressed")).toBe("false");
     expect(container?.textContent).not.toContain("Finish");
-    expect(buttonByLabel("Back to Select")).toBeTruthy();
     expect(buttonByLabel("Discard points").getAttribute("aria-disabled")).toBe("true");
 
     act(() =>
@@ -237,8 +236,6 @@ describe("ContextToolbar V2", () => {
     const finish = vi.fn();
     renderToolbar(props(), finish);
     act(() => workspace!.chooseTool("polyline"));
-    act(() => buttonByLabel("Back to Select").click());
-    expect(workspace?.activeTool).toBe("select");
     act(() => workspace!.chooseTool("polyline"));
     act(() =>
       workspace!.startDraft({
@@ -274,8 +271,6 @@ describe("ContextToolbar V2", () => {
     act(() => buttonByLabel("Discard points").click());
     expect(workspace?.draft).toBeNull();
     expect(workspace?.activeTool).toBe("polyline");
-    act(() => buttonByLabel("Back to Select").click());
-    expect(workspace?.activeTool).toBe("select");
   });
 
   it("uses one horizontal roving Tab stop and keeps contextually disabled actions discoverable", () => {
@@ -294,7 +289,6 @@ describe("ContextToolbar V2", () => {
     const ortho = buttonByLabel("Ortho");
     const finish = buttonByText("Finish");
     const discard = buttonByLabel("Discard points");
-    const cancel = buttonByLabel("Back to Select");
     expect(finish.disabled).toBe(false);
     expect(finish.getAttribute("aria-disabled")).toBe("true");
     act(() => finish.click());
@@ -310,16 +304,14 @@ describe("ContextToolbar V2", () => {
     press("ArrowRight");
     expect(document.activeElement).toBe(discard);
     press("ArrowRight");
-    expect(document.activeElement).toBe(cancel);
-    press("ArrowRight");
     expect(document.activeElement).toBe(snap);
     press("End");
-    expect(document.activeElement).toBe(cancel);
+    expect(document.activeElement).toBe(discard);
     press("Home");
     expect(document.activeElement).toBe(snap);
     press("ArrowLeft");
-    expect(document.activeElement).toBe(cancel);
-    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([cancel]);
+    expect(document.activeElement).toBe(discard);
+    expect(toolbarButtons().filter((button) => button.tabIndex === 0)).toEqual([discard]);
 
     expect(press("Enter").defaultPrevented).toBe(false);
     expect(press(" ").defaultPrevented).toBe(false);

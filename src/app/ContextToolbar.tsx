@@ -126,15 +126,7 @@ function SnapIcon() {
 function OrthoIcon() {
   return (
     <SelectionSvg>
-      <path d="M4.5 3.75v11.75h11.75M4.5 11.25h4.25v4.25" />
-    </SelectionSvg>
-  );
-}
-
-function SelectToolIcon() {
-  return (
-    <SelectionSvg>
-      <path d="M5.25 3.75v11.5l3-3 2.25 4.25 1.75-.9-2.2-4.1h4.2z" />
+      <path d="M10 3.5v4.75M10 11.75v4.75M3.5 10h4.75M11.75 10h4.75M8.25 8.25h3.5v3.5h-3.5z" />
     </SelectionSvg>
   );
 }
@@ -565,13 +557,6 @@ export function ContextToolbar({
           disabled={!pathDraft}
           disabledReason="No points placed yet."
           onClick={clearDraft}
-        />
-        <IconButton
-          className={styles.selectionIconButton}
-          icon={<SelectToolIcon />}
-          aria-label="Back to Select"
-          tooltip="Back to Select"
-          onClick={onExitDrawingTool}
         />
       </ToolbarComposite>
     );
