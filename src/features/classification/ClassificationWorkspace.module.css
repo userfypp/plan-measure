@@ -59,7 +59,7 @@
 }
 
 .feedback[role="alert"] {
-  color: var(--color-danger);
+  color: var(--color-danger-semantic);
 }
 
 .visuallyHidden {
@@ -110,6 +110,10 @@
   background: var(--color-control-hover-surface);
 }
 
+.disclosure > summary:active {
+  background: var(--color-control-active-surface);
+}
+
 .disclosure > summary:focus-visible {
   outline: var(--focus-outline);
   outline-offset: calc(-1 * var(--focus-offset));
@@ -142,10 +146,10 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
+  stroke-width: var(--icon-stroke-width);
   color: var(--color-text-secondary);
   transform: rotate(-90deg);
-  transition: var(--transition-interactive);
+  transition: var(--transition-transform);
 }
 
 .disclosure[open] > summary .chevron {
@@ -169,7 +173,7 @@
 
 .preview dt {
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .preview dd {

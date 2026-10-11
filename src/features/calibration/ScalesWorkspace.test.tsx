@@ -424,7 +424,7 @@ describe("ScalesWorkspace", () => {
     expect(sectionLabel?.getAttribute("role")).toBe("separator");
     expect(sectionLabel?.getAttribute("aria-label")).toBe("Standard ratios");
     expect(scalesCss).toMatch(
-      /\.addScaleMenu\[role="menu"\]\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*min\(224px,\s*calc\(100vw\s*-\s*var\(--space-16\)\)\);/s,
+      /\.addScaleMenu\[role="menu"\]\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*min\(var\(--geometry-scale-add-menu-max-width\),\s*calc\(100vw\s*-\s*var\(--space-16\)\)\);/s,
     );
     expect(scalesCss).toMatch(
       /\.addScaleMenu \[data-menu-section-label="true"\]\s*\{[^}]*padding:\s*var\(--space-4\) var\(--space-8\) 0;/s,

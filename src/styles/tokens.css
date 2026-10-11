@@ -244,6 +244,23 @@
   --dialog-body-chrome: 144px;
   --tooltip-max-width: 240px;
 
+  /* Feature geometry (classification, calibration, pages, export). */
+  --geometry-selection-indicator-width: 2px;
+  --geometry-checkbox-size: 16px;
+  --geometry-checkbox-mark-width: 8px;
+  --geometry-checkbox-mark-height: 4px;
+  --geometry-calibration-field-min-width: 144px;
+  --geometry-calibration-field-max-width: 180px;
+  --geometry-calibration-fraction-min-width: 112px;
+  --geometry-scale-add-menu-max-width: 224px;
+  --geometry-page-browser-width: 240px;
+  --geometry-page-goto-input-width: 48px;
+  --geometry-page-thumbnail-width: 144px;
+  --geometry-page-thumbnail-height: 104px;
+  --geometry-export-choice-list-max-height: 200px;
+  --geometry-export-classification-column-min-width: 300px;
+  --dialog-width-export: 1040px;
+
   /* Transitional V1 aliases. Remove as each surface migrates to V2 semantic roles. */
   --color-surface: var(--color-surface-panel);
   --color-surface-subdued: var(--color-surface-field);

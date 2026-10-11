@@ -1,5 +1,5 @@
 dialog.dialog {
-  width: min(1040px, calc(100vw - 32px));
+  width: min(var(--dialog-width-export), calc(100vw - var(--space-32)));
 }
 
 dialog.dialog[open] {
@@ -56,13 +56,15 @@ dialog.dialog[open] {
 
 .formatDescription {
   padding-top: var(--space-4);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
 }
 
 .field label {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
 }
 
 .field select {
@@ -91,8 +93,10 @@ dialog.dialog[open] {
 }
 
 .selectedCount {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
   text-align: center;
   white-space: nowrap;
 }
@@ -115,12 +119,14 @@ dialog.dialog[open] {
   min-height: var(--control-height-regular);
   padding: var(--space-8) 0;
   border: 0;
-  border-bottom: var(--focus-width) solid transparent;
+  border-bottom: var(--geometry-selection-indicator-width) solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  transition: var(--transition-interactive);
 }
 
 .sectionTabs button[aria-selected="true"] {
@@ -130,6 +136,15 @@ dialog.dialog[open] {
 
 .sectionTabs button:hover:not(:disabled) {
   color: var(--color-accent);
+}
+
+.sectionTabs button:active:not(:disabled) {
+  color: var(--color-accent-active-semantic);
+}
+
+.sectionTabs button:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
 }
 
 .sectionTabs button:focus-visible {
@@ -184,8 +199,9 @@ dialog.dialog[open] {
 .sectionTitle {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-base);
 }
 
 .columnList,
@@ -202,34 +218,34 @@ dialog.dialog[open] {
 }
 
 .classificationGrid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--geometry-export-classification-column-min-width)), 1fr));
   gap: var(--space-12);
 }
 
 .columnOption {
   min-height: var(--target-current);
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
+  grid-template-columns: var(--geometry-checkbox-size) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
-  border-radius: var(--radius-flat);
+  border-radius: var(--radius-surface);
   padding: 0;
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-tight);
+  line-height: var(--line-height-base);
   cursor: pointer;
 }
 
 .requiredOption {
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: var(--geometry-checkbox-size) minmax(0, 1fr) auto;
   cursor: default;
 }
 
 .columnOption input {
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-checkbox-size);
+  height: var(--geometry-checkbox-size);
   margin: 0;
   display: grid;
   place-content: center;
@@ -241,11 +257,11 @@ dialog.dialog[open] {
 }
 
 .columnOption input::before {
-  width: var(--space-8);
-  height: var(--space-4);
+  width: var(--geometry-checkbox-mark-width);
+  height: var(--geometry-checkbox-mark-height);
   content: "";
-  border-bottom: var(--focus-width) solid var(--color-surface-panel);
-  border-left: var(--focus-width) solid var(--color-surface-panel);
+  border-bottom: calc(var(--icon-stroke-width) * 1px) solid var(--color-surface-panel);
+  border-left: calc(var(--icon-stroke-width) * 1px) solid var(--color-surface-panel);
   opacity: 0;
   transform: translateY(-1px) rotate(-45deg);
 }
@@ -285,15 +301,15 @@ dialog.dialog[open] {
 
 .requiredBadge,
 .compactBadge {
-  min-height: 18px;
+  min-height: var(--geometry-count-badge-size);
   padding: 0 var(--space-4);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
 }
 
 .requiredBadge {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   background: transparent;
   border-color: var(--color-divider);
 }
@@ -316,8 +332,9 @@ dialog.dialog[open] {
   align-items: center;
   gap: var(--space-8);
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-base);
 }
 
 .classificationDimension > span:first-child {
@@ -353,7 +370,7 @@ dialog.dialog[open] {
     gap: var(--space-12);
   }
   .sectionTabs button {
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-secondary);
   }
   .panel {
     height: auto;
@@ -438,14 +455,14 @@ dialog.dialog[open] {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
-  line-height: var(--line-height-base);
+  line-height: var(--line-height-secondary);
 }
 
 .summaryNotice {
   margin: 0;
   color: var(--color-status-warning);
   font-size: var(--font-size-secondary);
-  line-height: var(--line-height-base);
+  line-height: var(--line-height-secondary);
 }
 
 .summaryOptions {
@@ -473,7 +490,7 @@ dialog.dialog[open] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4) var(--space-12);
-  max-height: 200px;
+  max-height: var(--geometry-export-choice-list-max-height);
   overflow: auto;
 }
 
@@ -535,8 +552,9 @@ dialog.dialog[open] {
 .footerScope {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
 .footerButtons {
