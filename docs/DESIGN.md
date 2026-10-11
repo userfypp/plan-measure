@@ -93,9 +93,19 @@ Se usa siempre el componente de `src/components/ui/`. Los botones tipo chip o de
 
 - **Button:** `primary` (una por contexto), `secondary`, `ghost`, `danger`, `dangerSecondary`. Compacto 32, regular 40.
 - **IconButton:** cuadrado, icono 18, estados default / hover / pressed / foco.
-- **Input / Select:** misma altura, borde y foco. `select` no puede diferir del `Input`.
-- **Dialog, Popover, Menu, Tooltip:** `surface-raised`, `radius-overlay`, `shadow-overlay`.
+- **Input / Select:** misma familia de reglas (`--font-size-base`, peso medium, borde, radio, foco, hover/activo/deshabilitado idénticos). Altura: regular (`--control-height-regular`) por defecto; compacta (`--control-height-compact`) en barras de herramientas y filtros. El `select` global es compacto; los contenedores con `select` en formularios lo ajustan localmente.
+- **Dialog, Popover, Menu, Tooltip:** `surface-raised`, `radius-overlay`, `shadow-overlay`. Dialog, Popover y Tooltip usan `composes: overlaySurface` (`ui/overlaySurface.module.css`).
 - **Badge, Switch:** variantes por rol de color, sin variantes ad hoc.
+
+### Patrones compartidos
+
+- `ui/controlStates.module.css` (`composes`): `focusRing` (`:focus-visible`, usado por Button, IconButton, Input, AnchoredMenu) y `disabledSurface` (bloque deshabilitado de Button, IconButton, Input). Quien lo compone no repite esas reglas. El `select` global (CSS no modular) y el foco de Switch (`input + track`) replican los mismos valores sin `composes`.
+- El par hover/activo de los neutros no se extrae: los selectores y la especificidad difieren entre componentes (`aria-disabled`, `data-disabled`, variantes danger/pressed). Se repite con los mismos tokens `--color-control-hover-*` / `--color-control-active-*`.
+- `ui/overlaySurface.module.css` (`composes`): `overlaySurface` (borde, radio, fondo, texto, sombra de overlay).
+- Tokens de geometría de componentes base: `--spinner-size`, `--badge-min-height`, `--switch-{width,height,thumb-size,thumb-offset,thumb-travel}`, `--dialog-width-{small,default,large}`, `--dialog-body-chrome`, `--tooltip-max-width`.
+- Spinner de Button: aro circular (`border-radius: 50%`) de `--spinner-size`.
+- Switch deshabilitado: `--opacity-disabled` sobre la pista (el resto de controles usa colores deshabilitados porque tienen superficie propia; el Switch conserva sus colores de estado atenuados).
+- Transiciones: dos tokens. `--transition-interactive` anima colores (`background-color`, `border-color`, `color`); `--transition-transform` anima `transform`. Ningún componente anima `opacity` mediante estos tokens.
 
 ### Estados obligatorios
 

@@ -1,10 +1,11 @@
 .button {
+  composes: focusRing disabledSurface from "./controlStates.module.css";
   display: inline-grid;
   width: var(--control-height-regular);
   height: var(--control-height-regular);
   place-items: center;
   padding: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   background-color: transparent;
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
@@ -13,18 +14,18 @@
 }
 
 .button:hover:not(:disabled):not([data-disabled="true"]) {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background-color: var(--color-control-hover-surface);
   border-color: var(--color-control-hover-border);
 }
 
 .button:active:not(:disabled):not([data-disabled="true"]) {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background-color: var(--color-control-active-surface);
   border-color: var(--color-control-active-border);
 }
 
-.button.pressed {
+.button.pressed:not(:disabled):not([data-disabled="true"]) {
   color: var(--color-primary);
   background-color: var(--color-selected);
   border-color: var(--color-primary);
@@ -56,19 +57,6 @@
   color: var(--color-danger-active-semantic);
   background-color: var(--color-danger-active-surface);
   border-color: var(--color-danger-active-semantic);
-}
-
-.button:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
-.button:disabled,
-.button[data-disabled="true"] {
-  cursor: not-allowed;
-  border-color: var(--color-divider);
-  background-color: var(--color-surface-panel);
-  color: var(--color-text-disabled);
 }
 
 .disabledReasonOwner {

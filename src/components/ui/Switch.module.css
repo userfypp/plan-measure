@@ -1,7 +1,7 @@
 .target {
   position: relative;
-  width: 36px;
-  height: 20px;
+  width: var(--switch-width);
+  height: var(--switch-height);
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
@@ -18,8 +18,8 @@
 
 .track {
   position: relative;
-  width: 36px;
-  height: 20px;
+  width: var(--switch-width);
+  height: var(--switch-height);
   border: var(--border-width) solid var(--color-switch-off-border);
   border-radius: var(--radius-control);
   background-color: var(--color-surface-field);
@@ -29,15 +29,15 @@
 
 .track::before {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+  top: var(--switch-thumb-offset);
+  left: var(--switch-thumb-offset);
+  width: var(--switch-thumb-size);
+  height: var(--switch-thumb-size);
   border-radius: var(--radius-control);
   background: var(--color-text-disabled);
   content: "";
   transition:
-    transform 120ms ease,
+    var(--transition-transform),
     background-color 120ms ease;
 }
 
@@ -63,7 +63,7 @@
 
 .input:checked + .track::before {
   background: var(--color-on-primary);
-  transform: translateX(16px);
+  transform: translateX(var(--switch-thumb-travel));
 }
 
 .target:not([data-disabled="true"]) .input:checked + .track:hover {

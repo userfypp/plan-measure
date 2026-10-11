@@ -4,22 +4,18 @@
 }
 
 .content {
+  composes: overlaySurface from "./overlaySurface.module.css";
   position: fixed;
   z-index: var(--z-tooltip);
   width: max-content;
   box-sizing: border-box;
-  max-width: min(240px, calc(100vw - 16px));
+  max-width: min(var(--tooltip-max-width), calc(100vw - var(--space-16)));
   overflow-wrap: anywhere;
   padding: var(--space-8) var(--space-12);
-  color: var(--color-text-primary);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
   text-align: start;
   white-space: normal;
-  background-color: var(--color-surface-raised);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  box-shadow: var(--shadow-overlay);
   pointer-events: none;
 }

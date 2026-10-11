@@ -173,6 +173,20 @@
   --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
   --transition-transform: transform 120ms ease;
 
+  /* Base component geometry (components/ui). */
+  --spinner-size: 14px;
+  --badge-min-height: 24px;
+  --switch-width: 36px;
+  --switch-height: 20px;
+  --switch-thumb-size: 14px;
+  --switch-thumb-offset: 2px;
+  --switch-thumb-travel: 16px;
+  --dialog-width-small: 360px;
+  --dialog-width-default: 480px;
+  --dialog-width-large: 720px;
+  --dialog-body-chrome: 144px;
+  --tooltip-max-width: 240px;
+
   /* Transitional V1 aliases. Remove as each surface migrates to V2 semantic roles. */
   --color-surface: var(--color-surface-panel);
   --color-surface-subdued: var(--color-surface-field);

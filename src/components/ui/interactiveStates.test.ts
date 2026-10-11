@@ -67,8 +67,8 @@ describe("shared interactive-state contract", () => {
   });
 
   it("keeps fine-pointer switch feedback on the visible track while preserving a coarse target", () => {
-    expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
-    expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
+    expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s);
+    expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s);
     expect(switchCss).toMatch(
       /@media \(any-pointer: coarse\)\s*\{[^}]*\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
     );

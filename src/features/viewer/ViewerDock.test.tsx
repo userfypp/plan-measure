@@ -16,6 +16,7 @@ import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
 
 const dockCss = readFileSync("src/features/viewer/ViewerDock.module.css", "utf8");
 const buttonCss = readFileSync("src/components/ui/Button.module.css", "utf8");
+const controlStatesCss = readFileSync("src/components/ui/controlStates.module.css", "utf8");
 const popoverCss = readFileSync("src/components/ui/Popover.module.css", "utf8");
 
 let root: Root | null = null;
@@ -306,8 +307,9 @@ describe("ViewerDock", () => {
       act(() => control.focus());
       expect(document.activeElement).toBe(control);
     }
-    expect(buttonCss).toMatch(
-      /\.button:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
+    expect(buttonCss).toMatch(/composes:[^;]*\bfocusRing\b[^;]*controlStates\.module\.css/);
+    expect(controlStatesCss).toMatch(
+      /\.focusRing:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
     );
     expect(popoverCss).toMatch(
       /\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,

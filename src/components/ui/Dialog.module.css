@@ -1,14 +1,10 @@
 .dialog {
-  width: min(480px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  composes: overlaySurface from "./overlaySurface.module.css";
+  width: min(var(--dialog-width-default), calc(100vw - var(--space-32)));
+  max-height: calc(100dvh - var(--space-32));
   margin: auto;
   padding: 0;
   overflow: hidden;
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  color: var(--color-text);
-  background: var(--color-surface-raised);
-  box-shadow: var(--shadow-overlay);
 }
 
 .dialog:focus {
@@ -25,11 +21,11 @@
 }
 
 .small {
-  width: min(360px, calc(100vw - 32px));
+  width: min(var(--dialog-width-small), calc(100vw - var(--space-32)));
 }
 
 .large {
-  width: min(720px, calc(100vw - 32px));
+  width: min(var(--dialog-width-large), calc(100vw - var(--space-32)));
 }
 
 .header {
@@ -38,20 +34,20 @@
 
 .title {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
 }
 
 .body {
-  max-height: calc(100dvh - 144px);
+  max-height: calc(100dvh - var(--dialog-body-chrome));
   padding: var(--space-16);
   overflow-y: auto;
 }
 
 .body :global(p) {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   line-height: var(--line-height-normal);
   overflow-wrap: anywhere;
 }

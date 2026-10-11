@@ -12,6 +12,7 @@
 }
 
 .item {
+  composes: focusRing from "./controlStates.module.css";
   width: 100%;
   min-height: var(--target-current);
   display: grid;
@@ -48,8 +49,6 @@
 
 .item:focus-visible {
   background: var(--color-surface-field);
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .item[aria-disabled="true"] {
