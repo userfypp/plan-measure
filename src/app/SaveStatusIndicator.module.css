@@ -17,6 +17,7 @@
   font-size: var(--font-size-secondary);
   white-space: nowrap;
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .trigger::after {
@@ -25,7 +26,7 @@
   height: 14px;
   flex-shrink: 0;
   background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m6 8 4 4 4-4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m6 8 4 4 4-4' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / contain no-repeat;
   content: "";
 }
@@ -38,6 +39,16 @@
 .trigger[aria-expanded="true"] {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
+}
+
+.trigger:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .details {

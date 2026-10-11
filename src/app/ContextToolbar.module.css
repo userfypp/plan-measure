@@ -46,13 +46,13 @@
   gap: var(--space-4);
   padding: 0 var(--space-8);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   line-height: var(--line-height-base);
   white-space: nowrap;
 }
 
 .modifierHint kbd {
-  padding: 1px 5px;
+  padding: 0 var(--space-4);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   background: var(--color-surface-field);
@@ -134,7 +134,7 @@
 }
 
 .renameInput[aria-invalid="true"] {
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-semantic);
 }
 
 .renameAction {
@@ -169,7 +169,7 @@
   flex: 0 0 auto;
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
@@ -395,13 +395,13 @@
   height: var(--geometry-icon-size);
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: var(--icon-stroke-width);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .toolbar[data-context-kind="selection"] .action {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
 

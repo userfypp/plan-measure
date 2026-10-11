@@ -85,7 +85,7 @@ Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de
 
 ## Iconos
 
-SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (hoy hay 1.4, 1.5, 1.6 y 1.8). Los iconos de 24×24 se redibujan o se escalan al estándar.
+SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal). Los iconos de 24×24 se redibujan o se escalan al estándar.
 
 ## Componentes
 
@@ -105,6 +105,7 @@ Se usa siempre el componente de `src/components/ui/`. Los botones tipo chip o de
 - Tokens de geometría de componentes base: `--spinner-size`, `--badge-min-height`, `--switch-{width,height,thumb-size,thumb-offset,thumb-travel}`, `--dialog-width-{small,default,large}`, `--dialog-body-chrome`, `--tooltip-max-width`.
 - Spinner de Button: aro circular (`border-radius: 50%`) de `--spinner-size`.
 - Switch deshabilitado: `--opacity-disabled` sobre la pista (el resto de controles usa colores deshabilitados porque tienen superficie propia; el Switch conserva sus colores de estado atenuados).
+- Anillos inset para controles sin borde: `--ring-inset-hover` y `--ring-inset-active` (1 px, mismos colores que el borde hover/activo de los neutros). Se usan en lugar de `box-shadow: inset` literal.
 - Transiciones: dos tokens. `--transition-interactive` anima colores (`background-color`, `border-color`, `color`); `--transition-transform` anima `transform`. Ningún componente anima `opacity` mediante estos tokens.
 
 ### Estados obligatorios

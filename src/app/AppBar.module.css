@@ -93,9 +93,9 @@
   background: transparent;
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
+  line-height: var(--line-height-base);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -169,7 +169,7 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
+  stroke-width: var(--icon-stroke-width);
 }
 
 @media (max-width: 1000px) {

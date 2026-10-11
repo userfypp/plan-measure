@@ -38,7 +38,7 @@
   min-height: 0;
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: var(--space-32);
   overflow: hidden;
   background: var(--color-surface-viewer);
 }
@@ -55,13 +55,13 @@
 }
 
 .dropCard h1 {
-  margin: 18px 0 4px;
+  margin: 18px 0 var(--space-4);
   color: var(--color-text-primary);
   font-size: var(--font-size-title);
 }
 
 .dropCard p {
-  margin: 4px 0 12px;
+  margin: var(--space-4) 0 var(--space-12);
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
 }
@@ -98,7 +98,7 @@
 .dropOverlay {
   position: absolute;
   z-index: var(--z-overlay);
-  inset: 16px;
+  inset: var(--space-16);
   display: grid;
   place-items: center;
   border: var(--border-width) dashed var(--color-accent);
@@ -195,12 +195,12 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.4;
+  stroke-width: var(--icon-stroke-width);
 }
 
 @media (max-width: 1024px) {
   .emptyState {
-    padding: 24px;
+    padding: var(--space-24);
   }
 }
 

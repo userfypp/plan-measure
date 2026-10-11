@@ -6,7 +6,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .statusRow {
@@ -72,12 +72,12 @@
 
 .status button:hover {
   background: var(--color-control-hover-surface);
-  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-hover-border);
+  box-shadow: var(--ring-inset-hover);
 }
 
 .status button:active {
   background: var(--color-control-active-surface);
-  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-active-border);
+  box-shadow: var(--ring-inset-active);
 }
 
 .status button:focus-visible {
@@ -86,13 +86,13 @@
 }
 
 .error {
-  background: var(--color-danger-subdued);
-  color: var(--color-danger-active);
+  background: var(--color-status-danger-surface);
+  color: var(--color-danger-active-semantic);
 }
 
 .warning {
-  background: var(--color-warning-subdued);
-  color: var(--color-warning);
+  background: var(--color-status-warning-surface);
+  color: var(--color-status-warning);
 }
 
 .content {
@@ -110,6 +110,6 @@
   display: grid;
   place-items: center;
   background: var(--color-loading-overlay);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-weight: var(--font-weight-semibold);
 }

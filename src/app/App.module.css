@@ -5,7 +5,7 @@
 .viewerLoading {
   display: grid;
   place-items: center;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .modalActions {
