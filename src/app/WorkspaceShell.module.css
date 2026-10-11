@@ -47,7 +47,7 @@
   width: min(520px, 100%);
   display: grid;
   justify-items: center;
-  padding: 58px 40px;
+  padding: var(--space-48) var(--space-40);
   border: var(--border-width) dashed var(--color-text-disabled);
   border-radius: var(--radius-overlay);
   background: var(--color-surface-panel);
@@ -55,7 +55,7 @@
 }
 
 .dropCard h1 {
-  margin: 18px 0 var(--space-4);
+  margin: var(--space-16) 0 var(--space-4);
   color: var(--color-text-primary);
   font-size: var(--font-size-title);
 }
@@ -67,7 +67,7 @@
 }
 
 .dropCard small {
-  margin-top: 20px;
+  margin-top: var(--space-16);
   color: var(--color-text-secondary);
 }
 
@@ -206,6 +206,6 @@
 
 @media (max-width: 640px) {
   .dropCard {
-    padding: 40px 24px;
+    padding: var(--space-40) var(--space-24);
   }
 }

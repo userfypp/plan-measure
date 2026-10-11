@@ -60,8 +60,8 @@ Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de
 
 ## Espaciado y geometría
 
-- Escala: 4, 8, 12, 16, 24, 32 (`--space-*`). Los `1px`/`2px` sueltos de gap se sustituyen por la escala.
-- Radios: `--radius-control` (4) para controles, `--radius-overlay` (6) para overlays, `--radius-surface` (0) para paneles. Sin 2 px ni 9 px.
+- Escala: 4, 8, 12, 16, 24, 32, 40, 48 (`--space-*`; 40 y 48 solo para pantallas vacías y tarjetas de bienvenida). Ningún `gap`/`padding`/`margin`/`inset` lleva px literales salvo `0` y `1px` de bordes o divisores; las medidas estructurales reutilizadas son `--geometry-*`.
+- Radios: `--radius-control` (4) para controles, `--radius-overlay` (6) para overlays, `--radius-surface` (0) para paneles. `--radius-pill` (999px) para insignias y contadores en forma de píldora. Sin 2 px ni 9 px.
 - Alturas de control: compacto 32, regular 40 (`--control-height-*`), objetivo táctil 44 en puntero grueso. Un mismo tipo de control tiene una sola altura en toda la app.
 - Sin `min-height` literales (hoy hay `38px` en varios sitios).
 
@@ -104,6 +104,7 @@ Se usa siempre el componente de `src/components/ui/`. Los botones tipo chip o de
 - `ui/overlaySurface.module.css` (`composes`): `overlaySurface` (borde, radio, fondo, texto, sombra de overlay).
 - Tokens de geometría de componentes base: `--spinner-size`, `--badge-min-height`, `--switch-{width,height,thumb-size,thumb-offset,thumb-travel}`, `--dialog-width-{small,default,large}`, `--dialog-body-chrome`, `--tooltip-max-width`.
 - Spinner de Button: aro circular (`border-radius: 50%`) de `--spinner-size`.
+- Deshabilitado en el shell: `ToolRail .toolButton` replica los tokens de `disabledSurface` (usa `aria-disabled`, que el patrón no cubre). Una herramienta deshabilitada y seleccionada conserva `--color-selection-surface` para seguir identificándose.
 - Switch deshabilitado: `--opacity-disabled` sobre la pista (el resto de controles usa colores deshabilitados porque tienen superficie propia; el Switch conserva sus colores de estado atenuados).
 - Anillos inset para controles sin borde: `--ring-inset-hover` y `--ring-inset-active` (1 px, mismos colores que el borde hover/activo de los neutros). Se usan en lugar de `box-shadow: inset` literal.
 - Transiciones: dos tokens. `--transition-interactive` anima colores (`background-color`, `border-color`, `color`); `--transition-transform` anima `transform`. Ningún componente anima `opacity` mediante estos tokens.

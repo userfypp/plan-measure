@@ -38,7 +38,7 @@
   gap: var(--space-8) var(--space-12);
   padding: var(--space-12) var(--space-16);
   font-size: var(--font-size-base);
-  line-height: 1.45;
+  line-height: var(--line-height-base);
 }
 
 .statusActions {

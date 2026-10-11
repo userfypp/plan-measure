@@ -12,5 +12,5 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-8);
-  margin-top: 20px;
+  margin-top: var(--space-16);
 }

@@ -215,8 +215,8 @@
 
 .pressedMark {
   position: absolute;
-  right: 2px;
-  bottom: 1px;
+  right: var(--space-4);
+  bottom: var(--space-4);
   width: 9px;
   height: 9px;
   display: grid;

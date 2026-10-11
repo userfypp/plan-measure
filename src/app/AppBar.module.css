@@ -75,7 +75,7 @@
   margin-left: var(--space-4);
   padding: 0 var(--space-4);
   place-items: center;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   color: var(--color-text-secondary);
   background: var(--color-surface-field);
   font-size: var(--font-size-micro);
