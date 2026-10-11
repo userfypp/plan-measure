@@ -759,7 +759,13 @@ export function polygonResultsMm(
   const perimeterMm = pathLengthMm(points, calibration, true);
   const pageArea = polygonAreaPageUnitsSquared(points);
   let areaMm2 = pageArea * scaleX * scaleY;
-  if (!Number.isFinite(areaMm2)) areaMm2 = pageArea * scaleY * scaleX;
+  if (!Number.isFinite(areaMm2)) {
+    areaMm2 = pageArea * scaleY * scaleX;
+  } else if (pageArea > 0 && pageArea * scaleX < 2 ** -1022 && pageArea * scaleY >= 2 ** -1022) {
+    // A subnormal intermediate can lose precision even when the final area is representable.
+    const reorderedArea = pageArea * scaleY * scaleX;
+    if (Number.isFinite(reorderedArea) && reorderedArea > 0) areaMm2 = reorderedArea;
+  }
   if (!Number.isFinite(areaMm2)) {
     const origin = points[0];
     if (origin) {

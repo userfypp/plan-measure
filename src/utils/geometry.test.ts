@@ -854,6 +854,42 @@ describe("geometry", () => {
     expect(() => calibrationScaleX(overflowingXy)).toThrow(RangeError);
   });
 
+  it.each([
+    [1e-300, 1e300],
+    [1e-294, 1e294],
+    [1e300, 1e-300],
+  ])("preserves representable X/Y areas with axis scales %s and %s", (scaleX, scaleY) => {
+    const calibration: PageCalibration = {
+      ...xy,
+      xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: scaleX },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: scaleY },
+    };
+    const points = [
+      { x: 0, y: 0 },
+      { x: 1e-14, y: 0 },
+      { x: 1e-14, y: 1e-14 },
+      { x: 0, y: 1e-14 },
+    ];
+    expect(isValidPageCalibration(calibration)).toBe(true);
+    const result = polygonResultsMm({ points }, calibration);
+    expect(result.areaMm2 / 1e-28).toBeCloseTo(1, 14);
+    expect(Number.isFinite(result.perimeterMm)).toBe(true);
+  });
+
+  it.each([
+    [1e4, 0.75, 7500],
+    [2, 2.5, 5],
+    [2, 3.5, 7],
+  ])("keeps the established order when both intermediate areas are subnormal (%s, %s)", (scaleX, scaleY, units) => {
+    const calibration: PageCalibration = {
+      ...xy,
+      xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: scaleX },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: scaleY },
+    };
+    const points = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 2 * Number.MIN_VALUE }];
+    expect(polygonResultsMm({ points }, calibration).areaMm2).toBe(units * Number.MIN_VALUE);
+  });
+
   it("reorders X/Y area scaling when the established multiplication order overflows", () => {
     const offsettingXy: PageCalibration = {
       ...xy,

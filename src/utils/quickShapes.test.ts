@@ -3,16 +3,18 @@ import type { Calibration, Point } from "../types/domain";
 import {
   applyMeasurementVertexEdit,
   boxFromCorners,
-  cloudArcs,
   ellipseParams,
   ellipseResultsMm,
   isAxisAlignedBoxRing,
-  measurementOutlineBounds,
-  measurementOutlinePoints,
   moveBoxVertex,
   placeholderPointsFor,
-  traceMeasurementOutline,
 } from "./quickShapes";
+import {
+  cloudArcs,
+  measurementOutlineBounds,
+  measurementOutlinePoints,
+  traceMeasurementOutline,
+} from "./quickShapesOutline";
 import { hasValidMeasurementPoints, measurementResultsMm } from "./geometry";
 
 const box: Point[] = [
@@ -169,6 +171,51 @@ describe("cloud geometry", () => {
     expect(isOutward(cw)).toBe(true);
     const outline = measurementOutlinePoints("cloud", ccw, 0.1);
     expect(outline.some((point) => point.x > 100 || point.y > 100 || point.x < 0 || point.y < 0)).toBe(
+      true,
+    );
+  });
+
+  it.each([1e12, Number.MAX_VALUE])(
+    "uses the control polygon for oversized clouds (%s)",
+    (size) => {
+      const points = ccw.map((point) => ({ x: (point.x / 100) * size, y: (point.y / 100) * size }));
+      expect(cloudArcs(points)).toEqual([]);
+      expect(measurementOutlinePoints("cloud", points)).toEqual(points);
+      expect(measurementOutlineBounds("cloud", points)).toEqual({
+        minX: 0,
+        minY: 0,
+        maxX: size,
+        maxY: size,
+      });
+      const calls: string[] = [];
+      traceMeasurementOutline(
+        {
+          beginPath: () => calls.push("begin"),
+          moveTo: () => calls.push("move"),
+          lineTo: () => calls.push("line"),
+          arc: () => calls.push("arc"),
+          ellipse: () => calls.push("ellipse"),
+          closePath: () => calls.push("close"),
+        },
+        "cloud",
+        points,
+      );
+      expect(calls).toEqual(["begin", "move", "line", "line", "line", "close"]);
+    },
+  );
+
+  it("keeps scallops at the arc budget and simplifies above it", () => {
+    const atLimit = ccw.map((point) => ({ x: point.x * 245.76, y: point.y * 245.76 }));
+    const aboveLimit = ccw.map((point) => ({ x: point.x * 245.88, y: point.y * 245.88 }));
+    expect(cloudArcs(atLimit)).toHaveLength(4096);
+    expect(cloudArcs(aboveLimit)).toEqual([]);
+  });
+
+  it("bounds cloud flattening even when tolerance rounds the angular step to zero", () => {
+    const outline = measurementOutlinePoints("cloud", ccw, Number.MIN_VALUE);
+    expect(outline.length).toBeLessThanOrEqual(cloudArcs(ccw).length * 128);
+    expect(outline.length).toBeGreaterThan(0);
+    expect(outline.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(
       true,
     );
   });

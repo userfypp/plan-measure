@@ -41,6 +41,8 @@ const CLOUD_CHORD_DIVISOR = 30;
 const ELLIPSE_SEGMENTS_MIN = 32;
 const ELLIPSE_SEGMENTS_MAX = 2048;
 const CLOUD_ARC_SEGMENTS_MIN = 4;
+const CLOUD_ARC_SEGMENTS_MAX = 128;
+const CLOUD_ARCS_MAX = 4096;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -64,6 +66,20 @@ export function cloudArcs(points: readonly Point[]): CloudArc[] {
   }
   const orientation = signedArea < 0 ? -1 : 1;
   const targetChord = clamp(perimeter / CLOUD_CHORD_DIVISOR, CLOUD_CHORD_MIN, CLOUD_CHORD_MAX);
+  // Oversized imported geometry must not expand into an unbounded decorative outline.
+  let plannedArcs = 0;
+  for (let index = 0; index < count; index += 1) {
+    const a = points[index]!;
+    const b = points[(index + 1) % count]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (!(length > 0)) continue;
+    plannedArcs += Math.max(1, Math.round(length / targetChord));
+    if (!Number.isFinite(plannedArcs) || plannedArcs > CLOUD_ARCS_MAX) {
+      const fallback: CloudArc[] = [];
+      cloudArcsCache.set(points, fallback);
+      return fallback;
+    }
+  }
   const halfAngle = CLOUD_ARC_ANGLE / 2;
   const arcs: CloudArc[] = [];
   for (let index = 0; index < count; index += 1) {
@@ -119,9 +135,15 @@ export function measurementOutlinePoints(
   }
   if (type === "cloud") {
     const outline: Point[] = [];
-    for (const arc of cloudArcs(points)) {
+    const arcs = cloudArcs(points);
+    if (arcs.length === 0) return points as Point[];
+    for (const arc of arcs) {
       const step = arc.radius > tolerance ? Math.acos(1 - tolerance / arc.radius) : Math.PI / 2;
-      const segments = Math.max(CLOUD_ARC_SEGMENTS_MIN, Math.ceil(Math.abs(arc.sweep) / step));
+      const segments = clamp(
+        Math.ceil(Math.abs(arc.sweep) / step),
+        CLOUD_ARC_SEGMENTS_MIN,
+        CLOUD_ARC_SEGMENTS_MAX,
+      );
       const ux = arc.start.x - arc.center.x;
       const uy = arc.start.y - arc.center.y;
       for (let index = 0; index < segments; index += 1) {
@@ -165,8 +187,10 @@ export function traceMeasurementOutline(
         arc.sweep < 0,
       );
     });
-    ctx.closePath();
-    return;
+    if (arcs.length > 0) {
+      ctx.closePath();
+      return;
+    }
   }
   points.forEach((point, index) => {
     if (index === 0) ctx.moveTo(point.x, point.y);
