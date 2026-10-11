@@ -106,15 +106,19 @@ function radios(): HTMLButtonElement[] {
   return Array.from(dialog().querySelectorAll<HTMLButtonElement>('[role="radio"]'));
 }
 
-function selectByLabel(label: string): HTMLSelectElement {
+function selectByLabel(label: string): HTMLButtonElement {
   const labelElement = Array.from(dialog().querySelectorAll<HTMLLabelElement>("label")).find(
     (candidate) => candidate.textContent?.trim() === label,
   );
   const control = labelElement?.htmlFor ? document.getElementById(labelElement.htmlFor) : null;
-  if (!(control instanceof HTMLSelectElement)) {
+  if (!(control instanceof HTMLButtonElement)) {
     throw new Error(`Select ${label} was not rendered.`);
   }
   return control;
+}
+
+function selectItems(): HTMLElement[] {
+  return Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
 }
 
 function switchControl(): HTMLInputElement {
@@ -237,20 +241,34 @@ describe("SettingsPopover", () => {
     openSettings();
     const select = selectByLabel("Recovered plan workspace");
 
-    expect(Array.from(select.options).map((option) => option.textContent)).toEqual([
+    expect(select.textContent).toBe("Measurements");
+    act(() => select.click());
+    expect(selectItems().map((option) => option.textContent)).toEqual([
       "Scales",
       "Measurements",
       "Takeoff",
       "Classifications",
     ]);
-    expect(select.value).toBe("measurements");
 
-    act(() => {
-      select.value = "takeoff";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => selectItems()[2]!.click());
     expect(callbacks.onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("takeoff");
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("closes only the select list on Escape and keeps the dialog open with focus on the select", () => {
+    renderSettings();
+    openSettings();
+    const select = selectByLabel("Decimal places");
+    act(() => select.click());
+    expect(selectItems()).toHaveLength(7);
+    act(() => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(selectItems()).toHaveLength(0);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.activeElement).toBe(select);
   });
 
   it("renders decimal places as numeric options 0 through 6 and keeps the dialog open", () => {
@@ -258,7 +276,9 @@ describe("SettingsPopover", () => {
     openSettings();
     const select = selectByLabel("Decimal places");
 
-    expect(Array.from(select.options).map((option) => option.textContent)).toEqual([
+    expect(select.textContent).toBe("2");
+    act(() => select.click());
+    expect(selectItems().map((option) => option.textContent)).toEqual([
       "0",
       "1",
       "2",
@@ -267,12 +287,8 @@ describe("SettingsPopover", () => {
       "5",
       "6",
     ]);
-    expect(select.value).toBe("2");
 
-    act(() => {
-      select.value = "6";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => selectItems()[6]!.click());
     expect(callbacks.onMeasurementDecimalPlacesChange).toHaveBeenCalledWith(6);
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   });
@@ -331,7 +347,7 @@ describe("SettingsPopover", () => {
     openSettings();
 
     const tabbable = Array.from(
-      dialog().querySelectorAll<HTMLElement>("button, select, input"),
+      dialog().querySelectorAll<HTMLElement>("button, input"),
     ).filter((element) => element.tabIndex >= 0);
     expect(tabbable).toHaveLength(7);
     expect(tabbable[0]?.getAttribute("role")).toBe("radio");

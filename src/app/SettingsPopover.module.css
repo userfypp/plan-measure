@@ -1,7 +1,7 @@
 .popover {
-  width: min(360px, calc(100vw - var(--space-16)));
+  width: min(var(--geometry-settings-popover-width), calc(100vw - var(--space-16)));
   max-height: calc(100dvh - var(--space-16));
-  padding: var(--space-16);
+  padding: 0;
 }
 
 .content {
@@ -9,7 +9,9 @@
 }
 
 .title {
-  margin: 0 0 var(--space-16);
+  margin: 0;
+  border-bottom: var(--border-width) solid var(--color-divider);
+  padding: var(--space-16) var(--space-16) var(--space-12);
   color: var(--color-text-primary);
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
@@ -19,49 +21,50 @@
 .section {
   min-width: 0;
   display: grid;
-  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
 }
 
 .sectionHeading {
-  margin: 0;
+  margin: 0 0 var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-overline);
   line-height: var(--line-height-secondary);
 }
 
 .settingList {
   min-width: 0;
   display: grid;
-  gap: var(--space-12);
 }
 
 .settingRow {
   min-width: 0;
-  min-height: var(--target-current);
+  min-height: var(--control-height-regular);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-12);
+  gap: var(--space-16);
+  padding-block: var(--space-4);
 }
 
 .settingCopy {
   min-width: 0;
   display: grid;
-  gap: var(--space-4);
 }
 
 .settingLabel {
   min-width: 0;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
 }
 
 .description {
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
   line-height: var(--line-height-secondary);
 }
 
@@ -75,16 +78,16 @@
 .appearanceOption {
   position: relative;
   min-width: 0;
-  min-height: var(--target-current);
+  min-height: var(--control-height-compact);
   border: var(--border-width) solid var(--color-divider);
   border-radius: 0;
   padding: 0 var(--space-8);
   background: var(--color-surface-field);
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-secondary);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-secondary);
+  line-height: var(--line-height-base);
   transition: var(--transition-interactive);
 }
 
@@ -139,17 +142,17 @@
 }
 
 .recoveredWorkspaceSelect {
-  width: 148px;
+  width: var(--geometry-select-width-regular);
 }
 
 .decimalSelect {
-  width: 72px;
+  width: var(--geometry-select-width-narrow);
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
 .divider {
   height: var(--border-width);
-  margin: var(--space-16) 0;
+  margin: 0;
   background: var(--color-divider);
 }
 

@@ -1,5 +1,5 @@
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
-import { Popover, Switch } from "../components/ui";
+import { Popover, Select, Switch } from "../components/ui";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useTheme, type ThemePreference } from "./themeState";
@@ -69,6 +69,8 @@ export function SettingsPopover({
   const recoveredWorkspaceId = useId();
   const recoveredWorkspaceDescriptionId = useId();
   const decimalPlacesId = useId();
+  const decimalPlacesLabelId = useId();
+  const recoveredWorkspaceLabelId = useId();
   const deleteConfirmationId = useId();
   const themeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -170,30 +172,30 @@ export function SettingsPopover({
             {onRecoveredPlanStartupWorkspaceChange && (
               <div className={`${styles.settingRow} ${styles.stackOnNarrow}`}>
                 <div className={styles.settingCopy}>
-                  <label className={styles.settingLabel} htmlFor={recoveredWorkspaceId}>
+                  <label
+                    id={recoveredWorkspaceLabelId}
+                    className={styles.settingLabel}
+                    htmlFor={recoveredWorkspaceId}
+                  >
                     Recovered plan workspace
                   </label>
                   <span id={recoveredWorkspaceDescriptionId} className={styles.description}>
                     Workspace shown after restoring a saved plan.
                   </span>
                 </div>
-                <select
+                <Select
                   id={recoveredWorkspaceId}
                   className={styles.recoveredWorkspaceSelect}
+                  label="Recovered plan workspace"
+                  labelledBy={recoveredWorkspaceLabelId}
+                  describedBy={recoveredWorkspaceDescriptionId}
                   value={recoveredPlanStartupWorkspace}
-                  aria-describedby={recoveredWorkspaceDescriptionId}
-                  onChange={(event) =>
-                    onRecoveredPlanStartupWorkspaceChange(
-                      event.target.value as RecoveredPlanStartupWorkspace,
-                    )
-                  }
-                >
-                  {RECOVERED_PLAN_STARTUP_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={RECOVERED_PLAN_STARTUP_OPTIONS.map((option) => ({
+                    value: option.id,
+                    label: option.label,
+                  }))}
+                  onChange={onRecoveredPlanStartupWorkspaceChange}
+                />
               </div>
             )}
           </div>
@@ -208,25 +210,27 @@ export function SettingsPopover({
           <div className={styles.settingList}>
             {measurementDecimalPlaces !== null && onMeasurementDecimalPlacesChange && (
               <div className={styles.settingRow}>
-                <label className={styles.settingLabel} htmlFor={decimalPlacesId}>
+                <label
+                  id={decimalPlacesLabelId}
+                  className={styles.settingLabel}
+                  htmlFor={decimalPlacesId}
+                >
                   Decimal places
                 </label>
-                <select
+                <Select
                   id={decimalPlacesId}
                   className={styles.decimalSelect}
-                  value={measurementDecimalPlaces}
-                  onChange={(event) =>
-                    onMeasurementDecimalPlacesChange(
-                      Number(event.target.value) as MeasurementDecimalPlaces,
-                    )
+                  label="Decimal places"
+                  labelledBy={decimalPlacesLabelId}
+                  value={String(measurementDecimalPlaces)}
+                  options={MEASUREMENT_DECIMAL_OPTIONS.map((decimalPlaces) => ({
+                    value: String(decimalPlaces),
+                    label: String(decimalPlaces),
+                  }))}
+                  onChange={(value) =>
+                    onMeasurementDecimalPlacesChange(Number(value) as MeasurementDecimalPlaces)
                   }
-                >
-                  {MEASUREMENT_DECIMAL_OPTIONS.map((decimalPlaces) => (
-                    <option key={decimalPlaces} value={decimalPlaces}>
-                      {decimalPlaces}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             )}
 
