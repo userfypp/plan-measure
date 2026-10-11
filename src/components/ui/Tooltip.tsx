@@ -36,6 +36,7 @@ export function Tooltip({
   const [anchor, setAnchor] = useState({ x: 0, y: 0 });
   const timerRef = useRef<number | null>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
+  const tooltipRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useId();
   const normalizedDelay = Number.isFinite(delay) ? Math.max(0, delay) : 0;
 
@@ -52,21 +53,39 @@ export function Tooltip({
 
     function updateAnchor() {
       const rect = rootRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      if (position === "top") setAnchor({ x: rect.left + rect.width / 2, y: rect.top - 8 });
-      else if (position === "right") setAnchor({ x: rect.right + 8, y: rect.top + rect.height / 2 });
-      else if (position === "bottom") setAnchor({ x: rect.left + rect.width / 2, y: rect.bottom + 8 });
-      else setAnchor({ x: rect.left - 8, y: rect.top + rect.height / 2 });
+      const tooltip = tooltipRef.current?.getBoundingClientRect();
+      if (!rect || !tooltip) return;
+      let x = rect.left + (rect.width - tooltip.width) / 2;
+      let y = rect.top - tooltip.height - 8;
+      if (position === "right") {
+        x = rect.right + 8;
+        y = rect.top + (rect.height - tooltip.height) / 2;
+      } else if (position === "bottom") {
+        y = rect.bottom + 8;
+      } else if (position === "left") {
+        x = rect.left - tooltip.width - 8;
+        y = rect.top + (rect.height - tooltip.height) / 2;
+      }
+      const width = document.documentElement.clientWidth || window.innerWidth;
+      const height = document.documentElement.clientHeight || window.innerHeight;
+      x = Math.max(8, Math.min(x, width - tooltip.width - 8));
+      y = Math.max(8, Math.min(y, height - tooltip.height - 8));
+      setAnchor((current) => (current.x === x && current.y === y ? current : { x, y }));
     }
 
     updateAnchor();
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateAnchor);
+    if (rootRef.current) observer?.observe(rootRef.current);
+    if (tooltipRef.current) observer?.observe(tooltipRef.current);
     window.addEventListener("resize", updateAnchor);
     window.addEventListener("scroll", updateAnchor, true);
     return () => {
+      observer?.disconnect();
       window.removeEventListener("resize", updateAnchor);
       window.removeEventListener("scroll", updateAnchor, true);
     };
-  }, [position, visible]);
+  }, [content, position, visible]);
 
   function clearTimer() {
     if (timerRef.current !== null) {
@@ -95,13 +114,14 @@ export function Tooltip({
   const describedTrigger = children as ReactElement<DescribedTriggerProps>;
   const existingDescribedBy = describedTrigger.props["aria-describedby"];
   const describedBy =
-    [existingDescribedBy, describeTrigger && visible ? tooltipId : ""].filter(Boolean).join(" ") || undefined;
+    [existingDescribedBy, describeTrigger && visible ? tooltipId : ""].filter(Boolean).join(" ") ||
+    undefined;
   const trigger = cloneElement(describedTrigger, { "aria-describedby": describedBy });
 
   return (
     <span
       ref={rootRef}
-      className={[styles.root, styles[position]].join(" ")}
+      className={styles.root}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
       onFocusCapture={showTooltip}
@@ -111,8 +131,9 @@ export function Tooltip({
       {visible &&
         createPortal(
           <span
+            ref={tooltipRef}
             id={tooltipId}
-            className={[styles.content, styles[position]].join(" ")}
+            className={styles.content}
             role="tooltip"
             style={{ left: anchor.x, top: anchor.y }}
           >

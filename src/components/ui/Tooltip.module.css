@@ -7,7 +7,9 @@
   position: fixed;
   z-index: var(--z-layer-tooltip);
   width: max-content;
-  max-width: 240px;
+  box-sizing: border-box;
+  max-width: min(240px, calc(100vw - 16px));
+  overflow-wrap: anywhere;
   padding: var(--space-8) var(--space-12);
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
@@ -20,20 +22,4 @@
   border-radius: var(--radius-overlay);
   box-shadow: var(--shadow-overlay);
   pointer-events: none;
-}
-
-.content.top {
-  transform: translate(-50%, -100%);
-}
-
-.content.right {
-  transform: translateY(-50%);
-}
-
-.content.bottom {
-  transform: translateX(-50%);
-}
-
-.content.left {
-  transform: translate(-100%, -50%);
 }

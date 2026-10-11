@@ -1,5 +1,4 @@
 import {
-  lazy,
   Suspense,
   useCallback,
   useLayoutEffect,
@@ -24,10 +23,14 @@ import {
   type AuthoringCapability,
 } from "../features/viewer/AuthoringCapability";
 import { ViewerDockContainer } from "./ViewerDockContainer";
+import { retryableImport } from "./retryableImport";
+import { recoverableLazy } from "./recoverableLazy";
 import styles from "./ViewerShell.module.css";
 
-const PageBrowserHost = lazy(() =>
-  import("../features/pages/PageBrowserHost").then((module) => ({ default: module.PageBrowserHost })),
+const loadPageBrowser = retryableImport(() => import("../features/pages/PageBrowserHost"));
+const PageBrowserHost = recoverableLazy(() =>
+  loadPageBrowser().then((module) => ({ default: module.PageBrowserHost })),
+  "pages",
 );
 
 interface ViewerShellProps {

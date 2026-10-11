@@ -1,4 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { retryableImport } from "./retryableImport";
+import { recoverableLazy } from "./recoverableLazy";
 import { AppProvider, useAppState } from "./state";
 import { SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
@@ -61,27 +63,31 @@ import {
 } from "./appDerivations";
 import styles from "./App.module.css";
 
-const PdfViewer = lazy(() =>
-  import("../features/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+const loadViewer = retryableImport(() => import("../features/viewer/PdfViewer"));
+const PdfViewer = recoverableLazy(() =>
+  loadViewer().then((module) => ({ default: module.PdfViewer })),
+  "viewer",
 );
 
-const ScaleCheckPanel = lazy(() =>
-  import("../features/calibration/ScaleCheckPanel").then((module) => ({
-    default: module.ScaleCheckPanel,
-  })),
+const loadScaleCheck = retryableImport(() => import("../features/calibration/ScaleCheckPanel"));
+const ScaleCheckPanel = recoverableLazy(() =>
+  loadScaleCheck().then((module) => ({ default: module.ScaleCheckPanel })),
+  "scale check",
 );
 
-const ClassificationWorkspace = lazy(() =>
-  import("../features/classification/ClassificationWorkspace").then((module) => ({
-    default: module.ClassificationWorkspace,
-  })),
+const loadClassifications = retryableImport(() => import("../features/classification/ClassificationWorkspace"));
+const ClassificationWorkspace = recoverableLazy(() =>
+  loadClassifications().then((module) => ({ default: module.ClassificationWorkspace })),
+  "classifications",
 );
 
-const TakeoffWorkspace = lazy(() =>
-  import("../features/measurements/TakeoffWorkspace").then((module) => ({
-    default: module.TakeoffWorkspace,
-  })),
+const loadTakeoff = retryableImport(() => import("../features/measurements/TakeoffWorkspace"));
+const TakeoffWorkspace = recoverableLazy(() =>
+  loadTakeoff().then((module) => ({ default: module.TakeoffWorkspace })),
+  "takeoff",
 );
+
+const loadExportDialog = retryableImport(() => import("../features/export/ExportDialog"));
 
 type ExportDialogComponent = typeof import("../features/export/ExportDialog").ExportDialog;
 
@@ -239,18 +245,16 @@ function PlanMeasureApp() {
     }
     // Load on demand before mounting: a new Suspense fallback would delay its
     // first successful commit even when this small chunk is already downloaded.
-    void import("../features/export/ExportDialog").then(
+    void loadExportDialog().then(
       ({ ExportDialog: component }) => {
         setExportDialog(() => component);
         setExportDialogOpen(true);
       },
-      (error: unknown) => {
-        // Preserve the lazy component's render-time error propagation.
-        setExportDialog(() => function FailedExportDialog() { throw error; });
-        setExportDialogOpen(true);
+      () => {
+        setError("Could not load export. Check your connection and click Export to try again.");
       },
     );
-  }, [ExportDialog]);
+  }, [ExportDialog, setError]);
   const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
   const [pendingDiscardProjectId, setPendingDiscardProjectId] = useState<string | null>(null);
   const [dismissInitialProjectLibrary, setDismissInitialProjectLibrary] = useState(false);
