@@ -133,20 +133,6 @@
   gap: var(--space-4);
   margin-top: var(--space-8);
 }
-.keyboardTarget select {
-  width: 100%;
-  min-width: 0;
-  padding: var(--space-4) var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
-  font: inherit;
-}
-.keyboardTarget select:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
 
 .keyboardMeasurementName {
   overflow: hidden;

@@ -6,7 +6,7 @@ import {
 } from "../../utils/format";
 import { toMillimetres } from "../../utils/units";
 import { Modal } from "../../components/Modal";
-import { Button, Input } from "../../components/ui";
+import { Button, Input, Select } from "../../components/ui";
 import styles from "./CalibrationDialog.module.css";
 
 interface CalibrationDialogProps {
@@ -28,6 +28,15 @@ const SIXTEENTHS_PER_FOOT = 12 * SIXTEENTHS_PER_INCH;
 const MAX_ARCHITECTURAL_FEET = Math.floor(
   MAX_SAFE_ARCHITECTURAL_SIXTEENTHS / SIXTEENTHS_PER_FOOT,
 );
+const UNIT_OPTIONS: Array<{ value: CalibrationInputUnit; label: string }> = [
+  { value: "mm", label: "Millimetres" },
+  { value: "cm", label: "Centimetres" },
+  { value: "m", label: "Metres" },
+  { value: "in", label: "Inches" },
+  { value: "ft", label: "Feet" },
+  { value: "ft-in", label: "Feet & inches" },
+];
+
 const FRACTION_OPTIONS = [
   "0",
   "1/16",
@@ -178,20 +187,12 @@ export function CalibrationDialog({
           )}
           <label className={styles.unitField}>
             <span>Unit</span>
-            <select
-              aria-label="Calibration unit"
+            <Select<CalibrationInputUnit>
+              label="Calibration unit"
               value={unit}
-              onChange={(event) => {
-                changeUnit(event.target.value as CalibrationInputUnit);
-              }}
-            >
-              <option value="mm">Millimetres</option>
-              <option value="cm">Centimetres</option>
-              <option value="m">Metres</option>
-              <option value="in">Inches</option>
-              <option value="ft">Feet</option>
-              <option value="ft-in">Feet &amp; inches</option>
-            </select>
+              options={UNIT_OPTIONS}
+              onChange={changeUnit}
+            />
           </label>
         </div>
         {unit === "ft-in" && (
@@ -246,22 +247,20 @@ export function CalibrationDialog({
               </div>
               <label className={styles.fractionField}>
                 <span>Fractional inches</span>
-                <select
+                <Select
                   id="calibration-fraction"
-                  aria-label="Fractional inches"
-                  aria-describedby={displayError ? errorId : undefined}
-                  value={fractionSixteenths}
-                  onChange={(event) => {
-                    setFractionSixteenths(Number(event.target.value));
+                  label="Fractional inches"
+                  describedBy={displayError ? errorId : undefined}
+                  value={String(fractionSixteenths)}
+                  options={FRACTION_OPTIONS.map((label, sixteenths) => ({
+                    value: String(sixteenths),
+                    label,
+                  }))}
+                  onChange={(value) => {
+                    setFractionSixteenths(Number(value));
                     setError(null);
                   }}
-                >
-                  {FRACTION_OPTIONS.map((label, sixteenths) => (
-                    <option key={sixteenths} value={sixteenths}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
             </div>
           </fieldset>

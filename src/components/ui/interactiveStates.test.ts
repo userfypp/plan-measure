@@ -42,13 +42,8 @@ describe("shared interactive-state contract", () => {
     );
   });
 
-  it("gives enabled native selects distinct hover and active feedback", () => {
-    expect(globalCss).toMatch(
-      /select:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--color-control-hover-border\);[^}]*background-color:\s*var\(--color-control-hover-surface\);/s,
-    );
-    expect(globalCss).toMatch(
-      /select:active:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--color-control-active-border\);[^}]*background-color:\s*var\(--color-control-active-surface\);/s,
-    );
+  it("keeps native select styling out of the global stylesheet now that every select is the custom Select", () => {
+    expect(globalCss).not.toMatch(/(^|[\s,])select\s*[{:,]/m);
   });
 
   it("keeps OFF switches visibly bounded and gives both switch states transient feedback", () => {

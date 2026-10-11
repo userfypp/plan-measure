@@ -1,5 +1,6 @@
 /* @vitest-environment jsdom */
 
+import { chooseSelectOption } from "../components/ui/selectTestUtils";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -775,13 +776,13 @@ describe("App scale check", () => {
       expect(
         document.querySelector('[data-layout-slot="scale-check-interaction-shield"]'),
       ).not.toBeNull();
-      const select = document.querySelector<HTMLSelectElement>(
-        'select[aria-label="Calibration unit"]',
+      const select = document.querySelector<HTMLButtonElement>(
+        'button[aria-label="Calibration unit"]',
       )!;
-      act(() => {
-        select.value = unit;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      });
+      chooseSelectOption(
+        select,
+        { mm: "Millimetres", cm: "Centimetres", m: "Metres", in: "Inches", ft: "Feet", "ft-in": "Feet & inches" }[unit as string]!,
+      );
       if (unit === "ft-in") {
         setInputValue(document.querySelector<HTMLInputElement>("#calibration-feet")!, "1");
         setInputValue(document.querySelector<HTMLInputElement>("#calibration-inches")!, "6");

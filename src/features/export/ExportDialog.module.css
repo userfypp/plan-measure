@@ -67,14 +67,6 @@ dialog.dialog[open] {
   line-height: var(--line-height-base);
 }
 
-.field select {
-  width: 100%;
-  min-height: var(--control-height-regular);
-  text-align: left;
-  text-align-last: left;
-  padding-inline: var(--space-12) var(--space-24);
-}
-
 .columnSettings {
   display: flex;
   flex-direction: column;
@@ -414,9 +406,6 @@ dialog.dialog[open] {
 @media (max-height: 660px) and (min-width: 601px) {
   .controlsContent {
     gap: var(--space-12);
-  }
-  .field select {
-    min-height: var(--control-height-compact);
   }
   .panel {
     padding: var(--space-12);

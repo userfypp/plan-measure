@@ -138,6 +138,16 @@ interface PdfViewerProps {
 }
 
 
+/** True when `node` is inside a portaled popover whose trigger lives in `viewer`. */
+function isInsideViewerPopover(viewer: HTMLElement, node: EventTarget | null): boolean {
+  if (!(node instanceof Element) || viewer.contains(node)) return false;
+  const portalId = node.closest("[data-focus-portal]")?.getAttribute("data-focus-portal");
+  if (!portalId) return false;
+  return Array.from(viewer.querySelectorAll<HTMLElement>("[data-focus-owner]")).some(
+    (owner) => owner.dataset.focusOwner === portalId,
+  );
+}
+
 export function PdfViewer({
   document,
   page,
@@ -933,6 +943,8 @@ export function PdfViewer({
         annotationLayerRef.current?.draw();
       }
       if (event.target instanceof Element && event.target.closest("[data-keyboard-controls]")) return;
+      // Portaled popovers opened from viewer controls bubble synthetic events through React.
+      if (isInsideViewerPopover(event.currentTarget, event.target)) return;
       // A new pointer ownership attempt invalidates any older prepared/active
       // vertex gesture before Konva can reuse a stale `ready` drag element.
       cancelActiveVertexDrag();
@@ -1771,7 +1783,9 @@ export function PdfViewer({
         aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, P, or C to select a tool.`}
         aria-describedby={keyboardAuthoringEnabled ? keyboardHelpId : undefined}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) cancelKeyboardGeometry();
+          if (event.currentTarget.contains(event.relatedTarget)) return;
+          if (isInsideViewerPopover(event.currentTarget, event.relatedTarget)) return;
+          cancelKeyboardGeometry();
         }}
         onPointerDownCapture={handleViewerPointerDown}
         onPointerEnter={softwareCursor ? updateSoftwareCursor : undefined}

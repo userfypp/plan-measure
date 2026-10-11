@@ -1,4 +1,5 @@
 /* @vitest-environment jsdom */
+import { chooseSelectOption, selectOptionLabels } from "../../components/ui/selectTestUtils";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -94,24 +95,21 @@ it("paints both viewer cursors above the help without intercepting its controls"
 });
 it("exposes whole-measurement and vertex editing as accessible explicit choices", () => {
   render(true);
-  const select = container.querySelector("select")!;
-  expect(select.labels![0]!.textContent).toContain("Edit Line 1");
-  expect(Array.from(select.options).map((option) => option.textContent)).toEqual([
+  const select = container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+  expect(select.getAttribute("aria-label")).toContain("Edit Line 1");
+  expect(selectOptionLabels(select)).toEqual([
     "Whole measurement",
     "Vertex 1 of 2",
     "Vertex 2 of 2",
   ]);
-  act(() => {
-    select.value = "1";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  expect(onTargetChange).toHaveBeenCalledExactlyOnceWith(1);
+  chooseSelectOption(select, "Vertex 1 of 2");
+  expect(onTargetChange).toHaveBeenCalledExactlyOnceWith(0);
   expect(onReturnToViewer).toHaveBeenCalledOnce();
   expect(container.textContent).toContain("N: next point");
 });
 it("explains group movement without exposing an ambiguous vertex selector", () => {
   render(true, null);
-  expect(container.querySelector("select")).toBeNull();
+  expect(container.querySelector('button[aria-haspopup="menu"]')).toBeNull();
   expect(container.textContent).toContain("Moving all selected measurements together");
 });
 
@@ -129,14 +127,11 @@ it("provides explicit reference endpoints without offering whole-measurement mov
       />,
     ),
   );
-  const select = container.querySelector("select")!;
-  expect(Array.from(select.options).map((option) => option.textContent)).toEqual([
+  const select = container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+  expect(selectOptionLabels(select)).toEqual([
     "Start point",
     "End point",
   ]);
-  act(() => {
-    select.value = "1";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  chooseSelectOption(select, "End point");
   expect(onTargetChange).toHaveBeenCalledExactlyOnceWith(1);
 });

@@ -38,13 +38,6 @@
   line-height: var(--line-height-base);
 }
 
-.unitField select {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-regular);
-  padding: 0 var(--space-12);
-}
-
 .architecturalGroup {
   min-width: 0;
   display: grid;
@@ -95,13 +88,6 @@
   min-width: 0;
   display: grid;
   gap: var(--space-4);
-}
-
-.fractionField select {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-regular);
-  padding: 0 var(--space-16) 0 var(--space-8);
 }
 
 .architecturalGroup[aria-invalid="true"],

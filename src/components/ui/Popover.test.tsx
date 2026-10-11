@@ -219,6 +219,22 @@ describe("Popover", () => {
     expect(document.activeElement).toBe(findButton("Second trigger"));
   });
 
+  it("mounts a defaultOpen popover inside its dialog, positioned and focused", () => {
+    act(() => {
+      root!.render(
+        <dialog open>
+          <Popover trigger="Inner trigger" defaultOpen initialFocus="first" role="menu" aria-label="Inner">
+            <button type="button">Inner action</button>
+          </Popover>
+        </dialog>,
+      );
+    });
+    const menu = document.querySelector<HTMLElement>('[aria-label="Inner"]')!;
+    expect(menu.closest("dialog")).not.toBeNull();
+    expect(menu.style.left).not.toBe("");
+    expect(document.activeElement?.textContent).toBe("Inner action");
+  });
+
   it("keeps a nested child above its parent when both open in the same commit", () => {
     act(() => {
       root!.render(

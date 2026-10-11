@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession } from "../../types/domain";
+import { chooseSelectOption } from "../../components/ui/selectTestUtils";
 import { ExportDialog } from "./ExportDialog";
 
 const mocks = vi.hoisted(() => ({
@@ -110,18 +111,41 @@ function dialog(): HTMLDialogElement {
   return element;
 }
 
-function select(name: "export-format" | "csv-data"): HTMLSelectElement {
-  const element = dialog().querySelector<HTMLSelectElement>(`select[name="${name}"]`);
+const SELECT_LABELS = {
+  "export-format": {
+    aria: "Format",
+    options: {
+      csv: "CSV",
+      xlsx: "Excel workbook (.xlsx)",
+      ods: "OpenDocument spreadsheet (.ods)",
+      json: "JSON data",
+      "annotated-pdf": "Annotated PDF",
+    } as Record<string, string>,
+  },
+  "csv-data": {
+    aria: "Data",
+    options: {
+      measurements: "Measurements",
+      "classification-assignments": "Classification assignments",
+      takeoff: "Takeoff summary",
+    } as Record<string, string>,
+  },
+};
+
+function select(name: "export-format" | "csv-data"): HTMLButtonElement {
+  const element = dialog().querySelector<HTMLButtonElement>(
+    `button[data-select-trigger][aria-label="${SELECT_LABELS[name].aria}"]`,
+  );
   if (!element) throw new Error(`Select ${name} was not rendered.`);
   return element;
 }
 
+function selectedLabel(name: "export-format" | "csv-data"): string {
+  return select(name).textContent ?? "";
+}
+
 function choose(name: "export-format" | "csv-data", value: string) {
-  act(() => {
-    const element = select(name);
-    element.value = value;
-    element.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  chooseSelectOption(select(name), SELECT_LABELS[name].options[value]!);
 }
 
 function button(label: string): HTMLButtonElement | undefined {
@@ -199,11 +223,11 @@ describe("ExportDialog", () => {
 
     expect(dialog().getAttribute("aria-labelledby")).toBeTruthy();
     expect(dialog().textContent).toContain("Export");
-    expect(select("export-format").value).toBe("csv");
+    expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["csv"]);
     expect(dialog().querySelector(`label[for="${select("export-format").id}"]`)?.textContent).toBe(
       "Format",
     );
-    expect(select("csv-data").value).toBe("measurements");
+    expect(selectedLabel("csv-data")).toContain(SELECT_LABELS["csv-data"].options["measurements"]);
     expect(dialog().querySelector(`label[for="${select("csv-data").id}"]`)?.textContent).toBe(
       "Data",
     );
@@ -288,7 +312,7 @@ describe("ExportDialog", () => {
     expect(document.activeElement).toBe(classificationSelect);
     selectClassificationAssignments();
 
-    expect(classificationSelect.value).toBe("classification-assignments");
+    expect(selectedLabel("csv-data")).toBe("Classification assignments");
     expect(button("Defaults")).toBeUndefined();
     expect(button("All columns")).toBeUndefined();
     expect(button("Required only")).toBeUndefined();
@@ -329,8 +353,8 @@ describe("ExportDialog", () => {
 
     choose("export-format", "annotated-pdf");
 
-    expect(select("export-format").value).toBe("annotated-pdf");
-    expect(dialog().querySelector('select[name="csv-data"]')).toBeNull();
+    expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["annotated-pdf"]);
+    expect(dialog().querySelector('button[aria-label="Data"]')).toBeNull();
     expect(button("Defaults")).toBeUndefined();
     expect(dialog().querySelector('[role="tablist"]')).toBeNull();
     expect(button("Export PDF")).toBeDefined();
@@ -381,26 +405,26 @@ describe("ExportDialog", () => {
   it("disables annotated PDF export until the source PDF runtime is available", () => {
     renderDialog(sessionFixture(), null);
 
-    expect(
-      select("export-format").querySelector<HTMLOptionElement>('option[value="annotated-pdf"]')
-        ?.disabled,
-    ).toBe(true);
-    expect(
-      select("export-format").querySelector<HTMLOptionElement>('option[value="csv"]')?.disabled,
-    ).toBe(false);
+    act(() => select("export-format").click());
+    const items = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+    const disabledOf = (label: string) =>
+      items.find((item) => item.textContent === label)?.getAttribute("aria-disabled") === "true";
+    expect(disabledOf("Annotated PDF")).toBe(true);
+    expect(disabledOf("CSV")).toBe(false);
+    act(() => select("export-format").click());
   });
 
   it("returns to CSV Measurements when the dialog is closed and opened again", () => {
     renderDialog();
     selectClassificationAssignments();
     choose("export-format", "annotated-pdf");
-    expect(select("export-format").value).toBe("annotated-pdf");
+    expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["annotated-pdf"]);
 
     act(() => root!.render(null));
     renderDialog();
 
-    expect(select("export-format").value).toBe("csv");
-    expect(select("csv-data").value).toBe("measurements");
+    expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["csv"]);
+    expect(selectedLabel("csv-data")).toContain(SELECT_LABELS["csv-data"].options["measurements"]);
   });
   it.each(["xlsx", "ods"])(
     "exports %s with both datasets and the selected measurement columns",
@@ -409,7 +433,7 @@ describe("ExportDialog", () => {
       act(() => button("Required only")!.click());
       choose("csv-data", "classification-assignments");
       choose("export-format", format);
-      expect(select("csv-data").value).toBe("measurements");
+      expect(selectedLabel("csv-data")).toContain(SELECT_LABELS["csv-data"].options["measurements"]);
       expect(dialog().querySelector('[role="tablist"]')).not.toBeNull();
       await act(async () => button(`Export ${format.toUpperCase()}`)!.click());
       expect(mocks.downloadSpreadsheet).toHaveBeenCalledWith(
@@ -429,7 +453,7 @@ describe("ExportDialog", () => {
     act(() => button("Required only")!.click());
     choose("export-format", "json");
     expect(dialog().querySelector("details")).toBeNull();
-    expect(dialog().querySelector('select[name="csv-data"]')).toBeNull();
+    expect(dialog().querySelector('button[aria-label="Data"]')).toBeNull();
     act(() => button("Export JSON")!.click());
     expect(mocks.downloadDataJson).toHaveBeenCalledWith(session, ["1"]);
     expect(mocks.updateSettings).not.toHaveBeenCalled();

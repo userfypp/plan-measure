@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useId,
   useLayoutEffect,
@@ -175,7 +176,12 @@ export function Popover({
   const parentLayerId = useContext(PopoverLayerContext);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const isOpen = open ?? uncontrolledOpen;
-  const anchorRef = useRef<HTMLButtonElement>(null);
+  const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+  const setAnchor = useCallback((element: HTMLButtonElement | null) => {
+    anchorRef.current = element;
+    setPortalHost(element?.closest("dialog") ?? null);
+  }, []);
   const contentRef = useRef<HTMLDivElement>(null);
   const wasOpenRef = useRef(false);
   const restoreFocusOnCloseRef = useRef(true);
@@ -244,7 +250,7 @@ export function Popover({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen, matchTriggerWidth, placement]);
+  }, [isOpen, matchTriggerWidth, placement, portalHost]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -271,7 +277,8 @@ export function Popover({
     const requested = content.querySelector<HTMLElement>('[data-popover-autofocus="true"]');
     const first = requested ?? content.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
     focusPopoverContentElement(first);
-  }, [initialFocus, isOpen]);
+  // portalHost: with defaultOpen inside a dialog the content remounts once the host is known.
+  }, [initialFocus, isOpen, portalHost]);
 
   function handleContentKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.defaultPrevented || !dismissOnFocusLeave || event.key !== "Tab") return;
@@ -320,7 +327,7 @@ export function Popover({
   return (
     <>
       <button
-        ref={anchorRef}
+        ref={setAnchor}
         {...buttonProps}
         data-focus-owner={popoverId}
         type="button"
@@ -352,7 +359,9 @@ export function Popover({
               {children}
             </div>
           </PopoverLayerContext.Provider>,
-          document.body,
+          // Inside a dialog the content must live in the dialog: a modal dialog sits in the top
+          // layer and makes everything else inert, and a focus trap would reject outside focus.
+          portalHost ?? document.body,
         )}
     </>
   );
