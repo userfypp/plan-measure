@@ -1,10 +1,31 @@
 # Plan Measure
 
-Measure distances, perimeters, and areas on architectural PDF plans in a desktop browser.
+[![CI](https://github.com/userfypp/plan-measure/actions/workflows/ci.yml/badge.svg)](https://github.com/userfypp/plan-measure/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/userfypp/plan-measure)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/userfypp/plan-measure)](https://github.com/userfypp/plan-measure/releases)
+[![Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://userfypp.github.io/plan-measure/)
 
-[Open Plan Measure](https://userfypp.github.io/plan-measure/) · [User guide](docs/user-guide.md) · [Contributing](CONTRIBUTING.md)
+**Free, private PDF plan measurement with nothing to install: your plans never leave your browser.**
+
+Measure distances, perimeters, and areas on architectural PDF plans, then export takeoff totals.
+
+[Open Plan Measure](https://userfypp.github.io/plan-measure/) · [**Try a sample project**](https://userfypp.github.io/plan-measure/?sample=1) · [User guide](docs/user-guide.md) · [Contributing](CONTRIBUTING.md)
+
+Missing something? [Open an issue](https://github.com/userfypp/plan-measure/issues/new/choose): I usually reply within a day.
 
 ![Plan Measure workspace](assets/screenshots/plan-measure-overview.png)
+
+## Why Plan Measure
+
+| | Plan Measure | Typical desktop takeoff suites (Bluebeam, PlanSwift, On-Screen Takeoff) |
+|---|---|---|
+| Price | Free, MIT licensed | Paid license or subscription |
+| Account | None | Usually required |
+| Install | None, runs in the browser | Desktop installer |
+| Privacy | Plans processed locally, never uploaded | Varies; some features use cloud services |
+| Offline | Works after the first load\* | Yes |
+
+\*Plan Measure is not yet an installable PWA; offline use depends on the browser cache.
 
 ## What you can do
 
@@ -44,6 +65,7 @@ npm run dev
 ```
 
 - [Contributing](CONTRIBUTING.md): checks, issues, and pull requests.
+- [Roadmap](ROADMAP.md): planned work and priorities.
 - [Releasing](RELEASING.md): release process and maintainer operations.
 - [JSON export contract](docs/export-json.md): schema for integrations.
 - [Changelog](CHANGELOG.md): release history.

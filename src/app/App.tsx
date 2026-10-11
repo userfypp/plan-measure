@@ -430,6 +430,22 @@ function PlanMeasureApp() {
     [confirmMeasurementDeletion, openDeleteMeasurementConfirmation, performMeasurementDelete, session],
   );
 
+  const sampleLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (sampleLinkHandledRef.current || !recoveryChecked || loading || projectOperationPending) return;
+    sampleLinkHandledRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sample") !== "1") return;
+    params.delete("sample");
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+    );
+    if (!session && !recoveryIssue) void openSampleProject();
+  }, [recoveryChecked, loading, projectOperationPending, session, recoveryIssue, openSampleProject]);
+
   useEffect(() => {
     reconcileSelection(
       Object.values(session?.pages ?? {}).flatMap((page) =>

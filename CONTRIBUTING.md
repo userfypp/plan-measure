@@ -33,4 +33,14 @@ Use `npm run format` only when formatting is part of the change.
 - Link the relevant issue with `Closes #123` when fully resolved.
 - Update the relevant documentation when behavior or setup changes.
 
+## AI-assisted contributions
+
+AI-assisted pull requests are welcome under the same rules as any other: you are responsible for the change. Understand and test what you submit and keep it focused. Reviews judge the result (tests, scope, clarity), not the tool; unreviewed bulk output will be closed.
+
+## Becoming a maintainer
+
+- Expect a first response to issues and pull requests within about a day.
+- Contributors with several good merged pull requests may be offered triage permissions (labels, issue management), and later review rights.
+- See the [roadmap](ROADMAP.md) for direction. Start with issues labeled `good first issue` or `help wanted`. For orientation, read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 See [Releasing](RELEASING.md) for publication and [Code of conduct](CODE_OF_CONDUCT.md) for community expectations.
