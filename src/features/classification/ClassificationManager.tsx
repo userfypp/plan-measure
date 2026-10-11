@@ -25,10 +25,10 @@ type EditingTarget =
 
 function MoreActionsIcon() {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <circle cx="3" cy="8" r="1" />
-      <circle cx="8" cy="8" r="1" />
-      <circle cx="13" cy="8" r="1" />
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <circle cx="3.75" cy="10" r="1.25" />
+      <circle cx="10" cy="10" r="1.25" />
+      <circle cx="16.25" cy="10" r="1.25" />
     </svg>
   );
 }

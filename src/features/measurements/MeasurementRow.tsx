@@ -7,14 +7,14 @@ import styles from "./MeasurementRow.module.css";
 
 function VisibilityIcon({ visible }: { visible: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path
-        d="M2.5 12s3.25-5.25 9.5-5.25S21.5 12 21.5 12 18.25 17.25 12 17.25 2.5 12 2.5 12Z"
+        d="M2.08 10s2.71 -4.38 7.92 -4.38S17.92 10 17.92 10 15.21 14.38 10 14.38 2.08 10 2.08 10Z"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="12" cy="12" r="2.5" />
-      {!visible && <path d="m4 4 16 16" strokeLinecap="round" />}
+      <circle cx="10" cy="10" r="2.08" />
+      {!visible && <path d="m3.33 3.33 13.33 13.33" strokeLinecap="round" />}
     </svg>
   );
 }

@@ -130,10 +130,10 @@ export function ProjectLibraryDialog({
           ) : (
             <div className={styles.emptyState}>
               <span className={styles.emptyIcon} aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M5 4.75h11.5a2 2 0 0 1 2 2v12.5H7a2 2 0 0 1-2-2V4.75Z" />
-                  <path d="M8 8.25h7M8 11.75h7M8 15.25h4" />
-                  <path d="M18.5 8.25H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2" />
+                <svg viewBox="0 0 20 20" focusable="false">
+                  <path d="M4.17 3.96h9.58a1.67 1.67 0 0 1 1.67 1.67v10.42H5.83a1.67 1.67 0 0 1 -1.67 -1.67V3.96Z" />
+                  <path d="M6.67 6.88h5.83M6.67 9.79h5.83M6.67 12.71h3.33" />
+                  <path d="M15.42 6.88H16.67a0.83 0.83 0 0 1 0.83 0.83v7.5a0.83 0.83 0 0 1 -0.83 0.83h-1.67" />
                 </svg>
               </span>
               <h3>No saved projects</h3>

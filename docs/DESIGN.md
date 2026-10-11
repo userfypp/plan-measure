@@ -85,7 +85,7 @@ Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de
 
 ## Iconos
 
-SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal). Los iconos de 24×24 se redibujan o se escalan al estándar: `ToolIcon` (viewBox 24, pintado a 18 px) usa `strokeWidth` 1.8, que equivale visualmente a 1.5 sobre viewBox 20 (1.5 × 24/20).
+SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal).
 
 ## Componentes
 

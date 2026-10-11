@@ -146,12 +146,12 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           <span className={styles.visuallyHidden}>Search measurements by name</span>
           <svg
             className={styles.searchIcon}
-            viewBox="0 0 24 24"
+            viewBox="0 0 20 20"
             aria-hidden="true"
             focusable="false"
           >
-            <circle cx="10.8" cy="10.8" r="6.8" />
-            <path d="m16 16 4.5 4.5" />
+            <circle cx="9" cy="9" r="5.67" />
+            <path d="m13.33 13.33 3.75 3.75" />
           </svg>
           <input
             type="search"

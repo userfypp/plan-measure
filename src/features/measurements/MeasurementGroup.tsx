@@ -32,33 +32,33 @@ function ChevronIcon() {
   return (
     <svg
       className={styles.chevron}
-      viewBox="0 0 24 24"
+      viewBox="0 0 20 20"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="m9 5 7 7-7 7" />
+      <path d="m7.5 4.17 5.83 5.83 -5.83 5.83" />
     </svg>
   );
 }
 
 function GroupVisibilityIcon({ state }: { state: "visible" | "hidden" | "mixed" }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
       <path
-        d="M2.5 12s3.25-5.25 9.5-5.25S21.5 12 21.5 12 18.25 17.25 12 17.25 2.5 12 2.5 12Z"
+        d="M2.08 10s2.71 -4.38 7.92 -4.38S17.92 10 17.92 10 15.21 14.38 10 14.38 2.08 10 2.08 10Z"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       {state === "mixed" ? (
-        <path d="M9.5 12h5" strokeLinecap="round" />
+        <path d="M7.92 10h4.17" strokeLinecap="round" />
       ) : (
-        <circle cx="12" cy="12" r="2.5" />
+        <circle cx="10" cy="10" r="2.08" />
       )}
-      {state === "hidden" && <path d="m4 4 16 16" strokeLinecap="round" />}
+      {state === "hidden" && <path d="m3.33 3.33 13.33 13.33" strokeLinecap="round" />}
     </svg>
   );
 }

@@ -408,8 +408,8 @@ describe("measurement grouping surfaces", () => {
       'aria-label="Show all measurements in Trade · Electrical; currently mixed visibility"',
     );
     expect(markup).toContain('data-group-visibility="mixed"');
-    expect(markup).toContain('d="M9.5 12h5"');
-    expect(markup).not.toContain('d="m4 4 16 16"');
+    expect(markup).toContain('d="M7.92 10h4.17"');
+    expect(markup).not.toContain('d="m3.33 3.33 13.33 13.33"');
     expect(markup).not.toContain(">Mixed<");
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
@@ -495,7 +495,7 @@ describe("measurement grouping surfaces", () => {
     expect(controlledId).toBeTruthy();
     expect(markup).toContain(`id="${controlledId}"`);
     expect(markup).toMatch(new RegExp(`<div id="${controlledId}"[^>]*hidden=""`));
-    expect(markup).toContain('d="m9 5 7 7-7 7"');
+    expect(markup).toContain('d="m7.5 4.17 5.83 5.83 -5.83 5.83"');
     expect(markup).not.toContain("▸");
     expect(markup).not.toContain("▾");
   });
