@@ -72,7 +72,7 @@
 
 .measurementNameTrigger {
   min-width: 0;
-  max-width: 180px;
+  max-width: var(--geometry-context-name-max-width);
   min-height: var(--geometry-context-control-height);
   padding: 0 var(--space-8);
   overflow: hidden;
@@ -117,8 +117,8 @@
 }
 
 .renameInput {
-  width: 160px;
-  min-width: 88px;
+  width: var(--geometry-context-rename-width);
+  min-width: var(--geometry-context-rename-min-width);
   height: var(--geometry-context-control-height);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
@@ -156,7 +156,7 @@
 
 .divider {
   width: var(--border-width);
-  height: 20px;
+  height: var(--geometry-separator-height);
   flex: 0 0 auto;
   margin: 0 var(--space-4);
   background: var(--color-divider);
@@ -217,8 +217,8 @@
   position: absolute;
   right: var(--space-4);
   bottom: var(--space-4);
-  width: 9px;
-  height: 9px;
+  width: var(--geometry-pressed-mark-size);
+  height: var(--geometry-pressed-mark-size);
   display: grid;
   place-items: center;
   border-radius: 50%;

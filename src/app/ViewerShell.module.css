@@ -46,7 +46,7 @@
 
 .viewerOverlay > dialog {
   position: static;
-  width: min(480px, 100%);
+  width: min(var(--dialog-width-default), 100%);
   max-height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -87,17 +87,14 @@
 }
 
 .authoringNotice {
+  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
   position: absolute;
   z-index: var(--z-controls);
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
   bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
-  max-width: min(320px, calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-24)));
+  max-width: min(var(--geometry-viewer-popover-width), calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-24)));
   padding: var(--space-8) var(--space-12);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  background: var(--color-surface-raised);
   color: var(--color-text-secondary);
-  box-shadow: var(--shadow-overlay);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
   pointer-events: none;

@@ -85,7 +85,7 @@ Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de
 
 ## Iconos
 
-SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal). Los iconos de 24×24 se redibujan o se escalan al estándar.
+SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal). Los iconos de 24×24 se redibujan o se escalan al estándar: `ToolIcon` (viewBox 24, pintado a 18 px) usa `strokeWidth` 1.8, que equivale visualmente a 1.5 sobre viewBox 20 (1.5 × 24/20).
 
 ## Componentes
 
@@ -107,6 +107,9 @@ Se usa siempre el componente de `src/components/ui/`. Los botones tipo chip o de
 - Deshabilitado en el shell: `ToolRail .toolButton` replica los tokens de `disabledSurface` (usa `aria-disabled`, que el patrón no cubre). Una herramienta deshabilitada y seleccionada conserva `--color-selection-surface` para seguir identificándose.
 - Switch deshabilitado: `--opacity-disabled` sobre la pista (el resto de controles usa colores deshabilitados porque tienen superficie propia; el Switch conserva sus colores de estado atenuados).
 - Anillos inset para controles sin borde: `--ring-inset-hover` y `--ring-inset-active` (1 px, mismos colores que el borde hover/activo de los neutros). Se usan en lugar de `box-shadow: inset` literal.
+- Anillo halo: `--ring-halo` (`--halo-width` 2 px, color `--color-surface-panel`) separa del fondo las marcas de UI dibujadas sobre el lienzo (cursor de teclado del visor).
+- Geometría del visor (`--geometry-viewer-*`, `--geometry-keyboard-cursor-*`, `--geometry-context-{name-max,rename}-*`, `--geometry-pressed-mark-size`, `--geometry-separator-height`): anchos escalonados de los disparadores del dock (página, escala) por container query, anchos de popover, tamaño y brazos del cursor de teclado (los brazos se derivan con `calc` del tamaño, el trazo y el alcance). `--geometry-viewer-dock-gap-compact` (2 px) es el hueco y el relleno del dock en contenedores estrechos.
+- Superficies flotantes del visor (dock, aviso de edición, ayuda de teclado, nombre completo de escala) usan `composes: overlaySurface`. Los disparadores del dock (`pageTrigger`, `scaleTrigger`, `viewTrigger`) componen `focusRing`, y página y vista también `disabledSurface`; `scaleTrigger` replica sus tokens para `aria-disabled`.
 - Transiciones: dos tokens. `--transition-interactive` anima colores (`background-color`, `border-color`, `color`); `--transition-transform` anima `transform`. Ningún componente anima `opacity` mediante estos tokens.
 
 ### Estados obligatorios

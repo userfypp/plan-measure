@@ -135,7 +135,7 @@
   height: var(--geometry-icon-size);
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: var(--icon-stroke-width);
   stroke-linecap: round;
   stroke-linejoin: round;
   transition: var(--transition-transform);

@@ -13,6 +13,7 @@ const strokeSvgProps = {
   ...baseSvgProps,
   fill: "none",
   stroke: "currentColor",
+  // viewBox 24 rendered at 18 px: 1.8 equals --icon-stroke-width (1.5 on viewBox 20).
   strokeWidth: 1.8,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,

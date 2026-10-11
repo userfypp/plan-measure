@@ -3,7 +3,7 @@
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  background: var(--color-viewer-surface);
+  background: var(--color-surface-viewer);
 }
 
 .viewport {
@@ -12,12 +12,12 @@
   min-height: 0;
   overflow: hidden;
   outline: none;
-  background: var(--color-viewer-surface);
+  background: var(--color-surface-viewer);
 }
 
 .viewport:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: -3px;
+  outline: var(--focus-outline);
+  outline-offset: calc(-1 * var(--focus-width));
 }
 
 .keyboardHelp {
@@ -33,12 +33,12 @@
 .keyboardCursor {
   position: absolute;
   z-index: var(--z-cursor);
-  width: 20px;
-  height: 20px;
+  width: var(--geometry-keyboard-cursor-size);
+  height: var(--geometry-keyboard-cursor-size);
   transform: translate(-50%, -50%);
-  border: 2px solid var(--color-text);
+  border: var(--geometry-keyboard-cursor-stroke) solid var(--color-text-primary);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--color-surface);
+  box-shadow: var(--ring-halo);
   pointer-events: none;
 }
 
@@ -46,41 +46,43 @@
 .keyboardCursor::after {
   content: "";
   position: absolute;
-  background: var(--color-text);
+  background: var(--color-text-primary);
 }
 
 .keyboardCursor::before {
-  left: 7px;
-  top: -6px;
-  width: 2px;
-  height: 28px;
+  left: calc((var(--geometry-keyboard-cursor-size) - 3 * var(--geometry-keyboard-cursor-stroke)) / 2);
+  top: calc(-1 * var(--geometry-keyboard-cursor-reach));
+  width: var(--geometry-keyboard-cursor-stroke);
+  height: var(--geometry-keyboard-cursor-arm);
 }
 .keyboardCursor::after {
-  top: 7px;
-  left: -6px;
-  height: 2px;
-  width: 28px;
+  top: calc((var(--geometry-keyboard-cursor-size) - 3 * var(--geometry-keyboard-cursor-stroke)) / 2);
+  left: calc(-1 * var(--geometry-keyboard-cursor-reach));
+  height: var(--geometry-keyboard-cursor-stroke);
+  width: var(--geometry-keyboard-cursor-arm);
 }
 
 .keyboardFeedback {
+  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
   position: absolute;
   z-index: var(--z-feedback);
   top: var(--space-12);
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
-  width: min(420px, calc(100% - var(--viewer-right-obstruction, 0px) - 80px));
-  max-height: calc(100% - var(--viewer-dock-bottom-exclusion, 0px) - 60px);
+  width: min(
+    var(--geometry-keyboard-feedback-width),
+    calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-48) - var(--space-32))
+  );
+  max-height: calc(
+    100% - var(--viewer-dock-bottom-exclusion, 0px) - var(--space-48) - var(--space-12)
+  );
   overflow: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--space-8) var(--space-12);
   padding: var(--space-12) var(--space-16);
-  border-radius: var(--radius-overlay);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  box-shadow: var(--shadow-overlay);
   font-size: var(--font-size-base);
-  line-height: 1.45;
+  line-height: var(--line-height-base);
   cursor: auto;
 }
 
@@ -96,16 +98,16 @@
 }
 .keyboardFeedback kbd {
   display: inline-block;
-  padding: 1px var(--space-4);
-  border: var(--border-width) solid var(--color-border);
+  padding: var(--border-width) var(--space-4);
+  border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
   font: inherit;
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-semibold);
 }
 .keyboardHint {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 .keyboardFeedback button {
   border: 0;
@@ -118,6 +120,9 @@
 }
 .keyboardFeedback button:hover {
   background: var(--color-control-hover-surface);
+}
+.keyboardFeedback button:active {
+  background: var(--color-control-active-surface);
 }
 .keyboardFeedback button:focus-visible {
   outline: var(--focus-outline);
@@ -132,11 +137,15 @@
   width: 100%;
   min-width: 0;
   padding: var(--space-4) var(--space-8);
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
   font: inherit;
+}
+.keyboardTarget select:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .keyboardMeasurementName {
@@ -162,9 +171,9 @@
 .pdfCanvas {
   position: absolute;
   display: block;
-  background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
-  box-shadow: var(--shadow-none);
+  background: var(--color-surface-panel);
+  border: var(--border-width) solid var(--color-divider);
+  box-shadow: var(--shadow-structural);
   pointer-events: none;
 }
 
@@ -178,11 +187,11 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  padding: 8px 12px;
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-flat);
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  box-shadow: var(--shadow-none);
+  padding: var(--space-8) var(--space-12);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-panel);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  box-shadow: var(--shadow-structural);
 }

@@ -1,4 +1,5 @@
 .dock {
+  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
   width: fit-content;
   min-width: 0;
   min-height: var(--geometry-viewer-dock-height);
@@ -7,11 +8,6 @@
   align-items: center;
   gap: var(--geometry-viewer-dock-gap);
   padding: var(--geometry-viewer-dock-padding);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  box-shadow: var(--shadow-overlay);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-secondary);
   overflow: visible;
@@ -44,10 +40,11 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.6;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .zoomValue {
+  min-width: var(--geometry-viewer-zoom-min-width);
   flex: 0 0 auto;
   color: var(--color-text-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
@@ -55,13 +52,9 @@
   white-space: nowrap;
 }
 
-.zoomValue {
-  min-width: 44px;
-}
-
 .separator {
   width: var(--border-width);
-  height: 20px;
+  height: var(--geometry-separator-height);
   flex: 0 0 auto;
   margin-inline: var(--space-4);
   background: var(--color-divider);
@@ -118,16 +111,18 @@
   color: var(--color-accent);
 }
 
-.scaleTrigger:disabled,
+/* Same tokens as controlStates.disabledSurface (aria-disabled needs its own selector). */
 .scaleTrigger[aria-disabled="true"] {
-  border-color: transparent;
-  color: var(--color-text-disabled);
   cursor: not-allowed;
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
 }
 
 .pageTrigger {
-  width: 120px;
-  max-width: min(120px, 24vw);
+  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  width: var(--geometry-viewer-page-width);
+  max-width: min(var(--geometry-viewer-page-width), 24vw);
   flex: 0 1 auto;
   display: flex;
   align-items: center;
@@ -140,7 +135,7 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  gap: 1px;
+  gap: 0;
 }
 
 .pageTriggerText strong {
@@ -162,10 +157,11 @@
 }
 
 .scaleTrigger {
+  composes: focusRing from "../../components/ui/controlStates.module.css";
   position: relative;
   min-width: var(--target-current);
   width: auto;
-  max-width: min(220px, 30vw);
+  max-width: min(var(--geometry-viewer-scale-max-width), 30vw);
   flex: 0 1 auto;
   display: flex;
   align-items: center;
@@ -180,19 +176,15 @@
 }
 
 .scaleFullName {
+  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
   position: absolute;
   z-index: var(--z-raised);
   bottom: calc(100% + var(--space-8));
   left: 50%;
-  max-width: min(320px, calc(100vw - var(--space-24)));
+  max-width: min(var(--geometry-viewer-popover-width), calc(100vw - var(--space-24)));
   padding: var(--space-4) var(--space-8);
   visibility: hidden;
   opacity: 0;
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  box-shadow: var(--shadow-overlay);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
@@ -251,12 +243,12 @@
 }
 
 .scaleMenuLabel {
-  min-width: 180px;
-  gap: 1px;
+  min-width: var(--geometry-viewer-menu-label-min-width);
+  gap: 0;
 }
 
 .pageLabelPopover {
-  width: min(320px, calc(100vw - var(--space-24)));
+  width: min(var(--geometry-viewer-popover-width), calc(100vw - var(--space-24)));
   padding: var(--space-12);
 }
 
@@ -324,6 +316,7 @@
 }
 
 .viewTrigger {
+  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
   display: inline-flex;
   align-items: center;
   padding: 0 var(--space-8);
@@ -336,7 +329,7 @@
 }
 
 .viewPopover {
-  width: min(280px, calc(100vw - var(--space-24)));
+  width: min(var(--geometry-viewer-popover-width-compact), calc(100vw - var(--space-24)));
   padding: var(--space-12);
 }
 
@@ -347,7 +340,7 @@
 
 .menuHeader {
   display: grid;
-  gap: 2px;
+  gap: 0;
   padding: var(--space-4) var(--space-4) var(--space-8);
 }
 
@@ -379,7 +372,7 @@
 }
 
 .unit select {
-  width: 118px;
+  width: var(--geometry-viewer-unit-select-width);
   min-height: var(--target-current);
   padding-inline: var(--space-8);
   border: var(--border-width) solid var(--color-divider);
@@ -394,7 +387,7 @@
 }
 
 .toggleText {
-  gap: 1px;
+  gap: 0;
 }
 
 .toggleText strong {
@@ -415,16 +408,16 @@
 @container (max-width: 600px) {
   .dock,
   .group {
-    gap: 2px;
+    gap: var(--geometry-viewer-dock-gap-compact);
   }
 
   .pageTrigger {
-    width: 104px;
-    max-width: 104px;
+    width: var(--geometry-viewer-page-width-md);
+    max-width: var(--geometry-viewer-page-width-md);
   }
 
   .scaleTrigger {
-    max-width: 128px;
+    max-width: var(--geometry-viewer-scale-max-width-md);
   }
 
   .scaleMetadata {
@@ -434,7 +427,7 @@
 
 @container (max-width: 500px) {
   .separator {
-    margin-inline: 2px;
+    margin-inline: var(--geometry-viewer-dock-gap-compact);
   }
 
   .zoomValue {
@@ -442,12 +435,12 @@
   }
 
   .pageTrigger {
-    width: 88px;
-    max-width: 88px;
+    width: var(--geometry-viewer-page-width-sm);
+    max-width: var(--geometry-viewer-page-width-sm);
   }
 
   .scaleTrigger {
-    max-width: 88px;
+    max-width: var(--geometry-viewer-scale-max-width-sm);
   }
 
   .viewLabel {
@@ -470,7 +463,7 @@
 @container (max-width: 460px) {
   .dock,
   .group {
-    gap: 2px;
+    gap: var(--geometry-viewer-dock-gap-compact);
   }
 
   .separator {
@@ -478,20 +471,20 @@
   }
 
   .pageTrigger {
-    width: 72px;
-    max-width: 72px;
+    width: var(--geometry-viewer-page-width-xs);
+    max-width: var(--geometry-viewer-page-width-xs);
   }
 
   .scaleTrigger {
-    max-width: 72px;
+    max-width: var(--geometry-viewer-scale-max-width-xs);
   }
 }
 
 @container (max-width: 400px) {
   .dock {
     width: 100%;
-    gap: 1px;
-    padding-inline: 2px;
+    gap: var(--geometry-viewer-dock-gap-compact);
+    padding-inline: var(--geometry-viewer-dock-gap-compact);
     flex-wrap: wrap;
     justify-content: center;
   }
@@ -501,8 +494,8 @@
   }
 
   .pageTrigger {
-    width: 64px;
-    max-width: 64px;
+    width: var(--geometry-viewer-page-width-xxs);
+    max-width: var(--geometry-viewer-page-width-xxs);
     padding-inline: var(--space-4);
   }
 

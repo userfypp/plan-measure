@@ -352,7 +352,7 @@ describe("ViewerDock", () => {
   it("uses bounded content sizing and deterministic condensation instead of hidden scrolling", () => {
     expect(dockCss).toContain("width: fit-content");
     expect(dockCss).toContain("width: auto");
-    expect(dockCss).toContain("max-width: min(220px, 30vw)");
+    expect(dockCss).toContain("max-width: min(var(--geometry-viewer-scale-max-width), 30vw)");
     expect(dockCss).not.toContain("overflow-x: auto");
     expect(dockCss).not.toContain("scrollbar-width: none");
     expect(dockCss).toContain("@container (max-width: 600px)");

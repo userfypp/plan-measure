@@ -139,7 +139,7 @@
 .disclosureButton svg {
   width: 16px;
   height: 16px;
-  stroke-width: 1.8;
+  stroke-width: var(--icon-stroke-width);
   transition: var(--transition-transform);
 }
 

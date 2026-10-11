@@ -130,6 +130,9 @@
   /* Inset 1px rings for borderless controls (hover / active), same colors as bordered neutrals. */
   --ring-inset-hover: inset 0 0 0 var(--border-width) var(--color-control-hover-border);
   --ring-inset-active: inset 0 0 0 var(--border-width) var(--color-control-active-border);
+  /* Outer 2px halo that keeps marks drawn over the canvas legible on any background. */
+  --halo-width: 2px;
+  --ring-halo: 0 0 0 var(--halo-width) var(--color-surface-panel);
   --icon-stroke-width: 1.5;
   --border-width: 1px;
   /* z-index scale (low to high). Local stacking uses 0-5; app-level layers use 10+. */
@@ -170,6 +173,34 @@
   --geometry-context-toolbar-left: 64px;
   --geometry-context-toolbar-padding: 3px;
   --geometry-context-toolbar-gap: 2px;
+  --geometry-context-name-max-width: 180px;
+  --geometry-context-rename-width: 160px;
+  --geometry-context-rename-min-width: 88px;
+  --geometry-pressed-mark-size: 9px;
+  --geometry-separator-height: 20px;
+  --geometry-viewer-dock-gap-compact: 2px;
+  --geometry-viewer-zoom-min-width: 44px;
+  --geometry-viewer-page-width: 120px;
+  --geometry-viewer-page-width-md: 104px;
+  --geometry-viewer-page-width-sm: 88px;
+  --geometry-viewer-page-width-xs: 72px;
+  --geometry-viewer-page-width-xxs: 64px;
+  --geometry-viewer-scale-max-width: 220px;
+  --geometry-viewer-scale-max-width-md: 128px;
+  --geometry-viewer-scale-max-width-sm: 88px;
+  --geometry-viewer-scale-max-width-xs: 72px;
+  --geometry-viewer-menu-label-min-width: 180px;
+  --geometry-viewer-unit-select-width: 118px;
+  --geometry-viewer-popover-width: 320px;
+  --geometry-viewer-popover-width-compact: 280px;
+  --geometry-keyboard-feedback-width: 420px;
+  --geometry-keyboard-cursor-size: 20px;
+  --geometry-keyboard-cursor-stroke: 2px;
+  --geometry-keyboard-cursor-reach: 6px;
+  --geometry-keyboard-cursor-arm: calc(
+    var(--geometry-keyboard-cursor-size) - 2 * var(--geometry-keyboard-cursor-stroke) + 2 *
+      var(--geometry-keyboard-cursor-reach)
+  );
 
   /* Focus */
   --focus-width: 2px;
