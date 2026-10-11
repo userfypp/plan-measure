@@ -303,6 +303,7 @@ export function PdfViewer({
   const wheelZoomFrameRef = useRef<number | null>(null);
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
   const wheelSettleTimerRef = useRef<number | null>(null);
+  const wheelGestureActiveRef = useRef(false);
   const [wheelGesture, setWheelGesture] = useState<{ transform: ViewTransform; cached: boolean; pageNumber: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
   const wholeMeasurementDragCancellationRegistryRef = useRef(
@@ -1097,13 +1098,14 @@ export function PdfViewer({
   const settleWheelZoom = useCallback(() => {
     if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
     wheelSettleTimerRef.current = null;
+    wheelGestureActiveRef.current = false;
     setWheelGesture(null);
   }, []);
 
   const handleViewerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       // Pointer gestures must start from annotations planned for the current zoom.
-      if (wheelSettleTimerRef.current !== null) {
+      if (wheelGestureActiveRef.current) {
         flushSync(settleWheelZoom);
         // The hit graph still holds the last gesture frame; redraw it before Konva hit-tests.
         annotationLayerRef.current?.draw();
@@ -1560,9 +1562,8 @@ export function PdfViewer({
           settled.panY >= -1 &&
           settled.panX + bounds.width * settled.zoom <= viewerSize.width + 1 &&
           settled.panY + bounds.height * settled.zoom <= viewerSize.height + 1;
+        wheelGestureActiveRef.current = true;
         setWheelGesture((current) => current ?? { transform: settled, cached: pageVisible, pageNumber: page.pageNumber });
-        if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
-        wheelSettleTimerRef.current = window.setTimeout(settleWheelZoom, WHEEL_ZOOM_SETTLE_MS);
       }
       zoomAround(nextZoom.point, nextZoom.factor);
     });
@@ -1865,6 +1866,15 @@ export function PdfViewer({
     viewerSize.width,
     viewerSize.height,
   ]);
+
+  // The idle window starts after each zoom step has been rendered (this effect must stay after the
+  // bitmap effect above), so a slow step (for example
+  // building the bitmap on a slow CPU) cannot end the gesture before the next wheel event.
+  useLayoutEffect(() => {
+    if (!wheelGesture) return;
+    if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
+    wheelSettleTimerRef.current = window.setTimeout(settleWheelZoom, WHEEL_ZOOM_SETTLE_MS);
+  }, [wheelGesture, viewTransform, settleWheelZoom]);
 
   useLayoutEffect(
     () => () => {
