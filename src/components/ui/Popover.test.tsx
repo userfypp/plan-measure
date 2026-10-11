@@ -257,6 +257,35 @@ describe("Popover", () => {
     expect(dialog("Toggled")).toBeNull();
   });
 
+  it("closes, without reopening, when the label of its trigger is pressed", () => {
+    act(() => {
+      root!.render(
+        <div>
+          <label htmlFor="labelled-trigger">Field label</label>
+          <Popover
+            trigger="Toggle"
+            triggerProps={{ id: "labelled-trigger" }}
+            role="dialog"
+            aria-label="Toggled"
+            initialFocus="first"
+            dismissOnFocusLeave
+          >
+            <button type="button">Toggled action</button>
+          </Popover>
+        </div>,
+      );
+    });
+    const label = document.querySelector("label")!;
+    act(() => findButton("Toggle")!.click());
+    expect(dialog("Toggled")).not.toBeNull();
+
+    act(() => {
+      label.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+      label.click();
+    });
+    expect(dialog("Toggled")).toBeNull();
+  });
+
   it("keeps the popover closed when it closed between pointerdown and click on the trigger", () => {
     act(() => {
       root!.render(

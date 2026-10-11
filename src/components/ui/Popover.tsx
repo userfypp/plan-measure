@@ -32,6 +32,7 @@ interface PopoverLayer {
   parentId: string | null;
   dismissOnFocusLeave: boolean;
   contains: (target: Node) => boolean;
+  isTriggerLabel: (target: Node) => boolean;
   containsFocus: (target: Node) => boolean;
   dismiss: (reason: PopoverDismissReason) => void;
 }
@@ -48,6 +49,12 @@ function handlePopoverPointerDown(event: PointerEvent) {
   const target = event.target;
   if (!layer || !(target instanceof Node) || layer.contains(target)) return;
   layer.dismiss("outside");
+}
+
+/** Pressing the trigger's label must not move focus away (it would dismiss the list before the click). */
+function handlePopoverMouseDown(event: MouseEvent) {
+  const target = event.target;
+  if (target instanceof Node && topPopoverLayer()?.isTriggerLabel(target)) event.preventDefault();
 }
 
 function handlePopoverKeyDown(event: KeyboardEvent) {
@@ -79,12 +86,20 @@ function documentTabStopsOutside(content: HTMLElement): HTMLElement[] {
   );
 }
 
+/** A label click is forwarded to its control: it must toggle the trigger, not dismiss and reopen it. */
+function isLabelOfAnchor(target: Node, anchor: HTMLButtonElement | null): boolean {
+  if (!anchor) return false;
+  const element = target instanceof Element ? target : target.parentElement;
+  return element?.closest("label")?.control === anchor;
+}
+
 function registerPopoverLayer(layer: PopoverLayer): () => void {
   const firstChildIndex = popoverLayers.findIndex((candidate) => candidate.parentId === layer.id);
   if (firstChildIndex >= 0) popoverLayers.splice(firstChildIndex, 0, layer);
   else popoverLayers.push(layer);
   if (popoverLayers.length === 1) {
     document.addEventListener("pointerdown", handlePopoverPointerDown, true);
+    document.addEventListener("mousedown", handlePopoverMouseDown, true);
     document.addEventListener("keydown", handlePopoverKeyDown, true);
     document.addEventListener("focusin", handlePopoverFocusIn, true);
   }
@@ -94,6 +109,7 @@ function registerPopoverLayer(layer: PopoverLayer): () => void {
     if (index >= 0) popoverLayers.splice(index, 1);
     if (popoverLayers.length === 0) {
       document.removeEventListener("pointerdown", handlePopoverPointerDown, true);
+      document.removeEventListener("mousedown", handlePopoverMouseDown, true);
       document.removeEventListener("keydown", handlePopoverKeyDown, true);
       document.removeEventListener("focusin", handlePopoverFocusIn, true);
     }
@@ -262,7 +278,12 @@ export function Popover({
       parentId: parentLayerId,
       dismissOnFocusLeave,
       contains: (target) =>
-        Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
+        Boolean(
+          anchorRef.current?.contains(target) ||
+            contentRef.current?.contains(target) ||
+            isLabelOfAnchor(target, anchorRef.current),
+        ),
+      isTriggerLabel: (target) => isLabelOfAnchor(target, anchorRef.current),
       containsFocus: (target) =>
         Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
       dismiss: (reason) => dismissRef.current(reason),
