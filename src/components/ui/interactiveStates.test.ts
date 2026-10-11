@@ -52,8 +52,9 @@ describe("shared interactive-state contract", () => {
   });
 
   it("keeps OFF switches visibly bounded and gives both switch states transient feedback", () => {
-    expect(tokensCss).toContain("--color-switch-off-border:");
-    expect(switchCss).toContain("border: var(--border-width) solid var(--color-switch-off-border)");
+    expect(tokensCss).toContain("--color-switch-off-track:");
+    expect(switchCss).toContain("border: 0");
+    expect(switchCss).toMatch(/\.track\s*\{[^}]*background-color:\s*var\(--color-switch-off-track\)/s);
     expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:hover');
     expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:active');
     expect(switchCss).toContain(

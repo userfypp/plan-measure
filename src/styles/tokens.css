@@ -22,7 +22,9 @@
   --color-control-active-surface: #e1e6ec;
   --color-control-hover-border: #c5cbd2;
   --color-control-active-border: #98a2ae;
-  --color-switch-off-border: var(--color-control-hover-border);
+  --color-switch-off-track: #8a94a0;
+  --color-switch-thumb: #fff;
+  --shadow-switch-thumb: 0 1px 2px rgba(16, 24, 40, 0.24);
   --color-accent-hover-semantic: #1f59b2;
   --color-accent-active-semantic: #194b99;
   --color-danger-hover-semantic: #962f39;
@@ -68,7 +70,9 @@
   --color-control-active-surface: #3d4651;
   --color-control-hover-border: #59636f;
   --color-control-active-border: #748092;
-  --color-switch-off-border: var(--color-control-hover-border);
+  --color-switch-off-track: #78828e;
+  --color-switch-thumb: #fff;
+  --shadow-switch-thumb: 0 1px 2px rgba(0, 0, 0, 0.4);
   --color-accent-hover-semantic: #a7c8f4;
   --color-accent-active-semantic: #7fa9e4;
   --color-danger-hover-semantic: #f3a7ae;
@@ -235,7 +239,7 @@
   --badge-min-height: 24px;
   --switch-width: 36px;
   --switch-height: 20px;
-  --switch-thumb-size: 14px;
+  --switch-thumb-size: 16px;
   --switch-thumb-offset: 2px;
   --switch-thumb-travel: 16px;
   --dialog-width-small: 360px;

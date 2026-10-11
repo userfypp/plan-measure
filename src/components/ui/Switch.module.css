@@ -20,9 +20,9 @@
   position: relative;
   width: var(--switch-width);
   height: var(--switch-height);
-  border: var(--border-width) solid var(--color-switch-off-border);
-  border-radius: var(--radius-control);
-  background-color: var(--color-surface-field);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-switch-off-track);
   cursor: pointer;
   transition: var(--transition-interactive);
 }
@@ -33,22 +33,19 @@
   left: var(--switch-thumb-offset);
   width: var(--switch-thumb-size);
   height: var(--switch-thumb-size);
-  border-radius: var(--radius-control);
-  background: var(--color-text-disabled);
+  border-radius: 50%;
+  background: var(--color-switch-thumb);
+  box-shadow: var(--shadow-switch-thumb);
   content: "";
-  transition:
-    var(--transition-transform),
-    background-color 120ms ease;
+  transition: var(--transition-transform);
 }
 
 .target:not([data-disabled="true"]) .track:hover {
-  border-color: var(--color-control-active-border);
-  background-color: var(--color-control-hover-surface);
+  background-color: var(--color-control-active-border);
 }
 
 .target:not([data-disabled="true"]) .track:active {
-  border-color: var(--color-text-secondary);
-  background-color: var(--color-control-active-surface);
+  background-color: var(--color-text-secondary);
 }
 
 .input:focus-visible + .track {
@@ -57,22 +54,18 @@
 }
 
 .input:checked + .track {
-  border-color: var(--color-accent);
   background-color: var(--color-accent);
 }
 
 .input:checked + .track::before {
-  background: var(--color-on-primary);
   transform: translateX(var(--switch-thumb-travel));
 }
 
 .target:not([data-disabled="true"]) .input:checked + .track:hover {
-  border-color: var(--color-accent-hover-semantic);
   background-color: var(--color-accent-hover-semantic);
 }
 
 .target:not([data-disabled="true"]) .input:checked + .track:active {
-  border-color: var(--color-accent-active-semantic);
   background-color: var(--color-accent-active-semantic);
 }
 
