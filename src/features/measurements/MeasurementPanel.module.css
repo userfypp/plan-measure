@@ -183,7 +183,7 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
-  line-height: 1;
+  line-height: var(--line-height-secondary);
 }
 
 .controlsPopover {

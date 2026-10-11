@@ -39,7 +39,7 @@
   padding: 0;
   color: var(--color-text-secondary);
   font: inherit;
-  line-height: 1;
+  line-height: var(--line-height-base);
   background: transparent;
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
@@ -99,7 +99,7 @@
   font-size: var(--font-size-micro);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.035em;
-  line-height: 1;
+  line-height: var(--line-height-micro);
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -111,7 +111,7 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
-  line-height: 1.1;
+  line-height: var(--line-height-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

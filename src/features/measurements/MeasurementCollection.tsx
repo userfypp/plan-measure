@@ -320,6 +320,8 @@ function VirtualCollectionContents({
         onlyChild.measurementIds.every((id) => scopeIds.has(id));
       entries.push({
         key: `header:${group.key}`,
+        // Altura renderizada: min-height --target-fine (32) + padding-block 2x4 y borde de 1 en la raíz.
+        // El título (12 + 1 + 18 = 31) cabe en el control, así que no condiciona la altura.
         estimate: depth === 0 ? 41 : 32,
         tabStops: sameScope && !collapsedGroupKeys.has(group.key) ? 1 : 2,
       });

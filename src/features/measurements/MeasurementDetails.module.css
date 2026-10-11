@@ -69,7 +69,7 @@
   font-size: var(--font-size-result);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   font-weight: var(--font-weight-regular);
-  line-height: 1.2;
+  line-height: var(--line-height-result);
 }
 
 .section {

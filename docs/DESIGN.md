@@ -56,7 +56,7 @@ Una sola familia (`--font-family-sans`). Escala cerrada:
 | Cantidades (`--font-size-quantity`) | 20 | 600 |
 | Micro: insignias y etiquetas mínimas (`--font-size-micro`) | 10 | 400/500 |
 
-Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de insignia usa `--font-size-glyph-badge`, 7 px). Cifras tabulares (`font-variant-numeric: tabular-nums`) en mediciones y resultados.
+Pesos permitidos: 400, 500, 600. A 13 px el 600 se permite solo en títulos y valores de lista (nombres de fila, valores de grupo, títulos `h3`); el resto de 13 px es 400/500. Los `line-height` son siempre tokens `--line-height-*` (micro 12, secondary 16, base 18, heading 20, identity 22, quantity 24, result 28); sin valores sin unidad. No hay tamaños fuera de la escala (el glifo de insignia usa `--font-size-glyph-badge`, 7 px). Cifras tabulares (`font-variant-numeric: tabular-nums`) en mediciones y resultados.
 
 ## Espaciado y geometría
 
@@ -85,7 +85,7 @@ Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de
 
 ## Iconos
 
-SVG inline, `viewBox` 20×20 como estándar, tamaño visual 18 px (`--geometry-icon`), `currentColor`, trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal).
+SVG inline, `viewBox` 20×20 como estándar, `currentColor`, escala cerrada de dos tamaños: 18 px (`--geometry-icon-size`, controles principales) y 16 px (`--geometry-icon-size-small`, iconos dentro de filas y paneles densos). No hay otros tamaños. Trazo trazo único de **1.5** (`--icon-stroke-width`; en CSS se usa el token, las máscaras `data:` llevan 1.5 literal).
 
 ## Componentes
 
@@ -110,7 +110,7 @@ Se usa siempre el componente de `src/components/ui/`. Los botones tipo chip o de
 - Anillo halo: `--ring-halo` (`--halo-width` 2 px, color `--color-surface-panel`) separa del fondo las marcas de UI dibujadas sobre el lienzo (cursor de teclado del visor).
 - Geometría del visor (`--geometry-viewer-*`, `--geometry-keyboard-cursor-*`, `--geometry-context-{name-max,rename}-*`, `--geometry-pressed-mark-size`, `--geometry-separator-height`): anchos escalonados de los disparadores del dock (página, escala) por container query, anchos de popover, tamaño y brazos del cursor de teclado (los brazos se derivan con `calc` del tamaño, el trazo y el alcance). `--geometry-viewer-dock-gap-compact` (2 px) es el hueco y el relleno del dock en contenedores estrechos.
 - Superficies flotantes del visor (dock, aviso de edición, ayuda de teclado, nombre completo de escala) usan `composes: overlaySurface`. Los disparadores del dock (`pageTrigger`, `scaleTrigger`, `viewTrigger`) componen `focusRing`, y página y vista también `disabledSurface`; `scaleTrigger` replica sus tokens para `aria-disabled`.
-- Paneles de mediciones (`features/measurements`): geometría propia en `--geometry-measurement-*` (anchos de etiqueta y popover, alto máximo de listas, marcador de selección, marca de estado vacío, barra de aviso), `--geometry-icon-size-small` (16 px, iconos de fila, grupo y disclosure), `--geometry-count-badge-size`, `--geometry-swatch-size`, `--geometry-disclosure-caret-size` (flecha dibujada con bordes; su trazo es `--icon-stroke-width` en px) y `--line-height-quantity`. `--color-swatch-edge` es el filo interior de las muestras de color de nube (dato, no tema). Los disparadores de clasificación, el botón de barra del panel, `itemMove` y las muestras componen `focusRing` (y `disabledSurface` los disparadores y el botón de barra; el área de notas replica los tokens); las muestras de color se atenúan con `--opacity-disabled` porque son color de dato (excepción al deshabilitado sin opacity).
+- Paneles de mediciones (`features/measurements`): geometría propia en `--geometry-measurement-*` (anchos de etiqueta y popover, alto máximo de listas, marcador de selección, marca de estado vacío, barra de aviso), `--geometry-icon-size-small` (16 px, iconos de fila, grupo y disclosure), `--geometry-count-badge-size`, `--geometry-swatch-size`, `--geometry-disclosure-caret-size` (flecha dibujada con bordes; su trazo es `--icon-stroke-width` en px) y `--line-height-quantity`. `--color-swatch-edge` es el filo interior de las muestras de color de nube (dato, no tema); par claro/oscuro: `rgba(0, 0, 0, 0.12)` / `rgba(255, 255, 255, 0.24)`. Los disparadores de clasificación, el botón de barra del panel, `itemMove` y las muestras componen `focusRing` (y `disabledSurface` los disparadores y el botón de barra; el área de notas replica los tokens); las muestras de color se atenúan con `--opacity-disabled` porque son color de dato (excepción al deshabilitado sin opacity).
 - Transiciones: dos tokens. `--transition-interactive` anima colores (`background-color`, `border-color`, `color`); `--transition-transform` anima `transform`. Ningún componente anima `opacity` mediante estos tokens.
 
 ### Estados obligatorios

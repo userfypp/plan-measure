@@ -114,11 +114,13 @@
   --font-size-micro: 10px;
   --font-size-title: 22px;
   --font-size-quantity: 20px;
+  --line-height-micro: 12px;
   --line-height-secondary: 16px;
   --line-height-base: 18px;
   --line-height-heading: 20px;
   --line-height-identity: 22px;
   --line-height-quantity: 24px;
+  --line-height-result: 28px;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
