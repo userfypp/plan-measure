@@ -138,23 +138,23 @@ describe("AppBar", () => {
         ),
       ).map((action) => action.getAttribute("aria-label") || action.textContent?.trim()),
     ).toEqual([
-      "Export",
-      "Projects, 2 saved",
       "Undo",
       "Redo",
+      "Export",
+      "Projects, 2 saved",
       "Feedback",
       "Settings",
     ]);
   });
 
-  it("uses a ghost command for Export", () => {
+  it("uses the primary variant for Export", () => {
     renderAppBar();
     const actions = Array.from(container!.querySelectorAll<HTMLButtonElement>("header button"));
     const exportButton = actions.find((button) => button.textContent === "Export");
     if (!exportButton) throw new Error("App Bar document actions were not rendered.");
 
-    expect(exportButton.classList.contains(buttonStyles.ghost!)).toBe(true);
-    expect(exportButton.classList.contains(buttonStyles.secondary!)).toBe(false);
+    expect(exportButton.classList.contains(buttonStyles.primary!)).toBe(true);
+    expect(exportButton.classList.contains(buttonStyles.ghost!)).toBe(false);
     expect(actions.some((button) => button.textContent === "Open PDF")).toBe(false);
   });
 
@@ -167,6 +167,9 @@ describe("AppBar", () => {
     );
 
     expect(toolbar.getAttribute("aria-label")).toBe("Application actions");
+    expect(actions.map((action) => action.getAttribute("aria-label") || action.textContent)).toEqual(
+      ["Undo", "Redo", "Export", "Projects", "Feedback", "Settings"],
+    );
     expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
 
     act(() => actions[0]?.focus());
@@ -287,7 +290,7 @@ describe("AppBar", () => {
 
     expect(container?.textContent).toContain("No PDF loaded");
     expect(container?.textContent).not.toContain("Export");
-    expect(container?.textContent).toContain("Feedback");
+    expect(document.querySelector('button[aria-label="Feedback"]')).not.toBeNull();
     act(() => buttonByLabel("Feedback").click());
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
     expect(buttonByLabel("Settings")).toBeTruthy();

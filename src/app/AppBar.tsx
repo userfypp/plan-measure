@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { AnchoredMenu, Button, type AnchoredMenuItem } from "../components/ui";
+import { AnchoredMenu, Button, IconButton, type AnchoredMenuItem } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -66,6 +66,32 @@ function SettingsIcon() {
   );
 }
 
+function UndoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M7.5 5 4 8.5 7.5 12" />
+      <path d="M4 8.5h7a4.5 4.5 0 0 1 0 9H8" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M12.5 5 16 8.5 12.5 12" />
+      <path d="M16 8.5H9a4.5 4.5 0 0 0 0 9h3" />
+    </svg>
+  );
+}
+
+function FeedbackIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M4.5 4h11a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H10l-3.5 3v-3h-2A1.5 1.5 0 0 1 3 12.5v-7A1.5 1.5 0 0 1 4.5 4Z" />
+    </svg>
+  );
+}
+
 export function AppBar({
   saveStatus,
   documentName,
@@ -115,77 +141,81 @@ export function AppBar({
         aria-label="Application actions"
         aria-orientation="horizontal"
       >
-        {canExport && (
+        <div className={styles.group}>
+          <IconButton
+            className={styles.iconAction}
+            icon={<UndoIcon />}
+            aria-label="Undo"
+            aria-keyshortcuts="Control+Z Meta+Z"
+            title="Undo (Ctrl+Z / ⌘Z)"
+            disabled={!canUndo}
+            onClick={onUndo}
+          />
+          <IconButton
+            className={styles.iconAction}
+            icon={<RedoIcon />}
+            aria-label="Redo"
+            aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
+            title="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
+            disabled={!canRedo}
+            onClick={onRedo}
+          />
+        </div>
+        <span className={styles.groupDivider} aria-hidden="true" />
+        <div className={styles.group}>
+          {canExport && (
+            <Button
+              variant="primary"
+              size="compact"
+              className={styles.exportAction}
+              onClick={onExport}
+            >
+              Export
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="compact"
-            className={styles.exportAction}
-            onClick={onExport}
+            className={styles.projectsAction}
+            aria-haspopup="dialog"
+            aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
+            onClick={onOpenProjects}
           >
-            Export
+            Projects
+            {savedProjectCount > 0 && (
+              <span className={styles.projectCount} aria-hidden="true">
+                {savedProjectCount}
+              </span>
+            )}
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="compact"
-          className={styles.projectsAction}
-          aria-haspopup="dialog"
-          aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
-          onClick={onOpenProjects}
-        >
-          Projects
-          {savedProjectCount > 0 && (
-            <span className={styles.projectCount} aria-hidden="true">
-              {savedProjectCount}
-            </span>
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="compact"
-          aria-label="Undo"
-          aria-keyshortcuts="Control+Z Meta+Z"
-          title="Undo (Ctrl+Z / ⌘Z)"
-          disabled={!canUndo}
-          onClick={onUndo}
-        >
-          Undo
-        </Button>
-        <Button
-          variant="ghost"
-          size="compact"
-          aria-label="Redo"
-          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
-          title="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
-          disabled={!canRedo}
-          onClick={onRedo}
-        >
-          Redo
-        </Button>
-        <AnchoredMenu
-          trigger="Feedback"
-          triggerProps={{ className: styles.feedbackAction, "aria-label": "Feedback" }}
-          label="Feedback options"
-          items={FEEDBACK_ITEMS}
-          showMarkerColumn={false}
-          placement="bottom-end"
-        />
-        <SettingsPopover
-          trigger={<SettingsIcon />}
-          triggerClassName={styles.iconTrigger}
-          measurementDecimalPlaces={measurementDecimalPlaces}
-          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
-          confirmMeasurementDeletion={confirmMeasurementDeletion}
-          confirmValueDeletion={confirmValueDeletion}
-          confirmDimensionDeletion={confirmDimensionDeletion}
-          recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-          onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
-          onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
-          onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
-          onConfirmValueDeletionChange={onConfirmValueDeletionChange}
-          onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
-          onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
-        />
+        </div>
+        <span className={styles.groupDivider} aria-hidden="true" />
+        <div className={styles.group}>
+          <AnchoredMenu
+            trigger={<FeedbackIcon />}
+            triggerProps={{ className: styles.iconTrigger, "aria-label": "Feedback", title: "Feedback" }}
+            label="Feedback options"
+            items={FEEDBACK_ITEMS}
+            showMarkerColumn={false}
+            placement="bottom-end"
+          />
+          <SettingsPopover
+            trigger={<SettingsIcon />}
+            triggerClassName={styles.iconTrigger}
+            measurementDecimalPlaces={measurementDecimalPlaces}
+            keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+            confirmMeasurementDeletion={confirmMeasurementDeletion}
+            confirmValueDeletion={confirmValueDeletion}
+            confirmDimensionDeletion={confirmDimensionDeletion}
+            recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
+            onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+            onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
+            onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+            onConfirmValueDeletionChange={onConfirmValueDeletionChange}
+            onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
+            onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
+          />
+        </div>
       </div>
     </header>
   );
