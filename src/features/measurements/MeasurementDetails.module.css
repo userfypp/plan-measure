@@ -2,7 +2,7 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
   background: var(--color-surface-panel);
 }
@@ -48,8 +48,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
+  gap: var(--space-4);
 }
 
 .name {
@@ -155,8 +154,26 @@
   white-space: nowrap;
 }
 
-.renameAction {
+.identity .renameAction {
+  /* Small inline affordance hugging the name; coarse pointers keep the touch target. */
+  width: var(--space-24);
+  height: var(--space-24);
+  min-width: 0;
+  min-height: 0;
   flex: none;
+  border-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+@media (any-pointer: coarse), (max-width: 800px) {
+  .identity .renameAction {
+    width: var(--control-height-compact);
+    height: var(--control-height-compact);
+  }
+}
+
+.identity .renameAction:hover {
+  color: var(--color-text-primary);
 }
 
 .renameForm {
@@ -274,31 +291,6 @@
   border-color: var(--color-divider);
   background-color: var(--color-surface-panel);
   color: var(--color-text-disabled);
-}
-
-.deleteAction svg {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: var(--icon-stroke-width);
-}
-
-.dangerZone {
-  display: flex;
-  justify-content: flex-start;
-  padding: var(--space-8) var(--space-16) var(--space-12);
-  border-top: var(--border-width) solid var(--color-divider);
-}
-
-.deleteAction {
-  gap: var(--space-8);
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-danger-semantic);
 }
 
 .itemsPagination {

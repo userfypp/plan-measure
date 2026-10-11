@@ -367,7 +367,6 @@ describe("MeasurementDetails", () => {
     renderDetails(props);
 
     act(() => buttonByText("Back to classifications").click());
-    act(() => buttonByText("Delete measurement").click());
     const assignment = classificationTrigger();
     act(() => assignment.click());
     const unclassified = Array.from(
@@ -377,7 +376,6 @@ describe("MeasurementDetails", () => {
     act(() => unclassified.click());
 
     expect(props.onBack).toHaveBeenCalledOnce();
-    expect(props.onDelete).toHaveBeenCalledOnce();
     expect(props.onAssignClassification).toHaveBeenCalledWith("line-1", "trade", null);
     expect(container?.textContent).toContain("Organization");
     expect(container?.textContent).not.toContain("Edit geometry");

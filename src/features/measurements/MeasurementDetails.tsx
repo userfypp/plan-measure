@@ -131,7 +131,7 @@ export function MeasurementDetails({
         >
           <span className={styles.backContent}>
             <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <path d="m12 4-6 6 6 6" />
+              <path d="M16 10H4.5M9.75 4.75 4.5 10l5.25 5.25" />
             </svg>
             <span>Back to {workspaceModuleLabel(returnModule).toLowerCase()}</span>
           </span>
@@ -379,20 +379,6 @@ export function MeasurementDetails({
           />
         </section>
 
-      </div>
-
-      <div className={styles.dangerZone}>
-        <Button
-          variant="ghost"
-          size="compact"
-          className={styles.deleteAction}
-          onClick={onDelete}
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-            <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
-          </svg>
-          Delete measurement
-        </Button>
       </div>
     </section>
   );
