@@ -11,6 +11,8 @@ type Props = Record<string, unknown>;
 type Handler = (event: unknown) => void;
 
 const captured = vi.hoisted(() => ({
+  isolatedPreview: false,
+  previewPoints: [] as number[],
   lines: [] as Props[],
   circles: [] as Props[],
   texts: [] as Props[],
@@ -23,7 +25,20 @@ vi.mock("react-konva", () => ({
     captured.circles.push(props);
     return null;
   },
-  Group: ({ children }: { children?: React.ReactNode }) => children ?? null,
+  Group: ({ children, ref }: { children?: React.ReactNode; ref?: { current: unknown } }) => {
+    if (ref && captured.isolatedPreview) ref.current = {
+      getStage: () => ({ add: vi.fn() }),
+      visible: vi.fn(),
+      clone: () => ({
+        find: () => [],
+        findOne: (selector: string) => selector === ".measurement-preview-line" ? {
+          draggable: vi.fn(), fill: vi.fn(),
+          points: (points: number[]) => { captured.previewPoints = points; },
+        } : undefined,
+      }),
+    };
+    return children ?? null;
+  },
   Label: (props: Props & { children?: React.ReactNode }) => props.children ?? null,
   Line: (props: Props) => {
     captured.lines.push(props);
@@ -35,6 +50,9 @@ vi.mock("react-konva", () => ({
     return null;
   },
 }));
+
+vi.mock("konva/lib/Layer", () => ({ Layer: class { add() {} destroy() {} draw() {} } }));
+vi.mock("konva/lib/Group", () => ({ Group: class { add() {} } }));
 
 vi.mock("konva/lib/shapes/Text", () => ({
   Text: class MockKonvaText {
@@ -98,6 +116,8 @@ describe("PdfAnnotationLayer behavior", () => {
 
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    captured.isolatedPreview = false;
+    captured.previewPoints = [];
     captured.lines.length = 0;
     captured.circles.length = 0;
     captured.texts.length = 0;
@@ -173,6 +193,9 @@ describe("PdfAnnotationLayer behavior", () => {
       isDragging: vi.fn(() => false),
       position: vi.fn(),
       stopDrag: vi.fn(),
+      getAbsolutePosition: () => ({ x: 0, y: 0 }),
+      dragBoundFunc: vi.fn(),
+      setAttr: vi.fn(),
       x: () => pointer.x,
       y: () => pointer.y,
     };
@@ -367,6 +390,57 @@ describe("PdfAnnotationLayer behavior", () => {
   });
 
   describe("vertex drag", () => {
+    it.each([false, true])("cancels stale gestures after undo, including a prepared gesture (%s)", (prepared) => {
+      const page = pageWith("polygon", SQUARE);
+      renderLayer({ page, selected: ["m-1"] });
+      const handle = captured.circles[2]!;
+      const { node, moveTo } = dragNode();
+      const event = mouseEvent(node);
+      moveTo(toScreen(SQUARE[2]!));
+      fire(handle, "onMouseDown", event);
+      if (!prepared) fire(handle, "onDragStart", event);
+      renderLayer({ page: pageWith("polygon", SQUARE.map((point) => ({ x: point.x - 10, y: point.y - 10 }))), selected: ["m-1"] });
+      moveTo({ x: 360, y: 300 });
+      fire(handle, "onDragStart", event);
+      fire(handle, "onDragMove", event);
+      fire(handle, "onDragEnd", event);
+      expect(captured.updateMeasurement).not.toHaveBeenCalled();
+    });
+
+    it("preserves an active drag when unrelated measurement metadata changes", () => {
+      const page = pageWith("polygon", SQUARE);
+      renderLayer({ page, selected: ["m-1"] });
+      const drag = dragVertex(2, { x: 360, y: 300 });
+      renderLayer({ page: { ...page, measurements: [{ ...page.measurements[0]!, note: "Updated" }] }, selected: ["m-1"] });
+      drag.end();
+      expect(captured.updateMeasurement).toHaveBeenCalledOnce();
+    });
+
+    it.each(["rectangle", "ellipse"] as const)("keeps the isolated %s preview aligned at drag start and move", (type) => {
+      captured.isolatedPreview = true;
+      let frame: FrameRequestCallback | undefined;
+      const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frame = callback; return 1; });
+      try {
+        renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
+        const handle = captured.circles[2]!;
+        const { node, moveTo } = dragNode();
+        const event = mouseEvent(node);
+        moveTo(toScreen(SQUARE[2]!));
+        fire(handle, "onMouseDown", event);
+        moveTo({ x: 360, y: 300 });
+        fire(handle, "onDragStart", event);
+        expect(captured.previewPoints).toEqual([50, 50, 180, 50, 180, 150, 50, 150]);
+        moveTo({ x: 400, y: 320 });
+        fire(handle, "onDragMove", event);
+        act(() => frame!(0));
+        expect(captured.previewPoints).toEqual([50, 50, 200, 50, 200, 160, 50, 160]);
+        fire(handle, "onDragEnd", event);
+        expect(captured.updateMeasurement).toHaveBeenCalledWith(expect.objectContaining({ points: [
+          { x: 50, y: 50 }, { x: 200, y: 50 }, { x: 200, y: 160 }, { x: 50, y: 160 },
+        ] }));
+      } finally { raf.mockRestore(); }
+    });
+
     it("commits only the dragged vertex, converted from screen to page coordinates", () => {
       renderLayer({ selected: ["m-1"] });
       const drag = dragVertex(2, { x: 360, y: 300 });

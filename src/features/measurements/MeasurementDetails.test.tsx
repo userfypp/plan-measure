@@ -383,6 +383,24 @@ describe("MeasurementDetails", () => {
     expect(container?.querySelector("input")).toBeNull();
   });
 
+  it("refreshes the note after undo and redo without discarding drafts on unrelated updates", () => {
+    const props = createProps({ measurement: { ...firstMeasurement, note: "Saved" } });
+    renderDetails(props);
+    const textarea = container!.querySelector<HTMLTextAreaElement>("textarea")!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "Draft");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    renderDetails({ ...props, measurement: { ...props.measurement, name: "Renamed" } });
+    expect(textarea.value).toBe("Draft");
+    renderDetails({ ...props, measurement: firstMeasurement });
+    expect(textarea.value).toBe("");
+    act(() => buttonByText("Save note").click());
+    expect(props.onSaveNote).toHaveBeenLastCalledWith("");
+    renderDetails(props);
+    expect(textarea.value).toBe("Saved");
+  });
+
   it("saves an editable measurement note", () => {
     const props = createProps({
       measurement: { ...firstMeasurement, note: "Existing note" },

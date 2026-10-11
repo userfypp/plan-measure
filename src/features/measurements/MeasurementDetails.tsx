@@ -67,7 +67,13 @@ export function MeasurementDetails({
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [note, setNote] = useState(measurement.note ?? "");
+  const savedNote = measurement.note ?? "";
+  const [note, setNote] = useState(savedNote);
+  const [noteSource, setNoteSource] = useState({ id: measurement.id, note: savedNote });
+  if (noteSource.id !== measurement.id || noteSource.note !== savedNote) {
+    setNoteSource({ id: measurement.id, note: savedNote });
+    setNote(savedNote);
+  }
   const viewModel = createMeasurementViewModel(
     page,
     measurement,

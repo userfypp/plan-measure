@@ -21,6 +21,7 @@ import type {
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
 import { measurementPathSpecs } from "../../utils/geometry";
+import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
 import { formatMeasurement } from "../../utils/format";
 import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
@@ -448,9 +449,7 @@ export const MeasurementShape = memo(function MeasurementShape({
       );
       if (drag) {
         renderDragPreview(
-          drag.sourcePoints.map((point, index) =>
-            index === pending.index ? pending.point : point,
-          ),
+          applyMeasurementVertexEdit(measurement.type, drag.sourcePoints, pending.index, pending.point),
         );
         return true;
       }
@@ -580,11 +579,16 @@ export const MeasurementShape = memo(function MeasurementShape({
     if (!gesture) return;
     if (
       shouldCancelMeasurementVertexDrag(gesture, selected, transform, bounds) ||
-      (preparation && !editable)
+      (preparation && !editable) ||
+      gesture.measurementType !== measurement.type ||
+      gesture.sourcePoints.length !== measurement.points.length ||
+      gesture.sourcePoints.some((point, index) =>
+        point.x !== measurement.points[index]?.x || point.y !== measurement.points[index]?.y,
+      )
     ) {
       cancelVertexGesture(gesture.owner);
     }
-  }, [bounds, cancelVertexGesture, editable, selected, transform]);
+  }, [bounds, cancelVertexGesture, editable, measurement.points, measurement.type, selected, transform]);
 
   useLayoutEffect(
     () => () => {
@@ -1012,9 +1016,7 @@ export const MeasurementShape = memo(function MeasurementShape({
               }
               startDragPreview(event.target, () => {
                 renderDragPreview(
-                  preparation.sourcePoints.map((point, pointIndex) =>
-                    pointIndex === index ? startPoint : point,
-                  ),
+                  applyMeasurementVertexEdit(measurement.type, preparation.sourcePoints, index, startPoint),
                 );
               });
             }}
