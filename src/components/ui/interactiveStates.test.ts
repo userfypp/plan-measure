@@ -105,10 +105,10 @@ describe("shared interactive-state contract", () => {
 
   it("gives menu items the shared hover/active language and preserves expanded disclosure state", () => {
     expect(menuCss).toMatch(
-      /\.item:hover[^}]*border-color:\s*var\(--color-control-hover-border\);[^}]*background:\s*var\(--color-control-hover-surface\);/s,
+      /\.item:hover[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--color-control-hover-surface\);/s,
     );
     expect(menuCss).toMatch(
-      /\.item:active[^}]*border-color:\s*var\(--color-control-active-border\);[^}]*background:\s*var\(--color-control-active-surface\);/s,
+      /\.item:active[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--color-control-active-surface\);/s,
     );
     expect(menuCss).toMatch(/\.item\[aria-disabled="true"\][^}]*cursor:\s*not-allowed;/s);
     expect(menuCss).not.toContain("!important");

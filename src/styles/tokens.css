@@ -125,6 +125,7 @@
   --line-height-identity: 22px;
   --line-height-quantity: 24px;
   --line-height-result: 28px;
+  --letter-spacing-overline: 0.04em;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;

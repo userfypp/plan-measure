@@ -4,7 +4,7 @@
 
 .items {
   display: grid;
-  gap: var(--space-4);
+  gap: 0;
 }
 
 .selectionMenu .items {
@@ -38,12 +38,12 @@
 }
 
 .item:hover:not([aria-disabled="true"]) {
-  border-color: var(--color-control-hover-border);
+  border-color: transparent;
   background: var(--color-control-hover-surface);
 }
 
 .item:active:not([aria-disabled="true"]) {
-  border-color: var(--color-control-active-border);
+  border-color: transparent;
   background: var(--color-control-active-surface);
 }
 
@@ -89,4 +89,25 @@
 
 .label {
   min-width: 0;
+}
+
+.item[aria-checked="true"] .label,
+.item[aria-current="true"] .label {
+  font-weight: var(--font-weight-medium);
+}
+
+.sectionLabel {
+  padding: var(--space-8) var(--space-8) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-overline);
+  line-height: var(--line-height-secondary);
+  text-transform: none;
+}
+
+.sectionLabel:not(:first-child) {
+  margin: var(--space-4) calc(var(--space-4) * -1) 0;
+  border-top: var(--border-width) solid var(--color-divider);
+  padding-inline: calc(var(--space-8) + var(--space-4));
 }

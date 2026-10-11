@@ -223,6 +223,7 @@ export function AnchoredMenu({
               role="separator"
               aria-label={item.sectionLabel}
               data-menu-section-label="true"
+              className={styles.sectionLabel}
             >
               {item.sectionLabel}
             </div>
