@@ -260,7 +260,7 @@ describe("MeasurementRow accessibility", () => {
     expect(measurementRowCss).toMatch(
       /\.actions > \*\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
     );
-    expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
+    expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s);
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );
@@ -298,7 +298,7 @@ describe("measurement grouping surfaces", () => {
     expect(measurementPanelCss).toMatch(
       /\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s,
     );
-    expect(measurementPanelCss).toMatch(/\.toolbarButton::after\s*\{[^}]*width:\s*5px;[^}]*height:\s*5px;/s);
+    expect(measurementPanelCss).toMatch(/\.toolbarButton::after\s*\{[^}]*width:\s*var\(--geometry-disclosure-caret-size\);[^}]*height:\s*var\(--geometry-disclosure-caret-size\);/s);
     expect(measurementPanelCss).toMatch(
       /@container measurement-panel \(max-width: 359px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
     );
@@ -313,7 +313,7 @@ describe("measurement grouping surfaces", () => {
       /@container measurement-controls \(max-width: 300px\)[\s\S]*?\.filterRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/,
     );
     expect(measurementPanelCss).toMatch(
-      /\.controlsPopover\s*\{[^}]*width:\s*min\(320px, calc\(100vw - var\(--space-16\)\)\);/s,
+      /\.controlsPopover\s*\{[^}]*width:\s*min\(var\(--geometry-measurement-popover-width\), calc\(100vw - var\(--space-16\)\)\);/s,
     );
     expect(measurementPanelCss).toContain("container-name: measurement-panel");
   });
@@ -423,7 +423,7 @@ describe("measurement grouping surfaces", () => {
       /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.rootHeader\s*\{[^}]*border-bottom:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-subdued\);/s,
+      /\.rootHeader\s*\{[^}]*border-bottom:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
     );
     expect(measurementGroupCss).toMatch(
       /\.childGroups\s*\{[^}]*border-inline-start:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*padding-inline-start:\s*var\(--space-8\);/s,
@@ -439,10 +439,10 @@ describe("measurement grouping surfaces", () => {
       /\.dimensionName\s*\{[^}]*font-size:\s*var\(--font-size-micro\);[^}]*text-transform:\s*uppercase;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.childHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-sm\);/s,
+      /\.childHeader .groupValue\s*\{[^}]*font-size:\s*var\(--font-size-base\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.deepHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-xs\);/s,
+      /\.deepHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-secondary\);/s,
     );
     expect(measurementGroupCss).toMatch(/\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s);
     expect(measurementGroupCss).toMatch(
@@ -457,7 +457,7 @@ describe("measurement grouping surfaces", () => {
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*--measurement-row-inline-bleed:/s);
     expect(measurementRowCss).toMatch(
-      /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, 3px\);/s,
+      /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, var\(--geometry-measurement-selection-marker-width\)\);/s,
     );
     expect(measurementRowCss).toMatch(
       /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-12\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,

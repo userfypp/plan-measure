@@ -33,14 +33,14 @@
 }
 
 .backContent svg {
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.8;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .summary {
@@ -90,7 +90,7 @@
   min-width: 0;
   min-height: var(--control-height-regular);
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: var(--geometry-measurement-property-label-width) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
   border-bottom: var(--border-width) solid var(--color-divider);
@@ -107,6 +107,7 @@
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
   font-weight: var(--font-weight-medium);
   text-align: right;
   text-overflow: ellipsis;
@@ -126,7 +127,7 @@
 }
 
 .scaleRow {
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: var(--geometry-measurement-property-label-width-compact) minmax(0, 1fr);
 }
 
 .renameForm {
@@ -181,7 +182,7 @@
 }
 
 .itemsList {
-  max-height: min(480px, 50dvh);
+  max-height: min(var(--geometry-measurement-list-max-height), 50dvh);
   overflow: auto;
   margin: 0;
   padding: 0;
@@ -205,6 +206,7 @@
 }
 
 .itemMove {
+  composes: focusRing from "../../components/ui/controlStates.module.css";
   min-height: var(--control-height-compact);
   padding: 0 var(--space-8);
   border: var(--border-width) solid transparent;
@@ -212,13 +214,19 @@
   background: transparent;
   color: var(--color-text-primary);
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   cursor: pointer;
+  transition: var(--transition-interactive);
 }
 
 .itemMove:hover:not(:disabled) {
   background: var(--color-control-hover-surface);
   border-color: var(--color-control-hover-border);
+}
+
+.itemMove:active:not(:disabled) {
+  background: var(--color-control-active-surface);
+  border-color: var(--color-control-active-border);
 }
 
 .itemMove:disabled {
@@ -240,7 +248,7 @@
 
 .noteForm textarea {
   width: 100%;
-  min-height: 96px;
+  min-height: var(--geometry-measurement-note-min-height);
   resize: vertical;
   padding: var(--space-8);
   border: var(--border-width) solid var(--color-divider);
@@ -248,6 +256,23 @@
   background: var(--color-surface-panel);
   color: var(--color-text-primary);
   font: inherit;
+  transition: var(--transition-interactive);
+}
+
+.noteForm textarea:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+}
+
+.noteForm textarea:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.noteForm textarea:disabled {
+  cursor: not-allowed;
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
 }
 
 .dangerZone {
@@ -269,5 +294,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
 }

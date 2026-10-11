@@ -14,7 +14,7 @@
 
 .rootHeader {
   border-bottom: var(--border-width) solid var(--color-divider);
-  background: var(--color-surface-subdued);
+  background: var(--color-surface-field);
 }
 
 .headerWithoutMeta {
@@ -30,13 +30,14 @@
 }
 
 .toggle {
+  composes: focusRing from "../../components/ui/controlStates.module.css";
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   width: var(--target-current);
   height: var(--target-current);
   padding: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font: inherit;
   line-height: 1;
   background: transparent;
@@ -47,28 +48,26 @@
 }
 
 .toggle:hover {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background: var(--color-control-hover-surface);
   border-color: var(--color-control-hover-border);
 }
 
 .toggle:active {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background: var(--color-control-active-surface);
   border-color: var(--color-control-active-border);
 }
 
 .toggle:focus-visible {
-  color: var(--color-text);
-  background: var(--color-surface-subdued);
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  color: var(--color-text-primary);
+  background: var(--color-surface-field);
 }
 
 .chevron {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   transition: var(--transition-transform);
 }
 
@@ -109,8 +108,8 @@
 .groupValue {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -118,8 +117,9 @@
 }
 
 .count {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
 .visibilityControl {
@@ -132,8 +132,8 @@
 }
 
 .visibilityControl svg {
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
 }
 
 .list {
@@ -159,7 +159,7 @@
 
 .childHeader .groupValue {
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
 
@@ -171,10 +171,10 @@
 
 .deepHeader .groupValue {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
 }
 
 .deepHeader .dimensionName {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }

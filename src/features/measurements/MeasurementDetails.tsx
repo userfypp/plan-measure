@@ -305,7 +305,7 @@ export function MeasurementDetails({
                           viewBox="0 0 20 20"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="1.6"
+                          strokeWidth="1.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           aria-hidden="true"

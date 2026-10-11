@@ -7,33 +7,35 @@
 }
 
 .swatch {
-  width: 20px;
-  height: 20px;
+  composes: focusRing from "../../components/ui/controlStates.module.css";
+  width: var(--geometry-swatch-size);
+  height: var(--geometry-swatch-size);
   padding: 0;
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-divider);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-swatch-edge);
+  transition: var(--transition-transform);
 }
 
 .swatch:hover:not(:disabled) {
   transform: scale(1.08);
 }
 
+.swatch:active:not(:disabled) {
+  transform: none;
+}
+
 .swatch[aria-checked="true"] {
   /* Ring in the surface color keeps the checked swatch legible on every palette color. */
   border-color: var(--color-text-primary);
-  box-shadow: 0 0 0 2px var(--color-surface-panel) inset;
-}
-
-.swatch:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+  box-shadow: inset 0 0 0 var(--halo-width) var(--color-surface-panel);
 }
 
 .swatch:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  /* Swatches show data colors; opacity is the only way to dim them. */
+  opacity: var(--opacity-disabled);
 }
 
 @media (prefers-reduced-motion: reduce) {

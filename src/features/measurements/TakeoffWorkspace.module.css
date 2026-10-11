@@ -88,7 +88,7 @@
   font-size: var(--font-size-quantity);
   font-weight: var(--font-weight-semibold);
   font-variant-numeric: var(--font-variant-numeric-quantities);
-  line-height: 24px;
+  line-height: var(--line-height-quantity);
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
   text-align: right;
@@ -150,7 +150,7 @@
 .notice {
   margin: var(--space-8) 0 0;
   padding: var(--space-8);
-  border-left: 2px solid var(--color-status-warning);
+  border-left: var(--geometry-measurement-notice-bar-width) solid var(--color-status-warning);
   border-radius: var(--radius-control);
   background: var(--color-status-warning-surface);
   color: var(--color-status-warning);
@@ -160,7 +160,7 @@
 
 .breakdownControls {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: var(--geometry-measurement-label-width) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
   margin-top: var(--space-16);
@@ -193,7 +193,7 @@
 .dimension {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: var(--geometry-measurement-label-width) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
 }
@@ -245,7 +245,7 @@
 
 .emptyState {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: var(--geometry-measurement-empty-mark-size) minmax(0, 1fr);
   align-items: center;
   column-gap: var(--space-12);
   row-gap: var(--space-4);
@@ -259,8 +259,8 @@
   grid-row: 1 / 3;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: var(--geometry-measurement-empty-mark-size);
+  height: var(--geometry-measurement-empty-mark-size);
   border-radius: var(--radius-control);
   background: var(--color-surface-field);
   color: var(--color-text-secondary);
@@ -292,12 +292,25 @@
   font-weight: var(--font-weight-regular);
   line-height: var(--line-height-secondary);
   white-space: nowrap;
+  transition: var(--transition-interactive);
 }
 
 .sourceToggle:hover:not(:disabled),
 .inspectButton:hover:not(:disabled) {
-  color: var(--color-accent);
+  color: var(--color-accent-hover-semantic);
   background: transparent;
+}
+
+.sourceToggle:active:not(:disabled),
+.inspectButton:active:not(:disabled) {
+  color: var(--color-accent-active-semantic);
+  background: transparent;
+}
+
+.sourceToggle:disabled,
+.inspectButton:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
 }
 
 .sourceToggle:focus-visible,
@@ -309,12 +322,13 @@
 
 .chevron {
   display: block;
-  width: 14px;
-  height: 14px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   flex-shrink: 0;
+  transition: var(--transition-transform);
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: var(--icon-stroke-width);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -344,7 +358,7 @@
   list-style: none;
   margin: var(--space-8) 0 0;
   padding: 0;
-  max-height: min(480px, 50dvh);
+  max-height: min(var(--geometry-measurement-list-max-height), 50dvh);
   overflow: auto;
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
@@ -355,7 +369,7 @@
 }
 .sourceMeasurement {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: var(--geometry-icon-size-small) minmax(0, 1fr) auto;
   gap: var(--space-8);
   align-items: center;
   width: 100%;
@@ -366,10 +380,17 @@
   background: transparent;
   text-align: left;
   font-weight: var(--font-weight-regular);
+  transition: var(--transition-interactive);
+}
+.sourceMeasurement:hover {
+  background: var(--color-control-hover-surface);
+}
+.sourceMeasurement:active {
+  background: var(--color-control-active-surface);
 }
 .sourceGlyph {
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   color: var(--color-accent);
 }
 .sourceGlyph svg {
@@ -389,22 +410,22 @@
 }
 .sourceMeta {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
   overflow-wrap: anywhere;
 }
 .sourceReason {
   margin-top: var(--space-4);
   color: var(--color-status-warning);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
 .sourceArrow {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .sourceMeasurement:focus-visible {
-  outline-offset: -2px;
+  outline-offset: calc(-1 * var(--focus-offset));
 }
 
 .sourcePagination {

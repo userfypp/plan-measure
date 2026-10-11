@@ -35,11 +35,11 @@
 .selectionMarker {
   position: absolute;
   z-index: var(--z-raised);
-  top: 12px;
-  bottom: 12px;
+  top: var(--space-12);
+  bottom: var(--space-12);
   left: 0;
-  width: var(--measurement-selection-marker-width, 3px);
-  border-radius: 2px;
+  width: var(--measurement-selection-marker-width, var(--geometry-measurement-selection-marker-width));
+  border-radius: var(--radius-control);
   background: transparent;
   pointer-events: none;
 }
@@ -49,6 +49,7 @@
 }
 
 .selection {
+  composes: focusRing from "../../components/ui/controlStates.module.css";
   position: relative;
   z-index: var(--z-raised);
   min-width: 0;
@@ -78,8 +79,6 @@
 .selection:focus-visible {
   position: relative;
   z-index: var(--z-controls);
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .glyph {
@@ -184,8 +183,8 @@
 }
 
 .visibilityButton svg {
-  width: 14px;
-  height: 14px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
 }
 
 .actions .visibilityButton {
@@ -199,7 +198,7 @@
 .actions .visibilityButton[aria-pressed="true"]:not(:hover):not(:active) {
   border-color: transparent;
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 @container measurement-panel (max-width: 304px) {
@@ -209,6 +208,6 @@
   }
 
   .metadata {
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-secondary);
   }
 }

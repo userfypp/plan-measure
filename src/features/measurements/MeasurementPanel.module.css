@@ -17,8 +17,8 @@
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8);
-  border-bottom: var(--border-width) solid var(--color-border);
-  background: var(--color-surface);
+  border-bottom: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
 .search {
@@ -45,7 +45,7 @@
   width: var(--geometry-icon-size);
   height: var(--geometry-icon-size);
   fill: none;
-  stroke: var(--color-text-muted);
+  stroke: var(--color-text-secondary);
   stroke-linecap: round;
   stroke-width: var(--icon-stroke-width);
 }
@@ -60,8 +60,8 @@
   background: transparent;
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-tight);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   appearance: none;
 }
 
@@ -88,9 +88,10 @@
 }
 
 .toolbarButton {
+  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
   display: inline-flex;
   min-width: var(--target-current);
-  max-width: 144px;
+  max-width: var(--geometry-measurement-toolbar-button-max-width);
   min-height: var(--control-height-compact);
   align-items: center;
   justify-content: center;
@@ -102,31 +103,31 @@
   background: var(--color-surface-field);
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: var(--transition-interactive);
 }
 
 .toolbarButton::after {
-  width: 5px;
-  height: 5px;
+  width: var(--geometry-disclosure-caret-size);
+  height: var(--geometry-disclosure-caret-size);
   flex: 0 0 auto;
-  border-right: 1.25px solid currentColor;
-  border-bottom: 1.25px solid currentColor;
+  border-right: calc(var(--icon-stroke-width) * 1px) solid currentColor;
+  border-bottom: calc(var(--icon-stroke-width) * 1px) solid currentColor;
   content: "";
   transform: translateY(-1px) rotate(45deg);
 }
 
-.toolbarButton:hover {
+.toolbarButton:hover:not(:disabled) {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
   color: var(--color-text-primary);
 }
 
-.toolbarButton:active {
+.toolbarButton:active:not(:disabled) {
   border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
@@ -136,11 +137,6 @@
   border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
-}
-
-.toolbarButton:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .activeCount {
@@ -177,21 +173,22 @@
 
 .activeCount {
   display: inline-grid;
-  min-width: 18px;
-  height: 18px;
+  min-width: var(--geometry-count-badge-size);
+  height: var(--geometry-count-badge-size);
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   padding: 0 var(--space-4);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
   line-height: 1;
 }
 
 .controlsPopover {
   box-sizing: border-box;
-  width: min(320px, calc(100vw - var(--space-16)));
+  width: min(var(--geometry-measurement-popover-width), calc(100vw - var(--space-16)));
   padding: var(--space-8);
   container-type: inline-size;
   container-name: measurement-controls;
@@ -214,16 +211,16 @@
   display: grid;
   min-width: 0;
   gap: var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .filterRow select {
   width: 100%;
   min-width: 0;
   height: var(--control-height-compact);
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font: inherit;
 }
 
@@ -232,7 +229,7 @@
 }
 
 .filtersPopover {
-  border-color: var(--color-border);
+  border-color: var(--color-divider);
 }
 
 .groupingPopover {

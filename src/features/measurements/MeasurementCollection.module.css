@@ -25,8 +25,8 @@
 .empty {
   margin: 0;
   padding: var(--space-16);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   text-align: center;
 }

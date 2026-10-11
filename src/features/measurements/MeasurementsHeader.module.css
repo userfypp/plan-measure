@@ -3,8 +3,8 @@
   min-width: 0;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-12);
-  background: var(--color-surface);
-  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-panel);
+  border-bottom: var(--border-width) solid var(--color-divider);
 }
 
 .row {
@@ -22,9 +22,9 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-12);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .groupBy select {
@@ -32,13 +32,13 @@
   min-width: 0;
   height: var(--control-height-compact);
   max-width: none;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font: inherit;
 }
 
 .groupBy select:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 @container measurement-panel (max-width: 220px) {
