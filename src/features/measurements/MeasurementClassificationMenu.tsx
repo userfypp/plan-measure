@@ -16,8 +16,8 @@ export interface MeasurementClassificationMenuProps {
 function TagIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M3.5 10.6V4.5a1 1 0 0 1 1-1h6.1a1 1 0 0 1 .7.3l5.2 5.2a1 1 0 0 1 0 1.4l-6.1 6.1a1 1 0 0 1-1.4 0L3.8 11.3a1 1 0 0 1-.3-.7Z" />
-      <circle cx="7.5" cy="7.5" r="1" />
+      <path d="M3.25 4.75v4.38a1.75 1.75 0 0 0 .51 1.24l6.37 6.37a1.75 1.75 0 0 0 2.47 0l4.13-4.13a1.75 1.75 0 0 0 0-2.47L10.37 3.77a1.75 1.75 0 0 0-1.24-.52H4.75a1.5 1.5 0 0 0-1.5 1.5Z" />
+      <path d="M7 7h.01" />
     </svg>
   );
 }

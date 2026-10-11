@@ -46,8 +46,8 @@ function SelectionSvg({ children }: { children: ReactNode }) {
 function AddItemsIcon() {
   return (
     <SelectionSvg>
-      <circle cx="8" cy="8" r="3.5" />
-      <path d="M14.5 11v6M11.5 14h6" />
+      <circle cx="7.75" cy="7.75" r="3.25" />
+      <path d="M14 11.25v5.5M11.25 14h5.5" />
     </SelectionSvg>
   );
 }
@@ -55,8 +55,8 @@ function AddItemsIcon() {
 function DuplicateIcon() {
   return (
     <SelectionSvg>
-      <rect x="7.5" y="7.5" width="9" height="9" rx="1.5" />
-      <path d="M12.5 7.5v-2A1.5 1.5 0 0 0 11 4H5.5A1.5 1.5 0 0 0 4 5.5V11a1.5 1.5 0 0 0 1.5 1.5h2" />
+      <rect x="7.25" y="7.25" width="9.25" height="9.25" rx="1.75" />
+      <path d="M12.75 7.25V4.75a1.5 1.5 0 0 0-1.5-1.5h-6.5a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h2.5" />
     </SelectionSvg>
   );
 }
@@ -64,8 +64,8 @@ function DuplicateIcon() {
 function DetailsIcon() {
   return (
     <SelectionSvg>
-      <circle cx="10" cy="10" r="6.75" />
-      <path d="M10 9.25v4M10 6.75h.01" />
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M10 9.25v4.25M10 6.75h.01" />
     </SelectionSvg>
   );
 }
@@ -73,7 +73,7 @@ function DetailsIcon() {
 function DeleteIcon() {
   return (
     <SelectionSvg>
-      <path d="M4 6h12M8 6V4.5h4V6M5.5 6l.7 8.9a1.5 1.5 0 0 0 1.5 1.35h4.6a1.5 1.5 0 0 0 1.5-1.35l.7-8.9M8.5 9v4.5M11.5 9v4.5" />
+      <path d="M3.75 5.5h12.5M7.75 5.5V4a1.25 1.25 0 0 1 1.25-1.25h2A1.25 1.25 0 0 1 12.25 4v1.5M5.25 5.5l.7 9.9a1.75 1.75 0 0 0 1.75 1.6h4.6a1.75 1.75 0 0 0 1.75-1.6l.7-9.9M8.5 9v4.5M11.5 9v4.5" />
     </SelectionSvg>
   );
 }
@@ -642,7 +642,7 @@ export function ContextToolbar({
           tooltip="Clear selection"
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
-              <path d="m5 5 10 10M15 5 5 15" />
+              <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
             </svg>
           }
           onClick={onClearMeasurementSelection}

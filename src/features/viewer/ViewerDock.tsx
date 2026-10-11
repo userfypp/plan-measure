@@ -29,8 +29,8 @@ const AREA_DISPLAY_OPTIONS: Array<{ value: ViewerSettings["areaDisplay"]; label:
 function PagesIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M6.5 6.5V5A1.5 1.5 0 0 1 8 3.5h7A1.5 1.5 0 0 1 16.5 5v7a1.5 1.5 0 0 1-1.5 1.5h-1.5" />
-      <rect x="3.5" y="6.5" width="10" height="10" rx="1.5" />
+      <path d="M6 2.75h5.75l3.75 3.75v9.75a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V4.25A1.5 1.5 0 0 1 6 2.75Z" />
+      <path d="M11.75 2.75v3a.75.75 0 0 0 .75.75h3M7.5 9.5h5M7.5 12.25h5M7.5 15h2.5" />
     </svg>
   );
 }

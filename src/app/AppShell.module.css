@@ -107,8 +107,8 @@
 .saveStatus {
   position: absolute;
   z-index: var(--z-controls);
-  right: var(--space-12);
-  bottom: 0;
+  right: var(--space-16);
+  bottom: var(--space-4);
   height: var(--geometry-viewer-dock-bottom-inset);
   display: flex;
   align-items: center;
