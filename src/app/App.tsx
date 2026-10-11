@@ -1,8 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppProvider, useAppState } from "./state";
 import { SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
-import { OverlayProvider, useOverlayState, type OverlayConfirmation } from "./overlayState";
+import { OverlayProvider, useOverlayState } from "./overlayState";
 import { OverlayHost } from "./OverlayHost";
 import { AppShell, LoadingOverlay } from "./AppShell";
 import { SaveStatusIndicator } from "./SaveStatusIndicator";
@@ -13,6 +13,10 @@ import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { usePdfPageLabels } from "./usePdfPageLabels";
+import { useFileDropZone } from "./useFileDropZone";
+import { useAppPreferenceSetters } from "./useAppPreferenceSetters";
+import { useMeasurementShortcuts } from "./useMeasurementShortcuts";
+import { useCalibrationActions } from "./useCalibrationActions";
 import { Modal } from "../components/Modal";
 import { Button, ConfirmationDialog } from "../components/ui";
 import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
@@ -24,69 +28,39 @@ import {
 } from "../features/measurements/MeasurementPanel";
 import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
 import { TakeoffWorkspace } from "../features/measurements/TakeoffWorkspace";
-import { type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
-import {
-  beginCalibrationFlow,
-  confirmCalibration,
-  selectCalibrationReference,
-} from "./calibrationFlow";
-import {
-  createStandardScalePreset,
-  type StandardScalePresetRatio,
-} from "../features/calibration/standardScalePresets";
-import {
-  beginCalibrationReferenceEdit as createCalibrationReferenceEdit,
-  type CalibrationReferenceEdit,
-} from "./calibrationReferenceEdit";
-import type {
-  CalibrationReferenceKey,
-  LogicalPageBounds,
-  PageCalibration,
-  PageState,
-  Point,
-  Tool,
-} from "../types/domain";
-import {
-  getHistoryKeyboardAction,
-  getMeasurementKeyboardAction,
-} from "../utils/keyboard";
+import { confirmCalibration, selectCalibrationReference } from "./calibrationFlow";
+import type { LogicalPageBounds } from "../types/domain";
+import { getHistoryKeyboardAction } from "../utils/keyboard";
 import {
   defaultCalibrationName,
   findPageCalibration,
   getActiveCalibration,
   isValidCalibrationReferenceEdit,
-  replaceCalibrationReferencePoints,
 } from "../utils/calibration";
-import {
-  fitCalibrationReferencesToPage,
-  type RatioCalibrationInput,
-} from "../features/calibration/ratioCalibration";
 import {
   canDuplicateMeasurement,
   isMeasurementClipboardActionBlocked,
-  measurementClipboardFitsPage,
   pasteMeasurementsClipboard,
   registerMeasurementClipboardInvalidation,
 } from "./measurementClipboard";
-import { isAlignedXyReference, isMeasurementType } from "../utils/geometry";
-import {
-  readClassificationDeleteConfirmationPreference,
-  writeClassificationDeleteConfirmationPreference,
-} from "./classificationDeletePreference";
-import {
-  readMeasurementDeleteConfirmationPreference,
-  writeMeasurementDeleteConfirmationPreference,
-} from "./measurementDeletePreference";
-import {
-  readRecoveredPlanStartupWorkspacePreference,
-  writeRecoveredPlanStartupWorkspacePreference,
-} from "./recoveredPlanStartupPreference";
-import {
-  readKeyboardAuthoringPreference,
-  writeKeyboardAuthoringPreference,
-} from "./keyboardAuthoringPreference";
+import { isAlignedXyReference } from "../utils/geometry";
+import { readClassificationDeleteConfirmationPreference } from "./classificationDeletePreference";
+import { readMeasurementDeleteConfirmationPreference } from "./measurementDeletePreference";
+import { readRecoveredPlanStartupWorkspacePreference } from "./recoveredPlanStartupPreference";
+import { readKeyboardAuthoringPreference } from "./keyboardAuthoringPreference";
 import { createScaleCheckStore } from "../features/calibration/scaleCheckState";
+import {
+  calibrationReferenceEditPreview,
+  getAddCountItemsDisabledReason,
+  getMeasurementToolDisabledReason,
+  getPrecisionAuthoringDisabledReason,
+  getPreviewPage,
+  getPreviewPages,
+  getSelectedMeasurement,
+  getSelectedMeasurements,
+  getToolAvailability,
+} from "./appDerivations";
 import styles from "./App.module.css";
 
 const PdfViewer = lazy(() =>
@@ -98,11 +72,6 @@ const ScaleCheckPanel = lazy(() =>
     default: module.ScaleCheckPanel,
   })),
 );
-
-function calibrationMeasurementCount(page: PageState, calibrationId: string): number {
-  return page.measurements.filter((measurement) => measurement.calibrationId === calibrationId)
-    .length;
-}
 
 type ExportDialogComponent = typeof import("../features/export/ExportDialog").ExportDialog;
 
@@ -249,8 +218,6 @@ function PlanMeasureApp() {
   const applicationCopyRef = useRef(false);
   const activeMeasurementEditIdRef = useRef<string | null>(null);
   const viewerPageZoomRef = useRef<{ pageNumber: number; zoom: number } | null>(null);
-  const dragDepthRef = useRef(0);
-  const [dragActive, setDragActive] = useState(false);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [ExportDialog, setExportDialog] = useState<ExportDialogComponent | null>(null);
@@ -396,38 +363,19 @@ function PlanMeasureApp() {
 
   const sourcePageLabels = usePdfPageLabels(activePdf);
 
-  const clearDragState = useCallback(() => {
-    dragDepthRef.current = 0;
-    setDragActive(false);
-  }, []);
-
-  const setKeyboardAuthoringEnabled = useCallback((enabled: boolean) => {
-    setKeyboardAuthoringEnabledState(enabled);
-    writeKeyboardAuthoringPreference(enabled);
-  }, []);
-
-  const setConfirmMeasurementDeletion = useCallback((enabled: boolean) => {
-    setConfirmMeasurementDeletionState(enabled);
-    writeMeasurementDeleteConfirmationPreference(enabled);
-  }, []);
-
-  const setConfirmValueDeletion = useCallback((enabled: boolean) => {
-    setConfirmValueDeletionState(enabled);
-    writeClassificationDeleteConfirmationPreference("value", enabled);
-  }, []);
-
-  const setConfirmDimensionDeletion = useCallback((enabled: boolean) => {
-    setConfirmDimensionDeletionState(enabled);
-    writeClassificationDeleteConfirmationPreference("dimension", enabled);
-  }, []);
-
-  const setRecoveredPlanStartupWorkspace = useCallback(
-    (workspace: typeof recoveredPlanStartupWorkspace) => {
-      setRecoveredPlanStartupWorkspaceState(workspace);
-      writeRecoveredPlanStartupWorkspacePreference(workspace);
-    },
-    [],
-  );
+  const {
+    setKeyboardAuthoringEnabled,
+    setConfirmMeasurementDeletion,
+    setConfirmValueDeletion,
+    setConfirmDimensionDeletion,
+    setRecoveredPlanStartupWorkspace,
+  } = useAppPreferenceSetters({
+    setKeyboardAuthoringEnabledState,
+    setConfirmMeasurementDeletionState,
+    setConfirmValueDeletionState,
+    setConfirmDimensionDeletionState,
+    setRecoveredPlanStartupWorkspaceState,
+  });
 
   const performMeasurementDelete = useCallback(
     (request: MeasurementDeleteRequest) => {
@@ -573,97 +521,7 @@ function PlanMeasureApp() {
     }
   }, []);
 
-  useEffect(() => {
-    function handleMeasurementShortcut(event: KeyboardEvent) {
-      const action = getMeasurementKeyboardAction(event);
-      if (!action || !session) return;
-      const page = session.pages[session.currentPage];
-      if (!page) return;
-      if (
-        action !== "delete-measurement" &&
-        isMeasurementClipboardActionBlocked(action, {
-          measurementEditActive: activeMeasurementEditIdRef.current !== null,
-          draftActive: Boolean(draft),
-          calibrationFlowActive: Boolean(calibrationFlow),
-          calibrationCandidateActive: Boolean(calibrationCandidate),
-          calibrationReferenceEditActive: Boolean(calibrationReferenceEdit),
-        })
-      ) {
-        return;
-      }
-
-      if (action === "paste-measurement") {
-        if (!measurementClipboard) return;
-        event.preventDefault();
-        const destinationBounds =
-          viewerPageBounds?.pageNumber === page.pageNumber ? viewerPageBounds.bounds : null;
-        const destinationZoom =
-          viewerPageZoomRef.current?.pageNumber === page.pageNumber
-            ? viewerPageZoomRef.current.zoom
-            : null;
-        if (
-          !measurementClipboardFitsPage(measurementClipboard, page.pageNumber, destinationBounds)
-        ) {
-          setError(
-            destinationBounds
-              ? "The copied measurements do not fit within this page without changing their geometry."
-              : "Wait for this page to finish loading before pasting a measurement from another page.",
-          );
-          return;
-        }
-        pasteMeasurementsClipboard({
-          clipboard: measurementClipboard,
-          pageNumber: page.pageNumber,
-          destinationBounds,
-          destinationZoom,
-          pasteMeasurements,
-          selectMeasurements: selectWorkspaceMeasurements,
-        });
-        return;
-      }
-
-      if (
-        action === "delete-measurement" &&
-        (selectedMeasurementIds.length > 1 ||
-          (selectedMeasurementIds.length === 1 &&
-            !page.measurements.some((measurement) => measurement.id === selectedMeasurementId)))
-      ) {
-        event.preventDefault();
-        requestSelectedMeasurementsDelete();
-        return;
-      }
-      if (action === "copy-measurement") {
-        const selection = window.getSelection();
-        if (selection && !selection.isCollapsed) return;
-        if (selectedMeasurementIds.length === 0) return;
-        const measurements = page.measurements.filter((measurement) =>
-          selectedMeasurementIds.includes(measurement.id),
-        );
-        event.preventDefault();
-        if (measurements.length !== selectedMeasurementIds.length) {
-          setError("Select measurements from a single page to copy them together.");
-          return;
-        }
-        applicationCopyRef.current = true;
-        copyMeasurements(page.pageNumber, measurements);
-        queueMicrotask(() => {
-          applicationCopyRef.current = false;
-        });
-        return;
-      }
-      if (!selectedMeasurementId) return;
-      const measurement = page.measurements.find((candidate) => candidate.id === selectedMeasurementId);
-      if (!measurement) return;
-      event.preventDefault();
-      requestMeasurementDelete({
-        pageNumber: page.pageNumber,
-        measurementId: measurement.id,
-        measurementName: measurement.name,
-      });
-    }
-    window.addEventListener("keydown", handleMeasurementShortcut);
-    return () => window.removeEventListener("keydown", handleMeasurementShortcut);
-  }, [
+  useMeasurementShortcuts({
     copyMeasurements,
     calibrationCandidate,
     calibrationFlow,
@@ -679,7 +537,10 @@ function PlanMeasureApp() {
     session,
     setError,
     viewerPageBounds,
-  ]);
+    activeMeasurementEditIdRef,
+    viewerPageZoomRef,
+    applicationCopyRef,
+  });
 
   useEffect(() => {
     return registerMeasurementClipboardInvalidation({
@@ -690,333 +551,8 @@ function PlanMeasureApp() {
     });
   }, [clearMeasurementClipboard]);
 
-  useEffect(() => {
-    window.addEventListener("blur", clearDragState);
-    window.addEventListener("dragend", clearDragState);
-    window.addEventListener("drop", clearDragState);
-    document.addEventListener("visibilitychange", clearDragState);
-    return () => {
-      window.removeEventListener("blur", clearDragState);
-      window.removeEventListener("dragend", clearDragState);
-      window.removeEventListener("drop", clearDragState);
-      document.removeEventListener("visibilitychange", clearDragState);
-    };
-  }, [clearDragState]);
-
-  function handleDragEnter(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    dragDepthRef.current += 1;
-    setDragActive(true);
-  }
-
-  function handleDragOver(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-  }
-
-  function handleDragLeave(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) clearDragState();
-  }
-
-  function handleDrop(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    clearDragState();
-    const file = event.dataTransfer.files[0];
-    if (file) void chooseFile(file);
-  }
-
-  function chooseTool(tool: Tool) {
-    if (tool !== "calibrate") scaleCheckStore.clear();
-    if (calibrationReferenceEdit && tool !== "calibrate") {
-      setError("Finish or cancel the scale reference edit first.");
-      return;
-    }
-    if (calibrationFlow && tool !== "calibrate") {
-      setError("Finish or cancel calibration first.");
-      return;
-    }
-    const currentPage = session?.pages[session.currentPage];
-    const activePageCalibration = currentPage && getActiveCalibration(currentPage);
-    if (isMeasurementType(tool) && precisionAuthoringBlocked) {
-      return;
-    }
-    if (isMeasurementType(tool) && (!currentPage || (tool !== "count" && !activePageCalibration))) {
-      clearDraft();
-      chooseWorkspaceTool("select");
-      setError("Select a valid scale before creating measurements.");
-      return;
-    }
-    clearDraft();
-    chooseWorkspaceTool(tool);
-    clearError();
-  }
-
-  function cancelCalibration() {
-    scaleCheckStore.clear();
-    cancelWorkspaceCalibration();
-    clearDraft();
-    chooseWorkspaceTool("select");
-    clearError();
-    focusViewer();
-  }
-
-  function beginRecalibration(pageNumber: number, calibrationId: string) {
-    scaleCheckStore.clear();
-    if (calibrationReferenceEdit) return;
-    if (authoringCapabilityRef.current?.available !== true) return;
-    const calibration =
-      session?.pages[pageNumber] && findPageCalibration(session.pages[pageNumber], calibrationId);
-    if (!calibration) return;
-    startCalibration(beginCalibrationFlow(pageNumber, calibrationId, calibration.mode));
-    chooseTool("calibrate");
-    focusViewer();
-  }
-
-  function beginNewCalibration(mode: "uniform" | "xy") {
-    scaleCheckStore.clear();
-    if (calibrationReferenceEdit) return;
-    if (authoringCapabilityRef.current?.available !== true) return;
-    if (!currentPage) return;
-    startCalibration(beginCalibrationFlow(currentPage.pageNumber, null, mode));
-    chooseTool("calibrate");
-  }
-
-  function addStandardScalePreset(ratio: StandardScalePresetRatio) {
-    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
-    const pageBounds =
-      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
-    addCalibration({
-      pageNumber: currentPage.pageNumber,
-      id: crypto.randomUUID(),
-      name: defaultCalibrationName(currentPage),
-      calibration: fitCalibrationReferencesToPage(createStandardScalePreset(ratio), pageBounds),
-    });
-  }
-
-  function addCustomRatioScale(name: string, calibration: RatioCalibrationInput) {
-    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
-    const pageBounds =
-      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
-    addCalibration({
-      pageNumber: currentPage.pageNumber,
-      id: crypto.randomUUID(),
-      name,
-      calibration: fitCalibrationReferencesToPage(calibration, pageBounds),
-    });
-  }
-
-  function setScaleRatio(calibrationId: string, calibration: RatioCalibrationInput) {
-    if (calibrationFlow || calibrationReferenceEdit || !currentPage) return;
-    const target = findPageCalibration(currentPage, calibrationId);
-    if (!target || target.mode !== calibration.mode) {
-      setError("The scale to update is no longer available.");
-      return;
-    }
-    const measurementCount = calibrationMeasurementCount(currentPage, calibrationId);
-    const pageBounds =
-      viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null;
-    const fittedCalibration = fitCalibrationReferencesToPage(calibration, pageBounds);
-    if (measurementCount > 0) {
-      openSetScaleRatioConfirmation({
-        pageNumber: currentPage.pageNumber,
-        calibrationId,
-        calibrationName: target.name,
-        measurementCount,
-        calibration: fittedCalibration,
-      });
-      return;
-    }
-    recalibrateCalibration({
-      pageNumber: currentPage.pageNumber,
-      calibrationId,
-      calibration: fittedCalibration,
-    });
-  }
-
-  function requestRecalibration(calibrationId?: string) {
-    if (calibrationReferenceEdit) return;
-    if (authoringCapabilityRef.current?.available !== true) return;
-    if (!currentPage) return;
-    const calibration = calibrationId
-      ? findPageCalibration(currentPage, calibrationId)
-      : getActiveCalibration(currentPage);
-    if (!calibration) {
-      setError("Select a valid scale before recalibrating.");
-      return;
-    }
-    const measurementCount = calibrationMeasurementCount(currentPage, calibration.id);
-    if (measurementCount === 0) {
-      beginRecalibration(currentPage.pageNumber, calibration.id);
-      return;
-    }
-    openRecalibrationConfirmation({
-      pageNumber: currentPage.pageNumber,
-      calibrationId: calibration.id,
-      calibrationName: calibration.name,
-      measurementCount,
-    });
-  }
-
-  function assignClassification(
-    measurementId: string,
-    dimensionId: string,
-    valueId: string | null,
-  ) {
-    if (!currentPage || !session) return;
-    const measurement = currentPage.measurements.find(
-      (candidate) => candidate.id === measurementId,
-    );
-    const dimension = session.classificationCatalog.dimensions.find(
-      (candidate) => candidate.id === dimensionId,
-    );
-    if (!measurement || !dimension) return;
-    const currentValueId = dimension.values.find((value) =>
-      measurement.classificationValueIds.includes(value.id),
-    )?.id;
-    if (!valueId && currentValueId) {
-      removeClassificationValue({
-        pageNumber: currentPage.pageNumber,
-        measurementId,
-        dimensionId,
-        valueId: currentValueId,
-      });
-    } else if (valueId) {
-      assignClassificationValue({
-        pageNumber: currentPage.pageNumber,
-        measurementId,
-        dimensionId,
-        valueId,
-      });
-    }
-  }
-
-  function beginCalibrationReferenceEdit(
-    calibration: PageCalibration,
-    reference: CalibrationReferenceKey,
-  ) {
-    if (!currentPage) return;
-    if (authoringCapabilityRef.current?.available !== true) return;
-    const edit = createCalibrationReferenceEdit(currentPage.pageNumber, calibration, reference);
-    if (!edit) return;
-    startReferenceEdit(edit);
-    closeConfirmation();
-    clearSelection();
-    chooseTool("select");
-    focusViewer();
-  }
-
-  function updateCalibrationReferenceEdit(points: [Point, Point]) {
-    updateReferenceEdit(points);
-  }
-
-  function cancelCalibrationReferenceEdit() {
-    cancelReferenceEdit();
-    closeConfirmation();
-    clearError();
-    focusViewer();
-  }
-
-  function calibrationReferenceEditPreview(edit: CalibrationReferenceEdit): PageCalibration | null {
-    const page = session?.pages[edit.pageNumber];
-    const calibration = page && findPageCalibration(page, edit.calibrationId);
-    return calibration
-      ? replaceCalibrationReferencePoints(calibration, edit.reference, edit.points)
-      : null;
-  }
-
-  function requestCalibrationReferenceEditSave() {
-    const edit = calibrationReferenceEdit;
-    const preview = edit && calibrationReferenceEditPreview(edit);
-    const page = edit && session?.pages[edit.pageNumber];
-    const calibration = page && edit && findPageCalibration(page, edit.calibrationId);
-    if (
-      !edit ||
-      !preview ||
-      !calibration ||
-      !isValidCalibrationReferenceEdit(preview, edit.reference)
-    ) {
-      setError("Place the reference points in a valid position before saving.");
-      return;
-    }
-    const measurementCount = calibrationMeasurementCount(page, calibration.id);
-    if (measurementCount === 0) {
-      commitCalibrationReferenceEdit(edit);
-      return;
-    }
-    openCalibrationReferenceEditConfirmation({
-      pageNumber: edit.pageNumber,
-      calibrationId: edit.calibrationId,
-      reference: edit.reference,
-      calibrationName: calibration.name,
-      measurementCount,
-    });
-  }
-
-  function commitCalibrationReferenceEdit(edit: CalibrationReferenceEdit) {
-    updateCalibration({
-      pageNumber: edit.pageNumber,
-      calibrationId: edit.calibrationId,
-      reference: edit.reference,
-      points: edit.points,
-    });
-    confirmReferenceEdit();
-    closeConfirmation();
-    focusViewer();
-  }
-
-  function handleOverlayConfirmationConfirm(
-    confirmation: OverlayConfirmation,
-    options?: { dontAskAgain?: boolean },
-  ) {
-    if (confirmation.type === "deleteClassification") {
-      const payload = confirmation.payload;
-      if (payload.target === "dimension") {
-        if (options?.dontAskAgain) setConfirmDimensionDeletion(false);
-        deleteClassificationDimension(payload.dimensionId);
-      } else {
-        if (options?.dontAskAgain) setConfirmValueDeletion(false);
-        deleteClassificationValue(payload.dimensionId, payload.valueId);
-      }
-      return;
-    }
-    if (confirmation.type === "deleteMeasurement") {
-      if (options?.dontAskAgain) setConfirmMeasurementDeletion(false);
-      if (confirmation.payload.measurementIds) {
-        if (editMeasurements({ measurementIds: confirmation.payload.measurementIds, operation: { type: "delete" } })) clearSelection();
-      } else performMeasurementDelete(confirmation.payload);
-      return;
-    }
-
-    if (confirmation.type === "recalibrateScale") {
-      beginRecalibration(confirmation.payload.pageNumber, confirmation.payload.calibrationId);
-      return;
-    }
-
-    if (confirmation.type === "setScaleRatio") {
-      const { pageNumber, calibrationId, calibration } = confirmation.payload;
-      const page = session?.pages[pageNumber];
-      const target = page && findPageCalibration(page, calibrationId);
-      if (!target || target.mode !== calibration.mode) {
-        setError("The scale to update is no longer available.");
-        return;
-      }
-      recalibrateCalibration({ pageNumber, calibrationId, calibration });
-      return;
-    }
-
-    const edit = calibrationReferenceEdit;
-    if (
-      !edit ||
-      edit.pageNumber !== confirmation.payload.pageNumber ||
-      edit.calibrationId !== confirmation.payload.calibrationId ||
-      edit.reference !== confirmation.payload.reference
-    ) {
-      setError("The reference edit is no longer available.");
-      return;
-    }
-    commitCalibrationReferenceEdit(edit);
-  }
+  const { dragActive, handleDragEnter, handleDragOver, handleDragLeave, handleDrop } =
+    useFileDropZone(chooseFile);
 
   const currentPage = session?.pages[session.currentPage];
   const calibrationCandidatePage = calibrationCandidate
@@ -1027,7 +563,7 @@ function PlanMeasureApp() {
       ? findPageCalibration(calibrationCandidatePage, calibrationCandidate.calibrationId)
       : null;
   const calibrationReferencePreview = calibrationReferenceEdit
-    ? calibrationReferenceEditPreview(calibrationReferenceEdit)
+    ? calibrationReferenceEditPreview(session, calibrationReferenceEdit)
     : null;
   const calibrationReferenceEditIsValid = Boolean(
     calibrationReferencePreview &&
@@ -1037,33 +573,17 @@ function PlanMeasureApp() {
         calibrationReferenceEdit.reference,
       ),
   );
-  const previewPage =
-    currentPage &&
-    calibrationReferenceEdit &&
-    calibrationReferenceEdit.pageNumber === currentPage.pageNumber &&
-    calibrationReferencePreview &&
-    calibrationReferenceEditIsValid
-      ? {
-          ...currentPage,
-          calibrations: currentPage.calibrations.map((calibration) =>
-            calibration.id === calibrationReferenceEdit.calibrationId
-              ? calibrationReferencePreview
-              : calibration,
-          ),
-        }
-      : currentPage;
-  const previewPages =
-    session && currentPage && previewPage && previewPage !== currentPage
-      ? { ...session.pages, [currentPage.pageNumber]: previewPage }
-      : session?.pages;
+  const previewPage = getPreviewPage(
+    currentPage,
+    calibrationReferenceEdit,
+    calibrationReferencePreview,
+    calibrationReferenceEditIsValid,
+  );
+  const previewPages = getPreviewPages(session, currentPage, previewPage);
   const activePageCalibration = currentPage ? getActiveCalibration(currentPage) : null;
   const activeCalibration = activePageCalibration;
-  const selectedMeasurements = Object.values(session?.pages ?? {}).flatMap((page) =>
-    page.measurements.filter((measurement) => selectedMeasurementIds.includes(measurement.id)),
-  );
-  const selectedMeasurement =
-    currentPage?.measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
-    null;
+  const selectedMeasurements = getSelectedMeasurements(session, selectedMeasurementIds);
+  const selectedMeasurement = getSelectedMeasurement(currentPage, selectedMeasurementId);
   useEffect(() => {
     if (!measurementDetailsOpen || selectedMeasurement) return;
     closeMeasurementDetails();
@@ -1117,40 +637,87 @@ function PlanMeasureApp() {
   }
   const calibrationActionsDisabled = Boolean(calibrationFlow || calibrationReferenceEdit);
   const precisionAuthoringBlocked = authoringCapability?.available !== true;
-  const precisionAuthoringDisabledReason =
-    authoringCapability?.unavailableReason ??
-    "Precision drawing and editing need more unobscured viewer space and a fine pointer";
+  const {
+    chooseTool,
+    cancelCalibration,
+    beginNewCalibration,
+    addStandardScalePreset,
+    addCustomRatioScale,
+    setScaleRatio,
+    requestRecalibration,
+    assignClassification,
+    beginCalibrationReferenceEdit,
+    updateCalibrationReferenceEdit,
+    cancelCalibrationReferenceEdit,
+    requestCalibrationReferenceEditSave,
+    handleOverlayConfirmationConfirm,
+  } = useCalibrationActions({
+    scaleCheckStore,
+    calibrationReferenceEdit,
+    calibrationFlow,
+    session,
+    setError,
+    precisionAuthoringBlocked,
+    clearDraft,
+    chooseWorkspaceTool,
+    clearError,
+    cancelWorkspaceCalibration,
+    focusViewer,
+    authoringCapabilityRef,
+    startCalibration,
+    currentPage,
+    viewerPageBounds,
+    addCalibration,
+    openSetScaleRatioConfirmation,
+    recalibrateCalibration,
+    openRecalibrationConfirmation,
+    removeClassificationValue,
+    assignClassificationValue,
+    startReferenceEdit,
+    closeConfirmation,
+    clearSelection,
+    updateReferenceEdit,
+    cancelReferenceEdit,
+    updateCalibration,
+    confirmReferenceEdit,
+    openCalibrationReferenceEditConfirmation,
+    setConfirmDimensionDeletion,
+    deleteClassificationDimension,
+    setConfirmValueDeletion,
+    deleteClassificationValue,
+    setConfirmMeasurementDeletion,
+    editMeasurements,
+    performMeasurementDelete,
+  });
+  const precisionAuthoringDisabledReason = getPrecisionAuthoringDisabledReason(authoringCapability);
   const primaryToolsLocked = Boolean(calibrationFlow || calibrationReferenceEdit);
   const primaryToolLockReason = calibrationReferenceEdit
     ? "Finish or cancel the scale reference edit first"
     : "Finish or cancel calibration first";
   const canCreateMeasurements =
     Boolean(activeCalibration) && !primaryToolsLocked && !precisionAuthoringBlocked;
-  const measurementToolDisabledReason = primaryToolsLocked
-    ? primaryToolLockReason
-    : precisionAuthoringBlocked
-      ? precisionAuthoringDisabledReason
-    : "This tool requires an active scale";
-  const toolAvailability: ToolAvailabilityMap = {
-    select: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
-    hand: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
-    line: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
-    polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
-    polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
-    count: {
-      enabled: !primaryToolsLocked && !precisionAuthoringBlocked,
-      disabledReason: primaryToolsLocked ? primaryToolLockReason : precisionAuthoringDisabledReason,
-    },
-  };
-  const addCountItemsDisabledReason = !selectedMeasurement?.visible
-    ? "Show this count before adding items"
-    : primaryToolsLocked
-      ? primaryToolLockReason
-      : precisionAuthoringBlocked
-        ? precisionAuthoringDisabledReason
-        : measurementEditActive
-          ? "Finish or cancel the current edit first"
-          : undefined;
+  const measurementToolDisabledReason = getMeasurementToolDisabledReason(
+    primaryToolsLocked,
+    primaryToolLockReason,
+    precisionAuthoringBlocked,
+    precisionAuthoringDisabledReason,
+  );
+  const toolAvailability = getToolAvailability(
+    primaryToolsLocked,
+    primaryToolLockReason,
+    canCreateMeasurements,
+    measurementToolDisabledReason,
+    precisionAuthoringBlocked,
+    precisionAuthoringDisabledReason,
+  );
+  const addCountItemsDisabledReason = getAddCountItemsDisabledReason(
+    selectedMeasurement,
+    primaryToolsLocked,
+    primaryToolLockReason,
+    precisionAuthoringBlocked,
+    precisionAuthoringDisabledReason,
+    measurementEditActive,
+  );
   function beginAddingCountItems() {
     if (selectedMeasurement?.type !== "count" || addCountItemsDisabledReason) return;
     selectWorkspaceMeasurement(selectedMeasurement.id);

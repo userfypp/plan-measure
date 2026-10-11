@@ -4,7 +4,6 @@ import {
   useEffectEvent,
   useId,
   useLayoutEffect,
-  memo,
   useMemo,
   useRef,
   useState,
@@ -57,19 +56,14 @@ import { buildDraftPreviewPoints } from "./draftPreview";
 import { useKeyboardGeometry } from "./useKeyboardGeometry";
 import { KeyboardGeometryHelp } from "./KeyboardGeometryHelp";
 import {
-  createWholeMeasurementDragCancellationRegistry,
   registerWholeMeasurementDragEnvironmentCancellation,
   registerWholeMeasurementDragPointerReleaseCleanup,
 } from "./measurementDrag";
-import { createMeasurementVertexDragCancellationRegistry } from "./measurementVertexDrag";
+import { useDragCancellationRegistry } from "./useDragCancellationRegistry";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { ScaleCheckLine } from "./ScaleCheckLine";
 import type { ScaleCheckStore } from "../calibration/scaleCheckState";
 import styles from "./PdfViewer.module.css";
-import defaultCursor from "./cursors/default.png";
-import crosshairCursor from "./cursors/crosshair.png";
-import grabCursor from "./cursors/grab.png";
-import grabbingCursor from "./cursors/grabbing.png";
 import { LruRenderCache } from "./renderCache";
 import {
   setMainPdfBusy,
@@ -97,55 +91,26 @@ import {
   safeViewerLayout,
   useViewerBottomExclusion,
 } from "./viewerLayout";
+import { pointsToFlat } from "./geometry";
+import { DraftPointMarkers } from "./DraftPointMarkers";
+import { SOFTWARE_CURSORS } from "./softwareCursor";
+import { useSoftwareCursor } from "./useSoftwareCursor";
+import {
+  PDF_RENDER_DEBOUNCE_MS,
+  copyRasterToCanvas,
+  panCachePixelRatio,
+  type LoadedPageData,
+  type ReadyRaster,
+  type RecentRaster,
+  type StagePage,
+} from "./pdfViewerRaster";
 
-// Standard macOS NSCursor images at 2x resolution, with their logical sizes and
-// AppKit hotspots. Preserve the native shape and click location in the fallback.
-const SOFTWARE_CURSORS = {
-  default: { src: defaultCursor, width: 28, height: 40, x: 5, y: 5 },
-  crosshair: { src: crosshairCursor, width: 24, height: 24, x: 11, y: 11 },
-  grab: { src: grabCursor, width: 32, height: 32, x: 15, y: 16 },
-  grabbing: { src: grabbingCursor, width: 32, height: 32, x: 15, y: 16 },
-};
-
-const PDF_RENDER_DEBOUNCE_MS = 90;
 // With many measurements, wheel zoom only scales the page group: the annotations keep their last
 // settled zoom (and, when the whole page is visible, a cached bitmap) until the wheel has been
 // idle this long.
 const WHEEL_ZOOM_SETTLE_MS = 120;
 const WHEEL_ZOOM_MAX_SETTLE_MS = 600;
 const WHEEL_ZOOM_MIN_MEASUREMENTS = 200;
-const MAX_PAN_CACHE_PIXELS = 4 * 1024 * 1024;
-const MAX_PAN_CACHE_DIMENSION = 4096;
-
-// WebKit on macOS hides NSCursor after a handled keydown until the mouse moves.
-// The viewer uses keyboard shortcuts while the pointer must remain visible.
-// See WebKit UIProcess/mac/WebViewImpl.mm, doneWithKeyEvent:
-// https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/mac/WebViewImpl.mm
-function needsSoftwareCursor(): boolean {
-  return navigator.vendor === "Apple Computer, Inc." &&
-    navigator.userAgent.includes("Macintosh");
-}
-
-function panCachePixelRatio(
-  bounds: LogicalPageBounds,
-  zoom: number,
-  devicePixelRatio: number,
-): number | null {
-  const width = Math.ceil(bounds.width);
-  const height = Math.ceil(bounds.height);
-  if (!(width > 0 && height > 0 && Number.isFinite(width * height))) return null;
-  const ratio = Math.min(
-    zoom * Math.max(1, devicePixelRatio),
-    Math.sqrt(MAX_PAN_CACHE_PIXELS / (width * height)),
-    MAX_PAN_CACHE_DIMENSION / Math.max(width, height),
-  );
-  return Number.isFinite(ratio) &&
-    ratio > 0 &&
-    Math.floor(width * ratio) > 0 &&
-    Math.floor(height * ratio) > 0
-    ? ratio
-    : null;
-}
 
 interface PdfViewerProps {
   document: PDFDocumentProxy;
@@ -167,73 +132,6 @@ interface PdfViewerProps {
   keyboardAuthoringEnabled?: boolean;
 }
 
-function pointsToFlat(points: Point[]): number[] {
-  return points.flatMap((point) => [point.x, point.y]);
-}
-
-const DraftPointMarkers = memo(function DraftPointMarkers({
-  points,
-  zoom,
-  fill,
-  stroke,
-}: {
-  points: Point[];
-  zoom: number;
-  fill: string;
-  stroke: string;
-}) {
-  return (
-    <>
-      {points.slice(1).map((point, index) => (
-        <Circle
-          key={`draft-point-${index + 1}`}
-          x={point.x}
-          y={point.y}
-          radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
-          listening={false}
-        />
-      ))}
-    </>
-  );
-});
-
-interface LoadedPageData {
-  document: PDFDocumentProxy;
-  pageNumber: number;
-  pdfPage: PDFPageProxy;
-  bounds: LogicalPageBounds;
-}
-
-interface ReadyRaster {
-  page: LoadedPageData;
-  canvas: HTMLCanvasElement;
-}
-
-interface RecentRaster {
-  document: PDFDocumentProxy;
-  cacheKey: string;
-  canvas: HTMLCanvasElement;
-}
-
-interface StagePage {
-  slot: 0 | 1;
-  data: LoadedPageData;
-  page: PageState;
-  transform: ViewTransform;
-  presented: boolean;
-}
-
-function copyRasterToCanvas(source: HTMLCanvasElement, target: HTMLCanvasElement): boolean {
-  const context = target.getContext("2d", { alpha: false });
-  if (!context) return false;
-  if (target.width !== source.width) target.width = source.width;
-  if (target.height !== source.height) target.height = source.height;
-  context.drawImage(source, 0, 0);
-  return true;
-}
 
 export function PdfViewer({
   document,
@@ -283,8 +181,6 @@ export function PdfViewer({
     completeDraft,
   } = useWorkspaceState();
   const viewerRef = useRef<HTMLDivElement>(null);
-  const softwareCursorRef = useRef<HTMLDivElement>(null);
-  const softwarePointerRef = useRef<Point | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const candidateStageRef = useRef<Konva.Stage>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -308,16 +204,6 @@ export function PdfViewer({
   const wheelFrameStartRef = useRef<number | null>(null);
   const [wheelGesture, setWheelGesture] = useState<{ transform: ViewTransform; cached: boolean; pageNumber: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
-  const wholeMeasurementDragCancellationRegistryRef = useRef(
-    createWholeMeasurementDragCancellationRegistry(),
-  );
-  const vertexDragCancellationRegistryRef = useRef(
-    createMeasurementVertexDragCancellationRegistry(),
-  );
-  const calibrationReferenceDragCancellationRef = useRef<{
-    owner: object;
-    cancel: () => void;
-  } | null>(null);
   const activeMeasurementEditIdRef = useRef(activeMeasurementEditId);
   const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
   const renderRequestRef = useRef(0);
@@ -405,45 +291,16 @@ export function PdfViewer({
     setPlacementPointer(null);
   }, []);
 
-  const registerWholeMeasurementDragCancellation = useCallback(
-    (measurementId: string, cancel: (() => void) | null) => {
-      wholeMeasurementDragCancellationRegistryRef.current.set(measurementId, cancel);
-    },
-    [],
-  );
-
-  const cancelActiveWholeMeasurementDrag = useCallback(() => {
-    wholeMeasurementDragCancellationRegistryRef.current.cancelActive();
-  }, []);
-
-  const registerVertexDragCancellation = useCallback(
-    (measurementId: string, owner: object, cancel: (() => void) | null) => {
-      vertexDragCancellationRegistryRef.current.set(measurementId, owner, cancel);
-    },
-    [],
-  );
-
-  const cancelActiveVertexDrag = useCallback(() => {
-    vertexDragCancellationRegistryRef.current.cancelActive();
-  }, []);
-
-  const registerCalibrationReferenceDragCancellation = useCallback(
-    (owner: object, cancel: (() => void) | null) => {
-      if (cancel) {
-        calibrationReferenceDragCancellationRef.current = { owner, cancel };
-      } else if (calibrationReferenceDragCancellationRef.current?.owner === owner) {
-        calibrationReferenceDragCancellationRef.current = null;
-      }
-    },
-    [],
-  );
-
-  const cancelActiveCalibrationReferenceDrag = useCallback(() => {
-    const active = calibrationReferenceDragCancellationRef.current;
-    if (!active) return;
-    calibrationReferenceDragCancellationRef.current = null;
-    active.cancel();
-  }, []);
+  const {
+    wholeMeasurementDragCancellationRegistryRef,
+    vertexDragCancellationRegistryRef,
+    registerWholeMeasurementDragCancellation,
+    cancelActiveWholeMeasurementDrag,
+    registerVertexDragCancellation,
+    cancelActiveVertexDrag,
+    registerCalibrationReferenceDragCancellation,
+    cancelActiveCalibrationReferenceDrag,
+  } = useDragCancellationRegistry();
 
   const clearActiveMeasurementEdit = useCallback(() => {
     const measurementId = activeMeasurementEditIdRef.current;
@@ -1031,71 +888,8 @@ export function PdfViewer({
     viewerRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const softwareCursor = needsSoftwareCursor();
-  const updateSoftwareCursor = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const cursorElement = softwareCursorRef.current;
-    if (!cursorElement) return;
-    if (event.pointerType === "touch" ||
-      (event.target instanceof Element && event.target.closest("[data-keyboard-controls]"))) {
-      softwarePointerRef.current = null;
-      cursorElement.style.visibility = "hidden";
-      return;
-    }
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - bounds.left;
-    const y = event.clientY - bounds.top;
-    if (x < 0 || y < 0 || x >= bounds.width || y >= bounds.height) {
-      softwarePointerRef.current = null;
-      cursorElement.style.visibility = "hidden";
-      return;
-    }
-    softwarePointerRef.current = { x: event.clientX, y: event.clientY };
-    cursorElement.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    cursorElement.style.visibility = "visible";
-  }, []);
-
-  const hideSoftwareCursor = useCallback(() => {
-    if (softwareCursorRef.current) softwareCursorRef.current.style.visibility = "hidden";
-  }, []);
-
-  const leaveSoftwareCursor = useCallback(() => {
-    softwarePointerRef.current = null;
-    hideSoftwareCursor();
-  }, [hideSoftwareCursor]);
-
-  const restoreSoftwareCursor = useCallback(() => {
-    const viewer = viewerRef.current;
-    const cursorElement = softwareCursorRef.current;
-    const point = softwarePointerRef.current;
-    if (!viewer || !cursorElement || !point) return;
-    // A remembered position must still hit this viewer, not a dialog or toolbar.
-    const hit = window.document.elementFromPoint(point.x, point.y);
-    if (!hit || !viewer.contains(hit) || hit.closest("[data-keyboard-controls]") || !viewer.matches(":hover")) {
-      hideSoftwareCursor();
-      return;
-    }
-    const bounds = viewer.getBoundingClientRect();
-    cursorElement.style.transform = `translate3d(${point.x - bounds.left}px, ${point.y - bounds.top}px, 0)`;
-    cursorElement.style.visibility = "visible";
-  }, [hideSoftwareCursor]);
-
-  useEffect(() => {
-    if (!softwareCursor) return;
-    window.addEventListener("blur", hideSoftwareCursor);
-    window.addEventListener("focus", restoreSoftwareCursor);
-    window.document.addEventListener("focusin", restoreSoftwareCursor);
-    const onVisibilityChange = () => {
-      if (window.document.visibilityState === "hidden") hideSoftwareCursor();
-      else restoreSoftwareCursor();
-    };
-    window.document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("blur", hideSoftwareCursor);
-      window.removeEventListener("focus", restoreSoftwareCursor);
-      window.document.removeEventListener("focusin", restoreSoftwareCursor);
-      window.document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [hideSoftwareCursor, restoreSoftwareCursor, softwareCursor]);
+  const { softwareCursor, softwareCursorRef, updateSoftwareCursor, leaveSoftwareCursor } =
+    useSoftwareCursor({ viewerRef });
 
   const settleWheelZoom = useCallback(() => {
     if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
