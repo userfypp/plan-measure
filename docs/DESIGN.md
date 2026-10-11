@@ -52,8 +52,11 @@ Una sola familia (`--font-family-sans`). Escala cerrada:
 | Encabezados de panel | 14 | 600 |
 | Identidad | 16 | 600 |
 | Resultados numéricos | 24 | 600 |
+| Títulos de pantalla (`--font-size-title`) | 22 | 600 |
+| Cantidades (`--font-size-quantity`) | 20 | 600 |
+| Micro: insignias y etiquetas mínimas (`--font-size-micro`) | 10 | 400/500 |
 
-Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (hoy hay excepciones de 7–10, 18, 20, 22 px por corregir). Cifras tabulares (`font-variant-numeric: tabular-nums`) en mediciones y resultados.
+Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (el glifo de insignia usa `--font-size-glyph-badge`, 7 px). Cifras tabulares (`font-variant-numeric: tabular-nums`) en mediciones y resultados.
 
 ## Espaciado y geometría
 

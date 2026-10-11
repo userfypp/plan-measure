@@ -107,6 +107,9 @@
   --font-size-identity: 16px;
   --font-size-result: 24px;
   --font-size-glyph-badge: 7px;
+  --font-size-micro: 10px;
+  --font-size-title: 22px;
+  --font-size-quantity: 20px;
   --line-height-secondary: 16px;
   --line-height-base: 18px;
   --line-height-heading: 20px;

@@ -78,7 +78,7 @@
   border-radius: 9px;
   color: var(--color-text-secondary);
   background: var(--color-surface-field);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }

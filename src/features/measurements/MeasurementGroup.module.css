@@ -97,7 +97,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.035em;
   line-height: 1;
@@ -166,7 +166,7 @@
 .childHeader .dimensionName,
 .deepHeader .dimensionName {
   color: var(--color-text-secondary);
-  font-size: 9px;
+  font-size: var(--font-size-micro);
 }
 
 .deepHeader .groupValue {

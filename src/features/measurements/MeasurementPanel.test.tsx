@@ -436,7 +436,7 @@ describe("measurement grouping surfaces", () => {
       /\.title\s*\{[^}]*grid-template-rows:\s*auto auto;[^}]*align-content:\s*center;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.dimensionName\s*\{[^}]*font-size:\s*10px;[^}]*text-transform:\s*uppercase;/s,
+      /\.dimensionName\s*\{[^}]*font-size:\s*var\(--font-size-micro\);[^}]*text-transform:\s*uppercase;/s,
     );
     expect(measurementGroupCss).toMatch(
       /\.childHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-sm\);/s,
