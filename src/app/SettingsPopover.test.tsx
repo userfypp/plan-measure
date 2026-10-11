@@ -102,10 +102,6 @@ function dialog(): HTMLElement {
   return element;
 }
 
-function radios(): HTMLButtonElement[] {
-  return Array.from(dialog().querySelectorAll<HTMLButtonElement>('[role="radio"]'));
-}
-
 function selectByLabel(label: string): HTMLButtonElement {
   const labelElement = Array.from(dialog().querySelectorAll<HTMLLabelElement>("label")).find(
     (candidate) => candidate.textContent?.trim() === label,
@@ -170,46 +166,57 @@ describe("SettingsPopover", () => {
     expect(settingsDialog.querySelector('[role^="menuitem"]')).toBeNull();
   });
 
-  it("exposes Appearance as one roving radio group and reflects the current preference", () => {
+  it("renders Appearance as a Select reflecting the current preference", () => {
     renderSettings({ theme: "dark" });
     openSettings();
 
-    const group = dialog().querySelector('[role="radiogroup"]');
-    const options = radios();
-    expect(group).not.toBeNull();
-    expect(options.map((option) => option.textContent)).toEqual(["System", "Light", "Dark"]);
-    expect(options.map((option) => option.getAttribute("aria-checked"))).toEqual([
+    const select = selectByLabel("Appearance");
+    expect(dialog().querySelector('[role="radiogroup"], [role="radio"]')).toBeNull();
+    expect(select.textContent).toBe("Dark");
+    act(() => select.click());
+    expect(selectItems().map((option) => option.textContent)).toEqual(["System", "Light", "Dark"]);
+    expect(selectItems().map((option) => option.getAttribute("aria-checked"))).toEqual([
       "false",
       "false",
       "true",
     ]);
-    expect(options.map((option) => option.tabIndex)).toEqual([-1, -1, 0]);
-    expect(document.activeElement).toBe(options[2]);
   });
 
-  it("changes Appearance with arrow keys, moves focus, and keeps Settings open", () => {
+  it("changes Appearance through the Select, persists it and keeps Settings open", () => {
     renderSettings();
     openSettings();
-    const options = radios();
-    expect(document.activeElement).toBe(options[0]);
+    const select = selectByLabel("Appearance");
+    expect(document.activeElement).toBe(select);
 
-    act(() => {
-      options[0]?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
-      );
-    });
+    act(() => select.click());
+    act(() => selectItems()[1]!.click());
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
-    expect(radios()[1]?.getAttribute("aria-checked")).toBe("true");
-    expect(document.activeElement).toBe(radios()[1]);
+    expect(select.textContent).toBe("Light");
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
 
-    act(() => {
-      radios()[1]?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
-      );
-    });
-    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
-    expect(document.activeElement).toBe(radios()[2]);
+  it("keeps long explanations out of the rows and exposes them from a help button tooltip", () => {
+    renderSettings({ onKeyboardAuthoringEnabledChange: vi.fn() });
+    openSettings();
+    const help = dialog().querySelector<HTMLButtonElement>(
+      'button[aria-label="About Keyboard drawing and editing"]',
+    )!;
+    const description = document.getElementById(help.getAttribute("aria-describedby")!)!;
+    expect(description.textContent).toBe(
+      "Use arrows to move a cursor, Space to place points and E to edit measurements.",
+    );
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    vi.useFakeTimers();
+    try {
+      act(() => help.focus());
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(description.textContent);
+    expect(dialog().querySelector('[aria-label="About Recovered plan workspace"]')).not.toBeNull();
   });
 
   it.each([false, true])("exposes keyboard drawing with current state %s and can toggle it", (enabled) => {
@@ -342,29 +349,31 @@ describe("SettingsPopover", () => {
     expect(switchControl().checked).toBe(true);
   });
 
-  it("keeps exactly one Appearance option in the logical Tab order before the selects and switch", () => {
+  it("keeps Appearance first in the logical Tab order, followed by help buttons, selects and switches", () => {
     renderSettings({ theme: "light", onKeyboardAuthoringEnabledChange: vi.fn(), onConfirmValueDeletionChange: vi.fn(), onConfirmDimensionDeletionChange: vi.fn() });
     openSettings();
 
     const tabbable = Array.from(
       dialog().querySelectorAll<HTMLElement>("button, input"),
     ).filter((element) => element.tabIndex >= 0);
-    expect(tabbable).toHaveLength(7);
-    expect(tabbable[0]?.getAttribute("role")).toBe("radio");
+    expect(tabbable).toHaveLength(9);
+    expect(tabbable[0]).toBe(selectByLabel("Appearance"));
     expect(tabbable[0]?.textContent).toBe("Light");
-    expect(tabbable[1]?.getAttribute("aria-label")).toBe("Keyboard drawing and editing");
-    expect(tabbable[2]).toBe(selectByLabel("Recovered plan workspace"));
-    expect(tabbable[3]).toBe(selectByLabel("Decimal places"));
-    expect(tabbable[4]).toBe(switchControl());
-    expect(tabbable[5]?.getAttribute("aria-label")).toBe("Confirm before deleting values");
-    expect(tabbable[6]?.getAttribute("aria-label")).toBe("Confirm before deleting dimensions");
+    expect(tabbable[1]?.getAttribute("aria-label")).toBe("About Keyboard drawing and editing");
+    expect(tabbable[2]?.getAttribute("aria-label")).toBe("Keyboard drawing and editing");
+    expect(tabbable[3]?.getAttribute("aria-label")).toBe("About Recovered plan workspace");
+    expect(tabbable[4]).toBe(selectByLabel("Recovered plan workspace"));
+    expect(tabbable[5]).toBe(selectByLabel("Decimal places"));
+    expect(tabbable[6]).toBe(switchControl());
+    expect(tabbable[7]?.getAttribute("aria-label")).toBe("Confirm before deleting values");
+    expect(tabbable[8]?.getAttribute("aria-label")).toBe("Confirm before deleting dimensions");
   });
 
   it("closes backward from the first setting and forward from the last setting", () => {
     renderSettings({ onConfirmValueDeletionChange: vi.fn(), onConfirmDimensionDeletionChange: vi.fn() });
     openSettings();
     const settingsTrigger = trigger();
-    const first = radios()[0]!;
+    const first = selectByLabel("Appearance");
     expect(document.activeElement).toBe(first);
 
     const backwardTab = new KeyboardEvent("keydown", {

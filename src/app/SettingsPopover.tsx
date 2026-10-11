@@ -1,5 +1,5 @@
-import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
-import { Popover, Select, Switch } from "../components/ui";
+import { useId, type ReactNode } from "react";
+import { Popover, Select, Switch, Tooltip } from "../components/ui";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useTheme, type ThemePreference } from "./themeState";
@@ -22,6 +22,51 @@ const RECOVERED_PLAN_STARTUP_OPTIONS: Array<{
 ];
 
 const MEASUREMENT_DECIMAL_OPTIONS: MeasurementDecimalPlaces[] = [0, 1, 2, 3, 4, 5, 6];
+
+function HelpIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M7.9 8c0-1.2.9-2 2.1-2s2.1.8 2.1 1.9c0 1.5-2.1 1.7-2.1 3.2M10 14.1v.1" />
+    </svg>
+  );
+}
+
+/** Single-line label; the explanation lives in a tooltip on a keyboard-reachable help button. */
+function SettingLabel({
+  id,
+  htmlFor,
+  label,
+  description,
+  descriptionId,
+}: {
+  id?: string;
+  htmlFor: string;
+  label: string;
+  description: string;
+  descriptionId: string;
+}) {
+  return (
+    <div className={styles.settingCopy}>
+      <label id={id} className={styles.settingLabel} htmlFor={htmlFor}>
+        {label}
+      </label>
+      <Tooltip content={description} position="bottom" describeTrigger={false}>
+        <button
+          type="button"
+          className={styles.helpButton}
+          aria-label={`About ${label}`}
+          aria-describedby={descriptionId}
+        >
+          <HelpIcon />
+        </button>
+      </Tooltip>
+      <span id={descriptionId} className={styles.visuallyHidden}>
+        {description}
+      </span>
+    </div>
+  );
+}
 
 export interface SettingsPopoverProps {
   trigger: ReactNode;
@@ -63,6 +108,7 @@ export function SettingsPopover({
   const classificationsHeadingId = useId();
   const valueDeletionId = useId();
   const dimensionDeletionId = useId();
+  const appearanceId = useId();
   const appearanceLabelId = useId();
   const keyboardAuthoringId = useId();
   const keyboardAuthoringDescriptionId = useId();
@@ -72,24 +118,6 @@ export function SettingsPopover({
   const decimalPlacesLabelId = useId();
   const recoveredWorkspaceLabelId = useId();
   const deleteConfirmationId = useId();
-  const themeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  function selectTheme(nextPreference: ThemePreference, nextIndex: number) {
-    setPreference(nextPreference);
-    themeOptionRefs.current[nextIndex]?.focus({ preventScroll: true });
-  }
-
-  function handleThemeKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentIndex: number) {
-    let direction: 1 | -1 | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") direction = 1;
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") direction = -1;
-    if (direction === null) return;
-
-    event.preventDefault();
-    const nextIndex = (currentIndex + direction + THEME_OPTIONS.length) % THEME_OPTIONS.length;
-    selectTheme(THEME_OPTIONS[nextIndex]!.id, nextIndex);
-  }
-
   return (
     <Popover
       trigger={trigger}
@@ -117,48 +145,28 @@ export function SettingsPopover({
           </h3>
           <div className={styles.settingList}>
             <div className={`${styles.settingRow} ${styles.stackOnNarrow}`}>
-              <span id={appearanceLabelId} className={styles.settingLabel}>
+              <label id={appearanceLabelId} className={styles.settingLabel} htmlFor={appearanceId}>
                 Appearance
-              </span>
-              <div
-                className={styles.appearanceGroup}
-                role="radiogroup"
-                aria-labelledby={appearanceLabelId}
-              >
-                {THEME_OPTIONS.map((option, index) => {
-                  const checked = preference === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      ref={(element) => {
-                        themeOptionRefs.current[index] = element;
-                      }}
-                      type="button"
-                      role="radio"
-                      aria-checked={checked}
-                      tabIndex={checked ? 0 : -1}
-                      data-popover-autofocus={checked ? "true" : undefined}
-                      className={styles.appearanceOption}
-                      onClick={() => selectTheme(option.id, index)}
-                      onKeyDown={(event) => handleThemeKeyDown(event, index)}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
+              </label>
+              <Select<ThemePreference>
+                id={appearanceId}
+                className={styles.appearanceSelect}
+                label="Appearance"
+                labelledBy={appearanceLabelId}
+                value={preference}
+                options={THEME_OPTIONS.map((option) => ({ value: option.id, label: option.label }))}
+                onChange={setPreference}
+              />
             </div>
 
             {onKeyboardAuthoringEnabledChange && (
               <div className={styles.settingRow}>
-                <div className={styles.settingCopy}>
-                  <label className={styles.settingLabel} htmlFor={keyboardAuthoringId}>
-                    Keyboard drawing and editing
-                  </label>
-                  <span id={keyboardAuthoringDescriptionId} className={styles.description}>
-                    Use arrows to move a cursor, Space to place points and E to edit measurements.
-                  </span>
-                </div>
+                <SettingLabel
+                  htmlFor={keyboardAuthoringId}
+                  label="Keyboard drawing and editing"
+                  description="Use arrows to move a cursor, Space to place points and E to edit measurements."
+                  descriptionId={keyboardAuthoringDescriptionId}
+                />
                 <Switch
                   id={keyboardAuthoringId}
                   aria-label="Keyboard drawing and editing"
@@ -171,18 +179,13 @@ export function SettingsPopover({
 
             {onRecoveredPlanStartupWorkspaceChange && (
               <div className={`${styles.settingRow} ${styles.stackOnNarrow}`}>
-                <div className={styles.settingCopy}>
-                  <label
-                    id={recoveredWorkspaceLabelId}
-                    className={styles.settingLabel}
-                    htmlFor={recoveredWorkspaceId}
-                  >
-                    Recovered plan workspace
-                  </label>
-                  <span id={recoveredWorkspaceDescriptionId} className={styles.description}>
-                    Workspace shown after restoring a saved plan.
-                  </span>
-                </div>
+                <SettingLabel
+                  id={recoveredWorkspaceLabelId}
+                  htmlFor={recoveredWorkspaceId}
+                  label="Recovered plan workspace"
+                  description="Workspace shown after restoring a saved plan."
+                  descriptionId={recoveredWorkspaceDescriptionId}
+                />
                 <Select
                   id={recoveredWorkspaceId}
                   className={styles.recoveredWorkspaceSelect}

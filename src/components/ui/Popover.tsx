@@ -183,6 +183,9 @@ export function Popover({
     setPortalHost(element?.closest("dialog") ?? null);
   }, []);
   const contentRef = useRef<HTMLDivElement>(null);
+  // Safari does not focus buttons on click, so the list can close between pointerdown and click
+  // (focus/outside dismissal); remember the state at pointerdown so that click does not reopen it.
+  const openAtPointerDownRef = useRef(false);
   const wasOpenRef = useRef(false);
   const restoreFocusOnCloseRef = useRef(true);
   const dismissRef = useRef<(reason: PopoverDismissReason) => void>(() => undefined);
@@ -321,8 +324,14 @@ export function Popover({
     next.focus({ preventScroll: true });
   }
 
-  const { onClick: originalOnClick, className: triggerClassName, ...buttonProps } =
-    triggerProps ?? {};
+  const {
+    onClick: originalOnClick,
+    onPointerDown: originalOnPointerDown,
+    onPointerCancel: originalOnPointerCancel,
+    onPointerLeave: originalOnPointerLeave,
+    className: triggerClassName,
+    ...buttonProps
+  } = triggerProps ?? {};
 
   return (
     <>
@@ -334,9 +343,23 @@ export function Popover({
         className={[styles.trigger, triggerClassName].filter(Boolean).join(" ")}
         aria-expanded={isOpen}
         aria-controls={isOpen ? popoverId : undefined}
+        onPointerDown={(event) => {
+          openAtPointerDownRef.current = isOpen;
+          originalOnPointerDown?.(event);
+        }}
+        onPointerCancel={(event) => {
+          openAtPointerDownRef.current = false;
+          originalOnPointerCancel?.(event);
+        }}
+        onPointerLeave={(event) => {
+          openAtPointerDownRef.current = false;
+          originalOnPointerLeave?.(event);
+        }}
         onClick={(event) => {
+          const openedAtPointerDown = openAtPointerDownRef.current;
+          openAtPointerDownRef.current = false;
           originalOnClick?.(event);
-          if (!event.defaultPrevented) setOpen(!isOpen);
+          if (!event.defaultPrevented) setOpen(openedAtPointerDown ? false : !isOpen);
         }}
       >
         {trigger}

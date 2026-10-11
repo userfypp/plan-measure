@@ -303,3 +303,26 @@
     );
   }
 }
+
+.skeletonBar {
+  height: var(--control-height-compact);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+}
+.skeletonList {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-16);
+  overflow: hidden;
+  padding: var(--space-8);
+}
+.skeletonThumbnail {
+  width: var(--geometry-page-thumbnail-width);
+  height: var(--geometry-page-thumbnail-height);
+  flex: 0 0 var(--geometry-page-thumbnail-height);
+  border: var(--border-width) solid var(--color-control-hover-border);
+  background: var(--color-surface-field);
+}

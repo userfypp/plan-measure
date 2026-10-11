@@ -257,6 +257,36 @@ describe("Popover", () => {
     expect(dialog("Toggled")).toBeNull();
   });
 
+  it("keeps the popover closed when it closed between pointerdown and click on the trigger", () => {
+    act(() => {
+      root!.render(
+        <Popover trigger="Toggle" role="dialog" aria-label="Toggled" initialFocus="first" dismissOnFocusLeave>
+          <button type="button">Toggled action</button>
+        </Popover>,
+      );
+    });
+    const toggle = findButton("Toggle")!;
+    act(() => toggle.click());
+    expect(dialog("Toggled")).not.toBeNull();
+
+    act(() => {
+      toggle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+    });
+    // Intermediate close (focus moved away) before the click arrives.
+    act(() => {
+      document.body.appendChild(Object.assign(document.createElement("button"), { id: "elsewhere" }));
+      document.getElementById("elsewhere")!.focus();
+    });
+    expect(dialog("Toggled")).toBeNull();
+    act(() => toggle.click());
+    expect(dialog("Toggled")).toBeNull();
+
+    // A keyboard click (no pointerdown) still toggles open.
+    act(() => toggle.click());
+    expect(dialog("Toggled")).not.toBeNull();
+    document.getElementById("elsewhere")?.remove();
+  });
+
   it("keeps a nested child above its parent when both open in the same commit", () => {
     act(() => {
       root!.render(

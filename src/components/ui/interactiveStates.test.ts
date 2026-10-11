@@ -76,13 +76,9 @@ describe("shared interactive-state contract", () => {
     expect(switchCss).not.toMatch(/\.input:hover/);
   });
 
-  it("keeps the selected Appearance segment distinct while still reacting to hover and active", () => {
-    expect(settingsCss).toMatch(
-      /\.appearanceOption\[aria-checked="true"\]:hover\s*\{[^}]*border-color:\s*var\(--color-control-hover-border\);[^}]*background:\s*var\(--color-selection-surface\);/s,
-    );
-    expect(settingsCss).toMatch(
-      /\.appearanceOption\[aria-checked="true"\]:active\s*\{[^}]*border-color:\s*var\(--color-control-active-border\);[^}]*background:\s*var\(--color-selection-surface\);/s,
-    );
+  it("drops the Appearance segmented control CSS now that it is a Select", () => {
+    expect(settingsCss).not.toContain("appearanceOption");
+    expect(settingsCss).not.toContain("appearanceGroup");
   });
 
   it("preserves IconButton selected state while distinguishing selected hover and active", () => {

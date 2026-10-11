@@ -72,6 +72,11 @@
   transition: var(--transition-interactive);
 }
 
+.pagesTrigger,
+.viewTrigger {
+  font-weight: var(--font-weight-medium);
+}
+
 .pageTrigger:hover:not(:disabled),
 .scaleTrigger:hover:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger:hover:not(:disabled) {

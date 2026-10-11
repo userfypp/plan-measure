@@ -50,7 +50,55 @@
 
 .settingCopy {
   min-width: 0;
-  display: grid;
+  /* Inline flow: when the label wraps, the help icon stays next to its last word. */
+  display: block;
+}
+
+.settingCopy > span {
+  margin-inline-start: var(--space-4);
+  vertical-align: middle;
+}
+
+.helpButton {
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: help;
+}
+
+.helpButton:hover {
+  color: var(--color-text-primary);
+}
+
+.helpButton:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.helpButton svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .settingLabel {
@@ -61,84 +109,8 @@
   line-height: var(--line-height-base);
 }
 
-.description {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-secondary);
-}
-
-.appearanceGroup {
-  width: 176px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-}
-
-.appearanceOption {
-  position: relative;
-  min-width: 0;
-  min-height: var(--control-height-compact);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: 0;
-  padding: 0 var(--space-8);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-base);
-  transition: var(--transition-interactive);
-}
-
-.appearanceOption:first-child {
-  border-radius: var(--radius-control) 0 0 var(--radius-control);
-}
-
-.appearanceOption:last-child {
-  border-radius: 0 var(--radius-control) var(--radius-control) 0;
-}
-
-.appearanceOption + .appearanceOption {
-  margin-left: var(--control-border-overlap);
-}
-
-.appearanceOption:hover {
-  z-index: var(--z-raised);
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.appearanceOption:active {
-  z-index: var(--z-raised);
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-}
-
-.appearanceOption[aria-checked="true"] {
-  z-index: var(--z-raised);
-  border-color: var(--color-accent);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-  font-weight: var(--font-weight-semibold);
-}
-
-.appearanceOption[aria-checked="true"]:hover {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.appearanceOption[aria-checked="true"]:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.appearanceOption:focus-visible {
-  z-index: var(--z-controls);
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+.appearanceSelect {
+  width: var(--geometry-select-width-regular);
 }
 
 .recoveredWorkspaceSelect {
@@ -170,7 +142,7 @@
     gap: var(--space-8);
   }
 
-  .appearanceGroup,
+  .appearanceSelect,
   .recoveredWorkspaceSelect {
     width: 100%;
   }

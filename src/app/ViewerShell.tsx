@@ -23,6 +23,7 @@ import {
   type AuthoringCapability,
 } from "../features/viewer/AuthoringCapability";
 import { ViewerDockContainer } from "./ViewerDockContainer";
+import { PageBrowserSkeleton } from "../features/pages/PageBrowserSkeleton";
 import { retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
 import styles from "./ViewerShell.module.css";
@@ -224,7 +225,7 @@ export function ViewerShell({
             {viewerTransientOverlay}
             {pagesOpen && pdfDocument && (
               <Suspense
-                fallback={<div role="status" className={styles.pagesLoading}>Loading pages…</div>}
+                fallback={<PageBrowserSkeleton />}
               >
                 <PageBrowserHost
                   document={pdfDocument}
