@@ -406,3 +406,15 @@
 .sourceMeasurement:focus-visible {
   outline-offset: -2px;
 }
+
+.sourcePagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}

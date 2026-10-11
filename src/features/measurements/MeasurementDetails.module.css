@@ -181,6 +181,8 @@
 }
 
 .itemsList {
+  max-height: min(480px, 50dvh);
+  overflow: auto;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -259,4 +261,13 @@
   border-color: transparent;
   background: transparent;
   color: var(--color-danger-semantic);
+}
+
+.itemsPagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  font-size: var(--font-size-sm);
 }

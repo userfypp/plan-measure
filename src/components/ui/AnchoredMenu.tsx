@@ -46,7 +46,7 @@ export interface AnchoredMenuProps {
   triggerProps?: PopoverTriggerProps;
   className?: string;
   label: string;
-  items: readonly AnchoredMenuItem[];
+  items: readonly AnchoredMenuItem[] | (() => readonly AnchoredMenuItem[]);
   showMarkerColumn?: boolean;
   placement?: PopoverPlacement;
   open?: boolean;
@@ -77,7 +77,7 @@ export function AnchoredMenu({
   triggerProps,
   className,
   label,
-  items,
+  items: providedItems,
   showMarkerColumn = true,
   placement = "bottom-start",
   open,
@@ -87,6 +87,10 @@ export function AnchoredMenu({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const isOpen = open ?? uncontrolledOpen;
+  const items = useMemo(
+    () => typeof providedItems === "function" ? isOpen ? providedItems() : [] : providedItems,
+    [providedItems, isOpen],
+  );
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const initialFocusIndex = useMemo(() => firstInitialFocusIndex(items), [items]);
   const selectionMenu = items.some(
@@ -99,7 +103,7 @@ export function AnchoredMenu({
   const tabbableIndex = focusIndex ?? initialFocusIndex;
 
   function setOpen(nextOpen: boolean) {
-    setFocusIndex(nextOpen ? initialFocusIndex : null);
+    setFocusIndex(null);
     if (open === undefined) setUncontrolledOpen(nextOpen);
     onOpenChange?.(nextOpen);
   }

@@ -1,5 +1,5 @@
 import { memo, useId, useMemo, useState } from "react";
-import { Badge } from "../../components/ui";
+import { Badge, Button } from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -142,6 +142,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
   const sourceList = (key: string, sources: readonly TakeoffMeasurementSource[]) =>
     expandedSources === key && sources.length > 0 ? (
       <SourceMeasurements
+        key={`${breakdown}:${activeDimensionId}:${key}`}
         id={`${sourceListId}-${key}`}
         sources={sources}
         onOpen={props.onOpenMeasurement}
@@ -303,9 +304,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
           )}
         </section>
       )}
-      {overall.measurementCount > 0 && (
-        <p className={styles.scope}>All pages · Includes hidden</p>
-      )}
+      {overall.measurementCount > 0 && <p className={styles.scope}>All pages · Includes hidden</p>}
     </section>
   );
 });
@@ -360,40 +359,78 @@ function SourceMeasurements({
   onOpen?: (pageNumber: number, measurementId: string) => void;
   disabled?: boolean;
 }) {
+  const pageSize = 50;
+  const [page, setPage] = useState(0);
+  const lastPage = Math.max(0, Math.ceil(sources.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
+  if (currentPage !== page) setPage(currentPage);
+  const start = currentPage * pageSize;
   return (
-    <ul id={id} className={styles.sourceList} aria-label="Source measurements">
-      {sources.map(({ measurement, pageNumber, pageLabel, exclusionReason }) => (
-        <li key={`${pageNumber}:${measurement.id}`}>
-          <button
-            type="button"
-            className={styles.sourceMeasurement}
-            data-measurement-id={measurement.id}
-            data-measurement-control="selection"
-            disabled={disabled || !onOpen}
-            aria-label={`Open ${measurement.name} on page ${pageNumber}`}
-            onClick={() => onOpen?.(pageNumber, measurement.id)}
+    <>
+      <ul key={currentPage} id={id} className={styles.sourceList} aria-label="Source measurements">
+        {sources
+          .slice(start, start + pageSize)
+          .map(({ measurement, pageNumber, pageLabel, exclusionReason }) => (
+            <li key={`${pageNumber}:${measurement.id}`}>
+              <button
+                type="button"
+                className={styles.sourceMeasurement}
+                data-measurement-id={measurement.id}
+                data-measurement-control="selection"
+                disabled={disabled || !onOpen}
+                aria-label={`Open ${measurement.name} on page ${pageNumber}`}
+                onClick={() => onOpen?.(pageNumber, measurement.id)}
+              >
+                <span className={styles.sourceGlyph} aria-hidden="true">
+                  <ToolIcon name={measurement.type} />
+                </span>
+                <span className={styles.sourceText}>
+                  <span className={styles.sourceName}>{measurement.name}</span>
+                  <span className={styles.sourceMeta}>
+                    {measurementPathSpecs[measurement.type].label} · Page {pageNumber}
+                    {pageLabel !== `Page ${pageNumber}` ? ` · ${pageLabel}` : ""}
+                    {!measurement.visible ? " · Hidden" : ""}
+                  </span>
+                  {exclusionReason && (
+                    <span className={styles.sourceReason}>
+                      {exclusionMessages[exclusionReason]}
+                    </span>
+                  )}
+                </span>
+                <span className={styles.sourceArrow} aria-hidden="true">
+                  ›
+                </span>
+              </button>
+            </li>
+          ))}
+      </ul>
+      {sources.length > pageSize && (
+        <nav className={styles.sourcePagination} aria-label="Source measurement pages">
+          <Button
+            variant="secondary"
+            size="compact"
+            aria-label="Previous source measurements"
+            aria-controls={id}
+            disabled={currentPage === 0}
+            onClick={() => setPage(currentPage - 1)}
           >
-            <span className={styles.sourceGlyph} aria-hidden="true">
-              <ToolIcon name={measurement.type} />
-            </span>
-            <span className={styles.sourceText}>
-              <span className={styles.sourceName}>{measurement.name}</span>
-              <span className={styles.sourceMeta}>
-                {measurementPathSpecs[measurement.type].label}{" "}
-                · Page {pageNumber}
-                {pageLabel !== `Page ${pageNumber}` ? ` · ${pageLabel}` : ""}
-                {!measurement.visible ? " · Hidden" : ""}
-              </span>
-              {exclusionReason && (
-                <span className={styles.sourceReason}>{exclusionMessages[exclusionReason]}</span>
-              )}
-            </span>
-            <span className={styles.sourceArrow} aria-hidden="true">
-              ›
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
+            Previous
+          </Button>
+          <span role="status">
+            {start + 1}–{Math.min(start + pageSize, sources.length)} of {sources.length}
+          </span>
+          <Button
+            variant="secondary"
+            size="compact"
+            aria-label="Next source measurements"
+            aria-controls={id}
+            disabled={currentPage === lastPage}
+            onClick={() => setPage(currentPage + 1)}
+          >
+            Next
+          </Button>
+        </nav>
+      )}
+    </>
   );
 }

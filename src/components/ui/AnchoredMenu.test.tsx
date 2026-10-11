@@ -296,3 +296,12 @@ describe("AnchoredMenu", () => {
     expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest", inline: "nearest" });
   });
 });
+
+it("builds deferred items only while open and focuses the first option", () => {
+  const items = vi.fn(menuItems);
+  act(() => root!.render(<AnchoredMenu trigger="Move" label="Destinations" items={items} />));
+  expect(items).not.toHaveBeenCalled();
+  act(() => trigger().click());
+  expect(items).toHaveBeenCalledOnce();
+  expect(document.activeElement).toBe(buttons()[0]);
+});

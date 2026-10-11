@@ -122,6 +122,48 @@ afterEach(() => {
 });
 
 describe("MeasurementDetails", () => {
+  it("bounds a 5000-item count and preserves global indices when paging and moving", () => {
+    const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null,
+      points: Array.from({ length: 5000 }, (_, index) => ({ x: index, y: 0 })) };
+    const target: Measurement = { ...count, id: "target", name: "Target", points: [{ x: 0, y: 0 }] };
+    const props = createProps({ measurement: count, page: { ...page, measurements: [count, target] }, onRemoveCountItem: vi.fn(), onMoveCountItem: vi.fn() });
+    renderDetails(props);
+    expect(container!.querySelectorAll("[data-count-item-remove]")).toHaveLength(50);
+    expect(buttonByText("Previous items").disabled).toBe(true);
+    act(() => buttonByText("Next items").click());
+    expect(container!.querySelector('[aria-label="Remove item 51"]')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Remove item 1"]')).toBeNull();
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Move item 51 to another count"]')!.click());
+    const option = document.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+    expect(document.activeElement).toBe(option);
+    act(() => option.click());
+    expect(props.onMoveCountItem).toHaveBeenCalledWith(50, "target");
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 51"]')!.click());
+    expect(props.onRemoveCountItem).toHaveBeenCalledWith(50);
+    renderDetails({ ...props, measurement: { ...count, name: "Renamed" } });
+    expect(container!.querySelector('[aria-label="Remove item 51"]')).not.toBeNull();
+    act(() => buttonByText("Previous items").click());
+    expect(container!.querySelector('[aria-label="Remove item 1"]')).not.toBeNull();
+  });
+
+  it("clamps the last item page after removal and focuses the nearest remaining item", () => {
+    let frame: FrameRequestCallback | undefined;
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frame = callback; return 1; });
+    try {
+      const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null,
+        points: Array.from({ length: 51 }, (_, index) => ({ x: index, y: 0 })) };
+      const props = createProps({ measurement: count, onRemoveCountItem: vi.fn() });
+      renderDetails(props);
+      act(() => buttonByText("Next items").click());
+      act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 51"]')!.click());
+      renderDetails({ ...props, measurement: { ...count, points: count.points.slice(0, 50) } });
+      act(() => frame!(0));
+      expect(document.activeElement).toBe(container!.querySelector('[aria-label="Remove item 50"]'));
+      expect(container!.querySelectorAll("[data-count-item-remove]")).toHaveLength(50);
+      expect(container!.querySelector('[aria-label="Count items pagination"]')).toBeNull();
+    } finally { raf.mockRestore(); }
+  });
+
   it("keeps keyboard focus on the nearest remaining item after removal", () => {
     let frame: FrameRequestCallback | undefined;
     const animationFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {

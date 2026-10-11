@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { AnchoredMenu, Button, IconButton, Input } from "../../components/ui";
 import type {
   AreaDisplay,
@@ -43,6 +43,8 @@ export interface MeasurementDetailsProps {
   addCountItemsDisabledReason?: string;
   onDelete: () => void;
 }
+
+const COUNT_ITEMS_PER_PAGE = 50;
 
 export function MeasurementDetails({
   page,
@@ -90,9 +92,19 @@ export function MeasurementDetails({
       : "Scale unavailable";
   const [perimeterResult, areaResult] = viewModel.valueLabel.split(" · ");
   const polygonResults = measurementPathSpecs[measurement.type].closed && perimeterResult && areaResult;
-  const otherCounts = page.measurements.filter(
+  const otherCounts = useMemo(() => page.measurements.filter(
     (candidate) => candidate.type === "count" && candidate.id !== measurement.id,
-  );
+  ), [page.measurements, measurement.id]);
+  const [itemPage, setItemPage] = useState(0);
+  const lastItemPage = Math.max(0, Math.ceil(measurement.points.length / COUNT_ITEMS_PER_PAGE) - 1);
+  const visibleItemPage = Math.min(itemPage, lastItemPage);
+  if (itemPage !== visibleItemPage) setItemPage(visibleItemPage);
+  const itemsStart = visibleItemPage * COUNT_ITEMS_PER_PAGE;
+  const itemsListRef = useRef<HTMLUListElement>(null);
+  function changeItemPage(next: number) {
+    setItemPage(next);
+    if (itemsListRef.current) itemsListRef.current.scrollTop = 0;
+  }
 
   function submitRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -241,8 +253,10 @@ export function MeasurementDetails({
                 </Button>
               )}
             </div>
-            <ul className={styles.itemsList} aria-label={`Items in ${measurement.name}`}>
-              {measurement.points.map((_, index) => (
+            <ul ref={itemsListRef} className={styles.itemsList} aria-label={`Items in ${measurement.name}`}>
+              {measurement.points.slice(itemsStart, itemsStart + COUNT_ITEMS_PER_PAGE).map((_, localIndex) => {
+                const index = itemsStart + localIndex;
+                return (
                 <li className={styles.itemRow} key={index}>
                   <span>Item {index + 1}</span>
                   <div className={styles.itemActions}>
@@ -258,7 +272,7 @@ export function MeasurementDetails({
                         label={`Move item ${index + 1} to count`}
                         placement="bottom-end"
                         showMarkerColumn={false}
-                        items={otherCounts.map((count) => ({
+                        items={() => otherCounts.map((count) => ({
                           id: count.id,
                           label: `${count.name}${count.visible ? "" : " (hidden)"}`,
                           onSelect: () => onMoveCountItem(index, count.id),
@@ -271,6 +285,7 @@ export function MeasurementDetails({
                       tooltip={`Remove item ${index + 1}`}
                       tone="danger"
                       disabled={assignmentDisabled}
+                      data-count-item-index={index}
                       data-count-item-remove
                       onClick={(event) => {
                         if (measurement.points.length === 1) {
@@ -280,9 +295,9 @@ export function MeasurementDetails({
                         const list = event.currentTarget.closest("ul");
                         onRemoveCountItem(index);
                         window.requestAnimationFrame(() => {
-                          list?.querySelectorAll<HTMLButtonElement>("[data-count-item-remove]")[
-                            Math.min(index, measurement.points.length - 2)
-                          ]?.focus({ preventScroll: true });
+                          const buttons = Array.from(list?.querySelectorAll<HTMLButtonElement>("[data-count-item-remove]") ?? []);
+                          const nearest = buttons.find((button) => Number(button.dataset.countItemIndex) === Math.min(index, measurement.points.length - 2));
+                          (nearest ?? buttons.at(-1))?.focus({ preventScroll: true });
                         });
                       }}
                       icon={
@@ -303,8 +318,17 @@ export function MeasurementDetails({
                     />
                   </div>
                 </li>
-              ))}
+              ); })}
             </ul>
+            {measurement.points.length > COUNT_ITEMS_PER_PAGE && (
+              <nav className={styles.itemsPagination} aria-label="Count items pagination">
+                <Button size="compact" variant="ghost" disabled={visibleItemPage === 0}
+                  onClick={() => changeItemPage(visibleItemPage - 1)}>Previous items</Button>
+                <span role="status">{itemsStart + 1}–{Math.min(itemsStart + COUNT_ITEMS_PER_PAGE, measurement.points.length)} of {measurement.points.length}</span>
+                <Button size="compact" variant="ghost" disabled={visibleItemPage === lastItemPage}
+                  onClick={() => changeItemPage(visibleItemPage + 1)}>Next items</Button>
+              </nav>
+            )}
           </section>
         )}
 
