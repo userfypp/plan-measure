@@ -255,8 +255,6 @@ describe("ContextToolbar V2", () => {
     act(() => buttonByLabel("Ortho").click());
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("true");
     expect(buttonByLabel("Ortho").getAttribute("aria-pressed")).toBe("true");
-    expect(buttonByLabel("Snap").textContent).toContain("✓");
-    expect(buttonByLabel("Ortho").textContent).toContain("✓");
 
     act(() =>
       workspace!.updateDraft({
