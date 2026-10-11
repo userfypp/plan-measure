@@ -1,7 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button, IconButton } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
-import { ToolIcon } from "../features/viewer/ToolIcon";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
 import { getShortcutLabel } from "../utils/keyboard";
@@ -116,6 +115,39 @@ function ToolbarComposite({
   );
 }
 
+function SnapIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M4.75 3.25h3.5v7.5a1.75 1.75 0 0 0 3.5 0v-7.5h3.5v7.5a5.25 5.25 0 0 1-10.5 0zM4.75 6.75h3.5M11.75 6.75h3.5" />
+    </SelectionSvg>
+  );
+}
+
+function OrthoIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M4.5 3.75v11.75h11.75M4.5 11.25h4.25v4.25" />
+    </SelectionSvg>
+  );
+}
+
+function SelectToolIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M5.25 3.75v11.5l3-3 2.25 4.25 1.75-.9-2.2-4.1h4.2z" />
+    </SelectionSvg>
+  );
+}
+
+function DiscardPointsIcon() {
+  return (
+    <SelectionSvg>
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M7.5 7.5l5 5M12.5 7.5l-5 5" />
+    </SelectionSvg>
+  );
+}
+
 function DrawingAidButton({
   label,
   icon,
@@ -124,30 +156,21 @@ function DrawingAidButton({
   onClick,
 }: {
   label: string;
-  icon: "snap" | "orthogonal";
+  icon: ReactNode;
   pressed: boolean;
   shortcut: string | null;
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      className={[styles.aidButton, pressed ? styles.pressed : ""].filter(Boolean).join(" ")}
+    <IconButton
+      className={styles.selectionIconButton}
+      icon={icon}
       aria-label={label}
-      aria-pressed={pressed}
       aria-keyshortcuts={shortcut ?? undefined}
-      title={shortcut ? `${label} (${shortcut})` : label}
+      tooltip={shortcut ? `${label} (${shortcut})` : label}
+      pressed={pressed}
       onClick={onClick}
-    >
-      <span className={styles.aidIcon} aria-hidden="true">
-        <ToolIcon name={icon} />
-      </span>
-      {pressed && (
-        <span className={styles.pressedMark} aria-hidden="true">
-          ✓
-        </span>
-      )}
-    </button>
+    />
   );
 }
 
@@ -485,14 +508,14 @@ export function ContextToolbar({
         <Divider />
         <DrawingAidButton
           label="Snap"
-          icon="snap"
+          icon={<SnapIcon />}
           shortcut={getShortcutLabel("toggle-snap")}
           pressed={snap}
           onClick={toggleSnap}
         />
         <DrawingAidButton
           label="Ortho"
-          icon="orthogonal"
+          icon={<OrthoIcon />}
           shortcut={getShortcutLabel("toggle-orthogonal")}
           pressed={orthogonal}
           onClick={toggleOrthogonal}
@@ -532,17 +555,24 @@ export function ContextToolbar({
             </Button>
           </>
         )}
-        <Button
-          className={`${styles.action} ${styles.cancelAction}`}
-          variant="ghost"
-          size="compact"
-          onClick={() => {
-            if (pathDraft) clearDraft();
-            else onExitDrawingTool();
-          }}
-        >
-          Cancel
-        </Button>
+        <Divider />
+        <IconButton
+          className={`${styles.selectionIconButton} ${styles.selectionDanger}`}
+          icon={<DiscardPointsIcon />}
+          aria-label="Discard points"
+          tooltip="Discard points"
+          tone="danger"
+          disabled={!pathDraft}
+          disabledReason="No points placed yet."
+          onClick={clearDraft}
+        />
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<SelectToolIcon />}
+          aria-label="Back to Select"
+          tooltip="Back to Select"
+          onClick={onExitDrawingTool}
+        />
       </ToolbarComposite>
     );
   }

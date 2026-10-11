@@ -459,10 +459,10 @@ describe("measurement grouping surfaces", () => {
       /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, var\(--geometry-measurement-selection-marker-width\)\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-12\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+      /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-8\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-8\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+      /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-4\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
     );
     expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
   });

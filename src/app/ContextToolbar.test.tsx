@@ -173,7 +173,7 @@ describe("ContextToolbar V2", () => {
     expect(contextKind()).toBeNull();
   });
 
-  it("shows armed Line aids and a real Cancel action without inventing Finish", () => {
+  it("shows armed Line aids and separate Discard and Back to Select actions without inventing Finish", () => {
     renderToolbar();
     act(() => workspace!.chooseTool("line"));
 
@@ -182,7 +182,8 @@ describe("ContextToolbar V2", () => {
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("false");
     expect(buttonByLabel("Ortho").getAttribute("aria-pressed")).toBe("false");
     expect(container?.textContent).not.toContain("Finish");
-    expect(buttonByText("Cancel")).toBeTruthy();
+    expect(buttonByLabel("Back to Select")).toBeTruthy();
+    expect(buttonByLabel("Discard points").getAttribute("aria-disabled")).toBe("true");
 
     act(() =>
       workspace!.startDraft({
@@ -192,7 +193,7 @@ describe("ContextToolbar V2", () => {
       }),
     );
     expect(container?.textContent).not.toContain("Finish");
-    expect(buttonByText("Cancel")).toBeTruthy();
+    expect(buttonByLabel("Discard points").getAttribute("aria-disabled")).toBeNull();
   });
 
   it.each([
@@ -236,8 +237,7 @@ describe("ContextToolbar V2", () => {
     const finish = vi.fn();
     renderToolbar(props(), finish);
     act(() => workspace!.chooseTool("polyline"));
-    expect(buttonByText("Cancel")).toBeTruthy();
-    act(() => buttonByText("Cancel").click());
+    act(() => buttonByLabel("Back to Select").click());
     expect(workspace?.activeTool).toBe("select");
     act(() => workspace!.chooseTool("polyline"));
     act(() =>
@@ -273,11 +273,10 @@ describe("ContextToolbar V2", () => {
     act(() => buttonByText("Finish").click());
     expect(finish).toHaveBeenCalledOnce();
 
-    act(() => buttonByText("Cancel").click());
+    act(() => buttonByLabel("Discard points").click());
     expect(workspace?.draft).toBeNull();
     expect(workspace?.activeTool).toBe("polyline");
-    expect(buttonByText("Cancel")).toBeTruthy();
-    act(() => buttonByText("Cancel").click());
+    act(() => buttonByLabel("Back to Select").click());
     expect(workspace?.activeTool).toBe("select");
   });
 
@@ -296,7 +295,8 @@ describe("ContextToolbar V2", () => {
     const snap = buttonByLabel("Snap");
     const ortho = buttonByLabel("Ortho");
     const finish = buttonByText("Finish");
-    const cancel = buttonByText("Cancel");
+    const discard = buttonByLabel("Discard points");
+    const cancel = buttonByLabel("Back to Select");
     expect(finish.disabled).toBe(false);
     expect(finish.getAttribute("aria-disabled")).toBe("true");
     act(() => finish.click());
@@ -309,6 +309,8 @@ describe("ContextToolbar V2", () => {
     press("ArrowRight");
     expect(document.activeElement).toBe(finish);
     expect(finish.getAttribute("aria-disabled")).toBe("true");
+    press("ArrowRight");
+    expect(document.activeElement).toBe(discard);
     press("ArrowRight");
     expect(document.activeElement).toBe(cancel);
     press("ArrowRight");

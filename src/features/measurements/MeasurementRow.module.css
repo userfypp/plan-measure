@@ -57,11 +57,11 @@
   display: grid;
   grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr);
   align-items: center;
-  gap: var(--space-12);
+  gap: var(--space-8);
   border: var(--border-width) solid transparent;
   border-radius: 0;
   padding: var(--space-4) var(--space-8) var(--space-4)
-    calc(var(--space-12) + var(--measurement-row-content-indent, 0px));
+    calc(var(--space-8) + var(--measurement-row-content-indent, 0px));
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
@@ -204,7 +204,7 @@
 @container measurement-panel (max-width: 304px) {
   .selection {
     gap: var(--space-8);
-    padding-left: calc(var(--space-8) + var(--measurement-row-content-indent, 0px));
+    padding-left: calc(var(--space-4) + var(--measurement-row-content-indent, 0px));
   }
 
   .metadata {
