@@ -139,10 +139,10 @@ describe("ContextToolbar V2", () => {
     const count = { id: "count", name: "Plug", type: "count" as const, calibrationId: null, points: [{ x: 1, y: 2 }], classificationValueIds: [], visible: true };
     const selection = props({ selectedMeasurements: [count], selectedMeasurementId: count.id, selectedMeasurementName: count.name, onAddCountItems });
     renderToolbar(selection);
-    act(() => buttonByText("Add items").click());
+    act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).toHaveBeenCalledOnce();
     renderToolbar({ ...selection, addCountItemsDisabledReason: "Show this count before adding items" });
-    act(() => buttonByText("Add items").click());
+    act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).toHaveBeenCalledOnce();
   });
 
@@ -378,8 +378,8 @@ describe("ContextToolbar V2", () => {
     );
     act(() => workspace!.selectMeasurement("line-1"));
 
-    const duplicate = buttonByText("Duplicate");
-    const details = buttonByText("Details");
+    const duplicate = buttonByLabel("Duplicate");
+    const details = buttonByLabel("Details");
     const rename = renameTrigger("Line 1");
     expect(duplicate.disabled).toBe(true);
     expect(duplicate.tabIndex).toBe(-1);
@@ -547,17 +547,17 @@ describe("ContextToolbar V2", () => {
 
     expect(contextKind()).toBe("selection");
     expect(container?.textContent).not.toContain("Edit");
-    act(() => buttonByText("Duplicate").click());
+    act(() => buttonByLabel("Duplicate").click());
     expect(duplicate).toHaveBeenCalledOnce();
-    expect(buttonByText("Details")).toBeTruthy();
-    act(() => buttonByText("Delete").click());
+    expect(buttonByLabel("Details")).toBeTruthy();
+    act(() => buttonByLabel("Delete").click());
     expect(remove).toHaveBeenCalledOnce();
-    act(() => buttonByText("Details").click());
+    act(() => buttonByLabel("Details").click());
     expect(workspace?.measurementDetailsOpen).toBe(true);
     expect(container?.textContent).not.toContain("Details");
     expect(container?.textContent).not.toContain("Edit");
-    expect(buttonByText("Duplicate")).toBeTruthy();
-    expect(buttonByText("Delete")).toBeTruthy();
+    expect(buttonByLabel("Duplicate")).toBeTruthy();
+    expect(buttonByLabel("Delete")).toBeTruthy();
 
     act(() => workspace!.chooseTool("hand"));
     expect(contextKind()).toBeNull();
@@ -568,9 +568,9 @@ describe("ContextToolbar V2", () => {
     act(() => workspace!.selectMeasurement("line-1"));
 
     const rename = renameTrigger("Line 1");
-    const duplicate = buttonByText("Duplicate");
-    const details = buttonByText("Details");
-    const remove = buttonByText("Delete");
+    const duplicate = buttonByLabel("Duplicate");
+    const details = buttonByLabel("Details");
+    const remove = buttonByLabel("Delete");
     act(() => rename.focus());
 
     press("ArrowRight");
@@ -681,15 +681,15 @@ describe("selection actions in the context bar", () => {
     renderToolbar(props({ selectedMeasurements, classificationCatalog: { dimensions: [] }, onEditSelectedMeasurements: onEdit, onDeleteSelectedMeasurement: onDelete, onClearMeasurementSelection: onClear }));
     expect(contextKind()).toBe("selection");
     expect(container!.textContent).toContain("2 selected");
-    expect(buttonByText("Duplicate")).toBeTruthy();
+    expect(buttonByLabel("Duplicate")).toBeTruthy();
     expect(container!.textContent).not.toContain("Details");
     const buttons = toolbarButtons();
-    expect(buttons.indexOf(buttonByText("Delete"))).toBeLessThan(buttons.indexOf(buttonByLabel("Hide selected measurements")));
+    expect(buttons.indexOf(buttonByLabel("Delete"))).toBeLessThan(buttons.indexOf(buttonByLabel("Hide selected measurements")));
     expect(buttons.indexOf(buttonByLabel("Hide selected measurements"))).toBeLessThan(buttons.indexOf(buttonByLabel("Clear measurement selection")));
     act(() => buttonByLabel("Hide selected measurements").click());
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(onEdit).toHaveBeenCalledWith({ measurementIds: ["one", "two"], operation: { type: "visibility", visible: false } });
-    act(() => buttonByText("Delete").click());
+    act(() => buttonByLabel("Delete").click());
     expect(onDelete).toHaveBeenCalledOnce();
     act(() => buttonByLabel("Clear measurement selection").click());
     expect(onClear).toHaveBeenCalledOnce();
@@ -708,9 +708,9 @@ describe("selection actions in the context bar", () => {
 
   it("keeps classification alongside single-measurement actions without bulk visibility", () => {
     renderToolbar(props({ selectedMeasurementName: "one", selectedMeasurements: selectedMeasurements.slice(0, 1), classificationCatalog: { dimensions: [] }, onEditSelectedMeasurements: vi.fn(() => true) }));
-    expect(buttonByText("Duplicate")).toBeTruthy();
-    expect(buttonByText("Details")).toBeTruthy();
-    expect(buttonByText("Classify")).toBeTruthy();
+    expect(buttonByLabel("Duplicate")).toBeTruthy();
+    expect(buttonByLabel("Details")).toBeTruthy();
+    expect(buttonByLabel("Classify")).toBeTruthy();
     expect(container!.querySelector('button[aria-label="Hide selected measurements"]')).toBeNull();
   });
 });

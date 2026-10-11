@@ -134,7 +134,7 @@ describe("ProjectLibraryDialog", () => {
     const currentButton = container?.querySelector<HTMLButtonElement>(
       'button[aria-label="Current project Level 01.pdf"]',
     );
-    expect(currentButton?.textContent).toBe("Current");
+    expect(currentButton).not.toBeNull();
     expect(currentButton?.getAttribute("aria-disabled")).toBe("true");
     const openButton = container?.querySelector<HTMLButtonElement>(
       'button[aria-label="Open project Level 02.pdf"]',
@@ -149,9 +149,15 @@ describe("ProjectLibraryDialog", () => {
       ...row.querySelectorAll<HTMLButtonElement>("button"),
     ]);
     expect(projectButtons).toHaveLength(6);
-    expect(projectButtons.every((button) => button.classList.contains(buttonStyles.compact!))).toBe(
-      true,
-    );
+    expect(projectButtons.every((button) => button.textContent === "")).toBe(true);
+    expect(
+      [...(projectRows ?? [])].map((row) =>
+        [...row.querySelectorAll("button")].map((button) => button.getAttribute("aria-label")),
+      ),
+    ).toEqual([
+      ["Current project Level 01.pdf", "Export project Level 01.pdf", "Discard project Level 01.pdf"],
+      ["Open project Level 02.pdf", "Export project Level 02.pdf", "Discard project Level 02.pdf"],
+    ]);
     act(() => openButton.click());
 
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("other");
@@ -161,8 +167,8 @@ describe("ProjectLibraryDialog", () => {
     if (!exportButton) throw new Error("The project export action was not rendered.");
     act(() => exportButton.click());
     expect(callbacks.onExportProject).toHaveBeenCalledWith("other");
-    const discardButton = [...(projectRows?.[1]?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent === "Discard",
+    const discardButton = projectRows?.[1]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Discard project Level 02.pdf"]',
     );
     if (!discardButton) throw new Error("The project discard action was not rendered.");
     act(() => discardButton.click());
@@ -172,8 +178,8 @@ describe("ProjectLibraryDialog", () => {
   it("offers a continue action before restoring the current project and supports an empty library", () => {
     const onOpenPdf = vi.fn();
     const callbacks = render({ currentSessionLoaded: false, onOpenPdf });
-    const continueButton = [...(container?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent === "Continue",
+    const continueButton = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Continue project Level 01.pdf"]',
     );
     if (!continueButton) throw new Error("The current project continue action was not rendered.");
     act(() => continueButton.click());
@@ -201,7 +207,7 @@ describe("ProjectLibraryDialog", () => {
     if (!exportCurrent) throw new Error("The current project export action was not rendered.");
     expect(
       [close, exportCurrent, importProject, openPdf].every((button) =>
-        button.classList.contains(buttonStyles.compact!),
+        button.classList.contains(buttonStyles.regular!),
       ),
     ).toBe(true);
     act(() => importProject.click());

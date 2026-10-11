@@ -12,7 +12,13 @@
   min-height: 0;
   overflow: hidden;
   outline: none;
-  background: var(--color-surface-viewer);
+  background-color: var(--color-surface-viewer);
+  background-image: radial-gradient(
+    circle at center,
+    var(--color-viewer-grid-dot) var(--geometry-viewer-grid-dot-radius),
+    transparent calc(var(--geometry-viewer-grid-dot-radius) * 1.5)
+  );
+  background-size: var(--geometry-viewer-grid-spacing) var(--geometry-viewer-grid-spacing);
 }
 
 .viewport:focus-visible {

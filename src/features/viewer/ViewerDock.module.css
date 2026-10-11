@@ -43,6 +43,22 @@
   stroke-width: var(--icon-stroke-width);
 }
 
+.dock .pagesTrigger {
+  width: var(--target-current);
+  height: var(--target-current);
+  min-width: var(--target-current);
+  flex: 0 0 auto;
+  border-color: transparent;
+}
+
+.dock .pagesTrigger:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+}
+
+.dock .pagesTrigger[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+
 .zoomValue {
   min-width: var(--geometry-viewer-zoom-min-width);
   flex: 0 0 auto;
@@ -72,7 +88,6 @@
   transition: var(--transition-interactive);
 }
 
-.pagesTrigger,
 .viewTrigger {
   font-weight: var(--font-weight-medium);
 }
@@ -92,7 +107,6 @@
 }
 
 .pageTrigger[aria-expanded="true"]:not(:disabled),
-.pagesTrigger[aria-pressed="true"]:not(:disabled),
 .scaleTrigger[aria-expanded="true"]:not(:disabled):not([aria-disabled="true"]),
 .viewTrigger[aria-expanded="true"]:not(:disabled) {
   border-color: var(--color-accent);

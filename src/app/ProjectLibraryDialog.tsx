@@ -1,4 +1,5 @@
-import { Badge, Button, Dialog } from "../components/ui";
+import type { ReactNode } from "react";
+import { Badge, Button, Dialog, IconButton } from "../components/ui";
 import type { SavedProjectSummary } from "../services/persistence";
 import styles from "./ProjectLibraryDialog.module.css";
 
@@ -18,6 +19,42 @@ interface ProjectLibraryDialogProps {
   onConfirmDiscard: (projectId: string) => void;
   onClose: () => void;
 }
+
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
+}
+
+const openIcon = (
+  <Icon>
+    <path d="M8 4.5H5.5A1.5 1.5 0 0 0 4 6v8.5A1.5 1.5 0 0 0 5.5 16H14a1.5 1.5 0 0 0 1.5-1.5V12" />
+    <path d="M11.5 4H16v4.5M16 4l-6 6" />
+  </Icon>
+);
+const exportIcon = (
+  <Icon>
+    <path d="M10 3.5v9M6.5 9.5l3.5 3.5 3.5-3.5M4 16h12" />
+  </Icon>
+);
+const discardIcon = (
+  <Icon>
+    <path d="M4 5.5h12M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M5.5 5.5l.7 10a1.5 1.5 0 0 0 1.5 1.4h4.6a1.5 1.5 0 0 0 1.5-1.4l.7-10M8.5 9v4.5M11.5 9v4.5" />
+  </Icon>
+);
+const importIcon = (
+  <Icon>
+    <path d="M10 13V4M6.5 7 10 3.5 13.5 7M4 12.5V15a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2.5" />
+  </Icon>
+);
+const openPdfIcon = (
+  <Icon>
+    <path d="M11.5 3H6a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 6 17h8a1.5 1.5 0 0 0 1.5-1.5V7L11.5 3Z" />
+    <path d="M11.5 3v4h4M10 9.5v4M8 11.5h4" />
+  </Icon>
+);
 
 function savedDate(timestamp: number): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp);
@@ -95,33 +132,29 @@ export function ProjectLibraryDialog({
                       </p>
                     </div>
                     <div className={styles.projectActions}>
-                      <Button
-                        size="compact"
-                        variant="secondary"
-                        disabled={opening}
-                        aria-label={`Export project ${project.name}`}
-                        onClick={() => onExportProject(project.id)}
-                      >
-                        Export
-                      </Button>
-                      <Button
-                        size="compact"
-                        variant={isCurrent ? "primary" : "secondary"}
+                      <IconButton
+                        icon={openIcon}
                         disabled={opening || isOpen}
                         disabledReason={isOpen ? "This project is already open." : undefined}
+                        tooltip={isCurrent && !isOpen ? "Continue" : "Open"}
                         aria-label={`${isOpen ? "Current project" : isCurrent ? "Continue project" : "Open project"} ${project.name}`}
                         onClick={() => onOpenProject(project.id)}
-                      >
-                        {isOpen ? "Current" : isCurrent ? "Continue" : "Open"}
-                      </Button>
-                      <Button
-                        size="compact"
-                        variant="dangerSecondary"
+                      />
+                      <IconButton
+                        icon={exportIcon}
                         disabled={opening}
+                        tooltip="Export"
+                        aria-label={`Export project ${project.name}`}
+                        onClick={() => onExportProject(project.id)}
+                      />
+                      <IconButton
+                        icon={discardIcon}
+                        tone="danger"
+                        disabled={opening}
+                        tooltip="Discard"
+                        aria-label={`Discard project ${project.name}`}
                         onClick={() => onRequestDiscard(project.id)}
-                      >
-                        Discard
-                      </Button>
+                      />
                     </div>
                   </li>
                 );
@@ -141,24 +174,26 @@ export function ProjectLibraryDialog({
             </div>
           )}
           <div className={styles.actions}>
-            <Button size="compact" variant="ghost" onClick={onClose}>
+            <Button variant="ghost" onClick={onClose}>
               Close
             </Button>
             {currentSessionLoaded &&
               !projects.some((project) => project.id === activeProjectId) && (
                 <Button
-                  size="compact"
                   variant="secondary"
                   disabled={opening}
                   onClick={() => onExportProject()}
                 >
+                  <span className={styles.buttonIcon} aria-hidden="true">{exportIcon}</span>
                   Export current project
                 </Button>
               )}
-            <Button size="compact" variant="secondary" disabled={opening} onClick={onImportProject}>
+            <Button variant="secondary" disabled={opening} onClick={onImportProject}>
+              <span className={styles.buttonIcon} aria-hidden="true">{importIcon}</span>
               Import project
             </Button>
-            <Button size="compact" onClick={onOpenPdf} disabled={opening}>
+            <Button onClick={onOpenPdf} disabled={opening}>
+              <span className={styles.buttonIcon} aria-hidden="true">{openPdfIcon}</span>
               Open PDF
             </Button>
           </div>

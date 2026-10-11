@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tooltip, type TooltipPosition } from "./Tooltip";
@@ -113,6 +113,27 @@ describe("Tooltip viewport placement", () => {
     renderTooltip(position);
     showTooltip();
     expectPosition(left, top);
+  });
+
+  it("places the tooltip against an external anchor instead of the trigger", () => {
+    const anchorRef = createRef<HTMLDivElement>();
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.getAttribute("role") === "tooltip") return rect(0, 0, 160, 32);
+      return this.hasAttribute("data-anchor") ? rect(100, 200, 160, 40) : rect(240, 224, 16, 16);
+    });
+    act(() =>
+      root.render(
+        <div ref={anchorRef} data-anchor="">
+          <Tooltip content="Help" delay={0} anchorRef={anchorRef}>
+            <button>?</button>
+          </Tooltip>
+        </div>,
+      ),
+    );
+    showTooltip();
+    expectPosition(100, 160);
   });
 
   it("repositions on resize and nested scroll", () => {

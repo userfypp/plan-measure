@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type ReactElement,
+  type RefObject,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -19,6 +20,8 @@ export interface TooltipProps {
   position?: TooltipPosition;
   delay?: number;
   describeTrigger?: boolean;
+  /** Element the tooltip is placed against instead of the trigger (e.g. a whole wrapped label). */
+  anchorRef?: RefObject<HTMLElement | null>;
 }
 
 type DescribedTriggerProps = {
@@ -31,6 +34,7 @@ export function Tooltip({
   position = "top",
   delay = 300,
   describeTrigger = true,
+  anchorRef,
 }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0 });
@@ -52,7 +56,7 @@ export function Tooltip({
     if (!visible) return;
 
     function updateAnchor() {
-      const rect = rootRef.current?.getBoundingClientRect();
+      const rect = (anchorRef?.current ?? rootRef.current)?.getBoundingClientRect();
       const tooltip = tooltipRef.current?.getBoundingClientRect();
       if (!rect || !tooltip) return;
       let x = rect.left + (rect.width - tooltip.width) / 2;
@@ -85,7 +89,7 @@ export function Tooltip({
       window.removeEventListener("resize", updateAnchor);
       window.removeEventListener("scroll", updateAnchor, true);
     };
-  }, [content, position, visible]);
+  }, [anchorRef, content, position, visible]);
 
   function clearTimer() {
     if (timerRef.current !== null) {

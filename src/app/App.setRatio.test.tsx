@@ -581,8 +581,8 @@ describe("App multiple measurement selection", () => {
     await renderApp(session);
     act(() => buttonByText("Toggle page 1 measurement").click());
     act(() => buttonByText("Toggle second page 1 measurement").click());
-    expect(buttonByText("Duplicate").disabled).toBe(false);
-    act(() => buttonByText("Duplicate").click());
+    expect(buttonByLabel("Duplicate").disabled).toBe(false);
+    act(() => buttonByLabel("Duplicate").click());
     expect(currentSession().pages[1]!.measurements).toHaveLength(4);
     const newIds = currentSession().pages[1]!.measurements.slice(2).map((measurement) => measurement.id);
     expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe(newIds.join(","));
@@ -590,7 +590,7 @@ describe("App multiple measurement selection", () => {
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "v", ctrlKey: true, bubbles: true })));
     expect(currentSession().pages[1]!.measurements).toHaveLength(6);
     act(() => buttonByText("Toggle page 2 measurement").click());
-    expect(buttonByText("Duplicate").disabled).toBe(true);
+    expect(buttonByLabel("Duplicate").disabled).toBe(true);
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true })));
     expect(document.querySelector('[role="alert"]')!.textContent).toContain("single page");
     expect(currentSession().pages[1]!.measurements).toHaveLength(6);
@@ -602,12 +602,12 @@ describe("App multiple measurement selection", () => {
     act(() => buttonByText("Toggle page 2 measurement").click());
     expect(currentSession().currentPage).toBe(1);
     expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("page-one-line,page-two-line");
-    act(() => buttonByText("Delete").click());
+    act(() => buttonByLabel("Delete").click());
     expect(document.querySelector("dialog")!.textContent).toContain("Delete 2 measurements?");
     act(() => dialogButtonByText("Cancel").click());
     expect(currentSession().pages[1]!.measurements).toHaveLength(1);
     expect(currentSession().pages[2]!.measurements).toHaveLength(1);
-    act(() => buttonByText("Delete").click());
+    act(() => buttonByLabel("Delete").click());
     act(() => dialogButtonByText("Delete").click());
     expect(currentSession().pages[1]!.measurements).toEqual([]);
     expect(currentSession().pages[2]!.measurements).toEqual([]);

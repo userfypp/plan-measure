@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
-import { AnchoredMenu, Button, Popover, Select, Switch } from "../../components/ui";
+import { AnchoredMenu, Button, IconButton, Popover, Select, Switch } from "../../components/ui";
 import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
@@ -25,6 +25,15 @@ const AREA_DISPLAY_OPTIONS: Array<{ value: ViewerSettings["areaDisplay"]; label:
   { value: "auto", label: "Auto" },
   { value: "ac", label: "Acres" },
 ];
+
+function PagesIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M6.5 6.5V5A1.5 1.5 0 0 1 8 3.5h7A1.5 1.5 0 0 1 16.5 5v7a1.5 1.5 0 0 1-1.5 1.5h-1.5" />
+      <rect x="3.5" y="6.5" width="10" height="10" rx="1.5" />
+    </svg>
+  );
+}
 
 export interface ViewerDockProps {
   navigation: ViewerNavigationModel;
@@ -219,16 +228,15 @@ export function ViewerDock({
         aria-orientation="horizontal"
       >
         {onTogglePages && (
-          <Button
+          <IconButton
             className={styles.pagesTrigger}
-            variant="ghost"
-            size="compact"
-            aria-pressed={pagesOpen}
+            icon={<PagesIcon />}
+            aria-label="Pages"
+            tooltip="Pages"
+            pressed={pagesOpen}
             aria-controls="page-browser"
             onClick={onTogglePages}
-          >
-            Pages
-          </Button>
+          />
         )}
         <Button
           variant="ghost"

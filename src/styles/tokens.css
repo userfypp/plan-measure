@@ -4,6 +4,7 @@
   --color-surface-shell: #f7f8f9;
   --color-surface-panel: #ffffff;
   --color-surface-viewer: #eceef0;
+  --color-viewer-grid-dot: #d3d7dc;
   --color-surface-raised: #ffffff;
   --color-surface-field: #f3f5f7;
   --color-divider: #e3e6e9;
@@ -54,6 +55,7 @@
   --color-surface-shell: #25292e;
   --color-surface-panel: #25292e;
   --color-surface-viewer: #1b1e22;
+  --color-viewer-grid-dot: #2c3036;
   --color-surface-raised: #30353c;
   --color-surface-field: #30353b;
   --color-divider: #3a4048;
@@ -190,6 +192,8 @@
   --geometry-context-toolbar-height-coarse: 52px;
   --geometry-context-control-height: 32px;
   --geometry-context-control-height-coarse: 44px;
+  --geometry-viewer-grid-spacing: 20px;
+  --geometry-viewer-grid-dot-radius: 1px;
   --geometry-viewer-dock-height: 40px;
   --geometry-viewer-dock-height-coarse: 52px;
   --geometry-viewer-dock-padding: 4px;

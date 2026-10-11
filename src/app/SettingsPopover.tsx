@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { Popover, Select, Switch, Tooltip } from "../components/ui";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -46,12 +46,18 @@ function SettingLabel({
   description: string;
   descriptionId: string;
 }) {
+  const copyRef = useRef<HTMLDivElement>(null);
   return (
-    <div className={styles.settingCopy}>
+    <div ref={copyRef} className={styles.settingCopy}>
       <label id={id} className={styles.settingLabel} htmlFor={htmlFor}>
         {label}
       </label>
-      <Tooltip content={description} position="bottom" describeTrigger={false}>
+      <Tooltip
+        content={description}
+        position="top"
+        anchorRef={copyRef}
+        describeTrigger={false}
+      >
         <button
           type="button"
           className={styles.helpButton}

@@ -35,6 +35,49 @@ export interface ContextToolbarProps {
   onSaveReferenceEdit: () => void;
 }
 
+function SelectionSvg({ children }: { children: ReactNode }) {
+  return (
+    <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+function AddItemsIcon() {
+  return (
+    <SelectionSvg>
+      <circle cx="8" cy="8" r="3.5" />
+      <path d="M14.5 11v6M11.5 14h6" />
+    </SelectionSvg>
+  );
+}
+
+function DuplicateIcon() {
+  return (
+    <SelectionSvg>
+      <rect x="7.5" y="7.5" width="9" height="9" rx="1.5" />
+      <path d="M12.5 7.5v-2A1.5 1.5 0 0 0 11 4H5.5A1.5 1.5 0 0 0 4 5.5V11a1.5 1.5 0 0 0 1.5 1.5h2" />
+    </SelectionSvg>
+  );
+}
+
+function DetailsIcon() {
+  return (
+    <SelectionSvg>
+      <circle cx="10" cy="10" r="6.75" />
+      <path d="M10 9.25v4M10 6.75h.01" />
+    </SelectionSvg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M4 6h12M8 6V4.5h4V6M5.5 6l.7 8.9a1.5 1.5 0 0 0 1.5 1.35h4.6a1.5 1.5 0 0 0 1.5-1.35l.7-8.9M8.5 9v4.5M11.5 9v4.5" />
+    </SelectionSvg>
+  );
+}
+
 function Divider() {
   return <span className={styles.divider} aria-hidden="true" />;
 }
@@ -525,52 +568,51 @@ export function ContextToolbar({
       )}
       <Divider />
       {singleSelection && selectedMeasurements?.[0]?.type === "count" && onAddCountItems && (
-        <Button
-          className={styles.action}
-          variant="secondary"
-          size="compact"
+        <IconButton
+          className={styles.selectionIconButton}
+          aria-label="Add items"
+          tooltip="Add items"
+          icon={<AddItemsIcon />}
           disabled={Boolean(addCountItemsDisabledReason)}
           disabledReason={addCountItemsDisabledReason}
           onClick={onAddCountItems}
-        >
-          Add items
-        </Button>
+        />
       )}
-      <Button
-        className={styles.action}
-        variant="secondary"
-        size="compact"
+      <IconButton
+        className={styles.selectionIconButton}
+        aria-label="Duplicate"
+        tooltip="Duplicate"
+        icon={<DuplicateIcon />}
         disabled={duplicateDisabled}
         onClick={onDuplicateSelectedMeasurement}
-      >
-        Duplicate
-      </Button>
+      />
       {singleSelection && !measurementDetailsOpen && (
-        <Button
-          className={styles.action}
-          variant="secondary"
-          size="compact"
+        <IconButton
+          className={styles.selectionIconButton}
+          aria-label="Details"
+          tooltip="Details"
+          icon={<DetailsIcon />}
           onClick={onOpenMeasurementDetails}
-        >
-          Details
-        </Button>
+        />
       )}
       {selectedMeasurements && onEditSelectedMeasurements && classificationCatalog && (
         <MeasurementClassificationMenu
           measurements={selectedMeasurements}
           catalog={classificationCatalog}
           onEdit={onEditSelectedMeasurements}
-          triggerClassName={styles.action}
+          triggerClassName={styles.selectionIconButton}
+          iconOnly
         />
       )}
-      <Button
-        className={styles.action}
-        variant="dangerSecondary"
-        size="compact"
+      <Divider />
+      <IconButton
+        className={`${styles.selectionIconButton} ${styles.selectionDanger}`}
+        tone="danger"
+        aria-label="Delete"
+        tooltip="Delete"
+        icon={<DeleteIcon />}
         onClick={onDeleteSelectedMeasurement}
-      >
-        Delete
-      </Button>
+      />
       {selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements && (
         <IconButton
           className={styles.selectionIconButton}

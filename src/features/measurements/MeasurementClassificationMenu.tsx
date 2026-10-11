@@ -9,6 +9,17 @@ export interface MeasurementClassificationMenuProps {
   catalog: ClassificationCatalog;
   onEdit: (command: BulkMeasurementCommand) => boolean;
   triggerClassName?: string;
+  /** Renders the trigger as a tag icon; the accessible name stays "Classify". */
+  iconOnly?: boolean;
+}
+
+function TagIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M3.5 10.6V4.5a1 1 0 0 1 1-1h6.1a1 1 0 0 1 .7.3l5.2 5.2a1 1 0 0 1 0 1.4l-6.1 6.1a1 1 0 0 1-1.4 0L3.8 11.3a1 1 0 0 1-.3-.7Z" />
+      <circle cx="7.5" cy="7.5" r="1" />
+    </svg>
+  );
 }
 
 function Chevron() {
@@ -24,6 +35,7 @@ export function MeasurementClassificationMenu({
   catalog,
   onEdit,
   triggerClassName,
+  iconOnly = false,
 }: MeasurementClassificationMenuProps) {
   const [open, setOpen] = useState(false);
   const fieldPrefix = useId();
@@ -33,14 +45,21 @@ export function MeasurementClassificationMenu({
       open={open}
       onOpenChange={setOpen}
       trigger={
-        <span className={styles.triggerContent}>
-          Classify
-          <Chevron />
-        </span>
+        iconOnly ? (
+          <span className={styles.triggerContent}>
+            <TagIcon />
+          </span>
+        ) : (
+          <span className={styles.triggerContent}>
+            Classify
+            <Chevron />
+          </span>
+        )
       }
       triggerProps={{
-        className: [styles.trigger, triggerClassName].filter(Boolean).join(" "),
+        className: [iconOnly ? "" : styles.trigger, triggerClassName].filter(Boolean).join(" "),
         disabled: catalog.dimensions.length === 0,
+        ...(iconOnly ? { "aria-label": "Classify", title: "Classify" } : {}),
       }}
       role="dialog"
       aria-label="Classify selected measurements"

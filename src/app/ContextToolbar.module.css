@@ -415,3 +415,24 @@
     --selection-control-size: var(--geometry-context-control-height-coarse);
   }
 }
+
+.toolbar .selectionDanger {
+  color: var(--color-danger);
+}
+
+.toolbar .selectionDanger:hover:not(:disabled) {
+  border-color: var(--color-danger-hover-semantic);
+  background: var(--color-danger-hover-surface);
+  color: var(--color-danger-hover-semantic);
+}
+
+.toolbar .selectionDanger:active:not(:disabled) {
+  border-color: var(--color-danger-active-semantic);
+  background: var(--color-danger-active-surface);
+  color: var(--color-danger-active-semantic);
+}
+
+.toolbar .selectionIconButton:disabled,
+.toolbar .selectionIconButton[data-disabled="true"] {
+  color: var(--color-text-disabled);
+}
