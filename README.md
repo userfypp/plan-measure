@@ -3,15 +3,13 @@
 [![CI](https://github.com/userfypp/plan-measure/actions/workflows/ci.yml/badge.svg)](https://github.com/userfypp/plan-measure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/userfypp/plan-measure)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/userfypp/plan-measure)](https://github.com/userfypp/plan-measure/releases)
-[![Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://userfypp.github.io/plan-measure/)
+[![Open Plan Measure](https://img.shields.io/badge/Open-Plan%20Measure-2563eb)](https://userfypp.github.io/plan-measure/)
+[![Try a sample project](https://img.shields.io/badge/Try-a%20sample%20project-16a34a)](https://userfypp.github.io/plan-measure/?sample=1)
+[![User guide](https://img.shields.io/badge/User-guide-6b7280)](docs/user-guide.md)
+[![Contributing](https://img.shields.io/badge/Contributing-guide-6b7280)](CONTRIBUTING.md)
 
-**Free, private PDF plan measurement with nothing to install: your plans never leave your browser.**
 
-Measure distances, perimeters, and areas on architectural PDF plans, then export takeoff totals.
-
-[Open Plan Measure](https://userfypp.github.io/plan-measure/) · [**Try a sample project**](https://userfypp.github.io/plan-measure/?sample=1) · [User guide](docs/user-guide.md) · [Contributing](CONTRIBUTING.md)
-
-Missing something? [Open an issue](https://github.com/userfypp/plan-measure/issues/new/choose): I usually reply within a day.
+Measure distances, perimeters, and areas on architectural PDF plans, then export takeoff totals. Missing something? [Open an issue](https://github.com/userfypp/plan-measure/issues/new/choose). I usually reply within a day.
 
 ![Plan Measure workspace](assets/screenshots/plan-measure-overview.png)
 
