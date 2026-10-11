@@ -112,6 +112,7 @@ const PDF_RENDER_DEBOUNCE_MS = 90;
 // settled zoom (and, when the whole page is visible, a cached bitmap) until the wheel has been
 // idle this long.
 const WHEEL_ZOOM_SETTLE_MS = 120;
+const WHEEL_ZOOM_MAX_SETTLE_MS = 600;
 const WHEEL_ZOOM_MIN_MEASUREMENTS = 200;
 const MAX_PAN_CACHE_PIXELS = 4 * 1024 * 1024;
 const MAX_PAN_CACHE_DIMENSION = 4096;
@@ -304,6 +305,7 @@ export function PdfViewer({
   const pendingWheelZoomRef = useRef<{ point: Point; factor: number } | null>(null);
   const wheelSettleTimerRef = useRef<number | null>(null);
   const wheelGestureActiveRef = useRef(false);
+  const wheelFrameStartRef = useRef<number | null>(null);
   const [wheelGesture, setWheelGesture] = useState<{ transform: ViewTransform; cached: boolean; pageNumber: number } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
   const wholeMeasurementDragCancellationRegistryRef = useRef(
@@ -1565,6 +1567,7 @@ export function PdfViewer({
         wheelGestureActiveRef.current = true;
         setWheelGesture((current) => current ?? { transform: settled, cached: pageVisible, pageNumber: page.pageNumber });
       }
+      wheelFrameStartRef.current = performance.now();
       zoomAround(nextZoom.point, nextZoom.factor);
     });
   }
@@ -1873,7 +1876,14 @@ export function PdfViewer({
   useLayoutEffect(() => {
     if (!wheelGesture) return;
     if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
-    wheelSettleTimerRef.current = window.setTimeout(settleWheelZoom, WHEEL_ZOOM_SETTLE_MS);
+    // Slow steps (a busy or throttled CPU) delay the next wheel event by about as much.
+    const started = wheelFrameStartRef.current;
+    wheelFrameStartRef.current = null;
+    const stepMs = started === null ? 0 : performance.now() - started;
+    wheelSettleTimerRef.current = window.setTimeout(
+      settleWheelZoom,
+      Math.min(WHEEL_ZOOM_MAX_SETTLE_MS, Math.max(WHEEL_ZOOM_SETTLE_MS, stepMs * 2)),
+    );
   }, [wheelGesture, viewTransform, settleWheelZoom]);
 
   useLayoutEffect(
