@@ -51,6 +51,7 @@ interface PendingPdf {
   loaded: LoadedPdf;
   session: CurrentSession;
   loadGeneration: number;
+  discardUnsavedSession?: CurrentSession;
 }
 
 interface PdfSessionLifecycleOptions {
@@ -80,6 +81,8 @@ const CLASSIFICATION_REPAIR_WARNING =
   "Autosave is paused because classification names from an older version conflict. Rename each duplicate dimension or value to resume autosave automatically.";
 const SNAPSHOT_REPAIR_WARNING =
   "Autosave is paused because this project contains invalid measurements or conflicting classification names. Repair them to resume autosave automatically.";
+const PROJECT_REPAIR_TRANSITION_ERROR =
+  "Repair this project before opening another one. Your unsaved changes have been kept.";
 const COMBINED_REPAIR_WARNING =
   "Autosave is paused because classification names conflict and one or more measurements need repair. Repair both to resume autosave automatically.";
 
@@ -168,7 +171,7 @@ export function usePdfSessionLifecycle({
     setAutosaveStatus(status);
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     currentSessionRef.current = session;
   }, [session]);
 
@@ -232,13 +235,28 @@ export function usePdfSessionLifecycle({
     updateLoadingState();
   }
 
+  function canLeaveCurrentProject() {
+    const current = currentSessionRef.current;
+    if (current && current !== persistedSessionRef.current && !isSessionPersistable(current)) {
+      setError(PROJECT_REPAIR_TRANSITION_ERROR);
+      return false;
+    }
+    return true;
+  }
+
+  function hasUnsavedMemoryProject() {
+    return currentSessionRef.current !== null && persistedSessionRef.current === null;
+  }
+
   function publishPendingPdf(candidate: PendingPdf, recoveryProtected: boolean) {
     const previous = pendingPdfRef.current;
     pendingPdfRef.current = candidate;
+    if (hasUnsavedMemoryProject()) candidate.discardUnsavedSession = currentSessionRef.current!;
     requestReplacePdf({
       pdfId: candidate.pdfId,
       fileName: candidate.session.pdf.name,
       recoveryProtected,
+      ...(candidate.discardUnsavedSession ? { discardUnsavedProject: true } : {}),
     });
     if (previous && previous !== candidate) void destroyPdf(previous.loaded);
   }
@@ -440,15 +458,22 @@ export function usePdfSessionLifecycle({
         return;
       }
       queued = true;
+      // The synchronous exit transaction supersedes snapshots still waiting in the JS queue.
+      const exitGeneration = ++persistenceGenerationRef.current;
       saveQueueRef.current = exitSave
         .then((revision) => {
-          if (generation === persistenceGenerationRef.current) {
-            persistenceRevisionRef.current = revision;
+          // Already-started writes must publish their revision for the next exit transaction.
+          persistenceRevisionRef.current = revision;
+          if (exitGeneration === persistenceGenerationRef.current) {
             persistedSessionRef.current = snapshot;
             confirmSavedSnapshot(snapshot, preparedPdfBlob);
           }
         })
-        .catch(() => undefined)
+        .catch((error: unknown) => {
+          if (exitGeneration !== persistenceGenerationRef.current) return;
+          persistenceGenerationRef.current += 1;
+          reportAutosaveFailure(error);
+        })
         .finally(finishAutosave);
     };
     const handleVisibilityChange = () => {
@@ -483,6 +508,17 @@ export function usePdfSessionLifecycle({
         await destroyPdf(candidate.loaded);
         return;
       }
+      if (!canLeaveCurrentProject()) {
+        clearPendingPdf(candidate);
+        finishPdfLoad(candidate.loadGeneration);
+        await destroyPdf(candidate.loaded);
+        return;
+      }
+      if (candidate.discardUnsavedSession && candidate.discardUnsavedSession !== currentSessionRef.current) {
+        publishPendingPdf(candidate, recoveryProtected);
+        finishPdfLoad(candidate.loadGeneration);
+        return;
+      }
       if (pendingPdfRef.current === candidate) {
         pendingPdfRef.current = null;
         closeDialog();
@@ -490,7 +526,7 @@ export function usePdfSessionLifecycle({
       activatingPdfRef.current = candidate.loaded;
       beginPdfActivation(candidate.loadGeneration);
       const previousAutosaveStatus = autosaveStatusRef.current;
-      const previousSession = currentSessionRef.current;
+      let previousSession = currentSessionRef.current;
       const previousPdf = activePdfRef.current;
       const recoveryWasProtected = recoveryProtected;
       persistenceGenerationRef.current += 1;
@@ -512,6 +548,12 @@ export function usePdfSessionLifecycle({
         let preparedPdfBlob: Blob = candidate.file;
         try {
           preparedPdfBlob = await copyPdfBlob(candidate.file);
+          previousSession = currentSessionRef.current;
+          if (!canLeaveCurrentProject()) {
+            updateAutosaveStatus(previousAutosaveStatus);
+            await destroyPdf(candidate.loaded);
+            return;
+          }
           const expectedRevision = persistenceRevisionRef.current;
           if (expectedRevision === undefined) {
             throw new Error("Cannot replace a saved session whose revision is unknown.");
@@ -531,7 +573,11 @@ export function usePdfSessionLifecycle({
           saved = true;
         } catch (error) {
           console.error("Could not save the new PDF session.", error);
-          if (previousSession || previousPdf || recovery || recoveryWasProtected) {
+          const discardConfirmedMemoryProject = requiresPendingConfirmation &&
+            candidate.discardUnsavedSession === previousSession &&
+            hasUnsavedMemoryProject() && !recovery && !recoveryWasProtected &&
+            !(error instanceof PersistenceConflictError);
+          if (!discardConfirmedMemoryProject && (previousSession || previousPdf || recovery || recoveryWasProtected)) {
             if (autosaveStatusRef.current !== "unavailable") {
               updateAutosaveStatus(previousAutosaveStatus);
             }
@@ -585,6 +631,7 @@ export function usePdfSessionLifecycle({
   }
 
   async function chooseFile(file: File) {
+    if (!canLeaveCurrentProject()) return;
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     clearPendingPdf();
     beginPdfLoad(loadGeneration);
@@ -610,7 +657,7 @@ export function usePdfSessionLifecycle({
         loadGeneration,
       };
       if (
-        shouldConfirmPdfReplacement({
+        hasUnsavedMemoryProject() || shouldConfirmPdfReplacement({
           pdfActivating: Boolean(activatingPdfRef.current),
           recoveryProtected,
         })
@@ -635,6 +682,7 @@ export function usePdfSessionLifecycle({
   }
 
   async function importProject(file: Blob | Promise<Blob>) {
+    if (!canLeaveCurrentProject()) return;
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     clearPendingPdf();
     beginPdfLoad(loadGeneration);
@@ -661,7 +709,7 @@ export function usePdfSessionLifecycle({
         loadGeneration,
       };
       if (
-        shouldConfirmPdfReplacement({
+        hasUnsavedMemoryProject() || shouldConfirmPdfReplacement({
           pdfActivating: Boolean(activatingPdfRef.current),
           recoveryProtected,
         })
@@ -682,6 +730,7 @@ export function usePdfSessionLifecycle({
   }
 
   async function openSampleProject() {
+    if (!canLeaveCurrentProject()) return;
     await importProject(
       fetch(sampleProjectUrl).then((response) => {
         if (!response.ok)
@@ -722,6 +771,7 @@ export function usePdfSessionLifecycle({
   }
 
   async function openProject(projectId: string) {
+    if (!canLeaveCurrentProject()) return;
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     beginPdfLoad(loadGeneration);
     let loaded: LoadedPdf | null = null;
@@ -755,7 +805,7 @@ export function usePdfSessionLifecycle({
         }
 
         previousAutosaveStatus = autosaveStatusRef.current;
-        const currentSession = currentSessionRef.current;
+        let currentSession = currentSessionRef.current;
         const openingCurrentRecovery =
           recoveryCandidate !== null &&
           !currentSession &&
@@ -771,6 +821,13 @@ export function usePdfSessionLifecycle({
             if (autosaveStatusRef.current !== "unavailable") {
               updateAutosaveStatus(previousAutosaveStatus);
             }
+            await destroyPdf(loaded);
+            loaded = null;
+            return false;
+          }
+          currentSession = currentSessionRef.current;
+          if (!canLeaveCurrentProject()) {
+            updateAutosaveStatus(previousAutosaveStatus);
             await destroyPdf(loaded);
             loaded = null;
             return false;

@@ -807,7 +807,9 @@ function PlanMeasureApp() {
     ) : null;
 
   return (
+    <>
     <AppShell
+      interactionBlocked={loading}
       saveStatus={session && saveStatusStore ? (
         <SaveStatusIndicator
           store={saveStatusStore}
@@ -1232,7 +1234,6 @@ function PlanMeasureApp() {
       )}
 
       {!recoveryChecked && <LoadingOverlay>Checking for a saved session…</LoadingOverlay>}
-      {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
 
       {recoveryIssue && !session && (
         <Modal title="Saved session unavailable">
@@ -1329,5 +1330,7 @@ function PlanMeasureApp() {
       )}
 
     </AppShell>
+    {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
+    </>
   );
 }

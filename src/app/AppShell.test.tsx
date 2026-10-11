@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppShell } from "./AppShell";
+import { AppShell, LoadingOverlay } from "./AppShell";
 import { AppProvider, useAppState } from "./state";
 
 vi.mock("./AppBar", () => ({ AppBar: () => <header>Application bar</header> }));
@@ -181,4 +181,21 @@ describe("AppShell notifications", () => {
     act(() => container.querySelector<HTMLButtonElement>('[role="alert"] button')!.click());
     expect(retry).toHaveBeenCalledOnce();
   });
+});
+
+it("blocks application key handlers only while the loading overlay is mounted", () => {
+  const handler = vi.fn();
+  window.addEventListener("keydown", handler);
+  try {
+    act(() => root.render(<LoadingOverlay>Loading PDF…</LoadingOverlay>));
+    const event = new KeyboardEvent("keydown", { key: "r", ctrlKey: true, cancelable: true });
+    window.dispatchEvent(event);
+    expect(handler).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    act(() => root.render(<div />));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true }));
+    expect(handler).toHaveBeenCalledOnce();
+  } finally {
+    window.removeEventListener("keydown", handler);
+  }
 });

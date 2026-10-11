@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 
 import "fake-indexeddb/auto";
+import { openDB } from "idb";
 import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -570,7 +571,7 @@ describe("workspace initialization", () => {
     );
   });
 
-  it("opens another project without overwriting an unrepaired current snapshot", async () => {
+  it("keeps unsaved unrepaired changes open until they can be saved", async () => {
     const projectA = createEmptySession({ name: "A.pdf", size: 1, lastModified: 1 }, 1);
     const projectB = createEmptySession({ name: "B.pdf", size: 1, lastModified: 2 }, 1);
     let revision = await replaceSavedSession(projectA, new Blob(["A"]), null, "project-a");
@@ -597,11 +598,18 @@ describe("workspace initialization", () => {
       await lifecycle!.openProject("project-b");
     });
 
-    expect(harnessSession?.pdf.name).toBe("B.pdf");
-    expect((await loadSavedSession())?.projectId).toBe("project-b");
+    expect(harnessSession).toBe(unrepairedSession);
+    expect((await loadSavedSession())?.projectId).toBe("project-a");
     const savedA = await loadSavedProject("project-a");
     expect(savedA.session.pdf).toEqual(projectA.pdf);
-    expect(lifecycleErrors).toEqual([]);
+    expect(lifecycleErrors).toContain(
+      "Repair this project before opening another one. Your unsaved changes have been kept.",
+    );
+    const repaired = { ...unrepairedSession, pdf: projectA.pdf, pageLabelOverrides: { 1: "Kept edit" } };
+    act(() => setHarnessSession!(repaired));
+    await act(async () => { await lifecycle!.openProject("project-b"); });
+    expect(harnessSession?.pdf.name).toBe("B.pdf");
+    expect((await loadSavedProject("project-a")).session.pageLabelOverrides[1]).toBe("Kept edit");
   });
 
   it("ignores a stale page-exit save after a project switch", async () => {
@@ -1580,4 +1588,328 @@ describe("scale check autosave boundary", () => {
     expect(status).not.toHaveBeenCalledWith("saving");
     expect(await loadSavedSession()).toEqual(savedBefore);
   });
+});
+
+it("preserves edits to a historical catalog until repair instead of silently switching projects", async () => {
+  const a = createEmptySession({ name: "A.pdf", size: 1, lastModified: 1 }, 1);
+  a.classificationCatalog.dimensions = [
+    { id: "d1", name: "I", archived: false, values: [] },
+    { id: "d2", name: "i", archived: false, values: [] },
+  ];
+  const b = createEmptySession({ name: "B.pdf", size: 1, lastModified: 2 }, 1);
+  // Seed the last valid project and then emulate historically persisted distinct names that now conflict.
+  const validA = structuredClone(a);
+  validA.classificationCatalog.dimensions[1]!.name = "Other";
+  let rev = await replaceSavedSession(validA, new Blob(["A"]), null, "a");
+  rev = await replaceSavedSession(b, new Blob(["B"]), rev, "b", validA);
+  await activateSavedProject("a", rev);
+  const db = await openDB("plan-measure", 1);
+  const tx = db.transaction("sessions", "readwrite");
+  for (const key of ["active-v2", "project:a"]) {
+    const record = await tx.store.get(key);
+    await tx.store.put({
+      ...record,
+      serialized: JSON.stringify({ ...a, schemaVersion: 11 }),
+    });
+  }
+  await tx.done;
+  db.close();
+  await renderLifecycleHarness();
+  await act(async () => {
+    await lifecycle!.continueRecovery();
+  });
+  expect(lifecycle!.autosaveUnavailable).toBe(true);
+  const edited = structuredClone(harnessSession!);
+  edited.pageLabelOverrides[1] = "Important unsaved annotation";
+  act(() => setHarnessSession!(edited));
+  expect(isSessionPersistable(edited)).toBe(false);
+  await act(async () => {
+    await lifecycle!.openProject("b");
+  });
+  expect(harnessSession!.pdf.name).toBe("A.pdf");
+  expect(harnessSession!.pageLabelOverrides[1]).toBe(
+    "Important unsaved annotation",
+  );
+  const savedA = await loadSavedProject("a");
+  expect(savedA.session.pageLabelOverrides[1]).toBeUndefined();
+  expect(replacementPromptCount).toBe(0);
+  expect(lifecycleErrors).toContain(
+    "Repair this project before opening another one. Your unsaved changes have been kept.",
+  );
+});
+
+it("supersedes queued snapshots on page exit without a false IndexedDB conflict", async () => {
+  await seedRecoverySession();
+  await renderLifecycleHarness();
+  await act(async () => {
+    await lifecycle!.continueRecovery();
+  });
+  const db = await openDB("plan-measure", 1);
+  const blocker = db.transaction(["sessions", "pdfs"], "readwrite");
+  let released = false;
+  const pump = (): void => {
+    void blocker
+      .objectStore("sessions")
+      .get("active-v2")
+      .then(() => {
+        if (!released) pump();
+      });
+  };
+  pump();
+  let started!: () => void;
+  const starting = new Promise<void>((r) => (started = r));
+  const original = persistenceService.saveSessionMetadata;
+  vi.spyOn(persistenceService, "saveSessionMetadata").mockImplementationOnce(
+    (...args) => {
+      const saving = original(...args);
+      started();
+      return saving;
+    },
+  );
+  const a = {
+    ...harnessSession!,
+    settings: { ...harnessSession!.settings, showLabels: false },
+  };
+  act(() => setHarnessSession!(a));
+  await act(async () => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await starting;
+  });
+  const b = { ...a, settings: { ...a.settings, showMeasurements: false } };
+  act(() => setHarnessSession!(b));
+  act(() => document.dispatchEvent(new Event("visibilitychange")));
+  const c = { ...b, settings: { ...b.settings, showCalibration: false } };
+  act(() => setHarnessSession!(c));
+  act(() =>
+    window.dispatchEvent(new Event("beforeunload", { cancelable: true })),
+  );
+  await act(async () => {
+    released = true;
+    await blocker.done;
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+  });
+  db.close();
+  expect((await loadSavedSession())!.session).toEqual(c);
+  expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+  expect(lifecycle!.autosaveUnavailable).toBe(false);
+  const d = { ...c, settings: { ...c.settings, showLabels: true } };
+  act(() => setHarnessSession!(d));
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+  });
+  expect((await loadSavedSession())!.session).toEqual(d);
+  expect(lifecycle!.autosaveUnavailable).toBe(false);
+});
+
+it("can cancel or confirm opening another PDF while browser storage stays unavailable", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValue(
+    new DOMException("Storage unavailable", "SecurityError"),
+  );
+  await renderLifecycleHarness();
+  await act(async () => {
+    await lifecycle!.chooseFile(
+      new File(["A"], "A.pdf", { type: "application/pdf" }),
+    );
+  });
+  expect(harnessSession!.pdf.name).toBe("A.pdf");
+  expect(lifecycle!.autosaveUnavailable).toBe(true);
+  await act(async () => {
+    await lifecycle!.chooseFile(
+      new File(["B"], "B.pdf", { type: "application/pdf" }),
+    );
+  });
+  expect(harnessSession!.pdf.name).toBe("A.pdf");
+  expect(replacementPromptPayload?.discardUnsavedProject).toBe(true);
+  act(() =>
+    lifecycle!.cancelPdfReplacement({
+      type: "replacePdf",
+      payload: replacementPromptPayload!,
+    }),
+  );
+  expect(harnessSession!.pdf.name).toBe("A.pdf");
+  await act(async () => {
+    await lifecycle!.chooseFile(
+      new File(["C"], "C.pdf", { type: "application/pdf" }),
+    );
+  });
+  await act(async () => {
+    lifecycle!.confirmPdfReplacement({
+      type: "replacePdf",
+      payload: replacementPromptPayload!,
+    });
+    for (
+      let attempt = 0;
+      attempt < 20 && harnessSession?.pdf.name !== "C.pdf";
+      attempt += 1
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  });
+  expect(harnessSession!.pdf.name).toBe("C.pdf");
+  expect(lifecycle!.autosaveUnavailable).toBe(true);
+  expect(await loadSavedSession()).toBeNull();
+});
+
+it.each(["pdf", "project"] as const)(
+  "captures outgoing edits after waiting to copy the next %s PDF",
+  async (kind) => {
+    const a = createEmptySession(
+      { name: "A.pdf", size: 1, lastModified: 1 },
+      1,
+    );
+    const b = createEmptySession(
+      { name: "B.pdf", size: 1, lastModified: 2 },
+      1,
+    );
+    let revision = await replaceSavedSession(a, new Blob(["A"]), null, "a");
+    revision = await replaceSavedSession(b, new Blob(["B"]), revision, "b", a);
+    await activateSavedProject("a", revision);
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const starting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const copy = persistenceService.copyPdfBlob;
+    vi.spyOn(persistenceService, "copyPdfBlob").mockImplementationOnce(
+      async (...args) => {
+        started();
+        await gate;
+        return copy(...args);
+      },
+    );
+    let opening!: Promise<void>;
+    await act(async () => {
+      opening =
+        kind === "pdf"
+          ? lifecycle!.chooseFile(
+              new File(["C"], "C.pdf", { type: "application/pdf" }),
+            )
+          : lifecycle!.openProject("b");
+      await starting;
+    });
+    const edited = {
+      ...harnessSession!,
+      pageLabelOverrides: { 1: "Latest completed edit" },
+    };
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      release();
+      await opening;
+    });
+    expect((await loadSavedProject("a")).session.pageLabelOverrides[1]).toBe(
+      "Latest completed edit",
+    );
+  },
+);
+
+it("publishes an earlier exit revision for a newer exit transaction", async () => {
+  await seedRecoverySession();
+  await renderLifecycleHarness();
+  await act(async () => {
+    await lifecycle!.continueRecovery();
+  });
+  const db = await openDB("plan-measure", 1);
+  const blocker = db.transaction(["sessions", "pdfs"], "readwrite");
+  let released = false;
+  const pump = (): void => {
+    void blocker
+      .objectStore("sessions")
+      .get("active-v2")
+      .then(() => {
+        if (!released) pump();
+      });
+  };
+  pump();
+  const exitSave = vi.spyOn(
+    persistenceService,
+    "beginSessionMetadataSaveOnPageExit",
+  );
+  const a = {
+    ...harnessSession!,
+    settings: { ...harnessSession!.settings, showLabels: false },
+  };
+  act(() => setHarnessSession!(a));
+  act(() => window.dispatchEvent(new Event("beforeunload")));
+  act(() => window.dispatchEvent(new Event("beforeunload")));
+  expect(exitSave).toHaveBeenCalledTimes(1);
+  const b = { ...a, settings: { ...a.settings, showMeasurements: false } };
+  act(() => setHarnessSession!(b));
+  act(() => window.dispatchEvent(new Event("beforeunload")));
+  await act(async () => {
+    released = true;
+    await blocker.done;
+    await Promise.all(exitSave.mock.results.map((result) => result.value));
+  });
+  db.close();
+  expect((await loadSavedSession())!.session).toEqual(b);
+  expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+  expect(lifecycle!.autosaveUnavailable).toBe(false);
+});
+
+it("reports a failed latest exit save without claiming it was saved", async () => {
+  await seedRecoverySession();
+  await renderLifecycleHarness();
+  await act(async () => {
+    await lifecycle!.continueRecovery();
+  });
+  vi.spyOn(
+    persistenceService,
+    "beginSessionMetadataSaveOnPageExit",
+  ).mockRejectedValue(new Error("Storage failed"));
+  const a = {
+    ...harnessSession!,
+    settings: { ...harnessSession!.settings, showLabels: false },
+  };
+  act(() => setHarnessSession!(a));
+  await act(async () => {
+    window.dispatchEvent(new Event("beforeunload"));
+  });
+  expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("failed");
+  expect(lifecycle!.canRetryAutosave).toBe(true);
+  expect((await loadSavedSession())!.session.settings.showLabels).toBe(true);
+});
+
+it("keeps external writes protected when a page-exit save supersedes this tab's queue", async () => {
+  await seedRecoverySession();
+  await renderLifecycleHarness();
+  await act(async () => {
+    await lifecycle!.continueRecovery();
+  });
+  const saved = (await loadSavedSession())!;
+  const external = {
+    ...saved.session,
+    pageLabelOverrides: { 1: "Other tab's changes" },
+  };
+  await persistenceService.saveSessionMetadata(
+    external,
+    saved.revision,
+    saved.pdfBlob,
+  );
+  const edited = {
+    ...harnessSession!,
+    pageLabelOverrides: { 1: "This tab's changes" },
+  };
+  act(() => setHarnessSession!(edited));
+  await act(async () => {
+    window.dispatchEvent(new Event("beforeunload"));
+    for (let attempt = 0; attempt < 20; attempt += 1)
+      await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect((await loadSavedSession())!.session).toEqual(external);
+  expect(harnessSession).toBe(edited);
+  expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("conflict");
+  expect(lifecycle!.canRetryAutosave).toBe(false);
 });

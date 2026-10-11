@@ -39,7 +39,7 @@ Use the controls below the plan for previous/next pages, zoom, **Fit**, active s
 
 ## Projects and recovery
 
-**Projects** opens, imports, exports, and deletes local projects. Opening another PDF or importing a project keeps existing projects. Click the save status in the application bar → **Export backup (.planmeasure)**, or use **Projects → Export**, to download a file with the PDF and editable data.
+**Projects** opens, imports, exports, and deletes local projects. Opening another PDF or importing a project keeps existing saved projects. Editing is temporarily blocked while a project loads. If the current project exists only in memory, cancel and export it first, or confirm **Discard and open** to open another PDF. Click the save status in the application bar → **Export backup (.planmeasure)**, or use **Projects → Export**, to download a file with the PDF and editable data.
 
 The save status shows **Saving…**, **Saved on this device** after confirmation, or **Couldn't save**; repair, another-tab, and storage problems have their own labels. Completed edits autosave in IndexedDB only in this browser. Drafts, Snap, Ortho, zoom, pan, and undo history are not saved. The app requests persistent storage after a confirmed save when supported; the browser may deny it or ask for permission. Clearing site data still removes saved projects, so keep downloaded backups.
 
@@ -49,7 +49,7 @@ If saving fails:
 2. Use **Export backup (.planmeasure)** in the save status, or **Export project** in the warning, to preserve your current edits.
 3. If another tab changed the project, use **Reload saved projects** after exporting. Reloading discards unsaved edits.
 
-Older data is migrated when possible. If repair is required, autosave stays paused until the reported problems are resolved.
+Older data is migrated when possible. If repair is required, autosave stays paused until the reported problems are resolved. Repair the project before opening another one if it has unsaved changes.
 
 ## Exports
 

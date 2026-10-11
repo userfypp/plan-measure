@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { AppErrorNotification } from "./state";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import { AppBar } from "./AppBar";
@@ -9,6 +9,7 @@ import styles from "./AppShell.module.css";
 type StatusTone = "error" | "warning";
 
 interface AppShellProps {
+  interactionBlocked?: boolean;
   saveStatus?: ReactNode;
   children: ReactNode;
   documentName: string | null;
@@ -41,6 +42,7 @@ interface AppShellProps {
 }
 
 export function AppShell({
+  interactionBlocked = false,
   saveStatus,
   children,
   documentName,
@@ -76,6 +78,8 @@ export function AppShell({
 
   return (
     <div
+      inert={interactionBlocked}
+      aria-busy={interactionBlocked || undefined}
       ref={tabNavigationRootRef}
       className={styles.appShell}
       data-tab-navigation-root
@@ -174,5 +178,11 @@ function StatusNotification({ message, tone, actions, onDismiss }: {
 }
 
 export function LoadingOverlay({ children }: { children: ReactNode }) {
-  return <div className={styles.loadingOverlay}>{children}</div>;
+  useLayoutEffect(() => {
+    // Keep browser shortcuts native while preventing application handlers from editing a loading project.
+    const blockApplicationKey = (event: KeyboardEvent) => event.stopImmediatePropagation();
+    window.addEventListener("keydown", blockApplicationKey, true);
+    return () => window.removeEventListener("keydown", blockApplicationKey, true);
+  }, []);
+  return <div role="status" className={styles.loadingOverlay}>{children}</div>;
 }

@@ -225,3 +225,21 @@ describe("OverlayHost classification deletion", () => {
     expect(document.querySelector("dialog")).toBeNull();
   });
 });
+
+it("explains and confirms discarding a project that exists only in memory", () => {
+  const confirm = vi.fn();
+  function Request() {
+    const { requestReplacePdf } = useOverlayState();
+    return <button onClick={() => requestReplacePdf({ pdfId: "new", fileName: "B.pdf", discardUnsavedProject: true })}>Request new PDF</button>;
+  }
+  act(() => root!.render(<OverlayProvider><Request /><OverlayHost onDialogConfirm={confirm} /></OverlayProvider>));
+  act(() => buttonByText("Request new PDF").click());
+  expect(document.querySelector("dialog")?.textContent).toContain("Discard unsaved project?");
+  expect(document.querySelector("dialog")?.textContent).toContain("exists only in memory");
+  expect(document.querySelector("dialog")?.textContent).toContain("export it first");
+  act(() => buttonByText("Cancel").click());
+  expect(confirm).not.toHaveBeenCalled();
+  act(() => buttonByText("Request new PDF").click());
+  act(() => buttonByText("Discard and open").click());
+  expect(confirm).toHaveBeenCalledWith({ type: "replacePdf", payload: { pdfId: "new", fileName: "B.pdf", discardUnsavedProject: true } });
+});

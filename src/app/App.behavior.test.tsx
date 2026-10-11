@@ -22,6 +22,7 @@ import { ThemeProvider } from "./themeState";
 import { App } from "./App";
 
 const lifecycle = vi.hoisted(() => ({
+  loading: false,
   session: null as CurrentSession | null,
   pdf: null as PDFDocumentProxy | null,
 }));
@@ -51,7 +52,7 @@ vi.mock("./usePdfSessionLifecycle", () => ({
       recoveryChecked: true,
       recoveryIssue: null,
       confirmDiscardRecovery: false,
-      loading: false,
+      loading: lifecycle.loading,
       autosaveWarning: null,
       autosaveFailed: false,
       canRetryAutosave: false,
@@ -85,6 +86,7 @@ describe("App open, calibrate and measure flow", () => {
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     resetKonvaCapture();
+    lifecycle.loading = false;
     lifecycle.session = null;
     lifecycle.pdf = createPdfDocument({ 1: createPdfPage(), 2: createPdfPage() });
     installViewerDomDoubles();
@@ -212,6 +214,31 @@ describe("App open, calibrate and measure flow", () => {
     expect(page().calibrations).toHaveLength(1);
     await press("Redo");
     expect(page().measurements).toEqual([line]);
+  });
+
+  it("blocks edits and global shortcuts while another PDF is loading", async () => {
+    await openPdf();
+    await calibrate();
+    await press("Line, shortcut L");
+    await clickPage(100, 200);
+    await clickPage(300, 200);
+    const before = session();
+    lifecycle.loading = true;
+    await act(async () => root.render(<ThemeProvider><App /></ThemeProvider>));
+    expect(container.querySelector('[inert][aria-busy="true"]')).not.toBeNull();
+    const loadingStatus = [...container.querySelectorAll('[role="status"]')].find(element => element.textContent === "Loading PDF…");
+    expect(loadingStatus?.textContent).toBe("Loading PDF…");
+    expect(loadingStatus?.closest("[inert]")).toBeNull();
+    await act(async () => {
+      for (const key of ["z", "c", "v", "Delete", "Enter", "Escape"]) {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: key.length === 1, bubbles: true }));
+      }
+    });
+    expect(session()).toBe(before);
+    lifecycle.loading = false;
+    await act(async () => root.render(<ThemeProvider><App /></ThemeProvider>));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true })));
+    expect(page().measurements).toEqual([]);
   });
 
   it("cancels a pending Line with Escape without creating a measurement", async () => {

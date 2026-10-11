@@ -40,12 +40,18 @@ export function OverlayHost({
     const dialog = activeOverlay.descriptor;
     const fileName = dialog.payload.fileName ?? "the selected PDF";
     const recoveryProtected = dialog.payload.recoveryProtected === true;
+    const discardUnsavedProject = dialog.payload.discardUnsavedProject === true;
     return (
       <ConfirmationDialog
         open
-        title={recoveryProtected ? "Replace unreadable session?" : "Open as a new project?"}
+        title={discardUnsavedProject ? "Discard unsaved project?" : recoveryProtected ? "Replace unreadable session?" : "Open as a new project?"}
         description={
-          recoveryProtected ? (
+          discardUnsavedProject ? (
+            <>
+              Loading <strong>{fileName}</strong> will discard the current project, which exists only
+              in memory. Cancel and export it first if you want to keep a copy.
+            </>
+          ) : recoveryProtected ? (
             <>
               Loading <strong>{fileName}</strong> will replace the saved session that could not be
               read.
@@ -56,8 +62,8 @@ export function OverlayHost({
             </>
           )
         }
-        intent={recoveryProtected ? "destructive" : "warning"}
-        confirmLabel={recoveryProtected ? "Replace session" : "Open as new project"}
+        intent={recoveryProtected || discardUnsavedProject ? "destructive" : "warning"}
+        confirmLabel={discardUnsavedProject ? "Discard and open" : recoveryProtected ? "Replace session" : "Open as new project"}
         onCancel={() => {
           closeDialog(dialog);
           onDialogCancel?.(dialog);
