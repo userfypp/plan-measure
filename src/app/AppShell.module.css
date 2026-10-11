@@ -113,3 +113,8 @@
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-semibold);
 }
+
+.loadingMessage {
+  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
+  padding: var(--space-8) var(--space-16);
+}
