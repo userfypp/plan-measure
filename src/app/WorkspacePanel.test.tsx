@@ -156,6 +156,15 @@ describe("WorkspacePanel", () => {
     expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).toBeNull();
   });
 
+  it("opens the module list at the full width of the trigger", () => {
+    const workspaceTrigger = trigger();
+    vi.spyOn(workspaceTrigger, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(10, 10, 220, 32),
+    );
+    act(() => workspaceTrigger.click());
+    expect(document.querySelector<HTMLElement>('[role="menu"]')!.style.minWidth).toBe("220px");
+  });
+
   it("supports Arrow navigation, Home, and Escape without changing the active module", () => {
     const workspaceTrigger = trigger();
     act(() => workspaceTrigger.click());

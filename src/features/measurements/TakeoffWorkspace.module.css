@@ -1,11 +1,11 @@
 .workspace {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   height: 100%;
   overflow: auto;
-  scrollbar-width: thin;
   padding: var(--space-12) var(--space-16);
   background: var(--color-surface-panel);
 }
@@ -341,6 +341,7 @@
 }
 
 .sourceList {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   list-style: none;
   margin: var(--space-8) 0 0;
   padding: 0;

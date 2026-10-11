@@ -40,6 +40,7 @@
 }
 
 .body {
+  composes: scrollSurface from "./scrollSurface.module.css";
   max-height: calc(100dvh - var(--dialog-body-chrome));
   padding: var(--space-16);
   overflow-y: auto;

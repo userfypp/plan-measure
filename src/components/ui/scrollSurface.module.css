@@ -1,0 +1,9 @@
+/*
+ * Shared pattern for internal scroll containers (lists, menus, popovers, panels).
+ * Thin scrollbar with a semi-transparent thumb over a transparent track, so it reads as an
+ * overlay. Compose it next to the rule that sets `overflow`; it never changes layout itself.
+ */
+.scrollSurface {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}

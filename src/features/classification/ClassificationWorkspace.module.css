@@ -39,6 +39,7 @@
 }
 
 .library {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   overflow-y: auto;
 }
 

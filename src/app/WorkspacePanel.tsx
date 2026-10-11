@@ -96,6 +96,7 @@ export function WorkspacePanel({
             onSelect: () => setWorkspaceModule(module.id),
           }))}
           placement="bottom-start"
+          matchTriggerWidth
         />
         {drawer.isNarrow && (
           <button

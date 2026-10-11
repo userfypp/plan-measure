@@ -91,6 +91,7 @@ export function ClassificationAssignment({
                   disabled: fieldDisabled,
                 }}
                 label={`Select ${dimension.name} classification value`}
+                matchTriggerWidth
                 items={[
                   {
                     id: "unclassified",

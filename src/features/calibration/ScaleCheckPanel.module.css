@@ -63,6 +63,7 @@
 }
 
 .checkResult {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   width: var(--geometry-viewer-popover-width);
   max-height: 100%;
   display: grid;

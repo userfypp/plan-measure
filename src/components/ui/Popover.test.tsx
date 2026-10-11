@@ -235,6 +235,28 @@ describe("Popover", () => {
     expect(document.activeElement?.textContent).toBe("Inner action");
   });
 
+  it("closes an open popover when its trigger is pressed again", () => {
+    act(() => {
+      root!.render(
+        <Popover trigger="Toggle" role="dialog" aria-label="Toggled" initialFocus="first" dismissOnFocusLeave>
+          <button type="button">Toggled action</button>
+        </Popover>,
+      );
+    });
+    const toggle = findButton("Toggle")!;
+    const press = () => {
+      act(() => {
+        toggle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+        toggle.focus();
+        toggle.click();
+      });
+    };
+    press();
+    expect(dialog("Toggled")).not.toBeNull();
+    press();
+    expect(dialog("Toggled")).toBeNull();
+  });
+
   it("keeps a nested child above its parent when both open in the same commit", () => {
     act(() => {
       root!.render(

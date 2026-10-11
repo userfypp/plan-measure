@@ -8,6 +8,7 @@
 }
 
 .scrollArea {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -182,6 +183,7 @@
 }
 
 .itemsList {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   max-height: min(var(--geometry-measurement-list-max-height), 50dvh);
   overflow: auto;
   margin: 0;

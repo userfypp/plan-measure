@@ -9,6 +9,7 @@
 }
 
 .content {
+  composes: scrollSurface from "./scrollSurface.module.css";
   composes: overlaySurface from "./overlaySurface.module.css";
   position: fixed;
   z-index: var(--z-popover);

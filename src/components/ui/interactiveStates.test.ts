@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 
 const globalCss = readFileSync(new URL("../../styles/global.css", import.meta.url), "utf8");
 const tokensCss = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
+const scrollSurfaceCss = readFileSync(new URL("./scrollSurface.module.css", import.meta.url), "utf8");
+const selectCss = readFileSync(new URL("./Select.module.css", import.meta.url), "utf8");
+const popoverCss = readFileSync(new URL("./Popover.module.css", import.meta.url), "utf8");
 const buttonCss = readFileSync(new URL("./Button.module.css", import.meta.url), "utf8");
 const iconButtonCss = readFileSync(new URL("./IconButton.module.css", import.meta.url), "utf8");
 const switchCss = readFileSync(new URL("./Switch.module.css", import.meta.url), "utf8");
@@ -126,5 +129,19 @@ describe("shared interactive-state contract", () => {
     expect(tokensCss).toMatch(
       /@media \(any-pointer: coarse\)\s*\{[^}]*:root\s*\{[^}]*--target-current:\s*var\(--target-coarse\);/s,
     );
+  });
+
+  it("shares a thin overlay-style scrollbar that never reserves a gutter", () => {
+    expect(scrollSurfaceCss).toMatch(/scrollbar-width:\s*thin/);
+    expect(scrollSurfaceCss).toMatch(/scrollbar-color:\s*var\(--color-scrollbar-thumb\)\s+transparent/);
+    expect(scrollSurfaceCss).not.toContain("scrollbar-gutter");
+    expect(tokensCss.match(/--color-scrollbar-thumb:/g)).toHaveLength(2);
+    expect(popoverCss).toContain("scrollSurface.module.css");
+    expect(selectCss).toContain("scrollSurface.module.css");
+  });
+
+  it("keeps the Select trigger as the only hit target so the cursor is uniform", () => {
+    expect(selectCss).toMatch(/\.trigger\s*>\s*\*\s*\{[^}]*pointer-events:\s*none/s);
+    expect(selectCss).toMatch(/\.trigger\s*\{[^}]*cursor:\s*pointer/s);
   });
 });

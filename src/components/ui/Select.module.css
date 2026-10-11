@@ -21,6 +21,11 @@
   transition: var(--transition-interactive);
 }
 
+/* The button itself is always the hit target: children never take the pointer or change the cursor. */
+.trigger > * {
+  pointer-events: none;
+}
+
 .trigger:hover:not(:disabled) {
   border-color: var(--color-control-hover-border);
   background-color: var(--color-control-hover-surface);
@@ -58,6 +63,7 @@
 }
 
 .list {
+  composes: scrollSurface from "./scrollSurface.module.css";
   max-height: var(--geometry-select-list-max-height);
   overflow-y: auto;
 }

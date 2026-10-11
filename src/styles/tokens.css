@@ -7,6 +7,7 @@
   --color-surface-raised: #ffffff;
   --color-surface-field: #f3f5f7;
   --color-divider: #e3e6e9;
+  --color-scrollbar-thumb: rgb(0 0 0 / 0.28);
 
   --color-text-primary: #242a31;
   --color-text-secondary: #626b76;
@@ -56,6 +57,7 @@
   --color-surface-raised: #30353c;
   --color-surface-field: #30353b;
   --color-divider: #3a4048;
+  --color-scrollbar-thumb: rgb(255 255 255 / 0.32);
 
   --color-text-primary: #edf0f4;
   --color-text-secondary: #adb5c0;

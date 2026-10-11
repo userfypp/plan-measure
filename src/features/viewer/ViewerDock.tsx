@@ -434,6 +434,7 @@ export function ViewerDock({
         label="Active scale"
         items={scaleItems}
         placement="bottom-end"
+        matchTriggerWidth
       />
 
       {copiedScaleName !== null && (

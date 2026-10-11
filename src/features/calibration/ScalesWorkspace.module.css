@@ -9,6 +9,7 @@
 }
 
 .list {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   min-width: 0;
   min-height: 0;
   flex: 0 1 auto;
