@@ -50,13 +50,14 @@
 
 .settingCopy {
   min-width: 0;
-  /* Inline flow: when the label wraps, the help icon stays next to its last word. */
-  display: block;
+  /* The help icon sits beside the label block, vertically centred on it, never on a line below. */
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
-.settingCopy > span {
-  margin-inline-start: var(--space-4);
-  vertical-align: middle;
+.settingCopy > .settingLabel {
+  min-width: 0;
 }
 
 .helpButton {
