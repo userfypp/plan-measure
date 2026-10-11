@@ -85,7 +85,6 @@ export function AppShell({
       data-tab-navigation-root
     >
       <AppBar
-        saveStatus={saveStatus}
         documentName={documentName}
         canExport={canExport}
         savedProjectCount={savedProjectCount}
@@ -131,6 +130,7 @@ export function AppShell({
           </div>
         )}
         {children}
+        {saveStatus && <div className={styles.saveStatus}>{saveStatus}</div>}
       </div>
     </div>
   );

@@ -155,3 +155,6 @@ Una capa = un PR pequeño, verificado en claro y oscuro, con `npm run lint`, `np
 5. Paneles de funcionalidad (mediciones, clasificación, calibración).
 6. Diálogos, menús y estados vacíos/carga/error.
 7. Revisión final: coherencia, accesibilidad, rendimiento.
+- Retoques de pulido: en la fila de medición el hueco entre icono y texto es `--space-12` (`--space-8` en el contenedor estrecho); la altura de fila no cambia. `SettingsIcon` pasa a un icono de ajustes (tres deslizadores, trazo 1.5, 20x20).
+- Estado de guardado: ya no está en `AppBar`. `AppShell` lo monta flotando sobre el visor, abajo a la derecha, en la franja libre bajo el dock (altura `--geometry-viewer-dock-bottom-inset`, pegado al borde inferior) para no solaparlo nunca, sin fondo, en `--color-text-secondary` 13/secundario peso 400. El contenedor tiene `pointer-events: none` y solo el disparador lo recibe; `failed`, `conflict`, `repair-required` y `unavailable` usan `--color-danger-semantic`. Su popover abre hacia arriba con `placement="top-end"` (nuevo en `Popover`; si no cabe arriba, cae abajo).
+- Errores de módulos lazy (`recoverableLazy`): sin botón de reintento (no reparaba nada). Se muestra un estado de error centrado que llena la zona posicionada más cercana (`role="alert"`, `--z-overlay`, por debajo de popovers y tooltips) con título corto y "Reload the page to try again.".

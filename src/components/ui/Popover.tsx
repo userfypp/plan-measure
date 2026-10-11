@@ -122,7 +122,7 @@ export function focusPopoverContentElement(element: HTMLElement | null | undefin
   element.scrollIntoView?.({ block: "nearest", inline: "nearest" });
 }
 
-export type PopoverPlacement = "bottom-start" | "bottom-end";
+export type PopoverPlacement = "bottom-start" | "bottom-end" | "top-end";
 export type PopoverInitialFocus = "none" | "first" | "container";
 
 export type PopoverTriggerProps = Omit<
@@ -241,7 +241,7 @@ export function Popover({
         ? Math.max(content.width, anchor.width)
         : content.width;
       const preferredLeft =
-        placement === "bottom-end" ? anchor.right - contentWidth : anchor.left;
+        placement === "bottom-end" || placement === "top-end" ? anchor.right - contentWidth : anchor.left;
       const left = clamp(
         preferredLeft,
         VIEWPORT_MARGIN_PX,
@@ -249,11 +249,16 @@ export function Popover({
       );
       const below = anchor.bottom + POPOVER_GAP_PX;
       const above = anchor.top - content.height - POPOVER_GAP_PX;
+      const fitsBelow = below + content.height <= window.innerHeight - VIEWPORT_MARGIN_PX;
+      const fitsAbove = above >= VIEWPORT_MARGIN_PX;
       const preferredTop =
-        below + content.height <= window.innerHeight - VIEWPORT_MARGIN_PX ||
-        above < VIEWPORT_MARGIN_PX
-          ? below
-          : above;
+        placement === "top-end"
+          ? fitsAbove || !fitsBelow
+            ? above
+            : below
+          : fitsBelow || !fitsAbove
+            ? below
+            : above;
       const top = clamp(
         preferredTop,
         VIEWPORT_MARGIN_PX,

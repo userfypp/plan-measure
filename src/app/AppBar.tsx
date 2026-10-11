@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useRef } from "react";
 import { AnchoredMenu, Button, IconButton, type AnchoredMenuItem } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { MeasurementDecimalPlaces } from "../types/domain";
@@ -31,7 +31,6 @@ const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
 ];
 
 interface AppBarProps {
-  saveStatus?: ReactNode;
   documentName: string | null;
   canExport: boolean;
   savedProjectCount?: number;
@@ -58,10 +57,10 @@ interface AppBarProps {
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <g transform="translate(0 1.5)">
-        <path d="M8.62 2.29h2.75l0.47 1.78a6.33 6.33 0 0 1 1.17 0.68l1.73 -0.62 1.38 2.38 -1.27 1.33a6.5 6.5 0 0 1 0 1.35l1.27 1.33 -1.38 2.38 -1.73 -0.62a6.33 6.33 0 0 1 -1.17 0.68l-0.47 1.78h-2.75l-0.47 -1.78a6.33 6.33 0 0 1 -1.17 -0.68l-1.73 0.62 -1.38 -2.38 1.27 -1.33a6.5 6.5 0 0 1 0 -1.35L3.88 6.51l1.38 -2.38 1.73 0.62a6.33 6.33 0 0 1 1.17 -0.68l0.47 -1.78Z" />
-        <circle cx="10" cy="8.5" r="2.54" />
-      </g>
+      <path d="M3 5.5h6M13 5.5h4M3 10h2M9 10h8M3 14.5h8M15 14.5h2" />
+      <circle cx="11" cy="5.5" r="2" />
+      <circle cx="7" cy="10" r="2" />
+      <circle cx="13" cy="14.5" r="2" />
     </svg>
   );
 }
@@ -93,7 +92,6 @@ function FeedbackIcon() {
 }
 
 export function AppBar({
-  saveStatus,
   documentName,
   canExport,
   savedProjectCount = 0,
@@ -121,7 +119,7 @@ export function AppBar({
 
   return (
     <header
-      className={[styles.appBar, saveStatus ? styles.withSaveStatus : ""].filter(Boolean).join(" ")}
+      className={styles.appBar}
       aria-label="Application bar"
     >
       <div className={styles.identityGroup}>
@@ -132,7 +130,6 @@ export function AppBar({
         </div>
       </div>
 
-      {saveStatus}
       <div
         ref={actionsRef}
         {...actionsFocus}

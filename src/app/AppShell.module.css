@@ -103,6 +103,18 @@
   overflow: hidden;
 }
 
+/* Floats over the viewer in the free strip under the dock, lower right; only its trigger takes the pointer. */
+.saveStatus {
+  position: absolute;
+  z-index: var(--z-controls);
+  right: var(--space-12);
+  bottom: 0;
+  height: var(--geometry-viewer-dock-bottom-inset);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
 .loadingOverlay {
   position: fixed;
   z-index: var(--z-loading);

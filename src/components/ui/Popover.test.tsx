@@ -546,4 +546,36 @@ describe("Popover", () => {
     const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
     expect(content.style.minWidth).toBe("180px");
   });
+  it("opens above and end-aligned to the trigger with the top-end placement", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        <Popover trigger="Corner trigger" placement="top-end" role="dialog" aria-label="Above">
+          <button type="button">Inside action</button>
+        </Popover>,
+      );
+    });
+    const button = container.querySelector("button")!;
+    button.getBoundingClientRect = () =>
+      ({ width: 80, height: 20, top: 700, left: 900, right: 980, bottom: 720, x: 900, y: 700, toJSON: () => ({}) });
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return this.getAttribute("role") === "dialog"
+        ? ({ width: 300, height: 200, top: 0, left: 0, right: 300, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
+        : original.call(this);
+    };
+    try {
+      act(() => button.click());
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original;
+    }
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(parseFloat(content.style.top)).toBeLessThan(700);
+    expect(parseFloat(content.style.left) + 300).toBeCloseTo(980, 0);
+  });
 });
