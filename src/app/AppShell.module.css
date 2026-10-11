@@ -11,7 +11,7 @@
 
 .statusRow {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-status);
   top: var(--space-12);
   right: var(--space-12);
   width: fit-content;
@@ -37,7 +37,7 @@
   align-items: center;
   gap: var(--space-8) var(--space-12);
   padding: var(--space-12) var(--space-16);
-  font-size: 13px;
+  font-size: var(--font-size-base);
   line-height: 1.45;
 }
 
@@ -105,11 +105,11 @@
 
 .loadingOverlay {
   position: fixed;
-  z-index: 100;
+  z-index: var(--z-loading);
   inset: 0;
   display: grid;
   place-items: center;
   background: var(--color-loading-overlay);
   color: var(--color-text-muted);
-  font-weight: 650;
+  font-weight: var(--font-weight-semibold);
 }

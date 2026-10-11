@@ -88,7 +88,7 @@
 
 .propertyRow {
   min-width: 0;
-  min-height: 38px;
+  min-height: var(--control-height-regular);
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
@@ -144,7 +144,7 @@
 
 .noteHeader {
   display: flex;
-  min-height: 38px;
+  min-height: var(--control-height-regular);
   align-items: center;
   justify-content: space-between;
 }
@@ -167,7 +167,7 @@
 
 .itemsHeader {
   display: flex;
-  min-height: 38px;
+  min-height: var(--control-height-regular);
   align-items: center;
   justify-content: space-between;
 }
@@ -189,7 +189,7 @@
 }
 
 .itemRow {
-  min-height: 38px;
+  min-height: var(--control-height-regular);
   display: flex;
   align-items: center;
   justify-content: space-between;

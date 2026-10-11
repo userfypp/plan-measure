@@ -1,6 +1,6 @@
 .toolbar {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-controls);
   top: var(--geometry-context-toolbar-top);
   left: var(--geometry-context-toolbar-left);
   min-height: var(--geometry-context-toolbar-height);
@@ -224,7 +224,7 @@
   border-radius: 50%;
   background: var(--color-accent);
   color: var(--color-surface-panel);
-  font-size: 7px;
+  font-size: var(--font-size-glyph-badge);
   font-weight: var(--font-weight-semibold);
   line-height: 1;
 }

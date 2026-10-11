@@ -39,7 +39,7 @@
 }
 
 .checkOverlay {
-  z-index: 3;
+  z-index: var(--z-feedback);
 }
 
 .checkOverlay.resultOverlay {

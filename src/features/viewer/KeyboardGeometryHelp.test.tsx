@@ -64,7 +64,12 @@ it("keeps help visible past notification timeout and dismisses only on explicit 
 });
 it("paints both viewer cursors above the help without intercepting its controls", () => {
   const stylesheet = document.createElement("style");
-  stylesheet.textContent = readFileSync("src/features/viewer/PdfViewer.module.css", "utf8");
+  const tokens = readFileSync("src/styles/tokens.css", "utf8");
+  // jsdom does not resolve var(), so inline the z-index tokens the stylesheet references.
+  stylesheet.textContent = readFileSync("src/features/viewer/PdfViewer.module.css", "utf8").replace(
+    /var\((--z-[a-z-]+)\)/g,
+    (_match: string, name: string) => new RegExp(`${name}: (\\d+);`).exec(tokens)![1],
+  );
   document.head.append(stylesheet);
   try {
     const help = document.createElement("div");

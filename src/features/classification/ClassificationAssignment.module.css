@@ -138,7 +138,7 @@
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 120ms ease;
+  transition: var(--transition-transform);
 }
 
 .valueTrigger[aria-expanded="true"] .valueTriggerContent svg {

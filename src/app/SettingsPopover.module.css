@@ -101,19 +101,19 @@
 }
 
 .appearanceOption:hover {
-  z-index: 1;
+  z-index: var(--z-raised);
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
 }
 
 .appearanceOption:active {
-  z-index: 1;
+  z-index: var(--z-raised);
   border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
 }
 
 .appearanceOption[aria-checked="true"] {
-  z-index: 1;
+  z-index: var(--z-raised);
   border-color: var(--color-accent);
   background: var(--color-selection-surface);
   color: var(--color-accent);
@@ -133,7 +133,7 @@
 }
 
 .appearanceOption:focus-visible {
-  z-index: 2;
+  z-index: var(--z-controls);
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }

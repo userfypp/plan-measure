@@ -106,6 +106,7 @@
   --font-size-heading: 14px;
   --font-size-identity: 16px;
   --font-size-result: 24px;
+  --font-size-glyph-badge: 7px;
   --line-height-secondary: 16px;
   --line-height-base: 18px;
   --line-height-heading: 20px;
@@ -121,8 +122,18 @@
   --radius-overlay: 6px;
   --shadow-structural: none;
   --border-width: 1px;
-  --z-layer-popover: 250;
-  --z-layer-tooltip: 300;
+  /* z-index scale (low to high). Local stacking uses 0-5; app-level layers use 10+. */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-controls: 2;
+  --z-feedback: 3;
+  --z-cursor: 4;
+  --z-panel: 5;
+  --z-overlay: 10;
+  --z-status: 20;
+  --z-loading: 100;
+  --z-popover: 250;
+  --z-tooltip: 300;
 
   /* Governed targets and future shell geometry */
   --target-fine: 32px;
@@ -157,6 +168,7 @@
 
   /* Shared button-like interaction motion. */
   --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  --transition-transform: transform 120ms ease;
 
   /* Transitional V1 aliases. Remove as each surface migrates to V2 semantic roles. */
   --color-surface: var(--color-surface-panel);
@@ -200,6 +212,7 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --transition-interactive: none;
+    --transition-transform: none;
   }
 }
 

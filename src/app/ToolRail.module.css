@@ -1,6 +1,6 @@
 .toolRail {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-controls);
   top: var(--geometry-context-toolbar-top);
   left: var(--space-12);
   width: calc(var(--target-current) + var(--space-8));

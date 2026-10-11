@@ -140,7 +140,7 @@
   width: 16px;
   height: 16px;
   stroke-width: 1.8;
-  transition: transform 120ms ease;
+  transition: var(--transition-transform);
 }
 
 .disclosureButton[aria-expanded="true"] svg {

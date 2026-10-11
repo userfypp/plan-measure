@@ -66,7 +66,19 @@ Pesos permitidos: 400, 500, 600. No hay tamaños fuera de la escala (hoy hay exc
 
 - Las superficies estructurales son planas: borde fino, sin sombra (`--shadow-structural`).
 - Solo overlays flotantes (menús, popovers, tooltips, diálogos) llevan `--shadow-overlay`.
-- Escala de `z-index` tokenizada. Propuesta: `--z-sticky` 10, `--z-dock` 20, `--z-header` 100, `--z-popover` 250, `--z-tooltip` 300, `--z-dialog` 200 (a validar al implementarla). Prohibidos los literales.
+- Escala de `z-index` tokenizada (`tokens.css`); prohibidos los literales:
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--z-base` / `--z-raised` | 0 / 1 | Capas locales dentro de un componente |
+| `--z-controls` | 2 | Barras y controles sobre el visor, foco local |
+| `--z-feedback` | 3 | Avisos y escudos sobre el lienzo |
+| `--z-cursor` | 4 | Cursores, paneles de páginas, lanzadores |
+| `--z-panel` | 5 | Docks y paneles responsive |
+| `--z-overlay` | 10 | Overlay de arrastrar y soltar |
+| `--z-status` | 20 | Fila de estado de la app |
+| `--z-loading` | 100 | Overlay de carga |
+| `--z-popover` / `--z-tooltip` | 250 / 300 | Popovers y tooltips |
 
 ## Iconos
 

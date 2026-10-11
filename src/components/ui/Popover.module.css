@@ -10,7 +10,7 @@
 
 .content {
   position: fixed;
-  z-index: var(--z-layer-popover);
+  z-index: var(--z-popover);
   max-width: calc(100vw - var(--space-16));
   max-height: calc(100dvh - var(--space-16));
   overflow: auto;

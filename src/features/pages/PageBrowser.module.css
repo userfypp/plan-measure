@@ -1,7 +1,7 @@
 .panel {
   --page-browser-width: 240px;
   position: absolute;
-  z-index: 4;
+  z-index: var(--z-cursor);
   top: 0;
   left: 0;
   bottom: 0;

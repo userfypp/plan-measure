@@ -181,7 +181,7 @@
 
 .scaleFullName {
   position: absolute;
-  z-index: 1;
+  z-index: var(--z-raised);
   bottom: calc(100% + var(--space-8));
   left: 50%;
   max-width: min(320px, calc(100vw - var(--space-24)));

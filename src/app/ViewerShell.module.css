@@ -22,7 +22,7 @@
 
 .viewerInteractionShield {
   position: absolute;
-  z-index: 3;
+  z-index: var(--z-feedback);
   inset: 0;
   min-width: 0;
   min-height: 0;
@@ -72,7 +72,7 @@
 
 .dock {
   position: absolute;
-  z-index: 1;
+  z-index: var(--z-raised);
   left: var(--space-12);
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
   bottom: var(--geometry-viewer-dock-bottom-inset);
@@ -83,12 +83,12 @@
 }
 
 .dockWithPages {
-  z-index: 5;
+  z-index: var(--z-panel);
 }
 
 .authoringNotice {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-controls);
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
   bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
   max-width: min(320px, calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-24)));
@@ -118,7 +118,7 @@
 
 .pagesLoading {
   position: absolute;
-  z-index: 4;
+  z-index: var(--z-cursor);
   top: 0;
   left: 0;
   width: min(var(--geometry-workspace-panel-width), 100%);

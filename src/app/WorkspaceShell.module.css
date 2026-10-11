@@ -97,7 +97,7 @@
 
 .dropOverlay {
   position: absolute;
-  z-index: 10;
+  z-index: var(--z-overlay);
   inset: 16px;
   display: grid;
   place-items: center;
@@ -120,7 +120,7 @@
 
 .workspace[data-responsive-mode="narrow"] .workspacePanel {
   position: absolute;
-  z-index: 5;
+  z-index: var(--z-panel);
   top: 0;
   right: 0;
   bottom: 0;
@@ -133,7 +133,7 @@
 
 .workspace[data-responsive-mode="narrow"] .workspaceLauncher {
   position: absolute;
-  z-index: 4;
+  z-index: var(--z-cursor);
   top: var(--space-12);
   right: var(--space-12);
   width: var(--target-current);
