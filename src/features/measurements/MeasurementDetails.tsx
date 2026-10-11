@@ -137,6 +137,60 @@ export function MeasurementDetails({
           </span>
         </Button>
 
+        {renaming ? (
+          <form className={styles.renameForm} onSubmit={submitRename}>
+            <Input
+              label="Name"
+              value={name}
+              error={nameError}
+              autoFocus
+              onChange={(event) => {
+                setName(event.target.value);
+                setNameError(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Escape") return;
+                setName(measurement.name);
+                setNameError(null);
+                setRenaming(false);
+              }}
+            />
+            <div className={styles.renameActions}>
+              <Button
+                variant="secondary"
+                size="compact"
+                onClick={() => {
+                  setName(measurement.name);
+                  setNameError(null);
+                  setRenaming(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="compact">Save</Button>
+            </div>
+          </form>
+        ) : (
+          <div className={styles.identity}>
+            <h2 className={styles.name} title={measurement.name}>{measurement.name}</h2>
+            <IconButton
+              className={styles.renameAction}
+              aria-label={`Rename ${measurement.name}`}
+              tooltip="Rename"
+              icon={
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4.5 15.5l.75-3.25 8.5-8.5a1.41 1.41 0 0 1 2 0l1 1a1.41 1.41 0 0 1 0 2l-8.5 8.5-3.75.75zM12 5.5l2.5 2.5" />
+                </svg>
+              }
+              onClick={() => {
+                setName(measurement.name);
+                setNameError(null);
+                setRenaming(true);
+              }}
+            />
+          </div>
+        )}
+
         <div className={styles.summary} data-measurement-summary>
           <span className={styles.result}>
             {polygonResults ? (
@@ -150,92 +204,40 @@ export function MeasurementDetails({
           </span>
         </div>
 
-        <section className={styles.section} aria-label="Measurement properties">
-          {renaming ? (
-            <form className={styles.renameForm} onSubmit={submitRename}>
-              <Input
-                label="Name"
-                value={name}
-                error={nameError}
-                autoFocus
-                onChange={(event) => {
-                  setName(event.target.value);
-                  setNameError(null);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== "Escape") return;
-                  setName(measurement.name);
-                  setNameError(null);
-                  setRenaming(false);
-                }}
-              />
-              <div className={styles.renameActions}>
-                <Button
-                  variant="secondary"
-                  size="compact"
-                  onClick={() => {
-                    setName(measurement.name);
-                    setNameError(null);
-                    setRenaming(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" size="compact">Save</Button>
-              </div>
-            </form>
-          ) : (
-            <div className={styles.propertyRow}>
-              <span>Name</span>
-              <div className={styles.propertyActionValue}>
-                <strong>{measurement.name}</strong>
-                <Button
-                  variant="ghost"
-                  size="compact"
-                  className={styles.renameAction}
-                  aria-label={`Rename ${measurement.name}`}
-                  onClick={() => {
-                    setName(measurement.name);
-                    setNameError(null);
-                    setRenaming(true);
-                  }}
-                >
-                  Rename
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className={styles.propertyRow}>
-            <span>Type</span>
-            <strong>{viewModel.typeLabel}</strong>
+        <dl className={styles.properties} aria-label="Measurement properties">
+          <div className={styles.cell}>
+            <dt>Type</dt>
+            <dd>{viewModel.typeLabel}</dd>
           </div>
-          {measurement.type === "cloud" && onChangeColor && (
-            <div className={styles.propertyRow}>
-              <span>Color</span>
-              <CloudColorPicker
-                color={measurement.color}
-                disabled={assignmentDisabled}
-                onChange={onChangeColor}
-              />
-            </div>
-          )}
           {measurement.type !== "count" && (
-            <>
-              <div className={[styles.propertyRow, styles.scaleRow].join(" ")}>
-                <span>Scale</span>
-                <strong title={calibration ? scaleLabel : undefined}>{scaleLabel}</strong>
-              </div>
-              <div className={styles.propertyRow}>
-                <span>Mode</span>
-                <strong>{scaleMetadata?.modeLabel ?? "Unavailable"}</strong>
-              </div>
-            </>
+            <div className={styles.cell}>
+              <dt>Mode</dt>
+              <dd>{scaleMetadata?.modeLabel ?? "Unavailable"}</dd>
+            </div>
           )}
-          <div className={styles.propertyRow}>
-            <span>Page</span>
-            <strong>{page.pageNumber}</strong>
+          <div className={styles.cell}>
+            <dt>Page</dt>
+            <dd>{page.pageNumber}</dd>
           </div>
-        </section>
+          {measurement.type !== "count" && (
+            <div className={[styles.cell, styles.wideCell].join(" ")}>
+              <dt>Scale</dt>
+              <dd title={calibration ? scaleLabel : undefined}>{scaleLabel}</dd>
+            </div>
+          )}
+          {measurement.type === "cloud" && onChangeColor && (
+            <div className={[styles.cell, styles.wideCell].join(" ")}>
+              <dt>Color</dt>
+              <dd>
+                <CloudColorPicker
+                  color={measurement.color}
+                  disabled={assignmentDisabled}
+                  onChange={onChangeColor}
+                />
+              </dd>
+            </div>
+          )}
+        </dl>
 
         {measurement.type === "count" && onRemoveCountItem && (
           <section className={styles.section} aria-label="Count items">
@@ -332,18 +334,8 @@ export function MeasurementDetails({
           </section>
         )}
 
-        <section className={`${styles.section} ${styles.noteSection}`} aria-label="Measurement note">
-          <div className={styles.noteHeader}>
-            <h3>Note</h3>
-            <Button
-              type="submit"
-              form="measurement-note-form"
-              variant="ghost"
-              size="compact"
-            >
-              Save note
-            </Button>
-          </div>
+        <section className={styles.section} aria-label="Measurement note">
+          <h3>Note</h3>
           <form
             id="measurement-note-form"
             className={styles.noteForm}
@@ -360,10 +352,20 @@ export function MeasurementDetails({
               onChange={(event) => setNote(event.target.value)}
             />
           </form>
+          <div className={styles.noteActions}>
+            <Button
+              type="submit"
+              form="measurement-note-form"
+              size="compact"
+              disabled={note === savedNote}
+            >
+              Save note
+            </Button>
+          </div>
         </section>
 
         <section
-          className={`${styles.section} ${styles.organizationSection}`}
+          className={styles.section}
           aria-label="Measurement organization"
         >
           <h3>Organization</h3>
@@ -386,6 +388,9 @@ export function MeasurementDetails({
           className={styles.deleteAction}
           onClick={onDelete}
         >
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
+          </svg>
           Delete measurement
         </Button>
       </div>

@@ -51,6 +51,11 @@
   overflow-wrap: anywhere;
 }
 
+.compact .field {
+  justify-items: stretch;
+  text-align: left;
+}
+
 .valueTrigger {
   composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
   width: 100%;
