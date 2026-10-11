@@ -330,73 +330,81 @@
 
 .viewPopover {
   width: min(var(--geometry-viewer-popover-width-compact), calc(100vw - var(--space-24)));
-  padding: var(--space-12);
+  padding: 0;
 }
 
 .viewOptions {
   display: grid;
-  gap: var(--space-8);
 }
 
 .menuHeader {
   display: grid;
   gap: 0;
-  padding: var(--space-4) var(--space-4) var(--space-8);
+  border-bottom: var(--border-width) solid var(--color-divider);
+  padding: var(--space-16) var(--space-16) var(--space-12);
 }
 
 .menuHeader strong {
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }
 
 .menuHeader span,
 .toggleText small {
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
   line-height: var(--line-height-secondary);
+}
+
+.settingBlock {
+  display: grid;
+  padding: var(--space-12) var(--space-16);
 }
 
 .unit,
 .toggle {
-  min-height: var(--target-current);
+  min-height: var(--control-height-regular);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-12);
-  border: var(--border-width) solid transparent;
-  border-radius: var(--radius-control);
-  padding: var(--space-4);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
+  gap: var(--space-16);
+  padding-block: var(--space-4);
 }
 
-.unit select {
-  width: var(--geometry-viewer-unit-select-width);
-  min-height: var(--target-current);
-  padding-inline: var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-panel);
+.settingLabel {
   color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
 }
 
-.unit select:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+.unitSelect {
+  width: var(--geometry-select-width-regular);
 }
 
 .toggleText {
+  display: grid;
+  min-width: 0;
   gap: 0;
-}
-
-.toggleText strong {
-  font-size: var(--font-size-secondary);
 }
 
 .menuDivider {
   height: var(--border-width);
   background: var(--color-divider);
+}
+
+@media (max-width: 420px) {
+  .stackOnNarrow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .unitSelect {
+    width: 100%;
+  }
 }
 
 @media (any-pointer: coarse), (max-width: 800px) {

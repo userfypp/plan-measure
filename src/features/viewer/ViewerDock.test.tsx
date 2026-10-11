@@ -592,36 +592,45 @@ describe("ViewerDock", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
-    const selects = Array.from(
-      document.querySelectorAll<HTMLSelectElement>('[role="dialog"] select'),
+    const dialogElement = document.querySelector('[role="dialog"][aria-label="View options"]')!;
+    const select = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.getAttribute("aria-label") === null && candidate.textContent === "Metres",
     );
-    const [select, areaSelect] = selects;
+    const areaSelect = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent === "Auto",
+    );
     if (!select || !areaSelect) throw new Error("View selectors were not rendered.");
-    expect(Array.from(select.options).map((option) => [option.value, option.textContent])).toEqual([
-      ["mm", "Millimetres"],
-      ["cm", "Centimetres"],
-      ["m", "Metres"],
-      ["in", "Inches"],
-      ["ft", "Feet"],
-      ["ft-in", "Feet & inches"],
+    const items = () =>
+      Array.from(
+        document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+      ).map((item) => item.textContent);
+
+    act(() => select.click());
+    expect(items()).toEqual([
+      "Millimetres",
+      "Centimetres",
+      "Metres",
+      "Inches",
+      "Feet",
+      "Feet & inches",
     ]);
-    expect(
-      Array.from(areaSelect.options).map((option) => [option.value, option.textContent]),
-    ).toEqual([
-      ["auto", "Auto"],
-      ["ac", "Acres"],
-    ]);
-    act(() => {
-      select.value = "ft-in";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')[5]!.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ displayUnit: "ft-in" });
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
-    act(() => {
-      areaSelect.value = "ac";
-      areaSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => areaSelect.click());
+    expect(items()).toEqual(["Auto", "Acres"]);
+    act(() =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(items()).toEqual([]);
+    expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
+    expect(document.activeElement).toBe(areaSelect);
+
+    act(() => areaSelect.click());
+    act(() => document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')[1]!.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ areaDisplay: "ac" });
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
