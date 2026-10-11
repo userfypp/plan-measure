@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button, IconButton } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { ToolIcon } from "../features/viewer/ToolIcon";
@@ -105,6 +105,41 @@ function DrawingAidButton({
         </span>
       )}
     </button>
+  );
+}
+
+/** Live Shift state, cleared on window blur so a missed keyup never leaves it stuck. */
+function useShiftPressed(): boolean {
+  const [pressed, setPressed] = useState(false);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Shift") setPressed(event.type === "keydown");
+    };
+    const onBlur = () => setPressed(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+  return pressed;
+}
+
+function ShiftConstrainHint({ constraint }: { constraint: "square" | "circle" }) {
+  const pressed = useShiftPressed();
+  return (
+    <span
+      className={[styles.modifierHint, pressed ? styles.modifierHintActive : ""]
+        .filter(Boolean)
+        .join(" ")}
+      data-active={pressed ? "true" : "false"}
+      title={`Hold Shift while drawing to constrain to a ${constraint}`}
+    >
+      <kbd>Shift</kbd> {constraint}
+    </span>
   );
 }
 
@@ -419,6 +454,9 @@ export function ContextToolbar({
           pressed={orthogonal}
           onClick={toggleOrthogonal}
         />
+        {(activeTool === "rectangle" || activeTool === "ellipse") && (
+          <ShiftConstrainHint constraint={activeTool === "rectangle" ? "square" : "circle"} />
+        )}
         {showFinish && (
           <>
             <Divider />
@@ -431,7 +469,11 @@ export function ContextToolbar({
                 !canFinish
                   ? activeTool === "polygon"
                     ? "Add at least three vertices before finishing the polygon."
-                    : "Add at least two vertices before finishing the polyline."
+                    : activeTool === "polyline"
+                      ? "Add at least two vertices before finishing the polyline."
+                      : spec.authoring === "box"
+                        ? `Click the opposite corner to finish the ${spec.label.toLowerCase()}.`
+                        : `Add at least ${spec.minVertices} vertices before finishing the ${spec.label.toLowerCase()}.`
                   : undefined
               }
               onClick={() => {
@@ -464,7 +506,8 @@ export function ContextToolbar({
 
   const selectionCount = selectedMeasurements?.length ?? (selectedMeasurementName ? 1 : 0);
   if (activeTool !== "select" || selectionCount === 0) return null;
-  const allSelectedVisible = selectedMeasurements?.every((measurement) => measurement.visible) ?? false;
+  const allSelectedVisible =
+    selectedMeasurements?.every((measurement) => measurement.visible) ?? false;
   const singleSelection = selectionCount === 1 && selectedMeasurementName !== null;
 
   return (
@@ -531,7 +574,9 @@ export function ContextToolbar({
       {selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements && (
         <IconButton
           className={styles.selectionIconButton}
-          aria-label={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
+          aria-label={
+            allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"
+          }
           tooltip={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
@@ -540,10 +585,12 @@ export function ContextToolbar({
               {!allSelectedVisible && <path d="m3.5 3.5 13 13" />}
             </svg>
           }
-          onClick={() => onEditSelectedMeasurements({
-            measurementIds: selectedMeasurements.map((measurement) => measurement.id),
-            operation: { type: "visibility", visible: !allSelectedVisible },
-          })}
+          onClick={() =>
+            onEditSelectedMeasurements({
+              measurementIds: selectedMeasurements.map((measurement) => measurement.id),
+              operation: { type: "visibility", visible: !allSelectedVisible },
+            })
+          }
         />
       )}
       {onClearMeasurementSelection && (

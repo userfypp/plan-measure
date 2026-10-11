@@ -11,6 +11,7 @@ export function KeyboardGeometryHelp({
   helpRef,
   referenceEditing = false,
   hidden = false,
+  shapeTool = null,
 }: {
   editing: boolean;
   measurement: Measurement | null;
@@ -20,6 +21,8 @@ export function KeyboardGeometryHelp({
   helpRef: Ref<HTMLDivElement>;
   referenceEditing?: boolean;
   hidden?: boolean;
+  /** Active box-shape tool, if any, so the card can mention the Shift constraint. */
+  shapeTool?: "rectangle" | "ellipse" | null;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const titleId = useId();
@@ -110,6 +113,12 @@ export function KeyboardGeometryHelp({
             <p>
               <kbd>Enter</kbd> Finish path · <kbd>Esc</kbd> Cancel
             </p>
+            {shapeTool && (
+              <p>
+                <kbd>Shift</kbd> held while placing the second corner:{" "}
+                {shapeTool === "rectangle" ? "square" : "circle"}
+              </p>
+            )}
             <p className={styles.keyboardHint}>
               To edit: select a measurement, press <kbd>E</kbd>, then choose a vertex or the whole
               measurement.

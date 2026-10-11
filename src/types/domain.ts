@@ -161,17 +161,22 @@ export interface SessionV3 {
   settings: LegacySessionSettings;
 }
 
-export type PathMeasurementType = "line" | "polyline" | "polygon";
+export type LegacyPathMeasurementType = "line" | "polyline" | "polygon";
+export type PathMeasurementType =
+  | LegacyPathMeasurementType
+  | "rectangle"
+  | "ellipse"
+  | "cloud";
 export type MeasurementType = PathMeasurementType | "count";
 
 export interface PathMeasurementV4 extends MeasurementBase {
-  type: PathMeasurementType;
+  type: LegacyPathMeasurementType;
   points: Point[];
 }
 
 export type MeasurementV4 = PathMeasurementV4;
 
-export type PathMeasurementCounters = Record<PathMeasurementType, number>;
+export type PathMeasurementCounters = Record<LegacyPathMeasurementType, number>;
 export type MeasurementCounters = Record<MeasurementType, number>;
 
 export interface PageStateV4 {
@@ -221,7 +226,7 @@ export interface ClassificationCatalog {
 
 /** Measurement shape persisted by schema V5, before per-measurement visibility. */
 export interface PathMeasurementV5 extends MeasurementBase {
-  type: PathMeasurementType;
+  type: LegacyPathMeasurementType;
   points: Point[];
   classificationValueIds: string[];
 }
@@ -254,9 +259,11 @@ export interface PathMeasurement extends MeasurementBase {
   classificationValueIds: string[];
   visible: boolean;
   note?: string;
+  /** Palette color (`#rrggbb`); only valid on revision clouds. */
+  color?: string;
 }
 
-export interface CountMeasurement extends Omit<PathMeasurement, "type" | "calibrationId"> {
+export interface CountMeasurement extends Omit<PathMeasurement, "type" | "calibrationId" | "color"> {
   type: "count";
   calibrationId: null;
 }
@@ -338,7 +345,11 @@ export interface SessionV12 extends Omit<SessionV11, "schemaVersion" | "pages"> 
   pages: Record<number, PageState>;
 }
 
-export type CurrentSession = SessionV12;
+export interface SessionV13 extends Omit<SessionV12, "schemaVersion"> {
+  schemaVersion: 13;
+}
+
+export type CurrentSession = SessionV13;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

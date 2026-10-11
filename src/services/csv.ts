@@ -750,7 +750,7 @@ function* measurementRows(
     if (!page) continue;
     for (const measurement of page.measurements) {
       if (
-        (measurement.type === "polygon" || measurement.type === "count") &&
+        (measurementPathSpecs[measurement.type].closed || measurement.type === "count") &&
         !hasValidMeasurementPoints(measurement.type, measurement.points)
       ) {
         throw new Error(`Repair invalid ${measurementPathSpecs[measurement.type].label} measurements before exporting CSV.`);

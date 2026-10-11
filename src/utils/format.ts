@@ -156,7 +156,7 @@ export function formatMeasurement(
     return `${measurement.points.length} ${measurement.points.length === 1 ? "item" : "items"}`;
   }
   if (
-    measurement.type === "polygon" &&
+    measurementPathSpecs[measurement.type].closed &&
     !hasValidMeasurementPoints(measurement.type, measurement.points)
   ) {
     return "Repair required";

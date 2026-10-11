@@ -52,7 +52,9 @@ import {
   shouldIgnoreViewerKeyboardShortcut,
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
+import { boxFromCorners } from "../../utils/quickShapes";
 import { buildDraftPreviewPoints } from "./draftPreview";
+import { drawMeasurementOutlineScene } from "./annotationKonva";
 import { useKeyboardGeometry } from "./useKeyboardGeometry";
 import { KeyboardGeometryHelp } from "./KeyboardGeometryHelp";
 import {
@@ -92,7 +94,10 @@ import {
   useViewerBottomExclusion,
 } from "./viewerLayout";
 import { pointsToFlat } from "./geometry";
+import { CLOUD_FILL_OPACITY, DEFAULT_CLOUD_COLOR, withHexAlpha } from "../../utils/cloudColors";
+import { getActiveCalibration } from "../../utils/calibration";
 import { DraftPointMarkers } from "./DraftPointMarkers";
+import { BoxDraftGuides } from "./BoxDraftGuides";
 import { SOFTWARE_CURSORS } from "./softwareCursor";
 import { useSoftwareCursor } from "./useSoftwareCursor";
 import {
@@ -231,6 +236,27 @@ export function PdfViewer({
   const [spacePan, setSpacePan] = useState(false);
   const [draftPointer, setDraftPointer] = useState<Point | null>(null);
   const [placementPointer, setPlacementPointer] = useState<Point | null>(null);
+  // Shift while drawing a box shape (rectangle, ellipse) constrains it to a square or circle.
+  const [shapeConstrain, setShapeConstrain] = useState(false);
+  const shapeConstrainRef = useRef(false);
+  const updateShapeConstrain = useCallback((value: boolean) => {
+    shapeConstrainRef.current = value;
+    setShapeConstrain((current) => (current === value ? current : value));
+  }, []);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Shift") updateShapeConstrain(event.type === "keydown");
+    };
+    const onBlur = () => updateShapeConstrain(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [updateShapeConstrain]);
   const [isPanning, setIsPanning] = useState(false);
   const suppressPanClickRef = useRef(false);
   const suppressPanClickTimerRef = useRef<number | null>(null);
@@ -1145,6 +1171,7 @@ export function PdfViewer({
   }
 
   function handleMouseMove(event: KonvaEventObject<MouseEvent>) {
+    updateShapeConstrain(Boolean(event.evt?.shiftKey));
     if (keyboardGeometry.cursor) return;
     const pointer = stagePointer(event);
     if (!pointer) return;
@@ -1227,6 +1254,7 @@ export function PdfViewer({
     }
     const pointer = stagePointer(event);
     if (!pointer) return;
+    updateShapeConstrain(event.evt.shiftKey);
     placeDrawingPoint(pointer);
   }
 
@@ -1310,6 +1338,14 @@ export function PdfViewer({
         return;
       }
       const spec = measurementPathSpecs[measurementType];
+      if (spec.authoring === "box") {
+        const first = pathDraft.points[0];
+        if (!first) return;
+        const ring = boxFromCorners(first, resolution.point, shapeConstrainRef.current, bounds);
+        if (!ring) return;
+        completePath(measurementType, ring, pathDraft);
+        return;
+      }
       if (resolution.closesPolygon) {
         if (pathDraft.points.length >= spec.minVertices) {
           completePath(measurementType, pathDraft.points, pathDraft);
@@ -1319,7 +1355,7 @@ export function PdfViewer({
       const last = pathDraft.points.at(-1);
       const effectivePoint = resolution.point;
       if (last && areEffectivelyIdentical(last, effectivePoint)) return;
-      if (measurementType === "polygon" &&
+      if (spec.closed &&
         pathDraft.points.some((point) => areEffectivelyIdentical(point, effectivePoint))) return;
       if (spec.maxVertices === 2) {
         completePath(measurementType, [...pathDraft.points, effectivePoint], pathDraft);
@@ -1427,6 +1463,24 @@ export function PdfViewer({
         ? buildDraftPreviewPoints(workspaceDraft, draftPreviewPointer)
         : [],
     [draftPreviewPointer, workspaceDraft],
+  );
+  const boxDraftPreview = useMemo(() => {
+    if (workspaceDraft?.type !== "path") return null;
+    const type = workspaceDraft.measurementType;
+    if (measurementPathSpecs[type].authoring !== "box") return null;
+    const first = workspaceDraft.points[0];
+    if (!first || !draftPreviewPointer) return null;
+    const ring = boxFromCorners(first, draftPreviewPointer, shapeConstrain, bounds ?? undefined);
+    return ring ? { type, ring, flat: pointsToFlat(ring) } : null;
+  }, [bounds, draftPreviewPointer, shapeConstrain, workspaceDraft]);
+  const cloudDraftPreviewFlat = useMemo(
+    () =>
+      workspaceDraft?.type === "path" &&
+      workspaceDraft.measurementType === "cloud" &&
+      closedDraftPreviewPoints.length >= 3
+        ? pointsToFlat(closedDraftPreviewPoints)
+        : null,
+    [closedDraftPreviewPoints, workspaceDraft],
   );
   const confirmedDraftFlatPoints = useMemo(
     () => (workspaceDraft ? pointsToFlat(workspaceDraft.points) : []),
@@ -1752,6 +1806,7 @@ export function PdfViewer({
             helpRef={keyboardHelpRef}
             hidden={precisionAuthoringBlocked}
             referenceEditing={Boolean(calibrationReferenceEdit)}
+            shapeTool={activeTool === "rectangle" || activeTool === "ellipse" ? activeTool : null}
             editing={keyboardGeometry.editing}
             measurement={keyboardGeometry.editableMeasurement}
             target={calibrationReferenceEdit ? keyboardGeometry.referenceTarget : keyboardGeometry.editTarget}
@@ -1894,7 +1949,8 @@ export function PdfViewer({
                 )}
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
-                  closedDraftPreviewPoints.length >= 3 && (
+                  closedDraftPreviewPoints.length >= 3 &&
+                  !cloudDraftPreviewFlat && (
                     <Line
                       points={pointsToFlat(closedDraftPreviewPoints)}
                       closed
@@ -1903,7 +1959,53 @@ export function PdfViewer({
                       listening={false}
                     />
                   )}
-                {workspaceDraft && workspaceDraft.points.length >= 2 && (
+                {cloudDraftPreviewFlat && (
+                  <Line
+                    points={cloudDraftPreviewFlat}
+                    closed
+                    measurementType="cloud"
+                    sceneFunc={drawMeasurementOutlineScene}
+                    fill={withHexAlpha(DEFAULT_CLOUD_COLOR, CLOUD_FILL_OPACITY)}
+                    stroke={DEFAULT_CLOUD_COLOR}
+                    strokeWidth={CANVAS_VISUAL_METRICS.draftStrokeScreenPx / viewTransform.zoom}
+                    dash={CANVAS_VISUAL_METRICS.draftPreviewDashScreenPx.map(
+                      (value) => value / viewTransform.zoom,
+                    )}
+                    lineCap="round"
+                    lineJoin="round"
+                    listening={false}
+                  />
+                )}
+                {boxDraftPreview && (
+                  <Line
+                    points={boxDraftPreview.flat}
+                    closed
+                    {...(boxDraftPreview.type === "ellipse"
+                      ? { measurementType: "ellipse", sceneFunc: drawMeasurementOutlineScene }
+                      : {})}
+                    fill={canvasVisualRoles.drawingDraftFill}
+                    stroke={canvasVisualRoles.drawingDraftStroke}
+                    strokeWidth={CANVAS_VISUAL_METRICS.draftStrokeScreenPx / viewTransform.zoom}
+                    dash={CANVAS_VISUAL_METRICS.draftPreviewDashScreenPx.map(
+                      (value) => value / viewTransform.zoom,
+                    )}
+                    lineCap="round"
+                    lineJoin="round"
+                    listening={false}
+                  />
+                )}
+                {boxDraftPreview && (boxDraftPreview.type === "rectangle" || boxDraftPreview.type === "ellipse") && (
+                  <BoxDraftGuides
+                    ring={boxDraftPreview.ring}
+                    type={boxDraftPreview.type}
+                    zoom={viewTransform.zoom}
+                    roles={canvasVisualRoles}
+                    calibration={getActiveCalibration(page)}
+                    displayUnit={displayUnit}
+                    decimalPlaces={measurementDecimalPlaces}
+                  />
+                )}
+                {workspaceDraft && workspaceDraft.points.length >= 2 && !cloudDraftPreviewFlat && (
                   <Line
                     points={confirmedDraftFlatPoints}
                     stroke={
@@ -1919,6 +2021,10 @@ export function PdfViewer({
                 )}
                 {workspaceDraft &&
                   workspaceDraft.points.length >= 1 &&
+                  !cloudDraftPreviewFlat &&
+                  !boxDraftPreview &&
+                  !(workspaceDraft.type === "path" &&
+                    measurementPathSpecs[workspaceDraft.measurementType].authoring === "box") &&
                   draftPreviewPointer && (
                     <Line
                       points={pointsToFlat([
@@ -1944,6 +2050,7 @@ export function PdfViewer({
                 {workspaceDraft?.type === "path" &&
                   measurementPathSpecs[workspaceDraft.measurementType].closed &&
                   workspaceDraft.points.length >= 2 &&
+                  !cloudDraftPreviewFlat &&
                   draftPreviewPointer &&
                   workspaceDraft.points[0] && (
                     <Line

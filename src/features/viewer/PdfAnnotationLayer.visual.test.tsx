@@ -108,7 +108,7 @@ function uniformPage(): PageState {
         ],
       },
     ],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 2, count: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 2, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 
@@ -156,7 +156,7 @@ function xyPage(): PageState {
     activeCalibrationId: "xy-1",
     nextCalibrationNumber: 2,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 
@@ -895,6 +895,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       };
       const shape = {
         points: () => page.measurements[0]!.points.flatMap((point) => [point.x, point.y]),
+        getAttr: () => undefined,
         closed: () => type === "polygon",
         hasHitStroke: () => true,
         hitStrokeWidth: () => 6,

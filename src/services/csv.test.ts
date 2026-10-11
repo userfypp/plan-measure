@@ -145,6 +145,33 @@ function smallMeasuredSession(displayUnit: MeasurementDisplayUnit): CurrentSessi
   return session;
 }
 
+describe("quick shape CSV rows", () => {
+  it("exports an ellipse with perimeter and area like a closed shape", () => {
+    const session = smallMeasuredSession("mm");
+    session.pages[1]!.measurements = [
+      {
+        id: "ellipse-id",
+        type: "ellipse",
+        name: "Ellipse 1",
+        calibrationId: "small-scale",
+        points: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+          { x: 0, y: 4 },
+        ],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    const csv = buildCsv(session);
+
+    expect(csv).toContain("Ellipse 1");
+    expect(csv).toContain(`,${4 * Math.PI},${4 * Math.PI},mm,`);
+  });
+});
+
 function classifiedMeasuredSession(): CurrentSession {
   const session = measuredSession();
   session.classificationCatalog = {

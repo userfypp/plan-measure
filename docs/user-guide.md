@@ -20,6 +20,7 @@ Expand a scale to rename it or edit its calibration. Choose **Check** in a scale
 ## Measurements and totals
 
 - **Line**: length between two points. **Polyline**: length along a path. **Polygon**: perimeter and area.
+- **Rectangle**, **Ellipse** and **Cloud** are closed quick shapes with perimeter and area. Rectangle and Ellipse take two clicks: the first corner, then the opposite corner (the ellipse is inscribed in that box). Hold `Shift` while placing the second corner for a square or a circle; the toolbar shows a `Shift` hint (highlighted while the key is down), the preview shows the exact result and a zero-size box is not created. The Rectangle and Ellipse stay axis-aligned to the page; dragging a corner in Select moves its two neighbouring corners so the shape remains a rectangle or ellipse. Cloud is drawn like a polygon (click each vertex, then close on the first vertex or press `Enter`) and renders as a revision cloud with scallops bulging outwards. A cloud's area and perimeter are those of its control polygon, not of the scalloped outline. Clouds are drawn in review red with a thicker stroke and a faint fill, also in the annotated PDF; select one and open **Details** to pick another color from a short palette (the color is saved with the project and included in the JSON export). A square or circle is exact in page space; with an X/Y calibration it measures as a rectangle or ellipse in real units.
 - **Count** creates a count without a scale: click once per item, then choose **Done**. **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or Details. Each count shares a name, note, and classifications; move its markers with Select. In **Details → Items**, use **Move to…** to transfer an item to another count on the same page, or the trash button to remove it. Moving the last item removes the empty source count; Undo restores the transfer and its source count.
 - **Snap** aligns points with visible measurement geometry; **Ortho** constrains segments horizontally or vertically.
 - **Select** lets you move measurements or drag individual vertices. **Details** contains names, notes, and classification assignments.
@@ -76,10 +77,12 @@ Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native
 | --------------------------------- | --------------------------------------------------- |
 | `V` / `H`                         | Select / Hand                                       |
 | `L` / `M` / `P`                   | Line / Polyline / Polygon                           |
+| `R` / `I` / `K`                   | Rectangle / Ellipse / Cloud                         |
 | `C`                               | Count                                               |
 | `S` / `O`                         | Toggle Snap / Ortho                                 |
 | `Enter` / `Escape`                | Finish / cancel drawing; leave an idle drawing tool |
 | Hold `Space`                      | Pan                                                 |
+| Hold `Shift` (Rectangle / Ellipse)| Square / circle at the second corner                |
 | `+` or `=` / `-`                  | Zoom in / out                                       |
 | `Cmd/Ctrl+Z` / `Cmd/Ctrl+Shift+Z` | Undo / redo                                         |
 | `Cmd/Ctrl+C` / `Cmd/Ctrl+V`       | Copy / paste selected measurements                  |

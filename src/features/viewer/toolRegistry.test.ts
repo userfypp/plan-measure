@@ -16,6 +16,9 @@ describe("viewer tool registry", () => {
       "line",
       "polyline",
       "polygon",
+      "rectangle",
+      "ellipse",
+      "cloud",
       "count",
     ]);
     expect(toolRegistry.find((tool) => tool.id === "calibrate")?.inRail).toBe(false);
@@ -34,10 +37,18 @@ describe("viewer tool registry", () => {
     expect(getToolRailVerticalNeighbor("hand", "down")).toBe("line");
     expect(getToolRailVerticalNeighbor("line", "down")).toBe("polyline");
     expect(getToolRailVerticalNeighbor("polyline", "down")).toBe("polygon");
-    expect(getToolRailVerticalNeighbor("polygon", "down")).toBe("count");
+    expect(getToolRailVerticalNeighbor("polygon", "down")).toBe("rectangle");
+    expect(getToolRailVerticalNeighbor("rectangle", "down")).toBe("ellipse");
+    expect(getToolRailVerticalNeighbor("ellipse", "down")).toBe("cloud");
+    expect(getToolRailVerticalNeighbor("cloud", "down")).toBe("count");
     expect(getToolRailVerticalNeighbor("select", "up")).toBe("count");
     expect(getToolRailVerticalNeighbor("count", "down")).toBe("select");
     expect(getToolRailVerticalNeighbor("snap", "down")).toBeNull();
+  });
+
+  it("mentions the Shift constraint in the rectangle and ellipse descriptions", () => {
+    expect(getToolDefinition("rectangle").description).toMatch(/shift/i);
+    expect(getToolDefinition("ellipse").description).toMatch(/shift/i);
   });
 
   it("provides context metadata for the temporary calibration tool", () => {

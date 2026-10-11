@@ -1,6 +1,12 @@
 import type { LogicalPageBounds, PageState, Point } from "../../types/domain";
 import { clampPointToPage } from "../../utils/coordinates";
-import { constrainOrthogonal, distance, isPointStrictlyInsidePolygon } from "../../utils/geometry";
+import {
+  constrainOrthogonal,
+  distance,
+  isPointStrictlyInsidePolygon,
+  measurementPathSpecs,
+} from "../../utils/geometry";
+import { applyMeasurementVertexEdit, measurementOutlinePoints } from "../../utils/quickShapes";
 import { constrainMeasurementTranslation, translateMeasurementPoints } from "./measurementDrag";
 import {
   nearestPointOnSegment,
@@ -41,12 +47,14 @@ export function keyboardHitMeasurement(
       if (measurement.points.some((marker) => distance(point, marker) * zoom <= 8)) return measurement;
       continue;
     }
-    if (measurement.type === "polygon" && isPointStrictlyInsidePolygon(point, measurement.points))
-      return measurement;
-    const edgeCount = measurement.points.length - (measurement.type === "polygon" ? 0 : 1);
+    const closed = measurementPathSpecs[measurement.type].closed;
+    // Hit-test the true contour (ellipse arc / cloud scallops), not the control ring.
+    const outline = measurementOutlinePoints(measurement.type, measurement.points, 1 / zoom);
+    if (closed && isPointStrictlyInsidePolygon(point, outline)) return measurement;
+    const edgeCount = outline.length - (closed ? 0 : 1);
     for (let index = 0; index < edgeCount; index++) {
-      const start = measurement.points[index]!;
-      const end = measurement.points[(index + 1) % measurement.points.length]!;
+      const start = outline[index]!;
+      const end = outline[(index + 1) % outline.length]!;
       if (distance(point, nearestPointOnSegment(point, start, end)) * zoom <= 8) return measurement;
     }
   }
@@ -77,18 +85,19 @@ export function keyboardEditPreview({
   const first = measurements[0];
   if (!first) return [];
   if (rawPoint.x === origin.x && rawPoint.y === origin.y) return [...measurements];
+  const isBox = measurementPathSpecs[first.type].authoring === "box";
   const anchor =
     vertex >= 0 ? first.points[(vertex + first.points.length - 1) % first.points.length]! : origin;
   const availableTargets = targets.filter(
     (target) => !measurements.some(({ id }) => id === target.measurementId),
   );
   const match = snap
-    ? orthogonal
+    ? orthogonal && !isBox
       ? resolveSnapWithOrtho(anchor, rawPoint, zoom, availableTargets, bounds)
       : resolveSnapCandidate(rawPoint, zoom, availableTargets, bounds)
     : null;
   const point = clampPointToPage(
-    match?.point ?? (orthogonal ? constrainOrthogonal(anchor, rawPoint) : rawPoint),
+    match?.point ?? (orthogonal && !isBox ? constrainOrthogonal(anchor, rawPoint) : rawPoint),
     bounds,
   );
   if (vertex >= 0) {
@@ -96,7 +105,7 @@ export function keyboardEditPreview({
       index === 0
         ? {
             ...measurement,
-            points: measurement.points.map((original, i) => (i === vertex ? point : original)),
+            points: applyMeasurementVertexEdit(measurement.type, measurement.points, vertex, point),
           }
         : measurement,
     );

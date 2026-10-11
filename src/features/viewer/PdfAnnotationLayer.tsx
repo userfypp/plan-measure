@@ -37,6 +37,7 @@ import {
   CANVAS_VISUAL_METRICS,
   type CanvasVisualRoles,
 } from "./canvasVisualRoles";
+import { measurementOutlineBounds } from "../../utils/quickShapes";
 import { pointsToFlat } from "./geometry";
 import { CalibrationReferenceMarkers } from "./CalibrationReferenceMarkers";
 import { MeasurementShape } from "./MeasurementShape";
@@ -147,11 +148,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   const labelData = useMemo(() => new Map(page.measurements.map((measurement) => {
     const calibration = getMeasurementCalibration(page, measurement);
     const points = measurement.points;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const point of points) {
-      minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
-      minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
-    }
+    const { minX, maxX, minY, maxY } = measurementOutlineBounds(measurement.type, points);
     return [measurement.id, {
       anchor: averagePoint(points),
       minX, maxX, minY, maxY,

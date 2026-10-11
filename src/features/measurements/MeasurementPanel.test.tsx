@@ -49,7 +49,7 @@ const page: PageState = {
   activeCalibrationId: "scale-1",
   nextCalibrationNumber: 2,
   measurements: [measurement],
-  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, count: 1 },
+  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
 };
 
 function viewModel(selected = false, candidate = measurement) {

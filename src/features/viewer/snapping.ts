@@ -19,6 +19,7 @@ import {
   isMeasurementType,
   measurementPathSpecs,
 } from "../../utils/geometry";
+import { ellipseParams, measurementOutlinePoints } from "../../utils/quickShapes";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 
 export const SNAP_TOLERANCE_SCREEN_PX = 10;
@@ -380,6 +381,52 @@ export function clipSegmentToPage(
   };
 }
 
+/** The ellipse snaps to its centre, its four quadrant points and its true outline (not the bbox corners). */
+function pushEllipseTargets(
+  targets: SnapTarget[],
+  measurement: Measurement,
+  measurementIndex: number,
+  bounds?: LogicalPageBounds,
+): void {
+  if (!measurement.points.every(finitePoint)) return;
+  const { cx, cy, rx, ry } = ellipseParams(measurement.points);
+  const anchors: Point[] = [
+    { x: cx, y: cy },
+    { x: cx + rx, y: cy },
+    { x: cx, y: cy + ry },
+    { x: cx - rx, y: cy },
+    { x: cx, y: cy - ry },
+  ];
+  anchors.forEach((point, primitiveIndex) => {
+    if (bounds && !isPointInPage(point, bounds)) return;
+    targets.push({
+      kind: "vertex",
+      measurementId: measurement.id,
+      measurementIndex,
+      primitiveIndex,
+      point,
+    });
+  });
+  const outline = measurementOutlinePoints("ellipse", measurement.points);
+  for (let index = 0; index < outline.length; index += 1) {
+    const start = outline[index]!;
+    const end = outline[(index + 1) % outline.length]!;
+    if (start.x === end.x && start.y === end.y) continue;
+    const visibleSegment = bounds ? clipSegmentToPage(start, end, bounds) : { start, end };
+    if (!visibleSegment) continue;
+    targets.push({
+      kind: "segment",
+      measurementId: measurement.id,
+      measurementIndex,
+      // Offset past the anchor vertex indices so incident-vertex suppression never matches.
+      primitiveIndex: anchors.length + index,
+      start: visibleSegment.start,
+      end: visibleSegment.end,
+      endVertexIndex: -1,
+    });
+  }
+}
+
 /** Extracts only geometry that is currently rendered for snapping. */
 export function extractSnapTargets(
   measurements: readonly Measurement[],
@@ -391,6 +438,11 @@ export function extractSnapTargets(
 
   measurements.forEach((measurement, measurementIndex) => {
     if (!shouldRenderMeasurement(measurement, showMeasurements)) return;
+
+    if (measurement.type === "ellipse") {
+      pushEllipseTargets(targets, measurement, measurementIndex, bounds);
+      return;
+    }
 
     measurement.points.forEach((point, primitiveIndex) => {
       if (!finitePoint(point)) return;
@@ -766,7 +818,8 @@ function polygonCloseWillOccur(
 ): boolean {
   const spec = measurementPathSpecs[measurementType];
   const first = confirmedPoints[0];
-  if (!spec.closed || confirmedPoints.length < spec.minVertices || !first) return false;
+  if (!spec.closed || spec.authoring === "box" || confirmedPoints.length < spec.minVertices || !first)
+    return false;
   const screenDelta = screenDeltaFromPagePoint(first, { rawPointerScreen, transform });
   const distanceScreen = Math.hypot(screenDelta.dx, screenDelta.dy);
   const alternateDistanceScreen = Math.hypot(
@@ -819,7 +872,8 @@ export function resolveDrawingPoint({
     rawPointerScreen,
     transform,
   );
-  const normalPoint = anchor && orthogonal ? constrainOrthogonal(anchor, rawPoint) : rawPoint;
+  const isBox = measurementPathSpecs[measurementType].authoring === "box";
+  const normalPoint = anchor && orthogonal && !isBox ? constrainOrthogonal(anchor, rawPoint) : rawPoint;
   if (closesPolygon) {
     return { point: confirmedPoints[0]!, snapMatch: null, closesPolygon: true };
   }
@@ -829,7 +883,7 @@ export function resolveDrawingPoint({
   }
 
   const snapMatch =
-    anchor && orthogonal
+    anchor && orthogonal && !isBox
       ? resolveSnapWithOrthoScreenDistance(
           anchor,
           rawPoint,

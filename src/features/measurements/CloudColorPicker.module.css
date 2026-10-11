@@ -1,0 +1,43 @@
+.picker {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+}
+
+.swatch:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.swatch[aria-checked="true"] {
+  /* Ring in the surface color keeps the checked swatch legible on every palette color. */
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 2px var(--color-surface-panel) inset;
+}
+
+.swatch:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swatch:hover:not(:disabled) {
+    transform: none;
+  }
+}

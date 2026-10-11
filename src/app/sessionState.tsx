@@ -20,6 +20,7 @@ import type {
   UniformPageCalibration,
   XyPageCalibration,
 } from "../types/domain";
+import { isCloudColor, resolveCloudColor } from "../utils/cloudColors";
 import { hasValidMeasurementPoints, measurementPathSpecs } from "../utils/geometry";
 import {
   findPageCalibration,
@@ -159,6 +160,7 @@ export type SessionAction =
   | ({ type: "UPDATE_MEASUREMENT" } & UpdateMeasurementCommand)
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
   | { type: "SET_MEASUREMENT_NOTE"; pageNumber: number; id: string; note: string }
+  | { type: "SET_MEASUREMENT_COLOR"; pageNumber: number; id: string; color: string }
   | { type: "SET_MEASUREMENT_VISIBILITY"; pageNumber: number; id: string; visible: boolean }
   | {
       type: "SET_MEASUREMENTS_VISIBILITY";
@@ -201,7 +203,15 @@ function createPageState(pageNumber: number): PageState {
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 1,
+      polyline: 1,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -215,7 +225,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     pdf,
     pageCount,
     currentPage: 1,
@@ -672,6 +682,25 @@ export function sessionReducer(
           else delete updated.note;
           return updated;
         }),
+      }));
+      return { ...state, session, error: null };
+    }
+    case "SET_MEASUREMENT_COLOR": {
+      if (!state.session) return state;
+      const measurement = state.session.pages[action.pageNumber]?.measurements.find(
+        (item) => item.id === action.id,
+      );
+      if (!measurement) {
+        return { ...state, error: "The selected measurement is no longer available." };
+      }
+      // Only revision clouds carry a color, and only from the fixed palette.
+      if (measurement.type !== "cloud" || !isCloudColor(action.color)) return state;
+      if (resolveCloudColor(measurement.color) === action.color) return { ...state, error: null };
+      const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
+        ...currentPage,
+        measurements: currentPage.measurements.map((item) =>
+          item.id === action.id ? { ...item, color: action.color } : item,
+        ),
       }));
       return { ...state, session, error: null };
     }
@@ -1225,6 +1254,7 @@ interface SessionContextValue extends SessionState {
   moveCountItem: (command: MoveCountItemCommand) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementNote: (pageNumber: number, id: string, note: string) => void;
+  setMeasurementColor: (pageNumber: number, id: string, color: string) => void;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
   setMeasurementsVisibility: (
     pageNumber: number,
@@ -1392,6 +1422,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "RENAME_MEASUREMENT", pageNumber, id, name }),
       setMeasurementNote: (pageNumber, id, note) =>
         applyAction({ type: "SET_MEASUREMENT_NOTE", pageNumber, id, note }),
+      setMeasurementColor: (pageNumber, id, color) =>
+        applyAction({ type: "SET_MEASUREMENT_COLOR", pageNumber, id, color }),
       setMeasurementVisibility: (pageNumber, id, visible) =>
         applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
       setMeasurementsVisibility: (pageNumber, measurementIds, visible) =>

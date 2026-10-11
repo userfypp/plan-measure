@@ -49,7 +49,7 @@ let container: HTMLDivElement | null = null;
 
 function sessionFixture(): CurrentSession {
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount: 1,
     currentPage: 1,
@@ -61,7 +61,7 @@ function sessionFixture(): CurrentSession {
         activeCalibrationId: null,
         nextCalibrationNumber: 1,
         measurements: [],
-        nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
+        nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
       },
     },
     settings: {

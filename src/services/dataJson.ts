@@ -12,6 +12,8 @@ import {
 import { effectivePageLabel } from "../utils/pageLabels";
 import { downloadExportFile, exportFileName } from "./exportDownload";
 
+const QUICK_SHAPE_TYPES: ReadonlySet<string> = new Set(["rectangle", "ellipse", "cloud"]);
+
 function finiteNumber(value: number): number {
   if (!Number.isFinite(value)) throw new RangeError("JSON export requires finite numbers.");
   return value;
@@ -139,6 +141,9 @@ export function buildDataJson(
         name: measurement.name,
         note: measurement.note ?? null,
         type: measurement.type,
+        ...(measurement.type !== "count" && measurement.color !== undefined
+          ? { color: measurement.color }
+          : {}),
         visible: measurement.visible,
         calibrationId: measurement.calibrationId,
         points: measurement.points.map(pointData),
@@ -158,6 +163,8 @@ export function buildDataJson(
   return JSON.stringify(
     {
       schemaVersion: Object.values(session.pages).some((page) =>
+        page.measurements.some((measurement) => QUICK_SHAPE_TYPES.has(measurement.type)),
+      ) ? 4 : Object.values(session.pages).some((page) =>
         page.measurements.some((measurement) => measurement.type === "count"),
       ) ? 3 : takeoffSelection ? 2 : 1,
       pdf: {

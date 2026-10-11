@@ -79,8 +79,22 @@ export const CANVAS_VISUAL_METRICS = Object.freeze({
   measurementLabelFontSizeScreenPx: 12,
   calibrationLabelFontSizeScreenPx: 11,
   labelCornerRadiusScreenPx: 3,
+  cloudStrokeScreenPx: 2.75,
+  cloudSelectedStrokeScreenPx: 3.25,
+  cloudSelectedHaloBlurScreenPx: 6,
+  cloudSelectedFillOpacity: 0.14,
   calibrationDashScreenPx: [6, 4] as const,
   draftPreviewDashScreenPx: [5, 4] as const,
+  // Drawing guides of the box shapes (rectangle, ellipse): thin and translucent.
+  boxGuideStrokeScreenPx: 1,
+  boxGuideOpacity: 0.55,
+  boxGuideAxisOpacity: 0.28,
+  boxGuideHandleSizeScreenPx: 7,
+  boxGuideHandleStrokeScreenPx: 1,
+  boxGuideCenterCrossHalfScreenPx: 4,
+  boxGuideDimensionFontSizeScreenPx: 11,
+  boxGuideDimensionOffsetScreenPx: 8,
+  boxGuideDimensionMinSideScreenPx: 28,
   fontFamily: 'Arial, "Helvetica Neue", sans-serif',
 });
 

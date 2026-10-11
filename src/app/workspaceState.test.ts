@@ -446,13 +446,14 @@ describe("workspace selection state", () => {
     expect(changedPage.workspaceModule).toBe("scales");
   });
 
-  it("explicit module changes close Details while tool changes leave navigation untouched", () => {
+  it("explicit module changes close Details while tool changes leave the module untouched", () => {
     const selected = workspaceReducer(initialWorkspaceState, {
       type: "SELECT_MEASUREMENT",
       id: "line-1",
     });
     const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
-    const toolChanged = workspaceReducer(details, { type: "CHOOSE_TOOL", tool: "hand" });
+    const toolChanged = workspaceReducer(details, { type: "CHOOSE_TOOL", tool: "select" });
+    expect(toolChanged).toBe(details);
     expect(toolChanged.measurementDetailsOpen).toBe(true);
     expect(toolChanged.workspaceModule).toBe("scales");
 
@@ -462,6 +463,33 @@ describe("workspace selection state", () => {
     });
     expect(scales.measurementDetailsOpen).toBe(false);
     expect(scales.workspaceModule).toBe("scales");
+  });
+
+  it.each(["hand", "calibrate", "count", "line", "polyline", "polygon", "rectangle", "ellipse", "cloud"] as const)(
+    "clears the selection and Details when switching from Select to %s",
+    (tool) => {
+      const selected = workspaceReducer(initialWorkspaceState, {
+        type: "SELECT_MEASUREMENT",
+        id: "line-1",
+      });
+      const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
+      const next = workspaceReducer(details, { type: "CHOOSE_TOOL", tool });
+      expect(next.activeTool).toBe(tool);
+      expect(next.selectedMeasurementId).toBeNull();
+      expect(next.selectedMeasurementIds).toEqual([]);
+      expect(next.measurementDetailsOpen).toBe(false);
+      expect(next.workspaceModule).toBe("scales");
+    },
+  );
+
+  it("clears a multi-selection when re-choosing the already active non-select tool", () => {
+    const tool = workspaceReducer(initialWorkspaceState, { type: "CHOOSE_TOOL", tool: "hand" });
+    const selected = workspaceReducer(tool, { type: "SELECT_MEASUREMENT", id: "a" });
+    const multi = workspaceReducer(selected, { type: "SELECT_MEASUREMENT", id: "b", additive: true });
+    expect(multi.selectedMeasurementIds).toEqual(["a", "b"]);
+    const next = workspaceReducer(multi, { type: "CHOOSE_TOOL", tool: "hand" });
+    expect(next.selectedMeasurementIds).toEqual([]);
+    expect(next.selectedMeasurementId).toBeNull();
   });
 
   it("toggles Ortho atomically", () => {

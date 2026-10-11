@@ -6,12 +6,15 @@ import type {
   Point,
   PolygonMeasurement,
 } from "../types/domain";
+import { ellipseResultsMm, isAxisAlignedBoxRing } from "./quickShapes";
 
 export interface MeasurementPathSpec {
   label: string;
   minVertices: number;
   maxVertices: number | null;
   closed: boolean;
+  /** "box" shapes are authored from two opposite corners and stored as an axis-aligned ring. */
+  authoring: "vertices" | "box";
 }
 
 export interface AxisAlignedRect {
@@ -22,14 +25,39 @@ export interface AxisAlignedRect {
 }
 
 export const measurementPathSpecs: Record<MeasurementType, MeasurementPathSpec> = {
-  count: { label: "Count", minVertices: 1, maxVertices: null, closed: false },
-  line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false },
-  polyline: { label: "Polyline", minVertices: 2, maxVertices: null, closed: false },
-  polygon: { label: "Polygon", minVertices: 3, maxVertices: null, closed: true },
+  count: { label: "Count", minVertices: 1, maxVertices: null, closed: false, authoring: "vertices" },
+  line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false, authoring: "vertices" },
+  polyline: {
+    label: "Polyline",
+    minVertices: 2,
+    maxVertices: null,
+    closed: false,
+    authoring: "vertices",
+  },
+  polygon: {
+    label: "Polygon",
+    minVertices: 3,
+    maxVertices: null,
+    closed: true,
+    authoring: "vertices",
+  },
+  rectangle: { label: "Rectangle", minVertices: 4, maxVertices: 4, closed: true, authoring: "box" },
+  ellipse: { label: "Ellipse", minVertices: 4, maxVertices: 4, closed: true, authoring: "box" },
+  cloud: { label: "Cloud", minVertices: 3, maxVertices: null, closed: true, authoring: "vertices" },
 };
 
+export const MEASUREMENT_TYPES = [
+  "line",
+  "polyline",
+  "polygon",
+  "rectangle",
+  "ellipse",
+  "cloud",
+  "count",
+] as const satisfies readonly MeasurementType[];
+
 export function isMeasurementType(value: string): value is MeasurementType {
-  return value === "line" || value === "polyline" || value === "polygon" || value === "count";
+  return (MEASUREMENT_TYPES as readonly string[]).includes(value);
 }
 
 export function hasValidMeasurementPoints(
@@ -37,7 +65,9 @@ export function hasValidMeasurementPoints(
   points: readonly Point[],
 ): boolean {
   const hasValidPath = hasValidMeasurementPointSequence(type, points);
-  if (!hasValidPath || type !== "polygon") return hasValidPath;
+  if (!hasValidPath) return false;
+  if (type === "rectangle" || type === "ellipse") return isAxisAlignedBoxRing(points);
+  if (type !== "polygon" && type !== "cloud") return true;
   return (
     !areEffectivelyIdentical(points[0]!, points.at(-1)!) && hasSimplePolygonRing(points)
   );
@@ -765,6 +795,10 @@ export function measurementResultsMm(
   }
   if (!calibration) throw new RangeError("Measurement requires a calibration.");
   const spec = measurementPathSpecs[measurement.type];
+  if (measurement.type === "ellipse") {
+    const ellipse = ellipseResultsMm(measurement.points, calibration);
+    return { lengthMm: null, perimeterMm: ellipse.perimeterMm, areaMm2: ellipse.areaMm2 };
+  }
   if (!spec.closed) {
     return {
       lengthMm: pathLengthMm(measurement.points, calibration, false),

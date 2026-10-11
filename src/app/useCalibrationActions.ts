@@ -47,6 +47,7 @@ interface CalibrationActionsContext {
   setError: (message: string | null) => void;
   precisionAuthoringBlocked: boolean;
   clearDraft: WorkspaceState["clearDraft"];
+  selectedMeasurementId: WorkspaceState["selectedMeasurementId"];
   chooseWorkspaceTool: WorkspaceState["chooseTool"];
   clearError: () => void;
   cancelWorkspaceCalibration: WorkspaceState["cancelCalibration"];
@@ -87,6 +88,7 @@ export function useCalibrationActions({
   setError,
   precisionAuthoringBlocked,
   clearDraft,
+  selectedMeasurementId,
   chooseWorkspaceTool,
   clearError,
   cancelWorkspaceCalibration,
@@ -139,7 +141,14 @@ export function useCalibrationActions({
       return;
     }
     clearDraft();
-    chooseWorkspaceTool(tool);
+    // Any tool but Select deselects; the Count tool keeps a selected Count so it can resume it.
+    const resumesSelectedCount =
+      tool === "count" &&
+      selectedMeasurementId !== null &&
+      currentPage?.measurements.some(
+        (measurement) => measurement.id === selectedMeasurementId && measurement.type === "count",
+      ) === true;
+    chooseWorkspaceTool(tool, resumesSelectedCount ? { keepSelection: true } : undefined);
     clearError();
   }
 

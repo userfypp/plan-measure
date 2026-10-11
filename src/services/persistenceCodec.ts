@@ -19,6 +19,7 @@ import type {
   SessionV10,
   SessionV11,
   SessionV12,
+  SessionV13,
   PageState,
   CurrentSession,
 } from "../types/domain";
@@ -29,6 +30,8 @@ import {
   isValidCalibration,
   isValidPageCalibration,
 } from "../utils/geometry";
+import { isCloudColor } from "../utils/cloudColors";
+import { placeholderPointsFor } from "../utils/quickShapes";
 import { classificationNameKey } from "../utils/classificationNames";
 import { isValidCustomPageLabel } from "../utils/pageLabels";
 
@@ -579,6 +582,78 @@ function assertValidSessionV12(value: Record<string, unknown>, allowClassificati
   assertValidSessionV11({ ...value, schemaVersion: 11 }, allowClassificationNameConflicts, true);
 }
 
+const QUICK_SHAPE_TYPES = ["rectangle", "ellipse", "cloud"] as const;
+
+function assertValidSessionV13(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
+  if (value.schemaVersion !== 13) throw new Error("The saved session is invalid.");
+  assertValidSessionV12({ ...value, schemaVersion: 12 }, allowClassificationNameConflicts);
+  const pages = value.pages as Record<string, unknown>;
+  for (let pageNumber = 1; pageNumber <= (value.pageCount as number); pageNumber += 1) {
+    const page = pages[pageNumber];
+    const counters = isObject(page) ? page.nextMeasurementNumber : undefined;
+    if (
+      !isObject(counters) ||
+      !QUICK_SHAPE_TYPES.every(
+        (type) => Number.isInteger(counters[type]) && (counters[type] as number) >= 1,
+      )
+    ) {
+      throw new Error(`The saved state for page ${pageNumber} is invalid.`);
+    }
+    const measurements = isObject(page) && Array.isArray(page.measurements) ? page.measurements : [];
+    for (const measurement of measurements) {
+      // The optional color only exists on revision clouds and must belong to the palette.
+      if (
+        isObject(measurement) &&
+        measurement.color !== undefined &&
+        (measurement.type !== "cloud" || !isCloudColor(measurement.color))
+      ) {
+        throw new Error(`The saved state for page ${pageNumber} is invalid.`);
+      }
+    }
+  }
+}
+
+/** Rectangle, ellipse and cloud measurements (and cloud colors) only exist from schema V13 onwards. */
+function assertLegacyMeasurementTypes(value: Record<string, unknown>): void {
+  if (!isObject(value.pages)) return;
+  for (const page of Object.values(value.pages)) {
+    if (!isObject(page) || !Array.isArray(page.measurements)) continue;
+    for (const measurement of page.measurements) {
+      if (
+        isObject(measurement) &&
+        ((QUICK_SHAPE_TYPES as readonly unknown[]).includes(measurement.type) ||
+          measurement.color !== undefined)
+      ) {
+        throw new Error("The saved session is invalid.");
+      }
+    }
+  }
+}
+
+function migrateSessionV12(session: SessionV12): SessionV13 {
+  return {
+    ...session,
+    schemaVersion: 13,
+    pages: Object.fromEntries(
+      Object.entries(session.pages).map(([key, page]) => [
+        key,
+        {
+          ...page,
+          nextMeasurementNumber: {
+            ...page.nextMeasurementNumber,
+            rectangle: 1,
+            ellipse: 1,
+            cloud: 1,
+          },
+        },
+      ]),
+    ),
+  };
+}
+
 function migrateSessionV11(session: SessionV11): SessionV12 {
   return {
     ...session,
@@ -679,7 +754,13 @@ function migrateSessionV5(session: SessionV5): SessionV6 {
     const page = session.pages[pageNumber]!;
     pages[pageNumber] = {
       ...page,
-      nextMeasurementNumber: { ...page.nextMeasurementNumber, count: 1 },
+      nextMeasurementNumber: {
+        ...page.nextMeasurementNumber,
+        count: 1,
+        rectangle: 1,
+        ellipse: 1,
+        cloud: 1,
+      },
       measurements: page.measurements.map((measurement) => ({
         ...measurement,
         visible: true,
@@ -745,7 +826,7 @@ function migrateSessionV10(session: SessionV10): SessionV11 {
   };
 }
 
-function canonicalizeSessionV10(session: SessionV10 | SessionV12): SessionV10 {
+function canonicalizeSessionV10(session: SessionV10 | SessionV12 | SessionV13): SessionV10 {
   const pages: Record<number, PageState> = {};
   for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
     const page = session.pages[pageNumber]!;
@@ -780,6 +861,9 @@ function canonicalizeSessionV10(session: SessionV10 | SessionV12): SessionV10 {
         classificationValueIds: [...measurement.classificationValueIds],
         visible: measurement.visible,
         ...(measurement.note === undefined ? {} : { note: measurement.note }),
+        ...(measurement.type === "count" || measurement.color === undefined
+          ? {}
+          : { color: measurement.color }),
       })),
       nextMeasurementNumber: { ...page.nextMeasurementNumber },
     };
@@ -827,12 +911,17 @@ function canonicalizeSessionV12(session: SessionV12): SessionV12 {
   return { ...canonical, schemaVersion: 12, pageLabelOverrides: { ...session.pageLabelOverrides } };
 }
 
+function canonicalizeSessionV13(session: SessionV13): SessionV13 {
+  const canonical = canonicalizeSessionV10(session);
+  return { ...canonical, schemaVersion: 13, pageLabelOverrides: { ...session.pageLabelOverrides } };
+}
+
 function migrateAndCanonicalizeSessionV9(session: SessionV9): SessionV11 {
   return canonicalizeSessionV11(migrateSessionV10(migrateSessionV9(session)));
 }
 
 export function serializeSession(session: CurrentSession): string {
-  assertValidSessionV12(session as unknown as Record<string, unknown>);
+  assertValidSessionV13(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
 
@@ -951,11 +1040,12 @@ function requiresClassificationNameRepair(value: unknown): boolean {
 }
 
 function finalizeDecodedSession(
-  source: SessionV11 | CurrentSession,
+  source: SessionV11 | SessionV12 | CurrentSession,
   allowHistoricalGeometry: boolean,
   classificationRepairRequired = false,
 ): DecodedSession {
-  const session = source.schemaVersion === 11 ? migrateSessionV11(source) : source;
+  const sessionV12 = source.schemaVersion === 11 ? migrateSessionV11(source) : source;
+  const session = sessionV12.schemaVersion === 12 ? migrateSessionV12(sessionV12) : sessionV12;
   const incompatibleMeasurementIds = Object.values(session.pages).flatMap((page) =>
     page.measurements
       .filter((measurement) => !hasValidMeasurementPoints(measurement.type, measurement.points))
@@ -964,33 +1054,23 @@ function finalizeDecodedSession(
   const historicalGeometryRepairRequired =
     allowHistoricalGeometry && incompatibleMeasurementIds.length > 0;
   if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
-    assertValidSessionV12(session as unknown as Record<string, unknown>);
+    assertValidSessionV13(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
   }
 
   // Validate every other migrated field without changing the repairable snapshot returned below.
-  const validationProbe = canonicalizeSessionV12(session);
+  const validationProbe = canonicalizeSessionV13(session);
   for (const page of Object.values(validationProbe.pages)) {
     page.measurements = page.measurements.map((measurement) =>
       hasValidMeasurementPoints(measurement.type, measurement.points)
         ? measurement
         : {
             ...measurement,
-            points:
-              measurement.type === "polygon"
-                ? [
-                    { x: 0, y: 0 },
-                    { x: 1, y: 0 },
-                    { x: 0, y: 1 },
-                  ]
-                : [
-                    { x: 0, y: 0 },
-                    { x: 1, y: 0 },
-                  ],
+            points: placeholderPointsFor(measurement.type),
           },
     );
   }
-  assertValidSessionV12(
+  assertValidSessionV13(
     validationProbe as unknown as Record<string, unknown>,
     classificationRepairRequired,
   );
@@ -1056,6 +1136,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 4) {
+    assertLegacyMeasurementTypes(value);
     assertValidSessionWithHistoricalPolygons(value, assertValidSessionV4);
     return finalizeDecodedSession(
       migrateAndCanonicalizeSessionV9(
@@ -1069,6 +1150,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 5) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1086,6 +1168,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 6) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1101,6 +1184,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 7) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1116,6 +1200,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 8) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1129,6 +1214,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 9) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1142,6 +1228,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 10) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1155,6 +1242,7 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 11) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(
       value.classificationCatalog,
     );
@@ -1168,9 +1256,19 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 12) {
+    assertLegacyMeasurementTypes(value);
     const classificationRepairRequired = requiresClassificationNameRepair(value.classificationCatalog);
     assertValidSessionV12(value, classificationRepairRequired);
     return finalizeDecodedSession(canonicalizeSessionV12(value as unknown as SessionV12), false, classificationRepairRequired);
+  }
+  if (value.schemaVersion === 13) {
+    const classificationRepairRequired = requiresClassificationNameRepair(value.classificationCatalog);
+    assertValidSessionV13(value, classificationRepairRequired);
+    return finalizeDecodedSession(
+      canonicalizeSessionV13(value as unknown as SessionV13),
+      false,
+      classificationRepairRequired,
+    );
   }
   throw new Error("The saved session uses an unsupported schema.");
 }

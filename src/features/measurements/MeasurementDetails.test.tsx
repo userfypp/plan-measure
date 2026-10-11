@@ -53,7 +53,7 @@ const page: PageState = {
   activeCalibrationId: "active",
   nextCalibrationNumber: 3,
   measurements: [firstMeasurement, secondMeasurement],
-  nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, count: 1 },
+  nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
 };
 
 const catalog: ClassificationCatalog = {
@@ -418,6 +418,60 @@ describe("MeasurementDetails", () => {
     expect(container?.textContent).toContain("Lobby");
     expect(container?.getAttribute("aria-label")).toBeNull();
     expect(container?.querySelector('section[aria-label="Details for Lobby"]')).not.toBeNull();
+  });
+
+  describe("cloud color", () => {
+    const cloud: Measurement = {
+      id: "cloud-1",
+      type: "cloud",
+      name: "Cloud 1",
+      calibrationId: "historical",
+      classificationValueIds: [],
+      visible: true,
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 },
+      ],
+    };
+    const swatches = () =>
+      Array.from(container!.querySelectorAll<HTMLButtonElement>('[role="radiogroup"] [role="radio"]'));
+
+    it("offers the palette as an accessible radio group with red as the default", () => {
+      renderDetails(createProps({ measurement: cloud, onChangeColor: vi.fn() }));
+
+      const group = container!.querySelector('[role="radiogroup"]')!;
+      expect(group.getAttribute("aria-label")).toBe("Cloud color");
+      expect(swatches().map((swatch) => swatch.getAttribute("aria-label"))).toEqual([
+        "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Magenta", "Dark gray",
+      ]);
+      expect(swatches().filter((swatch) => swatch.getAttribute("aria-checked") === "true")).toHaveLength(1);
+      expect(swatches()[0]!.getAttribute("aria-checked")).toBe("true");
+      expect(swatches().map((swatch) => swatch.tabIndex)).toEqual([0, -1, -1, -1, -1, -1, -1, -1]);
+    });
+
+    it("reports the chosen color and moves with the arrow keys", () => {
+      const onChangeColor = vi.fn();
+      renderDetails(createProps({ measurement: { ...cloud, color: "#2465c7" } as Measurement, onChangeColor }));
+      expect(swatches()[4]!.getAttribute("aria-checked")).toBe("true");
+
+      act(() => swatches()[6]!.click());
+      expect(onChangeColor).toHaveBeenLastCalledWith("#d6338a");
+
+      act(() => {
+        swatches()[4]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+      });
+      expect(onChangeColor).toHaveBeenLastCalledWith("#7a4bd1");
+    });
+
+    it("is disabled while editing is blocked and hidden for other types or without a handler", () => {
+      renderDetails(createProps({ measurement: cloud, onChangeColor: vi.fn(), assignmentDisabled: true }));
+      expect(swatches().every((swatch) => swatch.disabled)).toBe(true);
+      renderDetails(createProps({ measurement: cloud }));
+      expect(swatches()).toHaveLength(0);
+      renderDetails(createProps({ onChangeColor: vi.fn() }));
+      expect(swatches()).toHaveLength(0);
+    });
   });
 
 });

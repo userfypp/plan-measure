@@ -53,13 +53,13 @@ function page(measurements: Measurement[]): PageState {
     activeCalibrationId: "scale",
     nextCalibrationNumber: 2,
     measurements,
-    nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 
 function session(pages: Record<number, PageState>, withCatalog = true): CurrentSession {
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     pageCount: Object.keys(pages).length,
     currentPage: 1,
     pages,

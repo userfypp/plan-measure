@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { EncryptedPDFError, PDFDocument, PDFPage, degrees } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CurrentSession, PageState } from "../../types/domain";
+import type { CurrentSession, PageState, PathMeasurement } from "../../types/domain";
 import {
   annotatedPdfFileName,
   createAnnotatedPdf,
@@ -54,7 +54,7 @@ function pageFixture(): PageState {
         ],
       },
     ],
-    nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 
@@ -69,7 +69,7 @@ function sessionFixture(pageCount = 1): CurrentSession {
     };
   }
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount,
     currentPage: 1,
@@ -306,6 +306,83 @@ describe("annotated PDF export", () => {
         ([path, options]) => path.endsWith("Z") && options?.opacity === 16 / 255,
       ),
     ).toBe(true);
+  });
+
+  it("exports a rectangle as a polygon and an ellipse and cloud as one bordered path each", async () => {
+    const source = await sourcePdf();
+    const session = sessionFixture();
+    const base = session.pages[1]!.measurements[0]! as PathMeasurement;
+    const box = [
+      { x: 20, y: 20 },
+      { x: 120, y: 20 },
+      { x: 120, y: 70 },
+      { x: 20, y: 70 },
+    ];
+    session.pages[1]!.measurements = [
+      { ...base, id: "rectangle", type: "rectangle", points: box },
+      { ...base, id: "ellipse", type: "ellipse", points: box },
+      {
+        ...base,
+        id: "cloud",
+        type: "cloud",
+        points: [
+          { x: 20, y: 100 },
+          { x: 120, y: 100 },
+          { x: 70, y: 180 },
+        ],
+      },
+    ];
+    const drawLine = vi.spyOn(PDFPage.prototype, "drawLine");
+    const drawSvgPath = vi.spyOn(PDFPage.prototype, "drawSvgPath");
+
+    await createAnnotatedPdf(session, sourceDocument(source));
+
+    // Only the rectangle uses per-edge lines; ellipse and cloud are a single path each.
+    expect(drawLine).toHaveBeenCalledTimes(4);
+    const bordered = drawSvgPath.mock.calls.filter(([, options]) => options?.borderWidth !== undefined);
+    expect(bordered).toHaveLength(2);
+    for (const [path, options] of bordered) {
+      expect(path.startsWith("M ")).toBe(true);
+      expect(path.endsWith("Z")).toBe(true);
+      expect(path.split("L").length).toBeGreaterThan(32);
+      expect(options?.borderLineCap).toBeDefined();
+    }
+  });
+
+  it("draws clouds in review red by default, in their own color when set, with a thicker stroke and faint fill", async () => {
+    const source = await sourcePdf();
+    const session = sessionFixture();
+    const base = session.pages[1]!.measurements[0]! as PathMeasurement;
+    const ring = [
+      { x: 20, y: 100 },
+      { x: 120, y: 100 },
+      { x: 70, y: 180 },
+    ];
+    session.pages[1]!.measurements = [
+      { ...base, id: "cloud-default", type: "cloud", points: ring },
+      { ...base, id: "cloud-blue", type: "cloud", color: "#2465c7", points: ring },
+      { ...base, id: "polygon", type: "polygon", points: ring },
+    ];
+    const drawSvgPath = vi.spyOn(PDFPage.prototype, "drawSvgPath");
+
+    await createAnnotatedPdf(session, sourceDocument(source));
+
+    const bordered = drawSvgPath.mock.calls.filter(([, options]) => options?.borderWidth !== undefined);
+    expect(bordered).toHaveLength(2);
+    const [red, blue] = bordered.map(([, options]) => options!) as [
+      NonNullable<(typeof bordered)[number][1]>,
+      NonNullable<(typeof bordered)[number][1]>,
+    ];
+    expect(red.borderColor).toMatchObject({ red: 0xd9 / 255, green: 0x2d / 255, blue: 0x20 / 255 });
+    expect(red.color).toMatchObject({ red: 0xd9 / 255, green: 0x2d / 255, blue: 0x20 / 255 });
+    expect(blue.borderColor).toMatchObject({ red: 0x24 / 255, green: 0x65 / 255, blue: 0xc7 / 255 });
+    expect(blue.color).toMatchObject({ red: 0x24 / 255, green: 0x65 / 255, blue: 0xc7 / 255 });
+    expect(red.opacity).toBeCloseTo(0.08, 2);
+    expect(red.borderWidth).toBeGreaterThan(1.5);
+    expect(red.borderWidth).toBe(2.75);
+    // The polygon keeps the default measurement look (no border on its fill path).
+    const polygonFill = drawSvgPath.mock.calls.find(([, options]) => options?.borderWidth === undefined);
+    expect(polygonFill?.[1]?.opacity).toBe(16 / 255);
   });
 
   it("rejects a source PDF whose page count no longer matches the session", async () => {

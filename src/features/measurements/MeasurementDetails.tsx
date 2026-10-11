@@ -9,6 +9,7 @@ import type {
   PageState,
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
+import { measurementPathSpecs } from "../../utils/geometry";
 import {
   MEASUREMENT_NAME_EMPTY_ERROR,
   normalizeMeasurementName,
@@ -18,6 +19,7 @@ import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createMeasurementViewModel } from "./measurementViewModels";
 import type { WorkspaceModule } from "../../app/workspaceState";
 import { workspaceModuleLabel } from "../../app/WorkspacePanel";
+import { CloudColorPicker } from "./CloudColorPicker";
 import styles from "./MeasurementDetails.module.css";
 
 export interface MeasurementDetailsProps {
@@ -32,6 +34,8 @@ export interface MeasurementDetailsProps {
   onBack: () => void;
   onRename: (name: string) => void;
   onSaveNote: (note: string) => void;
+  /** Present only where cloud colors can be edited. */
+  onChangeColor?: (color: string) => void;
   onAssignClassification: (measurementId: string, dimensionId: string, valueId: string | null) => void;
   onRemoveCountItem?: (index: number) => void;
   onMoveCountItem?: (index: number, targetId: string) => void;
@@ -52,6 +56,7 @@ export function MeasurementDetails({
   onBack,
   onRename,
   onSaveNote,
+  onChangeColor,
   onAssignClassification,
   onRemoveCountItem,
   onMoveCountItem,
@@ -78,7 +83,7 @@ export function MeasurementDetails({
       ? `${calibration.name} · ${scaleMetadata.ratioLabel}`
       : "Scale unavailable";
   const [perimeterResult, areaResult] = viewModel.valueLabel.split(" · ");
-  const polygonResults = measurement.type === "polygon" && perimeterResult && areaResult;
+  const polygonResults = measurementPathSpecs[measurement.type].closed && perimeterResult && areaResult;
   const otherCounts = page.measurements.filter(
     (candidate) => candidate.type === "count" && candidate.id !== measurement.id,
   );
@@ -186,6 +191,16 @@ export function MeasurementDetails({
             <span>Type</span>
             <strong>{viewModel.typeLabel}</strong>
           </div>
+          {measurement.type === "cloud" && onChangeColor && (
+            <div className={styles.propertyRow}>
+              <span>Color</span>
+              <CloudColorPicker
+                color={measurement.color}
+                disabled={assignmentDisabled}
+                onChange={onChangeColor}
+              />
+            </div>
+          )}
           {measurement.type !== "count" && (
             <>
               <div className={[styles.propertyRow, styles.scaleRow].join(" ")}>

@@ -39,6 +39,37 @@
   white-space: nowrap;
 }
 
+.modifierHint {
+  min-height: var(--geometry-context-control-height);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
+.modifierHint kbd {
+  padding: 1px 5px;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+}
+
+.modifierHintActive {
+  color: var(--color-accent);
+}
+
+.modifierHintActive kbd {
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+}
+
 .measurementNameTrigger {
   min-width: 0;
   max-width: 180px;
@@ -266,6 +297,7 @@
 
   .status,
   .toolIdentity,
+  .modifierHint,
   .measurementNameTrigger,
   .aidButton,
   .action,

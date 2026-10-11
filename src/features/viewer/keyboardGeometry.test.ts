@@ -127,6 +127,22 @@ describe("keyboard measurement selection", () => {
     expect(keyboardHitMeasurement([polyline], { x: 50, y: 45 }, 1)).toBeNull();
     expect(keyboardHitMeasurement([polyline], { x: 80, y: 45 }, 1)).toBe(polyline);
   });
+
+  it("hits an ellipse by its contour rather than its bounding box corners", () => {
+    const ellipse = measurement(
+      "ellipse",
+      [
+        { x: 20, y: 20 },
+        { x: 80, y: 20 },
+        { x: 80, y: 60 },
+        { x: 20, y: 60 },
+      ],
+      "ellipse",
+    );
+    expect(keyboardHitMeasurement([ellipse], { x: 50, y: 40 }, 1)).toBe(ellipse);
+    expect(keyboardHitMeasurement([ellipse], { x: 50, y: 20 }, 1)).toBe(ellipse);
+    expect(keyboardHitMeasurement([ellipse], { x: 21, y: 21 }, 1)).toBeNull();
+  });
 });
 
 describe("keyboard edit preview", () => {

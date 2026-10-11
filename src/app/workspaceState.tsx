@@ -43,7 +43,7 @@ export interface ScaleClipboard {
 export type WorkspaceAction =
   | { type: "RESET_WORKSPACE"; module?: WorkspaceModule }
   | { type: "PAGE_CHANGED" }
-  | { type: "CHOOSE_TOOL"; tool: Tool }
+  | { type: "CHOOSE_TOOL"; tool: Tool; keepSelection?: boolean }
   | { type: "SELECT_MEASUREMENT"; id: string; additive?: boolean }
   | { type: "SELECT_MEASUREMENTS"; ids: string[] }
   | { type: "COPY_MEASUREMENTS"; pageNumber: number; measurements: readonly Measurement[] }
@@ -110,15 +110,31 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         calibrationReferenceEdit: null,
         measurementDetailsOpen: false,
       };
-    case "CHOOSE_TOOL":
+    case "CHOOSE_TOOL": {
+      // Only the Select tool keeps a selection: any other tool deselects. The one exception is
+      // `keepSelection`, used to resume adding items to the selected Count with the Count tool.
+      const clearsSelection =
+        action.tool !== "select" &&
+        !action.keepSelection &&
+        (state.selectedMeasurementId !== null ||
+          state.selectedMeasurementIds.length > 0 ||
+          state.measurementDetailsOpen);
       if (state.activeTool === action.tool) {
         const draftMatchesTool =
           state.draft === null ||
           (state.draft.type === "calibrate" && action.tool === "calibrate") ||
           (state.draft.type === "path" && state.draft.measurementType === action.tool);
-        if (draftMatchesTool) return state;
+        if (draftMatchesTool && !clearsSelection) return state;
       }
-      return { ...state, activeTool: action.tool, draft: null };
+      return {
+        ...state,
+        activeTool: action.tool,
+        draft: null,
+        ...(clearsSelection
+          ? { selectedMeasurementId: null, selectedMeasurementIds: [], measurementDetailsOpen: false }
+          : {}),
+      };
+    }
     case "SELECT_MEASUREMENT":
       if (
         !action.additive &&
@@ -285,7 +301,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
 interface WorkspaceContextValue extends WorkspaceState {
   resetWorkspace: (module?: WorkspaceModule) => void;
   pageChanged: () => void;
-  chooseTool: (tool: Tool) => void;
+  chooseTool: (tool: Tool, options?: { keepSelection?: boolean }) => void;
   selectMeasurement: (id: string, additive?: boolean) => void;
   selectMeasurements: (ids: string[]) => void;
   clearSelection: () => void;
@@ -325,7 +341,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       ...state,
       resetWorkspace: (module?: WorkspaceModule) => dispatch({ type: "RESET_WORKSPACE", module }),
       pageChanged: () => dispatch({ type: "PAGE_CHANGED" }),
-      chooseTool: (tool: Tool) => dispatch({ type: "CHOOSE_TOOL", tool }),
+      chooseTool: (tool: Tool, options?: { keepSelection?: boolean }) =>
+        dispatch({ type: "CHOOSE_TOOL", tool, ...(options?.keepSelection ? { keepSelection: true } : {}) }),
       selectMeasurement: (id: string, additive = false) => dispatch({ type: "SELECT_MEASUREMENT", id, additive }),
       selectMeasurements: (ids: string[]) => dispatch({ type: "SELECT_MEASUREMENTS", ids }),
       copyMeasurements: (pageNumber: number, measurements: readonly Measurement[]) =>

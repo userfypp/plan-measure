@@ -18,6 +18,9 @@ export const VIEWER_HEIGHT = 700;
 export const konvaCapture = {
   circles: [] as CapturedProps[],
   lines: [] as CapturedProps[],
+  rects: [] as CapturedProps[],
+  labels: [] as CapturedProps[],
+  texts: [] as CapturedProps[],
   layers: [] as CapturedProps[],
   stages: [] as CapturedProps[],
   annotationLayers: [] as CapturedProps[],
@@ -53,7 +56,19 @@ export function createReactKonvaMock() {
       konvaCapture.lines.push(props);
       return null;
     },
-    Rect: () => null,
+    Rect: (props: CapturedProps) => {
+      konvaCapture.rects.push(props);
+      return null;
+    },
+    Label: ({ children, ...props }: { children?: ReactNode } & CapturedProps) => {
+      konvaCapture.labels.push(props);
+      return <>{children}</>;
+    },
+    Tag: () => null,
+    Text: (props: CapturedProps) => {
+      konvaCapture.texts.push(props);
+      return null;
+    },
     Stage: forwardRef<unknown, { children?: ReactNode } & Record<string, unknown>>(
       ({ children, ...props }, ref) => {
         const contentRef = useRef<HTMLDivElement>(null);
@@ -98,11 +113,16 @@ export function stageHandler(name: string): StageHandler {
 /** Evento Konva con el puntero en `screen`. `onStage` simula un clic sobre el fondo del Stage. */
 export function konvaPointerEvent(
   screen: Point,
-  { button = 0, onStage = false, deltaY = 0 }: { button?: number; onStage?: boolean; deltaY?: number } = {},
+  {
+    button = 0,
+    onStage = false,
+    deltaY = 0,
+    shiftKey = false,
+  }: { button?: number; onStage?: boolean; deltaY?: number; shiftKey?: boolean } = {},
 ) {
   const stage = { getPointerPosition: () => ({ ...screen }), getStage: () => stage, name: () => "" };
   const target = onStage ? stage : { getStage: () => stage, name: () => "" };
-  return { target, evt: { button, deltaY, preventDefault: vi.fn() } };
+  return { target, evt: { button, deltaY, shiftKey, preventDefault: vi.fn() } };
 }
 
 export function rect(width: number, height: number): DOMRect {

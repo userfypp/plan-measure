@@ -22,6 +22,7 @@ import type {
 import { getMeasurementCalibration } from "../../utils/calibration";
 import { measurementPathSpecs } from "../../utils/geometry";
 import { formatMeasurement } from "../../utils/format";
+import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
 import {
   LABEL_EDGE_MARGIN_SCREEN_PX,
@@ -65,7 +66,7 @@ import {
   type CanvasVisualRoles,
 } from "./canvasVisualRoles";
 import { pointsToFlat } from "./geometry";
-import { drawMeasurementHit, withoutKonvaAutoDraw } from "./annotationKonva";
+import { drawMeasurementHit, drawMeasurementOutlineScene, withoutKonvaAutoDraw } from "./annotationKonva";
 import {
   averagePoint,
   LABEL_PADDING_SCREEN_PX,
@@ -187,9 +188,13 @@ export const MeasurementShape = memo(function MeasurementShape({
   const [wholeDragPrepared, setWholeDragPrepared] = useState(false);
   const [vertexDragOwned, setVertexDragOwned] = useState(false);
   const [dragPoints, setDragPoints] = useState<Point[] | null>(null);
-  const stroke = selected
-    ? visualRoles.measurementSelectedStroke
-    : visualRoles.measurementDefaultStroke;
+  // Revision clouds keep their own (editable) color, also when selected.
+  const cloudColor = measurement.type === "cloud" ? resolveCloudColor(measurement.color) : null;
+  const stroke = cloudColor
+    ? cloudColor
+    : selected
+      ? visualRoles.measurementSelectedStroke
+      : visualRoles.measurementDefaultStroke;
   const visibleMeasurement = useMemo<Measurement>(() => {
     const points = dragPoints ?? groupPreviewPoints;
     if (!points) return measurement;
@@ -296,7 +301,11 @@ export const MeasurementShape = memo(function MeasurementShape({
       line.draggable(false);
       handles.forEach((handle) => handle.draggable(false));
       if (measurementPathSpecs[measurement.type].closed && selected) {
-        line.fill(visualRoles.measurementSelectedSoftFill);
+        line.fill(
+          cloudColor
+            ? withHexAlpha(cloudColor, CLOUD_FILL_OPACITY)
+            : visualRoles.measurementSelectedSoftFill,
+        );
       }
       dragPreviewRef.current = {
         layer,
@@ -676,6 +685,7 @@ export const MeasurementShape = memo(function MeasurementShape({
       measurement.points,
       transform,
       bounds,
+      measurement.type,
     );
     vertexDragPreparationRef.current = preparation;
     if (!preparation) {
@@ -850,22 +860,44 @@ export const MeasurementShape = memo(function MeasurementShape({
         points={flatPoints}
         closed={measurementPathSpecs[measurement.type].closed}
         fill={
-          measurementPathSpecs[measurement.type].closed
-            ? selected
-              ? manipulating
-                ? visualRoles.measurementSelectedSoftFill
-                : visualRoles.measurementSelectedFill
-              : visualRoles.measurementDefaultFill
-            : undefined
+          cloudColor
+            ? withHexAlpha(
+                cloudColor,
+                selected && !manipulating
+                  ? CANVAS_VISUAL_METRICS.cloudSelectedFillOpacity
+                  : CLOUD_FILL_OPACITY,
+              )
+            : measurementPathSpecs[measurement.type].closed
+              ? selected
+                ? manipulating
+                  ? visualRoles.measurementSelectedSoftFill
+                  : visualRoles.measurementSelectedFill
+                : visualRoles.measurementDefaultFill
+              : undefined
         }
         stroke={stroke}
         strokeWidth={
-          (selected
-            ? CANVAS_VISUAL_METRICS.measurementSelectedStrokeScreenPx
-            : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) / zoom
+          (cloudColor
+            ? selected
+              ? CANVAS_VISUAL_METRICS.cloudSelectedStrokeScreenPx
+              : CANVAS_VISUAL_METRICS.cloudStrokeScreenPx
+            : selected
+              ? CANVAS_VISUAL_METRICS.measurementSelectedStrokeScreenPx
+              : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) / zoom
         }
+        {...(cloudColor && selected
+          ? {
+              shadowColor: visualRoles.measurementSelectedStroke,
+              shadowBlur: CANVAS_VISUAL_METRICS.cloudSelectedHaloBlurScreenPx / zoom,
+              shadowOpacity: 0.9,
+              shadowForStrokeEnabled: true,
+            }
+          : {})}
         hitStrokeWidth={CANVAS_VISUAL_METRICS.measurementHitStrokeScreenPx / zoom}
         hitFunc={drawMeasurementHit}
+        {...(measurement.type === "ellipse" || measurement.type === "cloud"
+          ? { measurementType: measurement.type, sceneFunc: drawMeasurementOutlineScene }
+          : {})}
         lineCap="round"
         lineJoin="round"
         draggable={wholeMeasurementDraggable}
@@ -887,8 +919,8 @@ export const MeasurementShape = memo(function MeasurementShape({
           <Tag
             fill={visualRoles.labelBackground}
             opacity={selected ? 1 : 0.88}
-            stroke={selected ? visualRoles.measurementSelectedStroke : undefined}
-            strokeWidth={selected ? 1 / zoom : 0}
+            stroke={selected ? visualRoles.measurementSelectedStroke : cloudColor ?? undefined}
+            strokeWidth={selected || cloudColor ? 1 / zoom : 0}
             cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / zoom}
           />
           <Text

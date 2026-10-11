@@ -159,7 +159,7 @@ function createPageState(pageNumber: number): PageState {
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 
@@ -2110,7 +2110,8 @@ describe("PdfViewer render liveness", () => {
     expect(sessionProbe!.session!.pages[1]!.measurements[1]!.name).toBe("Count 2");
     await act(async () => workspaceProbe!.chooseTool("select"));
     await act(async () => workspaceProbe!.selectMeasurement(first.id));
-    await act(async () => workspaceProbe!.chooseTool("count"));
+    // The app wrapper keeps a selected Count when the Count tool is chosen, to resume it.
+    await act(async () => workspaceProbe!.chooseTool("count", { keepSelection: true }));
     const resume = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
     await act(async () => resume({ target: { getStage: () => ({ getPointerPosition: () => pageToScreen({ x: 120, y: 100 }, transform) }) }, evt: { button: 0 } }));
     expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(2);

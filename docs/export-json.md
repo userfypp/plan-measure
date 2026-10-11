@@ -1,6 +1,6 @@
 # JSON data export
 
-**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected, or version `3` when Count markers are present. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
+**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected, version `3` when Count markers are present, or version `4` when any rectangle, ellipse or cloud is present. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
 
 All pages, calibrations, measurements (including hidden measurements), and classification dimensions and values (including archived entries) are included. CSV column preferences and display units do not affect JSON. Numbers retain JavaScript's full numeric precision without display rounding. Strings, including notes, Unicode and formula-like text, are preserved exactly.
 
@@ -23,11 +23,12 @@ Each calibration has `id`, `name`, `mode`, `mmPerPageUnitX` and `mmPerPageUnitY`
 
 Each measurement has:
 
-- `id`, `name`, `type` (`"line"`, `"polyline"` or `"polygon"`), and `visible` (boolean).
+- `id`, `name`, `type` (`"line"`, `"polyline"`, `"polygon"`, and from schema version 4 `"rectangle"`, `"ellipse"` or `"cloud"`), and `visible` (boolean).
+- `color` (only on `"cloud"` measurements with a custom color, from schema version 4): the review color as `#rrggbb`. When absent, the cloud uses the default review red `#d92d20`.
 - `note` (string, or `null` when absent), `calibrationId` (the calibration used for this measurement on its page), `points` (ordered vertices) and `classificationValueIds` (assigned catalog value IDs).
-- `lengthMm`, `perimeterMm` and `areaMm2`. Lines and polylines have a numeric length and `null` perimeter and area. Polygons have `null` length and numeric perimeter and area. Applicable zero results remain numeric zero. Results use the measurement's own calibration and canonical millimetres or square millimetres.
+- `lengthMm`, `perimeterMm` and `areaMm2`. Lines and polylines have a numeric length and `null` perimeter and area. Polygons, rectangles, ellipses and clouds have `null` length and numeric perimeter and area. Applicable zero results remain numeric zero. Results use the measurement's own calibration and canonical millimetres or square millimetres.
 
-Measurement IDs are unique across all pages. A polygon's ring closes implicitly; its last vertex does not repeat its first vertex. Each classification dimension has `id`, `name`, `archived` and `values`; each value has `id`, `name` and `archived`. Dimension and value IDs are unique across the catalog. Assigned value IDs resolve to their containing dimensions, with at most one assigned value per dimension. Archived dimensions and values retain their IDs and assignments.
+Measurement IDs are unique across all pages. A closed ring (polygon, rectangle, ellipse, cloud) closes implicitly; its last vertex does not repeat its first vertex. A rectangle has four axis-aligned corners in order. An ellipse stores the four corners of its axis-aligned bounding box, and its perimeter (Ramanujan approximation) and area are computed from the semi-axes scaled by the X and Y calibration. A cloud stores its control polygon, and its perimeter and area are those of that polygon, not of the scalloped outline. Each classification dimension has `id`, `name`, `archived` and `values`; each value has `id`, `name` and `archived`. Dimension and value IDs are unique across the catalog. Assigned value IDs resolve to their containing dimensions, with at most one assigned value per dimension. Archived dimensions and values retain their IDs and assignments.
 
 For example, one exported line within `pages[0].measurements` can be:
 

@@ -98,6 +98,37 @@ describe("snap target extraction", () => {
     ).toEqual([0, 1]);
   });
 
+  it("snaps an Ellipse to its centre, quadrants and true contour instead of the bbox corners", () => {
+    const targets = extractSnapTargets(
+      [
+        measurement("ellipse", "ellipse", [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+          { x: 200, y: 160 },
+          { x: 100, y: 160 },
+        ]),
+      ],
+      true,
+    );
+    const vertices = targets.filter((target) => target.kind === "vertex");
+    expect(vertices.map((target) => target.point)).toEqual([
+      { x: 150, y: 130 },
+      { x: 200, y: 130 },
+      { x: 150, y: 160 },
+      { x: 100, y: 130 },
+      { x: 150, y: 100 },
+    ]);
+    const segments = targets.filter((target) => target.kind === "segment");
+    expect(segments.length).toBeGreaterThanOrEqual(32);
+    for (const segment of segments) {
+      if (segment.kind !== "segment") continue;
+      for (const point of [segment.start, segment.end]) {
+        const normalized = ((point.x - 150) / 50) ** 2 + ((point.y - 130) / 30) ** 2;
+        expect(normalized).toBeCloseTo(1, 6);
+      }
+    }
+  });
+
   it("includes the Polygon closing edge as the last segment primitive", () => {
     const targets = extractSnapTargets(
       [

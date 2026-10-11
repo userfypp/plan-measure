@@ -163,6 +163,71 @@ describe("public JSON data export", () => {
     expect(buildDataJson(session, ["PDF label", "PDF β", ""])).toBe(serialized);
   });
 
+  it("uses schema version 4 and exports the four bounding box corners of an ellipse", () => {
+    const session = createEmptySession({ name: "e.pdf", size: 1, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    page.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1,
+      },
+    ];
+    page.activeCalibrationId = "scale";
+    const points = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 2 },
+      { x: 0, y: 2 },
+    ];
+    page.measurements = [
+      {
+        id: "ellipse",
+        name: "Ellipse 1",
+        type: "ellipse",
+        calibrationId: "scale",
+        points,
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    const parsed = JSON.parse(buildDataJson(session));
+
+    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.pages[0].measurements[0]).toMatchObject({ type: "ellipse", points });
+    expect(parsed.pages[0].measurements[0].areaMm2).toBeCloseTo(Math.PI * 2 * 1, 10);
+  });
+
+  it("exports the color of a cloud only when it has one", () => {
+    const session = createEmptySession({ name: "c.pdf", size: 1, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    page.calibrations = [
+      { id: "scale", name: "Scale", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: 1 },
+    ];
+    page.activeCalibrationId = "scale";
+    const points = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 0, y: 2 },
+    ];
+    const base = { calibrationId: "scale", points, classificationValueIds: [], visible: true };
+    page.measurements = [
+      { ...base, id: "plain", name: "Cloud 1", type: "cloud" },
+      { ...base, id: "blue", name: "Cloud 2", type: "cloud", color: "#2465c7" },
+      { ...base, id: "polygon", name: "Polygon 1", type: "polygon" },
+    ];
+
+    const [plain, blue, polygon] = JSON.parse(buildDataJson(session)).pages[0].measurements;
+
+    expect(plain).not.toHaveProperty("color");
+    expect(blue.color).toBe("#2465c7");
+    expect(polygon).not.toHaveProperty("color");
+  });
+
   it("exports empty and uninitialized pages and catalogs without measurements", () => {
     const session = createEmptySession({ name: "empty.pdf", size: 0, lastModified: 0 }, 2);
     delete session.pages[2];

@@ -57,7 +57,7 @@ function page(
     activeCalibrationId: "scale",
     nextCalibrationNumber: 2,
     measurements,
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 

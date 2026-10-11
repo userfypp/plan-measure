@@ -1,5 +1,6 @@
 import { memo, type RefCallback } from "react";
 import { IconButton } from "../../components/ui";
+import { measurementPathSpecs } from "../../utils/geometry";
 import { ToolIcon } from "../viewer/ToolIcon";
 import type { MeasurementViewModel } from "./measurementViewModels";
 import styles from "./MeasurementRow.module.css";
@@ -43,7 +44,7 @@ export const MeasurementRow = memo(function MeasurementRow({
 }: MeasurementRowProps) {
   const detailsId = `measurement-details-${viewModel.id}`;
   const quantityLines =
-    viewModel.type === "polygon" ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
+    measurementPathSpecs[viewModel.type].closed ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
   const scaleSummary = viewModel.type === "count" ? "" : ` · ${viewModel.calibrationSummary.split(" · ")[0]}`;
   const metadata = `${viewModel.typeLabel}${scaleSummary}${
     viewModel.pageLabel ? ` · ${viewModel.pageLabel}` : ""

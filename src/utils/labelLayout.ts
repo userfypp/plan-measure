@@ -1,5 +1,6 @@
 import type { LogicalPageBounds, MeasurementType, Point } from "../types/domain";
-import { isAxisAlignedRectStrictlyInsidePolygon } from "./geometry";
+import { isAxisAlignedRectStrictlyInsidePolygon, measurementPathSpecs } from "./geometry";
+import { measurementOutlinePoints } from "./quickShapes";
 
 export const LABEL_EDGE_MARGIN_SCREEN_PX = 4;
 
@@ -573,9 +574,10 @@ export function placeLabelInsideMeasurementGeometry(
       placement = candidatePlacement;
       break;
     }
-  } else if (type === "polygon") {
+  } else if (measurementPathSpecs[type].closed) {
     const clearance = finiteNonNegative(gapScreenPx) / safeScale;
-    for (const anchor of polygonInteriorAnchors(points, dimensions, clearance)) {
+    const outline = measurementOutlinePoints(type, points, 1 / safeScale);
+    for (const anchor of polygonInteriorAnchors(outline, dimensions, clearance)) {
       const candidatePlacement = centeredPlacementWithoutClamping(
         anchor,
         dimensions,
@@ -590,7 +592,7 @@ export function placeLabelInsideMeasurementGeometry(
         width: finiteNonNegative(dimensions.width) + clearance * 2,
         height: finiteNonNegative(dimensions.height) + clearance * 2,
       };
-      if (!isAxisAlignedRectStrictlyInsidePolygon(expanded, points)) continue;
+      if (!isAxisAlignedRectStrictlyInsidePolygon(expanded, outline)) continue;
       placement = candidatePlacement;
       break;
     }

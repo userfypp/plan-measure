@@ -109,6 +109,7 @@ function PlanMeasureApp() {
     moveCountItem,
     renameMeasurement,
     setMeasurementNote,
+    setMeasurementColor,
     setMeasurementVisibility,
     setMeasurementsVisibility,
     deleteMeasurement,
@@ -659,6 +660,7 @@ function PlanMeasureApp() {
     setError,
     precisionAuthoringBlocked,
     clearDraft,
+    selectedMeasurementId,
     chooseWorkspaceTool,
     clearError,
     cancelWorkspaceCalibration,
@@ -1039,6 +1041,9 @@ function PlanMeasureApp() {
                     }
                     onSaveNote={(note) =>
                       setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
+                    }
+                    onChangeColor={(color) =>
+                      setMeasurementColor(currentPage.pageNumber, selectedMeasurement.id, color)
                     }
                     onAssignClassification={assignClassification}
                     onAddCountItems={beginAddingCountItems}

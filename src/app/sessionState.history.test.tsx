@@ -180,6 +180,23 @@ describe("session undo and redo history", () => {
     expect(historyProbe.canUndo).toBe(false);
   });
 
+  it("undoes and redoes a cloud color change as one step", () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+    session.pages[1]!.calibrations = [{ id: "scale", name: "Scale", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 }];
+    session.pages[1]!.activeCalibrationId = "scale";
+    session.pages[1]!.measurements = [{ id: "cloud", name: "Cloud 1", type: "cloud", calibrationId: "scale", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 10 }], visible: true, classificationValueIds: [] }];
+    act(() => historyProbe.loadSession(session));
+    const initial = historyProbe.session;
+    act(() => { historyProbe.setMeasurementColor(1, "cloud", "#7a4bd1"); });
+    const changed = historyProbe.session;
+    expect(changed!.pages[1]!.measurements[0]).toMatchObject({ color: "#7a4bd1" });
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(initial);
+    expect(historyProbe.canUndo).toBe(false);
+    act(() => historyProbe.redo());
+    expect(historyProbe.session).toEqual(changed);
+  });
+
   it.each([
     ["geometry", (state: ReturnType<typeof useSessionState>) => state.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 10, y: 10 }, { x: 30, y: 10 }] })],
     ["name", (state: ReturnType<typeof useSessionState>) => state.renameMeasurement(1, "a", "New name")],

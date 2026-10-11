@@ -2,6 +2,7 @@ import { memo, useMemo, useState } from "react";
 import { useSessionState } from "../../app/sessionState";
 import { Button, Popover } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
+import { MEASUREMENT_TYPES, measurementPathSpecs } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementsHeader } from "./MeasurementsHeader";
@@ -208,10 +209,11 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                 <span>Type</span>
                 <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                   <option value="">All types</option>
-                  <option value="line">Line</option>
-                  <option value="polyline">Polyline</option>
-                  <option value="polygon">Polygon</option>
-                  <option value="count">Count</option>
+                  {MEASUREMENT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {measurementPathSpecs[type].label}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>

@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PathMeasurementType, PageState, Point, Tool } from "../../types/domain";
+import type { PathMeasurement, PathMeasurementType, PageState, Point, Tool } from "../../types/domain";
 import { PdfAnnotationLayer } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
 
@@ -76,7 +76,7 @@ function pageWith(type: PathMeasurementType, points: Point[], visible = true): P
     measurements: [
       { id: "m-1", name: "Item", type, calibrationId: "scale-1", classificationValueIds: [], visible, points },
     ],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, count: 1 },
+    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
   };
 }
 
@@ -259,6 +259,110 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(captured.texts.map((text) => text.text)).toEqual(["20.00 m"]);
       renderLayer({ page: pageWith("polygon", [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }]) });
       expect(captured.texts.map((text) => text.text)).toEqual(["P 40.00 m · A 100.00 m²"]);
+    });
+  });
+
+  describe("quick shapes", () => {
+    it("moves the adjacent corners together when a rectangle vertex is dragged", () => {
+      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"] });
+      dragVertex(2, { x: 360, y: 300 }).end();
+      expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
+        pageNumber: 1,
+        id: "m-1",
+        points: [
+          SQUARE[0],
+          { x: 180, y: 50 },
+          { x: 180, y: 150 },
+          { x: 50, y: 150 },
+        ],
+      });
+    });
+
+    it("hit-tests an ellipse on its contour and traces it with a true ellipse", () => {
+      renderLayer({ page: pageWith("ellipse", SQUARE) });
+      const line = shape();
+      expect(line.measurementType).toBe("ellipse");
+      expect(typeof line.sceneFunc).toBe("function");
+      const ellipse = vi.fn();
+      const context = {
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        arc: vi.fn(),
+        ellipse,
+        closePath: vi.fn(),
+        fillShape: vi.fn(),
+        save: vi.fn(),
+        setAttr: vi.fn(),
+        stroke: vi.fn(),
+        restore: vi.fn(),
+      };
+      const konvaShape = {
+        points: () => SQUARE.flatMap((point) => [point.x, point.y]),
+        getAttr: (name: string) => (name === "measurementType" ? "ellipse" : undefined),
+        closed: () => true,
+        hasHitStroke: () => true,
+        hitStrokeWidth: () => 6,
+        strokeWidth: () => 1,
+        colorKey: "#abcdef",
+      };
+      (line.hitFunc as (context: unknown, shape: unknown) => void)(context, konvaShape);
+      expect(ellipse).toHaveBeenCalledWith(100, 85, 50, 35, 0, 0, 2 * Math.PI);
+      expect(context.lineTo).not.toHaveBeenCalled();
+      expect(context.fillShape).toHaveBeenCalledTimes(1);
+    });
+
+    describe("revision cloud style", () => {
+      const TRIANGLE: Point[] = [{ x: 50, y: 50 }, { x: 150, y: 50 }, { x: 100, y: 130 }];
+      function cloudPage(color?: string): PageState {
+        const page = pageWith("cloud", TRIANGLE);
+        if (color) (page.measurements[0] as PathMeasurement).color = color;
+        return page;
+      }
+
+      it("draws an uncolored cloud in review red with a thick stroke and a faint fill", () => {
+        renderLayer({ page: cloudPage() });
+        expect(shape()).toMatchObject({ stroke: "#d92d20", fill: "#d92d2014" });
+        expect(shape().strokeWidth as number).toBeCloseTo(2.75 / TRANSFORM.zoom, 10);
+        expect(shape().shadowColor).toBeUndefined();
+      });
+
+      it("uses the chosen palette color and keeps it, with a halo and handles, when selected", () => {
+        renderLayer({ page: cloudPage("#2e9e4f") });
+        expect(shape()).toMatchObject({ stroke: "#2e9e4f", fill: "#2e9e4f14" });
+
+        renderLayer({ page: cloudPage("#2e9e4f"), selected: ["m-1"] });
+        expect(shape()).toMatchObject({
+          stroke: "#2e9e4f",
+          fill: "#2e9e4f24",
+          shadowColor: roles.measurementSelectedStroke,
+        });
+        expect(shape().strokeWidth as number).toBeCloseTo(3.25 / TRANSFORM.zoom, 10);
+        expect(shape().shadowBlur as number).toBeGreaterThan(0);
+        expect(captured.circles).toHaveLength(3);
+      });
+
+      it("leaves the look of polygons and ellipses unchanged", () => {
+        for (const type of ["polygon", "ellipse"] as const) {
+          renderLayer({ page: pageWith(type, SQUARE) });
+          expect(shape()).toMatchObject({
+            stroke: roles.measurementDefaultStroke,
+            fill: roles.measurementDefaultFill,
+          });
+          expect(shape().shadowColor).toBeUndefined();
+        }
+        renderLayer({ page: pageWith("polygon", SQUARE), selected: ["m-1"] });
+        expect(shape()).toMatchObject({
+          stroke: roles.measurementSelectedStroke,
+          fill: roles.measurementSelectedFill,
+        });
+      });
+    });
+
+    it("keeps line, polyline and polygon free of custom scene geometry", () => {
+      renderLayer({ page: pageWith("polygon", SQUARE) });
+      expect(shape().sceneFunc).toBeUndefined();
+      expect(shape().measurementType).toBeUndefined();
     });
   });
 

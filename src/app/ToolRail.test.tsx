@@ -105,7 +105,7 @@ afterEach(() => {
 });
 
 describe("ToolRail V2", () => {
-  it("renders exactly the six mutually exclusive primary tools", () => {
+  it("renders exactly the nine mutually exclusive primary tools", () => {
     renderRail();
 
     expect(toolButtons().map((candidate) => candidate.dataset.toolId)).toEqual([
@@ -114,6 +114,9 @@ describe("ToolRail V2", () => {
       "line",
       "polyline",
       "polygon",
+      "rectangle",
+      "ellipse",
+      "cloud",
       "count",
     ]);
     expect(container?.querySelector('[data-tool-id="snap"]')).toBeNull();
@@ -165,7 +168,7 @@ describe("ToolRail V2", () => {
     expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toEqual([button("select")]);
   });
 
-  it("uses one Narrow launcher and exposes the same six tools on demand", () => {
+  it("uses one Narrow launcher and exposes the same nine tools on demand", () => {
     renderRail({}, { narrow: true });
     const launcher = container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]');
     expect(launcher).not.toBeNull();
@@ -180,6 +183,9 @@ describe("ToolRail V2", () => {
       "line",
       "polyline",
       "polygon",
+      "rectangle",
+      "ellipse",
+      "cloud",
       "count",
     ]);
     expect(container?.querySelector('[role="toolbar"]')?.getAttribute("aria-orientation")).toBe(
@@ -192,7 +198,7 @@ describe("ToolRail V2", () => {
     renderRail({}, { precisionAvailable: false });
     expect(button("select").disabled).toBe(false);
     expect(button("hand").disabled).toBe(false);
-    for (const tool of ["line", "polyline", "polygon", "count"]) {
+    for (const tool of ["line", "polyline", "polygon", "rectangle", "ellipse", "cloud", "count"]) {
       expect(button(tool).disabled).toBe(false);
       expect(button(tool).getAttribute("aria-disabled")).toBe("true");
       const reasonId = button(tool).getAttribute("aria-describedby");
@@ -275,7 +281,7 @@ describe("ToolRail V2", () => {
     const firstLauncher = container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]');
     if (!firstLauncher) throw new Error("Tools launcher was not rendered.");
     act(() => firstLauncher.click());
-    expect(toolButtons()).toHaveLength(6);
+    expect(toolButtons()).toHaveLength(9);
 
     act(() => {
       root!.render(

@@ -1,4 +1,5 @@
-import type { LogicalPageBounds, Point, ViewTransform } from "../../types/domain";
+import type { LogicalPageBounds, MeasurementType, Point, ViewTransform } from "../../types/domain";
+import { applyMeasurementVertexEdit } from "../../utils/quickShapes";
 import { viewTransformChanged } from "./measurementDrag";
 
 export interface MeasurementVertexDragNode {
@@ -15,6 +16,8 @@ export interface MeasurementVertexDragSnapshot {
   sourcePoints: Point[];
   transform: ViewTransform;
   bounds: LogicalPageBounds;
+  /** Box shapes (rectangle, ellipse) move the adjacent corners with the dragged one. */
+  measurementType?: MeasurementType;
 }
 
 export type MeasurementVertexDragPreparation = MeasurementVertexDragSnapshot;
@@ -70,6 +73,7 @@ export function prepareMeasurementVertexDrag(
   sourcePoints: readonly Point[],
   transform: ViewTransform,
   bounds: LogicalPageBounds,
+  measurementType?: MeasurementType,
 ): MeasurementVertexDragPreparation | null {
   if (!canStartMeasurementVertexDrag(button)) return null;
   return {
@@ -79,6 +83,7 @@ export function prepareMeasurementVertexDrag(
     sourcePoints: sourcePoints.map((point) => ({ ...point })),
     transform: { ...transform },
     bounds: { ...bounds },
+    measurementType,
   };
 }
 
@@ -115,7 +120,9 @@ function pointsWithVertex(
   sourcePoints: readonly Point[],
   vertexIndex: number,
   point: Point,
+  measurementType?: MeasurementType,
 ): Point[] {
+  if (measurementType) return applyMeasurementVertexEdit(measurementType, sourcePoints, vertexIndex, point);
   return sourcePoints.map((sourcePoint, index) =>
     index === vertexIndex ? point : { ...sourcePoint },
   );
@@ -136,7 +143,7 @@ export function beginMeasurementVertexDrag(
   };
   snapshot.node.position(startPoint);
   effects.setEditing(true);
-  effects.preview(pointsWithVertex(state.active.sourcePoints, snapshot.vertexIndex, startPoint));
+  effects.preview(pointsWithVertex(state.active.sourcePoints, snapshot.vertexIndex, startPoint, snapshot.measurementType));
   return true;
 }
 
@@ -159,7 +166,7 @@ export function updateMeasurementVertexDrag(
   const drag = getActiveMeasurementVertexDrag(state, node, vertexIndex);
   if (!drag) return false;
   node.position(point);
-  effects.preview(pointsWithVertex(drag.sourcePoints, vertexIndex, point));
+  effects.preview(pointsWithVertex(drag.sourcePoints, vertexIndex, point, drag.measurementType));
   return true;
 }
 
@@ -192,7 +199,7 @@ export function finishMeasurementVertexDrag(
 
   // Consume ownership before commit so a duplicate/stale dragend cannot commit twice.
   state.active = null;
-  const points = pointsWithVertex(drag.sourcePoints, vertexIndex, finalPoint);
+  const points = pointsWithVertex(drag.sourcePoints, vertexIndex, finalPoint, drag.measurementType);
   node.position(finalPoint);
   effects.preview(points);
   const accepted = effects.commit(points);

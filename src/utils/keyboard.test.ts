@@ -388,6 +388,9 @@ describe("tool keyboard shortcuts", () => {
     expect(getToolShortcutLabel("line")).toBe("L");
     expect(getToolShortcutLabel("polyline")).toBe("M");
     expect(getToolShortcutLabel("polygon")).toBe("P");
+    expect(getToolShortcutLabel("rectangle")).toBe("R");
+    expect(getToolShortcutLabel("ellipse")).toBe("I");
+    expect(getToolShortcutLabel("cloud")).toBe("K");
     expect(getToolShortcutLabel("count")).toBe("C");
     expect(getShortcutLabel("toggle-orthogonal")).toBe("O");
     expect(getShortcutLabel("toggle-snap")).toBe("S");
@@ -397,6 +400,9 @@ describe("tool keyboard shortcuts", () => {
       "L",
       "M",
       "P",
+      "R",
+      "I",
+      "K",
       "C",
       "O",
       "S",

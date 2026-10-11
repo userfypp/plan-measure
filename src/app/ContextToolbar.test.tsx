@@ -195,6 +195,43 @@ describe("ContextToolbar V2", () => {
     expect(buttonByText("Cancel")).toBeTruthy();
   });
 
+  it.each([
+    ["rectangle", "square"],
+    ["ellipse", "circle"],
+  ] as const)("shows a live Shift %s hint while the %s tool is active", (tool, constraint) => {
+    renderToolbar();
+    expect(container?.querySelector('[data-active]')).toBeNull();
+    act(() => workspace!.chooseTool(tool));
+
+    const hint = container!.querySelector<HTMLElement>("[data-active]")!;
+    expect(hint.textContent).toBe(`Shift ${constraint}`);
+    expect(hint.querySelector("kbd")?.textContent).toBe("Shift");
+    expect(hint.dataset.active).toBe("false");
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true }));
+    });
+    expect(hint.dataset.active).toBe("true");
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift", bubbles: true }));
+    });
+    expect(hint.dataset.active).toBe("false");
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true }));
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(hint.dataset.active).toBe("false");
+  });
+
+  it("does not show the Shift hint for tools without a constrained shape", () => {
+    renderToolbar();
+    for (const tool of ["line", "polygon", "cloud", "count"] as const) {
+      act(() => workspace!.chooseTool(tool));
+      expect(container?.querySelector("[data-active]")).toBeNull();
+    }
+  });
+
   it("keeps Snap and Ortho independent and finishes/cancels Polyline through canonical commands", () => {
     const finish = vi.fn();
     renderToolbar(props(), finish);

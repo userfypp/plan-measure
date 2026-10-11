@@ -218,7 +218,15 @@ describe("session domain reducer", () => {
 
     const page = state.session!.pages[1]!;
     expect(page.measurements[0]).toMatchObject({ type: "polyline", name: "Polyline 1" });
-    expect(page.nextMeasurementNumber).toEqual({ line: 1, polyline: 2, polygon: 1, count: 1 });
+    expect(page.nextMeasurementNumber).toEqual({
+      line: 1,
+      polyline: 2,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    });
   });
 
   it("creates the first calibration and makes it active", () => {
@@ -607,6 +615,46 @@ describe("session domain reducer", () => {
     expect(state.error).toContain("cannot be empty");
     const recovered = deserializeSessionForRecovery(serializeSession(state.session!)).session;
     expect(recovered.pages[1]?.measurements[0]?.name).toBe("Hallway");
+  });
+
+  it("sets the color of a cloud, ignoring other types and colors outside the palette", () => {
+    let state = addScale(loadedState(), "scale-1", "Main plan");
+    const ring = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 10 },
+    ];
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT", pageNumber: 1, id: "cloud-1", measurementType: "cloud", points: ring,
+    });
+    state = sessionReducer(state, {
+      type: "ADD_MEASUREMENT", pageNumber: 1, id: "polygon-1", measurementType: "polygon", points: ring,
+    });
+    const find = (id: string) => state.session!.pages[1]!.measurements.find((item) => item.id === id)!;
+    expect(find("cloud-1")).not.toHaveProperty("color");
+
+    const colored = sessionReducer(state, {
+      type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id: "cloud-1", color: "#2e9e4f",
+    });
+    expect(colored.session!.pages[1]!.measurements.find((item) => item.id === "cloud-1")).toMatchObject({
+      color: "#2e9e4f",
+    });
+    const recovered = deserializeSessionForRecovery(serializeSession(colored.session!)).session;
+    expect(recovered.pages[1]!.measurements[0]).toMatchObject({ color: "#2e9e4f" });
+
+    // Unknown colors and non-cloud types leave the state untouched.
+    for (const [id, color] of [["cloud-1", "#123456"], ["polygon-1", "#2e9e4f"]] as const) {
+      expect(sessionReducer(colored, { type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id, color })).toBe(colored);
+    }
+    // Choosing the current color again does not create a new session.
+    const same = sessionReducer(colored, {
+      type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id: "cloud-1", color: "#2e9e4f",
+    });
+    expect(same.session).toBe(colored.session);
+    // The default red counts as the current color of an uncolored cloud.
+    expect(
+      sessionReducer(state, { type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id: "cloud-1", color: "#d92d20" }).session,
+    ).toBe(state.session);
   });
 
   it("rejects invalid calibration data and duplicate calibration IDs in domain state", () => {

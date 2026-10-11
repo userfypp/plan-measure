@@ -248,4 +248,27 @@ describe("App open, calibrate and measure flow", () => {
     });
     expect((lastAnnotationLayer().page as { measurements: unknown[] }).measurements).toHaveLength(1);
   });
+  it("deselects the selected measurement when switching from Select to another tool", async () => {
+    await openPdf();
+    await calibrate();
+    await press("Line, shortcut L");
+    await clickPage(100, 200);
+    await clickPage(300, 200);
+    const id = page().measurements[0]!.id;
+    await press("Select, shortcut V");
+    await act(async () => (lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void)(id, false));
+    expect(lastAnnotationLayer().selectedMeasurementId).toBe(id);
+
+    await press("Hand, shortcut H");
+    expect(lastAnnotationLayer().selectedMeasurementId).toBeNull();
+
+    // Same through the keyboard shortcut of a drawing tool.
+    await press("Select, shortcut V");
+    await act(async () => (lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void)(id, false));
+    expect(lastAnnotationLayer().selectedMeasurementId).toBe(id);
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "p", bubbles: true, cancelable: true }));
+    });
+    expect(lastAnnotationLayer().selectedMeasurementId).toBeNull();
+  });
 });

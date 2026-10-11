@@ -8,10 +8,12 @@ import type {
   Point,
   SessionSettings,
 } from "../../types/domain";
+import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
 import { getMeasurementCalibration } from "../../utils/calibration";
 import { normalizeRotation } from "../../utils/coordinates";
 import { formatMeasurement } from "../../utils/format";
 import { measurementPathSpecs } from "../../utils/geometry";
+import { measurementOutlinePoints } from "../../utils/quickShapes";
 import {
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
@@ -246,8 +248,17 @@ function drawMeasurementGeometry(
 ) {
   const points = measurement.points.map((point) => pdfPoint(viewport, point));
 
-  const strokeColor = parseHexColor(exportVisualRoles.measurementDefaultStroke);
-  const fillColor = parseHexColor(exportVisualRoles.measurementDefaultFill);
+  // Revision clouds use their own color, a thicker stroke and a faint matching fill.
+  const cloudColor = measurement.type === "cloud" ? resolveCloudColor(measurement.color) : null;
+  const strokeColor = parseHexColor(cloudColor ?? exportVisualRoles.measurementDefaultStroke);
+  const fillColor = parseHexColor(
+    cloudColor
+      ? withHexAlpha(cloudColor, CLOUD_FILL_OPACITY)
+      : exportVisualRoles.measurementDefaultFill,
+  );
+  const outlineWidthPx = cloudColor
+    ? CANVAS_VISUAL_METRICS.cloudStrokeScreenPx
+    : MEASUREMENT_STROKE_PDF_PT;
   const stroke = pdfLib.rgb(strokeColor.red, strokeColor.green, strokeColor.blue);
 
   if (measurement.type === "count") {
@@ -264,6 +275,27 @@ function drawMeasurementGeometry(
     return;
   }
   if (points.length < 2) return;
+
+  if (measurement.type === "ellipse" || measurement.type === "cloud") {
+    // One closed path with fill and border so the curved contour is not split into many short segments.
+    const outline = measurementOutlinePoints(measurement.type, measurement.points, 0.01).map(
+      (point) => pdfPoint(viewport, point),
+    );
+    const path = outline
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${-point.y}`)
+      .join(" ");
+    page.drawSvgPath(`${path} Z`, {
+      x: 0,
+      y: 0,
+      color: pdfLib.rgb(fillColor.red, fillColor.green, fillColor.blue),
+      opacity: fillColor.alpha,
+      borderColor: stroke,
+      borderWidth: outlineWidthPx * logicalUnitScale(viewport),
+      borderOpacity: strokeColor.alpha,
+      borderLineCap: pdfLib.LineCapStyle.Round,
+    });
+    return;
+  }
 
   if (measurementPathSpecs[measurement.type].closed && points.length >= 3) {
     const path = points

@@ -63,7 +63,7 @@ const page: PageState = {
   activeCalibrationId: uniform.id,
   nextCalibrationNumber: 3,
   measurements: [historicalMeasurement],
-  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, count: 1 },
+  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
 };
 
 function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorkspaceProps {

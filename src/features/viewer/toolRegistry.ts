@@ -12,6 +12,9 @@ export type ToolIconName =
   | "line"
   | "polyline"
   | "polygon"
+  | "rectangle"
+  | "ellipse"
+  | "cloud"
   | "count"
   | "calibrate"
   | "orthogonal"
@@ -84,6 +87,30 @@ export const toolRegistry: readonly ToolDefinition[] = [
     description: "Draw a closed polygon",
     shortcut: getToolShortcutLabel("polygon"),
     icon: "polygon",
+    inRail: true,
+  },
+  {
+    id: "rectangle",
+    label: shortcutLabelForTool("rectangle"),
+    description: "Draw a rectangle from two opposite corners (Shift for a square)",
+    shortcut: getToolShortcutLabel("rectangle"),
+    icon: "rectangle",
+    inRail: true,
+  },
+  {
+    id: "ellipse",
+    label: shortcutLabelForTool("ellipse"),
+    description: "Draw an ellipse inside a bounding box (Shift for a circle)",
+    shortcut: getToolShortcutLabel("ellipse"),
+    icon: "ellipse",
+    inRail: true,
+  },
+  {
+    id: "cloud",
+    label: shortcutLabelForTool("cloud"),
+    description: "Draw a closed revision cloud",
+    shortcut: getToolShortcutLabel("cloud"),
+    icon: "cloud",
     inRail: true,
   },
   {

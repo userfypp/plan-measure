@@ -10,6 +10,7 @@ import {
   isValidPageCalibration,
   measurementResultsMm,
   measurementPathSpecs,
+  MEASUREMENT_TYPES,
 } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { createMeasurementGroups } from "./measurementGrouping";
@@ -239,7 +240,7 @@ export function createMeasurementTotals({
       });
     }
   } else if (grouping === "type") {
-    const types: readonly MeasurementType[] = ["line", "polyline", "polygon", "count"];
+    const types: readonly MeasurementType[] = MEASUREMENT_TYPES;
     for (const type of types) {
       const measurements = allMeasurements.filter(({ measurement }) => measurement.type === type);
       if (!measurements.length) continue;
