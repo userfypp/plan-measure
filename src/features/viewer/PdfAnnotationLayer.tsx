@@ -37,7 +37,7 @@ import {
   CANVAS_VISUAL_METRICS,
   type CanvasVisualRoles,
 } from "./canvasVisualRoles";
-import { measurementOutlineBounds } from "../../utils/quickShapes";
+import { measurementOutlineBounds } from "../../utils/quickShapesOutline";
 import { pointsToFlat } from "./geometry";
 import { CalibrationReferenceMarkers } from "./CalibrationReferenceMarkers";
 import { MeasurementShape } from "./MeasurementShape";

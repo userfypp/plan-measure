@@ -52,7 +52,7 @@ import {
   shouldIgnoreViewerKeyboardShortcut,
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
-import { boxFromCorners } from "../../utils/quickShapes";
+import { boxFromCorners } from "../../utils/quickShapesCore";
 import { buildDraftPreviewPoints } from "./draftPreview";
 import { drawMeasurementOutlineScene } from "./annotationKonva";
 import { useKeyboardGeometry } from "./useKeyboardGeometry";

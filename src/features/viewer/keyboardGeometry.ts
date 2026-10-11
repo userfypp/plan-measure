@@ -6,7 +6,8 @@ import {
   isPointStrictlyInsidePolygon,
   measurementPathSpecs,
 } from "../../utils/geometry";
-import { applyMeasurementVertexEdit, measurementOutlinePoints } from "../../utils/quickShapes";
+import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
+import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import { constrainMeasurementTranslation, translateMeasurementPoints } from "./measurementDrag";
 import {
   nearestPointOnSegment,

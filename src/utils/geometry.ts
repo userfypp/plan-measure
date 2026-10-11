@@ -6,7 +6,7 @@ import type {
   Point,
   PolygonMeasurement,
 } from "../types/domain";
-import { ellipseResultsMm, isAxisAlignedBoxRing } from "./quickShapes";
+import { ellipseResultsMm, isAxisAlignedBoxRing } from "./quickShapesCore";
 
 export interface MeasurementPathSpec {
   label: string;

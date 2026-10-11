@@ -19,7 +19,8 @@ import {
   isMeasurementType,
   measurementPathSpecs,
 } from "../../utils/geometry";
-import { ellipseParams, measurementOutlinePoints } from "../../utils/quickShapes";
+import { ellipseParams } from "../../utils/quickShapesCore";
+import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 
 export const SNAP_TOLERANCE_SCREEN_PX = 10;

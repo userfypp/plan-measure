@@ -1,6 +1,6 @@
 import type { LogicalPageBounds, MeasurementType, Point } from "../types/domain";
 import { isAxisAlignedRectStrictlyInsidePolygon, measurementPathSpecs } from "./geometry";
-import { measurementOutlinePoints } from "./quickShapes";
+import { measurementOutlinePoints } from "./quickShapesOutline";
 
 export const LABEL_EDGE_MARGIN_SCREEN_PX = 4;
 

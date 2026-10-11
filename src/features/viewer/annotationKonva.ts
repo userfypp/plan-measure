@@ -3,7 +3,7 @@ import type { Context as KonvaContext } from "konva/lib/Context";
 import type { Shape as KonvaShape } from "konva/lib/Shape";
 import type { Line as KonvaLineNode } from "konva/lib/shapes/Line";
 import type { MeasurementType, Point } from "../../types/domain";
-import { traceMeasurementOutline } from "../../utils/quickShapes";
+import { traceMeasurementOutline } from "../../utils/quickShapesOutline";
 
 function readOutlineGeometry(shape: KonvaShape): { type: MeasurementType; points: Point[] } | null {
   const type = shape.getAttr("measurementType") as MeasurementType | undefined;

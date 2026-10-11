@@ -1,5 +1,5 @@
 import type { LogicalPageBounds, MeasurementType, Point, ViewTransform } from "../../types/domain";
-import { applyMeasurementVertexEdit } from "../../utils/quickShapes";
+import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
 import { viewTransformChanged } from "./measurementDrag";
 
 export interface MeasurementVertexDragNode {

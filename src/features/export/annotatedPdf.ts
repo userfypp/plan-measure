@@ -13,7 +13,7 @@ import { getMeasurementCalibration } from "../../utils/calibration";
 import { normalizeRotation } from "../../utils/coordinates";
 import { formatMeasurement } from "../../utils/format";
 import { measurementPathSpecs } from "../../utils/geometry";
-import { measurementOutlinePoints } from "../../utils/quickShapes";
+import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import {
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,

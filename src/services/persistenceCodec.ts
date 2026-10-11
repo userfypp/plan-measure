@@ -31,7 +31,7 @@ import {
   isValidPageCalibration,
 } from "../utils/geometry";
 import { isCloudColor } from "../utils/cloudColors";
-import { placeholderPointsFor } from "../utils/quickShapes";
+import { placeholderPointsFor } from "../utils/quickShapesCore";
 import { classificationNameKey } from "../utils/classificationNames";
 import { isValidCustomPageLabel } from "../utils/pageLabels";
 
