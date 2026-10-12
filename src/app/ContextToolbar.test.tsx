@@ -89,7 +89,9 @@ function contextKind(): string | null {
 }
 
 function toolbarButtons(): HTMLButtonElement[] {
-  return Array.from(container?.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button') ?? []);
+  return Array.from(
+    container?.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button') ?? [],
+  );
 }
 
 function press(key: string): KeyboardEvent {
@@ -117,8 +119,9 @@ function setInputValue(input: HTMLInputElement, value: string) {
 }
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-    true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -136,12 +139,28 @@ afterEach(() => {
 describe("ContextToolbar V2", () => {
   it("offers Add items for a selected count and respects drawing restrictions", () => {
     const onAddCountItems = vi.fn();
-    const count = { id: "count", name: "Plug", type: "count" as const, calibrationId: null, points: [{ x: 1, y: 2 }], classificationValueIds: [], visible: true };
-    const selection = props({ selectedMeasurements: [count], selectedMeasurementId: count.id, selectedMeasurementName: count.name, onAddCountItems });
+    const count = {
+      id: "count",
+      name: "Plug",
+      type: "count" as const,
+      calibrationId: null,
+      points: [{ x: 1, y: 2 }],
+      classificationValueIds: [],
+      visible: true,
+    };
+    const selection = props({
+      selectedMeasurements: [count],
+      selectedMeasurementId: count.id,
+      selectedMeasurementName: count.name,
+      onAddCountItems,
+    });
     renderToolbar(selection);
     act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).toHaveBeenCalledOnce();
-    renderToolbar({ ...selection, addCountItemsDisabledReason: "Show this count before adding items" });
+    renderToolbar({
+      ...selection,
+      addCountItemsDisabledReason: "Show this count before adding items",
+    });
     act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).toHaveBeenCalledOnce();
   });
@@ -152,13 +171,31 @@ describe("ContextToolbar V2", () => {
     expect(container!.textContent).toContain("Click to start a count");
     expect(container!.querySelector('button[aria-label^="Snap"]')).toBeNull();
     expect(container!.querySelector('button[aria-label^="Ortho"]')).toBeNull();
-    expect(toolbarButtons().map((button) => button.textContent?.trim())).toEqual(["New count", "Done"]);
+    expect(toolbarButtons().map((button) => button.textContent?.trim())).toEqual([
+      "New count",
+      "Done",
+    ]);
   });
 
   it("starts another count explicitly and finishes adding items", () => {
     const clear = vi.fn();
-    const count = { id: "count", name: "Plug", type: "count" as const, calibrationId: null, points: [{ x: 1, y: 2 }], classificationValueIds: [], visible: true };
-    renderToolbar(props({ selectedMeasurements: [count], selectedMeasurementId: count.id, selectedMeasurementName: count.name, onClearMeasurementSelection: clear }));
+    const count = {
+      id: "count",
+      name: "Plug",
+      type: "count" as const,
+      calibrationId: null,
+      points: [{ x: 1, y: 2 }],
+      classificationValueIds: [],
+      visible: true,
+    };
+    renderToolbar(
+      props({
+        selectedMeasurements: [count],
+        selectedMeasurementId: count.id,
+        selectedMeasurementName: count.name,
+        onClearMeasurementSelection: clear,
+      }),
+    );
     act(() => workspace!.chooseTool("count"));
     expect(container!.textContent).toContain("Click to add items");
     expect(buttonByLabel("Rename selected measurement Plug")).toBeTruthy();
@@ -178,7 +215,7 @@ describe("ContextToolbar V2", () => {
     act(() => workspace!.chooseTool("line"));
 
     expect(contextKind()).toBe("drawing");
-    expect(container?.querySelector("[aria-label=\"Line drawing controls\"]")).not.toBeNull();
+    expect(container?.querySelector('[aria-label="Line drawing controls"]')).not.toBeNull();
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("false");
     expect(buttonByLabel("Ortho").getAttribute("aria-pressed")).toBe("false");
     expect(container?.textContent).not.toContain("Finish");
@@ -195,12 +232,33 @@ describe("ContextToolbar V2", () => {
     expect(buttonByLabel("Discard points").getAttribute("aria-disabled")).toBeNull();
   });
 
+  it("renders no divider before Snap while no measurement is drawn", () => {
+    renderToolbar(props({ selectedMeasurementName: null }));
+    act(() => workspace!.chooseTool("line"));
+    const toolbar = container!.querySelector('[aria-label="Line drawing controls"]')!;
+    const snap = buttonByLabel("Snap");
+    expect(toolbar.querySelector('[class*="divider"]')?.compareDocumentPosition(snap)).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING,
+    );
+  });
+
+  it("renders the name and divider before Snap once a measurement is drawn", () => {
+    renderToolbar(props({ selectedMeasurementName: "Line 1" }));
+    act(() => workspace!.chooseTool("line"));
+    act(() => workspace!.selectMeasurement("line-1"));
+    const toolbar = container!.querySelector('[aria-label="Line drawing controls"]')!;
+    expect(
+      toolbar.querySelector('[class*="divider"]')?.compareDocumentPosition(buttonByLabel("Snap")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(container!.textContent).toContain("Line 1");
+  });
+
   it.each([
     ["rectangle", "square"],
     ["ellipse", "circle"],
   ] as const)("shows a live Shift %s hint while the %s tool is active", (tool, constraint) => {
     renderToolbar();
-    expect(container?.querySelector('[data-active]')).toBeNull();
+    expect(container?.querySelector("[data-active]")).toBeNull();
     act(() => workspace!.chooseTool(tool));
 
     const hint = container!.querySelector<HTMLElement>("[data-active]")!;
@@ -401,9 +459,7 @@ describe("ContextToolbar V2", () => {
       act(() => renameTrigger(name).click());
       const input = renameInput(name);
       setInputValue(input, `${name} renamed`);
-      act(() =>
-        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
-      );
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
 
       expect(rename).toHaveBeenCalledWith(`${name} renamed`);
       expect(workspace?.activeTool).toBe(tool);
@@ -628,7 +684,13 @@ describe("ContextToolbar V2", () => {
   it("distinguishes reference-edit ownership and exposes Save/Cancel without collapsing X/Y", () => {
     const save = vi.fn();
     const cancel = vi.fn();
-    renderToolbar(props({ referenceEditValid: false, onSaveReferenceEdit: save, onCancelReferenceEdit: cancel }));
+    renderToolbar(
+      props({
+        referenceEditValid: false,
+        onSaveReferenceEdit: save,
+        onCancelReferenceEdit: cancel,
+      }),
+    );
     act(() =>
       workspace!.startReferenceEdit({
         pageNumber: 1,
@@ -665,41 +727,86 @@ describe("ContextToolbar V2", () => {
   });
 });
 
-
 describe("selection actions in the context bar", () => {
-  const selectedMeasurements = ["one", "two"].map((id) => ({ id, name: id, type: "line" as const, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], calibrationId: "scale", visible: true, classificationValueIds: [] }));
+  const selectedMeasurements = ["one", "two"].map((id) => ({
+    id,
+    name: id,
+    type: "line" as const,
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ],
+    calibrationId: "scale",
+    visible: true,
+    classificationValueIds: [],
+  }));
   it("keeps bulk editing in the selection context and hides single-only actions", () => {
-    const onEdit = vi.fn(() => true), onDelete = vi.fn(), onClear = vi.fn();
-    renderToolbar(props({ selectedMeasurements, classificationCatalog: { dimensions: [] }, onEditSelectedMeasurements: onEdit, onDeleteSelectedMeasurement: onDelete, onClearMeasurementSelection: onClear }));
+    const onEdit = vi.fn(() => true),
+      onDelete = vi.fn(),
+      onClear = vi.fn();
+    renderToolbar(
+      props({
+        selectedMeasurements,
+        classificationCatalog: { dimensions: [] },
+        onEditSelectedMeasurements: onEdit,
+        onDeleteSelectedMeasurement: onDelete,
+        onClearMeasurementSelection: onClear,
+      }),
+    );
     expect(contextKind()).toBe("selection");
     expect(container!.textContent).toContain("2 selected");
     expect(buttonByLabel("Duplicate")).toBeTruthy();
     expect(container!.textContent).not.toContain("Details");
     const buttons = toolbarButtons();
-    expect(buttons.indexOf(buttonByLabel("Delete"))).toBeLessThan(buttons.indexOf(buttonByLabel("Hide selected measurements")));
-    expect(buttons.indexOf(buttonByLabel("Hide selected measurements"))).toBeLessThan(buttons.indexOf(buttonByLabel("Clear measurement selection")));
+    expect(buttons.indexOf(buttonByLabel("Delete"))).toBeLessThan(
+      buttons.indexOf(buttonByLabel("Hide selected measurements")),
+    );
+    expect(buttons.indexOf(buttonByLabel("Hide selected measurements"))).toBeLessThan(
+      buttons.indexOf(buttonByLabel("Clear measurement selection")),
+    );
     act(() => buttonByLabel("Hide selected measurements").click());
     expect(document.querySelector('[role="menu"]')).toBeNull();
-    expect(onEdit).toHaveBeenCalledWith({ measurementIds: ["one", "two"], operation: { type: "visibility", visible: false } });
+    expect(onEdit).toHaveBeenCalledWith({
+      measurementIds: ["one", "two"],
+      operation: { type: "visibility", visible: false },
+    });
     act(() => buttonByLabel("Delete").click());
     expect(onDelete).toHaveBeenCalledOnce();
     act(() => buttonByLabel("Clear measurement selection").click());
     expect(onClear).toHaveBeenCalledOnce();
   });
 
-  it.each([false, true])("shows the whole selection directly when a measurement is hidden (mixed: %s)", (mixed) => {
-    const onEdit = vi.fn(() => true);
-    renderToolbar(props({
-      selectedMeasurements: selectedMeasurements.map((measurement, index) => ({ ...measurement, visible: mixed && index === 0 })),
-      onEditSelectedMeasurements: onEdit,
-    }));
-    act(() => buttonByLabel("Show selected measurements").click());
-    expect(onEdit).toHaveBeenCalledWith({ measurementIds: ["one", "two"], operation: { type: "visibility", visible: true } });
-    expect(document.querySelector('[role="menu"]')).toBeNull();
-  });
+  it.each([false, true])(
+    "shows the whole selection directly when a measurement is hidden (mixed: %s)",
+    (mixed) => {
+      const onEdit = vi.fn(() => true);
+      renderToolbar(
+        props({
+          selectedMeasurements: selectedMeasurements.map((measurement, index) => ({
+            ...measurement,
+            visible: mixed && index === 0,
+          })),
+          onEditSelectedMeasurements: onEdit,
+        }),
+      );
+      act(() => buttonByLabel("Show selected measurements").click());
+      expect(onEdit).toHaveBeenCalledWith({
+        measurementIds: ["one", "two"],
+        operation: { type: "visibility", visible: true },
+      });
+      expect(document.querySelector('[role="menu"]')).toBeNull();
+    },
+  );
 
   it("keeps classification alongside single-measurement actions without bulk visibility", () => {
-    renderToolbar(props({ selectedMeasurementName: "one", selectedMeasurements: selectedMeasurements.slice(0, 1), classificationCatalog: { dimensions: [] }, onEditSelectedMeasurements: vi.fn(() => true) }));
+    renderToolbar(
+      props({
+        selectedMeasurementName: "one",
+        selectedMeasurements: selectedMeasurements.slice(0, 1),
+        classificationCatalog: { dimensions: [] },
+        onEditSelectedMeasurements: vi.fn(() => true),
+      }),
+    );
     expect(buttonByLabel("Duplicate")).toBeTruthy();
     expect(buttonByLabel("Details")).toBeTruthy();
     expect(buttonByLabel("Classify")).toBeTruthy();

@@ -211,7 +211,10 @@ dialog.dialog[open] {
 }
 
 .classificationGrid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--geometry-export-classification-column-min-width)), 1fr));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, var(--geometry-export-classification-column-min-width)), 1fr)
+  );
   gap: var(--space-12);
 }
 
@@ -489,6 +492,15 @@ dialog.dialog[open] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.dimensionChoices {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: 0 var(--space-12);
+}
+
+.dimensionChoices .summaryChoice {
+  padding-block: 0;
+}
+
 .summaryChoice {
   min-height: var(--control-height-compact);
   padding: var(--space-4) var(--space-8);
@@ -507,7 +519,8 @@ dialog.dialog[open] {
 
 @media (max-width: 520px) {
   .summaryChoices,
-  .basicChoices {
+  .basicChoices,
+  .dimensionChoices {
     grid-template-columns: minmax(0, 1fr);
   }
 }

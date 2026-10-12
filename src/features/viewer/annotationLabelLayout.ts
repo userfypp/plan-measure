@@ -1,10 +1,11 @@
 import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
-import type { LogicalPageBounds, PageState, Point } from "../../types/domain";
+import type { LogicalPageBounds, MeasurementType, PageState, Point } from "../../types/domain";
 import {
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelInsideMeasurementGeometry,
   placeLabelAvoidingOverlaps,
+  type LabelCollisionIndex,
   type LabelDimensions,
   type LabelPlacement,
   type OccupiedLabelRect,
@@ -44,6 +45,30 @@ export function measureLabelText(text: string, fontSizeScreenPx: number, zoom: n
     padding: LABEL_PADDING_SCREEN_PX / zoom,
   });
   return { width: textNode.width(), height: textNode.height() };
+}
+
+/** Shared by final and live labels: inside-geometry placement, else overlap-avoiding at the anchor. */
+export function placeMeasurementLabel(
+  type: MeasurementType,
+  points: readonly Point[],
+  anchor: Point,
+  dimensions: LabelDimensions,
+  bounds: Pick<LogicalPageBounds, "width" | "height">,
+  zoom: number,
+  occupied: LabelCollisionIndex,
+): LabelPlacement {
+  return (
+    placeLabelInsideMeasurementGeometry(
+      type,
+      points,
+      dimensions,
+      bounds,
+      zoom,
+      occupied,
+      LABEL_EDGE_MARGIN_SCREEN_PX,
+    ) ??
+    placeLabelAvoidingOverlaps(anchor, dimensions, bounds, zoom, occupied, LABEL_EDGE_MARGIN_SCREEN_PX)
+  );
 }
 
 export function planLabelLayout({
@@ -150,25 +175,15 @@ export function planLabelLayout({
       if (data.text === null) continue;
       const key = `measurement:${measurement.id}`;
       const dimensions = measurementDimensions(data.text);
-      const fallbackAnchor = data.anchor;
-      const placement =
-        placeLabelInsideMeasurementGeometry(
-          measurement.type,
-          measurement.points,
-          dimensions,
-          bounds,
-          zoom,
-          occupied,
-          LABEL_EDGE_MARGIN_SCREEN_PX,
-        ) ??
-        placeLabelAvoidingOverlaps(
-          fallbackAnchor,
-          dimensions,
-          bounds,
-          zoom,
-          occupied,
-          LABEL_EDGE_MARGIN_SCREEN_PX,
-        );
+      const placement = placeMeasurementLabel(
+        measurement.type,
+        measurement.points,
+        data.anchor,
+        dimensions,
+        bounds,
+        zoom,
+        occupied,
+      );
       store(key, placement, dimensions);
     }
   }

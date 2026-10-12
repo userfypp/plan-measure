@@ -488,13 +488,15 @@ export function ContextToolbar({
         drawingTool={activeTool}
       >
         {!pathDraft && selectedMeasurementName && (
-          <MeasurementNameEditor
-            key={selectedMeasurementId ?? "none"}
-            name={selectedMeasurementName}
-            onRename={onRenameSelectedMeasurement}
-          />
+          <>
+            <MeasurementNameEditor
+              key={selectedMeasurementId ?? "none"}
+              name={selectedMeasurementName}
+              onRename={onRenameSelectedMeasurement}
+            />
+            <Divider />
+          </>
         )}
-        <Divider />
         <DrawingAidButton
           label="Snap"
           icon={<SnapIcon />}

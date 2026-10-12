@@ -28,6 +28,14 @@ type DescribedTriggerProps = {
   "aria-describedby"?: string;
 };
 
+function matchesFocusVisible(target: EventTarget): boolean {
+  try {
+    return !(target instanceof Element) || target.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
+
 export function Tooltip({
   content,
   children,
@@ -150,7 +158,11 @@ export function Tooltip({
       className={styles.root}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
-      onFocusCapture={showTooltip}
+      onFocusCapture={(event) => {
+        // Programmatic focus (e.g. a dialog's initial focus) must not pin the tooltip open.
+        if (!matchesFocusVisible(event.target)) return;
+        showTooltip();
+      }}
       onBlurCapture={hideTooltip}
     >
       {trigger}

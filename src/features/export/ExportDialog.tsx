@@ -202,7 +202,12 @@ export function ExportDialog({
       } else if (dataset === "classification-assignments") {
         downloadClassificationAssignmentsCsv(session, pageLabels);
       } else {
-        if (Object.values(session.pages).reduce((count, page) => count + page.measurements.length, 0) > 500)
+        if (
+          Object.values(session.pages).reduce(
+            (count, page) => count + page.measurements.length,
+            0,
+          ) > 500
+        )
           await downloadCsvInBatches(session, pageLabels, draft);
         else downloadCsv(session, pageLabels, draft);
         updateSettings({ csvExport: normalizeCsvExportSettings(session, draft) });
@@ -710,7 +715,7 @@ function SummaryOptions({
           aria-label="Takeoff classifications"
         >
           <span className={styles.sectionTitle}>Classification breakdowns</span>
-          <div className={styles.summaryChoices}>
+          <div className={`${styles.summaryChoices} ${styles.dimensionChoices}`}>
             {session.classificationCatalog.dimensions.map((dimension) => (
               <label
                 key={dimension.id}

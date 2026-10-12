@@ -2296,6 +2296,7 @@ export function PdfViewer({
                       <LiveLengthLabel
                         from={workspaceDraft.points.at(-1)!}
                         to={draftPreviewPointer}
+                        bounds={bounds}
                         zoom={viewTransform.zoom}
                         roles={canvasVisualRoles}
                         calibration={getActiveCalibration(page)}

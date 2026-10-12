@@ -13,13 +13,22 @@ import {
   shouldRenderMeasurement,
 } from "./measurementViewModels";
 
-const measurementPanelCss = readFileSync(new URL("./MeasurementPanel.module.css", import.meta.url), "utf8");
+const measurementPanelCss = readFileSync(
+  new URL("./MeasurementPanel.module.css", import.meta.url),
+  "utf8",
+);
 const measurementCollectionCss = readFileSync(
   new URL("./MeasurementCollection.module.css", import.meta.url),
   "utf8",
 );
-const measurementGroupCss = readFileSync(new URL("./MeasurementGroup.module.css", import.meta.url), "utf8");
-const measurementRowCss = readFileSync(new URL("./MeasurementRow.module.css", import.meta.url), "utf8");
+const measurementGroupCss = readFileSync(
+  new URL("./MeasurementGroup.module.css", import.meta.url),
+  "utf8",
+);
+const measurementRowCss = readFileSync(
+  new URL("./MeasurementRow.module.css", import.meta.url),
+  "utf8",
+);
 
 const measurement: Measurement = {
   id: "line-1",
@@ -49,7 +58,15 @@ const page: PageState = {
   activeCalibrationId: "scale-1",
   nextCalibrationNumber: 2,
   measurements: [measurement],
-  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+  nextMeasurementNumber: {
+    line: 2,
+    polyline: 1,
+    polygon: 1,
+    rectangle: 1,
+    ellipse: 1,
+    cloud: 1,
+    count: 1,
+  },
 };
 
 function viewModel(selected = false, candidate = measurement) {
@@ -135,15 +152,24 @@ describe("measurement view models", () => {
       ),
     ).toEqual(["Line", "Polyline", "Polygon"]);
   });
-
 });
 
 describe("MeasurementRow accessibility", () => {
   it("shows Count metadata without a missing-scale warning", () => {
-    const markup = renderToStaticMarkup(<MeasurementRow
-      viewModel={{ ...viewModel(), type: "count", typeLabel: "Count", valueLabel: "3 items", calibrationSummary: "No scale required", hasCalibration: false }}
-      onSelectMeasurement={() => undefined} onToggleVisibility={() => undefined}
-    />);
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={{
+          ...viewModel(),
+          type: "count",
+          typeLabel: "Count",
+          valueLabel: "3 items",
+          calibrationSummary: "No scale required",
+          hasCalibration: false,
+        }}
+        onSelectMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+      />,
+    );
     expect(markup).toContain('title="Count"');
     expect(markup).not.toContain("No scale required");
     expect(markup).not.toContain("unavailable");
@@ -223,8 +249,12 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain(`>${quantityParts[0]}<`);
     expect(markup).toContain(`>${quantityParts[1]}<`);
     const visibleDetails = markup.slice(markup.indexOf('id="measurement-details-polygon-1"'));
-    expect(visibleDetails.indexOf(model.name)).toBeLessThan(visibleDetails.indexOf(quantityParts[0]!));
-    expect(visibleDetails.indexOf(quantityParts[0]!)).toBeLessThan(visibleDetails.indexOf(model.typeLabel));
+    expect(visibleDetails.indexOf(model.name)).toBeLessThan(
+      visibleDetails.indexOf(quantityParts[0]!),
+    );
+    expect(visibleDetails.indexOf(quantityParts[0]!)).toBeLessThan(
+      visibleDetails.indexOf(model.typeLabel),
+    );
   });
 
   it("keeps Polygon perimeter architectural while acres changes only the area quantity", () => {
@@ -260,7 +290,9 @@ describe("MeasurementRow accessibility", () => {
     expect(measurementRowCss).toMatch(
       /\.actions > \*\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
     );
-    expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s);
+    expect(measurementRowCss).toMatch(
+      /\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s,
+    );
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );
@@ -284,7 +316,9 @@ describe("MeasurementRow accessibility", () => {
 
 describe("measurement grouping surfaces", () => {
   it("keeps advanced controls out of the list layout and bounds their responsive popovers", () => {
-    expect(measurementPanelCss).toMatch(/\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s);
+    expect(measurementPanelCss).toMatch(
+      /\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s,
+    );
     expect(measurementPanelCss).toMatch(
       /\.toolbar\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);/s,
     );
@@ -295,9 +329,7 @@ describe("measurement grouping surfaces", () => {
       /\.toolbarButton\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
     );
     expect(measurementPanelCss).not.toContain(".toolbarButton::after");
-    expect(measurementPanelCss).toMatch(
-      /\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s,
-    );
+    expect(measurementPanelCss).toMatch(/\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s);
     expect(measurementPanelCss).toMatch(
       /@container measurement-panel \(max-width: 359px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
     );
@@ -414,9 +446,7 @@ describe("measurement grouping surfaces", () => {
   });
 
   it("uses one fine divider level and a lighter compact hierarchy for nested groups", () => {
-    expect(measurementGroupCss).not.toMatch(
-      /\.group\s*\{[^}]*border-bottom:/s,
-    );
+    expect(measurementGroupCss).not.toMatch(/\.group\s*\{[^}]*border-bottom:/s);
     expect(measurementGroupCss).toMatch(
       /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
     );
@@ -429,7 +459,9 @@ describe("measurement grouping surfaces", () => {
     expect(measurementGroupCss).toMatch(
       /\.childHeader,\s*\.deepHeader\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*border-bottom:\s*0;[^}]*background:\s*transparent;/s,
     );
-    expect(measurementGroupCss).toMatch(/\.headerWithoutMeta\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\);/s);
+    expect(measurementGroupCss).toMatch(
+      /\.headerWithoutMeta\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\);/s,
+    );
     expect(measurementGroupCss).toMatch(
       /\.title\s*\{[^}]*grid-template-rows:\s*auto auto;[^}]*align-content:\s*center;/s,
     );
@@ -442,7 +474,9 @@ describe("measurement grouping surfaces", () => {
     expect(measurementGroupCss).toMatch(
       /\.deepHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-secondary\);/s,
     );
-    expect(measurementGroupCss).toMatch(/\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s);
+    expect(measurementGroupCss).toMatch(
+      /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
+    );
     expect(measurementGroupCss).toMatch(
       /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
@@ -450,7 +484,7 @@ describe("measurement grouping surfaces", () => {
       /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
     );
     expect(measurementCollectionCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 var\(--space-8\) var\(--space-8\);/s,
+      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 max\(0px, calc\(var\(--space-8\) - var\(--scrollbar-size, 0px\)\)\) var\(--space-8\)\s*var\(--space-8\);/s,
     );
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*--measurement-row-inline-bleed:/s);
@@ -463,7 +497,9 @@ describe("measurement grouping surfaces", () => {
     expect(measurementRowCss).toMatch(
       /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-4\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
     );
-    expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
+    expect(measurementRowCss).toMatch(
+      /\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s,
+    );
   });
 
   it("keeps a collapsed group's controlled list mounted and hidden", () => {

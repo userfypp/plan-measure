@@ -1311,7 +1311,7 @@ function PlanMeasureApp() {
           (Boolean(recovery && !session) && !dismissInitialProjectLibrary)
         }
         projects={savedProjects}
-        currentSessionLoaded={Boolean(session)}
+        currentSessionLoaded={Boolean(session && activePdf)}
         activeProjectId={activeProjectId}
         opening={loading || projectOperationPending}
         pendingDiscardProjectId={pendingDiscardProjectId}
@@ -1319,7 +1319,7 @@ function PlanMeasureApp() {
           setPendingDiscardProjectId(null);
           setProjectLibraryOpen(false);
           setDismissInitialProjectLibrary(true);
-          if (session && activeProjectId === projectId) {
+          if (session && activePdf && activeProjectId === projectId) {
             return;
           }
           void openProject(projectId);

@@ -28,9 +28,10 @@ export function IconButton({
 }: IconButtonProps) {
   const contextualDisabled = disabled && Boolean(disabledReason);
   const reasonId = useId();
-  const describedBy = [buttonProps["aria-describedby"], contextualDisabled ? reasonId : ""]
-    .filter(Boolean)
-    .join(" ") || undefined;
+  const describedBy =
+    [buttonProps["aria-describedby"], contextualDisabled ? reasonId : ""]
+      .filter(Boolean)
+      .join(" ") || undefined;
   const button = (
     <button
       {...buttonProps}
@@ -62,8 +63,12 @@ export function IconButton({
   if (contextualDisabled) {
     return (
       <span className={styles.disabledReasonOwner}>
-        <Tooltip content={tooltipContent!} delay={0} describeTrigger={false}>{button}</Tooltip>
-        <span id={reasonId} className={styles.visuallyHidden}>{disabledReason}</span>
+        <Tooltip content={tooltipContent!} delay={0} describeTrigger={false}>
+          {button}
+        </Tooltip>
+        <span id={reasonId} hidden>
+          {disabledReason}
+        </span>
       </span>
     );
   }

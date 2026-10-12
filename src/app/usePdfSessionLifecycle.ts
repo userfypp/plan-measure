@@ -287,6 +287,8 @@ export function usePdfSessionLifecycle({
 
   useEffect(() => {
     disposedRef.current = false;
+    // After a Fast Refresh the cleanup below destroyed the PDF but React kept the state: drop the stale handle.
+    setActivePdf((current) => (current && activePdfRef.current !== current ? null : current));
     const lifecycle = pdfLoadLifecycleRef.current;
     return () => {
       disposedRef.current = true;

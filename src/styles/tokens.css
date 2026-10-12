@@ -237,6 +237,14 @@
   --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
   --transition-transform: transform 120ms ease;
 
+  /* Dialog enter/exit (Dialog.module.css): backdrop and panel share duration and curve. */
+  --dialog-duration-enter: 180ms;
+  --dialog-duration-exit: 120ms;
+  --dialog-ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --dialog-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --dialog-offset: 8px;
+  --dialog-scale-from: 0.98;
+
   /* Base component geometry (components/ui). */
   --spinner-size: 14px;
   --badge-min-height: 24px;
@@ -316,6 +324,10 @@
   :root {
     --transition-interactive: none;
     --transition-transform: none;
+    --dialog-offset: 0px;
+    --dialog-scale-from: 1;
+    --dialog-duration-enter: 100ms;
+    --dialog-duration-exit: 80ms;
   }
 }
 
@@ -323,6 +335,10 @@
 :root[data-motion="reduce"] {
   --transition-interactive: none;
   --transition-transform: none;
+  --dialog-offset: 0px;
+  --dialog-scale-from: 1;
+  --dialog-duration-enter: 100ms;
+  --dialog-duration-exit: 80ms;
 }
 
 :root[data-motion="reduce"] *,
@@ -330,7 +346,9 @@
 :root[data-motion="reduce"] *::after {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
+  /* 0s, not a tiny non-zero value: Safari still runs 0.001ms transitions, which lags the software cursor. */
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
   scroll-behavior: auto !important;
 }
 

@@ -4,6 +4,7 @@
   min-height: 0;
   overflow-x: clip;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--color-surface-panel);
 }
 
@@ -14,7 +15,8 @@
   display: grid;
   min-width: 0;
   gap: 0;
-  padding: 0 var(--space-8) var(--space-8);
+  padding: 0 max(0px, calc(var(--space-8) - var(--scrollbar-size, 0px))) var(--space-8)
+    var(--space-8);
   background: var(--color-surface-panel);
 }
 

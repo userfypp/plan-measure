@@ -180,6 +180,49 @@ describe("ProjectLibraryDialog", () => {
     expect(callbacks.onRequestDiscard).toHaveBeenCalledWith("other");
   });
 
+  it("opens a project whose id is still active after the session was lost (Fast Refresh desync)", () => {
+    const stale = projects.map((project) => ({ ...project, isCurrent: false }));
+    const callbacks = render({
+      savedProjects: stale,
+      currentSessionLoaded: false,
+      activeProjectId: "current",
+    });
+    const button = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open project Level 01.pdf"]',
+    );
+    if (!button) throw new Error("The open action was not rendered.");
+    expect(button.getAttribute("aria-disabled")).toBeNull();
+    act(() => button.click());
+    expect(callbacks.onOpenProject).toHaveBeenCalledWith("current");
+  });
+
+  it("keeps the already-open reason out of the layout until the active project button is hovered", () => {
+    const matches = Element.prototype.matches;
+    const spy = vi.spyOn(Element.prototype, "matches").mockImplementation(function (
+      this: Element,
+      selector: string,
+    ) {
+      return selector === ":focus-visible" ? false : matches.call(this, selector);
+    });
+    const callbacks = render();
+    const button = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Current project Level 01.pdf"]',
+    );
+    if (!button) throw new Error("The current project action was not rendered.");
+    const reason = container?.querySelector<HTMLElement>(
+      `[id="${button.getAttribute("aria-describedby")}"]`,
+    );
+    expect(reason?.hidden).toBe(true);
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    act(() => button.parentElement?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+      "This project is already open.",
+    );
+    act(() => button.click());
+    expect(callbacks.onOpenProject).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   it("offers a continue action before restoring the current project and supports an empty library", () => {
     const onOpenPdf = vi.fn();
     const callbacks = render({ currentSessionLoaded: false, onOpenPdf });

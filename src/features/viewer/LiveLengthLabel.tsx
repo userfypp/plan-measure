@@ -1,17 +1,35 @@
 import { Label, Tag, Text } from "react-konva";
 import type {
+  LogicalPageBounds,
   MeasurementDecimalPlaces,
   MeasurementDisplayUnit,
   PageCalibration,
   Point,
 } from "../../types/domain";
 import { formatMeasurement } from "../../utils/format";
-import { useNumberFormatKey } from "../../utils/appPreferences";
-import { CANVAS_VISUAL_METRICS, type CanvasVisualRoles } from "./canvasVisualRoles";
+import {
+  LABEL_BACKGROUND_OPACITY,
+  LABEL_SIZE_SCALE,
+  useAppPreferences,
+  useNumberFormatKey,
+} from "../../utils/appPreferences";
+import { createLabelCollisionIndex } from "../../utils/labelLayout";
+import {
+  LABEL_PADDING_SCREEN_PX,
+  MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX,
+  averagePoint,
+  measureLabelText,
+  placeMeasurementLabel,
+} from "./annotationLabelLayout";
+import { CANVAS_VISUAL_METRICS, labelTextPaint, type CanvasVisualRoles } from "./canvasVisualRoles";
+
+/** Nothing is ever inserted: the live label ignores other labels, like a lone final label. */
+const EMPTY_LABEL_INDEX = createLabelCollisionIndex();
 
 interface LiveLengthLabelProps {
   from: Point;
   to: Point;
+  bounds: Pick<LogicalPageBounds, "width" | "height"> | null;
   zoom: number;
   roles: CanvasVisualRoles;
   calibration: PageCalibration | null;
@@ -23,6 +41,7 @@ interface LiveLengthLabelProps {
 export function LiveLengthLabel({
   from,
   to,
+  bounds,
   zoom,
   roles,
   calibration,
@@ -30,7 +49,8 @@ export function LiveLengthLabel({
   decimalPlaces,
 }: LiveLengthLabelProps) {
   useNumberFormatKey(); // re-render when separators change
-  if (!calibration || (from.x === to.x && from.y === to.y)) return null;
+  const { labelSize, labelBackground } = useAppPreferences();
+  if (!bounds || !calibration || (from.x === to.x && from.y === to.y)) return null;
   const metrics = CANVAS_VISUAL_METRICS;
   const text = formatMeasurement(
     { type: "line", points: [from, to] },
@@ -38,25 +58,31 @@ export function LiveLengthLabel({
     displayUnit,
     decimalPlaces,
   );
-  const offset = metrics.boxGuideDimensionOffsetScreenPx / zoom;
+  const fontSize = MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * LABEL_SIZE_SCALE[labelSize];
+  const backgroundOpacity = LABEL_BACKGROUND_OPACITY[labelBackground];
+  const points = [from, to];
+  const placement = placeMeasurementLabel(
+    "line",
+    points,
+    averagePoint(points),
+    measureLabelText(text, fontSize, zoom),
+    bounds,
+    zoom,
+    EMPTY_LABEL_INDEX,
+  );
   return (
-    <Label
-      name="live-length-label"
-      x={(from.x + to.x) / 2 + offset}
-      y={(from.y + to.y) / 2 + offset}
-      listening={false}
-    >
+    <Label name="live-length-label" x={placement.x} y={placement.y} listening={false}>
       <Tag
         fill={roles.labelBackground}
-        opacity={0.82}
+        opacity={0.88 * backgroundOpacity}
         cornerRadius={metrics.labelCornerRadiusScreenPx / zoom}
       />
       <Text
         text={text}
-        fill={roles.labelText}
+        {...labelTextPaint(roles, backgroundOpacity, zoom)}
         fontFamily={metrics.fontFamily}
-        fontSize={metrics.boxGuideDimensionFontSizeScreenPx / zoom}
-        padding={metrics.labelPaddingScreenPx / zoom}
+        fontSize={fontSize / zoom}
+        padding={LABEL_PADDING_SCREEN_PX / zoom}
       />
     </Label>
   );

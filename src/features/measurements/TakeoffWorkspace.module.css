@@ -6,7 +6,9 @@
   min-height: 0;
   height: 100%;
   overflow: auto;
-  padding: var(--space-12) var(--space-16);
+  scrollbar-gutter: stable;
+  padding: var(--space-12) max(0px, calc(var(--space-16) - var(--scrollbar-size, 0px)))
+    var(--space-12) var(--space-16);
   background: var(--color-surface-panel);
 }
 
