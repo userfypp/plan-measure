@@ -119,6 +119,32 @@ export function fitToScreen(
   };
 }
 
+/**
+ * Initial view of a page. "fit-page" is exactly {@link fitToScreen}; "fit-width" fills the
+ * viewer width and starts at the top; "actual" is 100% (zoom 1). Zoom stays within the limits
+ * and a page larger than the viewer starts at its top-left corner instead of centred.
+ */
+export function initialViewTransform(
+  mode: "fit-page" | "fit-width" | "actual",
+  page: Pick<LogicalPageBounds, "width" | "height">,
+  viewer: ViewerSize,
+  padding = 24,
+  minZoom = 0,
+  maxZoom = getAppPreferences().maxZoom,
+): ViewTransform {
+  if (mode === "fit-page") return fitToScreen(page, viewer, padding, minZoom, maxZoom);
+  const availableWidth = Math.max(1, viewer.width - padding * 2);
+  const wanted = mode === "fit-width" ? availableWidth / page.width : 1;
+  const zoom = Math.min(maxZoom, Math.max(minZoom, wanted));
+  const place = (viewerSize: number, pageSize: number) =>
+    pageSize <= viewerSize - padding * 2 ? (viewerSize - pageSize) / 2 : padding;
+  return {
+    zoom,
+    panX: place(viewer.width, page.width * zoom),
+    panY: place(viewer.height, page.height * zoom),
+  };
+}
+
 export function pdfRasterLayout(
   page: Pick<LogicalPageBounds, "width" | "height">,
   transform: ViewTransform,

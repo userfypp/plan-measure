@@ -63,6 +63,34 @@ const ZOOM_STEP_OPTIONS = [
   { value: "coarse", label: "Coarse" },
 ] as const;
 
+const DEFAULT_ZOOM_OPTIONS = [
+  { value: "fit-page", label: "Fit page" },
+  { value: "fit-width", label: "Fit width" },
+  { value: "actual", label: "100%" },
+] as const;
+
+const WHEEL_BEHAVIOR_OPTIONS = [
+  { value: "zoom", label: "Zoom" },
+  { value: "pan", label: "Scroll" },
+] as const;
+
+const DATE_FORMAT_OPTIONS = [
+  { value: "short", label: "Short" },
+  { value: "medium", label: "Medium" },
+  { value: "with-time", label: "With time" },
+] as const;
+
+const LABEL_CONTENT_OPTIONS = [
+  { value: "value", label: "Value" },
+  { value: "name-value", label: "Name and value" },
+] as const;
+
+const PAGE_GRID_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "fine", label: "Fine" },
+  { value: "coarse", label: "Coarse" },
+] as const;
+
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: "system", label: "System" },
   { value: "light", label: "Light" },
@@ -500,6 +528,27 @@ export function SettingsDialog({
                       options={ZOOM_STEP_OPTIONS}
                       onChange={set("zoomStep")}
                     />
+                    <SelectRow
+                      label="Default zoom"
+                      help="How a page is shown when it opens. The Fit button always fits the whole page."
+                      value={preferences.defaultZoom}
+                      options={DEFAULT_ZOOM_OPTIONS}
+                      onChange={set("defaultZoom")}
+                    />
+                    <SelectRow
+                      label="Mouse wheel"
+                      help="Zoom makes the wheel zoom the plan. Scroll makes it move the plan, and Ctrl or Cmd with the wheel (or a trackpad pinch) zooms."
+                      value={preferences.wheelBehavior}
+                      options={WHEEL_BEHAVIOR_OPTIONS}
+                      onChange={set("wheelBehavior")}
+                    />
+                    <SelectRow
+                      label="Date format"
+                      help="How saved dates appear in the project library."
+                      value={preferences.dateFormat}
+                      options={DATE_FORMAT_OPTIONS}
+                      onChange={set("dateFormat")}
+                    />
                     {onKeyboardAuthoringEnabledChange && (
                       <SwitchRow
                         label="Keyboard drawing and editing"
@@ -550,6 +599,13 @@ export function SettingsDialog({
                       options={DECIMAL_SEPARATOR_OPTIONS}
                       onChange={set("decimalSeparator")}
                     />
+                    <SelectRow
+                      label="Label content"
+                      help="Show only the value or the measurement name before it. Applies on screen only; exports do not change."
+                      value={preferences.labelContent}
+                      options={LABEL_CONTENT_OPTIONS}
+                      onChange={set("labelContent")}
+                    />
                     <p className={styles.preview} aria-live="polite">
                       <span>Preview</span>
                       <output className={styles.previewValue}>{preview}</output>
@@ -598,6 +654,24 @@ export function SettingsDialog({
                       value={preferences.afterFinishing}
                       options={AFTER_FINISHING_OPTIONS}
                       onChange={set("afterFinishing")}
+                    />
+                    <SwitchRow
+                      label="Crosshair cursor"
+                      help="Uses a crosshair while a drawing tool is active. Off keeps the normal arrow."
+                      checked={preferences.crosshairCursor}
+                      onChange={set("crosshairCursor")}
+                    />
+                    <SwitchRow
+                      label="Live segment length"
+                      help="Shows the length of the segment being drawn next to the pointer."
+                      checked={preferences.liveLength}
+                      onChange={set("liveLength")}
+                    />
+                    <SwitchRow
+                      label="Finish on double-click"
+                      help="Double-clicking completes the polyline or polygon being drawn, without adding an extra point."
+                      checked={preferences.finishOnDoubleClick}
+                      onChange={set("finishOnDoubleClick")}
                     />
                   </div>
                 )}
@@ -689,6 +763,13 @@ export function SettingsDialog({
                       value={preferences.labelBackground}
                       options={LABEL_BACKGROUND_OPTIONS}
                       onChange={set("labelBackground")}
+                    />
+                    <SelectRow
+                      label="Page grid"
+                      help="Draws a faint grid over the page as a visual aid. It is not saved and does not change exports."
+                      value={preferences.pageGrid}
+                      options={PAGE_GRID_OPTIONS}
+                      onChange={set("pageGrid")}
                     />
                   </div>
                 )}

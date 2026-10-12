@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Badge, Button, Dialog, IconButton } from "../components/ui";
 import type { SavedProjectSummary } from "../services/persistence";
+import { useAppPreferences } from "../utils/appPreferences";
+import { formatSavedDate } from "../utils/dateFormat";
 import styles from "./ProjectLibraryDialog.module.css";
 
 interface ProjectLibraryDialogProps {
@@ -45,10 +47,6 @@ const discardIcon = (
   </Icon>
 );
 
-function savedDate(timestamp: number): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp);
-}
-
 export function ProjectLibraryDialog({
   open,
   projects,
@@ -65,6 +63,7 @@ export function ProjectLibraryDialog({
   onConfirmDiscard,
   onClose,
 }: ProjectLibraryDialogProps) {
+  const { dateFormat } = useAppPreferences();
   if (!open) return null;
   const pendingProject = projects.find((project) => project.id === pendingDiscardProjectId);
   const confirmingDiscard = pendingDiscardProjectId !== null;
@@ -117,7 +116,7 @@ export function ProjectLibraryDialog({
                       <p>
                         {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
                         <span aria-hidden="true"> · </span>
-                        Saved {savedDate(project.savedAt)}
+                        Saved {formatSavedDate(project.savedAt, dateFormat)}
                       </p>
                     </div>
                     <div className={styles.projectActions}>

@@ -10,6 +10,7 @@ import {
   LABEL_BACKGROUND_OPACITY,
   LABEL_SIZE_SCALE,
   returnsToSelectAfterFinishing,
+  wheelAction,
   ZOOM_STEP_FACTOR,
   LINE_THICKNESS_SCALE,
   reloadAppPreferencesFromStorage,
@@ -64,6 +65,38 @@ describe("appPreferences", () => {
       afterFinishing: "keep",
       zoomStep: "coarse",
     });
+  });
+
+  it("defaults the interface, drawing, label and grid options to today's behaviour", () => {
+    expect(getAppPreferences()).toMatchObject({
+      defaultZoom: "fit-page",
+      wheelBehavior: "zoom",
+      dateFormat: "medium",
+      crosshairCursor: true,
+      liveLength: false,
+      finishOnDoubleClick: false,
+      labelContent: "value",
+      pageGrid: "off",
+    });
+    setAppPreference("defaultZoom", "bogus" as never);
+    setAppPreference("wheelBehavior", "pan");
+    setAppPreference("crosshairCursor", "yes" as never);
+    setAppPreference("pageGrid", "coarse");
+    expect(getAppPreferences()).toMatchObject({
+      defaultZoom: "fit-page",
+      wheelBehavior: "pan",
+      crosshairCursor: true,
+      pageGrid: "coarse",
+    });
+  });
+
+  it("makes the wheel zoom or pan, with Ctrl or Cmd always zooming", () => {
+    const none = { ctrlKey: false, metaKey: false };
+    expect(wheelAction("zoom", none)).toBe("zoom");
+    expect(wheelAction("pan", none)).toBe("pan");
+    expect(wheelAction("pan", { ctrlKey: true, metaKey: false })).toBe("zoom");
+    expect(wheelAction("pan", { ctrlKey: false, metaKey: true })).toBe("zoom");
+    expect(wheelAction("zoom", { ctrlKey: true, metaKey: false })).toBe("zoom");
   });
 
   it("returns to Select after finishing only when asked, never for Count", () => {

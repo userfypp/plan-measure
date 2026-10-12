@@ -15,6 +15,8 @@ import {
   HANDLE_SIZE_SCALE,
   ZOOM_STEP_FACTOR,
   getAppPreferences,
+  wheelAction,
+  type DefaultZoom,
   returnsToSelectAfterFinishing,
   useAppPreferences,
 } from "../../utils/appPreferences";
@@ -44,6 +46,7 @@ import {
   canvasLayout,
   clampPointToPage,
   fitToScreen,
+  initialViewTransform,
   logicalPageBoundsFromViewport,
   normalizeRotation,
   pdfRasterLayout,
@@ -106,6 +109,8 @@ import { getActiveCalibration } from "../../utils/calibration";
 import { DraftPointMarkers } from "./DraftPointMarkers";
 import { BoxDraftGuides } from "./BoxDraftGuides";
 import { SOFTWARE_CURSORS } from "./softwareCursor";
+import { PageGridLines } from "./PageGridLines";
+import { LiveLengthLabel } from "./LiveLengthLabel";
 import { useSoftwareCursor } from "./useSoftwareCursor";
 import {
   copyRasterToCanvas,
@@ -153,6 +158,17 @@ function isInsideViewerPopover(viewer: HTMLElement, node: EventTarget | null): b
   );
 }
 
+const LIVE_LENGTH_TYPES: ReadonlySet<string> = new Set(["line", "polyline", "polygon"]);
+
+function fitTransformFor(
+  mode: "initial" | "page",
+  bounds: Pick<LogicalPageBounds, "width" | "height">,
+  viewer: { width: number; height: number },
+  defaultZoom: DefaultZoom,
+): ViewTransform {
+  return initialViewTransform(mode === "page" ? "fit-page" : defaultZoom, bounds, viewer);
+}
+
 export function PdfViewer({
   document,
   page,
@@ -178,7 +194,16 @@ export function PdfViewer({
   const viewerBottomExclusion = useViewerBottomExclusion();
   const authoringCapability = useAuthoringCapability();
   const canvasVisualRoles = useCanvasVisualRoles();
-  const { fillOpacity, handleSize } = useAppPreferences();
+  const {
+    fillOpacity,
+    handleSize,
+    defaultZoom,
+    wheelBehavior,
+    crosshairCursor,
+    liveLength,
+    finishOnDoubleClick,
+    pageGrid,
+  } = useAppPreferences();
   const fillScale = FILL_OPACITY_SCALE[fillOpacity];
   const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
   const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
@@ -254,7 +279,8 @@ export function PdfViewer({
   const [transform, setTransform] = useState<ViewTransform>({ zoom: 1, panX: 0, panY: 0 });
   const transformRef = useRef<ViewTransform>(transform);
   const [presentedState, setPresentedState] = useState({ page, transform });
-  const [fitMode, setFitMode] = useState(true);
+  // "initial" follows the default-zoom preference; "page" is the manual Fit button.
+  const [fitMode, setFitModeState] = useState<false | "initial" | "page">("initial");
   const [spacePan, setSpacePan] = useState(false);
   const [draftPointer, setDraftPointer] = useState<Point | null>(null);
   const [placementPointer, setPlacementPointer] = useState<Point | null>(null);
@@ -551,7 +577,7 @@ export function PdfViewer({
     // The loaded page data is replaced atomically by the async PDF.js result below.
     setPageRenderData(null);
     // A page navigation always returns to the page's fit transform.
-    setFitMode(true);
+    setFitModeState("initial");
     void document
       .getPage(page.pageNumber)
       .then((loadedPage) => {
@@ -595,15 +621,15 @@ export function PdfViewer({
     if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0 || !fitMode) return;
     // The view transform intentionally follows ResizeObserver output while fit mode is active.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    commitTransform(fitToScreen(bounds, safeViewer.size));
-  }, [bounds, safeViewer.size, fitMode, commitTransform]);
+    commitTransform(fitTransformFor(fitMode, bounds, safeViewer.size, defaultZoom));
+  }, [bounds, safeViewer.size, fitMode, defaultZoom, commitTransform]);
 
   const viewTransform = useMemo(
     () =>
       bounds && safeViewer.size.width > 0 && safeViewer.size.height > 0 && fitMode
-        ? fitToScreen(bounds, safeViewer.size)
+        ? fitTransformFor(fitMode, bounds, safeViewer.size, defaultZoom)
         : transform,
-    [bounds, fitMode, safeViewer.size, transform],
+    [bounds, defaultZoom, fitMode, safeViewer.size, transform],
   );
 
   useLayoutEffect(() => {
@@ -714,7 +740,7 @@ export function PdfViewer({
         panX: viewTransform.panX + x - screen.x,
         panY: viewTransform.panY + y - screen.y,
       };
-      setFitMode(false);
+      setFitModeState(false);
       commitTransform(next);
       return next;
     },
@@ -892,7 +918,7 @@ export function PdfViewer({
       cancelKeyboardGeometry();
       cancelActiveCalibrationReferenceDrag();
       clearSnapFeedback();
-      setFitMode(false);
+      setFitModeState(false);
       const current = transformRef.current;
       const next = zoomViewAtPoint(current, screenPoint, current.zoom * factor);
       const panDrag = panDragRef.current;
@@ -921,7 +947,7 @@ export function PdfViewer({
     cancelActiveVertexDrag();
     cancelActiveCalibrationReferenceDrag();
     clearSnapFeedback();
-    setFitMode(true);
+    setFitModeState("page");
     commitTransform(fitToScreen(bounds, safeViewer.size));
   }, [
     bounds,
@@ -1130,7 +1156,7 @@ export function PdfViewer({
       const step = event.shiftKey ? 100 : 20;
       event.preventDefault();
       cancelKeyboardGeometry();
-      setFitMode(false);
+      setFitModeState(false);
       commitTransform({
         ...viewTransform,
         panX:
@@ -1238,7 +1264,7 @@ export function PdfViewer({
     event.evt.preventDefault();
     suppressPanClickRef.current = true;
     panDragRef.current = { pointer, transform: transformRef.current };
-    setFitMode(false);
+    setFitModeState(false);
     setIsPanning(true);
   }
 
@@ -1341,6 +1367,17 @@ export function PdfViewer({
       ) {
         clearSelection();
       }
+      return;
+    }
+    if (
+      finishOnDoubleClick &&
+      event.evt.detail >= 2 &&
+      workspaceDraft?.type === "path" &&
+      workspaceDraft.points.length > 0 &&
+      measurementPathSpecs[workspaceDraft.measurementType].authoring !== "box"
+    ) {
+      // The first click of a double click already placed the last vertex; this one only finishes.
+      completeCurrentDraft();
       return;
     }
     const pointer = stagePointer(event);
@@ -1477,6 +1514,21 @@ export function PdfViewer({
 
   function handleWheel(event: KonvaEventObject<WheelEvent>) {
     event.evt.preventDefault();
+    if (wheelAction(wheelBehavior, event.evt) === "pan") {
+      const unit = event.evt.deltaMode === 1 ? 16 : 1;
+      cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
+      clearSnapFeedback();
+      setFitModeState(false);
+      const current = transformRef.current;
+      commitTransform({
+        ...current,
+        panX: current.panX - event.evt.deltaX * unit,
+        panY: current.panY - event.evt.deltaY * unit,
+      });
+      return;
+    }
     const pointer = stagePointer(event);
     if (!pointer) return;
     const factor = Math.exp(-event.evt.deltaY * 0.001);
@@ -1522,7 +1574,9 @@ export function PdfViewer({
       ? "grab"
       : activeTool === "select"
         ? "default"
-        : "crosshair";
+        : crosshairCursor
+          ? "crosshair"
+          : "default";
 
   useLayoutEffect(() => {
     // Konva owns the actual native pointer boundary inside React's Stage wrapper.
@@ -2080,6 +2134,14 @@ export function PdfViewer({
                   clipWidth={stage.data.bounds.width}
                   clipHeight={stage.data.bounds.height}
                 >
+                  {pageGrid !== "off" && (
+                    <PageGridLines
+                      grid={pageGrid}
+                      zoom={viewTransform.zoom}
+                      width={stage.data.bounds.width}
+                      height={stage.data.bounds.height}
+                    />
+                  )}
                   {scaleCheckStore && (
                     <ScaleCheckLine
                       store={scaleCheckStore}
@@ -2192,6 +2254,21 @@ export function PdfViewer({
                         lineCap="round"
                         lineJoin="round"
                         listening={false}
+                      />
+                    )}
+                  {liveLength &&
+                    workspaceDraft?.type === "path" &&
+                    LIVE_LENGTH_TYPES.has(workspaceDraft.measurementType) &&
+                    draftPreviewPointer &&
+                    workspaceDraft.points.length >= 1 && (
+                      <LiveLengthLabel
+                        from={workspaceDraft.points.at(-1)!}
+                        to={draftPreviewPointer}
+                        zoom={viewTransform.zoom}
+                        roles={canvasVisualRoles}
+                        calibration={getActiveCalibration(page)}
+                        displayUnit={displayUnit}
+                        decimalPlaces={measurementDecimalPlaces}
                       />
                     )}
                   {workspaceDraft?.type === "path" &&

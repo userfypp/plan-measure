@@ -17,6 +17,11 @@ export type HandleSize = "small" | "normal" | "large";
 export type LabelBackground = "solid" | "translucent" | "none";
 export type AfterFinishing = "select" | "keep";
 export type ZoomStep = "fine" | "normal" | "coarse";
+export type DefaultZoom = "fit-page" | "fit-width" | "actual";
+export type WheelBehavior = "zoom" | "pan";
+export type DateFormat = "short" | "medium" | "with-time";
+export type LabelContent = "value" | "name-value";
+export type PageGrid = "off" | "fine" | "coarse";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -38,6 +43,14 @@ export interface AppPreferences {
   labelBackground: LabelBackground;
   afterFinishing: AfterFinishing;
   zoomStep: ZoomStep;
+  defaultZoom: DefaultZoom;
+  wheelBehavior: WheelBehavior;
+  dateFormat: DateFormat;
+  crosshairCursor: boolean;
+  liveLength: boolean;
+  finishOnDoubleClick: boolean;
+  labelContent: LabelContent;
+  pageGrid: PageGrid;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -62,7 +75,17 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   labelBackground: "solid",
   afterFinishing: "keep",
   zoomStep: "normal",
+  defaultZoom: "fit-page",
+  wheelBehavior: "zoom",
+  dateFormat: "medium",
+  crosshairCursor: true,
+  liveLength: false,
+  finishOnDoubleClick: false,
+  labelContent: "value",
+  pageGrid: "off",
 };
+
+const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 
 const oneOf =
   <T>(...allowed: readonly T[]) =>
@@ -72,7 +95,7 @@ const oneOf =
 const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is AppPreferences[K] } =
   {
     motion: oneOf("system", "reduce"),
-    tooltips: (value): value is boolean => typeof value === "boolean",
+    tooltips: isBoolean,
     thousandsSeparator: oneOf("none", "space", "comma", "point"),
     decimalSeparator: oneOf("point", "comma"),
     defaultDisplayUnit: oneOf<MeasurementDisplayUnit>("mm", "cm", "m", "in", "ft", "ft-in"),
@@ -90,6 +113,14 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     labelBackground: oneOf("solid", "translucent", "none"),
     afterFinishing: oneOf("select", "keep"),
     zoomStep: oneOf("fine", "normal", "coarse"),
+    defaultZoom: oneOf("fit-page", "fit-width", "actual"),
+    wheelBehavior: oneOf("zoom", "pan"),
+    dateFormat: oneOf("short", "medium", "with-time"),
+    crosshairCursor: isBoolean,
+    liveLength: isBoolean,
+    finishOnDoubleClick: isBoolean,
+    labelContent: oneOf("value", "name-value"),
+    pageGrid: oneOf("off", "fine", "coarse"),
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -116,6 +147,14 @@ export const LABEL_BACKGROUND_OPACITY: Record<LabelBackground, number> = {
 };
 /** Zoom factor per +/- step (normal matches the previous fixed 1.25). */
 export const ZOOM_STEP_FACTOR: Record<ZoomStep, number> = { fine: 1.1, normal: 1.25, coarse: 1.5 };
+
+/** Wheel gesture outcome: with "pan" the wheel scrolls and Ctrl/Cmd (or a trackpad pinch) zooms. */
+export function wheelAction(
+  behavior: WheelBehavior,
+  modifier: { ctrlKey: boolean; metaKey: boolean },
+): "zoom" | "pan" {
+  return behavior === "zoom" || modifier.ctrlKey || modifier.metaKey ? "zoom" : "pan";
+}
 
 /** Whether finishing a measurement of this type should switch back to the Select tool. */
 export function returnsToSelectAfterFinishing(

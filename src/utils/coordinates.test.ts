@@ -4,6 +4,7 @@ import {
   clampPointToPage,
   clampViewerZoom,
   fitToScreen,
+  initialViewTransform,
   isPointInPage,
   logicalPageBoundsFromViewport,
   MAX_PDF_RASTER_DIMENSION,
@@ -162,5 +163,27 @@ describe("page and screen coordinates", () => {
     );
     expect(layout.backingWidth).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
     expect(layout.backingHeight).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
+  });
+});
+
+describe("initialViewTransform", () => {
+  const page = { width: 1000, height: 2000 };
+  const viewer = { width: 800, height: 600 };
+
+  it("fit-page is exactly fitToScreen", () => {
+    expect(initialViewTransform("fit-page", page, viewer)).toEqual(fitToScreen(page, viewer));
+  });
+
+  it("fit-width fills the width and starts at the top of a tall page", () => {
+    const view = initialViewTransform("fit-width", page, viewer, 24, 0, 16);
+    expect(view.zoom).toBeCloseTo((800 - 48) / 1000);
+    expect(view.panX).toBeCloseTo(24);
+    expect(view.panY).toBe(24);
+  });
+
+  it("actual is 100% and respects the zoom limits", () => {
+    const view = initialViewTransform("actual", { width: 400, height: 300 }, viewer, 24, 0, 16);
+    expect(view).toEqual({ zoom: 1, panX: 200, panY: 150 });
+    expect(initialViewTransform("actual", page, viewer, 24, 2, 16).zoom).toBe(2);
   });
 });

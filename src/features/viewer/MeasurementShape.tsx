@@ -1,3 +1,4 @@
+import { composeLabelText } from "./labelContent";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   FILL_OPACITY_SCALE,
@@ -157,7 +158,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   labelCollisionIndex,
 }: MeasurementShapeProps) {
   useNumberFormatKey(); // re-render when separators change
-  const { lineThickness, labelSize, fillOpacity, handleSize, labelBackground } =
+  const { lineThickness, labelSize, fillOpacity, handleSize, labelBackground, labelContent } =
     useAppPreferences();
   const fillScale = FILL_OPACITY_SCALE[fillOpacity];
   const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
@@ -239,15 +240,26 @@ export const MeasurementShape = memo(function MeasurementShape({
   const labelText = useMemo(
     () =>
       calibration || visibleMeasurement.type === "count"
-        ? formatMeasurement(
-            visibleMeasurement,
-            calibration,
-            displayUnit,
-            measurementDecimalPlaces,
-            areaDisplay,
+        ? composeLabelText(
+            formatMeasurement(
+              visibleMeasurement,
+              calibration,
+              displayUnit,
+              measurementDecimalPlaces,
+              areaDisplay,
+            ),
+            visibleMeasurement.name,
+            labelContent,
           )
         : null,
-    [areaDisplay, calibration, displayUnit, measurementDecimalPlaces, visibleMeasurement],
+    [
+      areaDisplay,
+      calibration,
+      displayUnit,
+      labelContent,
+      measurementDecimalPlaces,
+      visibleMeasurement,
+    ],
   );
   const labelDimensions = useMemo(
     () =>

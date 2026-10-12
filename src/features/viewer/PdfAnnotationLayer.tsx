@@ -26,6 +26,7 @@ import {
   measurementEditingEnabled,
   translateMeasurementPoints,
 } from "./measurementDrag";
+import { composeLabelText } from "./labelContent";
 import { CANVAS_VISUAL_METRICS, type CanvasVisualRoles, labelTextPaint } from "./canvasVisualRoles";
 import { measurementOutlineBounds } from "../../utils/quickShapesOutline";
 import { pointsToFlat } from "./geometry";
@@ -125,6 +126,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
 }: PdfAnnotationLayerProps) {
   const numberFormatKey = useNumberFormatKey();
   const appPreferences = useAppPreferences();
+  const labelContent = appPreferences.labelContent;
   const labelFontScale = LABEL_SIZE_SCALE[appPreferences.labelSize];
   const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[appPreferences.labelBackground];
   const [groupDragPreview, setGroupDragPreview] = useState<{
@@ -168,12 +170,16 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
               text:
                 (calibration || measurement.type === "count") &&
                 shouldRenderMeasurement(measurement, showMeasurementLabels)
-                  ? formatMeasurement(
-                      measurement,
-                      calibration,
-                      displayUnit,
-                      measurementDecimalPlaces,
-                      areaDisplay,
+                  ? composeLabelText(
+                      formatMeasurement(
+                        measurement,
+                        calibration,
+                        displayUnit,
+                        measurementDecimalPlaces,
+                        areaDisplay,
+                      ),
+                      measurement.name,
+                      labelContent,
                     )
                   : null,
             },
@@ -187,6 +193,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       areaDisplay,
       showMeasurementLabels,
       numberFormatKey,
+      labelContent,
     ],
   );
 

@@ -321,6 +321,33 @@ describe("SettingsDialog", () => {
     });
   });
 
+  it("stores the interface, drawing, label content and grid preferences per device", () => {
+    renderSettings({ viewSettings: null });
+    openSettings();
+    choose("Default zoom", "Fit width");
+    choose("Mouse wheel", "Scroll");
+    choose("Date format", "With time");
+    openTab("Drawing");
+    act(() => switchControl("Crosshair cursor").click());
+    act(() => switchControl("Live segment length").click());
+    act(() => switchControl("Finish on double-click").click());
+    openTab("Measurements");
+    choose("Label content", "Name and value");
+    openTab("View");
+    choose("Page grid", "Fine");
+    const stored = JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}");
+    expect(stored).toMatchObject({
+      defaultZoom: "fit-width",
+      wheelBehavior: "pan",
+      dateFormat: "with-time",
+      crosshairCursor: false,
+      liveLength: true,
+      finishOnDoubleClick: true,
+      labelContent: "name-value",
+      pageGrid: "fine",
+    });
+  });
+
   it("renders Appearance as a Select and persists the change while keeping Settings open", () => {
     renderSettings({ theme: "dark" });
     openSettings();
