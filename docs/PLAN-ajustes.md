@@ -100,8 +100,11 @@ Aplazado a propósito:
 ## Estado tras la sección View
 Hecho: Settings → View (proyecto: unidad, área, Labels/Measurements/Calibration; dispositivo: grosor de línea y tamaño de etiqueta). El dock mantiene el acceso rápido. Todo sin migración de esquema.
 
+## Estado tras la sección Canvas
+Hecho: nueva sección Settings → Canvas (tras View) con las preferencias de dispositivo de apariencia: Line thickness, Label size, Fill opacity, Handle size, Label background y Page grid. View conserva solo "This project". Label content sigue en Measurements. Alturas medidas a 1280x800 (px): Interface 441, Measurements 280, Drawing 392, View 313, Canvas 326, Confirmations 248, Advanced 248.
+
 ## Estado Fase A (parcial)
-Hecho (dispositivo, sin migración): Fill opacity, Handle size, Label background, After finishing (Drawing) y Zoom step (Interface); además Default zoom, Mouse wheel y Date format (Interface), Crosshair cursor, Live segment length y Finish on double-click (Drawing), Label content (Measurements) y Page grid (View). Altura del panel de Ajustes subida a 616 px para que ninguna sección haga scroll a 1280x800. Pendiente del resto de la Fase A.
+Hecho (dispositivo, sin migración): Fill opacity, Handle size, Label background, After finishing (Drawing) y Zoom step (Interface); además Default zoom, Mouse wheel y Date format (Interface), Crosshair cursor, Live segment length y Finish on double-click (Drawing), Label content (Measurements) y Page grid (Canvas). Altura del panel de Ajustes fijada en 456 px (sección más alta: Interface, 441 px) para que ninguna sección haga scroll a 1280x800. Pendiente del resto de la Fase A.
 
 ## Plan: siguientes ajustes útiles
 Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P** = proyecto (exige `schemaVersion` + migración + goldens). "Riesgo" indica qué contrato puede tocar.
@@ -109,11 +112,11 @@ Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P**
 ### Fase A — Dispositivo, bajo riesgo (siguiente tanda recomendada)
 | Ajuste | Dónde | Detalle / riesgo |
 |---|---|---|
-| Fill opacity (Light/Normal/Strong) | View | Rellenos de polígono, rectángulo, elipse y nube. Hoy el alfa va dentro de `canvasVisualRoles`; hay que parametrizarlo sin cambiar el default. Riesgo: tests de roles visuales. |
-| Handle size (Small/Normal/Large) | View | Tamaño visible de vértices; la zona táctil (`interactionTargetScreenPx`) no cambia. Útil en táctil. |
-| Show vertex handles on hover | View | Solo al seleccionar (hoy) vs. también al pasar el ratón. |
-| Label background (Solid/Translucent/None) | View | Legibilidad sobre planos densos. |
-| Page grid (On/Off) | View | Cuadrícula sobre la página, no sobre el fondo del visor. |
+| Fill opacity (Light/Normal/Strong) | Canvas | Rellenos de polígono, rectángulo, elipse y nube. Hoy el alfa va dentro de `canvasVisualRoles`; hay que parametrizarlo sin cambiar el default. Riesgo: tests de roles visuales. |
+| Handle size (Small/Normal/Large) | Canvas | Tamaño visible de vértices; la zona táctil (`interactionTargetScreenPx`) no cambia. Útil en táctil. |
+| Show vertex handles on hover | Canvas | Solo al seleccionar (hoy) vs. también al pasar el ratón. |
+| Label background (Solid/Translucent/None) | Canvas | Legibilidad sobre planos densos. |
+| Page grid (On/Off) | Canvas | Cuadrícula sobre la página, no sobre el fondo del visor. |
 | Default zoom on open (Fit page / Fit width / 100 %) | Interface | Aplica al abrir/cambiar de página. |
 | Zoom step (Fine/Normal/Coarse) | Interface | Paso de los botones +/− y de la rueda; el rango lo marca "Maximum zoom". |
 | Invert scroll zoom / Wheel behaviour (Zoom/Pan) | Interface | Ctrl+rueda = zoom en un modo y desplazamiento en otro. |

@@ -198,7 +198,7 @@ afterEach(() => {
 });
 
 describe("SettingsDialog", () => {
-  it("renders a labelled dialog with a vertical tablist of six sections", () => {
+  it("renders a labelled dialog with a vertical tablist of seven sections", () => {
     renderSettings();
     openSettings();
 
@@ -212,11 +212,13 @@ describe("SettingsDialog", () => {
       "Measurements",
       "Drawing",
       "View",
+      "Canvas",
       "Confirmations",
       "Advanced",
     ]);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
+      "false",
       "false",
       "false",
       "false",
@@ -293,6 +295,7 @@ describe("SettingsDialog", () => {
     openTab("View");
 
     expect(dialog().textContent).toContain("Open a plan to change its display unit");
+    openTab("Canvas");
     choose("Line thickness", "Thick");
     choose("Label size", "Small");
     const stored = JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}");
@@ -303,7 +306,7 @@ describe("SettingsDialog", () => {
   it("stores fill, handle, label background, after-finishing and zoom step per device", () => {
     renderSettings({ viewSettings: null });
     openSettings();
-    openTab("View");
+    openTab("Canvas");
     choose("Fill opacity", "Strong");
     choose("Handle size", "Large");
     choose("Label background", "Translucent");
@@ -333,7 +336,7 @@ describe("SettingsDialog", () => {
     act(() => switchControl("Finish on double-click").click());
     openTab("Measurements");
     choose("Label content", "Name and value");
-    openTab("View");
+    openTab("Canvas");
     choose("Page grid", "Fine");
     const stored = JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}");
     expect(stored).toMatchObject({

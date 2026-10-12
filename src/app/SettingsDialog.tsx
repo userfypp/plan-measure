@@ -13,7 +13,8 @@ import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPrefer
 import { useTheme, type ThemePreference } from "./themeState";
 import styles from "./SettingsDialog.module.css";
 
-type SectionId = "interface" | "measurements" | "drawing" | "view" | "confirmations" | "advanced";
+type SectionId =
+  "interface" | "measurements" | "drawing" | "view" | "canvas" | "confirmations" | "advanced";
 
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
 export type ProjectViewSettings = Pick<
@@ -211,6 +212,16 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
       <Icon>
         <path d="M2.5 10S5.5 4.75 10 4.75 17.5 10 17.5 10 14.5 15.25 10 15.25 2.5 10 2.5 10Z" />
         <circle cx="10" cy="10" r="2.25" />
+      </Icon>
+    ),
+  },
+  {
+    id: "canvas",
+    label: "Canvas",
+    icon: (
+      <Icon>
+        <rect x="3" y="3" width="14" height="14" rx="2" />
+        <path d="M3 8h14M3 12h14M8 3v14M12 3v14" />
       </Icon>
     ),
   },
@@ -725,6 +736,15 @@ export function SettingsDialog({
                         Open a plan to change its display unit and visibility settings.
                       </p>
                     )}
+                    <p className={styles.sectionNote}>
+                      Line thickness, label size, fills and other canvas appearance settings are in
+                      Canvas.
+                    </p>
+                  </div>
+                )}
+
+                {section === "canvas" && (
+                  <div className={styles.settingList}>
                     <h3 className={styles.groupTitle}>
                       This device
                       <span>Applies to every project</span>
