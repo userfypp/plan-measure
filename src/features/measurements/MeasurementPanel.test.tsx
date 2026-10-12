@@ -294,7 +294,7 @@ describe("MeasurementRow accessibility", () => {
       /\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);[^}]*height:\s*var\(--target-current\);/s,
     );
   });
 
@@ -304,16 +304,16 @@ describe("MeasurementRow accessibility", () => {
     );
     expect(measurementCollectionCss).not.toContain("--measurement-row-inline-bleed");
     expect(measurementRowCss).toMatch(
-      /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--scrollbar-size, 0px\)\) 0 0;[^}]*pointer-events:\s*none;/s,
+      /\.row::before\s*\{[^}]*inset:\s*0;[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementRowCss).toMatch(
       /\.row::after\s*\{[^}]*var\(--tree-row-depth, 0\)[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--target-current\);/s,
+      /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);[^}]*height:\s*var\(--target-current\);/s,
     );
   });
 });
@@ -456,10 +456,10 @@ describe("measurement grouping surfaces", () => {
       /rootHeader|headerWithoutMeta|childHeader|deepHeader|uppercase/,
     );
     expect(measurementGroupCss).toMatch(
-      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\) var\(--target-current\);[^}]*min-height:\s*var\(--target-current\)|\.header\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\) var\(--target-current\);/s,
+      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\)\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);[^}]*min-height:\s*var\(--target-current\)|\.header\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\)\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.header\s*\{[^}]*padding-inline:\s*calc\(var\(--geometry-tree-inset-start\) \+ var\(--tree-depth, 0\) \* var\(--tree-indent\)\)\s*var\(--geometry-tree-inset-end\);/s,
+      /\.header\s*\{[^}]*padding-inline:\s*calc\(var\(--geometry-tree-inset-start\) \+ var\(--tree-depth, 0\) \* var\(--tree-indent\)\)\s*0;/s,
     );
     expect(measurementGroupCss).toMatch(
       /\.header\[data-group-depth="0"\]\s*\{[^}]*border-top-color:\s*var\(--color-divider\);/s,
@@ -486,14 +486,17 @@ describe("measurement grouping surfaces", () => {
       /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--tree-row-depth:\s*calc\(var\(--tree-depth, 0\) \+ 1\);[^}]*--measurement-row-content-indent:\s*calc\(var\(--tree-row-depth\) \* var\(--tree-indent\)\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+      /\.list\s*\{[^}]*--tree-row-depth:\s*calc\(var\(--tree-depth, 0\) \+ 1\);[^}]*--measurement-row-content-indent:\s*calc\(\s*var\(--tree-row-depth\) \* var\(--tree-indent\) \+ var\(--space-4\)\s*\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
     );
     expect(measurementCollectionCss).toMatch(
       /\.collection\s*\{[^}]*--tree-indent:\s*calc\(var\(--target-current\) \/ 2\);/s,
     );
     expect(measurementCollectionCss).toMatch(/\.collection\s*\{[^}]*scrollbar-gutter:\s*auto;/s);
     expect(measurementCollectionCss).toMatch(
-      /\.collection:not\(\[data-overflow\]\) > \.groups,\s*\.collection:not\(\[data-overflow\]\) > \.list\s*\{[^}]*padding-inline-end:\s*var\(--scrollbar-size, 0px\);/s,
+      /\.collection\s*\{[^}]*--edge-reserve:\s*var\(--scrollbar-size, 0px\);[^}]*--tree-edge-end:\s*calc\(var\(--geometry-tree-inset-end\) \+ var\(--edge-reserve\)\);/s,
+    );
+    expect(measurementCollectionCss).toMatch(
+      /\.collection\[data-overflow\]\s*\{[^}]*--edge-reserve:\s*0px;/s,
     );
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
     expect(measurementRowCss).toMatch(

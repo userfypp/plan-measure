@@ -1,5 +1,9 @@
 .collection {
   --tree-indent: calc(var(--target-current) / 2);
+  /* Space the classic scrollbar would take: kept free (and clickable through the eye
+     buttons) when there is no scroll, so the content width never changes. */
+  --edge-reserve: var(--scrollbar-size, 0px);
+  --tree-edge-end: calc(var(--geometry-tree-inset-end) + var(--edge-reserve));
 
   composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   min-width: 0;
@@ -10,9 +14,8 @@
   background: var(--color-surface-panel);
 }
 
-.collection:not([data-overflow]) > .groups,
-.collection:not([data-overflow]) > .list {
-  padding-inline-end: var(--scrollbar-size, 0px);
+.collection[data-overflow] {
+  --edge-reserve: 0px;
 }
 
 .list {

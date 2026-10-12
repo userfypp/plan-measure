@@ -4,9 +4,9 @@
   min-width: 0;
   min-height: var(--geometry-measurement-row-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--target-current);
+  grid-template-columns: minmax(0, 1fr) calc(var(--target-current) + var(--tree-edge-end, 0px));
   align-items: stretch;
-  padding-right: var(--geometry-tree-inset-end);
+  padding-right: 0;
   border-bottom: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
 }
@@ -14,7 +14,7 @@
 .row::before {
   position: absolute;
   z-index: var(--z-base);
-  inset: 0 calc(-1 * var(--scrollbar-size, 0px)) 0 0;
+  inset: 0;
   background: transparent;
   content: "";
   pointer-events: none;
@@ -187,14 +187,16 @@
   z-index: var(--z-raised);
   display: grid;
   place-items: center;
-  min-width: var(--target-current);
+  min-width: calc(var(--target-current) + var(--tree-edge-end, 0px));
 }
 
 .actions > * {
   display: grid;
   place-items: center;
-  width: var(--target-current);
-  min-width: var(--target-current);
+  box-sizing: border-box;
+  width: calc(var(--target-current) + var(--tree-edge-end, 0px));
+  min-width: calc(var(--target-current) + var(--tree-edge-end, 0px));
+  padding: 0 var(--tree-edge-end, 0px) 0 0;
   height: var(--target-current);
   min-height: var(--target-current);
   border: 0;
@@ -207,8 +209,8 @@
 }
 
 .actions .visibilityButton {
-  width: var(--target-current);
-  min-width: var(--target-current);
+  width: calc(var(--target-current) + var(--tree-edge-end, 0px));
+  min-width: calc(var(--target-current) + var(--tree-edge-end, 0px));
   height: var(--target-current);
   min-height: var(--target-current);
   border-color: transparent;

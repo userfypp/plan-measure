@@ -9,12 +9,13 @@
   min-height: var(--target-current);
   grid-template-columns:
     var(--target-current) minmax(0, 1fr)
-    minmax(var(--geometry-tree-count-min-width), auto) var(--target-current);
+    minmax(var(--geometry-tree-count-min-width), auto)
+    calc(var(--target-current) + var(--tree-edge-end, 0px));
   align-items: center;
   gap: var(--space-4);
   padding-block: 0;
   padding-inline: calc(var(--geometry-tree-inset-start) + var(--tree-depth, 0) * var(--tree-indent))
-    var(--geometry-tree-inset-end);
+    0;
   border-top: var(--border-width) solid transparent;
   background: transparent;
 }
@@ -91,6 +92,26 @@
   line-height: var(--line-height-base);
 }
 
+.titleItem {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: baseline;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.unassignedRun {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dimensionName {
   flex: 0 100 auto;
   min-width: 0;
@@ -143,7 +164,9 @@
 .visibilityControl {
   display: grid;
   place-items: center;
-  width: var(--target-current);
+  box-sizing: border-box;
+  width: calc(var(--target-current) + var(--tree-edge-end, 0px));
+  padding: 0 var(--tree-edge-end, 0px) 0 0;
   height: var(--target-current);
   border-color: transparent;
   border-radius: var(--radius-control);
@@ -156,7 +179,9 @@
 
 .list {
   --tree-row-depth: calc(var(--tree-depth, 0) + 1);
-  --measurement-row-content-indent: calc(var(--tree-row-depth) * var(--tree-indent));
+  --measurement-row-content-indent: calc(
+    var(--tree-row-depth) * var(--tree-indent) + var(--space-4)
+  );
   --measurement-selection-marker-width: 0px;
 
   display: grid;

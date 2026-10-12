@@ -118,6 +118,14 @@ export function MeasurementGroup({
     );
   }
 
+  /** Assigned levels read "Dimension: Value"; a run of unassigned levels folds into one "No A · B". */
+  const titleItems: Array<{ unassigned: boolean; segments: typeof segments }> = [];
+  for (const segment of segments) {
+    const last = titleItems[titleItems.length - 1];
+    if (segment.unassigned && last?.unassigned) last.segments.push(segment);
+    else titleItems.push({ unassigned: segment.unassigned, segments: [segment] });
+  }
+
   return (
     <section
       className={styles.group}
@@ -144,7 +152,7 @@ export function MeasurementGroup({
             <ChevronIcon />
           </button>
           <h3 className={styles.title} aria-label={fullGroupLabel} title={fullGroupLabel}>
-            {sharedValue ? (
+            {sharedValue || (titleItems.length === 1 && titleItems[0]!.unassigned) ? (
               <>
                 <span className={styles.dimensionName}>
                   {segments.map((segment) => segment.dimensionLabel).join(" · ")}
@@ -152,15 +160,23 @@ export function MeasurementGroup({
                 {renderValue(segments[0]!, segments[0]!.unassigned)}
               </>
             ) : (
-              segments.map((segment, index) => (
+              titleItems.map((item, index) => (
                 <Fragment key={index}>
                   {index > 0 && (
                     <span className={styles.segmentSeparator} aria-hidden="true">
                       ›
                     </span>
                   )}
-                  <span className={styles.dimensionName}>{segment.dimensionLabel}</span>
-                  {renderValue(segment, segment.unassigned)}
+                  {item.unassigned ? (
+                    <span className={styles.unassignedRun}>
+                      No {item.segments.map((segment) => segment.dimensionLabel).join(" · ")}
+                    </span>
+                  ) : (
+                    <span className={styles.titleItem}>
+                      <span className={styles.dimensionName}>{item.segments[0]!.dimensionLabel}</span>
+                      {renderValue(item.segments[0]!, false)}
+                    </span>
+                  )}
                 </Fragment>
               ))
             )}
