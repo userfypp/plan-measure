@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { Tooltip, type TooltipPosition } from "./Tooltip";
 import styles from "./Popover.module.css";
 
 const VIEWPORT_MARGIN_PX = 8;
@@ -142,6 +143,9 @@ interface PopoverBaseProps {
   dismissOnFocusLeave?: boolean;
   matchTriggerWidth?: boolean;
   className?: string;
+  /** Tooltip for an icon-only trigger; hidden while the popover is open. */
+  tooltip?: ReactNode;
+  tooltipPosition?: TooltipPosition;
 }
 
 type PopoverSemanticProps =
@@ -188,6 +192,8 @@ export function Popover({
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
   className,
+  tooltip,
+  tooltipPosition,
 }: PopoverProps) {
   const parentLayerId = useContext(PopoverLayerContext);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
@@ -359,37 +365,47 @@ export function Popover({
     ...buttonProps
   } = triggerProps ?? {};
 
+  const triggerButton = (
+    <button
+      ref={setAnchor}
+      {...buttonProps}
+      data-focus-owner={popoverId}
+      type="button"
+      className={[styles.trigger, triggerClassName].filter(Boolean).join(" ")}
+      aria-expanded={isOpen}
+      aria-controls={isOpen ? popoverId : undefined}
+      onPointerDown={(event) => {
+        openAtPointerDownRef.current = isOpen;
+        originalOnPointerDown?.(event);
+      }}
+      onPointerCancel={(event) => {
+        openAtPointerDownRef.current = false;
+        originalOnPointerCancel?.(event);
+      }}
+      onPointerLeave={(event) => {
+        openAtPointerDownRef.current = false;
+        originalOnPointerLeave?.(event);
+      }}
+      onClick={(event) => {
+        const openedAtPointerDown = openAtPointerDownRef.current;
+        openAtPointerDownRef.current = false;
+        originalOnClick?.(event);
+        if (!event.defaultPrevented) setOpen(openedAtPointerDown ? false : !isOpen);
+      }}
+    >
+      {trigger}
+    </button>
+  );
+
   return (
     <>
-      <button
-        ref={setAnchor}
-        {...buttonProps}
-        data-focus-owner={popoverId}
-        type="button"
-        className={[styles.trigger, triggerClassName].filter(Boolean).join(" ")}
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? popoverId : undefined}
-        onPointerDown={(event) => {
-          openAtPointerDownRef.current = isOpen;
-          originalOnPointerDown?.(event);
-        }}
-        onPointerCancel={(event) => {
-          openAtPointerDownRef.current = false;
-          originalOnPointerCancel?.(event);
-        }}
-        onPointerLeave={(event) => {
-          openAtPointerDownRef.current = false;
-          originalOnPointerLeave?.(event);
-        }}
-        onClick={(event) => {
-          const openedAtPointerDown = openAtPointerDownRef.current;
-          openAtPointerDownRef.current = false;
-          originalOnClick?.(event);
-          if (!event.defaultPrevented) setOpen(openedAtPointerDown ? false : !isOpen);
-        }}
-      >
-        {trigger}
-      </button>
+      {tooltip ? (
+        <Tooltip content={tooltip} position={tooltipPosition} suppressed={isOpen}>
+          {triggerButton}
+        </Tooltip>
+      ) : (
+        triggerButton
+      )}
       {isOpen &&
         createPortal(
           <PopoverLayerContext.Provider value={popoverId}>

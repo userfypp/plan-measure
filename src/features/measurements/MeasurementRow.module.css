@@ -79,20 +79,12 @@
   gap: var(--space-8);
   border: var(--border-width) solid transparent;
   border-radius: 0;
-  padding: var(--space-4) var(--geometry-tree-inset-end) var(--space-4)
-    calc(var(--geometry-tree-inset-start) + var(--measurement-row-content-indent, 0px));
+  padding: var(--space-4) var(--space-8) var(--space-4)
+    calc(var(--geometry-tree-inset-start) + var(--measurement-row-content-indent, var(--space-8)));
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
   transition: var(--transition-interactive);
-}
-
-.selection:hover {
-  border-color: var(--color-control-hover-border);
-}
-
-.selection:active {
-  border-color: var(--color-control-active-border);
 }
 
 .selection:focus-visible {
@@ -186,21 +178,17 @@
   position: relative;
   z-index: var(--z-raised);
   display: grid;
-  place-items: center;
-  min-width: calc(var(--target-current) + var(--tree-edge-end, 0px));
+  min-width: 0;
 }
 
+/* Eye cell (the tooltip wrapper): the whole column, edge reserve included, is the hit area. */
 .actions > * {
+  position: relative;
   display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  width: calc(var(--target-current) + var(--tree-edge-end, 0px));
-  min-width: calc(var(--target-current) + var(--tree-edge-end, 0px));
-  padding: 0 var(--tree-edge-end, 0px) 0 0;
-  height: var(--target-current);
-  min-height: var(--target-current);
-  border: 0;
-  background: transparent;
+  align-items: center;
+  justify-items: start;
+  width: 100%;
+  height: 100%;
 }
 
 .visibilityButton svg {
@@ -209,11 +197,16 @@
 }
 
 .actions .visibilityButton {
-  width: calc(var(--target-current) + var(--tree-edge-end, 0px));
-  min-width: calc(var(--target-current) + var(--tree-edge-end, 0px));
+  width: var(--target-current);
   height: var(--target-current);
-  min-height: var(--target-current);
   border-color: transparent;
+}
+
+/* The button stays a visual square; its ::after carries the clicks up to the panel edge. */
+.actions .visibilityButton::after {
+  position: absolute;
+  inset: 0;
+  content: "";
 }
 
 .actions .visibilityButton[aria-pressed="true"]:not(:hover):not(:active) {

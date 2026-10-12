@@ -212,10 +212,9 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       '[aria-label="Group by Trade, then Status"]',
     );
     expect(groupingButton).not.toBeNull();
-    expect(Array.from(groupingButton!.querySelectorAll("span"), (span) => span.textContent)).toContain(
-      "+1",
-    );
-    expect(groupingButton?.title).toBe("Trade, then Status");
+    // Icon-only trigger: the levels live in its accessible name (and tooltip), not in its text.
+    expect(groupingButton!.textContent).toBe("");
+    expect(groupingButton!.hasAttribute("title")).toBe(false);
     const electrical = container!.querySelector('[aria-label="Trade · Electrical measurement group"]');
     expect(electrical?.querySelector('[aria-label="Status · Approved measurement group"]')).not.toBeNull();
     expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);

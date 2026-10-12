@@ -287,14 +287,15 @@ describe("MeasurementRow accessibility", () => {
 
   it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
     expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
+    // The eye cell spans the whole column (edge reserve included) and pins the eye to its start.
     expect(measurementRowCss).toMatch(
-      /\.actions > \*\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
+      /\.actions > \*\s*\{[^}]*position:\s*relative;[^}]*display:\s*grid;[^}]*align-items:\s*center;[^}]*justify-items:\s*start;[^}]*width:\s*100%;[^}]*height:\s*100%;/s,
     );
     expect(measurementRowCss).toMatch(
       /\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.actions \.visibilityButton\s*\{[^}]*width:\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);[^}]*height:\s*var\(--target-current\);/s,
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );
   });
 
@@ -312,8 +313,13 @@ describe("MeasurementRow accessibility", () => {
     expect(measurementRowCss).toMatch(
       /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);/s,
     );
+    // The eye stays a visual square; an inset-0 ::after makes the cell, up to the edge, clickable.
     expect(measurementRowCss).toMatch(
-      /\.actions \.visibilityButton\s*\{[^}]*width:\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);[^}]*height:\s*var\(--target-current\);/s,
+      /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+    expect(measurementRowCss).not.toMatch(/\.actions \.visibilityButton\s*\{[^}]*tree-edge-end/s);
+    expect(measurementRowCss).toMatch(
+      /\.actions \.visibilityButton::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s,
     );
   });
 });
@@ -324,28 +330,30 @@ describe("measurement grouping surfaces", () => {
       /\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s,
     );
     expect(measurementPanelCss).toMatch(
-      /\.toolbar\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);/s,
+      /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--scrollbar-size, 0px\)/s,
     );
     expect(measurementPanelCss).toMatch(
       /\.search\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
     );
+    // Icon-only triggers with IconButton geometry; an applied filter or grouping looks pressed.
     expect(measurementPanelCss).toMatch(
-      /\.toolbarButton\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
+      /\.toolbarButton\s*\{[^}]*min-width:\s*var\(--control-height-compact\);[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*transparent;/s,
     );
     expect(measurementPanelCss).not.toContain(".toolbarButton::after");
-    expect(measurementPanelCss).toMatch(/\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s);
     expect(measurementPanelCss).toMatch(
-      /@container measurement-panel \(max-width: 439px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
+      /\.toolbarButton\.active\s*\{[^}]*border-color:\s*var\(--color-primary\);[^}]*background:\s*var\(--color-selected\);[^}]*color:\s*var\(--color-primary\);/s,
     );
-    expect(measurementPanelCss).toContain("container-name: measurement-controls");
-    expect(measurementPanelCss).toMatch(
-      /\.groupingPrefix,\s*\.groupingSeparator,\s*\.groupingCount\s*\{[^}]*flex:\s*0 0 auto;/s,
+    // One toolbar row at every sidebar width: no wrap rule, no truncated trigger text.
+    expect(measurementPanelCss).not.toMatch(
+      /max-width: 439px|grouping(Prefix|Name|Count)|filterRow/,
     );
+    // Popover bodies: label | control rows sharing one control column, clear action in a footer.
     expect(measurementPanelCss).toMatch(
-      /\.groupingName\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/s,
+      /\.fields\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content minmax\(0, 1fr\);/s,
     );
+    expect(measurementPanelCss).toMatch(/\.field\s*\{[^}]*grid-template-columns:\s*subgrid;/s);
     expect(measurementPanelCss).toMatch(
-      /@container measurement-controls \(max-width: 300px\)[\s\S]*?\.filterRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/,
+      /\.popoverFooter\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\);/s,
     );
     expect(measurementPanelCss).toMatch(
       /\.controlsPopover\s*\{[^}]*width:\s*min\(var\(--geometry-measurement-popover-width\), calc\(100vw - var\(--space-16\)\)\);/s,
@@ -482,11 +490,22 @@ describe("measurement grouping surfaces", () => {
     expect(measurementGroupCss).toMatch(
       /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
+    // Square eye in a full-column cell whose ::after hit area reaches the panel edge.
     expect(measurementGroupCss).toMatch(
-      /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
+      /\.header > :last-child\s*\{[^}]*position:\s*relative;[^}]*align-self:\s*stretch;[^}]*justify-items:\s*start;[^}]*width:\s*100%;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--tree-row-depth:\s*calc\(var\(--tree-depth, 0\) \+ 1\);[^}]*--measurement-row-content-indent:\s*calc\(\s*var\(--tree-row-depth\) \* var\(--tree-indent\) \+ var\(--space-4\)\s*\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+      /\.visibilityControl\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+    expect(measurementGroupCss).not.toMatch(/\.visibilityControl\s*\{[^}]*tree-edge-end/s);
+    expect(measurementGroupCss).toMatch(
+      /\.visibilityControl::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.count\s*\{[^}]*margin-inline:\s*var\(--space-8\);[^}]*text-align:\s*right;/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.list\s*\{[^}]*--tree-row-depth:\s*calc\(var\(--tree-depth, 0\) \+ 1\);[^}]*--measurement-row-content-indent:\s*calc\(\s*var\(--tree-row-depth\) \* var\(--tree-indent\) \+ var\(--space-8\)\s*\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
     );
     expect(measurementCollectionCss).toMatch(
       /\.collection\s*\{[^}]*--tree-indent:\s*calc\(var\(--target-current\) \/ 2\);/s,
@@ -503,7 +522,7 @@ describe("measurement grouping surfaces", () => {
       /\.selectionMarker\s*\{[^}]*width:\s*var\(\s*--measurement-selection-marker-width,\s*var\(--geometry-measurement-selection-marker-width\)\s*\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.selection\s*\{[^}]*padding:[^;]*var\(--geometry-tree-inset-end\)[^;]*calc\(var\(--geometry-tree-inset-start\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+      /\.selection\s*\{[^}]*padding:[^;]*var\(--space-8\)[^;]*calc\(\s*var\(--geometry-tree-inset-start\) \+ var\(--measurement-row-content-indent, var\(--space-8\)\)\s*\);/s,
     );
     expect(measurementRowCss).toMatch(
       /\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s,

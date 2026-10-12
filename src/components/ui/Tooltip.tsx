@@ -22,6 +22,8 @@ export interface TooltipProps {
   describeTrigger?: boolean;
   /** Element the tooltip is placed against instead of the trigger (e.g. a whole wrapped label). */
   anchorRef?: RefObject<HTMLElement | null>;
+  /** Keeps the bubble hidden (e.g. while the trigger's own popover is open). */
+  suppressed?: boolean;
 }
 
 type DescribedTriggerProps = {
@@ -43,8 +45,16 @@ export function Tooltip({
   delay = 300,
   describeTrigger = true,
   anchorRef,
+  suppressed = false,
 }: TooltipProps) {
-  const [visible, setVisible] = useState(false);
+  const [hovered, setVisible] = useState(false);
+  const [wasSuppressed, setWasSuppressed] = useState(suppressed);
+  // Suppression ends a hover: the bubble must not pop back when the popover closes under the pointer.
+  if (wasSuppressed !== suppressed) {
+    setWasSuppressed(suppressed);
+    if (suppressed) setVisible(false);
+  }
+  const visible = hovered && !suppressed;
   const [anchor, setAnchor] = useState({ x: 0, y: 0 });
   // A modal dialog sits in the top layer: portal into it or the bubble would render beneath.
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);

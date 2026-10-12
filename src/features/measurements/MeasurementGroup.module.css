@@ -12,7 +12,7 @@
     minmax(var(--geometry-tree-count-min-width), auto)
     calc(var(--target-current) + var(--tree-edge-end, 0px));
   align-items: center;
-  gap: var(--space-4);
+  gap: 0;
   padding-block: 0;
   padding-inline: calc(var(--geometry-tree-inset-start) + var(--tree-depth, 0) * var(--tree-indent))
     0;
@@ -81,6 +81,7 @@
 }
 
 .title {
+  container-type: inline-size;
   display: flex;
   flex-wrap: nowrap;
   align-items: baseline;
@@ -102,7 +103,7 @@
 }
 
 .unassignedRun {
-  flex: 0 100 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-secondary);
@@ -125,6 +126,14 @@
 
 .dimensionName::after {
   content: ":";
+}
+
+/* A chained title ("A: x › B: y") in a narrow column keeps only its values, so each one stays
+   readable; the full "Dimension · Value" text remains in the heading's label and title. */
+@container (width < 240px) {
+  .titleItem:not(:only-child) .dimensionName {
+    display: none;
+  }
 }
 
 .segmentSeparator {
@@ -155,21 +164,35 @@
 
 .count {
   min-width: var(--geometry-tree-count-min-width);
-  text-align: center;
+  /* Ends where the row values end: one --space-8 before the eye column. */
+  margin-inline: var(--space-8);
+  text-align: right;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
-.visibilityControl {
+/* Eye cell (the tooltip wrapper): the whole column, edge reserve included, is the hit area. */
+.header > :last-child {
+  position: relative;
   display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  width: calc(var(--target-current) + var(--tree-edge-end, 0px));
-  padding: 0 var(--tree-edge-end, 0px) 0 0;
+  align-self: stretch;
+  align-items: center;
+  justify-items: start;
+  width: 100%;
+}
+
+/* The button stays a visual square; its ::after carries the clicks up to the panel edge. */
+.visibilityControl {
+  width: var(--target-current);
   height: var(--target-current);
   border-color: transparent;
-  border-radius: var(--radius-control);
+}
+
+.visibilityControl::after {
+  position: absolute;
+  inset: 0;
+  content: "";
 }
 
 .visibilityControl svg {
@@ -180,7 +203,7 @@
 .list {
   --tree-row-depth: calc(var(--tree-depth, 0) + 1);
   --measurement-row-content-indent: calc(
-    var(--tree-row-depth) * var(--tree-indent) + var(--space-4)
+    var(--tree-row-depth) * var(--tree-indent) + var(--space-8)
   );
   --measurement-selection-marker-width: 0px;
 

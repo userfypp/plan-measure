@@ -184,12 +184,11 @@
   --geometry-measurement-list-max-height: 480px;
   --geometry-measurement-label-width: 64px;
   --geometry-measurement-note-min-height: 96px;
-  --geometry-measurement-toolbar-button-max-width: 144px;
   --geometry-measurement-empty-mark-size: 32px;
   --geometry-measurement-notice-bar-width: 2px;
   --geometry-count-badge-size: 18px;
-  --geometry-tree-inset-start: var(--space-4);
-  --geometry-tree-inset-end: var(--space-4);
+  --geometry-tree-inset-start: var(--space-8);
+  --geometry-tree-inset-end: var(--space-8);
   --geometry-tree-count-min-width: var(--geometry-count-badge-size);
   --geometry-swatch-size: 20px;
   --geometry-scale-row-height: 64px;

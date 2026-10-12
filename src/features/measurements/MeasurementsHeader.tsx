@@ -30,42 +30,47 @@ export function MeasurementsHeader({
   }
 
   return (
-    <header className={styles.header}>
-      {Array.from({ length: Math.min(groupByDimensionIds.length + 1, dimensions.length) }, (_, index) => (
-        <div className={styles.row} key={index}>
-          <label className={styles.groupBy}>
-            <span>{index === 0 ? "Group by" : "Then by"}</span>
-            <Select
-              label={index === 0 ? "Group by" : "Then by"}
-              value={groupByDimensionIds[index] ?? ""}
-              options={[
-                { value: "", label: "None" },
-                ...dimensions
-                  .filter(
-                    (dimension) =>
-                      index < groupByDimensionIds.length ||
-                      !groupByDimensionIds.includes(dimension.id),
-                  )
-                  .map((dimension) => ({
-                    value: dimension.id,
-                    label: `${dimension.name}${dimension.archived ? " (archived)" : ""}`,
-                  })),
-              ]}
-              onChange={(dimensionId) => changeDimension(index, dimensionId)}
-            />
-          </label>
-          {index === 0 && groupByDimensionIds.length > 0 && (
-            <Button
-              variant="ghost"
-              size="compact"
-              aria-label="Clear all grouping"
-              onClick={() => onGroupByDimensionsChange([])}
-            >
-              Clear all
-            </Button>
-          )}
-        </div>
-      ))}
-    </header>
+    <>
+      <div className={styles.levels}>
+        {Array.from(
+          { length: Math.min(groupByDimensionIds.length + 1, dimensions.length) },
+          (_, index) => (
+            <label className={styles.level} key={index}>
+              <span>{index === 0 ? "Group by" : "Then by"}</span>
+              <Select
+                label={index === 0 ? "Group by" : "Then by"}
+                value={groupByDimensionIds[index] ?? ""}
+                options={[
+                  { value: "", label: "None" },
+                  ...dimensions
+                    .filter(
+                      (dimension) =>
+                        index < groupByDimensionIds.length ||
+                        !groupByDimensionIds.includes(dimension.id),
+                    )
+                    .map((dimension) => ({
+                      value: dimension.id,
+                      label: `${dimension.name}${dimension.archived ? " (archived)" : ""}`,
+                    })),
+                ]}
+                onChange={(dimensionId) => changeDimension(index, dimensionId)}
+              />
+            </label>
+          ),
+        )}
+      </div>
+      {groupByDimensionIds.length > 0 && (
+        <footer className={styles.footer}>
+          <Button
+            variant="ghost"
+            size="compact"
+            aria-label="Clear all grouping"
+            onClick={() => onGroupByDimensionsChange([])}
+          >
+            Clear grouping
+          </Button>
+        </footer>
+      )}
+    </>
   );
 }

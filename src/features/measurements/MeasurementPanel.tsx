@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
 import { useSessionState } from "../../app/sessionState";
-import { Button, ChevronDownIcon, Popover, Select } from "../../components/ui";
+import { Button, Popover, Select } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
 import { MEASUREMENT_TYPES, measurementPathSpecs } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
@@ -15,6 +15,22 @@ import {
 import styles from "./MeasurementPanel.module.css";
 
 const emptyClassificationCatalog: ClassificationCatalog = { dimensions: [] };
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M3.33 4.58h13.34l-5.21 6.25v4.17l-2.92 1.67v-5.84Z" />
+    </svg>
+  );
+}
+
+function GroupIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M3.33 5h13.34M9.17 10h7.5M9.17 15h7.5M5.83 5v10h1.67M5.83 10h1.67" />
+    </svg>
+  );
+}
 
 export interface MeasurementDeleteRequest {
   pageNumber: number;
@@ -167,16 +183,23 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           open={openControls === "filters"}
           onOpenChange={(open) => setOpenControls(open ? "filters" : null)}
           triggerProps={{
-            className: styles.toolbarButton,
+            className: [styles.toolbarButton, activeFilterCount > 0 ? styles.active : ""]
+              .filter(Boolean)
+              .join(" "),
             "aria-label": activeFilterCount
               ? `Filters, ${activeFilterCount} active`
               : "Filters",
           }}
+          tooltip={activeFilterCount ? `Filters · ${activeFilterCount} active` : "Filters"}
+          tooltipPosition="bottom"
           trigger={
             <>
-              <span>Filters</span>
-              {activeFilterCount > 0 && <span className={styles.activeCount}>· {activeFilterCount}</span>}
-              <ChevronDownIcon />
+              <FilterIcon />
+              {activeFilterCount > 0 && (
+                <span className={styles.activeCount} aria-hidden="true">
+                  {activeFilterCount}
+                </span>
+              )}
             </>
           }
           role="dialog"
@@ -184,16 +207,16 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           initialFocus="first"
           dismissOnFocusLeave
           placement="bottom-end"
-          className={[styles.controlsPopover, styles.filtersPopover].join(" ")}
+          className={styles.controlsPopover}
         >
-          <div className={styles.filters}>
-            <div className={styles.filterRow}>
-              <label>
-                <span>Page</span>
-                <Select
-                  label="Page"
-                  value={pageFilter}
-                  options={[
+          <div className={styles.fields}>
+            {(
+              [
+                {
+                  label: "Page",
+                  value: pageFilter,
+                  onChange: setPageFilter,
+                  options: [
                     { value: "", label: "All pages" },
                     ...Object.values(pages)
                       .sort((a, b) => a.pageNumber - b.pageNumber)
@@ -206,46 +229,35 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                             sourcePageLabels,
                           ) || `Page ${candidatePage.pageNumber}`,
                       })),
-                  ]}
-                  onChange={setPageFilter}
-                />
-              </label>
-              <label>
-                <span>Type</span>
-                <Select
-                  label="Type"
-                  value={typeFilter}
-                  options={[
+                  ],
+                },
+                {
+                  label: "Type",
+                  value: typeFilter,
+                  onChange: setTypeFilter,
+                  options: [
                     { value: "", label: "All types" },
                     ...MEASUREMENT_TYPES.map((type) => ({
                       value: type as string,
                       label: measurementPathSpecs[type].label,
                     })),
-                  ]}
-                  onChange={setTypeFilter}
-                />
-              </label>
-            </div>
-            <div className={styles.filterRow}>
-              <label>
-                <span>Visibility</span>
-                <Select
-                  label="Visibility"
-                  value={visibilityFilter}
-                  options={[
+                  ],
+                },
+                {
+                  label: "Visibility",
+                  value: visibilityFilter,
+                  onChange: setVisibilityFilter,
+                  options: [
                     { value: "", label: "All" },
                     { value: "true", label: "Visible" },
                     { value: "false", label: "Hidden" },
-                  ]}
-                  onChange={setVisibilityFilter}
-                />
-              </label>
-              <label>
-                <span>Classification</span>
-                <Select
-                  label="Classification"
-                  value={classificationFilter}
-                  options={[
+                  ],
+                },
+                {
+                  label: "Classification",
+                  value: classificationFilter,
+                  onChange: setClassificationFilter,
+                  options: [
                     { value: "", label: "All classifications" },
                     ...catalog.dimensions.flatMap((dimension) =>
                       dimension.values.map((value) => ({
@@ -253,16 +265,26 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                         label: `${dimension.name}: ${value.name}`,
                       })),
                     ),
-                  ]}
-                  onChange={setClassificationFilter}
+                  ],
+                },
+              ] as const
+            ).map((field) => (
+              <label className={styles.field} key={field.label}>
+                <span>{field.label}</span>
+                <Select
+                  label={field.label}
+                  value={field.value}
+                  options={field.options}
+                  onChange={field.onChange}
                 />
               </label>
-            </div>
-            {activeFilterCount > 0 && (
+            ))}
+          </div>
+          {activeFilterCount > 0 && (
+            <footer className={styles.popoverFooter}>
               <Button
                 variant="ghost"
                 size="compact"
-                className={styles.clearFilters}
                 onClick={() => {
                   setPageFilter("");
                   setTypeFilter("");
@@ -272,44 +294,33 @@ export const MeasurementPanel = memo(function MeasurementPanel({
               >
                 Clear filters
               </Button>
-            )}
-          </div>
+            </footer>
+          )}
         </Popover>
         {hasGroupBy && (
           <Popover
             open={openControls === "grouping"}
             onOpenChange={(open) => setOpenControls(open ? "grouping" : null)}
             triggerProps={{
-              className: [styles.toolbarButton, styles.groupingButton].join(" "),
+              className: [styles.toolbarButton, groupByNames.length > 0 ? styles.active : ""]
+                .filter(Boolean)
+                .join(" "),
               "aria-label":
                 groupByNames.length > 0
                   ? `Group by ${groupByNames.join(", then ")}`
                   : "Group measurements",
-              title: groupByNames.length > 0 ? groupByNames.join(", then ") : undefined,
             }}
-            trigger={
-              <>
-              <span className={styles.truncatedTrigger}>
-                <span className={styles.groupingPrefix}>Group</span>
-                {groupByNames.length > 0 && (
-                  <>
-                    <span className={styles.groupingSeparator} aria-hidden="true">·</span>
-                    <span className={styles.groupingName}>{groupByNames[0]}</span>
-                    {groupByNames.length > 1 && (
-                      <span className={styles.groupingCount}>+{groupByNames.length - 1}</span>
-                    )}
-                  </>
-                )}
-              </span>
-              <ChevronDownIcon />
-              </>
+            tooltip={
+              groupByNames.length > 0 ? `Grouped by ${groupByNames.join(" › ")}` : "Group"
             }
+            tooltipPosition="bottom"
+            trigger={<GroupIcon />}
             role="dialog"
             aria-label="Measurement grouping"
             initialFocus="first"
             dismissOnFocusLeave
             placement="bottom-end"
-            className={[styles.controlsPopover, styles.groupingPopover].join(" ")}
+            className={styles.controlsPopover}
           >
             <MeasurementsHeader
               dimensions={catalog.dimensions}
