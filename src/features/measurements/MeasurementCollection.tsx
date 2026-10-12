@@ -17,7 +17,6 @@ import {
   type MeasurementGroup as MeasurementGroupModel,
 } from "./measurementGrouping";
 import type { MeasurementViewModel } from "./measurementViewModels";
-import { useOverflowFlag } from "../../utils/useOverflowFlag";
 import styles from "./MeasurementCollection.module.css";
 
 export interface MeasurementCollectionProps {
@@ -101,9 +100,6 @@ export function MeasurementCollection({
             control: "selection" as const,
           }
         : null;
-
-  const layoutKey = measurements.length === 0 ? "empty" : grouped ? "grouped" : "flat";
-  useOverflowFlag(collectionRef, layoutKey);
 
   function handleFocusCapture(event: FocusEvent<HTMLElement>) {
     const target = event.target instanceof HTMLElement ? event.target : null;

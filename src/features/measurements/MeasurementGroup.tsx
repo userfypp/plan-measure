@@ -152,7 +152,8 @@ export function MeasurementGroup({
             <ChevronIcon />
           </button>
           <h3 className={styles.title} aria-label={fullGroupLabel} title={fullGroupLabel}>
-            {sharedValue || (titleItems.length === 1 && titleItems[0]!.unassigned) ? (
+            {(sharedValue && !segments[0]!.unassigned) ||
+            (segments.length === 1 && segments[0]!.unassigned) ? (
               <>
                 <span className={styles.dimensionName}>
                   {segments.map((segment) => segment.dimensionLabel).join(" · ")}
@@ -173,7 +174,9 @@ export function MeasurementGroup({
                     </span>
                   ) : (
                     <span className={styles.titleItem}>
-                      <span className={styles.dimensionName}>{item.segments[0]!.dimensionLabel}</span>
+                      <span className={styles.dimensionName}>
+                        {item.segments[0]!.dimensionLabel}
+                      </span>
                       {renderValue(item.segments[0]!, false)}
                     </span>
                   )}

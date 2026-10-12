@@ -17,11 +17,9 @@
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8);
-  /* The list below keeps its scrollbar (or the reserve for it) on the right: the buttons
-     centre on the same column as the eyes of the group headers and rows. */
+  /* The buttons centre on the same column as the eyes of the group headers and rows. */
   padding-inline-end: calc(
-    var(--geometry-tree-inset-end) + (var(--target-current) - var(--control-height-compact)) / 2 +
-      var(--scrollbar-size, 0px)
+    var(--geometry-tree-inset-end) + (var(--target-current) - var(--control-height-compact)) / 2
   );
   border-bottom: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);

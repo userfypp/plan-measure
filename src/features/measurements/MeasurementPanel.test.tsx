@@ -330,7 +330,7 @@ describe("measurement grouping surfaces", () => {
       /\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s,
     );
     expect(measurementPanelCss).toMatch(
-      /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--scrollbar-size, 0px\)/s,
+      /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--geometry-tree-inset-end\)/s,
     );
     expect(measurementPanelCss).toMatch(
       /\.search\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
@@ -512,11 +512,9 @@ describe("measurement grouping surfaces", () => {
     );
     expect(measurementCollectionCss).toMatch(/\.collection\s*\{[^}]*scrollbar-gutter:\s*auto;/s);
     expect(measurementCollectionCss).toMatch(
-      /\.collection\s*\{[^}]*--edge-reserve:\s*var\(--scrollbar-size, 0px\);[^}]*--tree-edge-end:\s*calc\(var\(--geometry-tree-inset-end\) \+ var\(--edge-reserve\)\);/s,
+      /\.collection\s*\{[^}]*--tree-edge-end:\s*var\(--geometry-tree-inset-end\);/s,
     );
-    expect(measurementCollectionCss).toMatch(
-      /\.collection\[data-overflow\]\s*\{[^}]*--edge-reserve:\s*0px;/s,
-    );
+    expect(measurementCollectionCss).not.toContain("edge-reserve");
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
     expect(measurementRowCss).toMatch(
       /\.selectionMarker\s*\{[^}]*width:\s*var\(\s*--measurement-selection-marker-width,\s*var\(--geometry-measurement-selection-marker-width\)\s*\);/s,
@@ -562,7 +560,7 @@ describe("measurement grouping surfaces", () => {
     expect(markup).not.toContain("▾");
   });
 
-  it("renders a composed None assigned chain as one section with the value once", () => {
+  it('renders a composed None assigned chain as one section folded into "No A · B"', () => {
     const none = (key: string, dimensionLabel: string) => ({
       key,
       dimensionLabel,
@@ -594,7 +592,7 @@ describe("measurement grouping surfaces", () => {
       />,
     );
     expect(markup.match(/<section/g)?.filter(Boolean)).toHaveLength(2); // collection + one group
-    expect(markup.match(/None assigned<\/span>/g)).toHaveLength(1);
-    expect(markup).toContain("Inside · FDS · GAGRE");
+    expect(markup).toContain("No Inside · FDS · GAGRE");
+    expect(markup).not.toContain("None assigned</span>");
   });
 });

@@ -99,8 +99,6 @@ export const MeasurementRow = memo(function MeasurementRow({
           data-measurement-control="visibility"
           tabIndex={visibilityTabIndex}
           aria-label={`${viewModel.visible ? "Hide" : "Show"} measurement ${viewModel.name}`}
-          tooltip={`${viewModel.visible ? "Hide" : "Show"} measurement`}
-          tooltipPosition="left"
           pressed={viewModel.visible}
           onClick={() => onToggleVisibility(viewModel.id, !viewModel.visible)}
         />
