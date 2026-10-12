@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { AnchoredMenu, Button, IconButton, type AnchoredMenuItem } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
-import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsDialog, type ProjectViewSettings } from "./SettingsDialog";
 import styles from "./AppBar.module.css";
@@ -38,6 +38,7 @@ interface AppBarProps {
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   viewSettings?: ProjectViewSettings | null;
+  classificationDimensions?: readonly ClassificationDimension[];
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -99,6 +100,7 @@ export function AppBar({
   canRedo = false,
   measurementDecimalPlaces = null,
   viewSettings = null,
+  classificationDimensions,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -203,6 +205,7 @@ export function AppBar({
             triggerClassName={styles.iconTrigger}
             measurementDecimalPlaces={measurementDecimalPlaces}
             viewSettings={viewSettings}
+            classificationDimensions={classificationDimensions}
             keyboardAuthoringEnabled={keyboardAuthoringEnabled}
             confirmMeasurementDeletion={confirmMeasurementDeletion}
             confirmValueDeletion={confirmValueDeletion}

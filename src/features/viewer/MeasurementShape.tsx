@@ -99,6 +99,7 @@ interface MeasurementShapeProps {
   page: PageState;
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
+  classificationLabel?: string;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   visualRoles: CanvasVisualRoles;
   interactionTargetScreenPx: number;
@@ -135,6 +136,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   page,
   displayUnit,
   areaDisplay,
+  classificationLabel,
   measurementDecimalPlaces,
   visualRoles,
   interactionTargetScreenPx,
@@ -250,11 +252,13 @@ export const MeasurementShape = memo(function MeasurementShape({
             ),
             visibleMeasurement.name,
             labelContent,
+            classificationLabel,
           )
         : null,
     [
       areaDisplay,
       calibration,
+      classificationLabel,
       displayUnit,
       labelContent,
       measurementDecimalPlaces,

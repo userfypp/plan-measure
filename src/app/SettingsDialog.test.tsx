@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsDialog, type ProjectViewSettings } from "./SettingsDialog";
 import {
@@ -37,6 +37,7 @@ interface RenderOptions {
   onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
+  classificationDimensions?: ClassificationDimension[];
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
@@ -52,6 +53,7 @@ function renderSettings({
   theme = "system",
   measurementDecimalPlaces = 2,
   viewSettings = null,
+  classificationDimensions = [],
   onViewSettingsChange = vi.fn(),
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
@@ -73,6 +75,7 @@ function renderSettings({
           trigger={<span>gear</span>}
           measurementDecimalPlaces={measurementDecimalPlaces}
           viewSettings={viewSettings}
+          classificationDimensions={classificationDimensions}
           onViewSettingsChange={onViewSettingsChange}
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
@@ -324,6 +327,7 @@ describe("SettingsDialog", () => {
         showLabels: true,
         showMeasurements: true,
         showCalibration: false,
+        labelClassificationDimensionId: null,
       },
     });
     openSettings();
@@ -337,6 +341,60 @@ describe("SettingsDialog", () => {
     expect(switchControl("Calibration").checked).toBe(false);
     act(() => switchControl("Calibration").click());
     expect(onViewSettingsChange).toHaveBeenLastCalledWith({ showCalibration: true });
+  });
+
+  describe("Label classification", () => {
+    const viewSettings = {
+      displayUnit: "m" as const,
+      areaDisplay: "auto" as const,
+      showLabels: true,
+      showMeasurements: true,
+      showCalibration: true,
+      labelClassificationDimensionId: null,
+    };
+    const dimensions: ClassificationDimension[] = [
+      { id: "trade", name: "Trade", archived: false, values: [] },
+      { id: "old", name: "Old phase", archived: true, values: [] },
+    ];
+
+    it("lists active dimensions and writes the choice back", () => {
+      const { onViewSettingsChange } = renderSettings({
+        viewSettings,
+        classificationDimensions: dimensions,
+      });
+      openSettings();
+      openTab("View");
+
+      expect(selectByLabel("Label classification").textContent).toBe("None");
+      choose("Label classification", "Trade");
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({
+        labelClassificationDimensionId: "trade",
+      });
+      expect(dialog().textContent).not.toContain("Old phase");
+    });
+
+    it("keeps an archived selected dimension and can reset to None", () => {
+      const { onViewSettingsChange } = renderSettings({
+        viewSettings: { ...viewSettings, labelClassificationDimensionId: "old" },
+        classificationDimensions: dimensions,
+      });
+      openSettings();
+      openTab("View");
+
+      expect(selectByLabel("Label classification").textContent).toBe("Old phase");
+      choose("Label classification", "None");
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({
+        labelClassificationDimensionId: null,
+      });
+    });
+
+    it("is disabled without classification dimensions", () => {
+      renderSettings({ viewSettings });
+      openSettings();
+      openTab("View");
+
+      expect(selectByLabel("Label classification").hasAttribute("disabled")).toBe(true);
+    });
   });
 
   it("stores line thickness and label size per device and explains missing projects", () => {
@@ -692,6 +750,7 @@ describe("SettingsDialog", () => {
         showLabels: true,
         showMeasurements: true,
         showCalibration: true,
+        labelClassificationDimensionId: null,
       },
     });
     openSettings();
@@ -704,7 +763,7 @@ describe("SettingsDialog", () => {
       "About Recovered plan workspace",
     ]);
     openTab("View");
-    expect(helpLabels()).toEqual(["About Polygon area"]);
+    expect(helpLabels()).toEqual(["About Polygon area", "About Label classification"]);
     openTab("Canvas");
     expect(helpLabels()).toEqual([]);
     openTab("Confirmations");

@@ -9,7 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import { Button, Dialog, Select, Switch, Tooltip } from "../components/ui";
-import type { MeasurementDecimalPlaces, SessionSettings } from "../types/domain";
+import type {
+  ClassificationDimension,
+  MeasurementDecimalPlaces,
+  SessionSettings,
+} from "../types/domain";
 import { downloadExportFile } from "../services/exportDownload";
 import {
   exportAppPreferencesJson,
@@ -39,7 +43,12 @@ type SectionId =
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
 export type ProjectViewSettings = Pick<
   SessionSettings,
-  "displayUnit" | "areaDisplay" | "showLabels" | "showMeasurements" | "showCalibration"
+  | "displayUnit"
+  | "areaDisplay"
+  | "showLabels"
+  | "showMeasurements"
+  | "showCalibration"
+  | "labelClassificationDimensionId"
 >;
 
 const AREA_DISPLAY_OPTIONS: Array<{ value: ProjectViewSettings["areaDisplay"]; label: string }> = [
@@ -414,6 +423,7 @@ function SelectRow<T extends string>({
   options,
   onChange,
   className,
+  disabled,
 }: {
   label: string;
   help?: string;
@@ -421,6 +431,7 @@ function SelectRow<T extends string>({
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <Row label={label} help={help}>
@@ -434,6 +445,7 @@ function SelectRow<T extends string>({
           value={value}
           options={options}
           onChange={onChange}
+          disabled={disabled}
         />
       )}
     </Row>
@@ -472,6 +484,8 @@ export interface SettingsDialogProps {
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   /** Null when no project is open: project view settings are then shown disabled. */
   viewSettings?: ProjectViewSettings | null;
+  /** Classification dimensions offered by "Label classification". */
+  classificationDimensions?: readonly ClassificationDimension[];
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -491,6 +505,7 @@ export function SettingsDialog({
   triggerClassName,
   measurementDecimalPlaces = null,
   viewSettings = null,
+  classificationDimensions = [],
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -843,6 +858,25 @@ export function SettingsDialog({
                           value={viewSettings.areaDisplay}
                           options={AREA_DISPLAY_OPTIONS}
                           onChange={(areaDisplay) => onViewSettingsChange({ areaDisplay })}
+                        />
+                        <SelectRow
+                          label="Label classification"
+                          help="Shows the measurement's value from this classification in on-screen labels."
+                          value={viewSettings.labelClassificationDimensionId ?? ""}
+                          options={[
+                            { value: "", label: "None" },
+                            ...classificationDimensions
+                              .filter(
+                                (dimension) =>
+                                  !dimension.archived ||
+                                  dimension.id === viewSettings.labelClassificationDimensionId,
+                              )
+                              .map((dimension) => ({ value: dimension.id, label: dimension.name })),
+                          ]}
+                          disabled={classificationDimensions.length === 0}
+                          onChange={(id) =>
+                            onViewSettingsChange({ labelClassificationDimensionId: id || null })
+                          }
                         />
                         <SwitchRow
                           label="Labels"

@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { AppErrorNotification } from "./state";
-import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { ProjectViewSettings } from "./SettingsDialog";
 import { AppBar } from "./AppBar";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -20,6 +20,7 @@ interface AppShellProps {
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   viewSettings?: ProjectViewSettings | null;
+  classificationDimensions?: readonly ClassificationDimension[];
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -55,6 +56,7 @@ export function AppShell({
   canRedo = false,
   measurementDecimalPlaces = null,
   viewSettings = null,
+  classificationDimensions,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -97,6 +99,7 @@ export function AppShell({
         canRedo={canRedo}
         measurementDecimalPlaces={measurementDecimalPlaces}
         viewSettings={viewSettings}
+        classificationDimensions={classificationDimensions}
         keyboardAuthoringEnabled={keyboardAuthoringEnabled}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         confirmValueDeletion={confirmValueDeletion}

@@ -1678,6 +1678,13 @@ export function PdfViewer({
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
   const showCalibration = session?.settings.showCalibration ?? false;
   const showLabels = session?.settings.showLabels ?? true;
+  const labelClassificationDimensionId = session?.settings.labelClassificationDimensionId ?? null;
+  const labelDimension =
+    labelClassificationDimensionId === null
+      ? null
+      : (session?.classificationCatalog.dimensions.find(
+          (dimension) => dimension.id === labelClassificationDimensionId,
+        ) ?? null);
 
   const candidateVisualKey = useMemo(
     () => ({
@@ -1698,6 +1705,7 @@ export function PdfViewer({
       selectedMeasurementIds,
       showCalibration,
       showLabels,
+      labelDimension,
       showMeasurements,
       spacePan,
       viewTransform,
@@ -1722,6 +1730,7 @@ export function PdfViewer({
       selectedMeasurementIds,
       showCalibration,
       showLabels,
+      labelDimension,
       showMeasurements,
       spacePan,
       viewTransform,
@@ -1879,6 +1888,7 @@ export function PdfViewer({
     selectedMeasurementIds,
     showCalibration,
     showLabels,
+    labelDimension,
     showMeasurements,
     isPresentedTarget,
     spacePan,
@@ -2108,6 +2118,7 @@ export function PdfViewer({
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}
                   showLabels={showLabels}
+                  labelDimension={labelDimension}
                   onSelectMeasurement={selectMeasurement}
                   onCalibrationReferencePointsChange={onCalibrationReferencePointsChange}
                   onCalibrationReferenceDragCancellationChange={

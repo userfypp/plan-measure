@@ -60,7 +60,7 @@ function page(measurements: Measurement[]): PageState {
 
 function session(pages: Record<number, PageState>, withCatalog = true): CurrentSession {
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     pageCount: Object.keys(pages).length,
     currentPage: 1,
     pages,
@@ -72,6 +72,7 @@ function session(pages: Record<number, PageState>, withCatalog = true): CurrentS
       showLabels: true,
       showMeasurements: true,
       showCalibration: true,
+      labelClassificationDimensionId: null,
       csvExport: { columnOverrides: {} },
     },
     classificationCatalog: withCatalog

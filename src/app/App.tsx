@@ -854,9 +854,11 @@ function PlanMeasureApp() {
               showLabels: session.settings.showLabels,
               showMeasurements: session.settings.showMeasurements,
               showCalibration: session.settings.showCalibration,
+              labelClassificationDimensionId: session.settings.labelClassificationDimensionId,
             }
           : null
       }
+      classificationDimensions={session?.classificationCatalog.dimensions}
       keyboardAuthoringEnabled={keyboardAuthoringEnabled}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       confirmValueDeletion={confirmValueDeletion}

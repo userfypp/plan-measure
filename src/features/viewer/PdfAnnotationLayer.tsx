@@ -9,6 +9,7 @@ import { Group, Label, Line, Tag, Text } from "react-konva";
 import type {
   AreaDisplay,
   CalibrationReferenceKey,
+  ClassificationDimension,
   LogicalPageBounds,
   MeasurementDecimalPlaces,
   MeasurementDisplayUnit,
@@ -75,6 +76,8 @@ interface PdfAnnotationLayerProps {
   showCalibration: boolean;
   showMeasurements: boolean;
   showLabels: boolean;
+  /** Classification dimension whose value is added to on-screen labels. */
+  labelDimension?: ClassificationDimension | null;
 
   onSelectMeasurement: (id: string, additive?: boolean) => void;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
@@ -92,6 +95,18 @@ interface PdfAnnotationLayerProps {
     owner: object,
     cancel: (() => void) | null,
   ) => void;
+}
+
+function classificationLabelFor(
+  measurement: { classificationValueIds: readonly string[] },
+  names: ReadonlyMap<string, string> | null,
+): string | undefined {
+  if (!names) return undefined;
+  for (const id of measurement.classificationValueIds) {
+    const name = names.get(id);
+    if (name) return name;
+  }
+  return undefined;
 }
 
 export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
@@ -117,6 +132,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   showCalibration,
   showMeasurements,
   showLabels,
+  labelDimension = null,
   onSelectMeasurement,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceDragCancellationChange,
@@ -127,6 +143,13 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   const numberFormatKey = useNumberFormatKey();
   const appPreferences = useAppPreferences();
   const labelContent = appPreferences.labelContent;
+  const classificationNames = useMemo(
+    () =>
+      labelDimension
+        ? new Map(labelDimension.values.map((value) => [value.id, value.name]))
+        : null,
+    [labelDimension],
+  );
   const labelFontScale = LABEL_SIZE_SCALE[appPreferences.labelSize];
   const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[appPreferences.labelBackground];
   const [groupDragPreview, setGroupDragPreview] = useState<{
@@ -180,6 +203,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                       ),
                       measurement.name,
                       labelContent,
+                      classificationLabelFor(measurement, classificationNames),
                     )
                   : null,
             },
@@ -194,6 +218,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       showMeasurementLabels,
       numberFormatKey,
       labelContent,
+      classificationNames,
     ],
   );
 
@@ -424,6 +449,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
             }
             onGroupDragPreview={previewGroupDrag}
             showLabel={showLabels}
+            classificationLabel={classificationLabelFor(measurement, classificationNames)}
             page={page}
             displayUnit={displayUnit}
             areaDisplay={areaDisplay}

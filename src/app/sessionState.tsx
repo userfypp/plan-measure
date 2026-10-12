@@ -226,7 +226,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     pdf,
     pageCount,
     currentPage: 1,
@@ -240,6 +240,7 @@ export function createEmptySession(
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
+      labelClassificationDimensionId: null,
       ...settings,
     },
     classificationCatalog: { dimensions: [] },
@@ -883,6 +884,10 @@ export function sessionReducer(
         ...state,
         session: {
           ...state.session,
+          settings:
+            deletingDimension && state.session.settings.labelClassificationDimensionId === dimensionId
+              ? { ...state.session.settings, labelClassificationDimensionId: null }
+              : state.session.settings,
           classificationCatalog: {
             dimensions: deletingDimension
               ? dimensions.filter((candidate) => candidate.id !== dimensionId)

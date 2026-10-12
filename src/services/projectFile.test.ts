@@ -53,6 +53,15 @@ describe("portable project files", () => {
     expect(projectFileName(session.pdf.name)).toBe("Level 01.planmeasure");
   });
 
+  it("keeps the label classification dimension", async () => {
+    const session = measuredSession();
+    session.settings.labelClassificationDimensionId = "trade";
+
+    const result = await readProjectFile(createProjectFile(session, new Blob(["%PDF-1.7"])));
+
+    expect(result.session.settings.labelClassificationDimensionId).toBe("trade");
+  });
+
   it("round trips a large polygon without changing or truncating its vertices", async () => {
     const session = measuredSession();
     const measurement = session.pages[2]!.measurements[0]!;

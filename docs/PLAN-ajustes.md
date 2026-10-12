@@ -161,14 +161,16 @@ Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P**
 | ~~Keyboard shortcuts reference (solo lectura)~~ | Hecho. |
 
 ### Fase D — Proyecto (requiere migración y goldens)
-| Ajuste | Detalle / riesgo |
-|---|---|
-| Default label content por proyecto | Viaja con el plan; exportaciones lo reflejan. |
-| Colour labels by classification | Color de etiqueta/relleno según valor de clasificación; toca export anotado. |
-| Show classification name in label | Cambia texto de etiqueta. |
-| Rounding mode (Half up / Half even) | Solo si hace falta casar con otro software; toca goldens numéricos. |
-| Export defaults (formato, datos, plantilla de nombre `{project}-{date}`, separador CSV) | Persistir último uso; los goldens de export no deben cambiar con defaults. |
-| Per-page view overrides | Unidad o visibilidad por página; mayor cambio de modelo. |
+Estado: implementado "Show classification in label" (esquema V14, `labelClassificationDimensionId`, sin tocar exportaciones ni goldens). El resto queda descartado o aplazado.
+
+| Ajuste | Estado | Detalle / motivo |
+|---|---|---|
+| Show classification in label | Hecho | Muestra en la etiqueta en pantalla el valor de la dimensión elegida; `null` = igual que antes. |
+| Default label content por proyecto | Descartado | Duplica la preferencia de dispositivo (`labelContent`). |
+| Colour labels by classification | Aplazado | Exige un color por `ClassificationValue` y toca el PDF anotado (golden). |
+| Rounding mode (Half up / Half even) | Aplazado | `toFixed` no es reproducible entre motores y toca goldens numéricos. |
+| Export defaults (formato, datos, plantilla de nombre `{project}-{date}`, separador CSV) | Aplazado | La plantilla de nombre de fichero y los defaults de exportación requieren decisiones de diseño y persistencia propias. |
+| Per-page view overrides | Aplazado | Unidad o visibilidad por página: cambio de modelo grande. |
 
 ### Fase E — Avanzado (dispositivo, plegado; no ampliar presupuestos de rendimiento)
 Render quality (Balanced/Sharp), raster cache size, hit-test tolerance (4–16 px), debug overlay (FPS/caché). Validar con `perf:*` solo a petición expresa.
