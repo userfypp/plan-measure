@@ -3,7 +3,7 @@ import { AnchoredMenu, Button, IconButton, type AnchoredMenuItem } from "../comp
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
-import { SettingsPopover } from "./SettingsPopover";
+import { SettingsDialog } from "./SettingsDialog";
 import styles from "./AppBar.module.css";
 
 const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
@@ -194,7 +194,7 @@ export function AppBar({
             showMarkerColumn={false}
             placement="bottom-end"
           />
-          <SettingsPopover
+          <SettingsDialog
             trigger={<SettingsIcon />}
             triggerClassName={styles.iconTrigger}
             measurementDecimalPlaces={measurementDecimalPlaces}

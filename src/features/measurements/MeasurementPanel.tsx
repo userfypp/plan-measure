@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import { useSessionState } from "../../app/sessionState";
 import { Button, ChevronDownIcon, Popover, Select } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
@@ -48,6 +49,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   onSetMeasurementVisibility,
   onSetMeasurementsVisibility,
 }: MeasurementPanelProps) {
+  const numberFormatKey = useNumberFormatKey();
   const { session } = useSessionState();
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
@@ -95,7 +97,8 @@ export const MeasurementPanel = memo(function MeasurementPanel({
         classificationValueIds: measurement.classificationValueIds,
       })),
     ),
-    [areaDisplay, displayUnit, measurementDecimalPlaces, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
+    [areaDisplay, displayUnit, measurementDecimalPlaces, numberFormatKey, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
   );
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const measurements = useMemo(

@@ -83,7 +83,16 @@ Persistir último formato/datos, nombre de archivo (plantilla `{project}-{date}`
 5. **View ampliado** (proyecto): requiere subir `schemaVersion` y migración; respetar goldens de export.
 6. **Advanced**: zoom máximo, calidad y caché; ejecutar `perf:*` solo si se pide, sin ampliar presupuestos.
 
-## Decisiones abiertas (a confirmar antes de empezar)
-- ¿Locale de números (separadores) por app o por proyecto?
-- ¿Popover más grande o diálogo con navegación lateral?
-- ¿Exportar/importar ajustes entra en esta ronda?
+## Estado de la implementación
+Hecho (rama `ui/polish`): infraestructura de preferencias, diálogo con navegación lateral (Interface, Measurements, Drawing, Confirmations, Advanced), separadores de miles/decimales por dispositivo, unidad por defecto de planos nuevos, snap/ortho por defecto, sensibilidad de snap y de cierre de polígono, reducir movimiento, tooltips, zoom máximo, historial de deshacer, retardo de render y "Reset settings".
+
+Aplazado a propósito:
+- Autoguardado (activar/retardo): riesgo de pérdida de datos.
+- Densidad de la interfaz: riesgo de geometría (contratos de layout y rendimiento).
+- Sección Files & saving.
+- View ampliado y Export ampliado (ajustes de proyecto): requieren subir `schemaVersion` y migrar; respetar goldens.
+- Exportar/importar ajustes.
+
+## Decisiones tomadas
+- Separadores de números: por dispositivo (`localStorage`), sin migración de esquema.
+- Contenedor: diálogo con navegación lateral.

@@ -1,3 +1,4 @@
+import { getAppPreferences } from "./appPreferences";
 import type { LogicalPageBounds, Point, ViewTransform } from "../types/domain";
 
 export interface ViewerSize {
@@ -81,7 +82,7 @@ export function clampPointToPage(
 }
 
 export function clampViewerZoom(zoom: number): number {
-  return Math.min(VIEWER_MAX_ZOOM, Math.max(VIEWER_MIN_ZOOM, zoom));
+  return Math.min(getAppPreferences().maxZoom, Math.max(VIEWER_MIN_ZOOM, zoom));
 }
 
 export function zoomViewAtPoint(
@@ -103,7 +104,7 @@ export function fitToScreen(
   viewer: ViewerSize,
   padding = 24,
   minZoom = 0,
-  maxZoom = VIEWER_MAX_ZOOM,
+  maxZoom = getAppPreferences().maxZoom,
 ): ViewTransform {
   const availableWidth = Math.max(1, viewer.width - padding * 2);
   const availableHeight = Math.max(1, viewer.height - padding * 2);

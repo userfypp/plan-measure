@@ -3,7 +3,8 @@ import { createEmptySession } from "./sessionState";
 import { beginCalibrationFlow, selectCalibrationReference } from "./calibrationFlow";
 import { beginCalibrationReferenceEdit } from "./calibrationReferenceEdit";
 import { appReducer, initialAppState } from "./state";
-import { initialWorkspaceState, workspaceReducer } from "./workspaceState";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
+import { createInitialWorkspaceState, initialWorkspaceState, workspaceReducer } from "./workspaceState";
 
 const uniformCalibration = {
   id: "uniform",
@@ -710,5 +711,23 @@ describe("group clipboard and selection", () => {
     expect(selected.selectedMeasurementIds).toEqual(["copy-1", "copy-2"]);
     expect(selected.selectedMeasurementId).toBeNull();
     expect(selected.measurementDetailsOpen).toBe(false);
+  });
+});
+
+describe("workspace defaults from preferences", () => {
+  it("starts with snap and ortho from the stored defaults and keeps them on reset", () => {
+    setAppPreference("snapDefault", true);
+    setAppPreference("orthoDefault", true);
+    try {
+      const fresh = createInitialWorkspaceState();
+      expect(fresh.snap).toBe(true);
+      expect(fresh.orthogonal).toBe(true);
+      const reset = workspaceReducer(fresh, { type: "RESET_WORKSPACE" });
+      expect(reset.snap).toBe(true);
+      expect(reset.orthogonal).toBe(true);
+    } finally {
+      resetAppPreferences();
+    }
+    expect(createInitialWorkspaceState().snap).toBe(false);
   });
 });

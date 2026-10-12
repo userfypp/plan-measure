@@ -262,7 +262,9 @@
   --geometry-scale-add-menu-max-width: 224px;
   --geometry-select-width-narrow: 72px;
   --geometry-select-width-regular: 136px;
-  --geometry-settings-popover-width: 380px;
+  --geometry-settings-dialog-width: 600px;
+  --geometry-settings-nav-width: 168px;
+  --geometry-settings-panel-height: 336px;
   --geometry-page-browser-width: 240px;
   --geometry-page-goto-input-width: 48px;
   --geometry-page-thumbnail-width: 144px;
@@ -315,6 +317,25 @@
     --transition-interactive: none;
     --transition-transform: none;
   }
+}
+
+/* Per-device preferences (see utils/appPreferences): data attributes set on <html>. */
+:root[data-motion="reduce"] {
+  --transition-interactive: none;
+  --transition-transform: none;
+}
+
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-tooltips="off"] [role="tooltip"] {
+  display: none;
 }
 
 @media (any-pointer: coarse) {

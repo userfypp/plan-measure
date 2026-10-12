@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import type { PathMeasurement, LogicalPageBounds, Point, ViewTransform } from "../../types/domain";
 import { pageToScreen } from "../../utils/coordinates";
 import { constrainOrthogonal } from "../../utils/geometry";
@@ -473,6 +474,28 @@ describe("snap candidate geometry", () => {
         { width: rightEdge, height: 400, rotation: 0 },
       )?.point,
     ).toEqual(end);
+  });
+
+  it.each([
+    ["low", 6],
+    ["normal", 10],
+    ["high", 16],
+  ] as const)("scales the snap tolerance with the %s sensitivity", (level, px) => {
+    setAppPreference("snapSensitivity", level);
+    try {
+      const raw = { x: 200, y: 100 };
+      const target = (distance: number, id: string): SnapTarget => ({
+        kind: "vertex",
+        measurementId: id,
+        measurementIndex: 0,
+        primitiveIndex: 0,
+        point: { x: raw.x + distance, y: raw.y },
+      });
+      expect(resolveSnapCandidate(raw, 1, [target(px, "in")])?.target.measurementId).toBe("in");
+      expect(resolveSnapCandidate(raw, 1, [target(px + 0.01, "out")])).toBeNull();
+    } finally {
+      resetAppPreferences();
+    }
   });
 
   it.each([0.1, 1, 8])("uses an inclusive 10 CSS px tolerance at zoom %s", (zoom) => {

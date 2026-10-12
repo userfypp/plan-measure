@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import { AnchoredMenu, Button, IconButton, Input } from "../../components/ui";
 import type {
   AreaDisplay,
@@ -66,6 +67,7 @@ export function MeasurementDetails({
   addCountItemsDisabledReason,
   onDelete,
 }: MeasurementDetailsProps) {
+  useNumberFormatKey(); // re-render when separators change
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(measurement.name);
   const [nameError, setNameError] = useState<string | null>(null);

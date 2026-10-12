@@ -1,4 +1,5 @@
 import { memo, useId, useMemo, useState } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import { Badge, Button, ChevronDownIcon, Select } from "../../components/ui";
 import type {
   AreaDisplay,
@@ -94,6 +95,7 @@ function Quantities({
 }
 
 export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWorkspaceProps) {
+  useNumberFormatKey(); // re-render when separators change
   const sourceListId = useId();
   const [expandedSources, setExpandedSources] = useState<string | null>(null);
   const toggleSources = (key: string) =>

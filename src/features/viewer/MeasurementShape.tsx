@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import { Group as KonvaGroup } from "konva/lib/Group";
 import { Layer as KonvaLayer } from "konva/lib/Layer";
 import type { Node as KonvaNode, NodeConfig as KonvaNodeConfig } from "konva/lib/Node";
@@ -139,6 +140,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   plannedOccupiedLabelRect,
   labelCollisionIndex,
 }: MeasurementShapeProps) {
+  useNumberFormatKey(); // re-render when separators change
   const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useMeasurementCommands();
   const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaNode>(null);

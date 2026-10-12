@@ -23,8 +23,18 @@ import { ellipseParams } from "../../utils/quickShapesCore";
 import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 
-export const SNAP_TOLERANCE_SCREEN_PX = 10;
-export const POLYGON_CLOSE_TOLERANCE_SCREEN_PX = 10;
+import { getAppPreferences, SENSITIVITY_PX } from "../../utils/appPreferences";
+
+export const SNAP_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
+export const POLYGON_CLOSE_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
+
+function snapTolerancePx(): number {
+  return SENSITIVITY_PX[getAppPreferences().snapSensitivity];
+}
+
+function polygonCloseTolerancePx(): number {
+  return SENSITIVITY_PX[getAppPreferences().closeSensitivity];
+}
 
 export type OrthogonalAxis = "horizontal" | "vertical";
 
@@ -186,7 +196,7 @@ function candidateTargetIndices(
   // candidate near the pointer also has a bounding box intersecting this area.
   // The extra room covers screen/page rounding and projected segment points;
   // extreme ranges use the linear path instead of risking a false rejection.
-  const radius = SNAP_TOLERANCE_SCREEN_PX / zoom +
+  const radius = snapTolerancePx() / zoom +
     1024 * Number.EPSILON * queryScale / Math.min(zoom, 1);
   if (!Number.isFinite(radius)) return null;
   const area = {
@@ -648,10 +658,10 @@ function resolveCandidates(
       ? Math.hypot(screenDelta.alternateDx, screenDelta.alternateDy)
       : distanceScreen;
     const insideTolerance = screenDelta
-      ? distanceScreen <= SNAP_TOLERANCE_SCREEN_PX ||
-        alternateDistanceScreen <= SNAP_TOLERANCE_SCREEN_PX ||
-        withinInclusivePageTolerance(dxPage, dyPage, zoom, SNAP_TOLERANCE_SCREEN_PX)
-      : withinInclusivePageTolerance(dxPage, dyPage, zoom, SNAP_TOLERANCE_SCREEN_PX);
+      ? distanceScreen <= snapTolerancePx() ||
+        alternateDistanceScreen <= snapTolerancePx() ||
+        withinInclusivePageTolerance(dxPage, dyPage, zoom, snapTolerancePx())
+      : withinInclusivePageTolerance(dxPage, dyPage, zoom, snapTolerancePx());
     if (!insideTolerance) continue;
     candidates.push({ point, target, distanceSquaredScreen });
   }
@@ -828,13 +838,13 @@ function polygonCloseWillOccur(
     screenDelta.alternateDy,
   );
   return (
-    distanceScreen <= POLYGON_CLOSE_TOLERANCE_SCREEN_PX ||
-    alternateDistanceScreen <= POLYGON_CLOSE_TOLERANCE_SCREEN_PX ||
+    distanceScreen <= polygonCloseTolerancePx() ||
+    alternateDistanceScreen <= polygonCloseTolerancePx() ||
     withinInclusivePageTolerance(
       first.x - rawPoint.x,
       first.y - rawPoint.y,
       transform.zoom,
-      POLYGON_CLOSE_TOLERANCE_SCREEN_PX,
+      polygonCloseTolerancePx(),
     )
   );
 }

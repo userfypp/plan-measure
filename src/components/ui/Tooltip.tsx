@@ -38,6 +38,8 @@ export function Tooltip({
 }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0 });
+  // A modal dialog sits in the top layer: portal into it or the bubble would render beneath.
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLSpanElement>(null);
@@ -100,6 +102,7 @@ export function Tooltip({
 
   function showTooltip() {
     clearTimer();
+    setPortalHost(rootRef.current?.closest("dialog") ?? null);
     if (normalizedDelay === 0) {
       setVisible(true);
       return;
@@ -143,7 +146,7 @@ export function Tooltip({
           >
             {content}
           </span>,
-          document.body,
+          portalHost ?? document.body,
         )}
     </span>
   );

@@ -90,6 +90,19 @@ function renderAppBar({
 }
 
 beforeEach(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.removeAttribute("open");
+      this.dispatchEvent(new Event("close"));
+    },
+  });
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -105,6 +118,8 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
   container?.remove();
   vi.restoreAllMocks();
   root = null;
@@ -187,6 +202,10 @@ describe("AppBar", () => {
   it("does not route portal Home/End keys back through the AppBar toolbar", () => {
     renderAppBar();
     act(() => buttonByLabel("Settings").click());
+    const done = Array.from(document.querySelectorAll("dialog button")).find(
+      (button) => button.textContent === "Done",
+    ) as HTMLButtonElement;
+    act(() => done.focus());
     const focusedSetting = document.activeElement;
     expect(focusedSetting?.closest('[role="toolbar"]')).toBeNull();
 
@@ -196,7 +215,7 @@ describe("AppBar", () => {
     expect(document.activeElement).toBe(focusedSetting);
   });
 
-  it("delegates Settings to the structured dialog popover", () => {
+  it("opens Settings as a modal dialog with side navigation", () => {
     renderAppBar();
     const settings = buttonByLabel("Settings");
     expect(settings.getAttribute("aria-haspopup")).toBe("dialog");
@@ -207,11 +226,9 @@ describe("AppBar", () => {
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
     expect(dialog).not.toBeNull();
     expect(dialog?.textContent).toContain("Settings");
-    expect(dialog?.textContent).toContain("INTERFACE");
-    expect(dialog?.textContent).toContain("MEASUREMENTS");
+    expect(dialog?.querySelector('[role="tablist"]')).not.toBeNull();
     expect(dialog?.querySelector('[role="menu"]')).toBeNull();
     expect(settings.getAttribute("aria-expanded")).toBe("true");
-    expect(settings.getAttribute("aria-controls")).toBe(dialog?.id);
   });
 
   it("opens Feedback options with the discussion and existing issue templates", () => {

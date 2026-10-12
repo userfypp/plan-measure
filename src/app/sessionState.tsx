@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getAppPreferences } from "../utils/appPreferences";
 import { useAppState } from "./state";
 import type {
   CalibrationReferenceKey,
@@ -1309,7 +1310,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         sessionRef.current &&
         result.session !== sessionRef.current
       ) {
-        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(-100);
+        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(-getAppPreferences().undoDepth);
         redoStackRef.current = [];
         updateHistoryState();
       }
@@ -1339,7 +1340,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const next = redoStackRef.current.pop();
     const current = sessionRef.current;
     if (!next || !current) return;
-    undoStackRef.current = [...undoStackRef.current, current].slice(-100);
+    undoStackRef.current = [...undoStackRef.current, current].slice(-getAppPreferences().undoDepth);
     const restored = {
       ...next,
       currentPage: current.currentPage,

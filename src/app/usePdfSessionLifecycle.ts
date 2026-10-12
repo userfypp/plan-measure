@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { getAppPreferences } from "../utils/appPreferences";
 import { createSaveStatusStore } from "./saveStatus";
 import { requestPersistentStorageAfterSave } from "../services/storagePersistence";
 import { enqueueAutosave, isAutosaveReady, isSessionPersistable } from "./autosave";
@@ -647,6 +648,7 @@ export function usePdfSessionLifecycle({
       const newSession = createEmptySession(
         { name: file.name, size: file.size, lastModified: file.lastModified },
         loaded.document.numPages,
+        { displayUnit: getAppPreferences().defaultDisplayUnit },
       );
       const candidate = {
         pdfId: crypto.randomUUID(),

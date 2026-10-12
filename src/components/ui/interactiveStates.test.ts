@@ -20,7 +20,7 @@ const measurementRowCss = readFileSync(
   "utf8",
 );
 const settingsCss = readFileSync(
-  new URL("../../app/SettingsPopover.module.css", import.meta.url),
+  new URL("../../app/SettingsDialog.module.css", import.meta.url),
   "utf8",
 );
 

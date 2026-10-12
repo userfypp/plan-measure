@@ -10,6 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
+import { getAppPreferences } from "../../utils/appPreferences";
 import { flushSync } from "react-dom";
 import { Circle, Group, Layer, Line, Rect, Stage } from "react-konva";
 import type Konva from "konva";
@@ -101,7 +102,6 @@ import { BoxDraftGuides } from "./BoxDraftGuides";
 import { SOFTWARE_CURSORS } from "./softwareCursor";
 import { useSoftwareCursor } from "./useSoftwareCursor";
 import {
-  PDF_RENDER_DEBOUNCE_MS,
   copyRasterToCanvas,
   panCachePixelRatio,
   type LoadedPageData,
@@ -793,7 +793,7 @@ export function PdfViewer({
         });
     };
 
-    const timer = pageReadyRef.current ? window.setTimeout(render, PDF_RENDER_DEBOUNCE_MS) : null;
+    const timer = pageReadyRef.current ? window.setTimeout(render, getAppPreferences().renderDelayMs) : null;
     if (timer === null) render();
     return () => {
       if (timer !== null) window.clearTimeout(timer);

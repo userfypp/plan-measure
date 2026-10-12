@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import {
   Group,
   Label,
@@ -133,6 +134,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   onWholeMeasurementDragCancellationChange,
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
+  const numberFormatKey = useNumberFormatKey();
   const [groupDragPreview, setGroupDragPreview] = useState<{ ownerId: string; delta: Point } | null>(null);
   const previewGroupDrag = useCallback((ownerId: string, delta: Point | null) => {
     setGroupDragPreview((current) => delta ? { ownerId, delta } : current?.ownerId === ownerId ? null : current);
@@ -156,7 +158,8 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
         measurement, calibration, displayUnit, measurementDecimalPlaces, areaDisplay,
       ) : null,
     }];
-  })), [page, displayUnit, measurementDecimalPlaces, areaDisplay, showMeasurementLabels]);
+  })), // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
+  [page, displayUnit, measurementDecimalPlaces, areaDisplay, showMeasurementLabels, numberFormatKey]);
 
   const plannedLabelLayout = useMemo(() => {
     return planLabelLayout({
