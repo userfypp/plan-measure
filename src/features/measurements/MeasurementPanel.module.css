@@ -30,7 +30,9 @@
   gap: var(--space-8);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
+  /* Symmetric inset reserves room for the chevron pinned right, so the label stays optically centred. */
+  padding: 0 calc(var(--space-8) + var(--geometry-icon-size-small) + var(--space-4));
+  position: relative;
   background: var(--color-surface-field);
   transition: var(--transition-interactive);
 }
@@ -109,6 +111,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: var(--transition-interactive);
+}
+
+.toolbarButton > svg {
+  position: absolute;
+  top: 50%;
+  right: var(--space-8);
+  transform: translateY(-50%);
 }
 
 .toolbarButton:hover:not(:disabled) {
