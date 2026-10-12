@@ -172,27 +172,17 @@
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
-/* Eye cell (the tooltip wrapper): the whole column, edge reserve included, is the hit area. */
+/* Eye cell (the tooltip wrapper): it hugs the square button, so only the button is clickable. */
 .header > :last-child {
-  position: relative;
   display: grid;
-  align-self: stretch;
-  align-items: center;
-  justify-items: start;
-  width: 100%;
+  align-self: center;
+  justify-self: start;
 }
 
-/* The button stays a visual square; its ::after carries the clicks up to the panel edge. */
 .visibilityControl {
   width: var(--target-current);
   height: var(--target-current);
   border-color: transparent;
-}
-
-.visibilityControl::after {
-  position: absolute;
-  inset: 0;
-  content: "";
 }
 
 .visibilityControl svg {

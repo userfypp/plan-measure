@@ -313,13 +313,14 @@ describe("MeasurementRow accessibility", () => {
     expect(measurementRowCss).toMatch(
       /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);/s,
     );
-    // The eye stays a visual square; an inset-0 ::after makes the cell, up to the edge, clickable.
+    // The eye is a visual square and its own hit area: no ::after bleeds clicks outside it.
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );
     expect(measurementRowCss).not.toMatch(/\.actions \.visibilityButton\s*\{[^}]*tree-edge-end/s);
+    expect(measurementRowCss).not.toContain(".visibilityButton::after");
     expect(measurementRowCss).toMatch(
-      /\.actions \.visibilityButton::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 calc\(-1 \* var\(--tree-edge-end, 0px\)\) 0 0;/s,
+      /\.glyph\s*\{[^}]*margin-inline-start:\s*calc\(-1 \* var\(--space-4\)\);/s,
     );
   });
 });
@@ -490,17 +491,15 @@ describe("measurement grouping surfaces", () => {
     expect(measurementGroupCss).toMatch(
       /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
-    // Square eye in a full-column cell whose ::after hit area reaches the panel edge.
+    // Square eye whose cell hugs the button: only the button is clickable.
     expect(measurementGroupCss).toMatch(
-      /\.header > :last-child\s*\{[^}]*position:\s*relative;[^}]*align-self:\s*stretch;[^}]*justify-items:\s*start;[^}]*width:\s*100%;/s,
+      /\.header > :last-child\s*\{[^}]*align-self:\s*center;[^}]*justify-self:\s*start;/s,
     );
     expect(measurementGroupCss).toMatch(
       /\.visibilityControl\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );
     expect(measurementGroupCss).not.toMatch(/\.visibilityControl\s*\{[^}]*tree-edge-end/s);
-    expect(measurementGroupCss).toMatch(
-      /\.visibilityControl::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s,
-    );
+    expect(measurementGroupCss).not.toContain(".visibilityControl::after");
     expect(measurementGroupCss).toMatch(
       /\.count\s*\{[^}]*margin-inline:\s*var\(--space-8\);[^}]*text-align:\s*right;/s,
     );

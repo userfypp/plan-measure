@@ -93,6 +93,7 @@
 }
 
 .glyph {
+  margin-inline-start: calc(-1 * var(--space-4));
   width: var(--geometry-icon-size);
   height: var(--geometry-icon-size);
   display: grid;
@@ -193,13 +194,6 @@
   width: var(--target-current);
   height: var(--target-current);
   border-color: transparent;
-}
-
-/* The button stays a visual square; its ::after carries the clicks up to the panel edge. */
-.actions .visibilityButton::after {
-  position: absolute;
-  inset: 0 calc(-1 * var(--tree-edge-end, 0px)) 0 0;
-  content: "";
 }
 
 .actions .visibilityButton[aria-pressed="true"]:not(:hover):not(:active) {
