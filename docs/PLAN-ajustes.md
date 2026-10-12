@@ -106,6 +106,9 @@ Hecho: nueva sección Settings → Canvas (tras View) con las preferencias de di
 ## Estado Fase A (parcial)
 Hecho (dispositivo, sin migración): Fill opacity, Handle size, Label background, After finishing (Drawing) y Zoom step (Interface); además Default zoom, Mouse wheel y Date format (Interface), Crosshair cursor, Live segment length y Finish on double-click (Drawing), Label content (Measurements) y Page grid (Canvas). Altura del panel de Ajustes fijada en 456 px (sección más alta: Interface, 441 px) para que ninguna sección haga scroll a 1280x800. Pendiente del resto de la Fase A.
 
+## Estado Fase B (parcial)
+Hecho (dispositivo, sin migración): Autosave delay (0,3/1/3/10 s; por defecto el 0,3 s previo), Ask before closing (`confirmBeforeClosing`, por defecto apagado), Saved projects shown (10/25/All), Export/Import settings (JSON versionado) y Storage usage (solo lectura). Pendiente: interruptor Autosave on/off (requiere un guardado manual que hoy no existe), Auto-open last project (ambiguo con la recuperación) y Clear cache. Regla nueva: el "?" solo en ajustes no autoexplicativos.
+
 ## Plan: siguientes ajustes útiles
 Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P** = proyecto (exige `schemaVersion` + migración + goldens). "Riesgo" indica qué contrato puede tocar.
 

@@ -194,30 +194,6 @@
   padding-inline: var(--space-8);
 }
 
-.scaleFullName {
-  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
-  position: absolute;
-  z-index: var(--z-raised);
-  bottom: calc(100% + var(--space-8));
-  left: 50%;
-  max-width: min(var(--geometry-viewer-popover-width), calc(100vw - var(--space-24)));
-  padding: var(--space-4) var(--space-8);
-  visibility: hidden;
-  opacity: 0;
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-secondary);
-  pointer-events: none;
-  transform: translateX(-50%);
-  white-space: normal;
-}
-
-.scaleTrigger:not([aria-disabled="true"]):hover .scaleFullName,
-.scaleTrigger:not([aria-disabled="true"]):focus-visible .scaleFullName {
-  visibility: visible;
-  opacity: 1;
-}
-
 .scaleTriggerText,
 .scaleMenuLabel,
 .toggleText {

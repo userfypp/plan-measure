@@ -250,7 +250,6 @@ export function ViewerDock({
             className={styles.pagesTrigger}
             icon={<PagesIcon />}
             aria-label="Pages"
-            tooltip="Pages"
             pressed={pagesOpen}
             aria-controls="page-browser"
             onClick={onTogglePages}
@@ -432,11 +431,6 @@ export function ViewerDock({
               )}
             </span>
             <DisclosureIcon />
-            {activeCalibration && (
-              <span className={styles.scaleFullName} data-scale-full-name aria-hidden="true">
-                {activeCalibration.name}
-              </span>
-            )}
           </>
         }
         triggerProps={{
@@ -560,11 +554,7 @@ export function ViewerDock({
               />
             </div>
             <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
-              <label
-                id={labelSizeLabelId}
-                className={styles.settingLabel}
-                htmlFor={labelSizeId}
-              >
+              <label id={labelSizeLabelId} className={styles.settingLabel} htmlFor={labelSizeId}>
                 Label size
               </label>
               <Select

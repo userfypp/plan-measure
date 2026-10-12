@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SavedProjectSummary } from "../services/persistence";
 import buttonStyles from "../components/ui/Button.module.css";
 import dialogStyles from "../components/ui/Dialog.module.css";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 
 const projects: SavedProjectSummary[] = [
@@ -155,7 +156,11 @@ describe("ProjectLibraryDialog", () => {
         [...row.querySelectorAll("button")].map((button) => button.getAttribute("aria-label")),
       ),
     ).toEqual([
-      ["Current project Level 01.pdf", "Export project Level 01.pdf", "Discard project Level 01.pdf"],
+      [
+        "Current project Level 01.pdf",
+        "Export project Level 01.pdf",
+        "Discard project Level 01.pdf",
+      ],
       ["Open project Level 02.pdf", "Export project Level 02.pdf", "Discard project Level 02.pdf"],
     ]);
     act(() => openButton.click());
@@ -284,5 +289,30 @@ describe("ProjectLibraryDialog", () => {
     act(() => discard.click());
     expect(onCancelDiscard).toHaveBeenCalledOnce();
     expect(onConfirmDiscard).toHaveBeenCalledWith("current");
+  });
+
+  it("limits the list to the most recent projects when the preference asks for it", () => {
+    const many: SavedProjectSummary[] = Array.from({ length: 12 }, (_, index) => ({
+      id: `project-${index}`,
+      name: `Plan ${index}.pdf`,
+      pageCount: 1,
+      savedAt: 1_800_000_000_000 - index,
+      isCurrent: false,
+    }));
+    const rows = () => container?.querySelectorAll('[aria-label="Saved projects"] > li').length;
+    render({ savedProjects: many });
+    expect(rows()).toBe(12);
+    expect(container?.textContent).not.toContain("most recent");
+    try {
+      setAppPreference("projectsShown", "10");
+      render({ savedProjects: many });
+      expect(rows()).toBe(10);
+      expect(container?.textContent).toContain("Showing the 10 most recent of 12 projects.");
+      setAppPreference("projectsShown", "25");
+      render({ savedProjects: many });
+      expect(rows()).toBe(12);
+    } finally {
+      resetAppPreferences();
+    }
   });
 });

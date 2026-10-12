@@ -1,8 +1,11 @@
 import { createPortal } from "react-dom";
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, Dialog, Select, Switch, Tooltip } from "../components/ui";
 import type { MeasurementDecimalPlaces, SessionSettings } from "../types/domain";
+import { downloadExportFile } from "../services/exportDownload";
 import {
+  exportAppPreferencesJson,
+  importAppPreferencesJson,
   resetAppPreferences,
   setAppPreference,
   useAppPreferences,
@@ -164,6 +167,62 @@ const RENDER_DELAY_OPTIONS = [
   { value: "150", label: "150 ms" },
   { value: "250", label: "250 ms" },
 ] as const;
+
+const AUTOSAVE_DELAY_OPTIONS = [
+  { value: "300", label: "0.3 s" },
+  { value: "1000", label: "1 s" },
+  { value: "3000", label: "3 s" },
+  { value: "10000", label: "10 s" },
+] as const;
+
+const PROJECTS_SHOWN_OPTIONS = [
+  { value: "10", label: "10" },
+  { value: "25", label: "25" },
+  { value: "all", label: "All" },
+] as const;
+
+const BYTES_PER_MB = 1024 * 1024;
+
+/** Read-only browser storage estimate; falls back to a note when the API is missing or fails. */
+function StorageUsageRow() {
+  const [text, setText] = useState("Checking…");
+  useEffect(() => {
+    let cancelled = false;
+    const unavailable = () => {
+      if (!cancelled) setText("Not available in this browser");
+    };
+    const estimate = typeof navigator === "undefined" ? undefined : navigator.storage?.estimate;
+    if (typeof estimate !== "function") {
+      unavailable();
+      return;
+    }
+    void estimate
+      .call(navigator.storage)
+      .then(({ usage, quota }) => {
+        if (cancelled) return;
+        if (typeof usage !== "number" || typeof quota !== "number" || quota <= 0) {
+          unavailable();
+          return;
+        }
+        setText(
+          `Using ${(usage / BYTES_PER_MB).toFixed(1)} MB of ${Math.round(quota / BYTES_PER_MB)} MB`,
+        );
+      })
+      .catch(unavailable);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return (
+    <Row label="Storage used">
+      {({ controlId }) => (
+        <output id={controlId} className={styles.storageUsage}>
+          {text}
+        </output>
+      )}
+    </Row>
+  );
+}
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -399,6 +458,8 @@ export function SettingsDialog({
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<SectionId>("interface");
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [importStatus, setImportStatus] = useState("");
+  const settingsFileInputRef = useRef<HTMLInputElement>(null);
   const { preference, setPreference } = useTheme();
   const preferences = useAppPreferences();
   const tabIdPrefix = useId();
@@ -411,6 +472,16 @@ export function SettingsDialog({
   function selectSection(next: SectionId) {
     setSection(next);
     setConfirmingReset(false);
+    setImportStatus("");
+  }
+
+  async function importSettingsFile(file: File) {
+    const text = await file.text().catch(() => null);
+    setImportStatus(
+      text !== null && importAppPreferencesJson(text)
+        ? "Settings imported"
+        : "Couldn't import: not a valid settings file",
+    );
   }
 
   function handleNavKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -521,41 +592,35 @@ export function SettingsDialog({
                     />
                     <SelectRow
                       label="Reduce motion"
-                      help="Removes transitions and animations. “Follow system” uses your operating system setting."
                       value={preferences.motion}
                       options={MOTION_OPTIONS}
                       onChange={set("motion")}
                     />
                     <SwitchRow
                       label="Show tooltips"
-                      help="Shows a short description when you hover or focus a button."
                       checked={preferences.tooltips}
                       onChange={set("tooltips")}
                     />
                     <SelectRow
                       label="Zoom step"
-                      help="How much each zoom in or out button press and keyboard shortcut changes the zoom."
                       value={preferences.zoomStep}
                       options={ZOOM_STEP_OPTIONS}
                       onChange={set("zoomStep")}
                     />
                     <SelectRow
                       label="Default zoom"
-                      help="How a page is shown when it opens. The Fit button always fits the whole page."
                       value={preferences.defaultZoom}
                       options={DEFAULT_ZOOM_OPTIONS}
                       onChange={set("defaultZoom")}
                     />
                     <SelectRow
                       label="Mouse wheel"
-                      help="Zoom makes the wheel zoom the plan. Scroll makes it move the plan, and Ctrl or Cmd with the wheel (or a trackpad pinch) zooms."
                       value={preferences.wheelBehavior}
                       options={WHEEL_BEHAVIOR_OPTIONS}
                       onChange={set("wheelBehavior")}
                     />
                     <SelectRow
                       label="Date format"
-                      help="How saved dates appear in the project library."
                       value={preferences.dateFormat}
                       options={DATE_FORMAT_OPTIONS}
                       onChange={set("dateFormat")}
@@ -598,21 +663,18 @@ export function SettingsDialog({
                     )}
                     <SelectRow
                       label="Thousands separator"
-                      help="Groups large numbers on screen. CSV exports are never affected. Ignored when it matches the decimal separator."
                       value={preferences.thousandsSeparator}
                       options={THOUSANDS_OPTIONS}
                       onChange={set("thousandsSeparator")}
                     />
                     <SelectRow
                       label="Decimal separator"
-                      help="Applies to every project on this device. CSV exports always use a point."
                       value={preferences.decimalSeparator}
                       options={DECIMAL_SEPARATOR_OPTIONS}
                       onChange={set("decimalSeparator")}
                     />
                     <SelectRow
                       label="Label content"
-                      help="Show only the value or the measurement name before it. Applies on screen only; exports do not change."
                       value={preferences.labelContent}
                       options={LABEL_CONTENT_OPTIONS}
                       onChange={set("labelContent")}
@@ -623,7 +685,6 @@ export function SettingsDialog({
                     </p>
                     <SelectRow
                       label="Default unit for new plans"
-                      help="Initial display unit of plans you open for the first time. Existing plans keep their own unit."
                       value={preferences.defaultDisplayUnit}
                       options={UNIT_OPTIONS}
                       onChange={set("defaultDisplayUnit")}
@@ -668,19 +729,16 @@ export function SettingsDialog({
                     />
                     <SwitchRow
                       label="Crosshair cursor"
-                      help="Uses a crosshair while a drawing tool is active. Off keeps the normal arrow."
                       checked={preferences.crosshairCursor}
                       onChange={set("crosshairCursor")}
                     />
                     <SwitchRow
                       label="Live segment length"
-                      help="Shows the length of the segment being drawn next to the pointer."
                       checked={preferences.liveLength}
                       onChange={set("liveLength")}
                     />
                     <SwitchRow
                       label="Finish on double-click"
-                      help="Double-clicking completes the polyline or polygon being drawn, without adding an extra point."
                       checked={preferences.finishOnDoubleClick}
                       onChange={set("finishOnDoubleClick")}
                     />
@@ -697,7 +755,6 @@ export function SettingsDialog({
                         </h3>
                         <SelectRow
                           label="Display unit"
-                          help="Unit used for lengths and areas on screen. Measurements are stored in the plan scale."
                           value={viewSettings.displayUnit}
                           options={UNIT_OPTIONS}
                           onChange={(displayUnit) => onViewSettingsChange({ displayUnit })}
@@ -711,13 +768,11 @@ export function SettingsDialog({
                         />
                         <SwitchRow
                           label="Labels"
-                          help="Shows the calculated value next to each measurement."
                           checked={viewSettings.showLabels}
                           onChange={(showLabels) => onViewSettingsChange({ showLabels })}
                         />
                         <SwitchRow
                           label="Measurements"
-                          help="Shows the drawn geometry on the plan."
                           checked={viewSettings.showMeasurements}
                           onChange={(showMeasurements) =>
                             onViewSettingsChange({ showMeasurements })
@@ -725,7 +780,6 @@ export function SettingsDialog({
                         />
                         <SwitchRow
                           label="Calibration"
-                          help="Shows the scale reference lines and their labels."
                           checked={viewSettings.showCalibration}
                           onChange={(showCalibration) => onViewSettingsChange({ showCalibration })}
                         />
@@ -751,42 +805,36 @@ export function SettingsDialog({
                     </h3>
                     <SelectRow
                       label="Line thickness"
-                      help="Stroke width of measurements on the plan. Does not change exports."
                       value={preferences.lineThickness}
                       options={LINE_THICKNESS_OPTIONS}
                       onChange={set("lineThickness")}
                     />
                     <SelectRow
                       label="Label size"
-                      help="Text size of measurement labels on the plan. Does not change exports."
                       value={preferences.labelSize}
                       options={LABEL_SIZE_OPTIONS}
                       onChange={set("labelSize")}
                     />
                     <SelectRow
                       label="Fill opacity"
-                      help="Transparency of polygon, rectangle, ellipse and cloud fills on the plan. Does not change exports."
                       value={preferences.fillOpacity}
                       options={FILL_OPACITY_OPTIONS}
                       onChange={set("fillOpacity")}
                     />
                     <SelectRow
                       label="Handle size"
-                      help="Visible size of vertex handles. The touch area does not change."
                       value={preferences.handleSize}
                       options={HANDLE_SIZE_OPTIONS}
                       onChange={set("handleSize")}
                     />
                     <SelectRow
                       label="Label background"
-                      help="Background behind measurement labels. With None the text gets a light outline to stay readable. Does not change exports."
                       value={preferences.labelBackground}
                       options={LABEL_BACKGROUND_OPTIONS}
                       onChange={set("labelBackground")}
                     />
                     <SelectRow
                       label="Page grid"
-                      help="Draws a faint grid over the page as a visual aid. It is not saved and does not change exports."
                       value={preferences.pageGrid}
                       options={PAGE_GRID_OPTIONS}
                       onChange={set("pageGrid")}
@@ -817,6 +865,11 @@ export function SettingsDialog({
                         onChange={onConfirmDimensionDeletionChange}
                       />
                     )}
+                    <SwitchRow
+                      label="Confirm before closing unsaved work"
+                      checked={preferences.confirmBeforeClosing}
+                      onChange={set("confirmBeforeClosing")}
+                    />
                   </div>
                 )}
 
@@ -852,6 +905,66 @@ export function SettingsDialog({
                         )
                       }
                     />
+                    <SelectRow
+                      label="Autosave delay"
+                      value={String(preferences.autosaveDelayMs)}
+                      options={AUTOSAVE_DELAY_OPTIONS}
+                      onChange={(value) =>
+                        setAppPreference(
+                          "autosaveDelayMs",
+                          Number(value) as AppPreferences["autosaveDelayMs"],
+                        )
+                      }
+                    />
+                    <SelectRow
+                      label="Saved projects shown"
+                      value={preferences.projectsShown}
+                      options={PROJECTS_SHOWN_OPTIONS}
+                      onChange={set("projectsShown")}
+                    />
+                    <Row label="Settings file">
+                      {({ labelId }) => (
+                        <div className={styles.resetActions} role="group" aria-labelledby={labelId}>
+                          <Button
+                            size="compact"
+                            variant="secondary"
+                            onClick={() =>
+                              downloadExportFile(
+                                exportAppPreferencesJson(),
+                                "plan-measure-settings.json",
+                                "application/json;charset=utf-8",
+                              )
+                            }
+                          >
+                            Export settings
+                          </Button>
+                          <Button
+                            size="compact"
+                            variant="secondary"
+                            onClick={() => settingsFileInputRef.current?.click()}
+                          >
+                            Import settings
+                          </Button>
+                          <input
+                            ref={settingsFileInputRef}
+                            className={styles.visuallyHidden}
+                            type="file"
+                            tabIndex={-1}
+                            accept="application/json,.json"
+                            aria-label="Settings file to import"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) void importSettingsFile(file);
+                              event.target.value = "";
+                            }}
+                          />
+                        </div>
+                      )}
+                    </Row>
+                    <StorageUsageRow />
+                    <p className={styles.sectionNote} role="status">
+                      {importStatus}
+                    </p>
                     <div className={styles.resetRow}>
                       <div className={styles.resetCopy}>
                         <span className={styles.settingLabel}>Reset settings</span>

@@ -22,6 +22,8 @@ export type WheelBehavior = "zoom" | "pan";
 export type DateFormat = "short" | "medium" | "with-time";
 export type LabelContent = "value" | "name-value";
 export type PageGrid = "off" | "fine" | "coarse";
+export type AutosaveDelayMs = 300 | 1000 | 3000 | 10000;
+export type ProjectsShown = "10" | "25" | "all";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -51,6 +53,9 @@ export interface AppPreferences {
   finishOnDoubleClick: boolean;
   labelContent: LabelContent;
   pageGrid: PageGrid;
+  autosaveDelayMs: AutosaveDelayMs;
+  confirmBeforeClosing: boolean;
+  projectsShown: ProjectsShown;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -83,6 +88,9 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   finishOnDoubleClick: false,
   labelContent: "value",
   pageGrid: "off",
+  autosaveDelayMs: 300,
+  confirmBeforeClosing: false,
+  projectsShown: "all",
 };
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
@@ -121,6 +129,9 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     finishOnDoubleClick: isBoolean,
     labelContent: oneOf("value", "name-value"),
     pageGrid: oneOf("off", "fine", "coarse"),
+    autosaveDelayMs: oneOf(300, 1000, 3000, 10000),
+    confirmBeforeClosing: isBoolean,
+    projectsShown: oneOf("10", "25", "all"),
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -239,6 +250,32 @@ export function setAppPreference<K extends keyof AppPreferences>(
 
 export function resetAppPreferences(): void {
   commit({ ...DEFAULT_APP_PREFERENCES });
+}
+
+export const PREFERENCES_FILE_VERSION = 1;
+
+/** Versioned JSON of every device preference, for moving settings between browsers. */
+export function exportAppPreferencesJson(): string {
+  return JSON.stringify({ version: PREFERENCES_FILE_VERSION, preferences: current }, null, 2);
+}
+
+/**
+ * Applies a settings file. Unknown or invalid keys are ignored (the default is
+ * used instead); a file that is not a version 1 settings file changes nothing.
+ * Never throws.
+ */
+export function importAppPreferencesJson(text: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object") return false;
+    const file = parsed as { version?: unknown; preferences?: unknown };
+    if (file.version !== PREFERENCES_FILE_VERSION) return false;
+    if (!file.preferences || typeof file.preferences !== "object") return false;
+    commit(sanitize(file.preferences));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function subscribeAppPreferences(listener: () => void): () => void {

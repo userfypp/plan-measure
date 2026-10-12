@@ -4,6 +4,8 @@ import {
   APP_PREFERENCES_STORAGE_KEY,
   DEFAULT_APP_PREFERENCES,
   effectiveThousandsSeparator,
+  exportAppPreferencesJson,
+  importAppPreferencesJson,
   getAppPreferences,
   FILL_OPACITY_SCALE,
   HANDLE_SIZE_SCALE,
@@ -180,5 +182,67 @@ describe("formatDisplayNumber with separators", () => {
   it("keeps tiny non-zero values explicit with the chosen decimal mark", () => {
     setAppPreference("decimalSeparator", "comma");
     expect(formatDisplayNumber(0.0004, 2)).toBe("0,0004");
+  });
+});
+
+describe("settings file", () => {
+  it("defaults keep the previous save, closing and library behaviour", () => {
+    expect(DEFAULT_APP_PREFERENCES).toMatchObject({
+      autosaveDelayMs: 300,
+      confirmBeforeClosing: false,
+      projectsShown: "all",
+    });
+  });
+
+  it("round-trips every preference through a versioned JSON file", () => {
+    setAppPreference("autosaveDelayMs", 3000);
+    setAppPreference("projectsShown", "25");
+    setAppPreference("confirmBeforeClosing", true);
+    setAppPreference("lineThickness", "thick");
+    const json = exportAppPreferencesJson();
+    expect(JSON.parse(json)).toMatchObject({ version: 1, preferences: { autosaveDelayMs: 3000 } });
+    const exported = getAppPreferences();
+    resetAppPreferences();
+    expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
+    expect(importAppPreferencesJson(json)).toBe(true);
+    expect(getAppPreferences()).toEqual(exported);
+    expect(JSON.parse(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY) ?? "{}")).toEqual(
+      exported,
+    );
+  });
+
+  it("ignores unknown and invalid keys, falling back to the defaults", () => {
+    setAppPreference("labelSize", "large");
+    const applied = importAppPreferencesJson(
+      JSON.stringify({
+        version: 1,
+        preferences: {
+          lineThickness: "thick",
+          autosaveDelayMs: 42,
+          projectsShown: 10,
+          tooltips: "yes",
+          unknownKey: true,
+        },
+      }),
+    );
+    expect(applied).toBe(true);
+    expect(getAppPreferences()).toEqual({ ...DEFAULT_APP_PREFERENCES, lineThickness: "thick" });
+  });
+
+  it.each([
+    "not json",
+    "",
+    "null",
+    "[]",
+    '"text"',
+    JSON.stringify({ preferences: { lineThickness: "thick" } }),
+    JSON.stringify({ version: 2, preferences: { lineThickness: "thick" } }),
+    JSON.stringify({ version: 1 }),
+    JSON.stringify({ version: 1, preferences: "x" }),
+  ])("never throws and changes nothing for an unusable file (%s)", (text) => {
+    setAppPreference("labelSize", "large");
+    const before = getAppPreferences();
+    expect(importAppPreferencesJson(text)).toBe(false);
+    expect(getAppPreferences()).toBe(before);
   });
 });

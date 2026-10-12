@@ -63,8 +63,10 @@ export function ProjectLibraryDialog({
   onConfirmDiscard,
   onClose,
 }: ProjectLibraryDialogProps) {
-  const { dateFormat } = useAppPreferences();
+  const { dateFormat, projectsShown } = useAppPreferences();
   if (!open) return null;
+  const visibleProjects =
+    projectsShown === "all" ? projects : projects.slice(0, Number(projectsShown));
   const pendingProject = projects.find((project) => project.id === pendingDiscardProjectId);
   const confirmingDiscard = pendingDiscardProjectId !== null;
 
@@ -101,7 +103,7 @@ export function ProjectLibraryDialog({
         <>
           {projects.length > 0 ? (
             <ul className={styles.projectList} aria-label="Saved projects">
-              {projects.map((project) => {
+              {visibleProjects.map((project) => {
                 const isCurrent = currentSessionLoaded
                   ? project.id === activeProjectId
                   : project.isCurrent;
@@ -160,6 +162,12 @@ export function ProjectLibraryDialog({
               <h3>No saved projects</h3>
               <p>Open a PDF to start a project.</p>
             </div>
+          )}
+          {visibleProjects.length < projects.length && (
+            <p className={styles.hiddenNote}>
+              Showing the {visibleProjects.length} most recent of {projects.length} projects. Change
+              this in Settings.
+            </p>
           )}
           <div className={styles.actions}>
             <Button variant="ghost" size="compact" onClick={onClose}>

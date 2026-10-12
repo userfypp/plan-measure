@@ -575,4 +575,139 @@ describe("SettingsDialog", () => {
     );
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
+
+  it("keeps the help button only on settings that are not self-explanatory", () => {
+    renderSettings({
+      onKeyboardAuthoringEnabledChange: vi.fn(),
+      onRecoveredPlanStartupWorkspaceChange: vi.fn(),
+      viewSettings: {
+        displayUnit: "m",
+        areaDisplay: "auto",
+        showLabels: true,
+        showMeasurements: true,
+        showCalibration: true,
+      },
+    });
+    openSettings();
+    const helpLabels = () =>
+      Array.from(dialog().querySelectorAll("button[aria-label^='About ']")).map((button) =>
+        button.getAttribute("aria-label"),
+      );
+    expect(helpLabels()).toEqual([
+      "About Keyboard drawing and editing",
+      "About Recovered plan workspace",
+    ]);
+    openTab("View");
+    expect(helpLabels()).toEqual(["About Polygon area"]);
+    openTab("Canvas");
+    expect(helpLabels()).toEqual([]);
+    openTab("Confirmations");
+    expect(helpLabels()).toEqual([]);
+    openTab("Advanced");
+    expect(helpLabels()).toEqual([
+      "About Maximum zoom",
+      "About Undo history",
+      "About Render delay",
+    ]);
+  });
+
+  it("stores the autosave delay, projects shown and closing confirmation", () => {
+    renderSettings();
+    openSettings();
+    openTab("Advanced");
+    expect(selectByLabel("Autosave delay").textContent).toBe("0.3 s");
+    act(() => selectByLabel("Autosave delay").click());
+    expect(selectItems().map((option) => option.textContent)).toEqual([
+      "0.3 s",
+      "1 s",
+      "3 s",
+      "10 s",
+    ]);
+    act(() => selectItems()[0]!.click());
+    choose("Autosave delay", "3 s");
+    expect(selectByLabel("Saved projects shown").textContent).toBe("All");
+    choose("Saved projects shown", "10");
+    openTab("Confirmations");
+    expect(switchControl("Confirm before closing unsaved work").checked).toBe(false);
+    act(() => switchControl("Confirm before closing unsaved work").click());
+    expect(
+      JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}"),
+    ).toMatchObject({
+      autosaveDelayMs: 3000,
+      projectsShown: "10",
+      confirmBeforeClosing: true,
+    });
+  });
+
+  it("exports the settings file and imports one, ignoring invalid values", async () => {
+    renderSettings();
+    openSettings();
+    openTab("Advanced");
+    const createObjectURL = vi.fn(() => "blob:settings");
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    const button = (label: string) =>
+      Array.from(dialog().querySelectorAll("button")).find((b) => b.textContent === label)!;
+    act(() => button("Export settings").click());
+    expect(click).toHaveBeenCalledOnce();
+    const exportedBlob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
+    expect(exportedBlob.type).toContain("application/json");
+
+    const input = dialog().querySelector<HTMLInputElement>('input[type="file"]')!;
+    const status = () => dialog().querySelector('[role="status"]')!.textContent;
+    const importFile = async (contents: string) => {
+      const file = new File([contents], "settings.json", { type: "application/json" });
+      Object.defineProperty(file, "text", { value: () => Promise.resolve(contents) });
+      Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      await act(async () => {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    };
+    expect(status()).toBe("");
+    await importFile(
+      JSON.stringify({ version: 1, preferences: { lineThickness: "thick", labelSize: "huge" } }),
+    );
+    expect(status()).toBe("Settings imported");
+    expect(
+      JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}"),
+    ).toMatchObject({
+      lineThickness: "thick",
+      labelSize: "normal",
+    });
+    await importFile("{broken");
+    expect(status()).toBe("Couldn't import: not a valid settings file");
+    expect(
+      JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}"),
+    ).toMatchObject({
+      lineThickness: "thick",
+    });
+  });
+
+  it("shows read-only storage usage with a fallback when the API is missing", async () => {
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: {
+        estimate: () => Promise.resolve({ usage: 5.25 * 1024 * 1024, quota: 2048 * 1024 * 1024 }),
+      },
+    });
+    renderSettings();
+    openSettings();
+    openTab("Advanced");
+    await act(async () => undefined);
+    expect(dialog().textContent).toContain("Using 5.3 MB of 2048 MB");
+    expect(
+      Array.from(dialog().querySelectorAll("button")).some((b) =>
+        /clear|delete/i.test(b.textContent ?? ""),
+      ),
+    ).toBe(false);
+
+    Reflect.deleteProperty(navigator, "storage");
+    openTab("Interface");
+    openTab("Advanced");
+    await act(async () => undefined);
+    expect(dialog().textContent).toContain("Not available in this browser");
+  });
 });

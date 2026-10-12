@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { getAppPreferences } from "../utils/appPreferences";
 import { createSaveStatusStore } from "./saveStatus";
 import { requestPersistentStorageAfterSave } from "../services/storagePersistence";
-import { enqueueAutosave, isAutosaveReady, isSessionPersistable } from "./autosave";
+import { enqueueAutosave, isAutosaveReady, isSessionPersistable, shouldConfirmClose } from "./autosave";
 import {
   canActivatePdf,
   PdfLoadLifecycle,
@@ -432,7 +432,7 @@ export function usePdfSessionLifecycle({
         })
         .finally(finishAutosave);
     };
-    const timer = window.setTimeout(queueAutosave, 300);
+    const timer = window.setTimeout(queueAutosave, getAppPreferences().autosaveDelayMs);
     const handleBeforeUnload = () => {
       if (generation !== persistenceGenerationRef.current) return;
       window.clearTimeout(timer);
@@ -493,6 +493,24 @@ export function usePdfSessionLifecycle({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [activePdf, autosaveStatus, pdfBlob, reportAutosaveFailure, session, saveStatusStore, confirmSavedSnapshot]);
+
+  useEffect(() => {
+    const handleConfirmClose = (event: BeforeUnloadEvent) => {
+      if (
+        !shouldConfirmClose(
+          getAppPreferences().confirmBeforeClosing,
+          currentSessionRef.current,
+          persistedSessionRef.current,
+        )
+      ) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleConfirmClose);
+    return () => window.removeEventListener("beforeunload", handleConfirmClose);
+  }, []);
 
   async function activatePdf(candidate: PendingPdf, requiresPendingConfirmation = false) {
     await enqueueActiveProjectOperation(async () => {

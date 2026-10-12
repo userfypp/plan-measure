@@ -186,9 +186,7 @@ describe("ViewerDock", () => {
     expect(trigger.textContent).toContain("Ground floor");
     expect(trigger.textContent).toContain("1:100 · Uniform");
     expect(trigger.getAttribute("aria-label")).toContain("Ground floor");
-    expect(trigger.querySelector<HTMLElement>("[data-scale-full-name]")?.textContent).toBe(
-      "Ground floor",
-    );
+    expect(trigger.querySelector("[data-scale-full-name]")).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
     act(() => trigger.click());
@@ -243,7 +241,9 @@ describe("ViewerDock", () => {
     expect(props.onApplyCopiedScale).toHaveBeenCalledOnce();
 
     renderDock(createProps());
-    expect(document.querySelector('button[aria-label="Apply copied scale to this page"]')).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Apply copied scale to this page"]'),
+    ).toBeNull();
   });
 
   it("keeps every essential Dock command present for deterministic visual condensation", () => {
@@ -594,16 +594,17 @@ describe("ViewerDock", () => {
 
     const dialogElement = document.querySelector('[role="dialog"][aria-label="View options"]')!;
     const select = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
-      (candidate) => candidate.getAttribute("aria-label") === null && candidate.textContent === "Metres",
+      (candidate) =>
+        candidate.getAttribute("aria-label") === null && candidate.textContent === "Metres",
     );
     const areaSelect = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
       (candidate) => candidate.textContent === "Auto",
     );
     if (!select || !areaSelect) throw new Error("View selectors were not rendered.");
     const items = () =>
-      Array.from(
-        document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
-      ).map((item) => item.textContent);
+      Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')).map(
+        (item) => item.textContent,
+      );
 
     act(() => select.click());
     expect(items()).toEqual([

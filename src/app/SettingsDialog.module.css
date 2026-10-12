@@ -234,6 +234,13 @@ dialog.dialog {
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
+.storageUsage {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+}
+
 .resetRow {
   min-width: 0;
   display: grid;
