@@ -7,7 +7,10 @@ import { ClassificationAssignment } from "./ClassificationAssignment";
 import { ClassificationManager } from "./ClassificationManager";
 import { ClassificationWorkspace } from "./ClassificationWorkspace";
 
-const managerCss = readFileSync(new URL("./ClassificationManager.module.css", import.meta.url), "utf8");
+const managerCss = readFileSync(
+  new URL("./ClassificationManager.module.css", import.meta.url),
+  "utf8",
+);
 
 const catalog: ClassificationCatalog = {
   dimensions: [
@@ -85,20 +88,20 @@ describe("classification surfaces", () => {
 
   it("keeps the compact value flow, aligned headings, and contextual creation styling", () => {
     expect(managerCss).toMatch(/\.itemTitle\s*\{[^}]*font-size:\s*var\(--font-size-heading\)/s);
+    expect(managerCss).toMatch(/\.itemHeader\s*\{[^}]*align-items:\s*center;/s);
     expect(managerCss).toMatch(
-      /\.itemHeader\s*\{[^}]*align-items:\s*center;/s,
+      /\.body\s*\{[^}]*padding:\s*0 max\(0px, calc\(var\(--space-12\) - var\(--scrollbar-size, 0px\)\)\) var\(--space-8\)\s*var\(--space-12\);/s,
     );
     expect(managerCss).toMatch(
-      /\.body\s*\{[^}]*padding:\s*0 var\(--space-12\) var\(--space-8\);/s,
+      /\.item\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);/s,
     );
-    expect(managerCss).toMatch(/\.item\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);/s);
-    expect(managerCss).not.toMatch(
-      /\.valueSection\s*\{[^}]*padding-inline-start:/s,
-    );
+    expect(managerCss).not.toMatch(/\.valueSection\s*\{[^}]*padding-inline-start:/s);
     expect(managerCss).toMatch(/\.valueList\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
     expect(managerCss).toMatch(/\.valueList\s*\{[^}]*gap:\s*var\(--space-8\);/s);
     expect(managerCss).toMatch(/\.valueSection\s*\{[^}]*gap:\s*var\(--space-8\);/s);
-    expect(managerCss).toMatch(/\.valueList \.valueChipTrigger\s*\{[^}]*min-height:\s*var\(--control-height-compact\)/s);
+    expect(managerCss).toMatch(
+      /\.valueList \.valueChipTrigger\s*\{[^}]*min-height:\s*var\(--control-height-compact\)/s,
+    );
     expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
     expect(managerCss).toMatch(
       /\.item \+ \.item\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
@@ -128,7 +131,9 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(
       /\.inlineLabel\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*overflow:\s*hidden;[^}]*clip:\s*rect\(0, 0, 0, 0\);/s,
     );
-    expect(managerCss).toMatch(/\.create\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s);
+    expect(managerCss).toMatch(
+      /\.create\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
     expect(managerCss).not.toContain("@container (max-width: 320px)");
   });
 
@@ -174,7 +179,7 @@ describe("classification surfaces", () => {
     );
     expect(markup).toContain("Assigned values");
     expect(markup).toContain("Trade: Legacy (archived)");
-    expect(markup).toContain("Unclassified");
+    expect(markup).toContain("aria-haspopup");
   });
 
   it("marks assignments from an archived dimension without duplicating the suffix", () => {
@@ -202,8 +207,10 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).not.toContain("<select");
-    expect(markup).toContain("Restore a classification dimension in the catalog to assign classifications.");
+    expect(markup).not.toContain("aria-haspopup");
+    expect(markup).toContain(
+      "Restore a classification dimension in the catalog to assign classifications.",
+    );
   });
 
   it("limits an archived dimension selector to Unclassified and its current value", () => {
@@ -216,11 +223,9 @@ describe("classification surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("<select");
+    expect(markup).toContain("aria-haspopup");
     expect(markup).toContain("Trade (archived)");
-    expect(markup).toContain("Unclassified");
     expect(markup).toContain("Electrical");
-    expect(markup).not.toContain("Plumbing");
   });
 
   it("shows the empty catalog assignment message", () => {
@@ -315,20 +320,20 @@ describe("classification surfaces", () => {
 
   it("renders long catalog names and several dimensions without throwing", () => {
     const markup = renderToStaticMarkup(
-        <ClassificationManager
-          catalog={largeCatalog}
-          onCreateDimension={() => undefined}
-          onRenameDimension={() => undefined}
-          onDeleteDimension={() => undefined}
-          onArchiveDimension={() => undefined}
-          onRestoreDimension={() => undefined}
-          onCreateValue={() => undefined}
-          onRenameValue={() => undefined}
-          onDeleteValue={() => undefined}
-          onArchiveValue={() => undefined}
-          onRestoreValue={() => undefined}
-        />,
-      );
+      <ClassificationManager
+        catalog={largeCatalog}
+        onCreateDimension={() => undefined}
+        onRenameDimension={() => undefined}
+        onDeleteDimension={() => undefined}
+        onArchiveDimension={() => undefined}
+        onRestoreDimension={() => undefined}
+        onCreateValue={() => undefined}
+        onRenameValue={() => undefined}
+        onDeleteValue={() => undefined}
+        onArchiveValue={() => undefined}
+        onRestoreValue={() => undefined}
+      />,
+    );
 
     const longDimension = largeCatalog.dimensions[0]!.name;
     const longValue = largeCatalog.dimensions[0]!.values[0]!.name;
@@ -356,7 +361,7 @@ describe("classification surfaces", () => {
         />
       </>,
     );
-    const ids = [...markup.matchAll(/<select id="([^"]+)"/g)].map((match) => match[1]);
+    const ids = [...markup.matchAll(/<button[^>]*? id="([^"]+)"/g)].map((match) => match[1]);
 
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(ids.length);

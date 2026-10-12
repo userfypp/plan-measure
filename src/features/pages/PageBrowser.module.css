@@ -1,15 +1,18 @@
 .panel {
-  --page-browser-width: 240px;
   position: absolute;
-  z-index: 4;
+  z-index: var(--z-cursor);
   top: 0;
   left: 0;
   bottom: 0;
-  width: min(var(--page-browser-width), var(--geometry-workspace-panel-width), 100%);
+  width: min(
+    var(--geometry-page-browser-width),
+    var(--geometry-workspace-panel-width),
+    100%
+  );
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: var(--border-width) solid var(--color-control-hover-border);
+  border-right: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-overlay);
@@ -20,7 +23,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 44px;
+  min-height: var(--target-coarse);
   flex: 0 0 auto;
   padding: var(--space-4) var(--space-12);
   border-bottom: var(--border-width) solid var(--color-divider);
@@ -28,6 +31,7 @@
 .header h2 {
   margin: 0;
   font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
 }
 .heading {
@@ -49,7 +53,7 @@
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
-  stroke-width: 1.5;
+  stroke-width: var(--icon-stroke-width);
 }
 .panel .iconButton {
   width: var(--target-current);
@@ -81,18 +85,24 @@
   background: var(--color-surface-field);
   color: var(--color-text-primary);
   font: inherit;
+  font-weight: var(--font-weight-medium);
 }
-.controls input:hover {
+.controls input:hover:not(:disabled) {
   border-color: var(--color-control-hover-border);
 }
+.controls input:disabled {
+  border-color: var(--color-divider);
+  background: var(--color-surface-panel);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
 .controls input[aria-invalid="true"] {
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-semantic);
 }
 .search {
   position: relative;
 }
 .search input {
-  min-height: var(--control-height-compact);
   padding-right: calc(var(--target-current) + var(--space-8));
 }
 .clearSearch {
@@ -114,13 +124,13 @@
   outline-offset: calc(-1 * var(--focus-width));
 }
 .goTo input {
-  width: 48px;
-  flex: 0 0 48px;
+  width: var(--geometry-page-goto-input-width);
+  flex: 0 0 var(--geometry-page-goto-input-width);
   min-height: calc(var(--control-height-compact) - 2 * var(--border-width));
   border: 0;
   background: transparent;
   text-align: center;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--font-variant-numeric-quantities);
   appearance: textfield;
 }
 .goTo input::-webkit-inner-spin-button,
@@ -154,8 +164,8 @@
   outline-offset: calc(-1 * var(--focus-width));
 }
 .numberField[data-invalid="true"] {
-  border-color: var(--color-danger);
-  outline-color: var(--color-danger);
+  border-color: var(--color-danger-semantic);
+  outline-color: var(--color-danger-semantic);
 }
 .goTo span {
   color: var(--color-text-secondary);
@@ -176,6 +186,7 @@
   line-height: var(--line-height-secondary);
 }
 .list {
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -190,13 +201,16 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
-  border: var(--focus-width) solid transparent;
+  border: var(--geometry-selection-indicator-width) solid transparent;
   border-radius: var(--radius-control);
   padding: var(--space-4) var(--space-8);
   cursor: pointer;
 }
 .row:hover {
   background: var(--color-control-hover-surface);
+}
+.row:active {
+  background: var(--color-control-active-surface);
 }
 .row[aria-current="page"] {
   border-color: var(--color-accent);
@@ -207,16 +221,15 @@
   outline-offset: calc(-1 * var(--focus-width));
 }
 .thumbnail {
-  width: 144px;
-  height: 104px;
-  flex: 0 0 104px;
+  width: var(--geometry-page-thumbnail-width);
+  height: var(--geometry-page-thumbnail-height);
+  flex: 0 0 var(--geometry-page-thumbnail-height);
   display: grid;
   place-items: center;
   overflow: hidden;
   border: var(--border-width) solid var(--color-control-hover-border);
   background: var(--color-surface-field);
   color: var(--color-text-secondary);
-  box-shadow: var(--shadow-overlay);
 }
 .thumbnail canvas {
   width: auto;
@@ -257,33 +270,59 @@
     );
     left: var(--geometry-context-toolbar-left);
     width: min(
-      var(--page-browser-width),
+      var(--geometry-page-browser-width),
       var(--geometry-workspace-drawer-width),
       calc(100% - var(--geometry-context-toolbar-left))
     );
   }
   .panel button {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: var(--control-height-regular);
+    min-height: var(--control-height-regular);
   }
   .panel .iconButton {
-    width: max(40px, var(--target-current));
-    min-width: max(40px, var(--target-current));
-    height: max(40px, var(--target-current));
-    min-height: max(40px, var(--target-current));
-    flex-basis: max(40px, var(--target-current));
+    width: var(--control-height-regular);
+    min-width: var(--control-height-regular);
+    height: var(--control-height-regular);
+    min-height: var(--control-height-regular);
+    flex-basis: var(--control-height-regular);
   }
   .controls input {
-    min-height: max(40px, var(--target-current));
+    min-height: var(--control-height-regular);
   }
   .goTo input {
-    min-height: calc(max(40px, var(--target-current)) - 2 * var(--border-width));
+    min-height: calc(var(--control-height-regular) - 2 * var(--border-width));
   }
   .search input {
-    min-height: max(40px, var(--target-current));
-    padding-right: calc(max(40px, var(--target-current)) + var(--space-8));
+    min-height: var(--control-height-regular);
+    padding-right: calc(var(--control-height-regular) + var(--space-8));
   }
   .list {
-    margin-bottom: var(--viewer-dock-bottom-exclusion, 68px);
+    margin-bottom: var(
+      --viewer-dock-bottom-exclusion,
+      calc(var(--geometry-viewer-dock-height-coarse) + var(--geometry-viewer-dock-bottom-inset))
+    );
   }
+}
+
+.skeletonBar {
+  height: var(--control-height-compact);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+}
+.skeletonList {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-16);
+  overflow: hidden;
+  padding: var(--space-8);
+}
+.skeletonThumbnail {
+  width: var(--geometry-page-thumbnail-width);
+  height: var(--geometry-page-thumbnail-height);
+  flex: 0 0 var(--geometry-page-thumbnail-height);
+  border: var(--border-width) solid var(--color-control-hover-border);
+  background: var(--color-surface-field);
 }

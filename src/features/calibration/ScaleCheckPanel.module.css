@@ -1,12 +1,15 @@
+.checkControls {
+  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+}
+
+.checkResult {
+  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+}
+
 .checkControls,
 .checkResult {
   min-width: 0;
   max-width: 100%;
-  color: var(--color-text-primary);
-  background: var(--color-surface-raised);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  box-shadow: var(--shadow-overlay);
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
   pointer-events: auto;
@@ -30,6 +33,7 @@
   overflow: hidden;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -39,7 +43,7 @@
 }
 
 .checkOverlay {
-  z-index: 3;
+  z-index: var(--z-feedback);
 }
 
 .checkOverlay.resultOverlay {
@@ -59,7 +63,8 @@
 }
 
 .checkResult {
-  width: 320px;
+  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  width: var(--geometry-viewer-popover-width);
   max-height: 100%;
   display: grid;
   gap: var(--space-16);
@@ -150,7 +155,7 @@
 
 .differences dd {
   font-size: var(--font-size-result);
-  line-height: 1.2;
+  line-height: var(--line-height-result);
 }
 
 .differences .unavailable {
@@ -176,4 +181,11 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+:global(:root[data-targets="large"]) .checkOverlay.resultOverlay {
+  top: calc(
+    var(--geometry-context-toolbar-top) + var(--geometry-context-toolbar-height-coarse) +
+      var(--space-12)
+  );
 }

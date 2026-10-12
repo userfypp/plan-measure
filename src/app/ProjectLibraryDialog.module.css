@@ -11,11 +11,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-24);
-  padding: var(--space-12);
+  gap: var(--space-16);
+  min-height: calc(var(--control-height-compact) + var(--space-16));
+  padding: var(--space-8) var(--space-12);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   background: var(--color-surface-panel);
+  transition: var(--transition-interactive);
+}
+
+.project:hover {
+  background: var(--color-control-hover-surface);
 }
 
 .projectInfo {
@@ -23,7 +29,10 @@
 }
 
 .projectActions {
+  /* Fixed-size icon buttons: Open, Export and Discard never change width or position. */
+  --control-height-regular: var(--control-height-compact);
   display: flex;
+  flex: none;
   align-items: center;
   justify-self: end;
   justify-content: flex-end;
@@ -43,14 +52,14 @@
   margin: 0;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .projectInfo p {
-  margin-top: var(--space-4) !important;
+  margin-top: 0 !important;
   font-size: var(--font-size-secondary);
 }
 
@@ -81,7 +90,7 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .emptyState h3 {
@@ -107,24 +116,15 @@
   max-width: 420px;
 }
 
-@media (max-width: 640px) {
-  .project {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-12);
-  }
-
-  .projectActions {
-    flex-wrap: wrap;
-  }
-}
-
 @media (max-width: 520px) {
-  .projectActions {
-    justify-self: stretch;
-  }
-
   .actions > * {
     flex: 1 1 calc(50% - var(--space-8));
   }
+}
+
+.hiddenNote {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }

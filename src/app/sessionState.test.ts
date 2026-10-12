@@ -14,10 +14,24 @@ function session(): CurrentSession {
 }
 
 describe("SessionState", () => {
+  it("resets the label classification when its dimension is deleted", () => {
+    const state: SessionCommandResult = { session: session(), error: null };
+    state.session!.classificationCatalog.dimensions = [
+      { id: "trade", name: "Trade", archived: false, values: [] },
+      { id: "phase", name: "Phase", archived: false, values: [] },
+    ];
+    state.session!.settings.labelClassificationDimensionId = "trade";
+
+    const other = sessionReducer(state, { type: "DELETE_CLASSIFICATION_DIMENSION", id: "phase" });
+    expect(other.session?.settings.labelClassificationDimensionId).toBe("trade");
+    const deleted = sessionReducer(other, { type: "DELETE_CLASSIFICATION_DIMENSION", id: "trade" });
+    expect(deleted.session?.settings.labelClassificationDimensionId).toBeNull();
+  });
+
   it("creates a V12 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(13);
+    expect(created.schemaVersion).toBe(14);
     expect(created.pageLabelOverrides).toEqual({});
     expect(created.settings.measurementDecimalPlaces).toBe(2);
     expect(created.settings.areaDisplay).toBe("auto");
@@ -34,7 +48,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(13);
+    expect(loaded.session?.schemaVersion).toBe(14);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -100,7 +114,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(13);
+    expect(state.session?.schemaVersion).toBe(14);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });

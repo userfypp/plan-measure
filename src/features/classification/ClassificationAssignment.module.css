@@ -2,7 +2,7 @@
   display: grid;
   gap: var(--space-8);
   padding-top: var(--space-12);
-  border-top: var(--border-width) solid var(--color-border);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
 .compact {
@@ -20,17 +20,17 @@
 
 .title {
   margin: 0;
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
+  line-height: var(--line-height-base);
 }
 
 .chips {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-group-gap);
+  gap: 0;
 }
 
 .field {
@@ -38,9 +38,10 @@
   gap: var(--space-4);
   min-width: 0;
   justify-items: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
   text-align: center;
 }
 
@@ -50,27 +51,16 @@
   overflow-wrap: anywhere;
 }
 
-.field select {
-  width: 100%;
-  min-height: var(--control-height-regular);
-  padding: 0 var(--space-16) 0 var(--space-8);
-  background-color: var(--color-surface);
-}
-
-.field select:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.field select:disabled {
-  cursor: not-allowed;
-  opacity: var(--opacity-disabled);
+.compact .field {
+  justify-items: stretch;
+  text-align: left;
 }
 
 .valueTrigger {
+  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
   width: 100%;
   min-width: 0;
-  min-height: var(--target-current);
+  min-height: var(--control-height-compact);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   padding: 0 var(--space-8);
@@ -79,6 +69,7 @@
   font-family: var(--font-family-sans);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
   text-align: left;
   transition: var(--transition-interactive);
 }
@@ -108,17 +99,11 @@
   background: var(--color-selection-surface);
 }
 
-.valueTrigger:disabled {
-  border-color: var(--color-divider);
-  background: var(--color-surface-panel);
-  color: var(--color-text-disabled);
-}
-
 .valueTriggerContent {
   min-width: 0;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size);
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size-small);
   align-items: center;
   gap: var(--space-8);
 }
@@ -131,14 +116,7 @@
 }
 
 .valueTriggerContent svg {
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: transform 120ms ease;
+  justify-self: end;
 }
 
 .valueTrigger[aria-expanded="true"] .valueTriggerContent svg {
@@ -147,9 +125,9 @@
 
 .empty {
   margin: 0;
-  color: var(--color-warning);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  color: var(--color-status-warning);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }
 
 @media (prefers-reduced-motion: reduce) {

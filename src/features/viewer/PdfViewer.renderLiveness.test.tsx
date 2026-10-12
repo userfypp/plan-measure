@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { chooseSelectOption } from "../../components/ui/selectTestUtils";
 import {
   act,
   forwardRef,
@@ -1854,9 +1855,14 @@ describe("PdfViewer render liveness", () => {
     await press("e"); await press("ArrowDown");
     expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).not.toEqual(page.measurements[0]!.points);
     // Interacting with the target selector must preserve the keyboard edit.
-    const select = container.querySelector<HTMLSelectElement>('[data-keyboard-controls] select')!;
-    await act(async () => select.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
-    await act(async () => { select.value = "1"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    const select = container.querySelector<HTMLButtonElement>('[data-keyboard-controls] button[aria-haspopup="menu"]')!;
+    // A pointerdown on the portaled list bubbles through React but must not cancel the edit.
+    act(() => select.click());
+    const option = document.body.querySelector<HTMLElement>('[role="menuitemradio"]')!;
+    await act(async () => option.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 })));
+    expect(container.querySelector('[data-keyboard-controls]')).not.toBeNull();
+    act(() => select.click());
+    chooseSelectOption(select, "Vertex 2 of 2");
     expect(container.querySelector('[data-keyboard-controls]')!.textContent).toContain("Keyboard editing");
     expect(document.activeElement).toBe(viewer);
     await press("ArrowDown");

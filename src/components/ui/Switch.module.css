@@ -1,7 +1,7 @@
 .target {
   position: relative;
-  width: 36px;
-  height: 20px;
+  width: var(--switch-width);
+  height: var(--switch-height);
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
@@ -18,37 +18,34 @@
 
 .track {
   position: relative;
-  width: 36px;
-  height: 20px;
-  border: var(--border-width) solid var(--color-switch-off-border);
-  border-radius: var(--radius-control);
-  background-color: var(--color-surface-field);
+  width: var(--switch-width);
+  height: var(--switch-height);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-switch-off-track);
   cursor: pointer;
   transition: var(--transition-interactive);
 }
 
 .track::before {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-control);
-  background: var(--color-text-disabled);
+  top: var(--switch-thumb-offset);
+  left: var(--switch-thumb-offset);
+  width: var(--switch-thumb-size);
+  height: var(--switch-thumb-size);
+  border-radius: 50%;
+  background: var(--color-switch-thumb);
+  box-shadow: var(--shadow-switch-thumb);
   content: "";
-  transition:
-    transform 120ms ease,
-    background-color 120ms ease;
+  transition: var(--transition-transform);
 }
 
 .target:not([data-disabled="true"]) .track:hover {
-  border-color: var(--color-control-active-border);
-  background-color: var(--color-control-hover-surface);
+  background-color: var(--color-control-active-border);
 }
 
 .target:not([data-disabled="true"]) .track:active {
-  border-color: var(--color-text-secondary);
-  background-color: var(--color-control-active-surface);
+  background-color: var(--color-text-secondary);
 }
 
 .input:focus-visible + .track {
@@ -57,22 +54,18 @@
 }
 
 .input:checked + .track {
-  border-color: var(--color-accent);
   background-color: var(--color-accent);
 }
 
 .input:checked + .track::before {
-  background: var(--color-on-primary);
-  transform: translateX(16px);
+  transform: translateX(var(--switch-thumb-travel));
 }
 
 .target:not([data-disabled="true"]) .input:checked + .track:hover {
-  border-color: var(--color-accent-hover-semantic);
   background-color: var(--color-accent-hover-semantic);
 }
 
 .target:not([data-disabled="true"]) .input:checked + .track:active {
-  border-color: var(--color-accent-active-semantic);
   background-color: var(--color-accent-active-semantic);
 }
 
@@ -92,4 +85,9 @@
   .track::before {
     transition: none;
   }
+}
+
+:global(:root[data-targets="large"]) .target {
+  width: var(--target-coarse);
+  height: var(--target-coarse);
 }

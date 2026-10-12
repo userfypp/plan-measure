@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getAppPreferences } from "../utils/appPreferences";
 import { useAppState } from "./state";
 import type {
   CalibrationReferenceKey,
@@ -225,7 +226,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     pdf,
     pageCount,
     currentPage: 1,
@@ -239,6 +240,7 @@ export function createEmptySession(
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
+      labelClassificationDimensionId: null,
       ...settings,
     },
     classificationCatalog: { dimensions: [] },
@@ -882,6 +884,10 @@ export function sessionReducer(
         ...state,
         session: {
           ...state.session,
+          settings:
+            deletingDimension && state.session.settings.labelClassificationDimensionId === dimensionId
+              ? { ...state.session.settings, labelClassificationDimensionId: null }
+              : state.session.settings,
           classificationCatalog: {
             dimensions: deletingDimension
               ? dimensions.filter((candidate) => candidate.id !== dimensionId)
@@ -1309,7 +1315,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         sessionRef.current &&
         result.session !== sessionRef.current
       ) {
-        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(-100);
+        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(-getAppPreferences().undoDepth);
         redoStackRef.current = [];
         updateHistoryState();
       }
@@ -1339,7 +1345,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const next = redoStackRef.current.pop();
     const current = sessionRef.current;
     if (!next || !current) return;
-    undoStackRef.current = [...undoStackRef.current, current].slice(-100);
+    undoStackRef.current = [...undoStackRef.current, current].slice(-getAppPreferences().undoDepth);
     const restored = {
       ...next,
       currentPage: current.currentPage,

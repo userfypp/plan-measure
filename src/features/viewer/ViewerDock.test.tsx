@@ -16,6 +16,7 @@ import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
 
 const dockCss = readFileSync("src/features/viewer/ViewerDock.module.css", "utf8");
 const buttonCss = readFileSync("src/components/ui/Button.module.css", "utf8");
+const controlStatesCss = readFileSync("src/components/ui/controlStates.module.css", "utf8");
 const popoverCss = readFileSync("src/components/ui/Popover.module.css", "utf8");
 
 let root: Root | null = null;
@@ -185,9 +186,7 @@ describe("ViewerDock", () => {
     expect(trigger.textContent).toContain("Ground floor");
     expect(trigger.textContent).toContain("1:100 · Uniform");
     expect(trigger.getAttribute("aria-label")).toContain("Ground floor");
-    expect(trigger.querySelector<HTMLElement>("[data-scale-full-name]")?.textContent).toBe(
-      "Ground floor",
-    );
+    expect(trigger.querySelector("[data-scale-full-name]")).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
     act(() => trigger.click());
@@ -242,7 +241,9 @@ describe("ViewerDock", () => {
     expect(props.onApplyCopiedScale).toHaveBeenCalledOnce();
 
     renderDock(createProps());
-    expect(document.querySelector('button[aria-label="Apply copied scale to this page"]')).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Apply copied scale to this page"]'),
+    ).toBeNull();
   });
 
   it("keeps every essential Dock command present for deterministic visual condensation", () => {
@@ -306,8 +307,9 @@ describe("ViewerDock", () => {
       act(() => control.focus());
       expect(document.activeElement).toBe(control);
     }
-    expect(buttonCss).toMatch(
-      /\.button:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
+    expect(buttonCss).toMatch(/composes:[^;]*\bfocusRing\b[^;]*controlStates\.module\.css/);
+    expect(controlStatesCss).toMatch(
+      /\.focusRing:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
     );
     expect(popoverCss).toMatch(
       /\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
@@ -350,7 +352,7 @@ describe("ViewerDock", () => {
   it("uses bounded content sizing and deterministic condensation instead of hidden scrolling", () => {
     expect(dockCss).toContain("width: fit-content");
     expect(dockCss).toContain("width: auto");
-    expect(dockCss).toContain("max-width: min(220px, 30vw)");
+    expect(dockCss).toContain("max-width: min(var(--geometry-viewer-scale-max-width), 30vw)");
     expect(dockCss).not.toContain("overflow-x: auto");
     expect(dockCss).not.toContain("scrollbar-width: none");
     expect(dockCss).toContain("@container (max-width: 600px)");
@@ -590,36 +592,46 @@ describe("ViewerDock", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
-    const selects = Array.from(
-      document.querySelectorAll<HTMLSelectElement>('[role="dialog"] select'),
+    const dialogElement = document.querySelector('[role="dialog"][aria-label="View options"]')!;
+    const select = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) =>
+        candidate.getAttribute("aria-label") === null && candidate.textContent === "Metres",
     );
-    const [select, areaSelect] = selects;
+    const areaSelect = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent === "Auto",
+    );
     if (!select || !areaSelect) throw new Error("View selectors were not rendered.");
-    expect(Array.from(select.options).map((option) => [option.value, option.textContent])).toEqual([
-      ["mm", "Millimetres"],
-      ["cm", "Centimetres"],
-      ["m", "Metres"],
-      ["in", "Inches"],
-      ["ft", "Feet"],
-      ["ft-in", "Feet & inches"],
+    const items = () =>
+      Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')).map(
+        (item) => item.textContent,
+      );
+
+    act(() => select.click());
+    expect(items()).toEqual([
+      "Millimetres",
+      "Centimetres",
+      "Metres",
+      "Inches",
+      "Feet",
+      "Feet & inches",
     ]);
-    expect(
-      Array.from(areaSelect.options).map((option) => [option.value, option.textContent]),
-    ).toEqual([
-      ["auto", "Auto"],
-      ["ac", "Acres"],
-    ]);
-    act(() => {
-      select.value = "ft-in";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')[5]!.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ displayUnit: "ft-in" });
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 
-    act(() => {
-      areaSelect.value = "ac";
-      areaSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => areaSelect.click());
+    expect(items()).toEqual(["Auto", "Acres"]);
+    act(() =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(items()).toEqual([]);
+    expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
+    expect(document.activeElement).toBe(areaSelect);
+
+    act(() => areaSelect.click());
+    act(() => document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')[1]!.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ areaDisplay: "ac" });
     expect(document.querySelector('[role="dialog"][aria-label="View options"]')).not.toBeNull();
 

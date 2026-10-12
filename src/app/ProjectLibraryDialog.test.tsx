@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SavedProjectSummary } from "../services/persistence";
 import buttonStyles from "../components/ui/Button.module.css";
 import dialogStyles from "../components/ui/Dialog.module.css";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
 
 const projects: SavedProjectSummary[] = [
@@ -134,7 +135,7 @@ describe("ProjectLibraryDialog", () => {
     const currentButton = container?.querySelector<HTMLButtonElement>(
       'button[aria-label="Current project Level 01.pdf"]',
     );
-    expect(currentButton?.textContent).toBe("Current");
+    expect(currentButton).not.toBeNull();
     expect(currentButton?.getAttribute("aria-disabled")).toBe("true");
     const openButton = container?.querySelector<HTMLButtonElement>(
       'button[aria-label="Open project Level 02.pdf"]',
@@ -149,9 +150,19 @@ describe("ProjectLibraryDialog", () => {
       ...row.querySelectorAll<HTMLButtonElement>("button"),
     ]);
     expect(projectButtons).toHaveLength(6);
-    expect(projectButtons.every((button) => button.classList.contains(buttonStyles.compact!))).toBe(
-      true,
-    );
+    expect(projectButtons.every((button) => button.textContent === "")).toBe(true);
+    expect(
+      [...(projectRows ?? [])].map((row) =>
+        [...row.querySelectorAll("button")].map((button) => button.getAttribute("aria-label")),
+      ),
+    ).toEqual([
+      [
+        "Current project Level 01.pdf",
+        "Export project Level 01.pdf",
+        "Discard project Level 01.pdf",
+      ],
+      ["Open project Level 02.pdf", "Export project Level 02.pdf", "Discard project Level 02.pdf"],
+    ]);
     act(() => openButton.click());
 
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("other");
@@ -161,19 +172,62 @@ describe("ProjectLibraryDialog", () => {
     if (!exportButton) throw new Error("The project export action was not rendered.");
     act(() => exportButton.click());
     expect(callbacks.onExportProject).toHaveBeenCalledWith("other");
-    const discardButton = [...(projectRows?.[1]?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent === "Discard",
+    const discardButton = projectRows?.[1]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Discard project Level 02.pdf"]',
     );
     if (!discardButton) throw new Error("The project discard action was not rendered.");
     act(() => discardButton.click());
     expect(callbacks.onRequestDiscard).toHaveBeenCalledWith("other");
   });
 
+  it("opens a project whose id is still active after the session was lost (Fast Refresh desync)", () => {
+    const stale = projects.map((project) => ({ ...project, isCurrent: false }));
+    const callbacks = render({
+      savedProjects: stale,
+      currentSessionLoaded: false,
+      activeProjectId: "current",
+    });
+    const button = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open project Level 01.pdf"]',
+    );
+    if (!button) throw new Error("The open action was not rendered.");
+    expect(button.getAttribute("aria-disabled")).toBeNull();
+    act(() => button.click());
+    expect(callbacks.onOpenProject).toHaveBeenCalledWith("current");
+  });
+
+  it("keeps the already-open reason out of the layout until the active project button is hovered", () => {
+    const matches = Element.prototype.matches;
+    const spy = vi.spyOn(Element.prototype, "matches").mockImplementation(function (
+      this: Element,
+      selector: string,
+    ) {
+      return selector === ":focus-visible" ? false : matches.call(this, selector);
+    });
+    const callbacks = render();
+    const button = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Current project Level 01.pdf"]',
+    );
+    if (!button) throw new Error("The current project action was not rendered.");
+    const reason = container?.querySelector<HTMLElement>(
+      `[id="${button.getAttribute("aria-describedby")}"]`,
+    );
+    expect(reason?.hidden).toBe(true);
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    act(() => button.parentElement?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+      "This project is already open.",
+    );
+    act(() => button.click());
+    expect(callbacks.onOpenProject).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   it("offers a continue action before restoring the current project and supports an empty library", () => {
     const onOpenPdf = vi.fn();
     const callbacks = render({ currentSessionLoaded: false, onOpenPdf });
-    const continueButton = [...(container?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent === "Continue",
+    const continueButton = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Continue project Level 01.pdf"]',
     );
     if (!continueButton) throw new Error("The current project continue action was not rendered.");
     act(() => continueButton.click());
@@ -278,5 +332,30 @@ describe("ProjectLibraryDialog", () => {
     act(() => discard.click());
     expect(onCancelDiscard).toHaveBeenCalledOnce();
     expect(onConfirmDiscard).toHaveBeenCalledWith("current");
+  });
+
+  it("limits the list to the most recent projects when the preference asks for it", () => {
+    const many: SavedProjectSummary[] = Array.from({ length: 12 }, (_, index) => ({
+      id: `project-${index}`,
+      name: `Plan ${index}.pdf`,
+      pageCount: 1,
+      savedAt: 1_800_000_000_000 - index,
+      isCurrent: false,
+    }));
+    const rows = () => container?.querySelectorAll('[aria-label="Saved projects"] > li').length;
+    render({ savedProjects: many });
+    expect(rows()).toBe(12);
+    expect(container?.textContent).not.toContain("most recent");
+    try {
+      setAppPreference("projectsShown", "10");
+      render({ savedProjects: many });
+      expect(rows()).toBe(10);
+      expect(container?.textContent).toContain("Showing the 10 most recent of 12 projects.");
+      setAppPreference("projectsShown", "25");
+      render({ savedProjects: many });
+      expect(rows()).toBe(12);
+    } finally {
+      resetAppPreferences();
+    }
   });
 });

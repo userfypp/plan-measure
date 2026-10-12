@@ -4,7 +4,7 @@
   min-width: 0;
   min-height: var(--geometry-measurement-row-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--target-current);
+  grid-template-columns: minmax(0, 1fr) calc(var(--target-current) + var(--tree-edge-end, 0px));
   align-items: stretch;
   padding-right: 0;
   border-bottom: var(--border-width) solid var(--color-divider);
@@ -13,9 +13,25 @@
 
 .row::before {
   position: absolute;
-  z-index: 0;
-  inset: 0 calc(-1 * var(--measurement-row-inline-bleed, 0px));
+  z-index: var(--z-base);
+  inset: 0;
   background: transparent;
+  content: "";
+  pointer-events: none;
+}
+
+/* Guías del árbol: continúan las de las cabeceras (0 líneas en la lista plana). */
+.row::after {
+  position: absolute;
+  z-index: var(--z-raised);
+  inset-block: 0;
+  left: var(--geometry-tree-inset-start);
+  width: calc(var(--tree-row-depth, 0) * var(--tree-indent, 0px));
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 calc(var(--tree-indent, 0px) - var(--border-width)),
+    var(--color-divider) calc(var(--tree-indent, 0px) - var(--border-width)) var(--tree-indent, 0px)
+  );
   content: "";
   pointer-events: none;
 }
@@ -34,12 +50,15 @@
 
 .selectionMarker {
   position: absolute;
-  z-index: 1;
-  top: 12px;
-  bottom: 12px;
+  z-index: var(--z-raised);
+  top: var(--space-12);
+  bottom: var(--space-12);
   left: 0;
-  width: var(--measurement-selection-marker-width, 3px);
-  border-radius: 2px;
+  width: var(
+    --measurement-selection-marker-width,
+    var(--geometry-measurement-selection-marker-width)
+  );
+  border-radius: var(--radius-control);
   background: transparent;
   pointer-events: none;
 }
@@ -49,8 +68,9 @@
 }
 
 .selection {
+  composes: focusRing from "../../components/ui/controlStates.module.css";
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
   min-width: 0;
   min-height: var(--geometry-measurement-row-height);
   display: grid;
@@ -60,29 +80,20 @@
   border: var(--border-width) solid transparent;
   border-radius: 0;
   padding: var(--space-4) var(--space-8) var(--space-4)
-    calc(var(--space-12) + var(--measurement-row-content-indent, 0px));
+    calc(var(--geometry-tree-inset-start) + var(--measurement-row-content-indent, var(--space-8)));
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
   transition: var(--transition-interactive);
 }
 
-.selection:hover {
-  border-color: var(--color-control-hover-border);
-}
-
-.selection:active {
-  border-color: var(--color-control-active-border);
-}
-
 .selection:focus-visible {
   position: relative;
-  z-index: 2;
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+  z-index: var(--z-controls);
 }
 
 .glyph {
+  margin-inline-start: calc(-1 * var(--space-4));
   width: var(--geometry-icon-size);
   height: var(--geometry-icon-size);
   display: grid;
@@ -166,49 +177,27 @@
 
 .actions {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
   display: grid;
-  place-items: center;
-  min-width: var(--target-current);
-}
-
-.actions > * {
-  display: grid;
-  place-items: center;
-  width: var(--target-current);
-  min-width: var(--target-current);
-  height: var(--target-current);
-  min-height: var(--target-current);
-  border: 0;
-  background: transparent;
+  align-items: center;
+  justify-items: start;
+  min-width: 0;
 }
 
 .visibilityButton svg {
-  width: 14px;
-  height: 14px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
 }
 
 .actions .visibilityButton {
+  position: relative;
   width: var(--target-current);
-  min-width: var(--target-current);
   height: var(--target-current);
-  min-height: var(--target-current);
   border-color: transparent;
 }
 
 .actions .visibilityButton[aria-pressed="true"]:not(:hover):not(:active) {
   border-color: transparent;
   background: transparent;
-  color: var(--color-text-muted);
-}
-
-@container measurement-panel (max-width: 304px) {
-  .selection {
-    gap: var(--space-4);
-    padding-left: calc(var(--space-8) + var(--measurement-row-content-indent, 0px));
-  }
-
-  .metadata {
-    font-size: var(--font-size-xs);
-  }
+  color: var(--color-text-secondary);
 }

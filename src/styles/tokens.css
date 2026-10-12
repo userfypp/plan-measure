@@ -4,9 +4,11 @@
   --color-surface-shell: #f7f8f9;
   --color-surface-panel: #ffffff;
   --color-surface-viewer: #eceef0;
+  --color-viewer-grid-dot: #d3d7dc;
   --color-surface-raised: #ffffff;
   --color-surface-field: #f3f5f7;
   --color-divider: #e3e6e9;
+  --color-scrollbar-thumb: rgb(0 0 0 / 0.28);
 
   --color-text-primary: #242a31;
   --color-text-secondary: #626b76;
@@ -22,7 +24,9 @@
   --color-control-active-surface: #e1e6ec;
   --color-control-hover-border: #c5cbd2;
   --color-control-active-border: #98a2ae;
-  --color-switch-off-border: var(--color-control-hover-border);
+  --color-switch-off-track: #8a94a0;
+  --color-switch-thumb: #fff;
+  --shadow-switch-thumb: 0 1px 2px rgba(16, 24, 40, 0.24);
   --color-accent-hover-semantic: #1f59b2;
   --color-accent-active-semantic: #194b99;
   --color-danger-hover-semantic: #962f39;
@@ -41,6 +45,7 @@
   --color-status-warning-surface: #fffaeb;
   --color-status-danger-surface: #fef3f2;
 
+  --color-swatch-edge: rgba(0, 0, 0, 0.12);
   --color-dialog-backdrop: rgba(15, 23, 42, 0.56);
   --color-loading-overlay: rgba(236, 238, 240, 0.78);
   color-scheme: light;
@@ -50,9 +55,11 @@
   --color-surface-shell: #25292e;
   --color-surface-panel: #25292e;
   --color-surface-viewer: #1b1e22;
+  --color-viewer-grid-dot: #2c3036;
   --color-surface-raised: #30353c;
   --color-surface-field: #30353b;
   --color-divider: #3a4048;
+  --color-scrollbar-thumb: rgb(255 255 255 / 0.32);
 
   --color-text-primary: #edf0f4;
   --color-text-secondary: #adb5c0;
@@ -67,7 +74,9 @@
   --color-control-active-surface: #3d4651;
   --color-control-hover-border: #59636f;
   --color-control-active-border: #748092;
-  --color-switch-off-border: var(--color-control-hover-border);
+  --color-switch-off-track: #78828e;
+  --color-switch-thumb: #fff;
+  --shadow-switch-thumb: 0 1px 2px rgba(0, 0, 0, 0.4);
   --color-accent-hover-semantic: #a7c8f4;
   --color-accent-active-semantic: #7fa9e4;
   --color-danger-hover-semantic: #f3a7ae;
@@ -85,6 +94,7 @@
   --color-status-warning-surface: #3d2b0a;
   --color-status-danger-surface: #401714;
 
+  --color-swatch-edge: rgba(255, 255, 255, 0.24);
   --color-dialog-backdrop: rgba(0, 0, 0, 0.64);
   --color-loading-overlay: rgba(27, 30, 34, 0.78);
   color-scheme: dark;
@@ -98,6 +108,8 @@
   --space-16: 16px;
   --space-24: 24px;
   --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
 
   /* Typography */
   --font-family-sans: Arial, "Helvetica Neue", sans-serif;
@@ -106,10 +118,18 @@
   --font-size-heading: 14px;
   --font-size-identity: 16px;
   --font-size-result: 24px;
+  --font-size-glyph-badge: 7px;
+  --font-size-micro: 10px;
+  --font-size-title: 22px;
+  --font-size-quantity: 20px;
+  --line-height-micro: 12px;
   --line-height-secondary: 16px;
   --line-height-base: 18px;
   --line-height-heading: 20px;
   --line-height-identity: 22px;
+  --line-height-quantity: 24px;
+  --line-height-result: 28px;
+  --letter-spacing-overline: 0.04em;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
@@ -119,10 +139,28 @@
   --radius-surface: 0;
   --radius-control: 4px;
   --radius-overlay: 6px;
+  --radius-pill: 999px;
   --shadow-structural: none;
+  /* Inset 1px rings for borderless controls (hover / active), same colors as bordered neutrals. */
+  --ring-inset-hover: inset 0 0 0 var(--border-width) var(--color-control-hover-border);
+  --ring-inset-active: inset 0 0 0 var(--border-width) var(--color-control-active-border);
+  /* Outer 2px halo that keeps marks drawn over the canvas legible on any background. */
+  --halo-width: 2px;
+  --ring-halo: 0 0 0 var(--halo-width) var(--color-surface-panel);
+  --icon-stroke-width: 1.5;
   --border-width: 1px;
-  --z-layer-popover: 250;
-  --z-layer-tooltip: 300;
+  /* z-index scale (low to high). Local stacking uses 0-5; app-level layers use 10+. */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-controls: 2;
+  --z-feedback: 3;
+  --z-cursor: 4;
+  --z-panel: 5;
+  --z-overlay: 10;
+  --z-status: 20;
+  --z-loading: 100;
+  --z-popover: 250;
+  --z-tooltip: 300;
 
   /* Governed targets and future shell geometry */
   --target-fine: 32px;
@@ -130,16 +168,36 @@
   --target-current: var(--target-fine);
   --geometry-app-bar-height: 40px;
   --geometry-app-bar-height-narrow: 44px;
-  --geometry-workspace-panel-width: 288px;
+  --geometry-workspace-panel-width-base: 288px;
+  /* Base width + 40%. */
+  --geometry-workspace-panel-width-wide: 403px;
+  /* The canvas keeps at least this much room when the sidebar is widened. */
+  --geometry-viewer-min-width: 720px;
+  --geometry-workspace-panel-width: var(--geometry-workspace-panel-width-base);
   --geometry-workspace-drawer-width: 304px;
   --geometry-tool-rail-width: 40px;
   --geometry-icon-size: 18px;
+  --geometry-icon-size-small: 16px;
   --geometry-measurement-row-height: 48px;
+  --geometry-measurement-selection-marker-width: 3px;
+  --geometry-measurement-popover-width: 320px;
+  --geometry-measurement-list-max-height: 480px;
+  --geometry-measurement-label-width: 64px;
+  --geometry-measurement-note-min-height: 96px;
+  --geometry-measurement-empty-mark-size: 32px;
+  --geometry-measurement-notice-bar-width: 2px;
+  --geometry-count-badge-size: 18px;
+  --geometry-tree-inset-start: var(--space-8);
+  --geometry-tree-inset-end: var(--space-8);
+  --geometry-tree-count-min-width: var(--geometry-count-badge-size);
+  --geometry-swatch-size: 20px;
   --geometry-scale-row-height: 64px;
   --geometry-context-toolbar-height: 40px;
   --geometry-context-toolbar-height-coarse: 52px;
   --geometry-context-control-height: 32px;
   --geometry-context-control-height-coarse: 44px;
+  --geometry-viewer-grid-spacing: 20px;
+  --geometry-viewer-grid-dot-radius: 1px;
   --geometry-viewer-dock-height: 40px;
   --geometry-viewer-dock-height-coarse: 52px;
   --geometry-viewer-dock-padding: 4px;
@@ -149,6 +207,33 @@
   --geometry-context-toolbar-left: 64px;
   --geometry-context-toolbar-padding: 3px;
   --geometry-context-toolbar-gap: 2px;
+  --geometry-context-name-max-width: 180px;
+  --geometry-context-rename-width: 160px;
+  --geometry-context-rename-min-width: 88px;
+  --geometry-pressed-mark-size: 9px;
+  --geometry-separator-height: 20px;
+  --geometry-viewer-dock-gap-compact: 2px;
+  --geometry-viewer-zoom-min-width: 44px;
+  --geometry-viewer-page-width: 120px;
+  --geometry-viewer-page-width-md: 104px;
+  --geometry-viewer-page-width-sm: 88px;
+  --geometry-viewer-page-width-xs: 72px;
+  --geometry-viewer-page-width-xxs: 64px;
+  --geometry-viewer-scale-max-width: 220px;
+  --geometry-viewer-scale-max-width-md: 128px;
+  --geometry-viewer-scale-max-width-sm: 88px;
+  --geometry-viewer-scale-max-width-xs: 72px;
+  --geometry-viewer-menu-label-min-width: 180px;
+  --geometry-viewer-popover-width: 320px;
+  --geometry-viewer-popover-width-compact: 280px;
+  --geometry-keyboard-feedback-width: 420px;
+  --geometry-keyboard-cursor-size: 20px;
+  --geometry-keyboard-cursor-stroke: 2px;
+  --geometry-keyboard-cursor-reach: 6px;
+  --geometry-keyboard-cursor-arm: calc(
+    var(--geometry-keyboard-cursor-size) - 2 * var(--geometry-keyboard-cursor-stroke) + 2 *
+      var(--geometry-keyboard-cursor-reach)
+  );
 
   /* Focus */
   --focus-width: 2px;
@@ -157,6 +242,51 @@
 
   /* Shared button-like interaction motion. */
   --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  --transition-transform: transform 120ms ease;
+
+  /* Dialog enter/exit (Dialog.module.css): backdrop and panel share duration and curve. */
+  --dialog-duration-enter: 180ms;
+  --dialog-duration-exit: 120ms;
+  --dialog-ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --dialog-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --dialog-offset: 8px;
+  --dialog-scale-from: 0.98;
+
+  /* Base component geometry (components/ui). */
+  --spinner-size: 14px;
+  --badge-min-height: 24px;
+  --switch-width: 36px;
+  --switch-height: 20px;
+  --switch-thumb-size: 16px;
+  --switch-thumb-offset: 2px;
+  --switch-thumb-travel: 16px;
+  --dialog-width-small: 360px;
+  --dialog-width-default: 480px;
+  --dialog-width-large: 720px;
+  --dialog-body-chrome: 144px;
+  --tooltip-max-width: 240px;
+
+  /* Feature geometry (classification, calibration, pages, export). */
+  --geometry-selection-indicator-width: 2px;
+  --geometry-checkbox-size: 16px;
+  --geometry-checkbox-mark-width: 8px;
+  --geometry-checkbox-mark-height: 4px;
+  --geometry-calibration-field-min-width: 144px;
+  --geometry-calibration-field-max-width: 180px;
+  --geometry-calibration-fraction-min-width: 112px;
+  --geometry-scale-add-menu-max-width: 224px;
+  --geometry-select-width-narrow: 72px;
+  --geometry-select-width-regular: 136px;
+  --geometry-settings-dialog-width: 600px;
+  --geometry-settings-nav-width: 168px;
+  --geometry-settings-panel-height: 456px;
+  --geometry-page-browser-width: 240px;
+  --geometry-page-goto-input-width: 48px;
+  --geometry-page-thumbnail-width: 144px;
+  --geometry-page-thumbnail-height: 104px;
+  --geometry-export-choice-list-max-height: 200px;
+  --geometry-export-classification-column-min-width: 300px;
+  --dialog-width-export: 1040px;
 
   /* Transitional V1 aliases. Remove as each surface migrates to V2 semantic roles. */
   --color-surface: var(--color-surface-panel);
@@ -200,7 +330,132 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --transition-interactive: none;
+    --transition-transform: none;
+    --dialog-offset: 0px;
+    --dialog-scale-from: 1;
+    --dialog-duration-enter: 100ms;
+    --dialog-duration-exit: 80ms;
   }
+}
+
+/* Per-device preferences (see utils/appPreferences): data attributes set on <html>. */
+:root[data-motion="reduce"] {
+  --transition-interactive: none;
+  --transition-transform: none;
+  --dialog-offset: 0px;
+  --dialog-scale-from: 1;
+  --dialog-duration-enter: 100ms;
+  --dialog-duration-exit: 80ms;
+}
+
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  /* 0s, not a tiny non-zero value: Safari still runs 0.001ms transitions, which lags the software cursor. */
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-tooltips="off"] [role="tooltip"] {
+  display: none;
+}
+
+:root[data-focus-ring="thick"] {
+  --focus-width: 3px;
+  --focus-ring-width: 4px;
+  --focus-ring-offset: -4px;
+}
+
+/* Interface text scale. Only UI type and the widths that hold text change; micro text, glyph badges,
+ * target heights, the canvas and measurement labels keep their size. */
+:root[data-text-size="110"] {
+  --font-size-secondary: 13px;
+  --font-size-base: 14px;
+  --font-size-heading: 15px;
+  --font-size-identity: 18px;
+  --font-size-quantity: 22px;
+  --font-size-result: 26px;
+  --font-size-title: 24px;
+  --line-height-secondary: 18px;
+  --line-height-base: 20px;
+  --line-height-heading: 22px;
+  --line-height-identity: 24px;
+  --line-height-quantity: 26px;
+  --line-height-result: 31px;
+  --geometry-select-width-regular: 150px;
+  --geometry-select-width-narrow: 79px;
+  --geometry-settings-dialog-width: 660px;
+  --geometry-settings-nav-width: 185px;
+  --tooltip-max-width: 264px;
+  --geometry-viewer-page-width: 132px;
+  --geometry-viewer-zoom-min-width: 48px;
+}
+
+:root[data-text-size="125"] {
+  --font-size-secondary: 15px;
+  --font-size-base: 16px;
+  --font-size-heading: 18px;
+  --font-size-identity: 20px;
+  --font-size-quantity: 25px;
+  --font-size-result: 30px;
+  --font-size-title: 28px;
+  --line-height-secondary: 20px;
+  --line-height-base: 23px;
+  --line-height-heading: 25px;
+  --line-height-identity: 28px;
+  --line-height-quantity: 30px;
+  --line-height-result: 35px;
+  --geometry-select-width-regular: 170px;
+  --geometry-select-width-narrow: 90px;
+  --geometry-settings-dialog-width: 750px;
+  --geometry-settings-nav-width: 210px;
+  --tooltip-max-width: 300px;
+  --geometry-viewer-page-width: 150px;
+  --geometry-viewer-zoom-min-width: 55px;
+}
+
+/* High contrast: text >= 4.5:1 and borders, dividers, focus and switch tracks >= 3:1 on the panel
+ * and the other surfaces (checked by contrast.test.ts). Only these roles change; surfaces and
+ * primary text stay. Both selectors have specificity (0,3,0) and so win over the theme blocks. */
+:root[data-contrast="more"]:not([data-theme="dark"]) {
+  --color-text-secondary: #4a525c;
+  --color-text-disabled: #59616b;
+  --color-divider: #78828e;
+  --color-control-hover-border: #78828e;
+  --color-control-active-border: #5a6471;
+  --color-switch-off-track: #69737f;
+  --color-accent: #1d58b3;
+  --color-accent-hover-semantic: #184b98;
+  --color-accent-active-semantic: #133e7f;
+  --color-danger-semantic: #9c2a35;
+  --color-danger-hover-semantic: #862430;
+  --color-danger-active-semantic: #701d27;
+  --color-focus-semantic: #0f4fb0;
+  --color-status-info: #1250b8;
+  --color-status-success: #05603a;
+  --color-status-warning: #9a3b05;
+}
+
+:root[data-theme="dark"][data-contrast="more"] {
+  --color-text-secondary: #c9d0da;
+  --color-text-disabled: #a9b2be;
+  --color-divider: #7a8594;
+  --color-control-hover-border: #7d8999;
+  --color-control-active-border: #9aa5b4;
+  --color-switch-off-track: #8f9aa9;
+  --color-accent: #a9c9f5;
+  --color-accent-hover-semantic: #bdd6f8;
+  --color-accent-active-semantic: #94b8ea;
+  --color-danger-semantic: #f4a6ad;
+  --color-danger-hover-semantic: #f8bcc1;
+  --color-danger-active-semantic: #e8929a;
+  --color-focus-semantic: #c4dbff;
+  --color-status-info: #9dbfff;
+  --color-status-success: #86efb5;
+  --color-status-warning: #fed570;
 }
 
 @media (any-pointer: coarse) {
@@ -209,4 +464,22 @@
     --control-height-compact: 44px;
     --control-height-regular: 44px;
   }
+}
+
+:root[data-sidebar="wide"] {
+  --geometry-workspace-panel-width: min(
+    var(--geometry-workspace-panel-width-wide),
+    max(
+      var(--geometry-workspace-panel-width-base),
+      calc(100vw - var(--geometry-viewer-min-width))
+    )
+  );
+}
+
+:root[data-targets="large"] {
+  --target-current: var(--target-coarse);
+  --control-height-compact: 44px;
+  --control-height-regular: 44px;
+  /* Measured: the tallest Settings section (Advanced, 498px) plus 16px. */
+  --geometry-settings-panel-height: 514px;
 }

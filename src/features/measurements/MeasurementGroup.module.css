@@ -6,39 +6,39 @@
 .header {
   display: grid;
   min-width: 0;
-  grid-template-columns: var(--target-current) minmax(0, 1fr) auto var(--target-current);
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-8);
-}
-
-.rootHeader {
-  border-bottom: var(--border-width) solid var(--color-divider);
-  background: var(--color-surface-subdued);
-}
-
-.headerWithoutMeta {
-  grid-template-columns: var(--target-current) minmax(0, 1fr);
-}
-
-.childHeader,
-.deepHeader {
   min-height: var(--target-current);
+  grid-template-columns:
+    var(--target-current) minmax(0, 1fr)
+    minmax(var(--geometry-tree-count-min-width), auto)
+    calc(var(--target-current) + var(--tree-edge-end, 0px));
+  align-items: center;
+  gap: 0;
   padding-block: 0;
-  border-bottom: 0;
+  padding-inline: calc(var(--geometry-tree-inset-start) + var(--tree-depth, 0) * var(--tree-indent))
+    0;
+  border-top: var(--border-width) solid transparent;
   background: transparent;
 }
 
+.header[data-group-depth="0"] {
+  border-top-color: var(--color-divider);
+}
+
+.groups > .group:first-of-type > .header {
+  border-top-color: transparent;
+}
+
 .toggle {
+  composes: focusRing from "../../components/ui/controlStates.module.css";
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   width: var(--target-current);
   height: var(--target-current);
   padding: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font: inherit;
-  line-height: 1;
+  line-height: var(--line-height-base);
   background: transparent;
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
@@ -47,29 +47,27 @@
 }
 
 .toggle:hover {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background: var(--color-control-hover-surface);
   border-color: var(--color-control-hover-border);
 }
 
 .toggle:active {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background: var(--color-control-active-surface);
   border-color: var(--color-control-active-border);
 }
 
 .toggle:focus-visible {
-  color: var(--color-text);
-  background: var(--color-surface-subdued);
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  color: var(--color-text-primary);
+  background: var(--color-surface-field);
 }
 
 .chevron {
   display: block;
-  width: 16px;
-  height: 16px;
-  transition: transform 120ms ease;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  transition: var(--transition-transform);
 }
 
 .toggle[aria-expanded="true"] .chevron {
@@ -83,61 +81,120 @@
 }
 
 .title {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-content: center;
-  gap: 1px;
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: var(--space-4);
   min-width: 0;
   margin: 0;
   overflow: hidden;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
 }
 
-.dimensionName {
+.titleItem {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: baseline;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.unassignedRun {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-secondary);
-  font-size: 10px;
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.035em;
-  line-height: 1;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
   text-overflow: ellipsis;
-  text-transform: uppercase;
   white-space: nowrap;
+}
+
+.dimensionName {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dimensionName::after {
+  content: ":";
+}
+
+/* A chained title ("A: x › B: y") in a narrow column keeps only its values, so each one stays
+   readable; the full "Dimension · Value" text remains in the heading's label and title. */
+@container (width < 240px) {
+  .titleItem:not(:only-child) .dimensionName {
+    display: none;
+  }
+}
+
+.segmentSeparator {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
 }
 
 .groupValue {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: 1.1;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+[data-group-depth="0"] .groupValue {
+  font-weight: var(--font-weight-semibold);
+}
+
+.groupValue.unassignedValue,
+[data-group-depth="0"] .groupValue.unassignedValue {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
 .count {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  min-width: var(--geometry-tree-count-min-width);
+  /* Ends where the row values end: one --space-8 before the eye column. */
+  margin-inline: var(--space-8);
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}
+
+/* Eye cell (the tooltip wrapper): it hugs the square button, so only the button is clickable. */
+.header > :last-child {
+  display: grid;
+  align-self: center;
+  justify-self: start;
 }
 
 .visibilityControl {
-  display: grid;
-  place-items: center;
   width: var(--target-current);
   height: var(--target-current);
   border-color: transparent;
-  border-radius: var(--radius-control);
 }
 
 .visibilityControl svg {
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
 }
 
 .list {
-  --measurement-row-content-indent: var(--space-8);
+  --tree-row-depth: calc(var(--tree-depth, 0) + 1);
+  --measurement-row-content-indent: calc(
+    var(--tree-row-depth) * var(--tree-indent) + var(--space-8)
+  );
   --measurement-selection-marker-width: 0px;
 
   display: grid;
@@ -152,29 +209,22 @@
 }
 
 .childGroups {
+  position: relative;
   min-width: 0;
-  border-inline-start: var(--border-width) solid var(--color-divider);
-  padding-inline-start: var(--space-8);
 }
 
-.childHeader .groupValue {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.childHeader .dimensionName,
-.deepHeader .dimensionName {
-  color: var(--color-text-secondary);
-  font-size: 9px;
-}
-
-.deepHeader .groupValue {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-}
-
-.deepHeader .dimensionName {
-  color: var(--color-text-muted);
+/* Guías verticales: una línea bajo el centro del chevron de cada ancestro. */
+.childGroups::after {
+  position: absolute;
+  z-index: var(--z-raised);
+  inset-block: 0;
+  left: var(--geometry-tree-inset-start);
+  width: calc(var(--tree-row-depth) * var(--tree-indent));
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 calc(var(--tree-indent) - var(--border-width)),
+    var(--color-divider) calc(var(--tree-indent) - var(--border-width)) var(--tree-indent)
+  );
+  content: "";
+  pointer-events: none;
 }

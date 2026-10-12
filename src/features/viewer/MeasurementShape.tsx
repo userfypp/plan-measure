@@ -1,4 +1,15 @@
+import { composeLabelText } from "./labelContent";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  FILL_OPACITY_SCALE,
+  HANDLE_SIZE_SCALE,
+  HIT_TOLERANCE_PX,
+  LABEL_BACKGROUND_OPACITY,
+  LABEL_SIZE_SCALE,
+  LINE_THICKNESS_SCALE,
+  useAppPreferences,
+  useNumberFormatKey,
+} from "../../utils/appPreferences";
 import { Group as KonvaGroup } from "konva/lib/Group";
 import { Layer as KonvaLayer } from "konva/lib/Layer";
 import type { Node as KonvaNode, NodeConfig as KonvaNodeConfig } from "konva/lib/Node";
@@ -64,10 +75,18 @@ import {
 import {
   CANVAS_VISUAL_METRICS,
   circularHandleHitStrokeWidthScreenPx,
+  labelTextPaint,
+  scaleFillAlpha,
+  scaledAlpha,
+  scaledHandleRadiusScreenPx,
   type CanvasVisualRoles,
 } from "./canvasVisualRoles";
 import { pointsToFlat } from "./geometry";
-import { drawMeasurementHit, drawMeasurementOutlineScene, withoutKonvaAutoDraw } from "./annotationKonva";
+import {
+  drawMeasurementHit,
+  drawMeasurementOutlineScene,
+  withoutKonvaAutoDraw,
+} from "./annotationKonva";
 import {
   averagePoint,
   LABEL_PADDING_SCREEN_PX,
@@ -81,6 +100,7 @@ interface MeasurementShapeProps {
   page: PageState;
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
+  classificationLabel?: string;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   visualRoles: CanvasVisualRoles;
   interactionTargetScreenPx: number;
@@ -117,6 +137,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   page,
   displayUnit,
   areaDisplay,
+  classificationLabel,
   measurementDecimalPlaces,
   visualRoles,
   interactionTargetScreenPx,
@@ -139,7 +160,23 @@ export const MeasurementShape = memo(function MeasurementShape({
   plannedOccupiedLabelRect,
   labelCollisionIndex,
 }: MeasurementShapeProps) {
-  const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useMeasurementCommands();
+  useNumberFormatKey(); // re-render when separators change
+  const {
+    lineThickness,
+    labelSize,
+    fillOpacity,
+    handleSize,
+    labelBackground,
+    labelContent,
+    hitTolerance,
+  } = useAppPreferences();
+  const fillScale = FILL_OPACITY_SCALE[fillOpacity];
+  const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
+  const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[labelBackground];
+  const strokeScale = LINE_THICKNESS_SCALE[lineThickness];
+  const labelFontSize = MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * LABEL_SIZE_SCALE[labelSize];
+  const { updateMeasurement: updateSessionMeasurement, updateMeasurements } =
+    useMeasurementCommands();
   const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaNode>(null);
   const wholeDragNodeOriginRef = useRef<Point>({ x: 0, y: 0 });
@@ -213,24 +250,37 @@ export const MeasurementShape = memo(function MeasurementShape({
   const labelText = useMemo(
     () =>
       calibration || visibleMeasurement.type === "count"
-        ? formatMeasurement(
-            visibleMeasurement,
-            calibration,
-            displayUnit,
-            measurementDecimalPlaces,
-            areaDisplay,
+        ? composeLabelText(
+            formatMeasurement(
+              visibleMeasurement,
+              calibration,
+              displayUnit,
+              measurementDecimalPlaces,
+              areaDisplay,
+            ),
+            visibleMeasurement.name,
+            labelContent,
+            classificationLabel,
           )
         : null,
-    [areaDisplay, calibration, displayUnit, measurementDecimalPlaces, visibleMeasurement],
+    [
+      areaDisplay,
+      calibration,
+      classificationLabel,
+      displayUnit,
+      labelContent,
+      measurementDecimalPlaces,
+      visibleMeasurement,
+    ],
   );
   const labelDimensions = useMemo(
     () =>
       !dragPoints && !groupPreviewPoints && plannedLabelPlacement
         ? null
         : labelText
-          ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom)
+          ? measureLabelText(labelText, labelFontSize, zoom)
           : null,
-    [dragPoints, groupPreviewPoints, labelText, plannedLabelPlacement, zoom],
+    [dragPoints, groupPreviewPoints, labelFontSize, labelText, plannedLabelPlacement, zoom],
   );
   const labelPlacement = useMemo(() => {
     if (!dragPoints && !groupPreviewPoints && plannedLabelPlacement) return plannedLabelPlacement;
@@ -267,7 +317,8 @@ export const MeasurementShape = memo(function MeasurementShape({
     selected || wholeDragPrepared,
     wholeDragEditable,
   );
-  const countUsesWholeDrag = measurement.type === "count" &&
+  const countUsesWholeDrag =
+    measurement.type === "count" &&
     (measurement.points.length === 1 || (groupMeasurements?.length ?? 0) > 1);
   const manipulating = dragPoints !== null || vertexDragOwned;
 
@@ -304,8 +355,8 @@ export const MeasurementShape = memo(function MeasurementShape({
       if (measurementPathSpecs[measurement.type].closed && selected) {
         line.fill(
           cloudColor
-            ? withHexAlpha(cloudColor, CLOUD_FILL_OPACITY)
-            : visualRoles.measurementSelectedSoftFill,
+            ? withHexAlpha(cloudColor, scaledAlpha(CLOUD_FILL_OPACITY, fillScale))
+            : scaleFillAlpha(visualRoles.measurementSelectedSoftFill, fillScale),
         );
       }
       dragPreviewRef.current = {
@@ -391,7 +442,11 @@ export const MeasurementShape = memo(function MeasurementShape({
   }
 
   function renderWholeDragPreview(result: WholeMeasurementDragResult) {
-    if (wholeDragRef.current?.sourceMeasurements.length && wholeDragRef.current.sourceMeasurements.length > 1) onGroupDragPreview(measurement.id, result.delta);
+    if (
+      wholeDragRef.current?.sourceMeasurements.length &&
+      wholeDragRef.current.sourceMeasurements.length > 1
+    )
+      onGroupDragPreview(measurement.id, result.delta);
     const preview = dragPreviewRef.current;
     if (!preview) {
       updateDragPoints(result.points);
@@ -449,7 +504,12 @@ export const MeasurementShape = memo(function MeasurementShape({
       );
       if (drag) {
         renderDragPreview(
-          applyMeasurementVertexEdit(measurement.type, drag.sourcePoints, pending.index, pending.point),
+          applyMeasurementVertexEdit(
+            measurement.type,
+            drag.sourcePoints,
+            pending.index,
+            pending.point,
+          ),
         );
         return true;
       }
@@ -567,10 +627,23 @@ export const MeasurementShape = memo(function MeasurementShape({
     const drag = wholeDragRef.current;
     if (!drag) return;
     const current = groupMeasurements ?? [measurement];
-    if (shouldCancelWholeMeasurementDrag(drag, selected, transform, bounds) || !wholeDragEditable || current.length !== drag.sourceMeasurements.length || current.some((item, index) => item !== drag.sourceMeasurements[index])) {
+    if (
+      shouldCancelWholeMeasurementDrag(drag, selected, transform, bounds) ||
+      !wholeDragEditable ||
+      current.length !== drag.sourceMeasurements.length ||
+      current.some((item, index) => item !== drag.sourceMeasurements[index])
+    ) {
       cancelWholeDrag();
     }
-  }, [bounds, cancelWholeDrag, selected, transform, wholeDragEditable, groupMeasurements, measurement]);
+  }, [
+    bounds,
+    cancelWholeDrag,
+    selected,
+    transform,
+    wholeDragEditable,
+    groupMeasurements,
+    measurement,
+  ]);
 
   useLayoutEffect(() => {
     const active = vertexDragStateRef.current.active;
@@ -582,13 +655,22 @@ export const MeasurementShape = memo(function MeasurementShape({
       (preparation && !editable) ||
       gesture.measurementType !== measurement.type ||
       gesture.sourcePoints.length !== measurement.points.length ||
-      gesture.sourcePoints.some((point, index) =>
-        point.x !== measurement.points[index]?.x || point.y !== measurement.points[index]?.y,
+      gesture.sourcePoints.some(
+        (point, index) =>
+          point.x !== measurement.points[index]?.x || point.y !== measurement.points[index]?.y,
       )
     ) {
       cancelVertexGesture(gesture.owner);
     }
-  }, [bounds, cancelVertexGesture, editable, measurement.points, measurement.type, selected, transform]);
+  }, [
+    bounds,
+    cancelVertexGesture,
+    editable,
+    measurement.points,
+    measurement.type,
+    selected,
+    transform,
+  ]);
 
   useLayoutEffect(
     () => () => {
@@ -711,7 +793,9 @@ export const MeasurementShape = memo(function MeasurementShape({
     });
   }
 
-  function stagePointer<E extends MouseEvent | TouchEvent>(event: KonvaEventObject<E>): Point | null {
+  function stagePointer<E extends MouseEvent | TouchEvent>(
+    event: KonvaEventObject<E>,
+  ): Point | null {
     const pointer = event.target.getStage()?.getPointerPosition();
     return pointer ? { x: pointer.x, y: pointer.y } : null;
   }
@@ -815,9 +899,13 @@ export const MeasurementShape = memo(function MeasurementShape({
       commit: (points) => {
         const source = wholeDragRef.current?.sourceMeasurements;
         if (!source || source.length === 1 || !result) return updateMeasurementPoints(points);
-        return updateMeasurements(source.map((item) => ({
-          pageNumber, id: item.id, points: translateMeasurementPoints(item.points, result.delta),
-        })));
+        return updateMeasurements(
+          source.map((item) => ({
+            pageNumber,
+            id: item.id,
+            points: translateMeasurementPoints(item.points, result.delta),
+          })),
+        );
       },
     });
 
@@ -850,7 +938,10 @@ export const MeasurementShape = memo(function MeasurementShape({
   function select(event: KonvaEventObject<MouseEvent>) {
     if (!selectable) return;
     event.cancelBubble = true;
-    onSelectMeasurement(measurement.id, event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey);
+    onSelectMeasurement(
+      measurement.id,
+      event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey,
+    );
   }
 
   return (
@@ -867,27 +958,32 @@ export const MeasurementShape = memo(function MeasurementShape({
           cloudColor
             ? withHexAlpha(
                 cloudColor,
-                selected && !manipulating
-                  ? CANVAS_VISUAL_METRICS.cloudSelectedFillOpacity
-                  : CLOUD_FILL_OPACITY,
+                scaledAlpha(
+                  selected && !manipulating
+                    ? CANVAS_VISUAL_METRICS.cloudSelectedFillOpacity
+                    : CLOUD_FILL_OPACITY,
+                  fillScale,
+                ),
               )
             : measurementPathSpecs[measurement.type].closed
               ? selected
                 ? manipulating
-                  ? visualRoles.measurementSelectedSoftFill
-                  : visualRoles.measurementSelectedFill
-                : visualRoles.measurementDefaultFill
+                  ? scaleFillAlpha(visualRoles.measurementSelectedSoftFill, fillScale)
+                  : scaleFillAlpha(visualRoles.measurementSelectedFill, fillScale)
+                : scaleFillAlpha(visualRoles.measurementDefaultFill, fillScale)
               : undefined
         }
         stroke={stroke}
         strokeWidth={
-          (cloudColor
+          ((cloudColor
             ? selected
               ? CANVAS_VISUAL_METRICS.cloudSelectedStrokeScreenPx
               : CANVAS_VISUAL_METRICS.cloudStrokeScreenPx
             : selected
               ? CANVAS_VISUAL_METRICS.measurementSelectedStrokeScreenPx
-              : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) / zoom
+              : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) *
+            strokeScale) /
+          zoom
         }
         {...(cloudColor && selected
           ? {
@@ -897,7 +993,7 @@ export const MeasurementShape = memo(function MeasurementShape({
               shadowForStrokeEnabled: true,
             }
           : {})}
-        hitStrokeWidth={CANVAS_VISUAL_METRICS.measurementHitStrokeScreenPx / zoom}
+        hitStrokeWidth={HIT_TOLERANCE_PX[hitTolerance] / zoom}
         hitFunc={drawMeasurementHit}
         {...(measurement.type === "ellipse" || measurement.type === "cloud"
           ? { measurementType: measurement.type, sceneFunc: drawMeasurementOutlineScene }
@@ -922,38 +1018,53 @@ export const MeasurementShape = memo(function MeasurementShape({
         >
           <Tag
             fill={visualRoles.labelBackground}
-            opacity={selected ? 1 : 0.88}
-            stroke={selected ? visualRoles.measurementSelectedStroke : cloudColor ?? undefined}
+            opacity={(selected ? 1 : 0.88) * labelBackgroundOpacity}
+            stroke={selected ? visualRoles.measurementSelectedStroke : (cloudColor ?? undefined)}
             strokeWidth={selected || cloudColor ? 1 / zoom : 0}
             cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / zoom}
           />
           <Text
             text={labelText}
-            fill={visualRoles.labelText}
+            {...labelTextPaint(visualRoles, labelBackgroundOpacity, zoom)}
             fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
-            fontSize={MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX / zoom}
+            fontSize={labelFontSize / zoom}
             padding={LABEL_PADDING_SCREEN_PX / zoom}
           />
         </Label>
       )}
-      {(measurement.type === "count" || shouldRenderMeasurementVertexHandles(selected, vertexDragOwned, editable)) &&
+      {(measurement.type === "count" ||
+        shouldRenderMeasurementVertexHandles(selected, vertexDragOwned, editable)) &&
         visibleMeasurement.points.map((point, index) => (
           <Circle
             key={index}
             name="measurement-preview-handle"
             x={point.x}
             y={point.y}
-            radius={(measurement.type === "count" ? CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx : CANVAS_VISUAL_METRICS.handleRadiusScreenPx) / zoom}
+            radius={
+              (measurement.type === "count"
+                ? CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx
+                : handleRadiusScreenPx) / zoom
+            }
             fill={visualRoles.handleFill}
             stroke={measurement.type === "count" ? stroke : visualRoles.handleStroke}
             strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
-            hitStrokeWidth={
-              circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom
+            hitStrokeWidth={circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom}
+            draggable={
+              measurement.type === "count"
+                ? selected && (countUsesWholeDrag ? wholeMeasurementDraggable : editable)
+                : editable
             }
-            draggable={measurement.type === "count" ? selected && (countUsesWholeDrag ? wholeMeasurementDraggable : editable) : editable}
-            dragDistance={countUsesWholeDrag ? MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX : undefined}
+            dragDistance={
+              countUsesWholeDrag ? MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX : undefined
+            }
             onClick={(event) => {
-              if (measurement.type === "count" || event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) select(event);
+              if (
+                measurement.type === "count" ||
+                event.evt.shiftKey ||
+                event.evt.ctrlKey ||
+                event.evt.metaKey
+              )
+                select(event);
             }}
             onMouseDown={(event) => {
               if (countUsesWholeDrag) {
@@ -1016,7 +1127,12 @@ export const MeasurementShape = memo(function MeasurementShape({
               }
               startDragPreview(event.target, () => {
                 renderDragPreview(
-                  applyMeasurementVertexEdit(measurement.type, preparation.sourcePoints, index, startPoint),
+                  applyMeasurementVertexEdit(
+                    measurement.type,
+                    preparation.sourcePoints,
+                    index,
+                    startPoint,
+                  ),
                 );
               });
             }}

@@ -1,0 +1,9 @@
+/* Floating surface shared by Dialog, Popover and Tooltip. Use with `composes`. */
+
+.overlaySurface {
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-overlay);
+  background-color: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-overlay);
+}

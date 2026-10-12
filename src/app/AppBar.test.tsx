@@ -90,6 +90,19 @@ function renderAppBar({
 }
 
 beforeEach(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.removeAttribute("open");
+      this.dispatchEvent(new Event("close"));
+    },
+  });
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -105,11 +118,21 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
   container?.remove();
   vi.restoreAllMocks();
   root = null;
   container = null;
 });
+
+/** Settings loads lazily, so wait for the module before asserting on the dialog. */
+async function clickAndLoad(button: HTMLElement) {
+  await import("./SettingsDialog");
+  await act(async () => {
+    button.click();
+  });
+}
 
 describe("AppBar", () => {
   it("owns document/global actions without reintroducing Viewer Dock responsibilities", () => {
@@ -137,24 +160,17 @@ describe("AppBar", () => {
           "header button, header a",
         ),
       ).map((action) => action.getAttribute("aria-label") || action.textContent?.trim()),
-    ).toEqual([
-      "Export",
-      "Projects, 2 saved",
-      "Undo",
-      "Redo",
-      "Feedback",
-      "Settings",
-    ]);
+    ).toEqual(["Undo", "Redo", "Export", "Projects, 2 saved", "Feedback", "Settings"]);
   });
 
-  it("uses a ghost command for Export", () => {
+  it("uses the primary variant for Export", () => {
     renderAppBar();
     const actions = Array.from(container!.querySelectorAll<HTMLButtonElement>("header button"));
     const exportButton = actions.find((button) => button.textContent === "Export");
     if (!exportButton) throw new Error("App Bar document actions were not rendered.");
 
-    expect(exportButton.classList.contains(buttonStyles.ghost!)).toBe(true);
-    expect(exportButton.classList.contains(buttonStyles.secondary!)).toBe(false);
+    expect(exportButton.classList.contains(buttonStyles.primary!)).toBe(true);
+    expect(exportButton.classList.contains(buttonStyles.ghost!)).toBe(false);
     expect(actions.some((button) => button.textContent === "Open PDF")).toBe(false);
   });
 
@@ -162,11 +178,12 @@ describe("AppBar", () => {
     renderAppBar();
     const toolbar = container?.querySelector<HTMLElement>('[role="toolbar"]');
     if (!toolbar) throw new Error("Application actions toolbar was not rendered.");
-    const actions = Array.from(
-      toolbar.querySelectorAll<HTMLElement>("button, a[href]"),
-    );
+    const actions = Array.from(toolbar.querySelectorAll<HTMLElement>("button, a[href]"));
 
     expect(toolbar.getAttribute("aria-label")).toBe("Application actions");
+    expect(
+      actions.map((action) => action.getAttribute("aria-label") || action.textContent),
+    ).toEqual(["Undo", "Redo", "Export", "Projects", "Feedback", "Settings"]);
     expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
 
     act(() => actions[0]?.focus());
@@ -181,9 +198,13 @@ describe("AppBar", () => {
     expect(actions.filter((action) => action.tabIndex === 0)).toEqual([actions[0]]);
   });
 
-  it("does not route portal Home/End keys back through the AppBar toolbar", () => {
+  it("does not route portal Home/End keys back through the AppBar toolbar", async () => {
     renderAppBar();
-    act(() => buttonByLabel("Settings").click());
+    await clickAndLoad(buttonByLabel("Settings"));
+    const done = Array.from(document.querySelectorAll("dialog button")).find(
+      (button) => button.textContent === "Done",
+    ) as HTMLButtonElement;
+    act(() => done.focus());
     const focusedSetting = document.activeElement;
     expect(focusedSetting?.closest('[role="toolbar"]')).toBeNull();
 
@@ -193,22 +214,20 @@ describe("AppBar", () => {
     expect(document.activeElement).toBe(focusedSetting);
   });
 
-  it("delegates Settings to the structured dialog popover", () => {
+  it("opens Settings as a modal dialog with side navigation", async () => {
     renderAppBar();
     const settings = buttonByLabel("Settings");
     expect(settings.getAttribute("aria-haspopup")).toBe("dialog");
     expect(settings.getAttribute("aria-expanded")).toBe("false");
 
-    act(() => settings.click());
+    await clickAndLoad(settings);
 
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
     expect(dialog).not.toBeNull();
     expect(dialog?.textContent).toContain("Settings");
-    expect(dialog?.textContent).toContain("INTERFACE");
-    expect(dialog?.textContent).toContain("MEASUREMENTS");
+    expect(dialog?.querySelector('[role="tablist"]')).not.toBeNull();
     expect(dialog?.querySelector('[role="menu"]')).toBeNull();
     expect(settings.getAttribute("aria-expanded")).toBe("true");
-    expect(settings.getAttribute("aria-controls")).toBe(dialog?.id);
   });
 
   it("opens Feedback options with the discussion and existing issue templates", () => {
@@ -287,7 +306,7 @@ describe("AppBar", () => {
 
     expect(container?.textContent).toContain("No PDF loaded");
     expect(container?.textContent).not.toContain("Export");
-    expect(container?.textContent).toContain("Feedback");
+    expect(document.querySelector('button[aria-label="Feedback"]')).not.toBeNull();
     act(() => buttonByLabel("Feedback").click());
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
     expect(buttonByLabel("Settings")).toBeTruthy();

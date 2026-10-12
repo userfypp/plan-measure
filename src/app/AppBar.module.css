@@ -25,7 +25,35 @@
 
 .actions {
   flex: 0 0 auto;
+  gap: var(--space-8);
+}
+
+.group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: var(--space-4);
+}
+
+.groupDivider {
+  width: var(--border-width);
+  height: 16px;
+  flex: 0 0 auto;
+  background: var(--color-divider);
+}
+
+.iconAction {
+  width: var(--target-current);
+  height: var(--target-current);
+  border-color: transparent;
+}
+
+.iconAction svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .brand {
@@ -56,65 +84,21 @@
 
 .exportAction,
 .projectsAction,
-.feedbackAction,
 .iconTrigger {
   min-height: var(--target-current);
 }
 
-.exportAction,
 .projectsAction {
   border-color: transparent;
   background: transparent;
   color: var(--color-text-primary);
 }
 
+/* Plain secondary figure: no pill, so the button keeps the text-only rhythm of its neighbours. */
 .projectCount {
-  min-width: 18px;
-  height: 18px;
-  display: inline-grid;
   margin-left: var(--space-4);
-  padding: 0 var(--space-4);
-  place-items: center;
-  border-radius: 9px;
   color: var(--color-text-secondary);
-  background: var(--color-surface-field);
-  font-size: 10px;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.feedbackAction {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 var(--space-12);
-  border: var(--border-width) solid transparent;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-text-primary);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: var(--transition-interactive);
-}
-
-.feedbackAction:hover {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.feedbackAction:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-}
-
-.feedbackAction:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .iconTrigger {
@@ -141,21 +125,18 @@
   color: var(--color-text-primary);
 }
 
-.feedbackAction[aria-expanded="true"],
 .iconTrigger[aria-expanded="true"] {
   border-color: var(--color-accent);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }
 
-.feedbackAction[aria-expanded="true"]:hover,
 .iconTrigger[aria-expanded="true"]:hover {
   border-color: var(--color-control-hover-border);
   background: var(--color-selection-surface);
   color: var(--color-accent);
 }
 
-.feedbackAction[aria-expanded="true"]:active,
 .iconTrigger[aria-expanded="true"]:active {
   border-color: var(--color-control-active-border);
   background: var(--color-selection-surface);
@@ -169,27 +150,7 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
-}
-
-@media (max-width: 1000px) {
-  .withSaveStatus {
-    height: auto;
-    min-height: var(--geometry-app-bar-height-narrow);
-    flex-wrap: wrap;
-    row-gap: 0;
-  }
-
-  .withSaveStatus .identityGroup {
-    flex-basis: 0;
-    min-height: var(--geometry-app-bar-height-narrow);
-  }
-
-  .withSaveStatus .actions {
-    flex: 1 1 100%;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
+  stroke-width: var(--icon-stroke-width);
 }
 
 @media (any-pointer: coarse) {
@@ -197,11 +158,6 @@
     height: var(--geometry-app-bar-height-narrow);
     padding-right: var(--space-4);
     padding-left: var(--space-12);
-  }
-
-  .withSaveStatus {
-    height: auto;
-    min-height: var(--geometry-app-bar-height-narrow);
   }
 }
 
@@ -213,10 +169,6 @@
     height: var(--geometry-app-bar-height-narrow);
     padding-right: var(--space-4);
     padding-left: var(--space-12);
-  }
-
-  .withSaveStatus {
-    height: auto;
   }
 }
 
@@ -237,8 +189,13 @@
   }
 
   .actions .exportAction,
-  .actions .projectsAction,
-  .actions .feedbackAction {
+  .actions .projectsAction {
     padding-inline: var(--space-8);
   }
+}
+
+:global(:root[data-targets="large"]) .appBar {
+  height: var(--geometry-app-bar-height-narrow);
+  padding-right: var(--space-4);
+  padding-left: var(--space-12);
 }

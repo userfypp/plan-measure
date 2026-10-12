@@ -138,7 +138,7 @@ it("isolates Pages state/thumbnail updates from shapes and measurements, with no
   );
   expect(pageChange).toHaveBeenLastCalledWith(500);
   await click("Close pages");
-  expect(container.querySelector('[aria-label="Pages"]')).toBeNull();
+  expect(container.querySelector('aside[aria-label="Pages"]')).toBeNull();
   expect(document.activeElement?.getAttribute("aria-controls")).toBe("page-browser");
   getPage.mockClear();
   await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
@@ -150,7 +150,7 @@ it("isolates Pages state/thumbnail updates from shapes and measurements, with no
   await click("Pages");
   await act(async () => vi.dynamicImportSettled());
   await click("Replace test document");
-  expect(container.querySelector('[aria-label="Pages"]')).toBeNull();
+  expect(container.querySelector('aside[aria-label="Pages"]')).toBeNull();
   expect(
     container.querySelector('[aria-controls="page-browser"]')?.getAttribute("aria-pressed"),
   ).toBe("false");

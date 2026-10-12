@@ -233,6 +233,7 @@ describe("save status and backups", () => {
       act(() => store.set(state));
     expect(shapeRenders).toBe(1);
     expect(panelRenders).toBe(1);
-    expect(container.querySelector('header [role="status"]')).not.toBeNull();
+    expect(container.querySelector('header [role="status"]')).toBeNull();
+    expect(container.querySelector('[role="status"]')).not.toBeNull();
   });
 });

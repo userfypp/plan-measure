@@ -49,6 +49,7 @@ export interface AnchoredMenuProps {
   items: readonly AnchoredMenuItem[] | (() => readonly AnchoredMenuItem[]);
   showMarkerColumn?: boolean;
   placement?: PopoverPlacement;
+  matchTriggerWidth?: boolean;
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -80,6 +81,7 @@ export function AnchoredMenu({
   items: providedItems,
   showMarkerColumn = true,
   placement = "bottom-start",
+  matchTriggerWidth,
   open,
   defaultOpen = false,
   onOpenChange,
@@ -184,6 +186,7 @@ export function AnchoredMenu({
       open={isOpen}
       onOpenChange={setOpen}
       placement={placement}
+      matchTriggerWidth={matchTriggerWidth}
       initialFocus="first"
       dismissOnFocusLeave
       role="menu"
@@ -223,6 +226,7 @@ export function AnchoredMenu({
               role="separator"
               aria-label={item.sectionLabel}
               data-menu-section-label="true"
+              className={styles.sectionLabel}
             >
               {item.sectionLabel}
             </div>

@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 
 const globalCss = readFileSync(new URL("../../styles/global.css", import.meta.url), "utf8");
 const tokensCss = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
+const scrollSurfaceCss = readFileSync(new URL("./scrollSurface.module.css", import.meta.url), "utf8");
+const selectCss = readFileSync(new URL("./Select.module.css", import.meta.url), "utf8");
+const popoverCss = readFileSync(new URL("./Popover.module.css", import.meta.url), "utf8");
 const buttonCss = readFileSync(new URL("./Button.module.css", import.meta.url), "utf8");
 const iconButtonCss = readFileSync(new URL("./IconButton.module.css", import.meta.url), "utf8");
 const switchCss = readFileSync(new URL("./Switch.module.css", import.meta.url), "utf8");
@@ -17,7 +20,7 @@ const measurementRowCss = readFileSync(
   "utf8",
 );
 const settingsCss = readFileSync(
-  new URL("../../app/SettingsPopover.module.css", import.meta.url),
+  new URL("../../app/SettingsDialog.module.css", import.meta.url),
   "utf8",
 );
 
@@ -42,18 +45,14 @@ describe("shared interactive-state contract", () => {
     );
   });
 
-  it("gives enabled native selects distinct hover and active feedback", () => {
-    expect(globalCss).toMatch(
-      /select:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--color-control-hover-border\);[^}]*background-color:\s*var\(--color-control-hover-surface\);/s,
-    );
-    expect(globalCss).toMatch(
-      /select:active:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--color-control-active-border\);[^}]*background-color:\s*var\(--color-control-active-surface\);/s,
-    );
+  it("keeps native select styling out of the global stylesheet now that every select is the custom Select", () => {
+    expect(globalCss).not.toMatch(/(^|[\s,])select\s*[{:,]/m);
   });
 
   it("keeps OFF switches visibly bounded and gives both switch states transient feedback", () => {
-    expect(tokensCss).toContain("--color-switch-off-border:");
-    expect(switchCss).toContain("border: var(--border-width) solid var(--color-switch-off-border)");
+    expect(tokensCss).toContain("--color-switch-off-track:");
+    expect(switchCss).toContain("border: 0");
+    expect(switchCss).toMatch(/\.track\s*\{[^}]*background-color:\s*var\(--color-switch-off-track\)/s);
     expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:hover');
     expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:active');
     expect(switchCss).toContain(
@@ -67,8 +66,8 @@ describe("shared interactive-state contract", () => {
   });
 
   it("keeps fine-pointer switch feedback on the visible track while preserving a coarse target", () => {
-    expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
-    expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*36px;[^}]*height:\s*20px;/s);
+    expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s);
+    expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s);
     expect(switchCss).toMatch(
       /@media \(any-pointer: coarse\)\s*\{[^}]*\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
     );
@@ -77,13 +76,9 @@ describe("shared interactive-state contract", () => {
     expect(switchCss).not.toMatch(/\.input:hover/);
   });
 
-  it("keeps the selected Appearance segment distinct while still reacting to hover and active", () => {
-    expect(settingsCss).toMatch(
-      /\.appearanceOption\[aria-checked="true"\]:hover\s*\{[^}]*border-color:\s*var\(--color-control-hover-border\);[^}]*background:\s*var\(--color-selection-surface\);/s,
-    );
-    expect(settingsCss).toMatch(
-      /\.appearanceOption\[aria-checked="true"\]:active\s*\{[^}]*border-color:\s*var\(--color-control-active-border\);[^}]*background:\s*var\(--color-selection-surface\);/s,
-    );
+  it("drops the Appearance segmented control CSS now that it is a Select", () => {
+    expect(settingsCss).not.toContain("appearanceOption");
+    expect(settingsCss).not.toContain("appearanceGroup");
   });
 
   it("preserves IconButton selected state while distinguishing selected hover and active", () => {
@@ -104,10 +99,10 @@ describe("shared interactive-state contract", () => {
 
   it("gives menu items the shared hover/active language and preserves expanded disclosure state", () => {
     expect(menuCss).toMatch(
-      /\.item:hover[^}]*border-color:\s*var\(--color-control-hover-border\);[^}]*background:\s*var\(--color-control-hover-surface\);/s,
+      /\.item:hover[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--color-control-hover-surface\);/s,
     );
     expect(menuCss).toMatch(
-      /\.item:active[^}]*border-color:\s*var\(--color-control-active-border\);[^}]*background:\s*var\(--color-control-active-surface\);/s,
+      /\.item:active[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--color-control-active-surface\);/s,
     );
     expect(menuCss).toMatch(/\.item\[aria-disabled="true"\][^}]*cursor:\s*not-allowed;/s);
     expect(menuCss).not.toContain("!important");
@@ -129,6 +124,29 @@ describe("shared interactive-state contract", () => {
     expect(tokensCss).toMatch(/--target-coarse:\s*44px;/);
     expect(tokensCss).toMatch(
       /@media \(any-pointer: coarse\)\s*\{[^}]*:root\s*\{[^}]*--target-current:\s*var\(--target-coarse\);/s,
+    );
+  });
+
+  it("shares a thin overlay-style scrollbar that never reserves a gutter", () => {
+    expect(scrollSurfaceCss).toMatch(/scrollbar-width:\s*thin/);
+    expect(scrollSurfaceCss).toMatch(/scrollbar-color:\s*var\(--color-scrollbar-thumb\)\s+transparent/);
+    expect(scrollSurfaceCss).not.toContain("scrollbar-gutter");
+    expect(tokensCss.match(/--color-scrollbar-thumb:/g)).toHaveLength(2);
+    expect(popoverCss).toContain("scrollSurface.module.css");
+    expect(selectCss).toContain("scrollSurface.module.css");
+  });
+
+  it("keeps the Select trigger as the only hit target so the cursor is uniform", () => {
+    expect(selectCss).toMatch(/\.trigger\s*>\s*\*\s*\{[^}]*pointer-events:\s*none/s);
+    expect(selectCss).toMatch(/\.trigger\s*\{[^}]*cursor:\s*pointer/s);
+  });
+
+  it("mirrors the coarse-pointer sizing under the larger touch targets preference", () => {
+    expect(tokensCss).toMatch(
+      /:root\[data-targets="large"\]\s*\{[^}]*--target-current:\s*var\(--target-coarse\);[^}]*--control-height-compact:\s*44px;/s,
+    );
+    expect(switchCss).toMatch(
+      /:global\(:root\[data-targets="large"\]\)\s+\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
     );
   });
 });

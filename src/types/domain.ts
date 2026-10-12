@@ -2,7 +2,7 @@ export type MetricLinearUnit = "mm" | "cm" | "m";
 export type LinearUnit = MetricLinearUnit | "in" | "ft";
 export type MeasurementDisplayUnit = LinearUnit | "ft-in";
 export type AreaDisplay = "auto" | "ac";
-export type MeasurementDecimalPlaces = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export type MeasurementDecimalPlaces = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export interface Point {
   x: number;
@@ -89,9 +89,14 @@ export interface SessionSettingsV9 extends SessionSettingsV8 {
   measurementDecimalPlaces: MeasurementDecimalPlaces;
 }
 
-export interface SessionSettings extends Omit<SessionSettingsV9, "displayUnit"> {
+export interface SessionSettingsV13 extends Omit<SessionSettingsV9, "displayUnit"> {
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
+}
+
+export interface SessionSettings extends SessionSettingsV13 {
+  /** Classification dimension whose value is shown in on-screen labels; null shows none. */
+  labelClassificationDimensionId: string | null;
 }
 
 interface LegacyMeasurementBase {
@@ -325,7 +330,7 @@ export interface SessionV10 {
   pageCount: number;
   currentPage: number;
   pages: Record<number, PageState>;
-  settings: SessionSettings;
+  settings: SessionSettingsV13;
   classificationCatalog: ClassificationCatalog;
 }
 
@@ -336,7 +341,7 @@ export interface SessionV11 {
   currentPage: number;
   pages: Record<number, PageState>;
   pageLabelOverrides: Record<number, string>;
-  settings: SessionSettings;
+  settings: SessionSettingsV13;
   classificationCatalog: ClassificationCatalog;
 }
 
@@ -349,7 +354,12 @@ export interface SessionV13 extends Omit<SessionV12, "schemaVersion"> {
   schemaVersion: 13;
 }
 
-export type CurrentSession = SessionV13;
+export interface SessionV14 extends Omit<SessionV13, "schemaVersion" | "settings"> {
+  schemaVersion: 14;
+  settings: SessionSettings;
+}
+
+export type CurrentSession = SessionV14;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

@@ -1,5 +1,8 @@
-import { Badge, Button, Dialog } from "../components/ui";
+import type { ReactNode } from "react";
+import { Badge, Button, Dialog, IconButton } from "../components/ui";
 import type { SavedProjectSummary } from "../services/persistence";
+import { useAppPreferences } from "../utils/appPreferences";
+import { formatSavedDate } from "../utils/dateFormat";
 import styles from "./ProjectLibraryDialog.module.css";
 
 interface ProjectLibraryDialogProps {
@@ -19,9 +22,30 @@ interface ProjectLibraryDialogProps {
   onClose: () => void;
 }
 
-function savedDate(timestamp: number): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp);
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
 }
+
+const openIcon = (
+  <Icon>
+    <path d="M8 4.5H5.5A1.5 1.5 0 0 0 4 6v8.5A1.5 1.5 0 0 0 5.5 16H14a1.5 1.5 0 0 0 1.5-1.5V12" />
+    <path d="M11.5 4H16v4.5M16 4l-6 6" />
+  </Icon>
+);
+const exportIcon = (
+  <Icon>
+    <path d="M10 3.5v9M6.5 9.5l3.5 3.5 3.5-3.5M4 16h12" />
+  </Icon>
+);
+const discardIcon = (
+  <Icon>
+    <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
+  </Icon>
+);
 
 export function ProjectLibraryDialog({
   open,
@@ -39,7 +63,10 @@ export function ProjectLibraryDialog({
   onConfirmDiscard,
   onClose,
 }: ProjectLibraryDialogProps) {
+  const { dateFormat, projectsShown } = useAppPreferences();
   if (!open) return null;
+  const visibleProjects =
+    projectsShown === "all" ? projects : projects.slice(0, Number(projectsShown));
   const pendingProject = projects.find((project) => project.id === pendingDiscardProjectId);
   const confirmingDiscard = pendingDiscardProjectId !== null;
 
@@ -76,7 +103,7 @@ export function ProjectLibraryDialog({
         <>
           {projects.length > 0 ? (
             <ul className={styles.projectList} aria-label="Saved projects">
-              {projects.map((project) => {
+              {visibleProjects.map((project) => {
                 const isCurrent = currentSessionLoaded
                   ? project.id === activeProjectId
                   : project.isCurrent;
@@ -91,37 +118,33 @@ export function ProjectLibraryDialog({
                       <p>
                         {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
                         <span aria-hidden="true"> · </span>
-                        Saved {savedDate(project.savedAt)}
+                        Saved {formatSavedDate(project.savedAt, dateFormat)}
                       </p>
                     </div>
                     <div className={styles.projectActions}>
-                      <Button
-                        size="compact"
-                        variant="secondary"
-                        disabled={opening}
-                        aria-label={`Export project ${project.name}`}
-                        onClick={() => onExportProject(project.id)}
-                      >
-                        Export
-                      </Button>
-                      <Button
-                        size="compact"
-                        variant={isCurrent ? "primary" : "secondary"}
+                      <IconButton
+                        icon={openIcon}
                         disabled={opening || isOpen}
                         disabledReason={isOpen ? "This project is already open." : undefined}
+                        tooltip={isCurrent && !isOpen ? "Continue" : "Open"}
                         aria-label={`${isOpen ? "Current project" : isCurrent ? "Continue project" : "Open project"} ${project.name}`}
                         onClick={() => onOpenProject(project.id)}
-                      >
-                        {isOpen ? "Current" : isCurrent ? "Continue" : "Open"}
-                      </Button>
-                      <Button
-                        size="compact"
-                        variant="dangerSecondary"
+                      />
+                      <IconButton
+                        icon={exportIcon}
                         disabled={opening}
+                        tooltip="Export"
+                        aria-label={`Export project ${project.name}`}
+                        onClick={() => onExportProject(project.id)}
+                      />
+                      <IconButton
+                        icon={discardIcon}
+                        tone="danger"
+                        disabled={opening}
+                        tooltip="Discard"
+                        aria-label={`Discard project ${project.name}`}
                         onClick={() => onRequestDiscard(project.id)}
-                      >
-                        Discard
-                      </Button>
+                      />
                     </div>
                   </li>
                 );
@@ -130,32 +153,38 @@ export function ProjectLibraryDialog({
           ) : (
             <div className={styles.emptyState}>
               <span className={styles.emptyIcon} aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M5 4.75h11.5a2 2 0 0 1 2 2v12.5H7a2 2 0 0 1-2-2V4.75Z" />
-                  <path d="M8 8.25h7M8 11.75h7M8 15.25h4" />
-                  <path d="M18.5 8.25H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2" />
+                <svg viewBox="0 0 20 20" focusable="false">
+                  <path d="M4.17 3.96h9.58a1.67 1.67 0 0 1 1.67 1.67v10.42H5.83a1.67 1.67 0 0 1 -1.67 -1.67V3.96Z" />
+                  <path d="M6.67 6.88h5.83M6.67 9.79h5.83M6.67 12.71h3.33" />
+                  <path d="M15.42 6.88H16.67a0.83 0.83 0 0 1 0.83 0.83v7.5a0.83 0.83 0 0 1 -0.83 0.83h-1.67" />
                 </svg>
               </span>
               <h3>No saved projects</h3>
               <p>Open a PDF to start a project.</p>
             </div>
           )}
+          {visibleProjects.length < projects.length && (
+            <p className={styles.hiddenNote}>
+              Showing the {visibleProjects.length} most recent of {projects.length} projects. Change
+              this in Settings.
+            </p>
+          )}
           <div className={styles.actions}>
-            <Button size="compact" variant="ghost" onClick={onClose}>
+            <Button variant="ghost" size="compact" onClick={onClose}>
               Close
             </Button>
             {currentSessionLoaded &&
               !projects.some((project) => project.id === activeProjectId) && (
                 <Button
-                  size="compact"
                   variant="secondary"
+                  size="compact"
                   disabled={opening}
                   onClick={() => onExportProject()}
                 >
                   Export current project
                 </Button>
               )}
-            <Button size="compact" variant="secondary" disabled={opening} onClick={onImportProject}>
+            <Button variant="secondary" size="compact" disabled={opening} onClick={onImportProject}>
               Import project
             </Button>
             <Button size="compact" onClick={onOpenPdf} disabled={opening}>

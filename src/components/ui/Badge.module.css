@@ -1,6 +1,6 @@
 .badge {
   display: inline-flex;
-  min-height: 24px;
+  min-height: var(--badge-min-height);
   align-items: center;
   padding: 0 var(--space-8);
   border: var(--border-width) solid var(--color-divider);
@@ -13,9 +13,9 @@
 }
 
 .neutral {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   background-color: var(--color-surface-subdued);
-  border-color: var(--color-border);
+  border-color: var(--color-divider);
 }
 
 .info {

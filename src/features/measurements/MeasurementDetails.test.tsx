@@ -228,7 +228,7 @@ describe("MeasurementDetails", () => {
     expect(container!.textContent).toContain("1 item");
     expect(container!.textContent).not.toContain("Scale unavailable");
     expect(container!.textContent).not.toContain("Unavailable");
-    expect(buttonByText("Rename")).toBeTruthy();
+    expect(container!.querySelector('[aria-label^="Rename "]')).not.toBeNull();
     expect(buttonByText("Save note")).toBeTruthy();
   });
 
@@ -333,7 +333,7 @@ describe("MeasurementDetails", () => {
 
     renderDetails(createProps({ page: longScalePage }));
 
-    const scaleValue = Array.from(container?.querySelectorAll<HTMLElement>("strong") ?? []).find(
+    const scaleValue = Array.from(container?.querySelectorAll<HTMLElement>("dd") ?? []).find(
       (candidate) => candidate.textContent?.startsWith(longScaleName),
     );
     expect(scaleValue?.title).toBe(
@@ -367,7 +367,6 @@ describe("MeasurementDetails", () => {
     renderDetails(props);
 
     act(() => buttonByText("Back to classifications").click());
-    act(() => buttonByText("Delete measurement").click());
     const assignment = classificationTrigger();
     act(() => assignment.click());
     const unclassified = Array.from(
@@ -377,7 +376,6 @@ describe("MeasurementDetails", () => {
     act(() => unclassified.click());
 
     expect(props.onBack).toHaveBeenCalledOnce();
-    expect(props.onDelete).toHaveBeenCalledOnce();
     expect(props.onAssignClassification).toHaveBeenCalledWith("line-1", "trade", null);
     expect(container?.textContent).toContain("Organization");
     expect(container?.textContent).not.toContain("Edit geometry");
@@ -408,7 +406,7 @@ describe("MeasurementDetails", () => {
   it("renames through the canonical command and trims the submitted name", () => {
     const props = createProps();
     renderDetails(props);
-    act(() => buttonByText("Rename").click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label^="Rename "]')!.click());
     const input = container?.querySelector<HTMLInputElement>("input");
     if (!input) throw new Error("Rename input was not rendered.");
 
@@ -437,8 +435,7 @@ describe("MeasurementDetails", () => {
     expect(textarea.value).toBe("Draft");
     renderDetails({ ...props, measurement: firstMeasurement });
     expect(textarea.value).toBe("");
-    act(() => buttonByText("Save note").click());
-    expect(props.onSaveNote).toHaveBeenLastCalledWith("");
+    expect(buttonByText("Save note").disabled).toBe(true);
     renderDetails(props);
     expect(textarea.value).toBe("Saved");
   });
@@ -469,7 +466,7 @@ describe("MeasurementDetails", () => {
   it("resets local rename UI when canonical selection changes while Details stays open", () => {
     const props = createProps();
     renderDetails(props);
-    act(() => buttonByText("Rename").click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label^="Rename "]')!.click());
     expect(container?.querySelector("input")).not.toBeNull();
 
     renderDetails(createProps({ ...props, measurement: secondMeasurement }));

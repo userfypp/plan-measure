@@ -1,0 +1,14 @@
+/* Shared control states. Use with `composes` from component modules. */
+
+.focusRing:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.disabledSurface:disabled,
+.disabledSurface[data-disabled="true"] {
+  cursor: not-allowed;
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
+}

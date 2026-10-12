@@ -1,16 +1,52 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
-import { AnchoredMenu, Button, Popover, Switch } from "../../components/ui";
+import { AnchoredMenu, Button, IconButton, Popover, Select, Switch } from "../../components/ui";
 import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
 import { scaleDisplayMetadata } from "./scaleDisplay";
+import { setAppPreference, useAppPreferences } from "../../utils/appPreferences";
 import styles from "./ViewerDock.module.css";
 
 type ViewerSettings = Pick<
   SessionSettings,
   "displayUnit" | "areaDisplay" | "showLabels" | "showMeasurements" | "showCalibration"
 >;
+
+const DISPLAY_UNIT_OPTIONS: Array<{ value: ViewerSettings["displayUnit"]; label: string }> = [
+  { value: "mm", label: "Millimetres" },
+  { value: "cm", label: "Centimetres" },
+  { value: "m", label: "Metres" },
+  { value: "in", label: "Inches" },
+  { value: "ft", label: "Feet" },
+  { value: "ft-in", label: "Feet & inches" },
+];
+
+const AREA_DISPLAY_OPTIONS: Array<{ value: ViewerSettings["areaDisplay"]; label: string }> = [
+  { value: "auto", label: "Auto" },
+  { value: "ac", label: "Acres" },
+];
+
+const LINE_THICKNESS_OPTIONS = [
+  { value: "thin", label: "Thin" },
+  { value: "normal", label: "Normal" },
+  { value: "thick", label: "Thick" },
+] as const;
+
+const LABEL_SIZE_OPTIONS = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+] as const;
+
+function PagesIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M6 2.75h5.75l3.75 3.75v9.75a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V4.25A1.5 1.5 0 0 1 6 2.75Z" />
+      <path d="M11.75 2.75v3a.75.75 0 0 0 .75.75h3M7.5 9.5h5M7.5 12.25h5M7.5 15h2.5" />
+    </svg>
+  );
+}
 
 export interface ViewerDockProps {
   navigation: ViewerNavigationModel;
@@ -111,6 +147,15 @@ export function ViewerDock({
   onSettingsChange,
 }: ViewerDockProps) {
   const pageLabelInputId = useId();
+  const displayUnitId = useId();
+  const displayUnitLabelId = useId();
+  const areaDisplayId = useId();
+  const areaDisplayLabelId = useId();
+  const lineThicknessId = useId();
+  const lineThicknessLabelId = useId();
+  const labelSizeId = useId();
+  const labelSizeLabelId = useId();
+  const appPreferences = useAppPreferences();
   const pageLabelInputRef = useRef<HTMLInputElement>(null);
   const pageNavigationRef = useRef<HTMLDivElement>(null);
   const pageNavigationFocus = useRovingFocusGroup(pageNavigationRef, { orientation: "horizontal" });
@@ -201,16 +246,14 @@ export function ViewerDock({
         aria-orientation="horizontal"
       >
         {onTogglePages && (
-          <Button
+          <IconButton
             className={styles.pagesTrigger}
-            variant="ghost"
-            size="compact"
-            aria-pressed={pagesOpen}
+            icon={<PagesIcon />}
+            aria-label="Pages"
+            pressed={pagesOpen}
             aria-controls="page-browser"
             onClick={onTogglePages}
-          >
-            Pages
-          </Button>
+          />
         )}
         <Button
           variant="ghost"
@@ -388,11 +431,6 @@ export function ViewerDock({
               )}
             </span>
             <DisclosureIcon />
-            {activeCalibration && (
-              <span className={styles.scaleFullName} data-scale-full-name aria-hidden="true">
-                {activeCalibration.name}
-              </span>
-            )}
           </>
         }
         triggerProps={{
@@ -416,6 +454,7 @@ export function ViewerDock({
         label="Active scale"
         items={scaleItems}
         placement="bottom-end"
+        matchTriggerWidth
       />
 
       {copiedScaleName !== null && (
@@ -459,55 +498,97 @@ export function ViewerDock({
             <strong>View settings</strong>
             <span>Control plan annotations and units.</span>
           </div>
-          <label className={styles.unit}>
-            <span>Display unit</span>
-            <select
-              value={settings.displayUnit}
-              onChange={(event) =>
-                onSettingsChange({ displayUnit: event.target.value as ViewerSettings["displayUnit"] })
-              }
-            >
-              <option value="mm">Millimetres</option>
-              <option value="cm">Centimetres</option>
-              <option value="m">Metres</option>
-              <option value="in">Inches</option>
-              <option value="ft">Feet</option>
-              <option value="ft-in">Feet &amp; inches</option>
-            </select>
-          </label>
-          <label className={styles.unit}>
-            <span>Polygon area</span>
-            <select
-              value={settings.areaDisplay}
-              onChange={(event) =>
-                onSettingsChange({
-                  areaDisplay: event.target.value as ViewerSettings["areaDisplay"],
-                })
-              }
-            >
-              <option value="auto">Auto</option>
-              <option value="ac">Acres</option>
-            </select>
-          </label>
+          <div className={styles.settingBlock}>
+            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+              <label
+                id={displayUnitLabelId}
+                className={styles.settingLabel}
+                htmlFor={displayUnitId}
+              >
+                Display unit
+              </label>
+              <Select
+                id={displayUnitId}
+                className={styles.unitSelect}
+                label="Display unit"
+                labelledBy={displayUnitLabelId}
+                value={settings.displayUnit}
+                options={DISPLAY_UNIT_OPTIONS}
+                onChange={(displayUnit) => onSettingsChange({ displayUnit })}
+              />
+            </div>
+            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+              <label
+                id={areaDisplayLabelId}
+                className={styles.settingLabel}
+                htmlFor={areaDisplayId}
+              >
+                Polygon area
+              </label>
+              <Select
+                id={areaDisplayId}
+                className={styles.unitSelect}
+                label="Polygon area"
+                labelledBy={areaDisplayLabelId}
+                value={settings.areaDisplay}
+                options={AREA_DISPLAY_OPTIONS}
+                onChange={(areaDisplay) => onSettingsChange({ areaDisplay })}
+              />
+            </div>
+            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+              <label
+                id={lineThicknessLabelId}
+                className={styles.settingLabel}
+                htmlFor={lineThicknessId}
+              >
+                Line thickness
+              </label>
+              <Select
+                id={lineThicknessId}
+                className={styles.unitSelect}
+                label="Line thickness"
+                labelledBy={lineThicknessLabelId}
+                value={appPreferences.lineThickness}
+                options={LINE_THICKNESS_OPTIONS}
+                onChange={(value) => setAppPreference("lineThickness", value)}
+              />
+            </div>
+            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+              <label id={labelSizeLabelId} className={styles.settingLabel} htmlFor={labelSizeId}>
+                Label size
+              </label>
+              <Select
+                id={labelSizeId}
+                className={styles.unitSelect}
+                label="Label size"
+                labelledBy={labelSizeLabelId}
+                value={appPreferences.labelSize}
+                options={LABEL_SIZE_OPTIONS}
+                onChange={(value) => setAppPreference("labelSize", value)}
+              />
+            </div>
+          </div>
           <span className={styles.menuDivider} aria-hidden="true" />
-          <ViewToggle
-            label="Labels"
-            description="Show calculated values"
-            checked={settings.showLabels}
-            onChange={(checked) => onSettingsChange({ showLabels: checked })}
-          />
-          <ViewToggle
-            label="Measurements"
-            description="Show drawn geometry"
-            checked={settings.showMeasurements}
-            onChange={(checked) => onSettingsChange({ showMeasurements: checked })}
-          />
-          <ViewToggle
-            label="Calibration"
-            description="Show scale references"
-            checked={settings.showCalibration}
-            onChange={(checked) => onSettingsChange({ showCalibration: checked })}
-          />
+          <div className={styles.settingBlock}>
+            <ViewToggle
+              label="Labels"
+              description="Show calculated values"
+              checked={settings.showLabels}
+              onChange={(checked) => onSettingsChange({ showLabels: checked })}
+            />
+            <ViewToggle
+              label="Measurements"
+              description="Show drawn geometry"
+              checked={settings.showMeasurements}
+              onChange={(checked) => onSettingsChange({ showMeasurements: checked })}
+            />
+            <ViewToggle
+              label="Calibration"
+              description="Show scale references"
+              checked={settings.showCalibration}
+              onChange={(checked) => onSettingsChange({ showCalibration: checked })}
+            />
+          </div>
         </div>
       </Popover>
     </nav>
@@ -529,7 +610,7 @@ function ViewToggle({
   return (
     <div className={styles.toggle}>
       <label className={styles.toggleText} htmlFor={switchId}>
-        <strong>{label}</strong>
+        <span className={styles.settingLabel}>{label}</span>
         <small>{description}</small>
       </label>
       <Switch id={switchId} checked={checked} onChange={onChange} />

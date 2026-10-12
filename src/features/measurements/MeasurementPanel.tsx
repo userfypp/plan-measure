@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import { useSessionState } from "../../app/sessionState";
-import { Button, Popover } from "../../components/ui";
+import { Button, Popover, Select } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
 import { MEASUREMENT_TYPES, measurementPathSpecs } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
@@ -14,6 +15,22 @@ import {
 import styles from "./MeasurementPanel.module.css";
 
 const emptyClassificationCatalog: ClassificationCatalog = { dimensions: [] };
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M3.33 4.58h13.34l-5.21 6.25v4.17l-2.92 1.67v-5.84Z" />
+    </svg>
+  );
+}
+
+function GroupIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M3.33 5h13.34M9.17 10h7.5M9.17 15h7.5M5.83 5v10h1.67M5.83 10h1.67" />
+    </svg>
+  );
+}
 
 export interface MeasurementDeleteRequest {
   pageNumber: number;
@@ -48,6 +65,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   onSetMeasurementVisibility,
   onSetMeasurementsVisibility,
 }: MeasurementPanelProps) {
+  const numberFormatKey = useNumberFormatKey();
   const { session } = useSessionState();
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
@@ -95,7 +113,8 @@ export const MeasurementPanel = memo(function MeasurementPanel({
         classificationValueIds: measurement.classificationValueIds,
       })),
     ),
-    [areaDisplay, displayUnit, measurementDecimalPlaces, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
+    [areaDisplay, displayUnit, measurementDecimalPlaces, numberFormatKey, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
   );
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const measurements = useMemo(
@@ -146,12 +165,12 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           <span className={styles.visuallyHidden}>Search measurements by name</span>
           <svg
             className={styles.searchIcon}
-            viewBox="0 0 24 24"
+            viewBox="0 0 20 20"
             aria-hidden="true"
             focusable="false"
           >
-            <circle cx="10.8" cy="10.8" r="6.8" />
-            <path d="m16 16 4.5 4.5" />
+            <circle cx="9" cy="9" r="5.67" />
+            <path d="m13.33 13.33 3.75 3.75" />
           </svg>
           <input
             type="search"
@@ -164,15 +183,23 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           open={openControls === "filters"}
           onOpenChange={(open) => setOpenControls(open ? "filters" : null)}
           triggerProps={{
-            className: styles.toolbarButton,
+            className: [styles.toolbarButton, activeFilterCount > 0 ? styles.active : ""]
+              .filter(Boolean)
+              .join(" "),
             "aria-label": activeFilterCount
               ? `Filters, ${activeFilterCount} active`
               : "Filters",
           }}
+          tooltip={activeFilterCount ? `Filters · ${activeFilterCount} active` : "Filters"}
+          tooltipPosition="bottom"
           trigger={
             <>
-              <span>Filters</span>
-              {activeFilterCount > 0 && <span className={styles.activeCount}>· {activeFilterCount}</span>}
+              <FilterIcon />
+              {activeFilterCount > 0 && (
+                <span className={styles.activeCount} aria-hidden="true">
+                  {activeFilterCount}
+                </span>
+              )}
             </>
           }
           role="dialog"
@@ -180,77 +207,84 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           initialFocus="first"
           dismissOnFocusLeave
           placement="bottom-end"
-          className={[styles.controlsPopover, styles.filtersPopover].join(" ")}
+          className={styles.controlsPopover}
         >
-          <div className={styles.filters}>
-            <div className={styles.filterRow}>
-              <label>
-                <span>Page</span>
-                <select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}>
-                  <option value="">All pages</option>
-                  {Object.values(pages)
-                    .sort((a, b) => a.pageNumber - b.pageNumber)
-                    .map((candidatePage) => {
-                      const label =
-                        effectivePageLabel(
-                          candidatePage.pageNumber,
-                          pageLabelOverrides,
-                          sourcePageLabels,
-                        ) || `Page ${candidatePage.pageNumber}`;
-                      return (
-                        <option key={candidatePage.pageNumber} value={candidatePage.pageNumber}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                </select>
+          <div className={styles.fields}>
+            {(
+              [
+                {
+                  label: "Page",
+                  value: pageFilter,
+                  onChange: setPageFilter,
+                  options: [
+                    { value: "", label: "All pages" },
+                    ...Object.values(pages)
+                      .sort((a, b) => a.pageNumber - b.pageNumber)
+                      .map((candidatePage) => ({
+                        value: String(candidatePage.pageNumber),
+                        label:
+                          effectivePageLabel(
+                            candidatePage.pageNumber,
+                            pageLabelOverrides,
+                            sourcePageLabels,
+                          ) || `Page ${candidatePage.pageNumber}`,
+                      })),
+                  ],
+                },
+                {
+                  label: "Type",
+                  value: typeFilter,
+                  onChange: setTypeFilter,
+                  options: [
+                    { value: "", label: "All types" },
+                    ...MEASUREMENT_TYPES.map((type) => ({
+                      value: type as string,
+                      label: measurementPathSpecs[type].label,
+                    })),
+                  ],
+                },
+                {
+                  label: "Visibility",
+                  value: visibilityFilter,
+                  onChange: setVisibilityFilter,
+                  options: [
+                    { value: "", label: "All" },
+                    { value: "true", label: "Visible" },
+                    { value: "false", label: "Hidden" },
+                  ],
+                },
+                {
+                  label: "Classification",
+                  value: classificationFilter,
+                  onChange: setClassificationFilter,
+                  options: [
+                    { value: "", label: "All classifications" },
+                    ...catalog.dimensions.flatMap((dimension) =>
+                      dimension.values.map((value) => ({
+                        value: value.id,
+                        label: `${dimension.name}: ${value.name}`,
+                      })),
+                    ),
+                  ],
+                },
+              ] as const
+            ).map((field) => (
+              <label className={styles.field} key={field.label}>
+                <span>{field.label}</span>
+                <Select
+                  label={field.label}
+                  value={field.value}
+                  options={field.options}
+                  onChange={field.onChange}
+                />
               </label>
-              <label>
-                <span>Type</span>
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                  <option value="">All types</option>
-                  {MEASUREMENT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {measurementPathSpecs[type].label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className={styles.filterRow}>
-              <label>
-                <span>Visibility</span>
-                <select
-                  value={visibilityFilter}
-                  onChange={(event) => setVisibilityFilter(event.target.value)}
-                >
-                  <option value="">All</option>
-                  <option value="true">Visible</option>
-                  <option value="false">Hidden</option>
-                </select>
-              </label>
-              <label>
-                <span>Classification</span>
-                <select
-                  value={classificationFilter}
-                  onChange={(event) => setClassificationFilter(event.target.value)}
-                >
-                  <option value="">All classifications</option>
-                  {catalog.dimensions.flatMap((dimension) =>
-                    dimension.values.map((value) => (
-                      <option key={value.id} value={value.id}>
-                        {dimension.name}: {value.name}
-                      </option>
-                    )),
-                  )}
-                </select>
-              </label>
-            </div>
-            {activeFilterCount > 0 && (
+            ))}
+          </div>
+          {activeFilterCount > 0 && (
+            <footer className={styles.popoverFooter}>
               <Button
                 variant="ghost"
                 size="compact"
-                className={styles.clearFilters}
                 onClick={() => {
                   setPageFilter("");
                   setTypeFilter("");
@@ -260,41 +294,33 @@ export const MeasurementPanel = memo(function MeasurementPanel({
               >
                 Clear filters
               </Button>
-            )}
-          </div>
+            </footer>
+          )}
         </Popover>
         {hasGroupBy && (
           <Popover
             open={openControls === "grouping"}
             onOpenChange={(open) => setOpenControls(open ? "grouping" : null)}
             triggerProps={{
-              className: [styles.toolbarButton, styles.groupingButton].join(" "),
+              className: [styles.toolbarButton, groupByNames.length > 0 ? styles.active : ""]
+                .filter(Boolean)
+                .join(" "),
               "aria-label":
                 groupByNames.length > 0
                   ? `Group by ${groupByNames.join(", then ")}`
                   : "Group measurements",
-              title: groupByNames.length > 0 ? groupByNames.join(", then ") : undefined,
             }}
-            trigger={
-              <span className={styles.truncatedTrigger}>
-                <span className={styles.groupingPrefix}>Group</span>
-                {groupByNames.length > 0 && (
-                  <>
-                    <span className={styles.groupingSeparator} aria-hidden="true">·</span>
-                    <span className={styles.groupingName}>{groupByNames[0]}</span>
-                    {groupByNames.length > 1 && (
-                      <span className={styles.groupingCount}>+{groupByNames.length - 1}</span>
-                    )}
-                  </>
-                )}
-              </span>
+            tooltip={
+              groupByNames.length > 0 ? `Grouped by ${groupByNames.join(" › ")}` : "Group"
             }
+            tooltipPosition="bottom"
+            trigger={<GroupIcon />}
             role="dialog"
             aria-label="Measurement grouping"
             initialFocus="first"
             dismissOnFocusLeave
             placement="bottom-end"
-            className={[styles.controlsPopover, styles.groupingPopover].join(" ")}
+            className={styles.controlsPopover}
           >
             <MeasurementsHeader
               dimensions={catalog.dimensions}

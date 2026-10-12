@@ -13,13 +13,22 @@ import {
   shouldRenderMeasurement,
 } from "./measurementViewModels";
 
-const measurementPanelCss = readFileSync(new URL("./MeasurementPanel.module.css", import.meta.url), "utf8");
+const measurementPanelCss = readFileSync(
+  new URL("./MeasurementPanel.module.css", import.meta.url),
+  "utf8",
+);
 const measurementCollectionCss = readFileSync(
   new URL("./MeasurementCollection.module.css", import.meta.url),
   "utf8",
 );
-const measurementGroupCss = readFileSync(new URL("./MeasurementGroup.module.css", import.meta.url), "utf8");
-const measurementRowCss = readFileSync(new URL("./MeasurementRow.module.css", import.meta.url), "utf8");
+const measurementGroupCss = readFileSync(
+  new URL("./MeasurementGroup.module.css", import.meta.url),
+  "utf8",
+);
+const measurementRowCss = readFileSync(
+  new URL("./MeasurementRow.module.css", import.meta.url),
+  "utf8",
+);
 
 const measurement: Measurement = {
   id: "line-1",
@@ -49,7 +58,15 @@ const page: PageState = {
   activeCalibrationId: "scale-1",
   nextCalibrationNumber: 2,
   measurements: [measurement],
-  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+  nextMeasurementNumber: {
+    line: 2,
+    polyline: 1,
+    polygon: 1,
+    rectangle: 1,
+    ellipse: 1,
+    cloud: 1,
+    count: 1,
+  },
 };
 
 function viewModel(selected = false, candidate = measurement) {
@@ -135,15 +152,24 @@ describe("measurement view models", () => {
       ),
     ).toEqual(["Line", "Polyline", "Polygon"]);
   });
-
 });
 
 describe("MeasurementRow accessibility", () => {
   it("shows Count metadata without a missing-scale warning", () => {
-    const markup = renderToStaticMarkup(<MeasurementRow
-      viewModel={{ ...viewModel(), type: "count", typeLabel: "Count", valueLabel: "3 items", calibrationSummary: "No scale required", hasCalibration: false }}
-      onSelectMeasurement={() => undefined} onToggleVisibility={() => undefined}
-    />);
+    const markup = renderToStaticMarkup(
+      <MeasurementRow
+        viewModel={{
+          ...viewModel(),
+          type: "count",
+          typeLabel: "Count",
+          valueLabel: "3 items",
+          calibrationSummary: "No scale required",
+          hasCalibration: false,
+        }}
+        onSelectMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+      />,
+    );
     expect(markup).toContain('title="Count"');
     expect(markup).not.toContain("No scale required");
     expect(markup).not.toContain("unavailable");
@@ -223,8 +249,12 @@ describe("MeasurementRow accessibility", () => {
     expect(markup).toContain(`>${quantityParts[0]}<`);
     expect(markup).toContain(`>${quantityParts[1]}<`);
     const visibleDetails = markup.slice(markup.indexOf('id="measurement-details-polygon-1"'));
-    expect(visibleDetails.indexOf(model.name)).toBeLessThan(visibleDetails.indexOf(quantityParts[0]!));
-    expect(visibleDetails.indexOf(quantityParts[0]!)).toBeLessThan(visibleDetails.indexOf(model.typeLabel));
+    expect(visibleDetails.indexOf(model.name)).toBeLessThan(
+      visibleDetails.indexOf(quantityParts[0]!),
+    );
+    expect(visibleDetails.indexOf(quantityParts[0]!)).toBeLessThan(
+      visibleDetails.indexOf(model.typeLabel),
+    );
   });
 
   it("keeps Polygon perimeter architectural while acres changes only the area quantity", () => {
@@ -257,63 +287,77 @@ describe("MeasurementRow accessibility", () => {
 
   it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
     expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
+    // The eye is centred vertically in its column and pinned to its start.
     expect(measurementRowCss).toMatch(
-      /\.actions > \*\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
+      /\.actions\s*\{[^}]*display:\s*grid;[^}]*align-items:\s*center;[^}]*justify-items:\s*start;/s,
     );
-    expect(measurementRowCss).toMatch(/\.visibilityButton svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/s);
+    expect(measurementRowCss).toMatch(
+      /\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s,
+    );
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
     );
   });
 
-  it("extends only the ungrouped row state surface without changing row or Eye geometry", () => {
+  it("extends the row state surface to the container edge without changing row or Eye geometry", () => {
     expect(measurementCollectionCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;/s,
+      /\.list\s*\{[^}]*--measurement-selection-marker-width:\s*0px;/s,
+    );
+    expect(measurementCollectionCss).not.toContain("--measurement-row-inline-bleed");
+    expect(measurementRowCss).toMatch(
+      /\.row::before\s*\{[^}]*inset:\s*0;[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--measurement-row-inline-bleed, 0px\)\);[^}]*pointer-events:\s*none;/s,
+      /\.row::after\s*\{[^}]*var\(--tree-row-depth, 0\)[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--target-current\);/s,
+      /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);/s,
     );
+    // The eye is a visual square and its own hit area: no ::after bleeds clicks outside it.
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+    expect(measurementRowCss).not.toMatch(/\.actions \.visibilityButton\s*\{[^}]*tree-edge-end/s);
+    expect(measurementRowCss).not.toContain(".visibilityButton::after");
+    expect(measurementRowCss).toMatch(
+      /\.glyph\s*\{[^}]*margin-inline-start:\s*calc\(-1 \* var\(--space-4\)\);/s,
     );
   });
 });
 
 describe("measurement grouping surfaces", () => {
   it("keeps advanced controls out of the list layout and bounds their responsive popovers", () => {
-    expect(measurementPanelCss).toMatch(/\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s);
     expect(measurementPanelCss).toMatch(
-      /\.toolbar\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);/s,
+      /\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s,
+    );
+    expect(measurementPanelCss).toMatch(
+      /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--geometry-tree-inset-end\)/s,
     );
     expect(measurementPanelCss).toMatch(
       /\.search\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
     );
+    // Icon-only triggers with IconButton geometry; an applied filter or grouping looks pressed.
     expect(measurementPanelCss).toMatch(
-      /\.toolbarButton\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
+      /\.toolbarButton\s*\{[^}]*min-width:\s*var\(--control-height-compact\);[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*transparent;/s,
     );
-    expect(measurementPanelCss).toContain(".toolbarButton::after");
+    expect(measurementPanelCss).not.toContain(".toolbarButton::after");
     expect(measurementPanelCss).toMatch(
-      /\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s,
+      /\.toolbarButton\.active\s*\{[^}]*border-color:\s*var\(--color-primary\);[^}]*background:\s*var\(--color-selected\);[^}]*color:\s*var\(--color-primary\);/s,
     );
-    expect(measurementPanelCss).toMatch(/\.toolbarButton::after\s*\{[^}]*width:\s*5px;[^}]*height:\s*5px;/s);
-    expect(measurementPanelCss).toMatch(
-      /@container measurement-panel \(max-width: 359px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
+    // One toolbar row at every sidebar width: no wrap rule, no truncated trigger text.
+    expect(measurementPanelCss).not.toMatch(
+      /max-width: 439px|grouping(Prefix|Name|Count)|filterRow/,
     );
-    expect(measurementPanelCss).toContain("container-name: measurement-controls");
+    // Popover bodies: label | control rows sharing one control column, clear action in a footer.
     expect(measurementPanelCss).toMatch(
-      /\.groupingPrefix,\s*\.groupingSeparator,\s*\.groupingCount\s*\{[^}]*flex:\s*0 0 auto;/s,
+      /\.fields\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content minmax\(0, 1fr\);/s,
     );
+    expect(measurementPanelCss).toMatch(/\.field\s*\{[^}]*grid-template-columns:\s*subgrid;/s);
     expect(measurementPanelCss).toMatch(
-      /\.groupingName\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/s,
-    );
-    expect(measurementPanelCss).toMatch(
-      /@container measurement-controls \(max-width: 300px\)[\s\S]*?\.filterRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/,
+      /\.popoverFooter\s*\{[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\);/s,
     );
     expect(measurementPanelCss).toMatch(
-      /\.controlsPopover\s*\{[^}]*width:\s*min\(320px, calc\(100vw - var\(--space-16\)\)\);/s,
+      /\.controlsPopover\s*\{[^}]*width:\s*min\(var\(--geometry-measurement-popover-width\), calc\(100vw - var\(--space-16\)\)\);/s,
     );
     expect(measurementPanelCss).toContain("container-name: measurement-panel");
   });
@@ -353,10 +397,9 @@ describe("measurement grouping surfaces", () => {
     expect(markup).not.toContain("<h2");
     expect(markup).not.toContain('aria-label="1 measurements"');
     expect(markup).toContain("Group by");
-    expect(markup).toContain("<select");
-    expect(markup).toContain('<option value="">None</option>');
-    expect(markup).toContain('<option value="trade" selected="">Trade</option>');
-    expect(markup).toContain("Legacy trade (archived)");
+    expect(markup).toContain('aria-label="Group by"');
+    expect(markup).toContain('aria-haspopup="menu"');
+    expect(markup).toContain(">Trade</span>");
     expect(markup).not.toContain('data-viewer-shortcuts="enabled"');
   });
 
@@ -387,6 +430,7 @@ describe("measurement grouping surfaces", () => {
             dimensionLabel: "Trade",
             label: "Electrical",
             archived: true,
+            unassigned: false,
             measurementIds: ["line-1"],
             visibility: "mixed",
           },
@@ -408,64 +452,78 @@ describe("measurement grouping surfaces", () => {
       'aria-label="Show all measurements in Trade · Electrical; currently mixed visibility"',
     );
     expect(markup).toContain('data-group-visibility="mixed"');
-    expect(markup).toContain('d="M9.5 12h5"');
-    expect(markup).not.toContain('d="m4 4 16 16"');
+    expect(markup).toContain('d="M7.92 10h4.17"');
+    expect(markup).not.toContain('d="m3.33 3.33 13.33 13.33"');
     expect(markup).not.toContain(">Mixed<");
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("uses one fine divider level and a lighter compact hierarchy for nested groups", () => {
+  it("renders the tree with one-line headers, inset-based indentation and full-width guides", () => {
+    expect(measurementGroupCss).not.toMatch(/\.group\s*\{[^}]*border-bottom:/s);
     expect(measurementGroupCss).not.toMatch(
-      /\.group\s*\{[^}]*border-bottom:/s,
+      /rootHeader|headerWithoutMeta|childHeader|deepHeader|uppercase/,
     );
     expect(measurementGroupCss).toMatch(
-      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
+      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\)\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);[^}]*min-height:\s*var\(--target-current\)|\.header\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\)\s*calc\(var\(--target-current\) \+ var\(--tree-edge-end, 0px\)\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.rootHeader\s*\{[^}]*border-bottom:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-subdued\);/s,
+      /\.header\s*\{[^}]*padding-inline:\s*calc\(var\(--geometry-tree-inset-start\) \+ var\(--tree-depth, 0\) \* var\(--tree-indent\)\)\s*0;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.childGroups\s*\{[^}]*border-inline-start:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*padding-inline-start:\s*var\(--space-8\);/s,
+      /\.header\[data-group-depth="0"\]\s*\{[^}]*border-top-color:\s*var\(--color-divider\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.childHeader,\s*\.deepHeader\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*border-bottom:\s*0;[^}]*background:\s*transparent;/s,
+      /\.groups > \.group:first-of-type > \.header\s*\{[^}]*border-top-color:\s*transparent;/s,
     );
-    expect(measurementGroupCss).toMatch(/\.headerWithoutMeta\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\);/s);
+    expect(measurementGroupCss).toMatch(/\.childGroups\s*\{[^}]*position:\s*relative;/s);
+    expect(measurementGroupCss).not.toMatch(/\.childGroups\s*\{[^}]*(border|padding)/s);
     expect(measurementGroupCss).toMatch(
-      /\.title\s*\{[^}]*grid-template-rows:\s*auto auto;[^}]*align-content:\s*center;/s,
-    );
-    expect(measurementGroupCss).toMatch(
-      /\.dimensionName\s*\{[^}]*font-size:\s*10px;[^}]*text-transform:\s*uppercase;/s,
+      /\.childGroups::after\s*\{[^}]*repeating-linear-gradient[^}]*var\(--color-divider\)[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.childHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-sm\);/s,
+      /\.title\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.deepHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-xs\);/s,
+      /\.dimensionName\s*\{[^}]*flex:\s*0 100 auto;[^}]*font-size:\s*var\(--font-size-secondary\);/s,
     );
-    expect(measurementGroupCss).toMatch(/\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s);
+    expect(measurementGroupCss).toMatch(/\.dimensionName::after\s*\{[^}]*content:\s*":";/s);
     expect(measurementGroupCss).toMatch(
-      /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
+      /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
+    );
+    // Square eye whose cell hugs the button: only the button is clickable.
+    expect(measurementGroupCss).toMatch(
+      /\.header > :last-child\s*\{[^}]*align-self:\s*center;[^}]*justify-self:\s*start;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+      /\.visibilityControl\s*\{[^}]*width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);/s,
+    );
+    expect(measurementGroupCss).not.toMatch(/\.visibilityControl\s*\{[^}]*tree-edge-end/s);
+    expect(measurementGroupCss).not.toContain(".visibilityControl::after");
+    expect(measurementGroupCss).toMatch(
+      /\.count\s*\{[^}]*margin-inline:\s*var\(--space-8\);[^}]*text-align:\s*right;/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.list\s*\{[^}]*--tree-row-depth:\s*calc\(var\(--tree-depth, 0\) \+ 1\);[^}]*--measurement-row-content-indent:\s*calc\(\s*var\(--tree-row-depth\) \* var\(--tree-indent\) \+ var\(--space-8\)\s*\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
     );
     expect(measurementCollectionCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 var\(--space-8\) var\(--space-8\);/s,
+      /\.collection\s*\{[^}]*--tree-indent:\s*calc\(var\(--target-current\) \/ 2\);/s,
     );
+    expect(measurementCollectionCss).toMatch(/\.collection\s*\{[^}]*scrollbar-gutter:\s*auto;/s);
+    expect(measurementCollectionCss).toMatch(
+      /\.collection\s*\{[^}]*--tree-edge-end:\s*var\(--geometry-tree-inset-end\);/s,
+    );
+    expect(measurementCollectionCss).not.toContain("edge-reserve");
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
-    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*--measurement-row-inline-bleed:/s);
     expect(measurementRowCss).toMatch(
-      /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, 3px\);/s,
+      /\.selectionMarker\s*\{[^}]*width:\s*var\(\s*--measurement-selection-marker-width,\s*var\(--geometry-measurement-selection-marker-width\)\s*\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-12\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+      /\.selection\s*\{[^}]*padding:[^;]*var\(--space-8\)[^;]*calc\(\s*var\(--geometry-tree-inset-start\) \+ var\(--measurement-row-content-indent, var\(--space-8\)\)\s*\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-8\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+      /\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s,
     );
-    expect(measurementRowCss).toMatch(/\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s);
   });
 
   it("keeps a collapsed group's controlled list mounted and hidden", () => {
@@ -476,6 +534,7 @@ describe("measurement grouping surfaces", () => {
           dimensionLabel: "Trade",
           label: "Electrical",
           archived: false,
+          unassigned: false,
           measurementIds: ["line-1"],
           visibility: "visible",
         }}
@@ -495,8 +554,44 @@ describe("measurement grouping surfaces", () => {
     expect(controlledId).toBeTruthy();
     expect(markup).toContain(`id="${controlledId}"`);
     expect(markup).toMatch(new RegExp(`<div id="${controlledId}"[^>]*hidden=""`));
-    expect(markup).toContain('d="m9 5 7 7-7 7"');
+    expect(markup).toContain('d="m7.5 4.17 5.83 5.83 -5.83 5.83"');
     expect(markup).not.toContain("▸");
     expect(markup).not.toContain("▾");
+  });
+
+  it('renders a composed None assigned chain as one section folded into "No A · B"', () => {
+    const none = (key: string, dimensionLabel: string) => ({
+      key,
+      dimensionLabel,
+      label: "None assigned",
+      archived: false,
+      unassigned: true,
+      measurementIds: ["line-1"],
+      visibility: "visible" as const,
+    });
+    const markup = renderToStaticMarkup(
+      <MeasurementCollection
+        measurements={[viewModel(true)]}
+        emptyMessage="Empty"
+        groups={[
+          {
+            ...none("a:unclassified", "Inside"),
+            children: [
+              {
+                ...none("a:unclassified/b:unclassified", "FDS"),
+                children: [none("a:unclassified/b:unclassified/c:unclassified", "GAGRE")],
+              },
+            ],
+          },
+        ]}
+        groupByDimensionId="inside"
+        onSelectMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+        onSetMeasurementsVisibility={() => undefined}
+      />,
+    );
+    expect(markup.match(/<section/g)?.filter(Boolean)).toHaveLength(2); // collection + one group
+    expect(markup).toContain("No Inside · FDS · GAGRE");
+    expect(markup).not.toContain("None assigned</span>");
   });
 });

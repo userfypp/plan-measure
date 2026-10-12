@@ -1,4 +1,5 @@
 import { useId, useState, type Ref } from "react";
+import { Select } from "../../components/ui";
 import type { Measurement } from "../../types/domain";
 import styles from "./PdfViewer.module.css";
 
@@ -65,30 +66,29 @@ export function KeyboardGeometryHelp({
                 <span className={styles.keyboardMeasurementName} title={measurement?.name}>
                   {referenceEditing ? "Edit reference point" : `Edit ${measurement!.name}`}
                 </span>
-                <select
+                <Select
                   id={targetId}
-                  value={target}
-                  onChange={(event) => {
-                    onTargetChange(Number(event.target.value));
+                  label={referenceEditing ? "Edit reference point" : `Edit ${measurement!.name}`}
+                  value={String(target)}
+                  options={
+                    referenceEditing
+                      ? [
+                          { value: "0", label: "Start point" },
+                          { value: "1", label: "End point" },
+                        ]
+                      : [
+                          { value: "-1", label: "Whole measurement" },
+                          ...measurement!.points.map((_, index) => ({
+                            value: String(index),
+                            label: `Vertex ${index + 1} of ${measurement!.points.length}`,
+                          })),
+                        ]
+                  }
+                  onChange={(value) => {
+                    onTargetChange(Number(value));
                     onReturnToViewer();
                   }}
-                >
-                  {referenceEditing ? (
-                    <>
-                      <option value={0}>Start point</option>
-                      <option value={1}>End point</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value={-1}>Whole measurement</option>
-                      {measurement!.points.map((_, index) => (
-                        <option key={index} value={index}>
-                          Vertex {index + 1} of {measurement!.points.length}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
+                />
               </label>
             ) : (
               <p>Moving all selected measurements together.</p>

@@ -1,7 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { MeasurementGroup } from "./MeasurementGroup";
 import { MeasurementRow } from "./MeasurementRow";
-import type { MeasurementGroup as MeasurementGroupModel } from "./measurementGrouping";
+import {
+  compactMeasurementGroups,
+  type MeasurementGroup as MeasurementGroupModel,
+} from "./measurementGrouping";
 import type { MeasurementViewModel } from "./measurementViewModels";
 import styles from "./MeasurementCollection.module.css";
 
@@ -57,7 +71,10 @@ export function MeasurementCollection({
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<Set<string>>(() => new Set());
   const selectedMeasurementId =
     measurements.find((measurement) => measurement.selected)?.id ?? null;
-  const selectedGroupPath = selectedMeasurementId ? findGroupPath(groups ?? [], selectedMeasurementId) : [];
+  const displayGroups = useMemo(() => groups && compactMeasurementGroups(groups), [groups]);
+  const selectedGroupPath = selectedMeasurementId
+    ? findGroupPath(displayGroups ?? [], selectedMeasurementId)
+    : [];
   const selectedGroupPathKey = selectedGroupPath.join("\u0000");
   const [rovingCell, setRovingCell] = useState<RovingCell | null>(() => {
     const initial = selectedMeasurementId ?? measurements[0]?.id;
@@ -65,12 +82,10 @@ export function MeasurementCollection({
   });
   const grouped = Boolean(groupByDimensionId && groups && onSetMeasurementsVisibility);
   const visibleMeasurementIds = grouped
-    ? visibleGroupMeasurementIds(groups ?? [], collapsedGroupKeys)
+    ? visibleGroupMeasurementIds(displayGroups ?? [], collapsedGroupKeys)
     : measurements.map((measurement) => measurement.id);
   const visibleMeasurementIdSet = new Set(visibleMeasurementIds);
-  const firstVisibleMeasurementId = visibleMeasurementIds.find((id) =>
-    measurementsById.has(id),
-  );
+  const firstVisibleMeasurementId = visibleMeasurementIds.find((id) => measurementsById.has(id));
   const effectiveRovingCell =
     rovingCell &&
     visibleMeasurementIdSet.has(rovingCell.measurementId) &&
@@ -103,7 +118,8 @@ export function MeasurementCollection({
     const measurementId = target?.dataset.measurementId;
     const control = target?.dataset.measurementControl as MeasurementControl | undefined;
     if (!measurementId || (control !== "selection" && control !== "visibility")) return;
-    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+      return;
 
     const orderedIds = visibleMeasurementIds;
     const rowIndex = orderedIds.indexOf(measurementId);
@@ -117,7 +133,8 @@ export function MeasurementCollection({
     else if (event.key === "End") nextId = orderedIds.at(-1) ?? measurementId;
     else {
       const delta = event.key === "ArrowUp" ? -1 : 1;
-      nextId = orderedIds[Math.max(0, Math.min(orderedIds.length - 1, rowIndex + delta))] ?? measurementId;
+      nextId =
+        orderedIds[Math.max(0, Math.min(orderedIds.length - 1, rowIndex + delta))] ?? measurementId;
     }
 
     if (nextId === measurementId && nextControl === control) return;
@@ -129,11 +146,14 @@ export function MeasurementCollection({
   useLayoutEffect(() => {
     const pending = pendingFocus.current;
     if (!pending) return;
-    const next = Array.from(collectionRef.current?.querySelectorAll<HTMLElement>(
-      "[data-measurement-id][data-measurement-control]",
-    ) ?? []).find((element) =>
-      element.dataset.measurementId === pending.measurementId &&
-      element.dataset.measurementControl === pending.control,
+    const next = Array.from(
+      collectionRef.current?.querySelectorAll<HTMLElement>(
+        "[data-measurement-id][data-measurement-control]",
+      ) ?? [],
+    ).find(
+      (element) =>
+        element.dataset.measurementId === pending.measurementId &&
+        element.dataset.measurementControl === pending.control,
     );
     if (!next) return;
     pendingFocus.current = null;
@@ -166,7 +186,11 @@ export function MeasurementCollection({
 
   if (measurements.length === 0) {
     return (
-      <section className={styles.collection} aria-label="Measurement collection">
+      <section
+        ref={collectionRef}
+        className={styles.collection}
+        aria-label="Measurement collection"
+      >
         <p className={styles.empty}>{emptyMessage}</p>
       </section>
     );
@@ -184,7 +208,7 @@ export function MeasurementCollection({
         <VirtualCollectionContents
           measurements={measurements}
           measurementsById={measurementsById}
-          groups={grouped ? groups : undefined}
+          groups={grouped ? displayGroups : undefined}
           collapsedGroupKeys={collapsedGroupKeys}
           toggleGroup={toggleGroup}
           rovingCell={effectiveRovingCell}
@@ -197,17 +221,21 @@ export function MeasurementCollection({
     );
   }
 
-  if (groupByDimensionId && groups && onSetMeasurementsVisibility) {
+  if (groupByDimensionId && displayGroups && onSetMeasurementsVisibility) {
     function renderGroup(group: MeasurementGroupModel, depth = 0) {
       return (
         <MeasurementGroup
           key={group.key}
           group={group}
           depth={depth}
-          measurements={group.children ? [] : group.measurementIds.flatMap((id) => {
-            const measurement = measurementsById.get(id);
-            return measurement ? [measurement] : [];
-          })}
+          measurements={
+            group.children
+              ? []
+              : group.measurementIds.flatMap((id) => {
+                  const measurement = measurementsById.get(id);
+                  return measurement ? [measurement] : [];
+                })
+          }
           collapsed={collapsedGroupKeys.has(group.key)}
           onToggleCollapsed={() => toggleGroup(group.key)}
           onSelectMeasurement={onSelectMeasurement}
@@ -230,7 +258,7 @@ export function MeasurementCollection({
         onKeyDown={handleKeyDown}
       >
         <div className={styles.groups} aria-label="Measurements grouped by classification">
-          {groups.map((group) => renderGroup(group))}
+          {displayGroups.map((group) => renderGroup(group))}
         </div>
       </section>
     );
@@ -312,16 +340,12 @@ function VirtualCollectionContents({
     }
     function addGroup(group: MeasurementGroupModel, depth: number) {
       const start = entries.length;
-      const onlyChild = group.children?.length === 1 ? group.children[0] : undefined;
-      const scopeIds = new Set(group.measurementIds);
-      const sameScope = onlyChild && group.measurementIds.length === onlyChild.measurementIds.length &&
-        scopeIds.size === group.measurementIds.length &&
-        new Set(onlyChild.measurementIds).size === onlyChild.measurementIds.length &&
-        onlyChild.measurementIds.every((id) => scopeIds.has(id));
       entries.push({
         key: `header:${group.key}`,
-        estimate: depth === 0 ? 41 : 32,
-        tabStops: sameScope && !collapsedGroupKeys.has(group.key) ? 1 : 2,
+        // Altura renderizada: min-height --target-fine (32) más el borde superior de 1 en la raíz.
+        // El título es de una sola línea y cabe en el control.
+        estimate: depth === 0 ? 33 : 32,
+        tabStops: 2,
       });
       const rowsStart = entries.length;
       if (!collapsedGroupKeys.has(group.key)) {
@@ -340,7 +364,8 @@ function VirtualCollectionContents({
   }, [collapsedGroupKeys, groups, measurements, measurementsById]);
   const offsets = useMemo(() => {
     const offsets = [0];
-    for (const entry of entries) offsets.push(offsets[offsets.length - 1]! + (heights.get(entry.key) ?? entry.estimate));
+    for (const entry of entries)
+      offsets.push(offsets[offsets.length - 1]! + (heights.get(entry.key) ?? entry.estimate));
     return offsets;
   }, [entries, heights]);
 
@@ -355,10 +380,13 @@ function VirtualCollectionContents({
     }
     function focusIn(event: Event) {
       const element = event.target instanceof HTMLElement ? event.target : null;
-      setFocusedKey(element?.closest<HTMLElement>("[data-virtual-key]")?.dataset.virtualKey ?? null);
+      setFocusedKey(
+        element?.closest<HTMLElement>("[data-virtual-key]")?.dataset.virtualKey ?? null,
+      );
     }
     function focusOut(event: FocusEvent) {
-      if (!(event.relatedTarget instanceof Node) || !collection!.contains(event.relatedTarget)) setFocusedKey(null);
+      if (!(event.relatedTarget instanceof Node) || !collection!.contains(event.relatedTarget))
+        setFocusedKey(null);
     }
     collection.addEventListener("scroll", updateViewport, { passive: true });
     collection.addEventListener("focusin", focusIn);
@@ -384,7 +412,9 @@ function VirtualCollectionContents({
       });
       observerRef.current = observer;
       observer.observe(collection);
-      collection.querySelectorAll<HTMLElement>("[data-virtual-key]").forEach((element) => observer.observe(element));
+      collection
+        .querySelectorAll<HTMLElement>("[data-virtual-key]")
+        .forEach((element) => observer.observe(element));
     }
     return () => {
       window.cancelAnimationFrame(frame);
@@ -404,11 +434,13 @@ function VirtualCollectionContents({
   useLayoutEffect(() => {
     const pending = pendingTabFocus.current;
     if (!pending) return;
-    const entry = Array.from(collectionRef.current?.querySelectorAll<HTMLElement>("[data-virtual-key]") ?? [])
-      .find((element) => element.dataset.virtualKey === pending.key);
-    const button = entry?.tagName === "HEADER"
-      ? entry.querySelectorAll<HTMLButtonElement>("button")[pending.controlIndex]
-      : entry?.querySelector<HTMLButtonElement>('button[tabindex="0"]');
+    const entry = Array.from(
+      collectionRef.current?.querySelectorAll<HTMLElement>("[data-virtual-key]") ?? [],
+    ).find((element) => element.dataset.virtualKey === pending.key);
+    const button =
+      entry?.tagName === "HEADER"
+        ? entry.querySelectorAll<HTMLButtonElement>("button")[pending.controlIndex]
+        : entry?.querySelector<HTMLButtonElement>('button[tabindex="0"]');
     if (!button) return;
     pendingTabFocus.current = null;
     button.focus({ preventScroll: true });
@@ -420,13 +452,23 @@ function VirtualCollectionContents({
     const target = event.target instanceof HTMLButtonElement ? event.target : null;
     const currentEntry = target?.closest<HTMLElement>("[data-virtual-key]");
     if (!target || !currentEntry) return;
-    const currentIndex = currentEntry.tagName === "HEADER"
-      ? Array.from(currentEntry.querySelectorAll("button")).indexOf(target)
-      : 0;
-    const tabStops = entries.flatMap((entry) => entry.tabStops !== undefined
-      ? Array.from({ length: entry.tabStops }, (_, controlIndex) => ({ key: entry.key, controlIndex }))
-      : entry.key === `row:${rovingCell?.measurementId}` ? [{ key: entry.key, controlIndex: 0 }] : []);
-    const index = tabStops.findIndex((stop) => stop.key === currentEntry.dataset.virtualKey && stop.controlIndex === currentIndex);
+    const currentIndex =
+      currentEntry.tagName === "HEADER"
+        ? Array.from(currentEntry.querySelectorAll("button")).indexOf(target)
+        : 0;
+    const tabStops = entries.flatMap((entry) =>
+      entry.tabStops !== undefined
+        ? Array.from({ length: entry.tabStops }, (_, controlIndex) => ({
+            key: entry.key,
+            controlIndex,
+          }))
+        : entry.key === `row:${rovingCell?.measurementId}`
+          ? [{ key: entry.key, controlIndex: 0 }]
+          : [],
+    );
+    const index = tabStops.findIndex(
+      (stop) => stop.key === currentEntry.dataset.virtualKey && stop.controlIndex === currentIndex,
+    );
     const next = tabStops[index + (event.shiftKey ? -1 : 1)];
     if (index < 0 || !next) return;
     event.preventDefault();
@@ -440,11 +482,14 @@ function VirtualCollectionContents({
   const overscan = 240;
   const windowTop = Math.max(0, viewport.top - overscan);
   const windowBottom = viewport.top + viewport.height + overscan;
-  const pinnedIndexes = [focusedKey, rovingCell ? `row:${rovingCell.measurementId}` : null]
-    .flatMap((key) => key && entryIndexes.has(key) ? [entryIndexes.get(key)!] : []);
+  const pinnedIndexes = [focusedKey, rovingCell ? `row:${rovingCell.measurementId}` : null].flatMap(
+    (key) => (key && entryIndexes.has(key) ? [entryIndexes.get(key)!] : []),
+  );
   function intersects(start: number, end: number) {
-    return (offsets[start]! < windowBottom && offsets[end]! > windowTop) ||
-      pinnedIndexes.some((index) => index >= start && index < end);
+    return (
+      (offsets[start]! < windowBottom && offsets[end]! > windowTop) ||
+      pinnedIndexes.some((index) => index >= start && index < end)
+    );
   }
   function spacer(start: number, end: number, key: string) {
     return <div key={key} aria-hidden="true" style={{ height: offsets[end]! - offsets[start]! }} />;
@@ -463,8 +508,12 @@ function VirtualCollectionContents({
             viewModel={measurementsById.get(id)!}
             onSelectMeasurement={onSelectMeasurement}
             onToggleVisibility={onToggleVisibility}
-            selectionTabIndex={rovingCell?.measurementId === id && rovingCell.control === "selection" ? 0 : -1}
-            visibilityTabIndex={rovingCell?.measurementId === id && rovingCell.control === "visibility" ? 0 : -1}
+            selectionTabIndex={
+              rovingCell?.measurementId === id && rovingCell.control === "selection" ? 0 : -1
+            }
+            visibilityTabIndex={
+              rovingCell?.measurementId === id && rovingCell.control === "visibility" ? 0 : -1
+            }
             positionInSet={position + 1}
             setSize={validIds.length}
             rowRef={measureRef}
@@ -505,12 +554,22 @@ function VirtualCollectionContents({
           onToggleCollapsed={() => toggleGroup(group.key)}
           onSelectMeasurement={onSelectMeasurement}
           onToggleVisibility={onToggleVisibility}
-          onSetMeasurementsVisibility={(ids, visible) => onSetMeasurementsVisibility?.(ids, visible)}
+          onSetMeasurementsVisibility={(ids, visible) =>
+            onSetMeasurementsVisibility?.(ids, visible)
+          }
           rovingCell={rovingCell}
           headerRef={measureRef}
           headerKey={`header:${group.key}`}
-          headerPlaceholderHeight={intersects(range.start, range.start + 1) ? undefined : offsets[range.start + 1]! - offsets[range.start]!}
-          rowsContent={!collapsed && !group.children ? renderRows(group.measurementIds, range.rowsStart) : undefined}
+          headerPlaceholderHeight={
+            intersects(range.start, range.start + 1)
+              ? undefined
+              : offsets[range.start + 1]! - offsets[range.start]!
+          }
+          rowsContent={
+            !collapsed && !group.children
+              ? renderRows(group.measurementIds, range.rowsStart)
+              : undefined
+          }
         >
           {!collapsed && group.children ? renderGroups(group.children, depth + 1) : undefined}
         </MeasurementGroup>,
@@ -520,12 +579,19 @@ function VirtualCollectionContents({
     return result;
   }
   return groups ? (
-    <div className={styles.groups} aria-label="Measurements grouped by classification" onKeyDownCapture={handleVirtualTab}>
+    <div
+      className={styles.groups}
+      aria-label="Measurements grouped by classification"
+      onKeyDownCapture={handleVirtualTab}
+    >
       {renderGroups(groups)}
     </div>
   ) : (
     <div className={styles.list} role="list" aria-label="Measurements on current page">
-      {renderRows(measurements.map((measurement) => measurement.id), 0)}
+      {renderRows(
+        measurements.map((measurement) => measurement.id),
+        0,
+      )}
     </div>
   );
 }

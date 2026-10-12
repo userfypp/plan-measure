@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useNumberFormatKey } from "../../utils/appPreferences";
 import { AnchoredMenu, Button, Input } from "../../components/ui";
 import type {
   CalibrationReferenceKey,
@@ -114,6 +115,7 @@ export function ScalesWorkspace({
   onEditReference,
   onCopyScale,
 }: ScalesWorkspaceProps) {
+  useNumberFormatKey(); // re-render when separators change
   const workspace = useWorkspaceDrawerPresentation();
   const [inspectedScaleId, setInspectedScaleId] = useState<string | null>(null);
   const [renameState, setRenameState] = useState<RenameState | null>(null);

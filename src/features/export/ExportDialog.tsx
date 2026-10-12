@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState, type FormEvent } from "react";
-import { Badge, Button, Dialog } from "../../components/ui";
+import { Badge, Button, Dialog, Select } from "../../components/ui";
 import { useAppState } from "../../app/state";
 import { useSessionState } from "../../app/sessionState";
 import type { CsvExportSettings, CurrentSession } from "../../types/domain";
@@ -202,7 +202,12 @@ export function ExportDialog({
       } else if (dataset === "classification-assignments") {
         downloadClassificationAssignmentsCsv(session, pageLabels);
       } else {
-        if (Object.values(session.pages).reduce((count, page) => count + page.measurements.length, 0) > 500)
+        if (
+          Object.values(session.pages).reduce(
+            (count, page) => count + page.measurements.length,
+            0,
+          ) > 500
+        )
           await downloadCsvInBatches(session, pageLabels, draft);
         else downloadCsv(session, pageLabels, draft);
         updateSettings({ csvExport: normalizeCsvExportSettings(session, draft) });
@@ -289,26 +294,23 @@ export function ExportDialog({
             <div className={styles.exportFields}>
               <div className={styles.field}>
                 <label htmlFor={formatId}>Format</label>
-                <select
+                <Select<ExportFormat>
                   id={formatId}
-                  name="export-format"
+                  label="Format"
+                  describedBy={formatDescription ? descriptionId : undefined}
                   value={format}
-                  aria-describedby={formatDescription ? descriptionId : undefined}
-                  onChange={(event) => {
+                  options={(Object.entries(FORMAT_LABELS) as Array<[ExportFormat, string]>).map(
+                    ([value, label]) => ({
+                      value,
+                      label,
+                      disabled: value === "annotated-pdf" && !onExportAnnotatedPdf,
+                    }),
+                  )}
+                  onChange={(nextFormat) => {
                     setSummaryError(null);
-                    setFormat(event.target.value as ExportFormat);
+                    setFormat(nextFormat);
                   }}
-                >
-                  {Object.entries(FORMAT_LABELS).map(([value, label]) => (
-                    <option
-                      key={value}
-                      value={value}
-                      disabled={value === "annotated-pdf" && !onExportAnnotatedPdf}
-                    >
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                />
                 {formatDescription && (
                   <p id={descriptionId} className={styles.formatDescription}>
                     {formatDescription}
@@ -318,27 +320,34 @@ export function ExportDialog({
               {(format === "csv" || isWorkbook) && (
                 <div className={styles.field}>
                   <label htmlFor={datasetId}>Data</label>
-                  <select
+                  <Select<CsvDataset>
                     id={datasetId}
-                    name="csv-data"
+                    label="Data"
                     value={
                       isWorkbook && dataset === "classification-assignments"
                         ? "measurements"
                         : dataset
                     }
-                    onChange={(event) => {
+                    options={[
+                      {
+                        value: "measurements",
+                        label: isWorkbook ? "Measurements and classifications" : "Measurements",
+                      },
+                      ...(format === "csv"
+                        ? [
+                            {
+                              value: "classification-assignments" as const,
+                              label: "Classification assignments",
+                            },
+                          ]
+                        : []),
+                      { value: "takeoff", label: "Takeoff summary" },
+                    ]}
+                    onChange={(nextDataset) => {
                       setSummaryError(null);
-                      setDataset(event.target.value as CsvDataset);
+                      setDataset(nextDataset);
                     }}
-                  >
-                    <option value="measurements">
-                      {isWorkbook ? "Measurements and classifications" : "Measurements"}
-                    </option>
-                    {format === "csv" && (
-                      <option value="classification-assignments">Classification assignments</option>
-                    )}
-                    <option value="takeoff">Takeoff summary</option>
-                  </select>
+                  />
                 </div>
               )}
             </div>
@@ -706,7 +715,7 @@ function SummaryOptions({
           aria-label="Takeoff classifications"
         >
           <span className={styles.sectionTitle}>Classification breakdowns</span>
-          <div className={styles.summaryChoices}>
+          <div className={`${styles.summaryChoices} ${styles.dimensionChoices}`}>
             {session.classificationCatalog.dimensions.map((dimension) => (
               <label
                 key={dimension.id}

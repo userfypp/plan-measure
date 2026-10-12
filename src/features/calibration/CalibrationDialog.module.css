@@ -10,7 +10,7 @@
 
 .inputRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(144px, max-content);
+  grid-template-columns: minmax(0, 1fr) minmax(var(--geometry-calibration-field-min-width), max-content);
   gap: var(--space-12);
   align-items: end;
 }
@@ -20,7 +20,10 @@
 }
 
 .unitOnlyRow .unitField {
-  grid-template-columns: auto minmax(144px, 180px);
+  grid-template-columns: auto minmax(
+    var(--geometry-calibration-field-min-width),
+    var(--geometry-calibration-field-max-width)
+  );
   align-items: center;
   justify-content: space-between;
   gap: var(--space-12);
@@ -29,25 +32,10 @@
 .unitField {
   display: grid;
   gap: var(--space-4);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
-}
-
-.unitField select {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-regular);
-  padding: 0 var(--space-12);
-  background-color: var(--color-surface-field);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-regular);
-}
-
-.unitField select:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
 }
 
 .architecturalGroup {
@@ -62,9 +50,10 @@
 
 .architecturalGroup legend,
 .fractionField > span {
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
 }
 
 .architecturalGroup legend {
@@ -73,7 +62,7 @@
 
 .architecturalInputs {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(112px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(var(--geometry-calibration-fraction-min-width), 0.9fr);
   gap: var(--space-8);
   align-items: end;
 }
@@ -91,7 +80,8 @@
   display: inline-flex;
   align-items: center;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
 }
 
 .fractionField {
@@ -100,33 +90,16 @@
   gap: var(--space-4);
 }
 
-.fractionField select {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-regular);
-  padding: 0 var(--space-16) 0 var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background-color: var(--color-surface-field);
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-regular);
-}
-
-.fractionField select:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
 .architecturalGroup[aria-invalid="true"],
 .invalidControl {
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-semantic);
 }
 
 .error {
   margin: 0 !important;
-  color: var(--color-danger) !important;
-  font-size: var(--font-size-xs);
+  color: var(--color-danger-semantic) !important;
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }
 
 .actions {

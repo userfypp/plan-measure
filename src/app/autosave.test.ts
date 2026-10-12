@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "./sessionState";
-import { enqueueAutosave, isAutosaveReady } from "./autosave";
+import { enqueueAutosave, isAutosaveReady, shouldConfirmClose } from "./autosave";
 
 const session = createEmptySession({ name: "plan.pdf", size: 100, lastModified: 1 }, 1);
 
@@ -53,5 +53,14 @@ describe("autosave boundary", () => {
     await enqueueAutosave(previous, session, 1, () => true, save);
 
     expect(save).toHaveBeenCalledOnce();
+  });
+
+  it("confirms closing only when enabled and the open project differs from the saved one", () => {
+    const edited = { ...session };
+    expect(shouldConfirmClose(true, edited, session)).toBe(true);
+    expect(shouldConfirmClose(true, edited, null)).toBe(true);
+    expect(shouldConfirmClose(true, session, session)).toBe(false);
+    expect(shouldConfirmClose(true, null, null)).toBe(false);
+    expect(shouldConfirmClose(false, edited, session)).toBe(false);
   });
 });

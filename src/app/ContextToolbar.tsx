@@ -1,7 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button, IconButton } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
-import { ToolIcon } from "../features/viewer/ToolIcon";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
 import { getShortcutLabel } from "../utils/keyboard";
@@ -33,6 +32,49 @@ export interface ContextToolbarProps {
   onCancelCalibration: () => void;
   onCancelReferenceEdit: () => void;
   onSaveReferenceEdit: () => void;
+}
+
+function SelectionSvg({ children }: { children: ReactNode }) {
+  return (
+    <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+function AddItemsIcon() {
+  return (
+    <SelectionSvg>
+      <circle cx="7.75" cy="7.75" r="3.25" />
+      <path d="M14 11.25v5.5M11.25 14h5.5" />
+    </SelectionSvg>
+  );
+}
+
+function DuplicateIcon() {
+  return (
+    <SelectionSvg>
+      <rect x="7.25" y="7.25" width="9.25" height="9.25" rx="1.75" />
+      <path d="M12.75 7.25V4.75a1.5 1.5 0 0 0-1.5-1.5h-6.5a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h2.5" />
+    </SelectionSvg>
+  );
+}
+
+function DetailsIcon() {
+  return (
+    <SelectionSvg>
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M10 9.25v4.25M10 6.75h.01" />
+    </SelectionSvg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
+    </SelectionSvg>
+  );
 }
 
 function Divider() {
@@ -73,6 +115,31 @@ function ToolbarComposite({
   );
 }
 
+function SnapIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M4.75 3.25h3.5v7.5a1.75 1.75 0 0 0 3.5 0v-7.5h3.5v7.5a5.25 5.25 0 0 1-10.5 0zM4.75 6.75h3.5M11.75 6.75h3.5" />
+    </SelectionSvg>
+  );
+}
+
+function OrthoIcon() {
+  return (
+    <SelectionSvg>
+      <path d="M10 3.5v4.75M10 11.75v4.75M3.5 10h4.75M11.75 10h4.75M8.25 8.25h3.5v3.5h-3.5z" />
+    </SelectionSvg>
+  );
+}
+
+function DiscardPointsIcon() {
+  return (
+    <SelectionSvg>
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M7.5 7.5l5 5M12.5 7.5l-5 5" />
+    </SelectionSvg>
+  );
+}
+
 function DrawingAidButton({
   label,
   icon,
@@ -81,30 +148,22 @@ function DrawingAidButton({
   onClick,
 }: {
   label: string;
-  icon: "snap" | "orthogonal";
+  icon: ReactNode;
   pressed: boolean;
   shortcut: string | null;
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      className={[styles.aidButton, pressed ? styles.pressed : ""].filter(Boolean).join(" ")}
+    <IconButton
+      className={styles.selectionIconButton}
+      icon={icon}
       aria-label={label}
-      aria-pressed={pressed}
       aria-keyshortcuts={shortcut ?? undefined}
-      title={shortcut ? `${label} (${shortcut})` : label}
+      tooltip={shortcut ? `${label} (${shortcut})` : label}
+      tooltipPosition="bottom"
+      pressed={pressed}
       onClick={onClick}
-    >
-      <span className={styles.aidIcon} aria-hidden="true">
-        <ToolIcon name={icon} />
-      </span>
-      {pressed && (
-        <span className={styles.pressedMark} aria-hidden="true">
-          ✓
-        </span>
-      )}
-    </button>
+    />
   );
 }
 
@@ -429,31 +488,32 @@ export function ContextToolbar({
         contextKind="drawing"
         drawingTool={activeTool}
       >
-        <span className={styles.toolIdentity} role="status">
-          {spec.label}
-        </span>
         {!pathDraft && selectedMeasurementName && (
-          <MeasurementNameEditor
-            key={selectedMeasurementId ?? "none"}
-            name={selectedMeasurementName}
-            onRename={onRenameSelectedMeasurement}
-          />
+          <>
+            <MeasurementNameEditor
+              key={selectedMeasurementId ?? "none"}
+              name={selectedMeasurementName}
+              onRename={onRenameSelectedMeasurement}
+            />
+            <Divider />
+          </>
         )}
-        <Divider />
         <DrawingAidButton
           label="Snap"
-          icon="snap"
+          icon={<SnapIcon />}
           shortcut={getShortcutLabel("toggle-snap")}
           pressed={snap}
           onClick={toggleSnap}
         />
-        <DrawingAidButton
-          label="Ortho"
-          icon="orthogonal"
-          shortcut={getShortcutLabel("toggle-orthogonal")}
-          pressed={orthogonal}
-          onClick={toggleOrthogonal}
-        />
+        {activeTool !== "rectangle" && activeTool !== "ellipse" && (
+          <DrawingAidButton
+            label="Ortho"
+            icon={<OrthoIcon />}
+            shortcut={getShortcutLabel("toggle-orthogonal")}
+            pressed={orthogonal}
+            onClick={toggleOrthogonal}
+          />
+        )}
         {(activeTool === "rectangle" || activeTool === "ellipse") && (
           <ShiftConstrainHint constraint={activeTool === "rectangle" ? "square" : "circle"} />
         )}
@@ -489,17 +549,18 @@ export function ContextToolbar({
             </Button>
           </>
         )}
-        <Button
-          className={`${styles.action} ${styles.cancelAction}`}
-          variant="ghost"
-          size="compact"
-          onClick={() => {
-            if (pathDraft) clearDraft();
-            else onExitDrawingTool();
-          }}
-        >
-          Cancel
-        </Button>
+        <Divider />
+        <IconButton
+          className={`${styles.selectionIconButton} ${styles.selectionDanger}`}
+          icon={<DiscardPointsIcon />}
+          aria-label="Discard points"
+          tooltip="Discard points"
+          tooltipPosition="bottom"
+          tone="danger"
+          disabled={!pathDraft}
+          disabledReason="No points placed yet."
+          onClick={clearDraft}
+        />
       </ToolbarComposite>
     );
   }
@@ -525,52 +586,55 @@ export function ContextToolbar({
       )}
       <Divider />
       {singleSelection && selectedMeasurements?.[0]?.type === "count" && onAddCountItems && (
-        <Button
-          className={styles.action}
-          variant="secondary"
-          size="compact"
+        <IconButton
+          className={styles.selectionIconButton}
+          aria-label="Add items"
+          tooltip="Add items"
+          tooltipPosition="bottom"
+          icon={<AddItemsIcon />}
           disabled={Boolean(addCountItemsDisabledReason)}
           disabledReason={addCountItemsDisabledReason}
           onClick={onAddCountItems}
-        >
-          Add items
-        </Button>
+        />
       )}
-      <Button
-        className={styles.action}
-        variant="secondary"
-        size="compact"
+      <IconButton
+        className={styles.selectionIconButton}
+        aria-label="Duplicate"
+        tooltip="Duplicate"
+        tooltipPosition="bottom"
+        icon={<DuplicateIcon />}
         disabled={duplicateDisabled}
         onClick={onDuplicateSelectedMeasurement}
-      >
-        Duplicate
-      </Button>
+      />
       {singleSelection && !measurementDetailsOpen && (
-        <Button
-          className={styles.action}
-          variant="secondary"
-          size="compact"
+        <IconButton
+          className={styles.selectionIconButton}
+          aria-label="Details"
+          tooltip="Details"
+          tooltipPosition="bottom"
+          icon={<DetailsIcon />}
           onClick={onOpenMeasurementDetails}
-        >
-          Details
-        </Button>
+        />
       )}
       {selectedMeasurements && onEditSelectedMeasurements && classificationCatalog && (
         <MeasurementClassificationMenu
           measurements={selectedMeasurements}
           catalog={classificationCatalog}
           onEdit={onEditSelectedMeasurements}
-          triggerClassName={styles.action}
+          triggerClassName={styles.selectionIconButton}
+          iconOnly
         />
       )}
-      <Button
-        className={styles.action}
-        variant="dangerSecondary"
-        size="compact"
+      <Divider />
+      <IconButton
+        className={`${styles.selectionIconButton} ${styles.selectionDanger}`}
+        tone="danger"
+        aria-label="Delete"
+        tooltip="Delete"
+        tooltipPosition="bottom"
+        icon={<DeleteIcon />}
         onClick={onDeleteSelectedMeasurement}
-      >
-        Delete
-      </Button>
+      />
       {selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements && (
         <IconButton
           className={styles.selectionIconButton}
@@ -578,6 +642,7 @@ export function ContextToolbar({
             allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"
           }
           tooltip={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
+          tooltipPosition="bottom"
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
               <path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z" />
@@ -598,9 +663,10 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           aria-label="Clear measurement selection"
           tooltip="Clear selection"
+          tooltipPosition="bottom"
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
-              <path d="m5 5 10 10M15 5 5 15" />
+              <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
             </svg>
           }
           onClick={onClearMeasurementSelection}

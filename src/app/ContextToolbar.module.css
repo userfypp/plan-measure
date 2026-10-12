@@ -1,6 +1,7 @@
 .toolbar {
+  --selection-control-size: var(--geometry-context-control-height);
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-controls);
   top: var(--geometry-context-toolbar-top);
   left: var(--geometry-context-toolbar-left);
   min-height: var(--geometry-context-toolbar-height);
@@ -46,13 +47,13 @@
   gap: var(--space-4);
   padding: 0 var(--space-8);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   line-height: var(--line-height-base);
   white-space: nowrap;
 }
 
 .modifierHint kbd {
-  padding: 1px 5px;
+  padding: 0 var(--space-4);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   background: var(--color-surface-field);
@@ -72,7 +73,7 @@
 
 .measurementNameTrigger {
   min-width: 0;
-  max-width: 180px;
+  max-width: var(--geometry-context-name-max-width);
   min-height: var(--geometry-context-control-height);
   padding: 0 var(--space-8);
   overflow: hidden;
@@ -117,8 +118,8 @@
 }
 
 .renameInput {
-  width: 160px;
-  min-width: 88px;
+  width: var(--geometry-context-rename-width);
+  min-width: var(--geometry-context-rename-min-width);
   height: var(--geometry-context-control-height);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
@@ -134,7 +135,7 @@
 }
 
 .renameInput[aria-invalid="true"] {
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-semantic);
 }
 
 .renameAction {
@@ -142,91 +143,12 @@
   flex: 0 0 auto;
 }
 
-.aidIcon {
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
-  display: inline-grid;
-  place-items: center;
-}
-
-.aidIcon svg {
-  width: 100%;
-  height: 100%;
-}
-
 .divider {
   width: var(--border-width);
-  height: 20px;
+  height: var(--geometry-separator-height);
   flex: 0 0 auto;
   margin: 0 var(--space-4);
   background: var(--color-divider);
-}
-
-.aidButton {
-  position: relative;
-  min-width: var(--geometry-context-control-height);
-  min-height: var(--geometry-context-control-height);
-  flex: 0 0 auto;
-  border: var(--border-width) solid transparent;
-  border-radius: var(--radius-control);
-  padding: 0 7px;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font: inherit;
-  cursor: pointer;
-  transition: var(--transition-interactive);
-}
-
-.aidButton:hover {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-  color: var(--color-text-primary);
-}
-
-.aidButton:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-  color: var(--color-text-primary);
-}
-
-.aidButton:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
-.aidButton.pressed {
-  border-color: var(--color-accent);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-  font-weight: var(--font-weight-semibold);
-}
-
-.aidButton.pressed:hover {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.aidButton.pressed:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.pressedMark {
-  position: absolute;
-  right: 2px;
-  bottom: 1px;
-  width: 9px;
-  height: 9px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-accent);
-  color: var(--color-surface-panel);
-  font-size: 7px;
-  font-weight: var(--font-weight-semibold);
-  line-height: 1;
 }
 
 .action {
@@ -260,24 +182,6 @@
   font-weight: var(--font-weight-medium);
 }
 
-.cancelAction {
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-text-secondary);
-}
-
-.cancelAction:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-  color: var(--color-text-primary);
-}
-
-.cancelAction:active:not(:disabled) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-  color: var(--color-text-primary);
-}
-
 .visuallyHidden {
   position: absolute;
   width: 1px;
@@ -299,18 +203,12 @@
   .toolIdentity,
   .modifierHint,
   .measurementNameTrigger,
-  .aidButton,
-  .action,
-  .renameAction {
-    min-height: var(--geometry-context-control-height-coarse);
-  }
-
-  .renameInput {
+    .renameInput {
     height: var(--geometry-context-control-height-coarse);
   }
 
-  .aidButton {
-    min-width: var(--geometry-context-control-height-coarse);
+  .toolbar {
+    --selection-control-size: var(--geometry-context-control-height-coarse);
   }
 }
 
@@ -352,7 +250,6 @@
 }
 
 .toolbar[data-context-kind="selection"] {
-  --selection-control-size: var(--geometry-context-control-height);
   flex-wrap: wrap;
   gap: var(--space-4);
   overflow-x: hidden;
@@ -385,6 +282,7 @@
   background: var(--color-control-active-surface);
 }
 
+.toolbar .selectionIconButton[aria-pressed="true"],
 .toolbar .selectionIconButton[aria-expanded="true"] {
   border-color: var(--color-accent);
   background: var(--color-selection-surface);
@@ -395,13 +293,13 @@
   height: var(--geometry-icon-size);
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: var(--icon-stroke-width);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .toolbar[data-context-kind="selection"] .action {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
 
@@ -414,4 +312,46 @@
   .toolbar[data-context-kind="selection"] {
     --selection-control-size: var(--geometry-context-control-height-coarse);
   }
+}
+
+.toolbar .selectionDanger {
+  color: var(--color-danger);
+}
+
+.toolbar .selectionDanger:hover:not(:disabled) {
+  border-color: var(--color-danger-hover-semantic);
+  background: var(--color-danger-hover-surface);
+  color: var(--color-danger-hover-semantic);
+}
+
+.toolbar .selectionDanger:active:not(:disabled) {
+  border-color: var(--color-danger-active-semantic);
+  background: var(--color-danger-active-surface);
+  color: var(--color-danger-active-semantic);
+}
+
+.toolbar .selectionIconButton:disabled,
+.toolbar .selectionIconButton[data-disabled="true"] {
+  color: var(--color-text-disabled);
+}
+
+/* "Larger touch targets" preference: same sizing as the coarse-pointer block above. */
+:global(:root[data-targets="large"]) .toolbar {
+  min-height: var(--geometry-context-toolbar-height-coarse);
+}
+
+:global(:root[data-targets="large"]) .status,
+:global(:root[data-targets="large"]) .toolIdentity,
+:global(:root[data-targets="large"]) .modifierHint,
+:global(:root[data-targets="large"]) .measurementNameTrigger,
+:global(:root[data-targets="large"]) .renameInput {
+  height: var(--geometry-context-control-height-coarse);
+}
+
+:global(:root[data-targets="large"]) .toolbar {
+  --selection-control-size: var(--geometry-context-control-height-coarse);
+}
+
+:global(:root[data-targets="large"]) .toolbar[data-context-kind="selection"] {
+  --selection-control-size: var(--geometry-context-control-height-coarse);
 }

@@ -6,11 +6,8 @@ import type {
   MeasurementDisplayUnit,
   PageCalibration,
 } from "../types/domain";
-import {
-  hasValidMeasurementPoints,
-  measurementPathSpecs,
-  measurementResultsMm,
-} from "./geometry";
+import { effectiveThousandsSeparator, getAppPreferences } from "./appPreferences";
+import { hasValidMeasurementPoints, measurementPathSpecs, measurementResultsMm } from "./geometry";
 import {
   fromMillimetres,
   fromSquareMillimetres,
@@ -30,7 +27,7 @@ function roundsToZero(value: number, decimalPlaces: number): boolean {
  * hide a finite non-zero value as zero, more decimals are shown until the value
  * is visible.
  */
-export function formatDisplayNumber(
+function formatPlainDisplayNumber(
   value: number,
   decimalPlaces: MeasurementDecimalPlaces = DEFAULT_MEASUREMENT_DECIMAL_PLACES,
 ): string {
@@ -49,6 +46,32 @@ export function formatDisplayNumber(
   // Extremely small values can be below toFixed's supported precision. String()
   // still makes the non-zero value explicit and is deterministic for a JS number.
   return String(value);
+}
+
+const THOUSANDS_GLYPH = { none: "", space: "\u00a0", comma: ",", point: "." } as const;
+
+/** Applies the per-device thousands/decimal separators to a plain `toFixed` string. */
+export function localizeNumberString(plain: string): string {
+  const { thousandsSeparator, decimalSeparator } = getAppPreferences();
+  const thousands = effectiveThousandsSeparator(thousandsSeparator, decimalSeparator);
+  if (thousands === "none" && decimalSeparator === "point") return plain;
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(plain);
+  if (!match) return plain;
+  const sign = match[1] ?? "";
+  const integer = match[2] ?? "";
+  const fraction = match[3];
+  const grouped =
+    thousands === "none"
+      ? integer
+      : integer.replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_GLYPH[thousands]);
+  return `${sign}${grouped}${fraction ? `${decimalSeparator === "comma" ? "," : "."}${fraction}` : ""}`;
+}
+
+export function formatDisplayNumber(
+  value: number,
+  decimalPlaces: MeasurementDecimalPlaces = DEFAULT_MEASUREMENT_DECIMAL_PLACES,
+): string {
+  return localizeNumberString(formatPlainDisplayNumber(value, decimalPlaces));
 }
 
 /**

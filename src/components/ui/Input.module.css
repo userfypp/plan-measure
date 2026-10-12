@@ -5,58 +5,58 @@
 }
 
 .label {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
 }
 
 .control {
+  composes: focusRing disabledSurface from "./controlStates.module.css";
   width: 100%;
   min-width: 0;
   min-height: var(--control-height-regular);
   padding: 0 var(--space-12);
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-md);
-  line-height: var(--line-height-normal);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
   background-color: var(--color-surface-field);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
 }
 
 .control::placeholder {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   opacity: 1;
 }
 
-.control:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+.control:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background-color: var(--color-control-hover-surface);
 }
 
-.control[aria-invalid="true"] {
+.control:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background-color: var(--color-control-active-surface);
+}
+
+.control[aria-invalid="true"]:not(:disabled) {
   border-color: var(--color-danger);
-}
-
-.control:disabled {
-  color: var(--color-text-disabled);
-  background-color: var(--color-surface-panel);
-  border-color: var(--color-divider);
-  cursor: not-allowed;
 }
 
 .description,
 .error {
   margin: 0;
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-secondary);
   line-height: var(--line-height-normal);
 }
 
 .description {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .error {

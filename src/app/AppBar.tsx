@@ -1,9 +1,10 @@
-import { useRef, type ReactNode } from "react";
-import { AnchoredMenu, Button, type AnchoredMenuItem } from "../components/ui";
+import { useRef } from "react";
+import { AnchoredMenu, Button, IconButton, type AnchoredMenuItem } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
-import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
-import { SettingsPopover } from "./SettingsPopover";
+import { SettingsButton } from "./SettingsButton";
+import type { ProjectViewSettings } from "./SettingsDialog";
 import styles from "./AppBar.module.css";
 
 const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
@@ -31,13 +32,14 @@ const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
 ];
 
 interface AppBarProps {
-  saveStatus?: ReactNode;
   documentName: string | null;
   canExport: boolean;
   savedProjectCount?: number;
   canUndo?: boolean;
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  viewSettings?: ProjectViewSettings | null;
+  classificationDimensions?: readonly ClassificationDimension[];
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -48,6 +50,7 @@ interface AppBarProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
   onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
@@ -57,23 +60,48 @@ interface AppBarProps {
 
 function SettingsIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <g transform="translate(0 1.8)">
-        <path d="M10.35 2.75h3.3l.56 2.14a7.6 7.6 0 0 1 1.4.81l2.08-.75 1.65 2.86-1.52 1.59a7.8 7.8 0 0 1 0 1.62l1.52 1.59-1.65 2.86-2.08-.75a7.6 7.6 0 0 1-1.4.81l-.56 2.14h-3.3l-.56-2.14a7.6 7.6 0 0 1-1.4-.81l-2.08.75-1.65-2.86 1.52-1.59a7.8 7.8 0 0 1 0-1.62L4.66 7.81l1.65-2.86 2.08.75a7.6 7.6 0 0 1 1.4-.81l.56-2.14Z" />
-        <circle cx="12" cy="10.2" r="3.05" />
-      </g>
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M8.11 4.20 L9.07 2.15 L10.93 2.15 L11.89 4.20 L12.77 4.56 L14.89 3.80 L16.20 5.11 L15.44 7.23 L15.80 8.11 L17.85 9.07 L17.85 10.93 L15.80 11.89 L15.44 12.77 L16.20 14.89 L14.89 16.20 L12.77 15.44 L11.89 15.80 L10.93 17.85 L9.07 17.85 L8.11 15.80 L7.23 15.44 L5.11 16.20 L3.80 14.89 L4.56 12.77 L4.20 11.89 L2.15 10.93 L2.15 9.07 L4.20 8.11 L4.56 7.23 L3.80 5.11 L5.11 3.80 L7.23 4.56Z" />
+      <circle cx="10" cy="10" r="2.2" />
+    </svg>
+  );
+}
+
+function UndoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M7.5 5 4 8.5 7.5 12" />
+      <path d="M4 8.5h7a4.5 4.5 0 0 1 0 9H8" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M12.5 5 16 8.5 12.5 12" />
+      <path d="M16 8.5H9a4.5 4.5 0 0 0 0 9h3" />
+    </svg>
+  );
+}
+
+function FeedbackIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M4.5 4h11a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H10l-3.5 3v-3h-2A1.5 1.5 0 0 1 3 12.5v-7A1.5 1.5 0 0 1 4.5 4Z" />
     </svg>
   );
 }
 
 export function AppBar({
-  saveStatus,
   documentName,
   canExport,
   savedProjectCount = 0,
   canUndo = false,
   canRedo = false,
   measurementDecimalPlaces = null,
+  viewSettings = null,
+  classificationDimensions,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -84,6 +112,7 @@ export function AppBar({
   onUndo,
   onRedo,
   onMeasurementDecimalPlacesChange,
+  onViewSettingsChange,
   onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
@@ -95,7 +124,7 @@ export function AppBar({
 
   return (
     <header
-      className={[styles.appBar, saveStatus ? styles.withSaveStatus : ""].filter(Boolean).join(" ")}
+      className={styles.appBar}
       aria-label="Application bar"
     >
       <div className={styles.identityGroup}>
@@ -106,7 +135,6 @@ export function AppBar({
         </div>
       </div>
 
-      {saveStatus}
       <div
         ref={actionsRef}
         {...actionsFocus}
@@ -115,77 +143,86 @@ export function AppBar({
         aria-label="Application actions"
         aria-orientation="horizontal"
       >
-        {canExport && (
+        <div className={styles.group}>
+          <IconButton
+            className={styles.iconAction}
+            icon={<UndoIcon />}
+            aria-label="Undo"
+            aria-keyshortcuts="Control+Z Meta+Z"
+            tooltip="Undo (Ctrl+Z / ⌘Z)"
+            tooltipPosition="bottom"
+            disabled={!canUndo}
+            onClick={onUndo}
+          />
+          <IconButton
+            className={styles.iconAction}
+            icon={<RedoIcon />}
+            aria-label="Redo"
+            aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
+            tooltip="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
+            tooltipPosition="bottom"
+            disabled={!canRedo}
+            onClick={onRedo}
+          />
+        </div>
+        <span className={styles.groupDivider} aria-hidden="true" />
+        <div className={styles.group}>
+          {canExport && (
+            <Button
+              variant="primary"
+              size="compact"
+              className={styles.exportAction}
+              onClick={onExport}
+            >
+              Export
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="compact"
-            className={styles.exportAction}
-            onClick={onExport}
+            className={styles.projectsAction}
+            aria-haspopup="dialog"
+            aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
+            onClick={onOpenProjects}
           >
-            Export
+            Projects
+            {savedProjectCount > 0 && (
+              <span className={styles.projectCount} aria-hidden="true">
+                {savedProjectCount}
+              </span>
+            )}
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="compact"
-          className={styles.projectsAction}
-          aria-haspopup="dialog"
-          aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
-          onClick={onOpenProjects}
-        >
-          Projects
-          {savedProjectCount > 0 && (
-            <span className={styles.projectCount} aria-hidden="true">
-              {savedProjectCount}
-            </span>
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="compact"
-          aria-label="Undo"
-          aria-keyshortcuts="Control+Z Meta+Z"
-          title="Undo (Ctrl+Z / ⌘Z)"
-          disabled={!canUndo}
-          onClick={onUndo}
-        >
-          Undo
-        </Button>
-        <Button
-          variant="ghost"
-          size="compact"
-          aria-label="Redo"
-          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
-          title="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
-          disabled={!canRedo}
-          onClick={onRedo}
-        >
-          Redo
-        </Button>
-        <AnchoredMenu
-          trigger="Feedback"
-          triggerProps={{ className: styles.feedbackAction, "aria-label": "Feedback" }}
-          label="Feedback options"
-          items={FEEDBACK_ITEMS}
-          showMarkerColumn={false}
-          placement="bottom-end"
-        />
-        <SettingsPopover
-          trigger={<SettingsIcon />}
-          triggerClassName={styles.iconTrigger}
-          measurementDecimalPlaces={measurementDecimalPlaces}
-          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
-          confirmMeasurementDeletion={confirmMeasurementDeletion}
-          confirmValueDeletion={confirmValueDeletion}
-          confirmDimensionDeletion={confirmDimensionDeletion}
-          recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-          onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
-          onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
-          onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
-          onConfirmValueDeletionChange={onConfirmValueDeletionChange}
-          onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
-          onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
-        />
+        </div>
+        <span className={styles.groupDivider} aria-hidden="true" />
+        <div className={styles.group}>
+          <AnchoredMenu
+            trigger={<FeedbackIcon />}
+            triggerProps={{ className: styles.iconTrigger, "aria-label": "Feedback", title: "Feedback" }}
+            label="Feedback options"
+            items={FEEDBACK_ITEMS}
+            showMarkerColumn={false}
+            placement="bottom-end"
+          />
+          <SettingsButton
+            trigger={<SettingsIcon />}
+            triggerClassName={styles.iconTrigger}
+            measurementDecimalPlaces={measurementDecimalPlaces}
+            viewSettings={viewSettings}
+            classificationDimensions={classificationDimensions}
+            keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+            confirmMeasurementDeletion={confirmMeasurementDeletion}
+            confirmValueDeletion={confirmValueDeletion}
+            confirmDimensionDeletion={confirmDimensionDeletion}
+            recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
+            onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+            onViewSettingsChange={onViewSettingsChange}
+            onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
+            onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
+            onConfirmValueDeletionChange={onConfirmValueDeletionChange}
+            onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
+            onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
+          />
+        </div>
       </div>
     </header>
   );

@@ -45,3 +45,12 @@ export function enqueueAutosave(
       return save(snapshot);
     });
 }
+
+/** The closing prompt is opt-in and only appears while the open project differs from what is saved. */
+export function shouldConfirmClose(
+  enabled: boolean,
+  current: CurrentSession | null,
+  persisted: CurrentSession | null,
+): boolean {
+  return enabled && current !== null && current !== persisted;
+}

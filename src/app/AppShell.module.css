@@ -6,12 +6,12 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .statusRow {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-status);
   top: var(--space-12);
   right: var(--space-12);
   width: fit-content;
@@ -37,8 +37,8 @@
   align-items: center;
   gap: var(--space-8) var(--space-12);
   padding: var(--space-12) var(--space-16);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
 }
 
 .statusActions {
@@ -72,12 +72,12 @@
 
 .status button:hover {
   background: var(--color-control-hover-surface);
-  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-hover-border);
+  box-shadow: var(--ring-inset-hover);
 }
 
 .status button:active {
   background: var(--color-control-active-surface);
-  box-shadow: inset 0 0 0 var(--border-width) var(--color-control-active-border);
+  box-shadow: var(--ring-inset-active);
 }
 
 .status button:focus-visible {
@@ -86,13 +86,13 @@
 }
 
 .error {
-  background: var(--color-danger-subdued);
-  color: var(--color-danger-active);
+  background: var(--color-status-danger-surface);
+  color: var(--color-danger-active-semantic);
 }
 
 .warning {
-  background: var(--color-warning-subdued);
-  color: var(--color-warning);
+  background: var(--color-status-warning-surface);
+  color: var(--color-status-warning);
 }
 
 .content {
@@ -103,13 +103,30 @@
   overflow: hidden;
 }
 
+/* Floats over the viewer in the free strip under the dock, lower right; only its trigger takes the pointer. */
+.saveStatus {
+  position: absolute;
+  z-index: var(--z-controls);
+  right: var(--space-16);
+  bottom: var(--space-4);
+  height: var(--geometry-viewer-dock-bottom-inset);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
 .loadingOverlay {
   position: fixed;
-  z-index: 100;
+  z-index: var(--z-loading);
   inset: 0;
   display: grid;
   place-items: center;
   background: var(--color-loading-overlay);
-  color: var(--color-text-muted);
-  font-weight: 650;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.loadingMessage {
+  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
+  padding: var(--space-8) var(--space-16);
 }

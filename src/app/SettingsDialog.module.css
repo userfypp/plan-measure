@@ -1,0 +1,368 @@
+dialog.dialog {
+  width: min(var(--geometry-settings-dialog-width), calc(100vw - var(--space-32)));
+}
+
+.dialogBody {
+  padding: var(--space-8) var(--space-16);
+  overflow-x: hidden;
+}
+
+.layout {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: var(--geometry-settings-nav-width) minmax(0, 1fr);
+  gap: var(--space-16);
+}
+
+.nav {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  border-right: var(--border-width) solid var(--color-divider);
+  padding-right: var(--space-12);
+}
+
+.navItem {
+  composes: focusRing from "../components/ui/controlStates.module.css";
+  min-width: 0;
+  min-height: var(--control-height-compact);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-8);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  text-align: left;
+  transition: var(--transition-interactive);
+}
+
+.navItem svg {
+  flex: none;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.navItem:hover {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
+}
+
+.navItem:active {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.navItem[aria-selected="true"] {
+  background: var(--color-selection-surface);
+  color: var(--color-text-primary);
+}
+
+.navItem[aria-selected="true"] svg {
+  color: var(--color-accent);
+}
+
+.panel {
+  min-width: 0;
+  height: var(--geometry-settings-panel-height);
+  max-height: calc(100dvh - var(--dialog-body-chrome) - var(--space-24));
+  overflow-y: auto;
+  padding-right: var(--space-4);
+}
+
+.settingList {
+  min-width: 0;
+  display: grid;
+}
+
+.groupTitle {
+  margin: 0;
+  min-height: var(--control-height-compact);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  line-height: var(--line-height-secondary);
+  text-transform: uppercase;
+}
+
+/* Later groups are set apart from the rows above by a full-width divider. */
+.groupTitle:not(:first-child) {
+  margin-top: var(--space-8);
+  border-top: var(--border-width) solid var(--color-divider);
+  padding-top: var(--space-8);
+}
+
+.groupTitle span {
+  color: var(--color-text-secondary);
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-secondary);
+}
+
+.groupTitle + .settingRow {
+  border-top: 0;
+}
+
+.shortcutList {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-24);
+}
+
+.shortcutRow {
+  min-width: 0;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.shortcutRow dt {
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.shortcutRow dd {
+  margin: 0;
+}
+
+.kbd {
+  display: inline-block;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+  white-space: nowrap;
+}
+
+.sectionNote {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.settingRow {
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: calc(var(--control-height-compact) + var(--space-16) + var(--border-width));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-16);
+  padding-block: var(--space-8);
+}
+
+.settingRow + .settingRow {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.settingCopy {
+  min-width: 0;
+  /* The help icon sits beside the label, vertically centred on it, never on a line below. */
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.settingCopy > .settingLabel {
+  min-width: 0;
+}
+
+.settingLabel {
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
+.helpButton {
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: help;
+}
+
+.helpButton:hover {
+  color: var(--color-text-primary);
+}
+
+.helpButton:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.helpButton svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.select {
+  width: var(--geometry-select-width-regular);
+}
+
+.narrowSelect {
+  width: var(--geometry-select-width-narrow);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}
+
+.preview {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-16);
+  border-top: var(--border-width) solid var(--color-divider);
+  padding-block: var(--space-8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.previewValue {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}
+
+.storageUsage {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+}
+
+.resetRow {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-16);
+  border-top: var(--border-width) solid var(--color-divider);
+  padding-block: var(--space-12) var(--space-4);
+}
+
+.resetCopy {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.resetHint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.resetActions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+@media (any-pointer: coarse), (max-width: 800px) {
+  dialog.dialog {
+    --target-current: var(--target-coarse);
+    --control-height-compact: var(--target-coarse);
+    --control-height-regular: var(--target-coarse);
+  }
+}
+
+@media (max-width: 560px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  /* Icons-only tab strip; each tab keeps its text as the accessible name. */
+  .nav {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    border-right: 0;
+    border-bottom: var(--border-width) solid var(--color-divider);
+    padding: 0 0 var(--space-8);
+  }
+
+  .navItem {
+    justify-content: center;
+  }
+
+  .navItem span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .panel {
+    height: auto;
+    min-height: var(--geometry-settings-panel-height);
+    padding-right: 0;
+  }
+
+  .settingRow:has(.select, .narrowSelect) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .select,
+  .narrowSelect {
+    width: 100%;
+  }
+}
+
+:global(:root[data-targets="large"]) dialog.dialog {
+  --target-current: var(--target-coarse);
+  --control-height-compact: var(--target-coarse);
+  --control-height-regular: var(--target-coarse);
+}

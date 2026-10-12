@@ -219,6 +219,103 @@ describe("Popover", () => {
     expect(document.activeElement).toBe(findButton("Second trigger"));
   });
 
+  it("mounts a defaultOpen popover inside its dialog, positioned and focused", () => {
+    act(() => {
+      root!.render(
+        <dialog open>
+          <Popover trigger="Inner trigger" defaultOpen initialFocus="first" role="menu" aria-label="Inner">
+            <button type="button">Inner action</button>
+          </Popover>
+        </dialog>,
+      );
+    });
+    const menu = document.querySelector<HTMLElement>('[aria-label="Inner"]')!;
+    expect(menu.closest("dialog")).not.toBeNull();
+    expect(menu.style.left).not.toBe("");
+    expect(document.activeElement?.textContent).toBe("Inner action");
+  });
+
+  it("closes an open popover when its trigger is pressed again", () => {
+    act(() => {
+      root!.render(
+        <Popover trigger="Toggle" role="dialog" aria-label="Toggled" initialFocus="first" dismissOnFocusLeave>
+          <button type="button">Toggled action</button>
+        </Popover>,
+      );
+    });
+    const toggle = findButton("Toggle")!;
+    const press = () => {
+      act(() => {
+        toggle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+        toggle.focus();
+        toggle.click();
+      });
+    };
+    press();
+    expect(dialog("Toggled")).not.toBeNull();
+    press();
+    expect(dialog("Toggled")).toBeNull();
+  });
+
+  it("closes, without reopening, when the label of its trigger is pressed", () => {
+    act(() => {
+      root!.render(
+        <div>
+          <label htmlFor="labelled-trigger">Field label</label>
+          <Popover
+            trigger="Toggle"
+            triggerProps={{ id: "labelled-trigger" }}
+            role="dialog"
+            aria-label="Toggled"
+            initialFocus="first"
+            dismissOnFocusLeave
+          >
+            <button type="button">Toggled action</button>
+          </Popover>
+        </div>,
+      );
+    });
+    const label = document.querySelector("label")!;
+    act(() => findButton("Toggle")!.click());
+    expect(dialog("Toggled")).not.toBeNull();
+
+    act(() => {
+      label.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+      label.click();
+    });
+    expect(dialog("Toggled")).toBeNull();
+  });
+
+  it("keeps the popover closed when it closed between pointerdown and click on the trigger", () => {
+    act(() => {
+      root!.render(
+        <Popover trigger="Toggle" role="dialog" aria-label="Toggled" initialFocus="first" dismissOnFocusLeave>
+          <button type="button">Toggled action</button>
+        </Popover>,
+      );
+    });
+    const toggle = findButton("Toggle")!;
+    act(() => toggle.click());
+    expect(dialog("Toggled")).not.toBeNull();
+
+    act(() => {
+      toggle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+    });
+    // Intermediate close (focus moved away) before the click arrives.
+    act(() => {
+      document.body.appendChild(Object.assign(document.createElement("button"), { id: "elsewhere" }));
+      document.getElementById("elsewhere")!.focus();
+    });
+    expect(dialog("Toggled")).toBeNull();
+    act(() => toggle.click());
+    expect(dialog("Toggled")).toBeNull();
+
+    // A keyboard click (no pointerdown) still toggles open.
+    act(() => toggle.click());
+    expect(dialog("Toggled")).not.toBeNull();
+    document.getElementById("elsewhere")?.remove();
+  });
+
   it("keeps a nested child above its parent when both open in the same commit", () => {
     act(() => {
       root!.render(
@@ -426,5 +523,59 @@ describe("Popover", () => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(onOpenChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets the minimum width to the trigger width when matchTriggerWidth is set", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        <Popover trigger="Wide trigger" matchTriggerWidth role="dialog" aria-label="Sized">
+          <button type="button">Inside action</button>
+        </Popover>,
+      );
+    });
+    const button = container.querySelector("button")!;
+    button.getBoundingClientRect = () =>
+      ({ width: 180, height: 32, top: 0, left: 0, right: 180, bottom: 32, x: 0, y: 0, toJSON: () => ({}) });
+    act(() => button.click());
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(content.style.minWidth).toBe("180px");
+  });
+  it("opens above and end-aligned to the trigger with the top-end placement", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        <Popover trigger="Corner trigger" placement="top-end" role="dialog" aria-label="Above">
+          <button type="button">Inside action</button>
+        </Popover>,
+      );
+    });
+    const button = container.querySelector("button")!;
+    button.getBoundingClientRect = () =>
+      ({ width: 80, height: 20, top: 700, left: 900, right: 980, bottom: 720, x: 900, y: 700, toJSON: () => ({}) });
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return this.getAttribute("role") === "dialog"
+        ? ({ width: 300, height: 200, top: 0, left: 0, right: 300, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
+        : original.call(this);
+    };
+    try {
+      act(() => button.click());
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original;
+    }
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(parseFloat(content.style.top)).toBeLessThan(700);
+    expect(parseFloat(content.style.left) + 300).toBeCloseTo(980, 0);
   });
 });

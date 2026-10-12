@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { AnchoredMenu, Badge } from "../../components/ui";
+import { AnchoredMenu, Badge, ChevronDownIcon, Select } from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
 import styles from "./ClassificationAssignment.module.css";
 
@@ -10,14 +10,6 @@ export interface ClassificationAssignmentProps {
   onAssign: (measurementId: string, dimensionId: string, valueId: string | null) => void;
   disabled?: boolean;
   compact?: boolean;
-}
-
-function SelectChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m6.5 8 3.5 3.5L13.5 8" />
-    </svg>
-  );
 }
 
 export function ClassificationAssignment({
@@ -82,7 +74,7 @@ export function ClassificationAssignment({
                 trigger={
                   <span className={styles.valueTriggerContent}>
                     <span title={currentLabel}>{currentLabel}</span>
-                    <SelectChevronIcon />
+                    <ChevronDownIcon />
                   </span>
                 }
                 triggerProps={{
@@ -91,6 +83,7 @@ export function ClassificationAssignment({
                   disabled: fieldDisabled,
                 }}
                 label={`Select ${dimension.name} classification value`}
+                matchTriggerWidth
                 items={[
                   {
                     id: "unclassified",
@@ -122,23 +115,21 @@ export function ClassificationAssignment({
               {dimension.name}
               {dimension.archived ? " (archived)" : ""}
             </span>
-            <select
+            <Select
               id={fieldId}
-              data-viewer-shortcuts="enabled"
+              label={`${dimension.name}${dimension.archived ? " (archived)" : ""}`}
+              triggerProps={{ "data-viewer-shortcuts": "enabled" }}
               value={current?.id ?? ""}
               disabled={fieldDisabled}
-              onChange={(event) =>
-                onAssign(measurementId, dimension.id, event.target.value || null)
-              }
-            >
-              <option value="">Unclassified</option>
-              {options.map((value) => (
-                <option key={value.id} value={value.id}>
-                  {value.name}
-                  {value.archived ? " (archived)" : ""}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Unclassified" },
+                ...options.map((value) => ({
+                  value: value.id,
+                  label: `${value.name}${value.archived ? " (archived)" : ""}`,
+                })),
+              ]}
+              onChange={(valueId) => onAssign(measurementId, dimension.id, valueId || null)}
+            />
           </label>
         );
       })}

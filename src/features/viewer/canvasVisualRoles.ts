@@ -63,7 +63,6 @@ const DARK_CANVAS_VISUAL_ROLES: CanvasVisualRoles = Object.freeze({
 export const CANVAS_VISUAL_METRICS = Object.freeze({
   measurementStrokeScreenPx: 1.5,
   measurementSelectedStrokeScreenPx: 2,
-  measurementHitStrokeScreenPx: 12,
   draftStrokeScreenPx: 2,
   draftPreviewStrokeScreenPx: 1.6,
   calibrationStrokeScreenPx: 1.5,
@@ -133,6 +132,46 @@ export function useCanvasInteractionTargetScreenPx(): number {
   return canvasInteractionTargetScreenPx(coarsePointer);
 }
 
+/** Hit area is derived from the base radius, so the Handle size preference never changes it. */
 export function circularHandleHitStrokeWidthScreenPx(targetSizeScreenPx: number): number {
   return Math.max(0, targetSizeScreenPx - CANVAS_VISUAL_METRICS.handleRadiusScreenPx * 2);
+}
+
+/** Visible handle radius in screen px for a Handle size multiplier. */
+export function scaledHandleRadiusScreenPx(scale: number): number {
+  return CANVAS_VISUAL_METRICS.handleRadiusScreenPx * scale;
+}
+
+/**
+ * Scales the alpha of a `#rrggbb` / `#rrggbbaa` color (capped at 1). Colors
+ * without an alpha channel, or a scale of 1, are returned unchanged.
+ */
+export function scaleFillAlpha(color: string, scale: number): string {
+  if (scale === 1 || !/^#[0-9a-f]{8}$/i.test(color)) return color;
+  const alpha = parseInt(color.slice(7, 9), 16);
+  const scaled = Math.min(255, Math.round(alpha * scale));
+  return `${color.slice(0, 7)}${scaled.toString(16).padStart(2, "0")}`;
+}
+
+/** Same as `scaleFillAlpha` for a cloud fill given as color + 0-1 alpha. */
+export function scaledAlpha(alpha: number, scale: number): number {
+  return Math.min(1, alpha * scale);
+}
+
+/**
+ * Text paint for measurement labels. Without a background the text would be
+ * unreadable on light plans, so it flips to the dark role with a light halo.
+ */
+export function labelTextPaint(
+  roles: Pick<CanvasVisualRoles, "labelText" | "labelBackground">,
+  backgroundOpacity: number,
+  zoom: number,
+) {
+  if (backgroundOpacity > 0) return { fill: roles.labelText };
+  return {
+    fill: roles.labelBackground,
+    stroke: roles.labelText,
+    strokeWidth: 3 / zoom,
+    fillAfterStrokeEnabled: true,
+  };
 }

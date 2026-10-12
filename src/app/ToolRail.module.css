@@ -1,6 +1,6 @@
 .toolRail {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-controls);
   top: var(--geometry-context-toolbar-top);
   left: var(--space-12);
   width: calc(var(--target-current) + var(--space-8));
@@ -78,16 +78,21 @@
   color: var(--color-accent);
 }
 
+/* Same tokens as controlStates.disabledSurface (aria-disabled needs its own selector). */
 .toolButton:disabled,
-.toolButton[aria-disabled="true"] {
-  opacity: var(--opacity-disabled);
+.toolButton[aria-disabled="true"],
+.toolButton.active:disabled,
+.toolButton.active[aria-disabled="true"] {
   cursor: not-allowed;
+  border-color: var(--color-divider);
+  background: var(--color-surface-panel);
+  color: var(--color-text-disabled);
 }
 
-.toolButton[aria-disabled="true"]:not(.active):hover,
-.toolButton[aria-disabled="true"]:not(.active):active {
-  background: transparent;
-  color: var(--color-text-secondary);
+/* A disabled tool that is also selected keeps the selection surface so the active tool stays identifiable. */
+.toolButton.active:disabled,
+.toolButton.active[aria-disabled="true"] {
+  background: var(--color-selection-surface);
 }
 
 .visuallyHidden {

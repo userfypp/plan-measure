@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { AppErrorNotification } from "./state";
-import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
+import type { ProjectViewSettings } from "./SettingsDialog";
 import { AppBar } from "./AppBar";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useManagedTabNavigation } from "../components/ui/tabNavigation";
@@ -18,6 +19,8 @@ interface AppShellProps {
   canUndo?: boolean;
   canRedo?: boolean;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  viewSettings?: ProjectViewSettings | null;
+  classificationDimensions?: readonly ClassificationDimension[];
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -28,6 +31,7 @@ interface AppShellProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
   onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
@@ -51,6 +55,8 @@ export function AppShell({
   canUndo = false,
   canRedo = false,
   measurementDecimalPlaces = null,
+  viewSettings = null,
+  classificationDimensions,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -61,6 +67,7 @@ export function AppShell({
   onUndo,
   onRedo,
   onMeasurementDecimalPlacesChange,
+  onViewSettingsChange,
   onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
@@ -85,13 +92,14 @@ export function AppShell({
       data-tab-navigation-root
     >
       <AppBar
-        saveStatus={saveStatus}
         documentName={documentName}
         canExport={canExport}
         savedProjectCount={savedProjectCount}
         canUndo={canUndo}
         canRedo={canRedo}
         measurementDecimalPlaces={measurementDecimalPlaces}
+        viewSettings={viewSettings}
+        classificationDimensions={classificationDimensions}
         keyboardAuthoringEnabled={keyboardAuthoringEnabled}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         confirmValueDeletion={confirmValueDeletion}
@@ -102,6 +110,7 @@ export function AppShell({
         onUndo={onUndo}
         onRedo={onRedo}
         onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
+        onViewSettingsChange={onViewSettingsChange}
         onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
         onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
         onConfirmValueDeletionChange={onConfirmValueDeletionChange}
@@ -131,6 +140,7 @@ export function AppShell({
           </div>
         )}
         {children}
+        {saveStatus && <div className={styles.saveStatus}>{saveStatus}</div>}
       </div>
     </div>
   );
@@ -184,5 +194,5 @@ export function LoadingOverlay({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", blockApplicationKey, true);
     return () => window.removeEventListener("keydown", blockApplicationKey, true);
   }, []);
-  return <div role="status" className={styles.loadingOverlay}>{children}</div>;
+  return <div role="status" className={styles.loadingOverlay}><span className={styles.loadingMessage}>{children}</span></div>;
 }

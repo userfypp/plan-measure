@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { isSessionPersistable } from "./autosave";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { PdfLoadLifecycle } from "./pdfLoadLifecycle";
 import type { ReplacePdfPayload } from "./overlayState";
 import * as persistenceService from "../services/persistence";
@@ -1544,6 +1545,88 @@ describe("page-exit autosave", () => {
       });
     }
     expect(savedDisplayUnit).toBe("cm");
+  });
+});
+
+describe("autosave delay and closing prompt preferences", () => {
+  afterEach(() => resetAppPreferences());
+
+  async function openSavedPlan() {
+    await seedRecoverySession();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const saved = (await loadSavedSession())!;
+    const edited = {
+      ...saved.session,
+      settings: { ...saved.session.settings, displayUnit: "mm" as const },
+    };
+    return { saved, edited };
+  }
+
+  it("waits for the chosen autosave delay before writing", async () => {
+    setAppPreference("autosaveDelayMs", 1000);
+    const { saved, edited } = await openSavedPlan();
+    const save = vi.spyOn(persistenceService, "saveSessionMetadata");
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+    });
+    expect(save).not.toHaveBeenCalled();
+    expect((await loadSavedSession())!.revision).toBe(saved.revision);
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+    });
+    expect(save).toHaveBeenCalledOnce();
+    expect((await loadSavedSession())!.session).toEqual(edited);
+  });
+
+  it("keeps the edit in memory and the stored copy intact when a delayed write fails", async () => {
+    setAppPreference("autosaveDelayMs", 1000);
+    const { saved, edited } = await openSavedPlan();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "saveSessionMetadata").mockRejectedValueOnce(
+      new DOMException("Full", "QuotaExceededError"),
+    );
+    act(() => setHarnessSession!(edited));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 1250));
+    });
+    expect(lifecycle!.autosaveFailed).toBe(true);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("failed");
+    expect(harnessSession).toEqual(edited);
+    const stored = (await loadSavedSession())!;
+    expect(stored.revision).toBe(saved.revision);
+    expect(stored.session).toEqual(saved.session);
+  });
+
+  it("asks before closing only when enabled and the project has unsaved changes", async () => {
+    const { edited } = await openSavedPlan();
+    const closeEvent = () => new Event("beforeunload", { cancelable: true });
+
+    act(() => setHarnessSession!(edited));
+    const offEvent = closeEvent();
+    window.dispatchEvent(offEvent);
+    expect(offEvent.defaultPrevented).toBe(false);
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+
+    setAppPreference("confirmBeforeClosing", true);
+    const savedEvent = closeEvent();
+    window.dispatchEvent(savedEvent);
+    expect(savedEvent.defaultPrevented).toBe(false);
+
+    act(() =>
+      setHarnessSession!({
+        ...edited,
+        settings: { ...edited.settings, displayUnit: "cm" as const },
+      }),
+    );
+    const dirtyEvent = closeEvent();
+    window.dispatchEvent(dirtyEvent);
+    expect(dirtyEvent.defaultPrevented).toBe(true);
   });
 });
 

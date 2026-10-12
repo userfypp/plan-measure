@@ -432,7 +432,7 @@ it("persists a custom Uniform ratio as the existing PageCalibration shape and pr
   await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
   const recovered = await loadSavedSession();
   const page = recovered?.session.pages[1];
-  expect(recovered?.session.schemaVersion).toBe(13);
+  expect(recovered?.session.schemaVersion).toBe(14);
   expect(page?.calibrations[0]).toEqual({ id: "custom-uniform", name: "Scale 1", ...calibration });
   expect(page?.activeCalibrationId).toBe("custom-uniform");
   expect(page?.measurements[0]?.calibrationId).toBe("custom-uniform");
@@ -1161,7 +1161,7 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v7,
-      schemaVersion: 13,
+      schemaVersion: 14,
       pages: withQuickShapeCounters(v7.pages),
       pageLabelOverrides: {},
       settings: {
@@ -1169,6 +1169,7 @@ describe("session persistence", () => {
         csvExport: { columnOverrides: {} },
         measurementDecimalPlaces: 2,
         areaDisplay: "auto",
+        labelClassificationDimensionId: null,
       },
     });
   });
@@ -1179,12 +1180,13 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v8));
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v8.settings,
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
+      labelClassificationDimensionId: null,
     });
   });
 
@@ -1195,11 +1197,12 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v9));
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v9.settings,
       areaDisplay: "auto",
+      labelClassificationDimensionId: null,
     });
     expect(migrated.pages).toEqual(v9.pages);
     expect(migrated.classificationCatalog).toEqual(v9.classificationCatalog);
@@ -1214,9 +1217,10 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v10,
-      schemaVersion: 13,
+      schemaVersion: 14,
       pages: withQuickShapeCounters(v10.pages),
       pageLabelOverrides: {},
+      settings: { ...v10.settings, labelClassificationDimensionId: null },
     });
   });
 
@@ -1224,7 +1228,7 @@ describe("session persistence", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
@@ -1285,6 +1289,7 @@ describe("session persistence", () => {
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
+      labelClassificationDimensionId: null,
     });
     expect(page.measurements.map((measurement) => measurement.calibrationId)).toEqual([
       calibration.id,
@@ -1328,7 +1333,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -1344,7 +1349,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -1367,7 +1372,7 @@ describe("session persistence", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -1375,6 +1380,63 @@ describe("session persistence", () => {
         visible: true,
       },
     ]);
+  });
+
+  describe("schema V14 label classification", () => {
+    type LooseSession = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    function v13Serialized(mutate?: (settings: LooseSession) => void): string {
+      const session = structuredClone(archivedCurrentSession()) as unknown as LooseSession;
+      session.schemaVersion = 13;
+      delete session.settings.labelClassificationDimensionId;
+      mutate?.(session.settings);
+      return JSON.stringify(session);
+    }
+
+    it("migrates a hand-serialized V13 session to V14 with no label classification", () => {
+      const migrated = deserializeSession(v13Serialized());
+
+      expect(migrated.schemaVersion).toBe(14);
+      expect(migrated.settings.labelClassificationDimensionId).toBeNull();
+      expect(migrated.classificationCatalog).toEqual(archivedCurrentSession().classificationCatalog);
+    });
+
+    it("overwrites a leaked label classification key when migrating V13", () => {
+      const migrated = deserializeSession(
+        v13Serialized((settings) => {
+          settings.labelClassificationDimensionId = "discipline";
+        }),
+      );
+
+      expect(migrated.settings.labelClassificationDimensionId).toBeNull();
+    });
+
+    it("round trips a V14 session with a valid (even archived) dimension id", () => {
+      const session = archivedCurrentSession();
+      session.settings.labelClassificationDimensionId = "discipline";
+
+      expect(deserializeSession(serializeSession(session))).toEqual(session);
+    });
+
+    it("rejects a non-existent or non-string dimension id", () => {
+      const session = archivedCurrentSession();
+      for (const id of ["missing", 3, undefined]) {
+        const parsed = JSON.parse(serializeSession(session));
+        parsed.settings.labelClassificationDimensionId = id;
+        expect(() => deserializeSession(JSON.stringify(parsed))).toThrow(
+          "The saved session is invalid.",
+        );
+      }
+    });
+
+    it("migrates V1 and V7 sessions up to V14", () => {
+      expect(deserializeSession(JSON.stringify(legacySession(true))).settings).toMatchObject({
+        labelClassificationDimensionId: null,
+      });
+      const migrated = deserializeSession(JSON.stringify(v7MeasuredSession()));
+      expect(migrated.schemaVersion).toBe(14);
+      expect(migrated.settings.labelClassificationDimensionId).toBeNull();
+    });
   });
 
   describe("schema V13 quick shapes", () => {
@@ -1430,7 +1492,7 @@ describe("session persistence", () => {
     it("migrates V12 to V13 adding the quick shape counters", () => {
       const migrated = deserializeSession(v12Serialized());
 
-      expect(migrated.schemaVersion).toBe(13);
+      expect(migrated.schemaVersion).toBe(14);
       for (const page of Object.values(migrated.pages)) {
         expect(page.nextMeasurementNumber).toMatchObject({ rectangle: 1, ellipse: 1, cloud: 1 });
       }
@@ -1536,7 +1598,7 @@ describe("session persistence", () => {
     };
     session.settings.measurementDecimalPlaces = 6;
     const serialized = serializeSession(session);
-    expect(JSON.parse(serialized).schemaVersion).toBe(13);
+    expect(JSON.parse(serialized).schemaVersion).toBe(14);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -1596,7 +1658,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -1620,13 +1682,14 @@ describe("session persistence", () => {
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(13);
+    expect(migrated.schemaVersion).toBe(14);
     expect(migrated.pdf).toEqual(v6.pdf);
     expect(migrated.settings).toEqual({
       ...v6.settings,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
+      labelClassificationDimensionId: null,
     });
     expect(migratedDimension).toEqual({
       id: "discipline",
@@ -1644,7 +1707,7 @@ describe("session persistence", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(13);
+    expect(restored.schemaVersion).toBe(14);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
@@ -1759,11 +1822,11 @@ describe("session persistence", () => {
     }
   });
 
-  it("requires measurement decimal places to be an integer from 0 through 6", () => {
+  it("requires measurement decimal places to be an integer from 0 through 8", () => {
     const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
     const settings = base.settings as Record<string, unknown>;
 
-    for (const measurementDecimalPlaces of [-1, 2.5, 7, null]) {
+    for (const measurementDecimalPlaces of [-1, 2.5, 9, null]) {
       expect(() =>
         deserializeSession(
           JSON.stringify({
@@ -1773,6 +1836,14 @@ describe("session persistence", () => {
         ),
       ).toThrow("measurement decimal places");
     }
+  });
+
+  it.each([6, 7, 8])("round-trips %s measurement decimal places", (places) => {
+    const session = currentMeasuredSession();
+    session.settings.measurementDecimalPlaces = places as 6 | 7 | 8;
+    expect(
+      deserializeSession(serializeSession(session)).settings.measurementDecimalPlaces,
+    ).toBe(places);
   });
 
   it("requires a boolean archived flag on every V9 dimension", () => {
@@ -1948,7 +2019,7 @@ describe("session persistence", () => {
     const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
 
     expect(recovered.compatibility).toBe("classification-repair-required");
-    expect(recovered.session.schemaVersion).toBe(13);
+    expect(recovered.session.schemaVersion).toBe(14);
     expect(recovered.session.classificationCatalog.dimensions).toEqual([
       {
         id: "discipline",
@@ -2091,7 +2162,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(13);
+    expect(restored.schemaVersion).toBe(14);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -2677,7 +2748,7 @@ describe("session persistence", () => {
 
     const recovered = await loadSavedSession();
 
-    expect(recovered?.session.schemaVersion).toBe(13);
+    expect(recovered?.session.schemaVersion).toBe(14);
     expect(recovered?.session.pdf).toEqual(historical.pdf);
     expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
       "legacy-line",

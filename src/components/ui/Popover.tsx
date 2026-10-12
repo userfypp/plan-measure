@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useId,
   useLayoutEffect,
@@ -11,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { Tooltip, type TooltipPosition } from "./Tooltip";
 import styles from "./Popover.module.css";
 
 const VIEWPORT_MARGIN_PX = 8;
@@ -31,6 +33,7 @@ interface PopoverLayer {
   parentId: string | null;
   dismissOnFocusLeave: boolean;
   contains: (target: Node) => boolean;
+  isTriggerLabel: (target: Node) => boolean;
   containsFocus: (target: Node) => boolean;
   dismiss: (reason: PopoverDismissReason) => void;
 }
@@ -47,6 +50,12 @@ function handlePopoverPointerDown(event: PointerEvent) {
   const target = event.target;
   if (!layer || !(target instanceof Node) || layer.contains(target)) return;
   layer.dismiss("outside");
+}
+
+/** Pressing the trigger's label must not move focus away (it would dismiss the list before the click). */
+function handlePopoverMouseDown(event: MouseEvent) {
+  const target = event.target;
+  if (target instanceof Node && topPopoverLayer()?.isTriggerLabel(target)) event.preventDefault();
 }
 
 function handlePopoverKeyDown(event: KeyboardEvent) {
@@ -78,12 +87,20 @@ function documentTabStopsOutside(content: HTMLElement): HTMLElement[] {
   );
 }
 
+/** A label click is forwarded to its control: it must toggle the trigger, not dismiss and reopen it. */
+function isLabelOfAnchor(target: Node, anchor: HTMLButtonElement | null): boolean {
+  if (!anchor) return false;
+  const element = target instanceof Element ? target : target.parentElement;
+  return element?.closest("label")?.control === anchor;
+}
+
 function registerPopoverLayer(layer: PopoverLayer): () => void {
   const firstChildIndex = popoverLayers.findIndex((candidate) => candidate.parentId === layer.id);
   if (firstChildIndex >= 0) popoverLayers.splice(firstChildIndex, 0, layer);
   else popoverLayers.push(layer);
   if (popoverLayers.length === 1) {
     document.addEventListener("pointerdown", handlePopoverPointerDown, true);
+    document.addEventListener("mousedown", handlePopoverMouseDown, true);
     document.addEventListener("keydown", handlePopoverKeyDown, true);
     document.addEventListener("focusin", handlePopoverFocusIn, true);
   }
@@ -93,6 +110,7 @@ function registerPopoverLayer(layer: PopoverLayer): () => void {
     if (index >= 0) popoverLayers.splice(index, 1);
     if (popoverLayers.length === 0) {
       document.removeEventListener("pointerdown", handlePopoverPointerDown, true);
+      document.removeEventListener("mousedown", handlePopoverMouseDown, true);
       document.removeEventListener("keydown", handlePopoverKeyDown, true);
       document.removeEventListener("focusin", handlePopoverFocusIn, true);
     }
@@ -105,7 +123,7 @@ export function focusPopoverContentElement(element: HTMLElement | null | undefin
   element.scrollIntoView?.({ block: "nearest", inline: "nearest" });
 }
 
-export type PopoverPlacement = "bottom-start" | "bottom-end";
+export type PopoverPlacement = "bottom-start" | "bottom-end" | "top-end";
 export type PopoverInitialFocus = "none" | "first" | "container";
 
 export type PopoverTriggerProps = Omit<
@@ -123,7 +141,11 @@ interface PopoverBaseProps {
   placement?: PopoverPlacement;
   initialFocus?: PopoverInitialFocus;
   dismissOnFocusLeave?: boolean;
+  matchTriggerWidth?: boolean;
   className?: string;
+  /** Tooltip for an icon-only trigger; hidden while the popover is open. */
+  tooltip?: ReactNode;
+  tooltipPosition?: TooltipPosition;
 }
 
 type PopoverSemanticProps =
@@ -148,6 +170,7 @@ export type PopoverProps = PopoverBaseProps & PopoverSemanticProps;
 interface PopoverPosition {
   left: number;
   top: number;
+  minWidth?: number;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -164,16 +187,27 @@ export function Popover({
   placement = "bottom-start",
   initialFocus = "first",
   dismissOnFocusLeave = false,
+  matchTriggerWidth = false,
   role,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
   className,
+  tooltip,
+  tooltipPosition,
 }: PopoverProps) {
   const parentLayerId = useContext(PopoverLayerContext);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const isOpen = open ?? uncontrolledOpen;
-  const anchorRef = useRef<HTMLButtonElement>(null);
+  const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+  const setAnchor = useCallback((element: HTMLButtonElement | null) => {
+    anchorRef.current = element;
+    setPortalHost(element?.closest("dialog") ?? null);
+  }, []);
   const contentRef = useRef<HTMLDivElement>(null);
+  // Safari does not focus buttons on click, so the list can close between pointerdown and click
+  // (focus/outside dismissal); remember the state at pointerdown so that click does not reopen it.
+  const openAtPointerDownRef = useRef(false);
   const wasOpenRef = useRef(false);
   const restoreFocusOnCloseRef = useRef(true);
   const dismissRef = useRef<(reason: PopoverDismissReason) => void>(() => undefined);
@@ -209,26 +243,34 @@ export function Popover({
       const content = contentRef.current?.getBoundingClientRect();
       if (!anchor || !content) return;
 
+      const contentWidth = matchTriggerWidth
+        ? Math.max(content.width, anchor.width)
+        : content.width;
       const preferredLeft =
-        placement === "bottom-end" ? anchor.right - content.width : anchor.left;
+        placement === "bottom-end" || placement === "top-end" ? anchor.right - contentWidth : anchor.left;
       const left = clamp(
         preferredLeft,
         VIEWPORT_MARGIN_PX,
-        window.innerWidth - content.width - VIEWPORT_MARGIN_PX,
+        window.innerWidth - contentWidth - VIEWPORT_MARGIN_PX,
       );
       const below = anchor.bottom + POPOVER_GAP_PX;
       const above = anchor.top - content.height - POPOVER_GAP_PX;
+      const fitsBelow = below + content.height <= window.innerHeight - VIEWPORT_MARGIN_PX;
+      const fitsAbove = above >= VIEWPORT_MARGIN_PX;
       const preferredTop =
-        below + content.height <= window.innerHeight - VIEWPORT_MARGIN_PX ||
-        above < VIEWPORT_MARGIN_PX
-          ? below
-          : above;
+        placement === "top-end"
+          ? fitsAbove || !fitsBelow
+            ? above
+            : below
+          : fitsBelow || !fitsAbove
+            ? below
+            : above;
       const top = clamp(
         preferredTop,
         VIEWPORT_MARGIN_PX,
         window.innerHeight - content.height - VIEWPORT_MARGIN_PX,
       );
-      setPosition({ left, top });
+      setPosition(matchTriggerWidth ? { left, top, minWidth: anchor.width } : { left, top });
     }
 
     updatePosition();
@@ -238,7 +280,7 @@ export function Popover({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen, placement]);
+  }, [isOpen, matchTriggerWidth, placement, portalHost]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -247,7 +289,12 @@ export function Popover({
       parentId: parentLayerId,
       dismissOnFocusLeave,
       contains: (target) =>
-        Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
+        Boolean(
+          anchorRef.current?.contains(target) ||
+            contentRef.current?.contains(target) ||
+            isLabelOfAnchor(target, anchorRef.current),
+        ),
+      isTriggerLabel: (target) => isLabelOfAnchor(target, anchorRef.current),
       containsFocus: (target) =>
         Boolean(anchorRef.current?.contains(target) || contentRef.current?.contains(target)),
       dismiss: (reason) => dismissRef.current(reason),
@@ -265,7 +312,8 @@ export function Popover({
     const requested = content.querySelector<HTMLElement>('[data-popover-autofocus="true"]');
     const first = requested ?? content.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
     focusPopoverContentElement(first);
-  }, [initialFocus, isOpen]);
+  // portalHost: with defaultOpen inside a dialog the content remounts once the host is known.
+  }, [initialFocus, isOpen, portalHost]);
 
   function handleContentKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.defaultPrevented || !dismissOnFocusLeave || event.key !== "Tab") return;
@@ -308,26 +356,56 @@ export function Popover({
     next.focus({ preventScroll: true });
   }
 
-  const { onClick: originalOnClick, className: triggerClassName, ...buttonProps } =
-    triggerProps ?? {};
+  const {
+    onClick: originalOnClick,
+    onPointerDown: originalOnPointerDown,
+    onPointerCancel: originalOnPointerCancel,
+    onPointerLeave: originalOnPointerLeave,
+    className: triggerClassName,
+    ...buttonProps
+  } = triggerProps ?? {};
+
+  const triggerButton = (
+    <button
+      ref={setAnchor}
+      {...buttonProps}
+      data-focus-owner={popoverId}
+      type="button"
+      className={[styles.trigger, triggerClassName].filter(Boolean).join(" ")}
+      aria-expanded={isOpen}
+      aria-controls={isOpen ? popoverId : undefined}
+      onPointerDown={(event) => {
+        openAtPointerDownRef.current = isOpen;
+        originalOnPointerDown?.(event);
+      }}
+      onPointerCancel={(event) => {
+        openAtPointerDownRef.current = false;
+        originalOnPointerCancel?.(event);
+      }}
+      onPointerLeave={(event) => {
+        openAtPointerDownRef.current = false;
+        originalOnPointerLeave?.(event);
+      }}
+      onClick={(event) => {
+        const openedAtPointerDown = openAtPointerDownRef.current;
+        openAtPointerDownRef.current = false;
+        originalOnClick?.(event);
+        if (!event.defaultPrevented) setOpen(openedAtPointerDown ? false : !isOpen);
+      }}
+    >
+      {trigger}
+    </button>
+  );
 
   return (
     <>
-      <button
-        ref={anchorRef}
-        {...buttonProps}
-        data-focus-owner={popoverId}
-        type="button"
-        className={[styles.trigger, triggerClassName].filter(Boolean).join(" ")}
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? popoverId : undefined}
-        onClick={(event) => {
-          originalOnClick?.(event);
-          if (!event.defaultPrevented) setOpen(!isOpen);
-        }}
-      >
-        {trigger}
-      </button>
+      {tooltip ? (
+        <Tooltip content={tooltip} position={tooltipPosition} suppressed={isOpen}>
+          {triggerButton}
+        </Tooltip>
+      ) : (
+        triggerButton
+      )}
       {isOpen &&
         createPortal(
           <PopoverLayerContext.Provider value={popoverId}>
@@ -346,7 +424,9 @@ export function Popover({
               {children}
             </div>
           </PopoverLayerContext.Provider>,
-          document.body,
+          // Inside a dialog the content must live in the dialog: a modal dialog sits in the top
+          // layer and makes everything else inert, and a focus trap would reject outside focus.
+          portalHost ?? document.body,
         )}
     </>
   );

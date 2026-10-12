@@ -1,3 +1,4 @@
+import { getAppPreferences } from "./appPreferences";
 import type { LogicalPageBounds, Point, ViewTransform } from "../types/domain";
 
 export interface ViewerSize {
@@ -23,6 +24,25 @@ export const VIEWER_MAX_ZOOM = 8;
 export const VIEWER_ZOOM_STEP = 1.25;
 export const MAX_PDF_RASTER_PIXELS = 16 * 1024 * 1024;
 export const MAX_PDF_RASTER_DIMENSION = 8192;
+
+/** Raster limits per render quality (balanced matches the constants above). */
+export const PDF_RASTER_QUALITY_LIMITS = {
+  balanced: {
+    maxPixels: MAX_PDF_RASTER_PIXELS,
+    maxDimension: MAX_PDF_RASTER_DIMENSION,
+    maxDpr: Infinity,
+  },
+  sharp: { maxPixels: 32 * 1024 * 1024, maxDimension: MAX_PDF_RASTER_DIMENSION, maxDpr: Infinity },
+  fast: { maxPixels: 8 * 1024 * 1024, maxDimension: 4096, maxDpr: 1.5 },
+} as const;
+
+/** iOS/iPadOS WebKit caps canvas area near 16.7 Mpx; clamp the raster budget there. */
+export function effectiveRasterPixels(maxPixels: number): number {
+  if (typeof navigator === "undefined") return maxPixels;
+  const touchWebKit =
+    navigator.maxTouchPoints > 1 && /iPad|iPhone|Macintosh/.test(navigator.userAgent ?? "");
+  return touchWebKit ? Math.min(maxPixels, MAX_PDF_RASTER_PIXELS) : maxPixels;
+}
 
 export function logicalPageBoundsFromViewport(viewport: {
   width: number;
@@ -81,7 +101,7 @@ export function clampPointToPage(
 }
 
 export function clampViewerZoom(zoom: number): number {
-  return Math.min(VIEWER_MAX_ZOOM, Math.max(VIEWER_MIN_ZOOM, zoom));
+  return Math.min(getAppPreferences().maxZoom, Math.max(VIEWER_MIN_ZOOM, zoom));
 }
 
 export function zoomViewAtPoint(
@@ -103,7 +123,7 @@ export function fitToScreen(
   viewer: ViewerSize,
   padding = 24,
   minZoom = 0,
-  maxZoom = VIEWER_MAX_ZOOM,
+  maxZoom = getAppPreferences().maxZoom,
 ): ViewTransform {
   const availableWidth = Math.max(1, viewer.width - padding * 2);
   const availableHeight = Math.max(1, viewer.height - padding * 2);
@@ -115,6 +135,32 @@ export function fitToScreen(
     zoom,
     panX: (viewer.width - page.width * zoom) / 2,
     panY: (viewer.height - page.height * zoom) / 2,
+  };
+}
+
+/**
+ * Initial view of a page. "fit-page" is exactly {@link fitToScreen}; "fit-width" fills the
+ * viewer width and starts at the top; "actual" is 100% (zoom 1). Zoom stays within the limits
+ * and a page larger than the viewer starts at its top-left corner instead of centred.
+ */
+export function initialViewTransform(
+  mode: "fit-page" | "fit-width" | "actual",
+  page: Pick<LogicalPageBounds, "width" | "height">,
+  viewer: ViewerSize,
+  padding = 24,
+  minZoom = 0,
+  maxZoom = getAppPreferences().maxZoom,
+): ViewTransform {
+  if (mode === "fit-page") return fitToScreen(page, viewer, padding, minZoom, maxZoom);
+  const availableWidth = Math.max(1, viewer.width - padding * 2);
+  const wanted = mode === "fit-width" ? availableWidth / page.width : 1;
+  const zoom = Math.min(maxZoom, Math.max(minZoom, wanted));
+  const place = (viewerSize: number, pageSize: number) =>
+    pageSize <= viewerSize - padding * 2 ? (viewerSize - pageSize) / 2 : padding;
+  return {
+    zoom,
+    panX: place(viewer.width, page.width * zoom),
+    panY: place(viewer.height, page.height * zoom),
   };
 }
 

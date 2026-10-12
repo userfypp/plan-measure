@@ -13,7 +13,7 @@
 
 .header {
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--target-coarse);
   display: flex;
   align-items: center;
   padding: var(--space-4) var(--space-8);
@@ -57,7 +57,7 @@
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
-  stroke-width: 1.5;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .switcher {
@@ -113,16 +113,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.switcherContent svg {
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.5;
 }
 
 .body {

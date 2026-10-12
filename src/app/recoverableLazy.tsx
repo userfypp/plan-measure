@@ -1,10 +1,9 @@
-import { Component, lazy, useState, type ComponentType, type ComponentProps, type ReactNode } from "react";
-import { Button } from "../components/ui";
+import { Component, lazy, type ComponentType, type ComponentProps, type ReactNode } from "react";
+import styles from "./recoverableLazy.module.css";
 
 class ModuleErrorBoundary extends Component<{
   children: ReactNode;
   name: string;
-  onRetry: () => void;
 }, { failed: boolean }> {
   state = { failed: false };
 
@@ -14,34 +13,25 @@ class ModuleErrorBoundary extends Component<{
 
   render() {
     if (this.state.failed) return (
-      <div role="alert">
-        <p>Could not open {this.props.name}. Check your connection and try again.</p>
-        <Button onClick={this.props.onRetry}>Retry {this.props.name}</Button>
+      <div role="alert" className={styles.error}>
+        <p className={styles.title}>Could not open {this.props.name}</p>
+        <p className={styles.message}>Reload the page to try again.</p>
       </div>
     );
     return this.props.children;
   }
 }
 
-/** Retry with a fresh lazy component so a rejected import cannot poison later attempts. */
+/** Isolates a rejected lazy import so the rest of the app keeps its state; recovery is a page reload. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Matches React.lazy while retaining each component's inferred props.
 export function recoverableLazy<C extends ComponentType<any>>(
   load: () => Promise<{ default: C }>,
   name: string,
 ) {
-  let CachedModule = lazy(load);
+  const Module = lazy(load) as unknown as ComponentType<ComponentProps<C>>;
   return function RecoverableLazyModule(props: ComponentProps<C>) {
-    const [attempt, setAttempt] = useState(() => ({ id: 0, Module: CachedModule }));
-    const Module = attempt.Module as ComponentType<ComponentProps<C>>;
     return (
-      <ModuleErrorBoundary
-        key={attempt.id}
-        name={name}
-        onRetry={() => {
-          CachedModule = lazy(load);
-          setAttempt({ id: attempt.id + 1, Module: CachedModule });
-        }}
-      >
+      <ModuleErrorBoundary name={name}>
         <Module {...props} />
       </ModuleErrorBoundary>
     );

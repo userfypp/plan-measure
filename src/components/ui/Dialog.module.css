@@ -1,14 +1,10 @@
 .dialog {
-  width: min(480px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  composes: overlaySurface from "./overlaySurface.module.css";
+  width: min(var(--dialog-width-default), calc(100vw - var(--space-32)));
+  max-height: calc(100dvh - var(--space-32));
   margin: auto;
   padding: 0;
   overflow: hidden;
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
-  color: var(--color-text);
-  background: var(--color-surface-raised);
-  box-shadow: var(--shadow-overlay);
 }
 
 .dialog:focus {
@@ -20,16 +16,55 @@
   outline-offset: var(--focus-offset);
 }
 
+/* Enter/exit: estado cerrado = opacity 0 + desplazado; [open] = estado final.
+   allow-discrete mantiene display/overlay hasta acabar la salida. Sin soporte
+   (Safari < 17.5) el diálogo aparece/desaparece sin animar. */
+.dialog,
+.dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--dialog-duration-exit) var(--dialog-ease-exit),
+    transform var(--dialog-duration-exit) var(--dialog-ease-exit),
+    display var(--dialog-duration-exit) allow-discrete,
+    overlay var(--dialog-duration-exit) allow-discrete;
+}
+
+.dialog {
+  transform: translateY(var(--dialog-offset)) scale(var(--dialog-scale-from));
+}
+
+.dialog[open],
+.dialog[open]::backdrop {
+  opacity: 1;
+  transition-duration: var(--dialog-duration-enter);
+  transition-timing-function: var(--dialog-ease-enter);
+}
+
+.dialog[open] {
+  transform: none;
+}
+
+@starting-style {
+  .dialog[open],
+  .dialog[open]::backdrop {
+    opacity: 0;
+  }
+
+  .dialog[open] {
+    transform: translateY(var(--dialog-offset)) scale(var(--dialog-scale-from));
+  }
+}
+
 .dialog::backdrop {
   background: var(--color-dialog-backdrop);
 }
 
 .small {
-  width: min(360px, calc(100vw - 32px));
+  width: min(var(--dialog-width-small), calc(100vw - var(--space-32)));
 }
 
 .large {
-  width: min(720px, calc(100vw - 32px));
+  width: min(var(--dialog-width-large), calc(100vw - var(--space-32)));
 }
 
 .header {
@@ -38,20 +73,21 @@
 
 .title {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
 }
 
 .body {
-  max-height: calc(100dvh - 144px);
+  composes: scrollSurface from "./scrollSurface.module.css";
+  max-height: calc(100dvh - var(--dialog-body-chrome));
   padding: var(--space-16);
   overflow-y: auto;
 }
 
 .body :global(p) {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   line-height: var(--line-height-normal);
   overflow-wrap: anywhere;
 }

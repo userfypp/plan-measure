@@ -1,19 +1,15 @@
+import { memo, useCallback, useMemo, useState } from "react";
 import {
-  memo,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
-import {
-  Group,
-  Label,
-  Line,
-  Tag,
-  Text,
-} from "react-konva";
+  LABEL_BACKGROUND_OPACITY,
+  LABEL_SIZE_SCALE,
+  useAppPreferences,
+  useNumberFormatKey,
+} from "../../utils/appPreferences";
+import { Group, Label, Line, Tag, Text } from "react-konva";
 import type {
   AreaDisplay,
   CalibrationReferenceKey,
+  ClassificationDimension,
   LogicalPageBounds,
   MeasurementDecimalPlaces,
   MeasurementDisplayUnit,
@@ -24,19 +20,15 @@ import type {
 } from "../../types/domain";
 import { getMeasurementCalibration } from "../../utils/calibration";
 import { formatMeasurement } from "../../utils/format";
-import {
-  placeLabelWithinBounds,
-} from "../../utils/labelLayout";
+import { placeLabelWithinBounds } from "../../utils/labelLayout";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 import {
   canDragWholeMeasurement,
   measurementEditingEnabled,
   translateMeasurementPoints,
 } from "./measurementDrag";
-import {
-  CANVAS_VISUAL_METRICS,
-  type CanvasVisualRoles,
-} from "./canvasVisualRoles";
+import { composeLabelText } from "./labelContent";
+import { CANVAS_VISUAL_METRICS, type CanvasVisualRoles, labelTextPaint } from "./canvasVisualRoles";
 import { measurementOutlineBounds } from "../../utils/quickShapesOutline";
 import { pointsToFlat } from "./geometry";
 import { CalibrationReferenceMarkers } from "./CalibrationReferenceMarkers";
@@ -84,6 +76,8 @@ interface PdfAnnotationLayerProps {
   showCalibration: boolean;
   showMeasurements: boolean;
   showLabels: boolean;
+  /** Classification dimension whose value is added to on-screen labels. */
+  labelDimension?: ClassificationDimension | null;
 
   onSelectMeasurement: (id: string, additive?: boolean) => void;
   onCalibrationReferencePointsChange: (points: [Point, Point]) => void;
@@ -101,6 +95,18 @@ interface PdfAnnotationLayerProps {
     owner: object,
     cancel: (() => void) | null,
   ) => void;
+}
+
+function classificationLabelFor(
+  measurement: { classificationValueIds: readonly string[] },
+  names: ReadonlyMap<string, string> | null,
+): string | undefined {
+  if (!names) return undefined;
+  for (const id of measurement.classificationValueIds) {
+    const name = names.get(id);
+    if (name) return name;
+  }
+  return undefined;
 }
 
 export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
@@ -126,6 +132,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   showCalibration,
   showMeasurements,
   showLabels,
+  labelDimension = null,
   onSelectMeasurement,
   onCalibrationReferencePointsChange,
   onCalibrationReferenceDragCancellationChange,
@@ -133,30 +140,85 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   onWholeMeasurementDragCancellationChange,
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
-  const [groupDragPreview, setGroupDragPreview] = useState<{ ownerId: string; delta: Point } | null>(null);
+  const numberFormatKey = useNumberFormatKey();
+  const appPreferences = useAppPreferences();
+  const labelContent = appPreferences.labelContent;
+  const classificationNames = useMemo(
+    () =>
+      labelDimension ? new Map(labelDimension.values.map((value) => [value.id, value.name])) : null,
+    [labelDimension],
+  );
+  const labelFontScale = LABEL_SIZE_SCALE[appPreferences.labelSize];
+  const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[appPreferences.labelBackground];
+  const [groupDragPreview, setGroupDragPreview] = useState<{
+    ownerId: string;
+    delta: Point;
+  } | null>(null);
   const previewGroupDrag = useCallback((ownerId: string, delta: Point | null) => {
-    setGroupDragPreview((current) => delta ? { ownerId, delta } : current?.ownerId === ownerId ? null : current);
+    setGroupDragPreview((current) =>
+      delta ? { ownerId, delta } : current?.ownerId === ownerId ? null : current,
+    );
   }, []);
-  const selectedPageMeasurements = useMemo(() => page.measurements.filter((measurement) =>
-    selectedMeasurementIds?.includes(measurement.id)), [page.measurements, selectedMeasurementIds]);
-  const groupMoveAvailable = (selectedMeasurementIds?.length ?? 0) > 1 &&
+  const selectedPageMeasurements = useMemo(
+    () =>
+      page.measurements.filter((measurement) => selectedMeasurementIds?.includes(measurement.id)),
+    [page.measurements, selectedMeasurementIds],
+  );
+  const groupMoveAvailable =
+    (selectedMeasurementIds?.length ?? 0) > 1 &&
     selectedPageMeasurements.length === selectedMeasurementIds?.length &&
-    selectedPageMeasurements.every((measurement) => canDragWholeMeasurement(measurement, true, true));
+    selectedPageMeasurements.every((measurement) =>
+      canDragWholeMeasurement(measurement, true, true),
+    );
   const showMeasurementLabels = showMeasurements && showLabels;
 
   // Geometry and formatted values depend on domain data, not pan or zoom.
-  const labelData = useMemo(() => new Map(page.measurements.map((measurement) => {
-    const calibration = getMeasurementCalibration(page, measurement);
-    const points = measurement.points;
-    const { minX, maxX, minY, maxY } = measurementOutlineBounds(measurement.type, points);
-    return [measurement.id, {
-      anchor: averagePoint(points),
-      minX, maxX, minY, maxY,
-      text: (calibration || measurement.type === "count") && shouldRenderMeasurement(measurement, showMeasurementLabels) ? formatMeasurement(
-        measurement, calibration, displayUnit, measurementDecimalPlaces, areaDisplay,
-      ) : null,
-    }];
-  })), [page, displayUnit, measurementDecimalPlaces, areaDisplay, showMeasurementLabels]);
+  const labelData = useMemo(
+    () =>
+      new Map(
+        page.measurements.map((measurement) => {
+          const calibration = getMeasurementCalibration(page, measurement);
+          const points = measurement.points;
+          const { minX, maxX, minY, maxY } = measurementOutlineBounds(measurement.type, points);
+          return [
+            measurement.id,
+            {
+              anchor: averagePoint(points),
+              minX,
+              maxX,
+              minY,
+              maxY,
+              text:
+                (calibration || measurement.type === "count") &&
+                shouldRenderMeasurement(measurement, showMeasurementLabels)
+                  ? composeLabelText(
+                      formatMeasurement(
+                        measurement,
+                        calibration,
+                        displayUnit,
+                        measurementDecimalPlaces,
+                        areaDisplay,
+                      ),
+                      measurement.name,
+                      labelContent,
+                      classificationLabelFor(measurement, classificationNames),
+                    )
+                  : null,
+            },
+          ];
+        }),
+      ), // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
+    [
+      page,
+      displayUnit,
+      measurementDecimalPlaces,
+      areaDisplay,
+      showMeasurementLabels,
+      numberFormatKey,
+      labelContent,
+      classificationNames,
+    ],
+  );
 
   const plannedLabelLayout = useMemo(() => {
     return planLabelLayout({
@@ -168,6 +230,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       showCalibration,
       showMeasurementLabels,
       zoom: transform.zoom,
+      labelFontScale,
     });
   }, [
     bounds,
@@ -178,6 +241,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     showCalibration,
     showMeasurementLabels,
     transform.zoom,
+    labelFontScale,
   ]);
 
   const visibleMeasurements = useMemo(() => {
@@ -189,19 +253,39 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     const bottom = (viewport.height - cullTransform.panY) / cullTransform.zoom + padding;
     return page.measurements.filter((measurement) => {
       // Keep editing ownership and selected handles mounted across viewport changes.
-      if (measurement.id === selectedMeasurementId ||
-          selectedMeasurementIds?.includes(measurement.id) ||
-          measurement.id === activeMeasurementEditId) return true;
+      if (
+        measurement.id === selectedMeasurementId ||
+        selectedMeasurementIds?.includes(measurement.id) ||
+        measurement.id === activeMeasurementEditId
+      )
+        return true;
       const data = labelData.get(measurement.id)!;
-      if (data.maxX >= left && data.minX <= right && data.maxY >= top && data.minY <= bottom) return true;
+      if (data.maxX >= left && data.minX <= right && data.maxY >= top && data.minY <= bottom)
+        return true;
       const label = showMeasurementLabels
-        ? plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`) : undefined;
-      return Boolean(label && label.x + label.width >= left && label.x <= right &&
-        label.y + label.height >= top && label.y <= bottom);
+        ? plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`)
+        : undefined;
+      return Boolean(
+        label &&
+        label.x + label.width >= left &&
+        label.x <= right &&
+        label.y + label.height >= top &&
+        label.y <= bottom,
+      );
     });
-  }, [viewport, isPanning, page.measurements, cullTransform, interactionTargetScreenPx,
-    selectedMeasurementId, selectedMeasurementIds, activeMeasurementEditId,
-    labelData, showMeasurementLabels, plannedLabelLayout]);
+  }, [
+    viewport,
+    isPanning,
+    page.measurements,
+    cullTransform,
+    interactionTargetScreenPx,
+    selectedMeasurementId,
+    selectedMeasurementIds,
+    activeMeasurementEditId,
+    labelData,
+    showMeasurementLabels,
+    plannedLabelLayout,
+  ]);
 
   return (
     <>
@@ -290,14 +374,14 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                 <Label x={labelPlacement.x} y={labelPlacement.y}>
                   <Tag
                     fill={visualRoles.labelBackground}
-                    opacity={referenceIsEditing || active ? 1 : 0.88}
+                    opacity={(referenceIsEditing || active ? 1 : 0.88) * labelBackgroundOpacity}
                     stroke={referenceIsEditing ? visualRoles.measurementSelectedStroke : undefined}
                     strokeWidth={referenceIsEditing ? 1 / transform.zoom : 0}
                     cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / transform.zoom}
                   />
                   <Text
                     text={labelText}
-                    fill={visualRoles.labelText}
+                    {...labelTextPaint(visualRoles, labelBackgroundOpacity, transform.zoom)}
                     fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
                     fontSize={CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX / transform.zoom}
                     padding={LABEL_PADDING_SCREEN_PX / transform.zoom}
@@ -316,7 +400,11 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
             bounds={bounds}
             zoom={transform.zoom}
             transform={transform}
-            selected={selectedMeasurementIds ? selectedMeasurementIds.includes(measurement.id) : selectedMeasurementId === measurement.id}
+            selected={
+              selectedMeasurementIds
+                ? selectedMeasurementIds.includes(measurement.id)
+                : selectedMeasurementId === measurement.id
+            }
             selectable={
               activeTool === "select" &&
               !spacePan &&
@@ -324,25 +412,42 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
               !calibrationReferenceEdit &&
               !measurementEditingBlocked
             }
-            editable={(selectedMeasurementIds?.length ?? 0) <= 1 && measurementEditingEnabled(
+            editable={
+              (selectedMeasurementIds?.length ?? 0) <= 1 &&
+              measurementEditingEnabled(
+                activeTool,
+                spacePan,
+                isPanning,
+                Boolean(calibrationReferenceEdit),
+                measurementEditingBlocked ||
+                  !precisionAuthoringAvailable ||
+                  (selectedMeasurementIds?.length ?? 0) > 1,
+                activeMeasurementEditId,
+                measurement.id,
+              )
+            }
+            wholeDragEditable={measurementEditingEnabled(
               activeTool,
               spacePan,
               isPanning,
               Boolean(calibrationReferenceEdit),
-              measurementEditingBlocked || !precisionAuthoringAvailable || (selectedMeasurementIds?.length ?? 0) > 1,
+              measurementEditingBlocked ||
+                !precisionAuthoringAvailable ||
+                ((selectedMeasurementIds?.length ?? 0) > 1 && !groupMoveAvailable),
               activeMeasurementEditId,
               measurement.id,
             )}
-            wholeDragEditable={measurementEditingEnabled(
-              activeTool, spacePan, isPanning, Boolean(calibrationReferenceEdit),
-              measurementEditingBlocked || !precisionAuthoringAvailable || ((selectedMeasurementIds?.length ?? 0) > 1 && !groupMoveAvailable),
-              activeMeasurementEditId, measurement.id,
-            )}
             groupMeasurements={groupMoveAvailable ? selectedPageMeasurements : undefined}
-            groupPreviewPoints={groupDragPreview && groupDragPreview.ownerId !== measurement.id && selectedMeasurementIds?.includes(measurement.id)
-              ? translateMeasurementPoints(measurement.points, groupDragPreview.delta) : null}
+            groupPreviewPoints={
+              groupDragPreview &&
+              groupDragPreview.ownerId !== measurement.id &&
+              selectedMeasurementIds?.includes(measurement.id)
+                ? translateMeasurementPoints(measurement.points, groupDragPreview.delta)
+                : null
+            }
             onGroupDragPreview={previewGroupDrag}
             showLabel={showLabels}
+            classificationLabel={classificationLabelFor(measurement, classificationNames)}
             page={page}
             displayUnit={displayUnit}
             areaDisplay={areaDisplay}
@@ -366,4 +471,3 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     </>
   );
 });
-

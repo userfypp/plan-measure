@@ -1,0 +1,68 @@
+.trigger {
+  composes: focusRing disabledSurface from "./controlStates.module.css";
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height-compact);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size-small);
+  align-items: center;
+  gap: var(--space-4);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4) 0 var(--space-8);
+  background-color: var(--color-surface-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+/* The button itself is always the hit target: children never take the pointer or change the cursor. */
+.trigger > * {
+  pointer-events: none;
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background-color: var(--color-control-hover-surface);
+}
+
+.trigger:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background-color: var(--color-control-active-surface);
+}
+
+.trigger[aria-expanded="true"] {
+  border-color: var(--color-control-active-border);
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.list [role^="menuitem"] {
+  /* Labels start where the trigger text starts (menu padding + this = trigger padding + border). */
+  padding-inline: var(--space-4);
+}
+
+.list [aria-checked="true"] {
+  background: var(--color-selection-surface);
+}
+
+.list {
+  composes: scrollSurface from "./scrollSurface.module.css";
+  /* Room for ten rows at the current target size, so short lists never scroll. */
+  max-height: calc(var(--target-current) * 10 + var(--space-8));
+  overflow-y: auto;
+}

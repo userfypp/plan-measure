@@ -17,8 +17,12 @@
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8);
-  border-bottom: var(--border-width) solid var(--color-border);
-  background: var(--color-surface);
+  /* The buttons centre on the same column as the eyes of the group headers and rows. */
+  padding-inline-end: calc(
+    var(--geometry-tree-inset-end) + (var(--target-current) - var(--control-height-compact)) / 2
+  );
+  border-bottom: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
 .search {
@@ -30,7 +34,9 @@
   gap: var(--space-8);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
+  /* The icon lands on the same left edge as the row glyphs and the top-level chevrons. */
+  padding: 0 var(--space-4) 0 var(--space-8);
+  position: relative;
   background: var(--color-surface-field);
   transition: var(--transition-interactive);
 }
@@ -45,9 +51,9 @@
   width: var(--geometry-icon-size);
   height: var(--geometry-icon-size);
   fill: none;
-  stroke: var(--color-text-muted);
+  stroke: var(--color-text-secondary);
   stroke-linecap: round;
-  stroke-width: 1.8;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .search input {
@@ -60,8 +66,8 @@
   background: transparent;
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-tight);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   appearance: none;
 }
 
@@ -87,175 +93,112 @@
   border: 0;
 }
 
+/* Icon-only triggers, IconButton geometry: square at the compact height, icon centred. */
 .toolbarButton {
+  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
   display: inline-flex;
-  min-width: var(--target-current);
-  max-width: 144px;
+  min-width: var(--control-height-compact);
   min-height: var(--control-height-compact);
   align-items: center;
   justify-content: center;
-  gap: var(--space-8);
-  overflow: hidden;
+  gap: var(--space-4);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
+  padding: 0
+    calc((var(--control-height-compact) - var(--geometry-icon-size)) / 2 - var(--border-width));
+  background: transparent;
+  color: var(--color-text-secondary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
+  line-height: var(--line-height-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
   white-space: nowrap;
+  cursor: pointer;
   transition: var(--transition-interactive);
 }
 
-.toolbarButton::after {
-  width: 5px;
-  height: 5px;
+.toolbarButton > svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
   flex: 0 0 auto;
-  border-right: 1.25px solid currentColor;
-  border-bottom: 1.25px solid currentColor;
-  content: "";
-  transform: translateY(-1px) rotate(45deg);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: var(--icon-stroke-width);
 }
 
-.toolbarButton:hover {
+.toolbarButton:hover:not(:disabled) {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
   color: var(--color-text-primary);
 }
 
-.toolbarButton:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-  color: var(--color-text-primary);
-}
-
+.toolbarButton:active:not(:disabled),
 .toolbarButton[aria-expanded="true"] {
   border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
   color: var(--color-text-primary);
 }
 
-.toolbarButton:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+/* A filter or a grouping is applied: IconButton's pressed look, kept while open. */
+.toolbarButton.active {
+  border-color: var(--color-primary);
+  background: var(--color-selected);
+  color: var(--color-primary);
+}
+
+.toolbarButton.active:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-selected);
+  color: var(--color-primary);
+}
+
+.toolbarButton.active:active:not(:disabled),
+.toolbarButton.active[aria-expanded="true"] {
+  border-color: var(--color-control-active-border);
+  background: var(--color-selected);
+  color: var(--color-primary);
 }
 
 .activeCount {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.truncatedTrigger {
-  display: flex;
-  min-width: 0;
-  flex: 1 1 auto;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.groupingPrefix,
-.groupingSeparator,
-.groupingCount {
-  flex: 0 0 auto;
-}
-
-.groupingName {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activeCount {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 9px;
-  padding: 0 var(--space-4);
-  background: var(--color-control-active-surface);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-xs);
-  line-height: 1;
 }
 
 .controlsPopover {
   box-sizing: border-box;
-  width: min(320px, calc(100vw - var(--space-16)));
-  padding: var(--space-8);
-  container-type: inline-size;
-  container-name: measurement-controls;
+  width: min(var(--geometry-measurement-popover-width), calc(100vw - var(--space-16)));
+  padding: var(--space-12);
 }
 
-.filters {
+/* Label | control rows; every control starts on the same column (subgrid). */
+.fields {
   display: grid;
   min-width: 0;
-  gap: var(--space-8);
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-12);
+  row-gap: var(--space-8);
 }
 
-.filterRow {
+.field {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-8);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
 }
 
-.filterRow label {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-}
-
-.filterRow select {
-  width: 100%;
-  min-width: 0;
-  height: var(--control-height-compact);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.clearFilters {
-  justify-self: end;
-}
-
-.filtersPopover {
-  border-color: var(--color-border);
-}
-
-.groupingPopover {
-  container-name: measurement-panel;
-  padding: 0;
-}
-
-.groupingPopover > header {
-  border-bottom: 0;
-}
-
-@container measurement-controls (max-width: 300px) {
-  .filterRow {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@container measurement-panel (max-width: 359px) {
-  .toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .search {
-    grid-column: 1 / -1;
-  }
+/* Clear action under a full-bleed rule; the button's text lines up with the controls' end. */
+.popoverFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--space-12) calc(-1 * var(--space-12)) calc(-1 * var(--space-12));
+  border-top: var(--border-width) solid var(--color-divider);
+  padding: var(--space-4);
 }

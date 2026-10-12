@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { chooseSelectOption } from "../components/ui/selectTestUtils";
 import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -156,9 +157,14 @@ describe("App open, calibrate and measure flow", () => {
     await menuItem("Uniform");
     await clickPage(100, 100);
     await clickPage(300, 100);
+    // El diálogo se carga con import() perezoso.
+    await vi.waitFor(async () => {
+      await act(async () => undefined);
+      expect(document.querySelector("dialog")).not.toBeNull();
+    });
     const dialog = document.querySelector("dialog")!;
     expect(dialog.textContent).toContain("Enter the real-world distance");
-    await setField(dialog.querySelector<HTMLSelectElement>('select[aria-label="Calibration unit"]')!, "m");
+    chooseSelectOption(dialog.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!, "Metres");
     // Cambiar la unidad reinicia la distancia, así que se escribe después.
     await setField(dialog.querySelector<HTMLInputElement>("#calibration-distance")!, "10");
     if (cancel) {

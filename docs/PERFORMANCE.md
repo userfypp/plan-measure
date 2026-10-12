@@ -47,6 +47,8 @@ gzip. The initial JS set must weigh ≤511,660 bytes: the original reference is
 487,295 bytes (main + runtime + format) with a 5% margin. These are decimal bytes,
 not KiB. The limit does not include CSS or demo resources.
 
+If the check fails, load the new heavy component lazily (`recoverableLazy`) instead of raising the limits.
+
 It also rejects PDF chunks, the PDF worker, pdf-lib/annotatedPdf, and XLSX in that
 graph. The `es-*.js` chunk currently corresponds to the ESM entry of pdf-lib and
 is explicitly protected. It also includes `modulepreload` preloads declared in

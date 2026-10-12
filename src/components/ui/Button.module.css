@@ -1,4 +1,5 @@
 .button {
+  composes: focusRing disabledSurface from "./controlStates.module.css";
   display: inline-flex;
   min-width: 0;
   align-items: center;
@@ -7,25 +8,12 @@
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   white-space: nowrap;
   cursor: pointer;
   transition: var(--transition-interactive);
-}
-
-.button:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
-.button:disabled,
-.button[data-disabled="true"] {
-  cursor: not-allowed;
-  border-color: var(--color-divider);
-  background-color: var(--color-surface-panel);
-  color: var(--color-text-disabled);
 }
 
 .visuallyHidden {
@@ -72,7 +60,7 @@
 }
 
 .secondary {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background-color: var(--color-surface-panel);
   border-color: var(--color-divider);
 }
@@ -88,7 +76,7 @@
 }
 
 .ghost {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   background-color: transparent;
   border-color: transparent;
 }
@@ -143,12 +131,12 @@
 }
 
 .spinner {
-  width: 14px;
-  height: 14px;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
   flex: 0 0 auto;
   border: var(--border-width) solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--radius-control);
+  border-radius: 50%;
   animation: button-spin 700ms linear infinite;
 }
 

@@ -1,4 +1,5 @@
 /* @vitest-environment jsdom */
+import { chooseSelectOption } from "../../components/ui/selectTestUtils";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -77,12 +78,17 @@ function sourceRows() {
 function button(label: string) {
   return container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 }
+const BREAKDOWN_LABELS: Record<string, string> = {
+  none: "None",
+  page: "Page",
+  type: "Type",
+  classification: "Classification",
+};
 function choose(value: string) {
-  act(() => {
-    const select = container.querySelector<HTMLSelectElement>("#takeoff-breakdown")!;
-    select.value = value;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  chooseSelectOption(
+    container.querySelector<HTMLButtonElement>("#takeoff-breakdown")!,
+    BREAKDOWN_LABELS[value]!,
+  );
 }
 function render(session = fixture(), blocked = false, onOpen = vi.fn()) {
   act(() =>
