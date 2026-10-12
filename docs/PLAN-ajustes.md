@@ -109,6 +109,10 @@ Hecho (dispositivo, sin migración): Fill opacity, Handle size, Label background
 ## Estado Fase B (parcial)
 Hecho (dispositivo, sin migración): Autosave delay (0,3/1/3/10 s; por defecto el 0,3 s previo), Ask before closing (`confirmBeforeClosing`, por defecto apagado), Saved projects shown (10/25/All), Export/Import settings (JSON versionado) y Storage usage (solo lectura). Pendiente: interruptor Autosave on/off (requiere un guardado manual que hoy no existe), Auto-open last project (ambiguo con la recuperación) y Clear cache. Regla nueva: el "?" solo en ajustes no autoexplicativos.
 
+## Estado Fase C (parcial)
+Hecho (dispositivo, sin migración; el valor por defecto no añade atributos a `<html>`): sección Settings → Accessibility (tras Interface) con "Reduce motion" y "Show tooltips" movidos desde Interface, más Focus ring (Normal/Thick, `data-focus-ring`), Text size (100/110/125 %, `data-text-size`) y High contrast (`data-contrast`, con test de contraste WCAG por tema en `src/styles/contrast.test.ts`). Detalle de tokens en `docs/DESIGN.md`.
+Descartado: Interface density (los 32 px son `--target-fine`, contrato de `interactiveStates.test.ts`), pistas de atajos en tooltips (ya existen) y sonido/háptico al cerrar un polígono. Pendiente: Larger touch targets y la referencia de atajos de solo lectura.
+
 ## Plan: siguientes ajustes útiles
 Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P** = proyecto (exige `schemaVersion` + migración + goldens). "Riesgo" indica qué contrato puede tocar.
 
@@ -147,13 +151,13 @@ Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P**
 ### Fase C — Accesibilidad e interfaz (dispositivo)
 | Ajuste | Detalle / riesgo |
 |---|---|
-| Interface density (Comfortable/Compact) | Toca tokens `--control-height-*` y tests de geometría/rendimiento; diferir hasta tener contrato claro. |
-| Text size (100/110/125 %) | Escala de tipografía de UI; revisar overflow en diálogos. |
-| High contrast | Tokens de color alternativos; comprobar contraste AA con tests. |
-| Focus ring thickness | Pequeño; token `--focus-outline`. |
+| ~~Interface density (Comfortable/Compact)~~ | Descartado: 32 px = `--target-fine`, contrato en `interactiveStates.test.ts`. |
+| ~~Text size (100/110/125 %)~~ | Hecho. |
+| ~~High contrast~~ | Hecho. |
+| ~~Focus ring thickness~~ | Hecho. |
 | Larger touch targets | Forzar `--target-coarse` aunque el puntero sea fino. |
-| Sound/haptic feedback al cerrar polígono | Opcional; baja prioridad. |
-| Show shortcuts hints in tooltips | Mostrar la tecla en el tooltip. |
+| ~~Sound/haptic feedback al cerrar polígono~~ | Descartado. |
+| ~~Show shortcuts hints in tooltips~~ | Descartado: ya existen. |
 | Keyboard shortcuts reference (solo lectura) | Sección "Shortcuts" con tabla; sin ajuste, solo ayuda. |
 
 ### Fase D — Proyecto (requiere migración y goldens)

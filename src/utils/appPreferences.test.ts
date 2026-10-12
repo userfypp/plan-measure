@@ -156,6 +156,58 @@ describe("appPreferences", () => {
     expect(document.documentElement.dataset.tooltips).toBeUndefined();
   });
 
+  it("mirrors the focus ring onto the document element only when not default", () => {
+    expect(DEFAULT_APP_PREFERENCES.focusRing).toBe("normal");
+    expect(document.documentElement.dataset.focusRing).toBeUndefined();
+    setAppPreference("focusRing", "thick");
+    expect(document.documentElement.dataset.focusRing).toBe("thick");
+    resetAppPreferences();
+    expect(document.documentElement.dataset.focusRing).toBeUndefined();
+    window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({ focusRing: "huge" }));
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().focusRing).toBe("normal");
+    expect(document.documentElement.dataset.focusRing).toBeUndefined();
+  });
+
+  it("mirrors the text size onto the document element only when not default", () => {
+    expect(DEFAULT_APP_PREFERENCES.textSize).toBe("100");
+    expect(document.documentElement.dataset.textSize).toBeUndefined();
+    setAppPreference("textSize", "110");
+    expect(document.documentElement.dataset.textSize).toBe("110");
+    setAppPreference("textSize", "125");
+    expect(document.documentElement.dataset.textSize).toBe("125");
+    resetAppPreferences();
+    expect(document.documentElement.dataset.textSize).toBeUndefined();
+    window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({ textSize: "200" }));
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().textSize).toBe("100");
+    expect(document.documentElement.dataset.textSize).toBeUndefined();
+  });
+
+  it("mirrors high contrast onto the document element only when enabled", () => {
+    expect(DEFAULT_APP_PREFERENCES.contrast).toBe("normal");
+    expect(document.documentElement.dataset.contrast).toBeUndefined();
+    setAppPreference("contrast", "more");
+    expect(document.documentElement.dataset.contrast).toBe("more");
+    resetAppPreferences();
+    expect(document.documentElement.dataset.contrast).toBeUndefined();
+    window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({ contrast: "max" }));
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().contrast).toBe("normal");
+    expect(document.documentElement.dataset.contrast).toBeUndefined();
+  });
+
+  it("leaves no accessibility attribute on <html> after a reset", () => {
+    setAppPreference("focusRing", "thick");
+    setAppPreference("textSize", "125");
+    setAppPreference("contrast", "more");
+    expect(document.documentElement.dataset.focusRing).toBe("thick");
+    resetAppPreferences();
+    expect(document.documentElement.hasAttribute("data-focus-ring")).toBe(false);
+    expect(document.documentElement.hasAttribute("data-text-size")).toBe(false);
+    expect(document.documentElement.hasAttribute("data-contrast")).toBe(false);
+  });
+
   it("drops a thousands mark that equals the decimal mark", () => {
     expect(effectiveThousandsSeparator("comma", "comma")).toBe("none");
     expect(effectiveThousandsSeparator("point", "point")).toBe("none");
@@ -209,6 +261,29 @@ describe("settings file", () => {
     expect(JSON.parse(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY) ?? "{}")).toEqual(
       exported,
     );
+  });
+
+  it("round-trips the accessibility preferences and re-applies their attributes", () => {
+    setAppPreference("focusRing", "thick");
+    setAppPreference("textSize", "110");
+    setAppPreference("contrast", "more");
+    const json = exportAppPreferencesJson();
+    expect(JSON.parse(json).preferences).toMatchObject({
+      focusRing: "thick",
+      textSize: "110",
+      contrast: "more",
+    });
+    resetAppPreferences();
+    expect(document.documentElement.hasAttribute("data-contrast")).toBe(false);
+    expect(importAppPreferencesJson(json)).toBe(true);
+    expect(getAppPreferences()).toMatchObject({
+      focusRing: "thick",
+      textSize: "110",
+      contrast: "more",
+    });
+    expect(document.documentElement.dataset.focusRing).toBe("thick");
+    expect(document.documentElement.dataset.textSize).toBe("110");
+    expect(document.documentElement.dataset.contrast).toBe("more");
   });
 
   it("ignores unknown and invalid keys, falling back to the defaults", () => {

@@ -24,6 +24,9 @@ export type LabelContent = "value" | "name-value";
 export type PageGrid = "off" | "fine" | "coarse";
 export type AutosaveDelayMs = 300 | 1000 | 3000 | 10000;
 export type ProjectsShown = "10" | "25" | "all";
+export type FocusRing = "normal" | "thick";
+export type TextSize = "100" | "110" | "125";
+export type Contrast = "normal" | "more";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -56,6 +59,9 @@ export interface AppPreferences {
   autosaveDelayMs: AutosaveDelayMs;
   confirmBeforeClosing: boolean;
   projectsShown: ProjectsShown;
+  focusRing: FocusRing;
+  textSize: TextSize;
+  contrast: Contrast;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -91,6 +97,9 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   autosaveDelayMs: 300,
   confirmBeforeClosing: false,
   projectsShown: "all",
+  focusRing: "normal",
+  textSize: "100",
+  contrast: "normal",
 };
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
@@ -132,6 +141,9 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     autosaveDelayMs: oneOf(300, 1000, 3000, 10000),
     confirmBeforeClosing: isBoolean,
     projectsShown: oneOf("10", "25", "all"),
+    focusRing: oneOf("normal", "thick"),
+    textSize: oneOf("100", "110", "125"),
+    contrast: oneOf("normal", "more"),
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -222,6 +234,12 @@ function applyToDocument(preferences: AppPreferences): void {
   else delete root.dataset.motion;
   if (preferences.tooltips) delete root.dataset.tooltips;
   else root.dataset.tooltips = "off";
+  if (preferences.focusRing === "normal") delete root.dataset.focusRing;
+  else root.dataset.focusRing = preferences.focusRing;
+  if (preferences.textSize === "100") delete root.dataset.textSize;
+  else root.dataset.textSize = preferences.textSize;
+  if (preferences.contrast === "normal") delete root.dataset.contrast;
+  else root.dataset.contrast = preferences.contrast;
 }
 
 let current: AppPreferences =

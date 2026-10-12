@@ -338,6 +338,101 @@
   display: none;
 }
 
+:root[data-focus-ring="thick"] {
+  --focus-width: 3px;
+  --focus-ring-width: 4px;
+  --focus-ring-offset: -4px;
+}
+
+/* Interface text scale. Only UI type and the widths that hold text change; micro text, glyph badges,
+ * target heights, the canvas and measurement labels keep their size. */
+:root[data-text-size="110"] {
+  --font-size-secondary: 13px;
+  --font-size-base: 14px;
+  --font-size-heading: 15px;
+  --font-size-identity: 18px;
+  --font-size-quantity: 22px;
+  --font-size-result: 26px;
+  --font-size-title: 24px;
+  --line-height-secondary: 18px;
+  --line-height-base: 20px;
+  --line-height-heading: 22px;
+  --line-height-identity: 24px;
+  --line-height-quantity: 26px;
+  --line-height-result: 31px;
+  --geometry-select-width-regular: 150px;
+  --geometry-select-width-narrow: 79px;
+  --geometry-settings-dialog-width: 660px;
+  --geometry-settings-nav-width: 185px;
+  --tooltip-max-width: 264px;
+  --geometry-viewer-page-width: 132px;
+  --geometry-viewer-zoom-min-width: 48px;
+}
+
+:root[data-text-size="125"] {
+  --font-size-secondary: 15px;
+  --font-size-base: 16px;
+  --font-size-heading: 18px;
+  --font-size-identity: 20px;
+  --font-size-quantity: 25px;
+  --font-size-result: 30px;
+  --font-size-title: 28px;
+  --line-height-secondary: 20px;
+  --line-height-base: 23px;
+  --line-height-heading: 25px;
+  --line-height-identity: 28px;
+  --line-height-quantity: 30px;
+  --line-height-result: 35px;
+  --geometry-select-width-regular: 170px;
+  --geometry-select-width-narrow: 90px;
+  --geometry-settings-dialog-width: 750px;
+  --geometry-settings-nav-width: 210px;
+  --tooltip-max-width: 300px;
+  --geometry-viewer-page-width: 150px;
+  --geometry-viewer-zoom-min-width: 55px;
+}
+
+/* High contrast: text >= 4.5:1 and borders, dividers, focus and switch tracks >= 3:1 on the panel
+ * and the other surfaces (checked by contrast.test.ts). Only these roles change; surfaces and
+ * primary text stay. Both selectors have specificity (0,3,0) and so win over the theme blocks. */
+:root[data-contrast="more"]:not([data-theme="dark"]) {
+  --color-text-secondary: #4a525c;
+  --color-text-disabled: #59616b;
+  --color-divider: #78828e;
+  --color-control-hover-border: #78828e;
+  --color-control-active-border: #5a6471;
+  --color-switch-off-track: #69737f;
+  --color-accent: #1d58b3;
+  --color-accent-hover-semantic: #184b98;
+  --color-accent-active-semantic: #133e7f;
+  --color-danger-semantic: #9c2a35;
+  --color-danger-hover-semantic: #862430;
+  --color-danger-active-semantic: #701d27;
+  --color-focus-semantic: #0f4fb0;
+  --color-status-info: #1250b8;
+  --color-status-success: #05603a;
+  --color-status-warning: #9a3b05;
+}
+
+:root[data-theme="dark"][data-contrast="more"] {
+  --color-text-secondary: #c9d0da;
+  --color-text-disabled: #a9b2be;
+  --color-divider: #7a8594;
+  --color-control-hover-border: #7d8999;
+  --color-control-active-border: #9aa5b4;
+  --color-switch-off-track: #8f9aa9;
+  --color-accent: #a9c9f5;
+  --color-accent-hover-semantic: #bdd6f8;
+  --color-accent-active-semantic: #94b8ea;
+  --color-danger-semantic: #f4a6ad;
+  --color-danger-hover-semantic: #f8bcc1;
+  --color-danger-active-semantic: #e8929a;
+  --color-focus-semantic: #c4dbff;
+  --color-status-info: #9dbfff;
+  --color-status-success: #86efb5;
+  --color-status-warning: #fed570;
+}
+
 @media (any-pointer: coarse) {
   :root {
     --target-current: var(--target-coarse);

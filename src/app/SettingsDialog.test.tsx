@@ -176,6 +176,9 @@ beforeEach(() => {
   reloadAppPreferencesFromStorage();
   document.documentElement.removeAttribute("data-motion");
   document.documentElement.removeAttribute("data-tooltips");
+  document.documentElement.removeAttribute("data-focus-ring");
+  document.documentElement.removeAttribute("data-text-size");
+  document.documentElement.removeAttribute("data-contrast");
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-theme-preference");
   Object.defineProperty(window, "matchMedia", {
@@ -198,7 +201,7 @@ afterEach(() => {
 });
 
 describe("SettingsDialog", () => {
-  it("renders a labelled dialog with a vertical tablist of seven sections", () => {
+  it("renders a labelled dialog with a vertical tablist of eight sections", () => {
     renderSettings();
     openSettings();
 
@@ -209,6 +212,7 @@ describe("SettingsDialog", () => {
     const tabs = Array.from(settingsDialog.querySelectorAll('[role="tab"]'));
     expect(tabs.map((candidate) => candidate.textContent)).toEqual([
       "Interface",
+      "Accessibility",
       "Measurements",
       "Drawing",
       "View",
@@ -218,6 +222,7 @@ describe("SettingsDialog", () => {
     ]);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
+      "false",
       "false",
       "false",
       "false",
@@ -261,6 +266,18 @@ describe("SettingsDialog", () => {
     act(() => {
       tab("Advanced").dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
+    act(() => {
+      tab("Interface").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(tab("Accessibility").getAttribute("aria-selected")).toBe("true");
+    act(() => {
+      tab("Accessibility").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
       );
     });
     expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
@@ -457,6 +474,7 @@ describe("SettingsDialog", () => {
   it("toggles reduce motion and tooltips through document attributes", () => {
     renderSettings();
     openSettings();
+    openTab("Accessibility");
 
     choose("Reduce motion", "Always reduce");
     expect(document.documentElement.getAttribute("data-motion")).toBe("reduce");
@@ -464,6 +482,46 @@ describe("SettingsDialog", () => {
     expect(tooltips.checked).toBe(true);
     act(() => tooltips.click());
     expect(document.documentElement.getAttribute("data-tooltips")).toBe("off");
+  });
+
+  it("sets the focus ring attribute only when it is not the default", () => {
+    renderSettings();
+    openSettings();
+    openTab("Accessibility");
+
+    expect(document.documentElement.hasAttribute("data-focus-ring")).toBe(false);
+    choose("Focus ring", "Thick");
+    expect(document.documentElement.getAttribute("data-focus-ring")).toBe("thick");
+    choose("Focus ring", "Normal");
+    expect(document.documentElement.hasAttribute("data-focus-ring")).toBe(false);
+  });
+
+  it("sets the text size attribute only when it is not 100%", () => {
+    renderSettings();
+    openSettings();
+    openTab("Accessibility");
+
+    expect(document.documentElement.hasAttribute("data-text-size")).toBe(false);
+    choose("Text size", "125%");
+    expect(document.documentElement.getAttribute("data-text-size")).toBe("125");
+    choose("Text size", "110%");
+    expect(document.documentElement.getAttribute("data-text-size")).toBe("110");
+    choose("Text size", "100%");
+    expect(document.documentElement.hasAttribute("data-text-size")).toBe(false);
+  });
+
+  it("sets the contrast attribute only while High contrast is on", () => {
+    renderSettings();
+    openSettings();
+    openTab("Accessibility");
+
+    const contrast = switchControl("High contrast");
+    expect(contrast.checked).toBe(false);
+    expect(document.documentElement.hasAttribute("data-contrast")).toBe(false);
+    act(() => contrast.click());
+    expect(document.documentElement.getAttribute("data-contrast")).toBe("more");
+    act(() => contrast.click());
+    expect(document.documentElement.hasAttribute("data-contrast")).toBe(false);
   });
 
   it("stores advanced values as numbers and resets everything after confirmation", () => {

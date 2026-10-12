@@ -17,7 +17,14 @@ import { useTheme, type ThemePreference } from "./themeState";
 import styles from "./SettingsDialog.module.css";
 
 type SectionId =
-  "interface" | "measurements" | "drawing" | "view" | "canvas" | "confirmations" | "advanced";
+  | "interface"
+  | "accessibility"
+  | "measurements"
+  | "drawing"
+  | "view"
+  | "canvas"
+  | "confirmations"
+  | "advanced";
 
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
 export type ProjectViewSettings = Pick<
@@ -181,6 +188,17 @@ const PROJECTS_SHOWN_OPTIONS = [
   { value: "all", label: "All" },
 ] as const;
 
+const FOCUS_RING_OPTIONS = [
+  { value: "normal", label: "Normal" },
+  { value: "thick", label: "Thick" },
+] as const;
+
+const TEXT_SIZE_OPTIONS = [
+  { value: "100", label: "100%" },
+  { value: "110", label: "110%" },
+  { value: "125", label: "125%" },
+] as const;
+
 const BYTES_PER_MB = 1024 * 1024;
 
 /** Read-only browser storage estimate; falls back to a note when the API is missing or fails. */
@@ -240,6 +258,16 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
       <Icon>
         <rect x="3" y="4" width="14" height="12" rx="2" />
         <path d="M3 8h14M7.5 8v8" />
+      </Icon>
+    ),
+  },
+  {
+    id: "accessibility",
+    label: "Accessibility",
+    icon: (
+      <Icon>
+        <circle cx="10" cy="4.5" r="1.5" />
+        <path d="M4.5 7.5h11M10 7.5v4M7.5 16l2.5-4.5 2.5 4.5" />
       </Icon>
     ),
   },
@@ -591,17 +619,6 @@ export function SettingsDialog({
                       onChange={setPreference}
                     />
                     <SelectRow
-                      label="Reduce motion"
-                      value={preferences.motion}
-                      options={MOTION_OPTIONS}
-                      onChange={set("motion")}
-                    />
-                    <SwitchRow
-                      label="Show tooltips"
-                      checked={preferences.tooltips}
-                      onChange={set("tooltips")}
-                    />
-                    <SelectRow
                       label="Zoom step"
                       value={preferences.zoomStep}
                       options={ZOOM_STEP_OPTIONS}
@@ -642,6 +659,41 @@ export function SettingsDialog({
                         onChange={onRecoveredPlanStartupWorkspaceChange}
                       />
                     )}
+                  </div>
+                )}
+
+                {section === "accessibility" && (
+                  <div className={styles.settingList}>
+                    <SelectRow
+                      label="Reduce motion"
+                      value={preferences.motion}
+                      options={MOTION_OPTIONS}
+                      onChange={set("motion")}
+                    />
+                    <SwitchRow
+                      label="Show tooltips"
+                      checked={preferences.tooltips}
+                      onChange={set("tooltips")}
+                    />
+                    <SelectRow
+                      label="Focus ring"
+                      value={preferences.focusRing}
+                      options={FOCUS_RING_OPTIONS}
+                      onChange={set("focusRing")}
+                    />
+                    <SelectRow
+                      label="Text size"
+                      value={preferences.textSize}
+                      options={TEXT_SIZE_OPTIONS}
+                      onChange={set("textSize")}
+                    />
+                    <SwitchRow
+                      label="High contrast"
+                      checked={preferences.contrast === "more"}
+                      onChange={(enabled) =>
+                        setAppPreference("contrast", enabled ? "more" : "normal")
+                      }
+                    />
                   </div>
                 )}
 
