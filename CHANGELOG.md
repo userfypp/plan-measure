@@ -4,6 +4,35 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.10.0](https://github.com/userfypp/plan-measure/compare/v2.9.1...v2.10.0) (2026-10-12)
+
+
+### Added
+
+* add rectangle, ellipse and revision cloud measurements ([#239](https://github.com/userfypp/plan-measure/issues/239)) ([820e495](https://github.com/userfypp/plan-measure/commit/820e495ab975f69f3f798274ebd73b7d27febfc4)), closes [#228](https://github.com/userfypp/plan-measure/issues/228)
+* polish the UI with a design system, settings dialog and nested measurement groups ([#286](https://github.com/userfypp/plan-measure/issues/286)) ([5e998e7](https://github.com/userfypp/plan-measure/commit/5e998e70fd74d2f27d3c9f0945fa49433903f2dc))
+
+
+### Fixed
+
+* align the release baseline with the published v2.9.1 ([#288](https://github.com/userfypp/plan-measure/issues/288)) ([1fc8cbd](https://github.com/userfypp/plan-measure/commit/1fc8cbda9dd8697f3daa9b0f9665ef7753e9cdcd))
+* bound cloud outlines and preserve scaled area precision ([#241](https://github.com/userfypp/plan-measure/issues/241)) ([5206a22](https://github.com/userfypp/plan-measure/commit/5206a222cd941a130c045321a4e37b40e50e1cbb))
+* preserve unsaved data across project transitions ([#242](https://github.com/userfypp/plan-measure/issues/242)) ([f5b21bc](https://github.com/userfypp/plan-measure/commit/f5b21bcc8e81260605d91f21bc6dd99c7ef39492))
+* recover module loading failures and keep tooltips visible ([#244](https://github.com/userfypp/plan-measure/issues/244)) ([ba0d583](https://github.com/userfypp/plan-measure/commit/ba0d583597efb13e9f82e5355908f67e5c9580a6))
+* synchronize measurement editing with undo and redo ([#243](https://github.com/userfypp/plan-measure/issues/243)) ([fe3a6ff](https://github.com/userfypp/plan-measure/commit/fe3a6ffe4e8d1b1c502a1043bc2cfa6b8f180c65))
+
+
+### Improved
+
+* bound takeoff source and count item lists ([#245](https://github.com/userfypp/plan-measure/issues/245)) ([d66694e](https://github.com/userfypp/plan-measure/commit/d66694ee14c2268221493ed97d5e7077e749fa68))
+
+
+### Documentation
+
+* open the sample project from a ?sample=1 link and add contributor docs ([#258](https://github.com/userfypp/plan-measure/issues/258)) ([2d4becb](https://github.com/userfypp/plan-measure/commit/2d4becb348f24ab430a415a689e0b883c19c80fe))
+* show README links as buttons ([#259](https://github.com/userfypp/plan-measure/issues/259)) ([ebfb62c](https://github.com/userfypp/plan-measure/commit/ebfb62c1a160ab2ef7bfd78a50e8012e093af766))
+* update audit follow-ups ([#282](https://github.com/userfypp/plan-measure/issues/282)) ([e57c953](https://github.com/userfypp/plan-measure/commit/e57c953a99e0fadc1b58b82a9e936f9282bd98b7))
+
 ## [2.9.1](https://github.com/userfypp/plan-measure/compare/v2.9.0...v2.9.1) (2026-10-11)
 
 
