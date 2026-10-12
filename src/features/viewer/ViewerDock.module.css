@@ -513,3 +513,7 @@
     overflow: hidden;
   }
 }
+
+:global(:root[data-targets="large"]) .dock {
+  min-height: var(--geometry-viewer-dock-height-coarse);
+}

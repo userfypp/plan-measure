@@ -62,6 +62,7 @@ export interface AppPreferences {
   focusRing: FocusRing;
   textSize: TextSize;
   contrast: Contrast;
+  largeTargets: boolean;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -100,6 +101,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   focusRing: "normal",
   textSize: "100",
   contrast: "normal",
+  largeTargets: false,
 };
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
@@ -144,6 +146,7 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     focusRing: oneOf("normal", "thick"),
     textSize: oneOf("100", "110", "125"),
     contrast: oneOf("normal", "more"),
+    largeTargets: isBoolean,
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -240,6 +243,8 @@ function applyToDocument(preferences: AppPreferences): void {
   else root.dataset.textSize = preferences.textSize;
   if (preferences.contrast === "normal") delete root.dataset.contrast;
   else root.dataset.contrast = preferences.contrast;
+  if (preferences.largeTargets) root.dataset.targets = "large";
+  else delete root.dataset.targets;
 }
 
 let current: AppPreferences =

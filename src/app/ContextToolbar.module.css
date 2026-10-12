@@ -334,3 +334,24 @@
 .toolbar .selectionIconButton[data-disabled="true"] {
   color: var(--color-text-disabled);
 }
+
+/* "Larger touch targets" preference: same sizing as the coarse-pointer block above. */
+:global(:root[data-targets="large"]) .toolbar {
+  min-height: var(--geometry-context-toolbar-height-coarse);
+}
+
+:global(:root[data-targets="large"]) .status,
+:global(:root[data-targets="large"]) .toolIdentity,
+:global(:root[data-targets="large"]) .modifierHint,
+:global(:root[data-targets="large"]) .measurementNameTrigger,
+:global(:root[data-targets="large"]) .renameInput {
+  height: var(--geometry-context-control-height-coarse);
+}
+
+:global(:root[data-targets="large"]) .toolbar {
+  --selection-control-size: var(--geometry-context-control-height-coarse);
+}
+
+:global(:root[data-targets="large"]) .toolbar[data-context-kind="selection"] {
+  --selection-control-size: var(--geometry-context-control-height-coarse);
+}

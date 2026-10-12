@@ -197,6 +197,24 @@ describe("appPreferences", () => {
     expect(document.documentElement.dataset.contrast).toBeUndefined();
   });
 
+  it("mirrors larger touch targets onto the document element only when enabled", () => {
+    expect(DEFAULT_APP_PREFERENCES.largeTargets).toBe(false);
+    expect(document.documentElement.dataset.targets).toBeUndefined();
+    setAppPreference("largeTargets", true);
+    expect(document.documentElement.dataset.targets).toBe("large");
+    setAppPreference("largeTargets", false);
+    expect(document.documentElement.dataset.targets).toBeUndefined();
+    setAppPreference("largeTargets", true);
+    resetAppPreferences();
+    expect(document.documentElement.dataset.targets).toBeUndefined();
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ largeTargets: "yes" }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().largeTargets).toBe(false);
+  });
+
   it("leaves no accessibility attribute on <html> after a reset", () => {
     setAppPreference("focusRing", "thick");
     setAppPreference("textSize", "125");

@@ -440,3 +440,11 @@
     --control-height-regular: 44px;
   }
 }
+
+:root[data-targets="large"] {
+  --target-current: var(--target-coarse);
+  --control-height-compact: 44px;
+  --control-height-regular: 44px;
+  /* Measured: the tallest Settings section (Advanced, 498px) plus 16px. */
+  --geometry-settings-panel-height: 514px;
+}

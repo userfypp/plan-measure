@@ -10,6 +10,7 @@ import {
   APP_PREFERENCES_STORAGE_KEY,
   reloadAppPreferencesFromStorage,
 } from "../utils/appPreferences";
+import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
 
 class MatchMediaController {
@@ -218,10 +219,12 @@ describe("SettingsDialog", () => {
       "View",
       "Canvas",
       "Confirmations",
+      "Shortcuts",
       "Advanced",
     ]);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
+      "false",
       "false",
       "false",
       "false",
@@ -281,6 +284,34 @@ describe("SettingsDialog", () => {
       );
     });
     expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("lists every shortcut in a read-only Shortcuts section", () => {
+    renderSettings();
+    openSettings();
+    openTab("Shortcuts");
+
+    const panel = dialog().querySelector('[role="tabpanel"]');
+    expect(panel?.querySelectorAll("h3")).toHaveLength(SHORTCUT_GROUPS.length);
+    expect(panel?.querySelectorAll("button, input, select, a, [tabindex]")).toHaveLength(0);
+    const rows = Array.from(panel?.querySelectorAll("dl > div") ?? []).map((row) => [
+      row.querySelector("dt")?.textContent,
+      row.querySelector("kbd")?.textContent,
+    ]);
+    expect(rows).toEqual(
+      SHORTCUT_GROUPS.flatMap((group) => group.entries.map((entry) => [entry.label, entry.keys])),
+    );
+  });
+
+  it("toggles larger touch targets on <html> from the Accessibility section", () => {
+    renderSettings();
+    openSettings();
+    openTab("Accessibility");
+
+    act(() => switchControl("Larger touch targets")?.click());
+    expect(document.documentElement.dataset.targets).toBe("large");
+    act(() => switchControl("Larger touch targets")?.click());
+    expect(document.documentElement.dataset.targets).toBeUndefined();
   });
 
   it("shows project view settings under View and writes them back", () => {

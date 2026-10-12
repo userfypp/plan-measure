@@ -112,3 +112,10 @@
     );
   }
 }
+
+:global(:root[data-targets="large"]) .viewerOverlay {
+  top: calc(
+    var(--geometry-context-toolbar-top) + var(--geometry-context-toolbar-height-coarse) +
+      var(--space-12)
+  );
+}

@@ -109,9 +109,9 @@ Hecho (dispositivo, sin migración): Fill opacity, Handle size, Label background
 ## Estado Fase B (parcial)
 Hecho (dispositivo, sin migración): Autosave delay (0,3/1/3/10 s; por defecto el 0,3 s previo), Ask before closing (`confirmBeforeClosing`, por defecto apagado), Saved projects shown (10/25/All), Export/Import settings (JSON versionado) y Storage usage (solo lectura). Pendiente: interruptor Autosave on/off (requiere un guardado manual que hoy no existe), Auto-open last project (ambiguo con la recuperación) y Clear cache. Regla nueva: el "?" solo en ajustes no autoexplicativos.
 
-## Estado Fase C (parcial)
+## Estado Fase C (completada)
 Hecho (dispositivo, sin migración; el valor por defecto no añade atributos a `<html>`): sección Settings → Accessibility (tras Interface) con "Reduce motion" y "Show tooltips" movidos desde Interface, más Focus ring (Normal/Thick, `data-focus-ring`), Text size (100/110/125 %, `data-text-size`) y High contrast (`data-contrast`, con test de contraste WCAG por tema en `src/styles/contrast.test.ts`). Detalle de tokens en `docs/DESIGN.md`.
-Descartado: Interface density (los 32 px son `--target-fine`, contrato de `interactiveStates.test.ts`), pistas de atajos en tooltips (ya existen) y sonido/háptico al cerrar un polígono. Pendiente: Larger touch targets y la referencia de atajos de solo lectura.
+Descartado: Interface density (los 32 px son `--target-fine`, contrato de `interactiveStates.test.ts`), pistas de atajos en tooltips (ya existen) y sonido/háptico al cerrar un polígono. Hecho después: Larger touch targets (`largeTargets`, `data-targets="large"`, bloques duplicados de `@media (any-pointer: coarse)` y altura del panel de Settings a 514 px) y la sección Shortcuts de solo lectura (`src/utils/shortcutReference.ts`, entradas verificadas por test; sin Shift ni teclado de dibujo por no ser verificables). Sin pendientes en esta fase.
 
 ## Plan: siguientes ajustes útiles
 Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P** = proyecto (exige `schemaVersion` + migración + goldens). "Riesgo" indica qué contrato puede tocar.
@@ -155,10 +155,10 @@ Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P**
 | ~~Text size (100/110/125 %)~~ | Hecho. |
 | ~~High contrast~~ | Hecho. |
 | ~~Focus ring thickness~~ | Hecho. |
-| Larger touch targets | Forzar `--target-coarse` aunque el puntero sea fino. |
+| ~~Larger touch targets~~ | Hecho. |
 | ~~Sound/haptic feedback al cerrar polígono~~ | Descartado. |
 | ~~Show shortcuts hints in tooltips~~ | Descartado: ya existen. |
-| Keyboard shortcuts reference (solo lectura) | Sección "Shortcuts" con tabla; sin ajuste, solo ayuda. |
+| ~~Keyboard shortcuts reference (solo lectura)~~ | Hecho. |
 
 ### Fase D — Proyecto (requiere migración y goldens)
 | Ajuste | Detalle / riesgo |

@@ -1,5 +1,13 @@
 import { createPortal } from "react-dom";
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Button, Dialog, Select, Switch, Tooltip } from "../components/ui";
 import type { MeasurementDecimalPlaces, SessionSettings } from "../types/domain";
 import { downloadExportFile } from "../services/exportDownload";
@@ -12,6 +20,7 @@ import {
   type AppPreferences,
 } from "../utils/appPreferences";
 import { localizeNumberString } from "../utils/format";
+import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useTheme, type ThemePreference } from "./themeState";
 import styles from "./SettingsDialog.module.css";
@@ -24,6 +33,7 @@ type SectionId =
   | "view"
   | "canvas"
   | "confirmations"
+  | "shortcuts"
   | "advanced";
 
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
@@ -319,6 +329,16 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
       <Icon>
         <circle cx="10" cy="10" r="7" />
         <path d="m7 10.2 2.2 2.2L13.2 8" />
+      </Icon>
+    ),
+  },
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    icon: (
+      <Icon>
+        <rect x="2.5" y="5" width="15" height="10" rx="2" />
+        <path d="M5.5 8h1M9.5 8h1M13.5 8h1M5.5 12h9" />
       </Icon>
     ),
   },
@@ -694,6 +714,11 @@ export function SettingsDialog({
                         setAppPreference("contrast", enabled ? "more" : "normal")
                       }
                     />
+                    <SwitchRow
+                      label="Larger touch targets"
+                      checked={preferences.largeTargets}
+                      onChange={set("largeTargets")}
+                    />
                   </div>
                 )}
 
@@ -922,6 +947,26 @@ export function SettingsDialog({
                       checked={preferences.confirmBeforeClosing}
                       onChange={set("confirmBeforeClosing")}
                     />
+                  </div>
+                )}
+
+                {section === "shortcuts" && (
+                  <div className={styles.settingList}>
+                    {SHORTCUT_GROUPS.map((group) => (
+                      <Fragment key={group.title}>
+                        <h3 className={styles.groupTitle}>{group.title}</h3>
+                        <dl className={styles.shortcutList}>
+                          {group.entries.map((entry) => (
+                            <div key={entry.label} className={styles.shortcutRow}>
+                              <dt>{entry.label}</dt>
+                              <dd>
+                                <kbd className={styles.kbd}>{entry.keys}</kbd>
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </Fragment>
+                    ))}
                   </div>
                 )}
 

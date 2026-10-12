@@ -86,3 +86,8 @@
     transition: none;
   }
 }
+
+:global(:root[data-targets="large"]) .target {
+  width: var(--target-coarse);
+  height: var(--target-coarse);
+}

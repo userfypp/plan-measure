@@ -140,4 +140,13 @@ describe("shared interactive-state contract", () => {
     expect(selectCss).toMatch(/\.trigger\s*>\s*\*\s*\{[^}]*pointer-events:\s*none/s);
     expect(selectCss).toMatch(/\.trigger\s*\{[^}]*cursor:\s*pointer/s);
   });
+
+  it("mirrors the coarse-pointer sizing under the larger touch targets preference", () => {
+    expect(tokensCss).toMatch(
+      /:root\[data-targets="large"\]\s*\{[^}]*--target-current:\s*var\(--target-coarse\);[^}]*--control-height-compact:\s*44px;/s,
+    );
+    expect(switchCss).toMatch(
+      /:global\(:root\[data-targets="large"\]\)\s+\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
+    );
+  });
 });

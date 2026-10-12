@@ -318,3 +318,8 @@
 .itemsHeader h3 {
   margin: 0;
 }
+
+:global(:root[data-targets="large"]) .identity .renameAction {
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
+}

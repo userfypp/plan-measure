@@ -193,3 +193,9 @@
     padding-inline: var(--space-8);
   }
 }
+
+:global(:root[data-targets="large"]) .appBar {
+  height: var(--geometry-app-bar-height-narrow);
+  padding-right: var(--space-4);
+  padding-left: var(--space-12);
+}

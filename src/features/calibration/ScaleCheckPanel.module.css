@@ -182,3 +182,10 @@
   white-space: nowrap;
   border: 0;
 }
+
+:global(:root[data-targets="large"]) .checkOverlay.resultOverlay {
+  top: calc(
+    var(--geometry-context-toolbar-top) + var(--geometry-context-toolbar-height-coarse) +
+      var(--space-12)
+  );
+}
