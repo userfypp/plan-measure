@@ -132,6 +132,18 @@
   flex-basis: 100%;
 }
 
+/* Label on the left, swatches pushed to the right edge of the card. */
+.colorCell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.colorCell > dd {
+  overflow: visible;
+}
+
 .cell > dt {
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);

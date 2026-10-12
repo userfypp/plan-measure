@@ -502,13 +502,15 @@ export function ContextToolbar({
           pressed={snap}
           onClick={toggleSnap}
         />
-        <DrawingAidButton
-          label="Ortho"
-          icon={<OrthoIcon />}
-          shortcut={getShortcutLabel("toggle-orthogonal")}
-          pressed={orthogonal}
-          onClick={toggleOrthogonal}
-        />
+        {activeTool !== "rectangle" && activeTool !== "ellipse" && (
+          <DrawingAidButton
+            label="Ortho"
+            icon={<OrthoIcon />}
+            shortcut={getShortcutLabel("toggle-orthogonal")}
+            pressed={orthogonal}
+            onClick={toggleOrthogonal}
+          />
+        )}
         {(activeTool === "rectangle" || activeTool === "ellipse") && (
           <ShiftConstrainHint constraint={activeTool === "rectangle" ? "square" : "circle"} />
         )}

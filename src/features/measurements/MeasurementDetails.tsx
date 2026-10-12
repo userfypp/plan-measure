@@ -226,7 +226,7 @@ export function MeasurementDetails({
             </div>
           )}
           {measurement.type === "cloud" && onChangeColor && (
-            <div className={[styles.cell, styles.wideCell].join(" ")}>
+            <div className={[styles.cell, styles.wideCell, styles.colorCell].join(" ")}>
               <dt>Color</dt>
               <dd>
                 <CloudColorPicker

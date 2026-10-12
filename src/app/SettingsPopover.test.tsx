@@ -267,7 +267,7 @@ describe("SettingsPopover", () => {
     openSettings();
     const select = selectByLabel("Decimal places");
     act(() => select.click());
-    expect(selectItems()).toHaveLength(7);
+    expect(selectItems()).toHaveLength(9);
     act(() => {
       document.activeElement?.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
@@ -278,7 +278,7 @@ describe("SettingsPopover", () => {
     expect(document.activeElement).toBe(select);
   });
 
-  it("renders decimal places as numeric options 0 through 6 and keeps the dialog open", () => {
+  it("renders decimal places as numeric options 0 through 8 and keeps the dialog open", () => {
     const callbacks = renderSettings({ measurementDecimalPlaces: 2 });
     openSettings();
     const select = selectByLabel("Decimal places");
@@ -293,6 +293,8 @@ describe("SettingsPopover", () => {
       "4",
       "5",
       "6",
+      "7",
+      "8",
     ]);
 
     act(() => selectItems()[6]!.click());

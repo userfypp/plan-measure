@@ -51,6 +51,15 @@
   transform: rotate(180deg);
 }
 
+.list [role^="menuitem"] {
+  /* Labels start where the trigger text starts (menu padding + this = trigger padding + border). */
+  padding-inline: var(--space-4);
+}
+
+.list [aria-checked="true"] {
+  background: var(--color-selection-surface);
+}
+
 .list {
   composes: scrollSurface from "./scrollSurface.module.css";
   max-height: var(--geometry-select-list-max-height);

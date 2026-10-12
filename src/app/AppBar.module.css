@@ -94,19 +94,11 @@
   color: var(--color-text-primary);
 }
 
+/* Plain secondary figure: no pill, so the button keeps the text-only rhythm of its neighbours. */
 .projectCount {
-  min-width: 18px;
-  height: 18px;
-  display: inline-grid;
   margin-left: var(--space-4);
-  padding: 0 var(--space-4);
-  place-items: center;
-  border-radius: var(--radius-pill);
   color: var(--color-text-secondary);
-  background: var(--color-surface-field);
-  font-size: var(--font-size-micro);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
 }
 
 .iconTrigger {

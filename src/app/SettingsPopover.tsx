@@ -21,7 +21,7 @@ const RECOVERED_PLAN_STARTUP_OPTIONS: Array<{
   { id: "classifications", label: "Classifications" },
 ];
 
-const MEASUREMENT_DECIMAL_OPTIONS: MeasurementDecimalPlaces[] = [0, 1, 2, 3, 4, 5, 6];
+const MEASUREMENT_DECIMAL_OPTIONS: MeasurementDecimalPlaces[] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 function HelpIcon() {
   return (
