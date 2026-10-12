@@ -1,5 +1,10 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNumberFormatKey } from "../../utils/appPreferences";
+import {
+  LABEL_SIZE_SCALE,
+  LINE_THICKNESS_SCALE,
+  useAppPreferences,
+  useNumberFormatKey,
+} from "../../utils/appPreferences";
 import { Group as KonvaGroup } from "konva/lib/Group";
 import { Layer as KonvaLayer } from "konva/lib/Layer";
 import type { Node as KonvaNode, NodeConfig as KonvaNodeConfig } from "konva/lib/Node";
@@ -141,6 +146,9 @@ export const MeasurementShape = memo(function MeasurementShape({
   labelCollisionIndex,
 }: MeasurementShapeProps) {
   useNumberFormatKey(); // re-render when separators change
+  const { lineThickness, labelSize } = useAppPreferences();
+  const strokeScale = LINE_THICKNESS_SCALE[lineThickness];
+  const labelFontSize = MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * LABEL_SIZE_SCALE[labelSize];
   const { updateMeasurement: updateSessionMeasurement, updateMeasurements } = useMeasurementCommands();
   const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaNode>(null);
@@ -230,9 +238,9 @@ export const MeasurementShape = memo(function MeasurementShape({
       !dragPoints && !groupPreviewPoints && plannedLabelPlacement
         ? null
         : labelText
-          ? measureLabelText(labelText, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom)
+          ? measureLabelText(labelText, labelFontSize, zoom)
           : null,
-    [dragPoints, groupPreviewPoints, labelText, plannedLabelPlacement, zoom],
+    [dragPoints, groupPreviewPoints, labelFontSize, labelText, plannedLabelPlacement, zoom],
   );
   const labelPlacement = useMemo(() => {
     if (!dragPoints && !groupPreviewPoints && plannedLabelPlacement) return plannedLabelPlacement;
@@ -883,13 +891,15 @@ export const MeasurementShape = memo(function MeasurementShape({
         }
         stroke={stroke}
         strokeWidth={
-          (cloudColor
+          ((cloudColor
             ? selected
               ? CANVAS_VISUAL_METRICS.cloudSelectedStrokeScreenPx
               : CANVAS_VISUAL_METRICS.cloudStrokeScreenPx
             : selected
               ? CANVAS_VISUAL_METRICS.measurementSelectedStrokeScreenPx
-              : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) / zoom
+              : CANVAS_VISUAL_METRICS.measurementStrokeScreenPx) *
+          strokeScale) /
+          zoom
         }
         {...(cloudColor && selected
           ? {
@@ -933,7 +943,7 @@ export const MeasurementShape = memo(function MeasurementShape({
             text={labelText}
             fill={visualRoles.labelText}
             fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
-            fontSize={MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX / zoom}
+            fontSize={labelFontSize / zoom}
             padding={LABEL_PADDING_SCREEN_PX / zoom}
           />
         </Label>

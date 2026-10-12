@@ -55,6 +55,7 @@ export function planLabelLayout({
   showCalibration,
   showMeasurementLabels,
   zoom,
+  labelFontScale = 1,
 }: {
   bounds: LogicalPageBounds;
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
@@ -64,6 +65,8 @@ export function planLabelLayout({
   showCalibration: boolean;
   showMeasurementLabels: boolean;
   zoom: number;
+  /** Multiplier from the label-size preference; calibration labels are unaffected. */
+  labelFontScale?: number;
 }) {
   const placements = new Map<string, LabelPlacement>();
   const occupiedRects = new Map<string, OccupiedLabelRect>();
@@ -72,7 +75,7 @@ export function planLabelLayout({
   function measurementDimensions(text: string) {
     let dimensions = dimensionsByText.get(text);
     if (!dimensions) {
-      dimensions = measureLabelText(text, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX, zoom);
+      dimensions = measureLabelText(text, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * labelFontScale, zoom);
       dimensionsByText.set(text, dimensions);
     }
     return dimensions;

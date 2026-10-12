@@ -846,6 +846,17 @@ function PlanMeasureApp() {
       canUndo={canUndo}
       canRedo={canRedo}
       measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
+      viewSettings={
+        session
+          ? {
+              displayUnit: session.settings.displayUnit,
+              areaDisplay: session.settings.areaDisplay,
+              showLabels: session.settings.showLabels,
+              showMeasurements: session.settings.showMeasurements,
+              showCalibration: session.settings.showCalibration,
+            }
+          : null
+      }
       keyboardAuthoringEnabled={keyboardAuthoringEnabled}
       confirmMeasurementDeletion={confirmMeasurementDeletion}
       confirmValueDeletion={confirmValueDeletion}
@@ -858,6 +869,7 @@ function PlanMeasureApp() {
       }}
       onUndo={undo}
       onRedo={redo}
+      onViewSettingsChange={updateSettings}
       onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
         updateSettings({ measurementDecimalPlaces })
       }

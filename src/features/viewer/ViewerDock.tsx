@@ -5,6 +5,7 @@ import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
 import { scaleDisplayMetadata } from "./scaleDisplay";
+import { setAppPreference, useAppPreferences } from "../../utils/appPreferences";
 import styles from "./ViewerDock.module.css";
 
 type ViewerSettings = Pick<
@@ -25,6 +26,18 @@ const AREA_DISPLAY_OPTIONS: Array<{ value: ViewerSettings["areaDisplay"]; label:
   { value: "auto", label: "Auto" },
   { value: "ac", label: "Acres" },
 ];
+
+const LINE_THICKNESS_OPTIONS = [
+  { value: "thin", label: "Thin" },
+  { value: "normal", label: "Normal" },
+  { value: "thick", label: "Thick" },
+] as const;
+
+const LABEL_SIZE_OPTIONS = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+] as const;
 
 function PagesIcon() {
   return (
@@ -138,6 +151,11 @@ export function ViewerDock({
   const displayUnitLabelId = useId();
   const areaDisplayId = useId();
   const areaDisplayLabelId = useId();
+  const lineThicknessId = useId();
+  const lineThicknessLabelId = useId();
+  const labelSizeId = useId();
+  const labelSizeLabelId = useId();
+  const appPreferences = useAppPreferences();
   const pageLabelInputRef = useRef<HTMLInputElement>(null);
   const pageNavigationRef = useRef<HTMLDivElement>(null);
   const pageNavigationFocus = useRovingFocusGroup(pageNavigationRef, { orientation: "horizontal" });
@@ -521,6 +539,42 @@ export function ViewerDock({
                 value={settings.areaDisplay}
                 options={AREA_DISPLAY_OPTIONS}
                 onChange={(areaDisplay) => onSettingsChange({ areaDisplay })}
+              />
+            </div>
+            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+              <label
+                id={lineThicknessLabelId}
+                className={styles.settingLabel}
+                htmlFor={lineThicknessId}
+              >
+                Line thickness
+              </label>
+              <Select
+                id={lineThicknessId}
+                className={styles.unitSelect}
+                label="Line thickness"
+                labelledBy={lineThicknessLabelId}
+                value={appPreferences.lineThickness}
+                options={LINE_THICKNESS_OPTIONS}
+                onChange={(value) => setAppPreference("lineThickness", value)}
+              />
+            </div>
+            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+              <label
+                id={labelSizeLabelId}
+                className={styles.settingLabel}
+                htmlFor={labelSizeId}
+              >
+                Label size
+              </label>
+              <Select
+                id={labelSizeId}
+                className={styles.unitSelect}
+                label="Label size"
+                labelledBy={labelSizeLabelId}
+                value={appPreferences.labelSize}
+                options={LABEL_SIZE_OPTIONS}
+                onChange={(value) => setAppPreference("labelSize", value)}
               />
             </div>
           </div>

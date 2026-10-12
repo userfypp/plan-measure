@@ -5,6 +5,8 @@ import {
   DEFAULT_APP_PREFERENCES,
   effectiveThousandsSeparator,
   getAppPreferences,
+  LABEL_SIZE_SCALE,
+  LINE_THICKNESS_SCALE,
   reloadAppPreferencesFromStorage,
   resetAppPreferences,
   setAppPreference,
@@ -22,6 +24,17 @@ afterEach(() => {
 });
 
 describe("appPreferences", () => {
+  it("defaults canvas appearance to the original look and rejects unknown levels", () => {
+    expect(getAppPreferences().lineThickness).toBe("normal");
+    expect(getAppPreferences().labelSize).toBe("normal");
+    expect(LINE_THICKNESS_SCALE.normal).toBe(1);
+    expect(LABEL_SIZE_SCALE.normal).toBe(1);
+    setAppPreference("lineThickness", "thick");
+    setAppPreference("labelSize", "huge" as never);
+    expect(getAppPreferences().lineThickness).toBe("thick");
+    expect(getAppPreferences().labelSize).toBe("normal");
+  });
+
   it("starts from defaults and persists changes as JSON", () => {
     expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
     setAppPreference("maxZoom", 16);

@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, Dialog, Select, Switch, Tooltip } from "../components/ui";
-import type { MeasurementDecimalPlaces } from "../types/domain";
+import type { MeasurementDecimalPlaces, SessionSettings } from "../types/domain";
 import {
   resetAppPreferences,
   setAppPreference,
@@ -13,7 +13,30 @@ import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPrefer
 import { useTheme, type ThemePreference } from "./themeState";
 import styles from "./SettingsDialog.module.css";
 
-type SectionId = "interface" | "measurements" | "drawing" | "confirmations" | "advanced";
+type SectionId = "interface" | "measurements" | "drawing" | "view" | "confirmations" | "advanced";
+
+/** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
+export type ProjectViewSettings = Pick<
+  SessionSettings,
+  "displayUnit" | "areaDisplay" | "showLabels" | "showMeasurements" | "showCalibration"
+>;
+
+const AREA_DISPLAY_OPTIONS: Array<{ value: ProjectViewSettings["areaDisplay"]; label: string }> = [
+  { value: "auto", label: "Auto" },
+  { value: "ac", label: "Acres" },
+];
+
+const LINE_THICKNESS_OPTIONS = [
+  { value: "thin", label: "Thin" },
+  { value: "normal", label: "Normal" },
+  { value: "thick", label: "Thick" },
+] as const;
+
+const LABEL_SIZE_OPTIONS = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+] as const;
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: "system", label: "System" },
@@ -125,6 +148,16 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
         <path d="M4 16 16 4" />
         <circle cx="4.5" cy="15.5" r="1.5" />
         <circle cx="15.5" cy="4.5" r="1.5" />
+      </Icon>
+    ),
+  },
+  {
+    id: "view",
+    label: "View",
+    icon: (
+      <Icon>
+        <path d="M2.5 10S5.5 4.75 10 4.75 17.5 10 17.5 10 14.5 15.25 10 15.25 2.5 10 2.5 10Z" />
+        <circle cx="10" cy="10" r="2.25" />
       </Icon>
     ),
   },
@@ -265,12 +298,15 @@ export interface SettingsDialogProps {
   trigger: ReactNode;
   triggerClassName?: string;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  /** Null when no project is open: project view settings are then shown disabled. */
+  viewSettings?: ProjectViewSettings | null;
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
+  onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
   onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
@@ -282,12 +318,14 @@ export function SettingsDialog({
   trigger,
   triggerClassName,
   measurementDecimalPlaces = null,
+  viewSettings = null,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange,
+  onViewSettingsChange,
   onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
@@ -521,6 +559,76 @@ export function SettingsDialog({
                       value={preferences.closeSensitivity}
                       options={SENSITIVITY_OPTIONS}
                       onChange={set("closeSensitivity")}
+                    />
+                  </div>
+                )}
+
+                {section === "view" && (
+                  <div className={styles.settingList}>
+                    {viewSettings && onViewSettingsChange && (
+                      <>
+                        <h3 className={styles.groupTitle}>
+                          This project
+                          <span>Saved with the plan</span>
+                        </h3>
+                        <SelectRow
+                          label="Display unit"
+                          help="Unit used for lengths and areas on screen. Measurements are stored in the plan scale."
+                          value={viewSettings.displayUnit}
+                          options={UNIT_OPTIONS}
+                          onChange={(displayUnit) => onViewSettingsChange({ displayUnit })}
+                        />
+                        <SelectRow
+                          label="Polygon area"
+                          help="Auto picks square units from the display unit; Acres always shows acres."
+                          value={viewSettings.areaDisplay}
+                          options={AREA_DISPLAY_OPTIONS}
+                          onChange={(areaDisplay) => onViewSettingsChange({ areaDisplay })}
+                        />
+                        <SwitchRow
+                          label="Labels"
+                          help="Shows the calculated value next to each measurement."
+                          checked={viewSettings.showLabels}
+                          onChange={(showLabels) => onViewSettingsChange({ showLabels })}
+                        />
+                        <SwitchRow
+                          label="Measurements"
+                          help="Shows the drawn geometry on the plan."
+                          checked={viewSettings.showMeasurements}
+                          onChange={(showMeasurements) =>
+                            onViewSettingsChange({ showMeasurements })
+                          }
+                        />
+                        <SwitchRow
+                          label="Calibration"
+                          help="Shows the scale reference lines and their labels."
+                          checked={viewSettings.showCalibration}
+                          onChange={(showCalibration) => onViewSettingsChange({ showCalibration })}
+                        />
+                      </>
+                    )}
+                    {!viewSettings && (
+                      <p className={styles.sectionNote}>
+                        Open a plan to change its display unit and visibility settings.
+                      </p>
+                    )}
+                    <h3 className={styles.groupTitle}>
+                      This device
+                      <span>Applies to every project</span>
+                    </h3>
+                    <SelectRow
+                      label="Line thickness"
+                      help="Stroke width of measurements on the plan. Does not change exports."
+                      value={preferences.lineThickness}
+                      options={LINE_THICKNESS_OPTIONS}
+                      onChange={set("lineThickness")}
+                    />
+                    <SelectRow
+                      label="Label size"
+                      help="Text size of measurement labels on the plan. Does not change exports."
+                      value={preferences.labelSize}
+                      options={LABEL_SIZE_OPTIONS}
+                      onChange={set("labelSize")}
                     />
                   </div>
                 )}

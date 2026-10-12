@@ -96,3 +96,73 @@ Aplazado a propósito:
 ## Decisiones tomadas
 - Separadores de números: por dispositivo (`localStorage`), sin migración de esquema.
 - Contenedor: diálogo con navegación lateral.
+
+## Estado tras la sección View
+Hecho: Settings → View (proyecto: unidad, área, Labels/Measurements/Calibration; dispositivo: grosor de línea y tamaño de etiqueta). El dock mantiene el acceso rápido. Todo sin migración de esquema.
+
+## Plan: siguientes ajustes útiles
+Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P** = proyecto (exige `schemaVersion` + migración + goldens). "Riesgo" indica qué contrato puede tocar.
+
+### Fase A — Dispositivo, bajo riesgo (siguiente tanda recomendada)
+| Ajuste | Dónde | Detalle / riesgo |
+|---|---|---|
+| Fill opacity (Light/Normal/Strong) | View | Rellenos de polígono, rectángulo, elipse y nube. Hoy el alfa va dentro de `canvasVisualRoles`; hay que parametrizarlo sin cambiar el default. Riesgo: tests de roles visuales. |
+| Handle size (Small/Normal/Large) | View | Tamaño visible de vértices; la zona táctil (`interactionTargetScreenPx`) no cambia. Útil en táctil. |
+| Show vertex handles on hover | View | Solo al seleccionar (hoy) vs. también al pasar el ratón. |
+| Label background (Solid/Translucent/None) | View | Legibilidad sobre planos densos. |
+| Page grid (On/Off) | View | Cuadrícula sobre la página, no sobre el fondo del visor. |
+| Default zoom on open (Fit page / Fit width / 100 %) | Interface | Aplica al abrir/cambiar de página. |
+| Zoom step (Fine/Normal/Coarse) | Interface | Paso de los botones +/− y de la rueda; el rango lo marca "Maximum zoom". |
+| Invert scroll zoom / Wheel behaviour (Zoom/Pan) | Interface | Ctrl+rueda = zoom en un modo y desplazamiento en otro. |
+| Pan with Space / middle button | Interface | Afecta atajos del visor; probar con `shouldIgnoreViewerKeyboardShortcut`. |
+| Auto-return to Select after finishing | Drawing | Hoy cada herramienta decide; unificar con ajuste. |
+| Crosshair cursor | Drawing | Cursor en cruz mientras se dibuja. |
+| Show length while drawing | Drawing | Etiqueta viva del segmento en curso. |
+| Finish polygon on double click / Enter | Drawing | Alternativas de cierre; respetar teclado de dibujo. |
+| Keep tool active after finishing | Drawing | Complementa al anterior (excluyentes: ofrecer un único select "After finishing: Select / Keep tool"). |
+| Nudge step with arrows (1 px / 0.1 u / 1 u) | Drawing | Para teclado de dibujo; depende de `keyboardAuthoringEnabled`. |
+| Default label content (Value / Name / Both) | Measurements | Hoy solo valor; leer de `measurementViewModels`. |
+| Date and time format | Interface | Para "Saved …" y la biblioteca. |
+| Language de números en exportación | Measurements | Mantener CSV con punto; solo informativo. |
+
+### Fase B — Archivos y guardado (dispositivo; riesgo de datos, requiere tests de pérdida)
+| Ajuste | Detalle |
+|---|---|
+| Autosave on/off y retardo (1/3/10 s) | Con aviso "los cambios no guardados se perderán". Hoy `autosave.ts` fija el comportamiento. Pruebas con fallos de IndexedDB. |
+| Ask before closing with unsaved changes | `beforeunload`; solo si hay cambios sin guardar. |
+| Saved projects shown (10/25/Todos) | Biblioteca de proyectos. |
+| Auto-open last project | Al iniciar. Relacionado con "Recovered plan workspace". |
+| Export/Import settings (JSON) | Botones en Advanced; validar con los validadores del registro. |
+| Storage usage (solo lectura) | `navigator.storage.estimate()`; botón "Clear cache" con confirmación. |
+
+### Fase C — Accesibilidad e interfaz (dispositivo)
+| Ajuste | Detalle / riesgo |
+|---|---|
+| Interface density (Comfortable/Compact) | Toca tokens `--control-height-*` y tests de geometría/rendimiento; diferir hasta tener contrato claro. |
+| Text size (100/110/125 %) | Escala de tipografía de UI; revisar overflow en diálogos. |
+| High contrast | Tokens de color alternativos; comprobar contraste AA con tests. |
+| Focus ring thickness | Pequeño; token `--focus-outline`. |
+| Larger touch targets | Forzar `--target-coarse` aunque el puntero sea fino. |
+| Sound/haptic feedback al cerrar polígono | Opcional; baja prioridad. |
+| Show shortcuts hints in tooltips | Mostrar la tecla en el tooltip. |
+| Keyboard shortcuts reference (solo lectura) | Sección "Shortcuts" con tabla; sin ajuste, solo ayuda. |
+
+### Fase D — Proyecto (requiere migración y goldens)
+| Ajuste | Detalle / riesgo |
+|---|---|
+| Default label content por proyecto | Viaja con el plan; exportaciones lo reflejan. |
+| Colour labels by classification | Color de etiqueta/relleno según valor de clasificación; toca export anotado. |
+| Show classification name in label | Cambia texto de etiqueta. |
+| Rounding mode (Half up / Half even) | Solo si hace falta casar con otro software; toca goldens numéricos. |
+| Export defaults (formato, datos, plantilla de nombre `{project}-{date}`, separador CSV) | Persistir último uso; los goldens de export no deben cambiar con defaults. |
+| Per-page view overrides | Unidad o visibilidad por página; mayor cambio de modelo. |
+
+### Fase E — Avanzado (dispositivo, plegado; no ampliar presupuestos de rendimiento)
+Render quality (Balanced/Sharp), raster cache size, hit-test tolerance (4–16 px), debug overlay (FPS/caché). Validar con `perf:*` solo a petición expresa.
+
+### Reglas para todas las fases
+1. Default = comportamiento actual; sin cambios visibles si no se toca nada.
+2. Cada ajuste: etiqueta corta, "?" si es ambiguo, validador en `appPreferences`, test en `SettingsDialog.test.tsx` y entrada en `docs/DESIGN.md`.
+3. Un ajuste P exige subir `schemaVersion`, migrar y no tocar goldens; si algo cambia, parar y consultar.
+4. Lo de acceso rápido (visibilidad, unidad, grosor, tamaño) vive también en el dock; el resto solo en Ajustes.
+5. Orden sugerido: A → B (con tests de datos) → C → D → E.

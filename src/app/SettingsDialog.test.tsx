@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
-import { SettingsDialog } from "./SettingsDialog";
+import { SettingsDialog, type ProjectViewSettings } from "./SettingsDialog";
 import {
   APP_PREFERENCES_STORAGE_KEY,
   reloadAppPreferencesFromStorage,
@@ -32,6 +32,8 @@ let container: HTMLDivElement | null = null;
 interface RenderOptions {
   theme?: ThemePreference;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
+  viewSettings?: ProjectViewSettings | null;
+  onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -48,6 +50,8 @@ interface RenderOptions {
 function renderSettings({
   theme = "system",
   measurementDecimalPlaces = 2,
+  viewSettings = null,
+  onViewSettingsChange = vi.fn(),
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -67,6 +71,8 @@ function renderSettings({
         <SettingsDialog
           trigger={<span>gear</span>}
           measurementDecimalPlaces={measurementDecimalPlaces}
+          viewSettings={viewSettings}
+          onViewSettingsChange={onViewSettingsChange}
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
           confirmValueDeletion={confirmValueDeletion}
@@ -84,6 +90,7 @@ function renderSettings({
     );
   });
   return {
+    onViewSettingsChange,
     onMeasurementDecimalPlacesChange,
     onConfirmMeasurementDeletionChange,
     onRecoveredPlanStartupWorkspaceChange,
@@ -191,7 +198,7 @@ afterEach(() => {
 });
 
 describe("SettingsDialog", () => {
-  it("renders a labelled dialog with a vertical tablist of five sections", () => {
+  it("renders a labelled dialog with a vertical tablist of six sections", () => {
     renderSettings();
     openSettings();
 
@@ -204,11 +211,13 @@ describe("SettingsDialog", () => {
       "Interface",
       "Measurements",
       "Drawing",
+      "View",
       "Confirmations",
       "Advanced",
     ]);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
+      "false",
       "false",
       "false",
       "false",
@@ -238,11 +247,11 @@ describe("SettingsDialog", () => {
         new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
       );
     });
-    expect(tab("Confirmations").getAttribute("aria-selected")).toBe("true");
-    expect(document.activeElement).toBe(tab("Confirmations"));
+    expect(tab("View").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("View"));
 
     act(() => {
-      tab("Confirmations").dispatchEvent(
+      tab("View").dispatchEvent(
         new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }),
       );
     });
@@ -253,6 +262,42 @@ describe("SettingsDialog", () => {
       );
     });
     expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("shows project view settings under View and writes them back", () => {
+    const { onViewSettingsChange } = renderSettings({
+      viewSettings: {
+        displayUnit: "m",
+        areaDisplay: "auto",
+        showLabels: true,
+        showMeasurements: true,
+        showCalibration: false,
+      },
+    });
+    openSettings();
+    openTab("View");
+
+    expect(selectByLabel("Display unit").textContent).toBe("Metres");
+    choose("Display unit", "Feet");
+    expect(onViewSettingsChange).toHaveBeenLastCalledWith({ displayUnit: "ft" });
+    choose("Polygon area", "Acres");
+    expect(onViewSettingsChange).toHaveBeenLastCalledWith({ areaDisplay: "ac" });
+    expect(switchControl("Calibration").checked).toBe(false);
+    act(() => switchControl("Calibration").click());
+    expect(onViewSettingsChange).toHaveBeenLastCalledWith({ showCalibration: true });
+  });
+
+  it("stores line thickness and label size per device and explains missing projects", () => {
+    renderSettings({ viewSettings: null });
+    openSettings();
+    openTab("View");
+
+    expect(dialog().textContent).toContain("Open a plan to change its display unit");
+    choose("Line thickness", "Thick");
+    choose("Label size", "Small");
+    const stored = JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}");
+    expect(stored.lineThickness).toBe("thick");
+    expect(stored.labelSize).toBe("small");
   });
 
   it("renders Appearance as a Select and persists the change while keeping Settings open", () => {

@@ -4,7 +4,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useNumberFormatKey } from "../../utils/appPreferences";
+import { LABEL_SIZE_SCALE, useAppPreferences, useNumberFormatKey } from "../../utils/appPreferences";
 import {
   Group,
   Label,
@@ -135,6 +135,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   onVertexDragCancellationChange,
 }: PdfAnnotationLayerProps) {
   const numberFormatKey = useNumberFormatKey();
+  const labelFontScale = LABEL_SIZE_SCALE[useAppPreferences().labelSize];
   const [groupDragPreview, setGroupDragPreview] = useState<{ ownerId: string; delta: Point } | null>(null);
   const previewGroupDrag = useCallback((ownerId: string, delta: Point | null) => {
     setGroupDragPreview((current) => delta ? { ownerId, delta } : current?.ownerId === ownerId ? null : current);
@@ -171,6 +172,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       showCalibration,
       showMeasurementLabels,
       zoom: transform.zoom,
+      labelFontScale,
     });
   }, [
     bounds,
@@ -181,6 +183,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     showCalibration,
     showMeasurementLabels,
     transform.zoom,
+    labelFontScale,
   ]);
 
   const visibleMeasurements = useMemo(() => {

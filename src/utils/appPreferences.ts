@@ -10,6 +10,8 @@ export type MotionPreference = "system" | "reduce";
 export type ThousandsSeparator = "none" | "space" | "comma" | "point";
 export type DecimalSeparator = "point" | "comma";
 export type Sensitivity = "low" | "normal" | "high";
+export type LineThickness = "thin" | "normal" | "thick";
+export type LabelSize = "small" | "normal" | "large";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -24,6 +26,8 @@ export interface AppPreferences {
   maxZoom: 4 | 8 | 16;
   undoDepth: 50 | 100 | 200 | 500;
   renderDelayMs: 50 | 90 | 150 | 250;
+  lineThickness: LineThickness;
+  labelSize: LabelSize;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -41,6 +45,8 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   maxZoom: 8,
   undoDepth: 100,
   renderDelayMs: 90,
+  lineThickness: "normal",
+  labelSize: "normal",
 };
 
 const oneOf =
@@ -62,7 +68,17 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     maxZoom: oneOf(4, 8, 16),
     undoDepth: oneOf(50, 100, 200, 500),
     renderDelayMs: oneOf(50, 90, 150, 250),
+    lineThickness: oneOf("thin", "normal", "thick"),
+    labelSize: oneOf("small", "normal", "large"),
   };
+
+/** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
+export const LINE_THICKNESS_SCALE: Record<LineThickness, number> = {
+  thin: 0.75,
+  normal: 1,
+  thick: 1.5,
+};
+export const LABEL_SIZE_SCALE: Record<LabelSize, number> = { small: 0.85, normal: 1, large: 1.25 };
 
 /** Screen-pixel radius for each sensitivity level (normal matches the previous fixed 10 px). */
 export const SENSITIVITY_PX: Record<Sensitivity, number> = { low: 6, normal: 10, high: 16 };
