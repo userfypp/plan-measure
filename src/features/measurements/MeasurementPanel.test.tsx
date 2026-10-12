@@ -298,12 +298,16 @@ describe("MeasurementRow accessibility", () => {
     );
   });
 
-  it("extends only the ungrouped row state surface without changing row or Eye geometry", () => {
+  it("extends the row state surface to the container edge without changing row or Eye geometry", () => {
     expect(measurementCollectionCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;/s,
+      /\.list\s*\{[^}]*--measurement-selection-marker-width:\s*0px;/s,
+    );
+    expect(measurementCollectionCss).not.toContain("--measurement-row-inline-bleed");
+    expect(measurementRowCss).toMatch(
+      /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--scrollbar-size, 0px\)\) 0 0;[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.row::before\s*\{[^}]*inset:\s*0 calc\(-1 \* var\(--measurement-row-inline-bleed, 0px\)\);[^}]*pointer-events:\s*none;/s,
+      /\.row::after\s*\{[^}]*var\(--tree-row-depth, 0\)[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementRowCss).toMatch(
       /\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--target-current\);/s,
@@ -331,7 +335,7 @@ describe("measurement grouping surfaces", () => {
     expect(measurementPanelCss).not.toContain(".toolbarButton::after");
     expect(measurementPanelCss).toMatch(/\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s);
     expect(measurementPanelCss).toMatch(
-      /@container measurement-panel \(max-width: 359px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
+      /@container measurement-panel \(max-width: 439px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
     );
     expect(measurementPanelCss).toContain("container-name: measurement-controls");
     expect(measurementPanelCss).toMatch(
@@ -417,6 +421,7 @@ describe("measurement grouping surfaces", () => {
             dimensionLabel: "Trade",
             label: "Electrical",
             archived: true,
+            unassigned: false,
             measurementIds: ["line-1"],
             visibility: "mixed",
           },
@@ -445,35 +450,35 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('aria-label="Selected measurement Hallway"');
   });
 
-  it("uses one fine divider level and a lighter compact hierarchy for nested groups", () => {
+  it("renders the tree with one-line headers, inset-based indentation and full-width guides", () => {
     expect(measurementGroupCss).not.toMatch(/\.group\s*\{[^}]*border-bottom:/s);
-    expect(measurementGroupCss).toMatch(
-      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\) auto var\(--target-current\);/s,
+    expect(measurementGroupCss).not.toMatch(
+      /rootHeader|headerWithoutMeta|childHeader|deepHeader|uppercase/,
     );
     expect(measurementGroupCss).toMatch(
-      /\.rootHeader\s*\{[^}]*border-bottom:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
+      /\.header\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\) var\(--target-current\);[^}]*min-height:\s*var\(--target-current\)|\.header\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\)\s*minmax\(var\(--geometry-tree-count-min-width\), auto\) var\(--target-current\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.childGroups\s*\{[^}]*border-inline-start:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*padding-inline-start:\s*var\(--space-8\);/s,
+      /\.header\s*\{[^}]*padding-inline:\s*calc\(var\(--geometry-tree-inset-start\) \+ var\(--tree-depth, 0\) \* var\(--tree-indent\)\)\s*var\(--geometry-tree-inset-end\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.childHeader,\s*\.deepHeader\s*\{[^}]*min-height:\s*var\(--target-current\);[^}]*border-bottom:\s*0;[^}]*background:\s*transparent;/s,
+      /\.header\[data-group-depth="0"\]\s*\{[^}]*border-top-color:\s*var\(--color-divider\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.headerWithoutMeta\s*\{[^}]*grid-template-columns:\s*var\(--target-current\) minmax\(0, 1fr\);/s,
+      /\.groups > \.group:first-of-type > \.header\s*\{[^}]*border-top-color:\s*transparent;/s,
+    );
+    expect(measurementGroupCss).toMatch(/\.childGroups\s*\{[^}]*position:\s*relative;/s);
+    expect(measurementGroupCss).not.toMatch(/\.childGroups\s*\{[^}]*(border|padding)/s);
+    expect(measurementGroupCss).toMatch(
+      /\.childGroups::after\s*\{[^}]*repeating-linear-gradient[^}]*var\(--color-divider\)[^}]*pointer-events:\s*none;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.title\s*\{[^}]*grid-template-rows:\s*auto auto;[^}]*align-content:\s*center;/s,
+      /\.title\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.dimensionName\s*\{[^}]*font-size:\s*var\(--font-size-micro\);[^}]*text-transform:\s*uppercase;/s,
+      /\.dimensionName\s*\{[^}]*flex:\s*0 100 auto;[^}]*font-size:\s*var\(--font-size-secondary\);/s,
     );
-    expect(measurementGroupCss).toMatch(
-      /\.childHeader .groupValue\s*\{[^}]*font-size:\s*var\(--font-size-base\);/s,
-    );
-    expect(measurementGroupCss).toMatch(
-      /\.deepHeader \.groupValue\s*\{[^}]*font-size:\s*var\(--font-size-secondary\);/s,
-    );
+    expect(measurementGroupCss).toMatch(/\.dimensionName::after\s*\{[^}]*content:\s*":";/s);
     expect(measurementGroupCss).toMatch(
       /\.toggle\s*\{[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
@@ -481,21 +486,21 @@ describe("measurement grouping surfaces", () => {
       /\.visibilityControl\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*border-radius:\s*var\(--radius-control\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-content-indent:\s*var\(--space-8\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
+      /\.list\s*\{[^}]*--tree-row-depth:\s*calc\(var\(--tree-depth, 0\) \+ 1\);[^}]*--measurement-row-content-indent:\s*calc\(var\(--tree-row-depth\) \* var\(--tree-indent\)\);[^}]*--measurement-selection-marker-width:\s*0px;[^}]*padding:\s*0;/s,
     );
     expect(measurementCollectionCss).toMatch(
-      /\.list\s*\{[^}]*--measurement-row-inline-bleed:\s*var\(--space-8\);[^}]*padding:\s*0 max\(0px, calc\(var\(--space-8\) - var\(--scrollbar-size, 0px\)\)\) var\(--space-8\)\s*var\(--space-8\);/s,
+      /\.collection\s*\{[^}]*--tree-indent:\s*calc\(var\(--target-current\) \/ 2\);/s,
+    );
+    expect(measurementCollectionCss).toMatch(/\.collection\s*\{[^}]*scrollbar-gutter:\s*auto;/s);
+    expect(measurementCollectionCss).toMatch(
+      /\.collection:not\(\[data-overflow\]\) > \.groups,\s*\.collection:not\(\[data-overflow\]\) > \.list\s*\{[^}]*padding-inline-end:\s*var\(--scrollbar-size, 0px\);/s,
     );
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
-    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*--measurement-row-inline-bleed:/s);
     expect(measurementRowCss).toMatch(
-      /\.selectionMarker\s*\{[^}]*width:\s*var\(--measurement-selection-marker-width, var\(--geometry-measurement-selection-marker-width\)\);/s,
+      /\.selectionMarker\s*\{[^}]*width:\s*var\(\s*--measurement-selection-marker-width,\s*var\(--geometry-measurement-selection-marker-width\)\s*\);/s,
     );
     expect(measurementRowCss).toMatch(
-      /\.selection\s*\{[^}]*padding:[^;]*calc\(var\(--space-8\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
-    );
-    expect(measurementRowCss).toMatch(
-      /@container measurement-panel \(max-width: 304px\)[\s\S]*?\.selection\s*\{[^}]*padding-left:\s*calc\(var\(--space-4\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
+      /\.selection\s*\{[^}]*padding:[^;]*var\(--geometry-tree-inset-end\)[^;]*calc\(var\(--geometry-tree-inset-start\) \+ var\(--measurement-row-content-indent, 0px\)\);/s,
     );
     expect(measurementRowCss).toMatch(
       /\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s,
@@ -510,6 +515,7 @@ describe("measurement grouping surfaces", () => {
           dimensionLabel: "Trade",
           label: "Electrical",
           archived: false,
+          unassigned: false,
           measurementIds: ["line-1"],
           visibility: "visible",
         }}
@@ -532,5 +538,41 @@ describe("measurement grouping surfaces", () => {
     expect(markup).toContain('d="m7.5 4.17 5.83 5.83 -5.83 5.83"');
     expect(markup).not.toContain("▸");
     expect(markup).not.toContain("▾");
+  });
+
+  it("renders a composed None assigned chain as one section with the value once", () => {
+    const none = (key: string, dimensionLabel: string) => ({
+      key,
+      dimensionLabel,
+      label: "None assigned",
+      archived: false,
+      unassigned: true,
+      measurementIds: ["line-1"],
+      visibility: "visible" as const,
+    });
+    const markup = renderToStaticMarkup(
+      <MeasurementCollection
+        measurements={[viewModel(true)]}
+        emptyMessage="Empty"
+        groups={[
+          {
+            ...none("a:unclassified", "Inside"),
+            children: [
+              {
+                ...none("a:unclassified/b:unclassified", "FDS"),
+                children: [none("a:unclassified/b:unclassified/c:unclassified", "GAGRE")],
+              },
+            ],
+          },
+        ]}
+        groupByDimensionId="inside"
+        onSelectMeasurement={() => undefined}
+        onToggleVisibility={() => undefined}
+        onSetMeasurementsVisibility={() => undefined}
+      />,
+    );
+    expect(markup.match(/<section/g)?.filter(Boolean)).toHaveLength(2); // collection + one group
+    expect(markup.match(/None assigned<\/span>/g)).toHaveLength(1);
+    expect(markup).toContain("Inside · FDS · GAGRE");
   });
 });

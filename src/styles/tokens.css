@@ -168,7 +168,12 @@
   --target-current: var(--target-fine);
   --geometry-app-bar-height: 40px;
   --geometry-app-bar-height-narrow: 44px;
-  --geometry-workspace-panel-width: 288px;
+  --geometry-workspace-panel-width-base: 288px;
+  /* Base width + 40%. */
+  --geometry-workspace-panel-width-wide: 403px;
+  /* The canvas keeps at least this much room when the sidebar is widened. */
+  --geometry-viewer-min-width: 720px;
+  --geometry-workspace-panel-width: var(--geometry-workspace-panel-width-base);
   --geometry-workspace-drawer-width: 304px;
   --geometry-tool-rail-width: 40px;
   --geometry-icon-size: 18px;
@@ -183,6 +188,9 @@
   --geometry-measurement-empty-mark-size: 32px;
   --geometry-measurement-notice-bar-width: 2px;
   --geometry-count-badge-size: 18px;
+  --geometry-tree-inset-start: var(--space-4);
+  --geometry-tree-inset-end: var(--space-4);
+  --geometry-tree-count-min-width: var(--geometry-count-badge-size);
   --geometry-swatch-size: 20px;
   --geometry-scale-row-height: 64px;
   --geometry-context-toolbar-height: 40px;
@@ -457,6 +465,16 @@
     --control-height-compact: 44px;
     --control-height-regular: 44px;
   }
+}
+
+:root[data-sidebar="wide"] {
+  --geometry-workspace-panel-width: min(
+    var(--geometry-workspace-panel-width-wide),
+    max(
+      var(--geometry-workspace-panel-width-base),
+      calc(100vw - var(--geometry-viewer-min-width))
+    )
+  );
 }
 
 :root[data-targets="large"] {

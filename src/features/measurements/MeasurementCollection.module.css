@@ -1,22 +1,27 @@
 .collection {
+  --tree-indent: calc(var(--target-current) / 2);
+
   composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
   min-width: 0;
   min-height: 0;
   overflow-x: clip;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
   background: var(--color-surface-panel);
 }
 
+.collection:not([data-overflow]) > .groups,
+.collection:not([data-overflow]) > .list {
+  padding-inline-end: var(--scrollbar-size, 0px);
+}
+
 .list {
-  --measurement-row-inline-bleed: var(--space-8);
   --measurement-selection-marker-width: 0px;
 
   display: grid;
   min-width: 0;
   gap: 0;
-  padding: 0 max(0px, calc(var(--space-8) - var(--scrollbar-size, 0px))) var(--space-8)
-    var(--space-8);
+  padding: 0 0 var(--space-8);
   background: var(--color-surface-panel);
 }
 

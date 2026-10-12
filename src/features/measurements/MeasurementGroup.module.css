@@ -6,27 +6,25 @@
 .header {
   display: grid;
   min-width: 0;
-  grid-template-columns: var(--target-current) minmax(0, 1fr) auto var(--target-current);
+  min-height: var(--target-current);
+  grid-template-columns:
+    var(--target-current) minmax(0, 1fr)
+    minmax(var(--geometry-tree-count-min-width), auto) var(--target-current);
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-8);
-}
-
-.rootHeader {
-  border-bottom: var(--border-width) solid var(--color-divider);
-  background: var(--color-surface-field);
-}
-
-.headerWithoutMeta {
-  grid-template-columns: var(--target-current) minmax(0, 1fr);
-}
-
-.childHeader,
-.deepHeader {
-  min-height: var(--target-current);
   padding-block: 0;
-  border-bottom: 0;
+  padding-inline: calc(var(--geometry-tree-inset-start) + var(--tree-depth, 0) * var(--tree-indent))
+    var(--geometry-tree-inset-end);
+  border-top: var(--border-width) solid transparent;
   background: transparent;
+}
+
+.header[data-group-depth="0"] {
+  border-top-color: var(--color-divider);
+}
+
+.groups > .group:first-of-type > .header {
+  border-top-color: transparent;
 }
 
 .toggle {
@@ -82,41 +80,61 @@
 }
 
 .title {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-content: center;
-  gap: 1px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: var(--space-4);
   min-width: 0;
   margin: 0;
   overflow: hidden;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
 }
 
 .dimensionName {
+  flex: 0 100 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-micro);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.035em;
-  line-height: var(--line-height-micro);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-regular);
   text-overflow: ellipsis;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
+.dimensionName::after {
+  content: ":";
+}
+
+.segmentSeparator {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
 .groupValue {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-base);
+  font-weight: var(--font-weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+[data-group-depth="0"] .groupValue {
+  font-weight: var(--font-weight-semibold);
+}
+
+.groupValue.unassignedValue,
+[data-group-depth="0"] .groupValue.unassignedValue {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
 .count {
+  min-width: var(--geometry-tree-count-min-width);
+  text-align: center;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
@@ -137,7 +155,8 @@
 }
 
 .list {
-  --measurement-row-content-indent: var(--space-8);
+  --tree-row-depth: calc(var(--tree-depth, 0) + 1);
+  --measurement-row-content-indent: calc(var(--tree-row-depth) * var(--tree-indent));
   --measurement-selection-marker-width: 0px;
 
   display: grid;
@@ -152,29 +171,22 @@
 }
 
 .childGroups {
+  position: relative;
   min-width: 0;
-  border-inline-start: var(--border-width) solid var(--color-divider);
-  padding-inline-start: var(--space-8);
 }
 
-.childHeader .groupValue {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-}
-
-.childHeader .dimensionName,
-.deepHeader .dimensionName {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-micro);
-}
-
-.deepHeader .groupValue {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-medium);
-}
-
-.deepHeader .dimensionName {
-  color: var(--color-text-secondary);
+/* Guías verticales: una línea bajo el centro del chevron de cada ancestro. */
+.childGroups::after {
+  position: absolute;
+  z-index: var(--z-raised);
+  inset-block: 0;
+  left: var(--geometry-tree-inset-start);
+  width: calc(var(--tree-row-depth) * var(--tree-indent));
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 calc(var(--tree-indent) - var(--border-width)),
+    var(--color-divider) calc(var(--tree-indent) - var(--border-width)) var(--tree-indent)
+  );
+  content: "";
+  pointer-events: none;
 }

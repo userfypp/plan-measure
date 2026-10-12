@@ -79,6 +79,7 @@ function renderGroupedCollection() {
             dimensionLabel: "Trade",
             label: "First",
             archived: false,
+            unassigned: false,
             measurementIds: ["line-1"],
             visibility: "visible",
           },
@@ -87,6 +88,7 @@ function renderGroupedCollection() {
             dimensionLabel: "Trade",
             label: "Second",
             archived: false,
+            unassigned: false,
             measurementIds: ["line-2", "polygon-1"],
             visibility: "visible",
           },
@@ -115,8 +117,9 @@ function press(key: string) {
 }
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-    true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
     configurable: true,
     value: vi.fn(),
@@ -229,7 +232,7 @@ describe("MeasurementCollection keyboard model", () => {
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
   });
 
-  it("moves identical single-child controls to the expanded child and restores them on collapse", () => {
+  it("merges identical single-child groups into one header with both controls", () => {
     const onSetMeasurementsVisibility = vi.fn();
     act(() =>
       root!.render(
@@ -245,6 +248,7 @@ describe("MeasurementCollection keyboard model", () => {
               dimensionLabel: "Trade",
               label: "Electrical",
               archived: false,
+              unassigned: false,
               measurementIds: ["line-1"],
               visibility: "visible",
               children: [
@@ -253,6 +257,7 @@ describe("MeasurementCollection keyboard model", () => {
                   dimensionLabel: "Status",
                   label: "None assigned",
                   archived: false,
+                  unassigned: false,
                   measurementIds: ["line-1"],
                   visibility: "visible",
                 },
@@ -264,24 +269,21 @@ describe("MeasurementCollection keyboard model", () => {
       ),
     );
 
-    const tradeGroup = container!.querySelector<HTMLElement>(
-      '[aria-label="Trade · Electrical measurement group"]',
+    const merged = container!.querySelector<HTMLElement>(
+      '[aria-label="Trade · Electrical, Status · None assigned measurement group"]',
     );
-    const tradeHeader = tradeGroup?.querySelector<HTMLElement>(":scope > header");
-    expect(tradeHeader?.querySelector("[data-group-visibility]")).toBeNull();
-    expect(tradeHeader?.querySelector('[aria-label="1 measurements"]')).toBeNull();
-    expect(
-      tradeGroup?.querySelector('[aria-label="Status · None assigned measurement group"] [data-group-visibility]'),
-    ).not.toBeNull();
-
-    act(() => tradeHeader?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
-    expect(tradeHeader?.querySelector('[aria-label="1 measurements"]')).not.toBeNull();
-    const collapsedVisibility = tradeHeader?.querySelector<HTMLButtonElement>("[data-group-visibility]");
-    expect(collapsedVisibility?.getAttribute("aria-label")).toBe(
-      "Hide all measurements in Trade · Electrical; currently all visible",
+    expect(merged).not.toBeNull();
+    expect(merged!.querySelectorAll("section")).toHaveLength(0);
+    const header = merged!.querySelector<HTMLElement>(":scope > header");
+    expect(header?.querySelector('[aria-label="1 measurements"]')).not.toBeNull();
+    const visibility = header?.querySelector<HTMLButtonElement>("[data-group-visibility]");
+    expect(visibility?.getAttribute("aria-label")).toBe(
+      "Hide all measurements in Trade · Electrical, Status · None assigned; currently all visible",
     );
-    act(() => collapsedVisibility?.click());
+    act(() => visibility?.click());
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
+    act(() => header?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    expect(control("line-1", "selection").closest("[hidden]")).not.toBeNull();
   });
 
   it("collapses nested branches and applies visibility to exactly their descendant measurements", () => {
@@ -300,6 +302,7 @@ describe("MeasurementCollection keyboard model", () => {
               dimensionLabel: "Trade",
               label: "Electrical",
               archived: false,
+              unassigned: false,
               measurementIds: ["line-1", "line-2"],
               visibility: "visible",
               children: [
@@ -308,6 +311,7 @@ describe("MeasurementCollection keyboard model", () => {
                   dimensionLabel: "Status",
                   label: "Approved",
                   archived: false,
+                  unassigned: false,
                   measurementIds: ["line-1"],
                   visibility: "visible",
                 },
@@ -316,6 +320,7 @@ describe("MeasurementCollection keyboard model", () => {
                   dimensionLabel: "Status",
                   label: "None assigned",
                   archived: false,
+                  unassigned: false,
                   measurementIds: ["line-2"],
                   visibility: "visible",
                 },
@@ -326,6 +331,7 @@ describe("MeasurementCollection keyboard model", () => {
               dimensionLabel: "Trade",
               label: "Other",
               archived: false,
+              unassigned: false,
               measurementIds: ["polygon-1"],
               visibility: "visible",
             },
@@ -335,17 +341,39 @@ describe("MeasurementCollection keyboard model", () => {
       ),
     );
 
-    expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
-    const approved = container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Status · Approved group"]')!;
+    expect(
+      container!.querySelectorAll(
+        '[data-measurement-id="line-1"][data-measurement-control="selection"]',
+      ),
+    ).toHaveLength(1);
+    const approved = container!.querySelector<HTMLButtonElement>(
+      '[aria-label="Collapse Status · Approved group"]',
+    )!;
     act(() => approved.click());
     expect(control("line-1", "selection").closest("[hidden]")).not.toBeNull();
     expect(control("line-2", "selection").closest("[hidden]")).toBeNull();
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all measurements in Status · None assigned; currently all visible"]')?.click());
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Hide all measurements in Status · None assigned; currently all visible"]',
+        )
+        ?.click(),
+    );
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-2"], false);
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Hide all measurements in Trade · Electrical; currently all visible"]')?.click());
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Hide all measurements in Trade · Electrical; currently all visible"]',
+        )
+        ?.click(),
+    );
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1", "line-2"], false);
 
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · Electrical group"]')?.click());
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · Electrical group"]')
+        ?.click(),
+    );
     expect(control("line-2", "selection").closest("[hidden]")).not.toBeNull();
     expect(control("polygon-1", "selection").closest("[hidden]")).toBeNull();
     expect(control("polygon-1", "selection").tabIndex).toBe(0);
@@ -355,7 +383,11 @@ describe("MeasurementCollection keyboard model", () => {
 describe("additive measurement selection", () => {
   it.each(["shiftKey", "ctrlKey", "metaKey"])("forwards %s from row activation", (modifier) => {
     const { onSelectMeasurement } = renderCollection();
-    act(() => control("line-2", "selection").dispatchEvent(new MouseEvent("click", { bubbles: true, [modifier]: true })));
+    act(() =>
+      control("line-2", "selection").dispatchEvent(
+        new MouseEvent("click", { bubbles: true, [modifier]: true }),
+      ),
+    );
     expect(onSelectMeasurement).toHaveBeenCalledWith("line-2", true);
   });
 });
@@ -371,11 +403,15 @@ describe("large measurement collection", () => {
   it("bounds mounted rows and preserves Home/End focus across the entire model", () => {
     renderCollection(largeMeasurements);
     expect(container!.querySelectorAll('[role="listitem"]').length).toBeLessThan(40);
-    expect(control("perf-0", "selection").closest('[role="listitem"]')?.getAttribute("aria-setsize")).toBe("5000");
+    expect(
+      control("perf-0", "selection").closest('[role="listitem"]')?.getAttribute("aria-setsize"),
+    ).toBe("5000");
     act(() => control("perf-0", "selection").focus());
     press("End");
     expect(document.activeElement).toBe(control("perf-4999", "selection"));
-    expect(control("perf-4999", "selection").closest('[role="listitem"]')?.getAttribute("aria-posinset")).toBe("5000");
+    expect(
+      control("perf-4999", "selection").closest('[role="listitem"]')?.getAttribute("aria-posinset"),
+    ).toBe("5000");
     press("ArrowUp");
     expect(document.activeElement).toBe(control("perf-4998", "selection"));
     press("ArrowRight");
@@ -387,7 +423,9 @@ describe("large measurement collection", () => {
   it("renders the scrolled window while keeping a focused row mounted", () => {
     renderCollection(largeMeasurements);
     act(() => control("perf-0", "selection").focus());
-    const collection = container!.querySelector<HTMLElement>('[aria-label="Measurement collection"]')!;
+    const collection = container!.querySelector<HTMLElement>(
+      '[aria-label="Measurement collection"]',
+    )!;
     act(() => {
       collection.scrollTop = 49 * 2500;
       collection.dispatchEvent(new Event("scroll"));
@@ -399,34 +437,42 @@ describe("large measurement collection", () => {
   });
 
   function renderManyGroups() {
-    act(() => root!.render(
-      <MeasurementCollection
-        measurements={largeMeasurements}
-        emptyMessage="Empty"
-        onSelectMeasurement={vi.fn()}
-        onToggleVisibility={vi.fn()}
-        groupByDimensionId="trade"
-        groups={largeMeasurements.map((measurement, index) => ({
-          key: `group-${index}`,
-          dimensionLabel: "Trade",
-          label: `Group ${index}`,
-          archived: false,
-          measurementIds: [measurement.id],
-          visibility: "visible" as const,
-        }))}
-        onSetMeasurementsVisibility={vi.fn()}
-      />,
-    ));
+    act(() =>
+      root!.render(
+        <MeasurementCollection
+          measurements={largeMeasurements}
+          emptyMessage="Empty"
+          onSelectMeasurement={vi.fn()}
+          onToggleVisibility={vi.fn()}
+          groupByDimensionId="trade"
+          groups={largeMeasurements.map((measurement, index) => ({
+            key: `group-${index}`,
+            dimensionLabel: "Trade",
+            label: `Group ${index}`,
+            archived: false,
+            unassigned: false,
+            measurementIds: [measurement.id],
+            visibility: "visible" as const,
+          }))}
+          onSetMeasurementsVisibility={vi.fn()}
+        />,
+      ),
+    );
   }
 
   it("updates virtual offsets from observed variable row heights", () => {
     let notify: ResizeObserverCallback | undefined;
-    vi.stubGlobal("ResizeObserver", class {
-      constructor(callback: ResizeObserverCallback) { notify = callback; }
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    });
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          notify = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     try {
       renderCollection(largeMeasurements);
       const row = control("perf-0", "selection").closest<HTMLElement>('[role="listitem"]')!;
@@ -452,36 +498,66 @@ describe("large measurement collection", () => {
     act(() => control("perf-0", "selection").focus());
     press("End");
     expect(document.activeElement).toBe(control("perf-4999", "selection"));
-    expect(control("perf-4999", "selection").closest('[aria-label="Trade · Group 4999 measurement group"]')).not.toBeNull();
+    expect(
+      control("perf-4999", "selection").closest(
+        '[aria-label="Trade · Group 4999 measurement group"]',
+      ),
+    ).not.toBeNull();
     press("Home");
     expect(document.activeElement).toBe(control("perf-0", "selection"));
   });
 
   it("preserves Tab navigation to group controls beyond the mounted window", () => {
     renderManyGroups();
-    const firstToggle = container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · Group 0 group"]')!;
+    const firstToggle = container!.querySelector<HTMLButtonElement>(
+      '[aria-label="Collapse Trade · Group 0 group"]',
+    )!;
     act(() => firstToggle.focus());
     for (let index = 0; index < 45; index += 1) press("Tab");
-    expect(document.activeElement?.getAttribute("aria-label")).toBe("Collapse Trade · Group 22 group");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Collapse Trade · Group 22 group",
+    );
     expect(container!.querySelectorAll("header").length).toBeLessThan(20);
   });
 
   it("excludes collapsed grouped rows from keyboard navigation", () => {
-    act(() => root!.render(
-      <MeasurementCollection
-        measurements={largeMeasurements}
-        emptyMessage="Empty"
-        onSelectMeasurement={vi.fn()}
-        onToggleVisibility={vi.fn()}
-        groupByDimensionId="trade"
-        groups={[
-          { key: "first", dimensionLabel: "Trade", label: "First", archived: false, measurementIds: ["perf-0"], visibility: "visible" },
-          { key: "remaining", dimensionLabel: "Trade", label: "Remaining", archived: false, measurementIds: largeMeasurements.slice(1).map((measurement) => measurement.id), visibility: "visible" },
-        ]}
-        onSetMeasurementsVisibility={vi.fn()}
-      />,
-    ));
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · First group"]')!.click());
+    act(() =>
+      root!.render(
+        <MeasurementCollection
+          measurements={largeMeasurements}
+          emptyMessage="Empty"
+          onSelectMeasurement={vi.fn()}
+          onToggleVisibility={vi.fn()}
+          groupByDimensionId="trade"
+          groups={[
+            {
+              key: "first",
+              dimensionLabel: "Trade",
+              label: "First",
+              archived: false,
+              unassigned: false,
+              measurementIds: ["perf-0"],
+              visibility: "visible",
+            },
+            {
+              key: "remaining",
+              dimensionLabel: "Trade",
+              label: "Remaining",
+              archived: false,
+              unassigned: false,
+              measurementIds: largeMeasurements.slice(1).map((measurement) => measurement.id),
+              visibility: "visible",
+            },
+          ]}
+          onSetMeasurementsVisibility={vi.fn()}
+        />,
+      ),
+    );
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>('[aria-label="Collapse Trade · First group"]')!
+        .click(),
+    );
     expect(container!.querySelector('[data-measurement-id="perf-0"]')).toBeNull();
     expect(control("perf-1", "selection").tabIndex).toBe(0);
     act(() => control("perf-1", "selection").focus());

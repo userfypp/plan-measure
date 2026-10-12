@@ -440,6 +440,7 @@ describe("SettingsDialog", () => {
     choose("Default zoom", "Fit width");
     choose("Mouse wheel", "Scroll");
     choose("Date format", "With time");
+    act(() => switchControl("Wider sidebar").click());
     openTab("Drawing");
     act(() => switchControl("Crosshair cursor").click());
     act(() => switchControl("Live segment length").click());
@@ -453,6 +454,7 @@ describe("SettingsDialog", () => {
       defaultZoom: "fit-width",
       wheelBehavior: "pan",
       dateFormat: "with-time",
+      widerSidebar: true,
       crosshairCursor: false,
       liveLength: true,
       finishOnDoubleClick: true,

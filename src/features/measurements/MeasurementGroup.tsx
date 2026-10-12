@@ -1,4 +1,4 @@
-import { useId, type ReactNode, type RefCallback } from "react";
+import { Fragment, useId, type CSSProperties, type ReactNode, type RefCallback } from "react";
 import { IconButton } from "../../components/ui";
 import type { MeasurementGroup as MeasurementGroupModel } from "./measurementGrouping";
 import { MeasurementRow } from "./MeasurementRow";
@@ -63,17 +63,6 @@ function GroupVisibilityIcon({ state }: { state: "visible" | "hidden" | "mixed" 
   );
 }
 
-function hasSameMeasurementScope(parentIds: string[], childIds: string[]) {
-  if (parentIds.length !== childIds.length) return false;
-  const parentIdSet = new Set(parentIds);
-  const childIdSet = new Set(childIds);
-  return (
-    parentIdSet.size === parentIds.length &&
-    childIdSet.size === childIds.length &&
-    childIds.every((measurementId) => parentIdSet.has(measurementId))
-  );
-}
-
 export function MeasurementGroup({
   group,
   measurements,
@@ -95,63 +84,101 @@ export function MeasurementGroup({
   const actionIsHide = group.visibility === "visible";
   const actionLabel = actionIsHide ? "Hide" : "Show";
   const visibilityState = visibilityStateLabel[group.visibility];
-  const groupName = `${group.dimensionLabel} · ${group.label}`;
+  const segments = group.segments ?? [
+    {
+      dimensionLabel: group.dimensionLabel,
+      label: group.label,
+      archived: group.archived,
+      unassigned: group.unassigned,
+    },
+  ];
+  const groupName = segments
+    .map((segment) => `${segment.dimensionLabel} · ${segment.label}`)
+    .join(", ");
   const bulkActionLabel = `${actionLabel} all measurements in ${groupName}; currently ${visibilityState}`;
-  const onlyChild = group.children?.length === 1 ? group.children[0] : undefined;
-  const hasSameScopeChild =
-    onlyChild !== undefined && hasSameMeasurementScope(group.measurementIds, onlyChild.measurementIds);
-  const showAggregateMetadata = !hasSameScopeChild || collapsed;
-  const headerClassName = [
-    styles.header,
-    depth === 0 ? styles.rootHeader : depth === 1 ? styles.childHeader : styles.deepHeader,
-    showAggregateMetadata ? "" : styles.headerWithoutMeta,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const fullGroupLabel = `${groupName}${group.archived ? " (archived)" : ""}`;
+  const fullGroupLabel = segments
+    .map(
+      (segment) =>
+        `${segment.dimensionLabel} · ${segment.label}${segment.archived ? " (archived)" : ""}`,
+    )
+    .join(", ");
+  const sharedValue =
+    segments.length > 1 &&
+    segments.every(
+      (segment) =>
+        segment.label === segments[0]!.label && segment.archived === segments[0]!.archived,
+    );
+
+  function renderValue(segment: (typeof segments)[number], unassigned: boolean) {
+    return (
+      <span className={`${styles.groupValue} ${unassigned ? styles.unassignedValue : ""}`}>
+        {segment.label}
+        {segment.archived ? " (archived)" : ""}
+      </span>
+    );
+  }
 
   return (
-    <section className={styles.group} aria-label={`${groupName} measurement group`}>
+    <section
+      className={styles.group}
+      style={{ "--tree-depth": depth } as CSSProperties}
+      aria-label={`${groupName} measurement group`}
+    >
       {headerPlaceholderHeight !== undefined ? (
         <div aria-hidden="true" style={{ height: headerPlaceholderHeight }} />
-      ) : <header ref={headerRef} data-virtual-key={headerKey} className={headerClassName} data-group-depth={depth}>
-        <button
-          type="button"
-          className={styles.toggle}
-          aria-expanded={!collapsed}
-          aria-controls={listId}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${groupName} group`}
-          onClick={onToggleCollapsed}
+      ) : (
+        <header
+          ref={headerRef}
+          data-virtual-key={headerKey}
+          className={styles.header}
+          data-group-depth={depth}
         >
-          <ChevronIcon />
-        </button>
-        <h3 className={styles.title} aria-label={fullGroupLabel} title={fullGroupLabel}>
-          <span className={styles.dimensionName}>{group.dimensionLabel}</span>
-          <span className={styles.groupValue}>
-            {group.label}
-            {group.archived ? " (archived)" : ""}
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={!collapsed}
+            aria-controls={listId}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} ${groupName} group`}
+            onClick={onToggleCollapsed}
+          >
+            <ChevronIcon />
+          </button>
+          <h3 className={styles.title} aria-label={fullGroupLabel} title={fullGroupLabel}>
+            {sharedValue ? (
+              <>
+                <span className={styles.dimensionName}>
+                  {segments.map((segment) => segment.dimensionLabel).join(" · ")}
+                </span>
+                {renderValue(segments[0]!, segments[0]!.unassigned)}
+              </>
+            ) : (
+              segments.map((segment, index) => (
+                <Fragment key={index}>
+                  {index > 0 && (
+                    <span className={styles.segmentSeparator} aria-hidden="true">
+                      ›
+                    </span>
+                  )}
+                  <span className={styles.dimensionName}>{segment.dimensionLabel}</span>
+                  {renderValue(segment, segment.unassigned)}
+                </Fragment>
+              ))
+            )}
+          </h3>
+          <span className={styles.count} aria-label={`${group.measurementIds.length} measurements`}>
+            {group.measurementIds.length}
           </span>
-        </h3>
-        {showAggregateMetadata && (
-          <>
-            <span
-              className={styles.count}
-              aria-label={`${group.measurementIds.length} measurements`}
-            >
-              {group.measurementIds.length}
-            </span>
-            <IconButton
-              icon={<GroupVisibilityIcon state={group.visibility} />}
-              className={styles.visibilityControl}
-              data-group-visibility={group.visibility}
-              aria-label={bulkActionLabel}
-              tooltip={`${actionLabel} all`}
-              tooltipPosition="left"
-              onClick={() => onSetMeasurementsVisibility(group.measurementIds, !actionIsHide)}
-            />
-          </>
-        )}
-      </header>}
+          <IconButton
+            icon={<GroupVisibilityIcon state={group.visibility} />}
+            className={styles.visibilityControl}
+            data-group-visibility={group.visibility}
+            aria-label={bulkActionLabel}
+            tooltip={`${actionLabel} all`}
+            tooltipPosition="left"
+            onClick={() => onSetMeasurementsVisibility(group.measurementIds, !actionIsHide)}
+          />
+        </header>
+      )}
       <div
         id={listId}
         className={styles.list}
@@ -159,26 +186,29 @@ export function MeasurementGroup({
         aria-label={`${groupName} measurements`}
         hidden={collapsed}
       >
-        {children
-          ? <div className={styles.childGroups}>{children}</div>
-          : rowsContent ?? measurements.map((measurement) => (
-              <MeasurementRow
-                key={measurement.id}
-                viewModel={measurement}
-                onSelectMeasurement={onSelectMeasurement}
-                onToggleVisibility={onToggleVisibility}
-                selectionTabIndex={
-                  rovingCell?.measurementId === measurement.id && rovingCell.control === "selection"
-                    ? 0
-                    : -1
-                }
-                visibilityTabIndex={
-                  rovingCell?.measurementId === measurement.id && rovingCell.control === "visibility"
-                    ? 0
-                    : -1
-                }
-              />
-            ))}
+        {children ? (
+          <div className={styles.childGroups}>{children}</div>
+        ) : (
+          (rowsContent ??
+          measurements.map((measurement) => (
+            <MeasurementRow
+              key={measurement.id}
+              viewModel={measurement}
+              onSelectMeasurement={onSelectMeasurement}
+              onToggleVisibility={onToggleVisibility}
+              selectionTabIndex={
+                rovingCell?.measurementId === measurement.id && rovingCell.control === "selection"
+                  ? 0
+                  : -1
+              }
+              visibilityTabIndex={
+                rovingCell?.measurementId === measurement.id && rovingCell.control === "visibility"
+                  ? 0
+                  : -1
+              }
+            />
+          )))
+        )}
       </div>
     </section>
   );

@@ -54,6 +54,7 @@ export interface AppPreferences {
   defaultZoom: DefaultZoom;
   wheelBehavior: WheelBehavior;
   dateFormat: DateFormat;
+  widerSidebar: boolean;
   crosshairCursor: boolean;
   liveLength: boolean;
   finishOnDoubleClick: boolean;
@@ -97,6 +98,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   defaultZoom: "fit-page",
   wheelBehavior: "zoom",
   dateFormat: "medium",
+  widerSidebar: false,
   crosshairCursor: true,
   liveLength: false,
   finishOnDoubleClick: false,
@@ -146,6 +148,7 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     defaultZoom: oneOf("fit-page", "fit-width", "actual"),
     wheelBehavior: oneOf("zoom", "pan"),
     dateFormat: oneOf("short", "medium", "with-time"),
+    widerSidebar: isBoolean,
     crosshairCursor: isBoolean,
     liveLength: isBoolean,
     finishOnDoubleClick: isBoolean,
@@ -270,6 +273,8 @@ function applyToDocument(preferences: AppPreferences): void {
   else root.dataset.contrast = preferences.contrast;
   if (preferences.largeTargets) root.dataset.targets = "large";
   else delete root.dataset.targets;
+  if (preferences.widerSidebar) root.dataset.sidebar = "wide";
+  else delete root.dataset.sidebar;
 }
 
 let current: AppPreferences =

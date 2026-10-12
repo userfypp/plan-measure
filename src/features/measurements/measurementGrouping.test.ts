@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ClassificationCatalog, Measurement } from "../../types/domain";
-import { createMeasurementGroups } from "./measurementGrouping";
+import {
+  compactMeasurementGroups,
+  createMeasurementGroups,
+  type MeasurementGroup,
+} from "./measurementGrouping";
 
 const catalog: ClassificationCatalog = {
   dimensions: [
@@ -107,10 +111,7 @@ describe("createMeasurementGroups", () => {
     ]);
     expect(
       createMeasurementGroups(
-        [
-          measurement("visible-1", ["electrical"]),
-          measurement("visible-2", ["electrical"]),
-        ],
+        [measurement("visible-1", ["electrical"]), measurement("visible-2", ["electrical"])],
         catalog,
         "trade",
       )[0]?.visibility,
@@ -183,7 +184,9 @@ describe("createMeasurementGroups", () => {
       { label: "Approved", measurementIds: ["first"], visibility: "visible" },
       { label: "None assigned", measurementIds: ["second"], visibility: "hidden" },
     ]);
-    expect(groups[0]?.children?.map(({ dimensionLabel, label }) => [dimensionLabel, label])).toEqual([
+    expect(
+      groups[0]?.children?.map(({ dimensionLabel, label }) => [dimensionLabel, label]),
+    ).toEqual([
       ["Status", "Approved"],
       ["Status", "None assigned"],
     ]);
@@ -193,14 +196,16 @@ describe("createMeasurementGroups", () => {
     );
     expect(groups[2]?.children?.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
     expect(groups[2]?.children?.map((group) => group.dimensionLabel)).toEqual(["Status", "Status"]);
-    expect(groups.flatMap((group) => group.children?.flatMap((child) => child.measurementIds) ?? [])).toEqual([
-      "first", "second", "third", "fourth", "fifth",
-    ]);
+    expect(
+      groups.flatMap((group) => group.children?.flatMap((child) => child.measurementIds) ?? []),
+    ).toEqual(["first", "second", "third", "fourth", "fifth"]);
 
     const reversed = createMeasurementGroups(measurements, catalog, ["status", "trade"]);
     expect(reversed.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
     expect(reversed[0]?.children?.map((group) => group.label)).toEqual([
-      "Electrical", "Plumbing", "None assigned",
+      "Electrical",
+      "Plumbing",
+      "None assigned",
     ]);
   });
 
@@ -238,5 +243,83 @@ describe("createMeasurementGroups", () => {
       dimensionLabel: "Phase",
       label: "Planned",
     });
+  });
+});
+
+function group(
+  key: string,
+  label: string,
+  ids: string[],
+  children?: MeasurementGroup[],
+): MeasurementGroup {
+  return {
+    key,
+    dimensionLabel: `D-${key}`,
+    label,
+    archived: false,
+    unassigned: key.endsWith(":unclassified"),
+    measurementIds: ids,
+    visibility: "visible",
+    children,
+  };
+}
+
+describe("compactMeasurementGroups", () => {
+  it("fuses a chain of same-scope None assigned groups into one with all segments", () => {
+    const chain = group(
+      "a:unclassified",
+      "None assigned",
+      ["m1", "m2"],
+      [
+        group(
+          "a:unclassified/b:unclassified",
+          "None assigned",
+          ["m2", "m1"],
+          [group("a:unclassified/b:unclassified/c:unclassified", "None assigned", ["m1", "m2"])],
+        ),
+      ],
+    );
+    const result = compactMeasurementGroups([chain]);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.key).toBe("a:unclassified");
+    expect(result[0]?.segments).toHaveLength(3);
+    expect(result[0]?.segments?.every((segment) => segment.unassigned)).toBe(true);
+    expect(result[0]?.children).toBeUndefined();
+  });
+
+  it("does not fuse a group with several children", () => {
+    const parent = group(
+      "p",
+      "P",
+      ["m1", "m2"],
+      [group("p/a", "A", ["m1"]), group("p/b", "B", ["m2"])],
+    );
+    const result = compactMeasurementGroups([parent]);
+    expect(result[0]?.segments).toBeUndefined();
+    expect(result[0]?.children).toHaveLength(2);
+  });
+
+  it("keeps the tail's children and does not mutate the input", () => {
+    const input = [
+      group(
+        "p",
+        "P",
+        ["m1", "m2"],
+        [
+          group(
+            "p/q",
+            "Q",
+            ["m1", "m2"],
+            [group("p/q/a", "A", ["m1"]), group("p/q/b", "B", ["m2"])],
+          ),
+        ],
+      ),
+    ];
+    const snapshot = JSON.parse(JSON.stringify(input));
+    const result = compactMeasurementGroups(input);
+    expect(result[0]?.segments?.map((segment) => segment.label)).toEqual(["P", "Q"]);
+    expect(result[0]?.children?.map((child) => child.key)).toEqual(["p/q/a", "p/q/b"]);
+    expect(input).toEqual(snapshot);
+    expect(result[0]).not.toBe(input[0]);
   });
 });

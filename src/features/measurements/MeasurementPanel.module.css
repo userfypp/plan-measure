@@ -238,7 +238,7 @@
   }
 }
 
-@container measurement-panel (max-width: 359px) {
+@container measurement-panel (max-width: 439px) {
   .toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -708,6 +708,11 @@ export function SettingsDialog({
                       options={DATE_FORMAT_OPTIONS}
                       onChange={set("dateFormat")}
                     />
+                    <SwitchRow
+                      label="Wider sidebar"
+                      checked={preferences.widerSidebar}
+                      onChange={set("widerSidebar")}
+                    />
                     {onKeyboardAuthoringEnabledChange && (
                       <SwitchRow
                         label="Keyboard drawing and editing"

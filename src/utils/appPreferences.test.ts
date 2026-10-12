@@ -217,6 +217,24 @@ describe("appPreferences", () => {
     expect(getAppPreferences().largeTargets).toBe(false);
   });
 
+  it("mirrors the wider sidebar onto the document element only when enabled", () => {
+    expect(DEFAULT_APP_PREFERENCES.widerSidebar).toBe(false);
+    expect(document.documentElement.dataset.sidebar).toBeUndefined();
+    setAppPreference("widerSidebar", true);
+    expect(document.documentElement.dataset.sidebar).toBe("wide");
+    setAppPreference("widerSidebar", false);
+    expect(document.documentElement.dataset.sidebar).toBeUndefined();
+    setAppPreference("widerSidebar", true);
+    resetAppPreferences();
+    expect(document.documentElement.dataset.sidebar).toBeUndefined();
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ widerSidebar: "yes" }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().widerSidebar).toBe(false);
+  });
+
   it("leaves no accessibility attribute on <html> after a reset", () => {
     setAppPreference("focusRing", "thick");
     setAppPreference("textSize", "125");

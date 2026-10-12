@@ -6,7 +6,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--target-current);
   align-items: stretch;
-  padding-right: 0;
+  padding-right: var(--geometry-tree-inset-end);
   border-bottom: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
 }
@@ -14,8 +14,24 @@
 .row::before {
   position: absolute;
   z-index: var(--z-base);
-  inset: 0 calc(-1 * var(--measurement-row-inline-bleed, 0px));
+  inset: 0 calc(-1 * var(--scrollbar-size, 0px)) 0 0;
   background: transparent;
+  content: "";
+  pointer-events: none;
+}
+
+/* Guías del árbol: continúan las de las cabeceras (0 líneas en la lista plana). */
+.row::after {
+  position: absolute;
+  z-index: var(--z-raised);
+  inset-block: 0;
+  left: var(--geometry-tree-inset-start);
+  width: calc(var(--tree-row-depth, 0) * var(--tree-indent, 0px));
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 calc(var(--tree-indent, 0px) - var(--border-width)),
+    var(--color-divider) calc(var(--tree-indent, 0px) - var(--border-width)) var(--tree-indent, 0px)
+  );
   content: "";
   pointer-events: none;
 }
@@ -38,7 +54,10 @@
   top: var(--space-12);
   bottom: var(--space-12);
   left: 0;
-  width: var(--measurement-selection-marker-width, var(--geometry-measurement-selection-marker-width));
+  width: var(
+    --measurement-selection-marker-width,
+    var(--geometry-measurement-selection-marker-width)
+  );
   border-radius: var(--radius-control);
   background: transparent;
   pointer-events: none;
@@ -60,8 +79,8 @@
   gap: var(--space-8);
   border: var(--border-width) solid transparent;
   border-radius: 0;
-  padding: var(--space-4) var(--space-8) var(--space-4)
-    calc(var(--space-8) + var(--measurement-row-content-indent, 0px));
+  padding: var(--space-4) var(--geometry-tree-inset-end) var(--space-4)
+    calc(var(--geometry-tree-inset-start) + var(--measurement-row-content-indent, 0px));
   background: transparent;
   color: var(--color-text-primary);
   text-align: left;
@@ -199,15 +218,4 @@
   border-color: transparent;
   background: transparent;
   color: var(--color-text-secondary);
-}
-
-@container measurement-panel (max-width: 304px) {
-  .selection {
-    gap: var(--space-8);
-    padding-left: calc(var(--space-4) + var(--measurement-row-content-indent, 0px));
-  }
-
-  .metadata {
-    font-size: var(--font-size-secondary);
-  }
 }
