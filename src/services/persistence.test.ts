@@ -1759,11 +1759,11 @@ describe("session persistence", () => {
     }
   });
 
-  it("requires measurement decimal places to be an integer from 0 through 6", () => {
+  it("requires measurement decimal places to be an integer from 0 through 8", () => {
     const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
     const settings = base.settings as Record<string, unknown>;
 
-    for (const measurementDecimalPlaces of [-1, 2.5, 7, null]) {
+    for (const measurementDecimalPlaces of [-1, 2.5, 9, null]) {
       expect(() =>
         deserializeSession(
           JSON.stringify({
@@ -1773,6 +1773,14 @@ describe("session persistence", () => {
         ),
       ).toThrow("measurement decimal places");
     }
+  });
+
+  it.each([6, 7, 8])("round-trips %s measurement decimal places", (places) => {
+    const session = currentMeasuredSession();
+    session.settings.measurementDecimalPlaces = places as 6 | 7 | 8;
+    expect(
+      deserializeSession(serializeSession(session)).settings.measurementDecimalPlaces,
+    ).toBe(places);
   });
 
   it("requires a boolean archived flag on every V9 dimension", () => {

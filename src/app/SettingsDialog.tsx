@@ -173,16 +173,15 @@ function Row({ label, help, children }: RowProps) {
   const controlId = useId();
   const labelId = useId();
   const helpId = useId();
-  const copyRef = useRef<HTMLDivElement>(null);
   return (
     <div className={styles.settingRow}>
-      <div ref={copyRef} className={styles.settingCopy}>
+      <div className={styles.settingCopy}>
         <label id={labelId} className={styles.settingLabel} htmlFor={controlId}>
           {label}
         </label>
         {help && (
           <>
-            <Tooltip content={help} position="top" anchorRef={copyRef} describeTrigger={false}>
+            <Tooltip content={help} position="top" describeTrigger={false}>
               <button
                 type="button"
                 className={styles.helpButton}
@@ -370,7 +369,7 @@ export function SettingsDialog({
               setConfirmingReset(false);
             }}
             actions={
-              <Button variant="primary" onClick={() => setOpen(false)}>
+              <Button size="compact" variant="primary" onClick={() => setOpen(false)}>
                 Done
               </Button>
             }

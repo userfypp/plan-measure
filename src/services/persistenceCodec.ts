@@ -517,7 +517,7 @@ function assertValidSessionV9(
     !isRecord(settings) ||
     !Number.isInteger(settings.measurementDecimalPlaces) ||
     (settings.measurementDecimalPlaces as number) < 0 ||
-    (settings.measurementDecimalPlaces as number) > 6
+    (settings.measurementDecimalPlaces as number) > 8
   ) {
     throw new Error("The saved measurement decimal places setting is invalid.");
   }
