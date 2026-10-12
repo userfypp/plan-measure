@@ -178,3 +178,44 @@ describe("Tooltip viewport placement", () => {
     );
   });
 });
+
+describe("Tooltip fit to text", () => {
+  function mockLines(widths: number[], paddingAndBorder = { padding: 10, border: 1 }) {
+    Range.prototype.getClientRects = () =>
+      widths.map((width) => rect(0, 0, width, 16)) as unknown as DOMRectList;
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      paddingLeft: `${paddingAndBorder.padding}px`,
+      paddingRight: `${paddingAndBorder.padding}px`,
+      borderLeftWidth: `${paddingAndBorder.border}px`,
+      borderRightWidth: `${paddingAndBorder.border}px`,
+    } as CSSStyleDeclaration);
+  }
+
+  it("includes padding and border of the border-box bubble in the fitted width", () => {
+    mockLines([60, 40]);
+    renderTooltip();
+    showTooltip();
+    // ceil(60 + 2 * 10 + 2 * 1) + 1 safety pixel
+    expect(tooltip().style.width).toBe("83px");
+  });
+
+  it("keeps the natural width when the fitted width is not narrower", () => {
+    mockLines([150]);
+    renderTooltip();
+    showTooltip();
+    expect(tooltip().style.width).toBe("");
+  });
+
+  it("undoes the fit when it would make the bubble taller", () => {
+    mockLines([60]);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.getAttribute("role") !== "tooltip") return triggerRect;
+      return rect(0, 0, tooltipSize.width, this.style.width ? 64 : 32);
+    });
+    renderTooltip();
+    showTooltip();
+    expect(tooltip().style.width).toBe("");
+  });
+});

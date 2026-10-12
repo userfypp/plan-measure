@@ -546,6 +546,18 @@ describe("SettingsDialog", () => {
     expect(toggle?.checked).toBe(false);
   });
 
+  it("gives the storage usage output its row name", () => {
+    renderSettings();
+    openSettings();
+    openTab("Advanced");
+    const output = Array.from(dialog().querySelectorAll<HTMLOutputElement>("output")).find(
+      (candidate) => candidate.className.includes("storageUsage"),
+    );
+    const labelId = output?.getAttribute("aria-labelledby");
+    expect(labelId).toBeTruthy();
+    expect(document.getElementById(labelId!)?.textContent).toBe("Storage used");
+  });
+
   it("omits decimal places when there is no current session", () => {
     renderSettings({ measurementDecimalPlaces: null });
     openSettings();

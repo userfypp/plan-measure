@@ -271,8 +271,8 @@ function StorageUsageRow() {
   }, []);
   return (
     <Row label="Storage used">
-      {({ controlId }) => (
-        <output id={controlId} className={styles.storageUsage}>
+      {({ controlId, labelId }) => (
+        <output id={controlId} aria-labelledby={labelId} className={styles.storageUsage}>
           {text}
         </output>
       )}
@@ -304,8 +304,9 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
     label: "Accessibility",
     icon: (
       <Icon>
-        <circle cx="10" cy="4.5" r="1.5" />
-        <path d="M4.5 7.5h11M10 7.5v4M7.5 16l2.5-4.5 2.5 4.5" />
+        <circle cx="10" cy="10" r="7.5" />
+        <circle cx="10" cy="6.4" r="0.9" />
+        <path d="M6 8.6c2.6.7 5.4.7 8 0M10 9.2v2.3m0 0-1.8 3.2m1.8-3.2 1.8 3.2" />
       </Icon>
     ),
   },

@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canvasLayout,
   clampPointToPage,
   clampViewerZoom,
+  effectiveRasterPixels,
   fitToScreen,
   initialViewTransform,
   isPointInPage,
@@ -226,5 +227,20 @@ describe("initialViewTransform", () => {
     const view = initialViewTransform("actual", { width: 400, height: 300 }, viewer, 24, 0, 16);
     expect(view).toEqual({ zoom: 1, panX: 200, panY: 150 });
     expect(initialViewTransform("actual", page, viewer, 24, 2, 16).zoom).toBe(2);
+  });
+});
+
+describe("effectiveRasterPixels", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("clamps to 16 Mpx on touch WebKit only", () => {
+    const sharp = PDF_RASTER_QUALITY_LIMITS.sharp.maxPixels;
+    vi.stubGlobal("navigator", { maxTouchPoints: 5, userAgent: "Mozilla (Macintosh) Safari" });
+    expect(effectiveRasterPixels(sharp)).toBe(MAX_PDF_RASTER_PIXELS);
+    expect(effectiveRasterPixels(8 * 1024 * 1024)).toBe(8 * 1024 * 1024);
+    vi.stubGlobal("navigator", { maxTouchPoints: 0, userAgent: "Macintosh" });
+    expect(effectiveRasterPixels(sharp)).toBe(sharp);
+    vi.stubGlobal("navigator", undefined);
+    expect(effectiveRasterPixels(sharp)).toBe(sharp);
   });
 });

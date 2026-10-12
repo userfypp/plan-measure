@@ -148,7 +148,8 @@ export function AppBar({
             icon={<UndoIcon />}
             aria-label="Undo"
             aria-keyshortcuts="Control+Z Meta+Z"
-            title="Undo (Ctrl+Z / ⌘Z)"
+            tooltip="Undo (Ctrl+Z / ⌘Z)"
+            tooltipPosition="bottom"
             disabled={!canUndo}
             onClick={onUndo}
           />
@@ -157,7 +158,8 @@ export function AppBar({
             icon={<RedoIcon />}
             aria-label="Redo"
             aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
-            title="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
+            tooltip="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
+            tooltipPosition="bottom"
             disabled={!canRedo}
             onClick={onRedo}
           />

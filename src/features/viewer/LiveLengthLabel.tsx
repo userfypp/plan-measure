@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Label, Tag, Text } from "react-konva";
 import type {
   LogicalPageBounds,
@@ -50,22 +51,27 @@ export function LiveLengthLabel({
 }: LiveLengthLabelProps) {
   useNumberFormatKey(); // re-render when separators change
   const { labelSize, labelBackground } = useAppPreferences();
-  if (!bounds || !calibration || (from.x === to.x && from.y === to.y)) return null;
-  const metrics = CANVAS_VISUAL_METRICS;
-  const text = formatMeasurement(
-    { type: "line", points: [from, to] },
-    calibration,
-    displayUnit,
-    decimalPlaces,
-  );
+  const hidden = !bounds || !calibration || (from.x === to.x && from.y === to.y);
+  const text = hidden
+    ? ""
+    : formatMeasurement(
+        { type: "line", points: [from, to] },
+        calibration,
+        displayUnit,
+        decimalPlaces,
+      );
   const fontSize = MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * LABEL_SIZE_SCALE[labelSize];
+  // Measuring creates a Konva Text node: only redo it when text, size or zoom change.
+  const dimensions = useMemo(() => measureLabelText(text, fontSize, zoom), [text, fontSize, zoom]);
+  if (hidden) return null;
+  const metrics = CANVAS_VISUAL_METRICS;
   const backgroundOpacity = LABEL_BACKGROUND_OPACITY[labelBackground];
   const points = [from, to];
   const placement = placeMeasurementLabel(
     "line",
     points,
     averagePoint(points),
-    measureLabelText(text, fontSize, zoom),
+    dimensions,
     bounds,
     zoom,
     EMPTY_LABEL_INDEX,

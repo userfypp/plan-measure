@@ -160,6 +160,7 @@ function DrawingAidButton({
       aria-label={label}
       aria-keyshortcuts={shortcut ?? undefined}
       tooltip={shortcut ? `${label} (${shortcut})` : label}
+      tooltipPosition="bottom"
       pressed={pressed}
       onClick={onClick}
     />
@@ -554,6 +555,7 @@ export function ContextToolbar({
           icon={<DiscardPointsIcon />}
           aria-label="Discard points"
           tooltip="Discard points"
+          tooltipPosition="bottom"
           tone="danger"
           disabled={!pathDraft}
           disabledReason="No points placed yet."
@@ -588,6 +590,7 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           aria-label="Add items"
           tooltip="Add items"
+          tooltipPosition="bottom"
           icon={<AddItemsIcon />}
           disabled={Boolean(addCountItemsDisabledReason)}
           disabledReason={addCountItemsDisabledReason}
@@ -598,6 +601,7 @@ export function ContextToolbar({
         className={styles.selectionIconButton}
         aria-label="Duplicate"
         tooltip="Duplicate"
+        tooltipPosition="bottom"
         icon={<DuplicateIcon />}
         disabled={duplicateDisabled}
         onClick={onDuplicateSelectedMeasurement}
@@ -607,6 +611,7 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           aria-label="Details"
           tooltip="Details"
+          tooltipPosition="bottom"
           icon={<DetailsIcon />}
           onClick={onOpenMeasurementDetails}
         />
@@ -626,6 +631,7 @@ export function ContextToolbar({
         tone="danger"
         aria-label="Delete"
         tooltip="Delete"
+        tooltipPosition="bottom"
         icon={<DeleteIcon />}
         onClick={onDeleteSelectedMeasurement}
       />
@@ -636,6 +642,7 @@ export function ContextToolbar({
             allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"
           }
           tooltip={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
+          tooltipPosition="bottom"
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
               <path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z" />
@@ -656,6 +663,7 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           aria-label="Clear measurement selection"
           tooltip="Clear selection"
+          tooltipPosition="bottom"
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
               <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />

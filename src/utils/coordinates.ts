@@ -36,6 +36,14 @@ export const PDF_RASTER_QUALITY_LIMITS = {
   fast: { maxPixels: 8 * 1024 * 1024, maxDimension: 4096, maxDpr: 1.5 },
 } as const;
 
+/** iOS/iPadOS WebKit caps canvas area near 16.7 Mpx; clamp the raster budget there. */
+export function effectiveRasterPixels(maxPixels: number): number {
+  if (typeof navigator === "undefined") return maxPixels;
+  const touchWebKit =
+    navigator.maxTouchPoints > 1 && /iPad|iPhone|Macintosh/.test(navigator.userAgent ?? "");
+  return touchWebKit ? Math.min(maxPixels, MAX_PDF_RASTER_PIXELS) : maxPixels;
+}
+
 export function logicalPageBoundsFromViewport(viewport: {
   width: number;
   height: number;

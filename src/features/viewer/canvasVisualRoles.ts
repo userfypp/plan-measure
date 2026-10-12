@@ -63,7 +63,6 @@ const DARK_CANVAS_VISUAL_ROLES: CanvasVisualRoles = Object.freeze({
 export const CANVAS_VISUAL_METRICS = Object.freeze({
   measurementStrokeScreenPx: 1.5,
   measurementSelectedStrokeScreenPx: 2,
-  measurementHitStrokeScreenPx: 12,
   draftStrokeScreenPx: 2,
   draftPreviewStrokeScreenPx: 1.6,
   calibrationStrokeScreenPx: 1.5,

@@ -51,6 +51,7 @@ import {
   logicalPageBoundsFromViewport,
   normalizeRotation,
   PDF_RASTER_QUALITY_LIMITS,
+  effectiveRasterPixels,
   pdfRasterLayout,
   pageToScreen,
   screenToPage,
@@ -799,7 +800,7 @@ export function PdfViewer({
       loadedPage.bounds,
       { zoom: viewTransform.zoom, panX: 0, panY: 0 },
       Math.min(devicePixelRatio, quality.maxDpr),
-      quality.maxPixels,
+      effectiveRasterPixels(quality.maxPixels),
       quality.maxDimension,
     );
     const cacheKey = [

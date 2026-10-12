@@ -287,6 +287,7 @@ export function MeasurementDetails({
                       className={styles.itemRemove}
                       aria-label={`Remove item ${index + 1}`}
                       tooltip={`Remove item ${index + 1}`}
+                      tooltipPosition="left"
                       tone="danger"
                       disabled={assignmentDisabled}
                       data-count-item-index={index}

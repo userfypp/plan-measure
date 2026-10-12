@@ -78,9 +78,18 @@ export function Tooltip({
       if (lines.length === 0) return;
       const textWidth = Math.max(...lines.map((line) => line.width));
       const style = window.getComputedStyle(node);
-      const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-      const fitted = Math.ceil(textWidth + padding);
-      if (fitted < node.getBoundingClientRect().width) node.style.width = `${fitted}px`;
+      // The bubble is border-box: its border counts too, or the last word wraps onto a new line.
+      const chrome =
+        parseFloat(style.paddingLeft) +
+        parseFloat(style.paddingRight) +
+        parseFloat(style.borderLeftWidth) +
+        parseFloat(style.borderRightWidth);
+      const fitted = Math.ceil(textWidth + chrome) + 1;
+      const natural = node.getBoundingClientRect();
+      if (!(fitted < natural.width)) return;
+      node.style.width = `${fitted}px`;
+      // Never trade a balanced bubble for a taller one: undo the fit if the text re-wraps.
+      if (node.getBoundingClientRect().height > natural.height + 0.5) node.style.width = "";
     }
 
     function updateAnchor() {

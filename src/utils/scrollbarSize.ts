@@ -15,3 +15,29 @@ export function publishScrollbarSize(doc: Document = document): number {
   doc.documentElement.style.setProperty("--scrollbar-size", `${size}px`);
   return size;
 }
+
+/**
+ * Publica el tamaño inicial y lo vuelve a medir en `resize` (debounce) y al cambiar el tipo de
+ * puntero (`(pointer: fine)`). Devuelve la función de limpieza.
+ */
+export function watchScrollbarSize(
+  win: Window | undefined = globalThis.window,
+  delayMs = 150,
+): () => void {
+  if (!win) return () => {};
+  const doc = win.document;
+  publishScrollbarSize(doc);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => publishScrollbarSize(doc), delayMs);
+  };
+  win.addEventListener("resize", schedule);
+  const media = typeof win.matchMedia === "function" ? win.matchMedia("(pointer: fine)") : null;
+  media?.addEventListener?.("change", schedule);
+  return () => {
+    clearTimeout(timer);
+    win.removeEventListener("resize", schedule);
+    media?.removeEventListener?.("change", schedule);
+  };
+}

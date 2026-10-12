@@ -1,5 +1,5 @@
 import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Tooltip } from "./Tooltip";
+import { Tooltip, type TooltipPosition } from "./Tooltip";
 import styles from "./IconButton.module.css";
 
 export interface IconButtonProps extends Omit<
@@ -9,6 +9,7 @@ export interface IconButtonProps extends Omit<
   icon: ReactNode;
   "aria-label": string;
   tooltip?: ReactNode;
+  tooltipPosition?: TooltipPosition;
   pressed?: boolean;
   tone?: "neutral" | "danger";
   disabledReason?: string;
@@ -17,6 +18,7 @@ export interface IconButtonProps extends Omit<
 export function IconButton({
   icon,
   tooltip,
+  tooltipPosition,
   pressed,
   tone = "neutral",
   disabled = false,
@@ -63,7 +65,12 @@ export function IconButton({
   if (contextualDisabled) {
     return (
       <span className={styles.disabledReasonOwner}>
-        <Tooltip content={tooltipContent!} delay={0} describeTrigger={false}>
+        <Tooltip
+          content={tooltipContent!}
+          position={tooltipPosition}
+          delay={0}
+          describeTrigger={false}
+        >
           {button}
         </Tooltip>
         <span id={reasonId} hidden>
@@ -72,5 +79,11 @@ export function IconButton({
       </span>
     );
   }
-  return tooltipContent ? <Tooltip content={tooltipContent}>{button}</Tooltip> : button;
+  return tooltipContent ? (
+    <Tooltip content={tooltipContent} position={tooltipPosition}>
+      {button}
+    </Tooltip>
+  ) : (
+    button
+  );
 }
