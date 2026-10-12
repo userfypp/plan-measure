@@ -54,7 +54,15 @@ function page(measurements: Measurement[]): PageState {
     activeCalibrationId: "scale",
     nextCalibrationNumber: 2,
     measurements,
-    nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 2,
+      polyline: 1,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -90,7 +98,11 @@ function session(pages: Record<number, PageState>, withCatalog = true): CurrentS
   } as CurrentSession;
 }
 
-function renderPanel(currentSession: CurrentSession, activePage: PageState, onSelectMeasurement = () => undefined) {
+function renderPanel(
+  currentSession: CurrentSession,
+  activePage: PageState,
+  onSelectMeasurement = () => undefined,
+) {
   state.session = currentSession;
   container = document.createElement("div");
   document.body.append(container);
@@ -127,36 +139,91 @@ afterEach(() => {
 
 describe("MeasurementPanel and TakeoffWorkspace", () => {
   it("filters Count markers independently of paths", () => {
-    const activePage = page([measurement(), { id: "count-1", type: "count", name: "Socket", points: [{ x: 1, y: 2 }], calibrationId: null, classificationValueIds: [], visible: true }]);
+    const activePage = page([
+      measurement(),
+      {
+        id: "count-1",
+        type: "count",
+        name: "Socket",
+        points: [{ x: 1, y: 2 }],
+        calibrationId: null,
+        classificationValueIds: [],
+        visible: true,
+      },
+    ]);
     renderPanel(session({ 1: activePage }), activePage);
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
-    chooseSelectOption(document.querySelector<HTMLButtonElement>('button[aria-label="Type"]')!, "Count");
-    expect(container!.querySelector('[data-measurement-id="count-1"][data-measurement-control="selection"]')).not.toBeNull();
-    expect(container!.querySelector('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toBeNull();
+    chooseSelectOption(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Type"]')!,
+      "Count",
+    );
+    expect(
+      container!.querySelector(
+        '[data-measurement-id="count-1"][data-measurement-control="selection"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      container!.querySelector(
+        '[data-measurement-id="line-1"][data-measurement-control="selection"]',
+      ),
+    ).toBeNull();
   });
 
   it("ignores deleted filters and grouping dimensions, and restores them after undo", () => {
     const activePage = page([measurement({ classificationValueIds: ["electrical"] })]);
     const currentSession = session({ 1: activePage });
     renderPanel(currentSession, activePage);
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click());
-    chooseSelectOption(document.querySelector<HTMLButtonElement>('[aria-label="Measurement grouping"] button[aria-label="Group by"]')!, "Trade");
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Group by Trade"]')!.click());
+    act(() =>
+      container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click(),
+    );
+    chooseSelectOption(
+      document.querySelector<HTMLButtonElement>(
+        '[aria-label="Measurement grouping"] button[aria-label="Group by"]',
+      )!,
+      "Trade",
+    );
+    act(() =>
+      container!.querySelector<HTMLButtonElement>('[aria-label="Group by Trade"]')!.click(),
+    );
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
-    chooseSelectOption(document.querySelector<HTMLButtonElement>('[aria-label="Measurement filters"] button[aria-label="Classification"]')!, "Trade: Electrical");
+    chooseSelectOption(
+      document.querySelector<HTMLButtonElement>(
+        '[aria-label="Measurement filters"] button[aria-label="Classification"]',
+      )!,
+      "Trade: Electrical",
+    );
     const rerender = (next: CurrentSession) => {
       state.session = next;
-      act(() => root!.render(<MeasurementPanel page={next.pages[1]!} pages={next.pages}
-        pageLabelOverrides={next.pageLabelOverrides} sourcePageLabels={null} selectedMeasurementId={null}
-        onSelectMeasurement={() => undefined} onSetMeasurementVisibility={() => undefined} onSetMeasurementsVisibility={() => undefined} />));
+      act(() =>
+        root!.render(
+          <MeasurementPanel
+            page={next.pages[1]!}
+            pages={next.pages}
+            pageLabelOverrides={next.pageLabelOverrides}
+            sourcePageLabels={null}
+            selectedMeasurementId={null}
+            onSelectMeasurement={() => undefined}
+            onSetMeasurementVisibility={() => undefined}
+            onSetMeasurementsVisibility={() => undefined}
+          />,
+        ),
+      );
     };
-    const deleted = { ...currentSession, classificationCatalog: { dimensions: [] }, pages: {
-      1: page([measurement()]),
-    } };
+    const deleted = {
+      ...currentSession,
+      classificationCatalog: { dimensions: [] },
+      pages: {
+        1: page([measurement()]),
+      },
+    };
     rerender(deleted);
     expect(container!.querySelector('[aria-label="Filters"]')).not.toBeNull();
     expect(container!.textContent).not.toContain("Unknown classification");
-    expect(container!.querySelector('[data-measurement-id="line-1"][data-measurement-control="selection"]')).not.toBeNull();
+    expect(
+      container!.querySelector(
+        '[data-measurement-id="line-1"][data-measurement-control="selection"]',
+      ),
+    ).not.toBeNull();
     rerender(currentSession);
     expect(container!.querySelector('[aria-label="Filters, 1 active"]')).not.toBeNull();
     expect(container!.querySelector('[aria-label="Group by Trade"]')).not.toBeNull();
@@ -164,16 +231,47 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
 
   it("uses an available Takeoff dimension after the selected dimension is deleted", () => {
     const currentSession = session({ 1: page([measurement()]) });
-    currentSession.classificationCatalog.dimensions.push({ id: "status", name: "Status", archived: false, values: [] });
-    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
-    const render = () => act(() => root!.render(<TakeoffWorkspace pages={currentSession.pages} catalog={currentSession.classificationCatalog}
-      displayUnit="m" decimalPlaces={2} areaDisplay="auto" pageLabelOverrides={{}} sourcePageLabels={null} />));
+    currentSession.classificationCatalog.dimensions.push({
+      id: "status",
+      name: "Status",
+      archived: false,
+      values: [],
+    });
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const render = () =>
+      act(() =>
+        root!.render(
+          <TakeoffWorkspace
+            pages={currentSession.pages}
+            catalog={currentSession.classificationCatalog}
+            displayUnit="m"
+            decimalPlaces={2}
+            areaDisplay="auto"
+            pageLabelOverrides={{}}
+            sourcePageLabels={null}
+          />,
+        ),
+      );
     render();
-    chooseSelectOption(container.querySelector<HTMLButtonElement>('#takeoff-breakdown')!, "Classification");
-    chooseSelectOption(container.querySelector<HTMLButtonElement>('[aria-label="Dimension"]')!, "Status");
-    currentSession.classificationCatalog = { dimensions: currentSession.classificationCatalog.dimensions.filter((item) => item.id !== "status") };
+    chooseSelectOption(
+      container.querySelector<HTMLButtonElement>("#takeoff-breakdown")!,
+      "Classification",
+    );
+    chooseSelectOption(
+      container.querySelector<HTMLButtonElement>('[aria-label="Dimension"]')!,
+      "Status",
+    );
+    currentSession.classificationCatalog = {
+      dimensions: currentSession.classificationCatalog.dimensions.filter(
+        (item) => item.id !== "status",
+      ),
+    };
     render();
-    expect(container.querySelector<HTMLButtonElement>('[aria-label="Dimension"]')!.textContent).toBe("Trade");
+    expect(
+      container.querySelector<HTMLButtonElement>('[aria-label="Dimension"]')!.textContent,
+    ).toBe("Trade");
     currentSession.classificationCatalog = { dimensions: [] };
     render();
     expect(container.textContent).toContain("No classification dimensions.");
@@ -193,16 +291,22 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     });
     renderPanel(currentSession, activePage);
 
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click());
+    act(() =>
+      container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click(),
+    );
 
-    const GROUPING_TRIGGERS = '[role="dialog"][aria-label="Measurement grouping"] button[aria-haspopup="menu"]';
+    const GROUPING_TRIGGERS =
+      '[role="dialog"][aria-label="Measurement grouping"] button[aria-haspopup="menu"]';
     const OPTION_LABELS: Record<string, string> = { trade: "Trade", status: "Status", "": "None" };
     function choose(index: number, value: string) {
       const select = document.querySelectorAll<HTMLButtonElement>(GROUPING_TRIGGERS)[index]!;
       chooseSelectOption(select, OPTION_LABELS[value]!);
     }
     function groupingValues() {
-      return Array.from(document.querySelectorAll<HTMLButtonElement>(GROUPING_TRIGGERS), (select) => select.textContent);
+      return Array.from(
+        document.querySelectorAll<HTMLButtonElement>(GROUPING_TRIGGERS),
+        (select) => select.textContent,
+      );
     }
 
     choose(0, "trade");
@@ -215,21 +319,37 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     // Icon-only trigger: the levels live in its accessible name (and tooltip), not in its text.
     expect(groupingButton!.textContent).toBe("");
     expect(groupingButton!.hasAttribute("title")).toBe(false);
-    const electrical = container!.querySelector('[aria-label="Trade · Electrical measurement group"]');
-    expect(electrical?.querySelector('[aria-label="Status · Approved measurement group"]')).not.toBeNull();
-    expect(container!.querySelectorAll('[data-measurement-id="line-1"][data-measurement-control="selection"]')).toHaveLength(1);
+    const electrical = container!.querySelector(
+      '[aria-label="Trade · Electrical measurement group"]',
+    );
+    expect(
+      electrical?.querySelector('[aria-label="Status · Approved measurement group"]'),
+    ).not.toBeNull();
+    expect(
+      container!.querySelectorAll(
+        '[data-measurement-id="line-1"][data-measurement-control="selection"]',
+      ),
+    ).toHaveLength(1);
 
     choose(0, "status");
     expect(groupingValues()).toEqual(["Status", "Trade"]);
     const approved = container!.querySelector('[aria-label="Status · Approved measurement group"]');
-    expect(approved?.querySelector('[aria-label="Trade · Electrical measurement group"]')).not.toBeNull();
+    expect(
+      approved?.querySelector('[aria-label="Trade · Electrical measurement group"]'),
+    ).not.toBeNull();
 
     choose(1, "");
     expect(groupingValues()).toEqual(["Status", "None"]);
 
-    act(() => document.querySelector<HTMLButtonElement>('[aria-label="Clear all grouping"]')!.click());
+    act(() =>
+      [...document.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent === "Clear grouping")!
+        .click(),
+    );
     expect(groupingValues()).toEqual(["None"]);
-    expect(container!.querySelector('[aria-label="Measurements grouped by classification"]')).toBeNull();
+    expect(
+      container!.querySelector('[aria-label="Measurements grouped by classification"]'),
+    ).toBeNull();
     expect(container!.querySelector('[aria-label="Select measurement Hallway"]')).not.toBeNull();
   });
 
@@ -257,7 +377,9 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       '[aria-label="Group measurements"]',
     )!;
     act(() => filtersButton.click());
-    expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).not.toBeNull();
+    expect(
+      document.querySelector('[role="dialog"][aria-label="Measurement filters"]'),
+    ).not.toBeNull();
 
     chooseSelectOption(
       document.querySelector<HTMLButtonElement>(
@@ -271,7 +393,9 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       groupButton.click();
     });
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
-    const groupingDialog = document.querySelector('[role="dialog"][aria-label="Measurement grouping"]');
+    const groupingDialog = document.querySelector(
+      '[role="dialog"][aria-label="Measurement grouping"]',
+    );
     expect(groupingDialog).not.toBeNull();
     expect(groupingDialog?.querySelector("[data-viewer-shortcuts]")).toBeNull();
 
@@ -311,23 +435,21 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     ).at(-1)!;
     act(() => lastFilterControl.focus());
     act(() => groupingButton.focus());
-    expect(
-      document.querySelector('[role="dialog"][aria-label="Measurement filters"]'),
-    ).toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).toBeNull();
 
     act(() => groupingButton.click());
     const groupingDialog = document.querySelector<HTMLElement>(
       '[role="dialog"][aria-label="Measurement grouping"]',
     )!;
-    const lastGroupingControl = groupingDialog.querySelector<HTMLButtonElement>('button[aria-label="Group by"]')!;
+    const lastGroupingControl = groupingDialog.querySelector<HTMLButtonElement>(
+      'button[aria-label="Group by"]',
+    )!;
     const measurementButton = container!.querySelector<HTMLButtonElement>(
       '[aria-label="Select measurement Hallway"]',
     )!;
     act(() => lastGroupingControl.focus());
     act(() => measurementButton.focus());
-    expect(
-      document.querySelector('[role="dialog"][aria-label="Measurement grouping"]'),
-    ).toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="Measurement grouping"]')).toBeNull();
   });
 
   it("filters measurements across pages and selects the result on its source page", () => {
@@ -349,7 +471,10 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
 
     const search = container!.querySelector<HTMLInputElement>('input[type="search"]')!;
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(search, "kitchen");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        search,
+        "kitchen",
+      );
       search.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
@@ -357,8 +482,12 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
 
     function chooseFilter(labelText: string, optionLabel: string) {
-      const filterDialog = document.querySelector('[role="dialog"][aria-label="Measurement filters"]');
-      const select = filterDialog?.querySelector<HTMLButtonElement>(`button[aria-label="${labelText}"]`);
+      const filterDialog = document.querySelector(
+        '[role="dialog"][aria-label="Measurement filters"]',
+      );
+      const select = filterDialog?.querySelector<HTMLButtonElement>(
+        `button[aria-label="${labelText}"]`,
+      );
       if (!select) throw new Error(`${labelText} filter was not rendered.`);
       chooseSelectOption(select, optionLabel);
     }
@@ -374,25 +503,31 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     chooseFilter("Visibility", "Hidden");
     chooseFilter("Classification", "Trade: Electrical");
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
-    expect(container!.querySelector<HTMLButtonElement>('[aria-label^="Filters,"]')?.getAttribute("aria-label")).toBe(
-      "Filters, 3 active",
-    );
+    expect(
+      container!
+        .querySelector<HTMLButtonElement>('[aria-label^="Filters,"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Filters, 3 active");
     expect(container!.querySelector('[aria-label^="Filters,"]')?.textContent).toContain("3");
 
-    const clearFiltersButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent?.trim() === "Clear filters",
-    );
+    const clearFiltersButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent?.trim() === "Clear filters");
     if (!clearFiltersButton) throw new Error("Clear filters button was not rendered.");
     act(() => clearFiltersButton.click());
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
     expect(
-      Array.from(container!.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
-        button.getAttribute("aria-label")?.startsWith("Filters"),
-      )?.getAttribute("aria-label"),
+      Array.from(container!.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.getAttribute("aria-label")?.startsWith("Filters"))
+        ?.getAttribute("aria-label"),
     ).toBe("Filters");
     expect(search.value).toBe("kitchen");
 
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Select measurement Kitchen"]')!.click());
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>('[aria-label="Select measurement Kitchen"]')!
+        .click(),
+    );
     expect(onSelectMeasurement).toHaveBeenCalledWith(2, "line-2", false);
   });
 
@@ -435,12 +570,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     expect(breakdown.textContent).toBe("None");
     expect(breakdown.dataset.viewerShortcuts).toBe("enabled");
     expect(container?.querySelector('[aria-label^="Breakdown by"]')).toBeNull();
-    expect(selectOptionLabels(breakdown)).toEqual([
-      "None",
-      "Page",
-      "Type",
-      "Classification",
-    ]);
+    expect(selectOptionLabels(breakdown)).toEqual(["None", "Page", "Type", "Classification"]);
     chooseSelectOption(breakdown, "Page");
     expect(container?.textContent).toContain("Project totals");
     expect(container?.querySelector('[aria-label="Breakdown by page"]')).not.toBeNull();
@@ -452,9 +582,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     expect(lineGroup?.textContent).not.toContain("Perimeter");
     expect(lineGroup?.textContent).not.toContain("Area");
     chooseSelectOption(breakdown, "Classification");
-    const dimension = container?.querySelector<HTMLButtonElement>(
-      'button[aria-label="Dimension"]',
-    );
+    const dimension = container?.querySelector<HTMLButtonElement>('button[aria-label="Dimension"]');
     expect(dimension).not.toBeNull();
     expect(dimension?.dataset.viewerShortcuts).toBe("enabled");
     chooseSelectOption(breakdown, "None");

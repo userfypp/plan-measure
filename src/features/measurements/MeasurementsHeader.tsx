@@ -64,7 +64,6 @@ export function MeasurementsHeader({
           <Button
             variant="ghost"
             size="compact"
-            aria-label="Clear all grouping"
             onClick={() => onGroupByDimensionsChange([])}
           >
             Clear grouping
