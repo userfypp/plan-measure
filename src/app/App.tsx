@@ -11,8 +11,6 @@ import { SaveStatusIndicator } from "./SaveStatusIndicator";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { WorkspacePanel } from "./WorkspacePanel";
 import { ContextToolbar } from "./ContextToolbar";
-import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
-import { CalibrationDialog } from "../features/calibration/CalibrationDialog";
 import { ToolRail } from "./ToolRail";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { usePdfPageLabels } from "./usePdfPageLabels";
@@ -85,6 +83,18 @@ const loadTakeoff = retryableImport(() => import("../features/measurements/Takeo
 const TakeoffWorkspace = recoverableLazy(() =>
   loadTakeoff().then((module) => ({ default: module.TakeoffWorkspace })),
   "takeoff",
+);
+
+const loadProjectLibrary = retryableImport(() => import("./ProjectLibraryDialog"));
+const ProjectLibraryDialog = recoverableLazy(() =>
+  loadProjectLibrary().then((module) => ({ default: module.ProjectLibraryDialog })),
+  "project library",
+);
+
+const loadCalibrationDialog = retryableImport(() => import("../features/calibration/CalibrationDialog"));
+const CalibrationDialog = recoverableLazy(() =>
+  loadCalibrationDialog().then((module) => ({ default: module.CalibrationDialog })),
+  "scale dialog",
 );
 
 const loadExportDialog = retryableImport(() => import("../features/export/ExportDialog"));
@@ -759,6 +769,7 @@ function PlanMeasureApp() {
   }
   const calibrationDialog =
     calibrationCandidate && session && calibrationCandidatePage ? (
+      <Suspense fallback={null}>
       <CalibrationDialog
         initialName={
           calibrationCandidate.name ??
@@ -824,6 +835,7 @@ function PlanMeasureApp() {
           focusViewer();
         }}
       />
+      </Suspense>
     ) : null;
 
   return (
@@ -1305,11 +1317,10 @@ function PlanMeasureApp() {
         onConfirmationConfirm={handleOverlayConfirmationConfirm}
       />
 
+      {(projectLibraryOpen || (Boolean(recovery && !session) && !dismissInitialProjectLibrary)) && (
+      <Suspense fallback={null}>
       <ProjectLibraryDialog
-        open={
-          projectLibraryOpen ||
-          (Boolean(recovery && !session) && !dismissInitialProjectLibrary)
-        }
+        open
         projects={savedProjects}
         currentSessionLoaded={Boolean(session && activePdf)}
         activeProjectId={activeProjectId}
@@ -1345,6 +1356,8 @@ function PlanMeasureApp() {
           if (recovery && !session) setDismissInitialProjectLibrary(true);
         }}
       />
+      </Suspense>
+      )}
 
       {exportDialogOpen && session && ExportDialog && (
           <ExportDialog

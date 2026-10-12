@@ -126,6 +126,14 @@ afterEach(() => {
   container = null;
 });
 
+/** Settings loads lazily, so wait for the module before asserting on the dialog. */
+async function clickAndLoad(button: HTMLElement) {
+  await import("./SettingsDialog");
+  await act(async () => {
+    button.click();
+  });
+}
+
 describe("AppBar", () => {
   it("owns document/global actions without reintroducing Viewer Dock responsibilities", () => {
     const callbacks = renderAppBar({ savedProjectCount: 2 });
@@ -152,14 +160,7 @@ describe("AppBar", () => {
           "header button, header a",
         ),
       ).map((action) => action.getAttribute("aria-label") || action.textContent?.trim()),
-    ).toEqual([
-      "Undo",
-      "Redo",
-      "Export",
-      "Projects, 2 saved",
-      "Feedback",
-      "Settings",
-    ]);
+    ).toEqual(["Undo", "Redo", "Export", "Projects, 2 saved", "Feedback", "Settings"]);
   });
 
   it("uses the primary variant for Export", () => {
@@ -177,14 +178,12 @@ describe("AppBar", () => {
     renderAppBar();
     const toolbar = container?.querySelector<HTMLElement>('[role="toolbar"]');
     if (!toolbar) throw new Error("Application actions toolbar was not rendered.");
-    const actions = Array.from(
-      toolbar.querySelectorAll<HTMLElement>("button, a[href]"),
-    );
+    const actions = Array.from(toolbar.querySelectorAll<HTMLElement>("button, a[href]"));
 
     expect(toolbar.getAttribute("aria-label")).toBe("Application actions");
-    expect(actions.map((action) => action.getAttribute("aria-label") || action.textContent)).toEqual(
-      ["Undo", "Redo", "Export", "Projects", "Feedback", "Settings"],
-    );
+    expect(
+      actions.map((action) => action.getAttribute("aria-label") || action.textContent),
+    ).toEqual(["Undo", "Redo", "Export", "Projects", "Feedback", "Settings"]);
     expect(actions.map((action) => action.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
 
     act(() => actions[0]?.focus());
@@ -199,9 +198,9 @@ describe("AppBar", () => {
     expect(actions.filter((action) => action.tabIndex === 0)).toEqual([actions[0]]);
   });
 
-  it("does not route portal Home/End keys back through the AppBar toolbar", () => {
+  it("does not route portal Home/End keys back through the AppBar toolbar", async () => {
     renderAppBar();
-    act(() => buttonByLabel("Settings").click());
+    await clickAndLoad(buttonByLabel("Settings"));
     const done = Array.from(document.querySelectorAll("dialog button")).find(
       (button) => button.textContent === "Done",
     ) as HTMLButtonElement;
@@ -215,13 +214,13 @@ describe("AppBar", () => {
     expect(document.activeElement).toBe(focusedSetting);
   });
 
-  it("opens Settings as a modal dialog with side navigation", () => {
+  it("opens Settings as a modal dialog with side navigation", async () => {
     renderAppBar();
     const settings = buttonByLabel("Settings");
     expect(settings.getAttribute("aria-haspopup")).toBe("dialog");
     expect(settings.getAttribute("aria-expanded")).toBe("false");
 
-    act(() => settings.click());
+    await clickAndLoad(settings);
 
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
     expect(dialog).not.toBeNull();

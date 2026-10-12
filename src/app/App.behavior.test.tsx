@@ -157,6 +157,11 @@ describe("App open, calibrate and measure flow", () => {
     await menuItem("Uniform");
     await clickPage(100, 100);
     await clickPage(300, 100);
+    // El diálogo se carga con import() perezoso.
+    await vi.waitFor(async () => {
+      await act(async () => undefined);
+      expect(document.querySelector("dialog")).not.toBeNull();
+    });
     const dialog = document.querySelector("dialog")!;
     expect(dialog.textContent).toContain("Enter the real-world distance");
     chooseSelectOption(dialog.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!, "Metres");

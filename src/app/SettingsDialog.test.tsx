@@ -5,7 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
-import { SettingsDialog, type ProjectViewSettings } from "./SettingsDialog";
+import { SettingsButton } from "./SettingsButton";
+import type { ProjectViewSettings } from "./SettingsDialog";
 import {
   APP_PREFERENCES_STORAGE_KEY,
   reloadAppPreferencesFromStorage,
@@ -71,7 +72,7 @@ function renderSettings({
   act(() => {
     root!.render(
       <ThemeProvider>
-        <SettingsDialog
+        <SettingsButton
           trigger={<span>gear</span>}
           measurementDecimalPlaces={measurementDecimalPlaces}
           viewSettings={viewSettings}
@@ -107,8 +108,11 @@ function trigger(): HTMLButtonElement {
   return element;
 }
 
-function openSettings() {
-  act(() => trigger().click());
+async function openSettings() {
+  await import("./SettingsDialog");
+  await act(async () => {
+    trigger().click();
+  });
 }
 
 function dialog(): HTMLElement {
@@ -207,9 +211,9 @@ afterEach(() => {
 });
 
 describe("SettingsDialog", () => {
-  it("renders a labelled dialog with a vertical tablist of eight sections", () => {
+  it("renders a labelled dialog with a vertical tablist of eight sections", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
 
     const settingsDialog = dialog();
     const heading = settingsDialog.querySelector("h2");
@@ -249,9 +253,9 @@ describe("SettingsDialog", () => {
     expect(settingsDialog.querySelector('[role="menu"]')).toBeNull();
   });
 
-  it("switches sections by click and by arrow keys with a roving tabindex", () => {
+  it("switches sections by click and by arrow keys with a roving tabindex", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
 
     openTab("Drawing");
     expect(tab("Drawing").getAttribute("aria-selected")).toBe("true");
@@ -293,9 +297,9 @@ describe("SettingsDialog", () => {
     expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
   });
 
-  it("lists every shortcut in a read-only Shortcuts section", () => {
+  it("lists every shortcut in a read-only Shortcuts section", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Shortcuts");
 
     const panel = dialog().querySelector('[role="tabpanel"]');
@@ -310,9 +314,9 @@ describe("SettingsDialog", () => {
     );
   });
 
-  it("toggles larger touch targets on <html> from the Accessibility section", () => {
+  it("toggles larger touch targets on <html> from the Accessibility section", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Accessibility");
 
     act(() => switchControl("Larger touch targets")?.click());
@@ -321,7 +325,7 @@ describe("SettingsDialog", () => {
     expect(document.documentElement.dataset.targets).toBeUndefined();
   });
 
-  it("shows project view settings under View and writes them back", () => {
+  it("shows project view settings under View and writes them back", async () => {
     const { onViewSettingsChange } = renderSettings({
       viewSettings: {
         displayUnit: "m",
@@ -332,7 +336,7 @@ describe("SettingsDialog", () => {
         labelClassificationDimensionId: null,
       },
     });
-    openSettings();
+    await openSettings();
     openTab("View");
 
     expect(selectByLabel("Display unit").textContent).toBe("Metres");
@@ -359,12 +363,12 @@ describe("SettingsDialog", () => {
       { id: "old", name: "Old phase", archived: true, values: [] },
     ];
 
-    it("lists active dimensions and writes the choice back", () => {
+    it("lists active dimensions and writes the choice back", async () => {
       const { onViewSettingsChange } = renderSettings({
         viewSettings,
         classificationDimensions: dimensions,
       });
-      openSettings();
+      await openSettings();
       openTab("View");
 
       expect(selectByLabel("Label classification").textContent).toBe("None");
@@ -375,12 +379,12 @@ describe("SettingsDialog", () => {
       expect(dialog().textContent).not.toContain("Old phase");
     });
 
-    it("keeps an archived selected dimension and can reset to None", () => {
+    it("keeps an archived selected dimension and can reset to None", async () => {
       const { onViewSettingsChange } = renderSettings({
         viewSettings: { ...viewSettings, labelClassificationDimensionId: "old" },
         classificationDimensions: dimensions,
       });
-      openSettings();
+      await openSettings();
       openTab("View");
 
       expect(selectByLabel("Label classification").textContent).toBe("Old phase");
@@ -390,18 +394,18 @@ describe("SettingsDialog", () => {
       });
     });
 
-    it("is disabled without classification dimensions", () => {
+    it("is disabled without classification dimensions", async () => {
       renderSettings({ viewSettings });
-      openSettings();
+      await openSettings();
       openTab("View");
 
       expect(selectByLabel("Label classification").hasAttribute("disabled")).toBe(true);
     });
   });
 
-  it("stores line thickness and label size per device and explains missing projects", () => {
+  it("stores line thickness and label size per device and explains missing projects", async () => {
     renderSettings({ viewSettings: null });
-    openSettings();
+    await openSettings();
     openTab("View");
 
     expect(dialog().textContent).toContain("Open a plan to change its display unit");
@@ -413,9 +417,9 @@ describe("SettingsDialog", () => {
     expect(stored.labelSize).toBe("small");
   });
 
-  it("stores fill, handle, label background, after-finishing and zoom step per device", () => {
+  it("stores fill, handle, label background, after-finishing and zoom step per device", async () => {
     renderSettings({ viewSettings: null });
-    openSettings();
+    await openSettings();
     openTab("Canvas");
     choose("Fill opacity", "Strong");
     choose("Handle size", "Large");
@@ -434,9 +438,9 @@ describe("SettingsDialog", () => {
     });
   });
 
-  it("stores the interface, drawing, label content and grid preferences per device", () => {
+  it("stores the interface, drawing, label content and grid preferences per device", async () => {
     renderSettings({ viewSettings: null });
-    openSettings();
+    await openSettings();
     choose("Default zoom", "Fit width");
     choose("Mouse wheel", "Scroll");
     choose("Date format", "With time");
@@ -463,9 +467,9 @@ describe("SettingsDialog", () => {
     });
   });
 
-  it("renders Appearance as a Select and persists the change while keeping Settings open", () => {
+  it("renders Appearance as a Select and persists the change while keeping Settings open", async () => {
     renderSettings({ theme: "dark" });
-    openSettings();
+    await openSettings();
 
     const select = selectByLabel("Appearance");
     expect(select.textContent).toBe("Dark");
@@ -477,9 +481,9 @@ describe("SettingsDialog", () => {
     expect((dialog() as HTMLDialogElement).open).toBe(true);
   });
 
-  it("keeps explanations out of the rows and exposes them from a help button", () => {
+  it("keeps explanations out of the rows and exposes them from a help button", async () => {
     renderSettings({ onKeyboardAuthoringEnabledChange: vi.fn() });
-    openSettings();
+    await openSettings();
 
     const help = dialog().querySelector<HTMLButtonElement>(
       'button[aria-label="About Keyboard drawing and editing"]',
@@ -497,9 +501,9 @@ describe("SettingsDialog", () => {
     ).toBe(false);
   });
 
-  it("offers every ambiguous advanced and drawing setting a help button", () => {
+  it("offers every ambiguous advanced and drawing setting a help button", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Drawing");
     for (const label of ["Snap on by default", "Ortho on by default", "Snap sensitivity"]) {
       expect(dialog().querySelector(`button[aria-label="About ${label}"]`)).not.toBeNull();
@@ -510,9 +514,9 @@ describe("SettingsDialog", () => {
     }
   });
 
-  it("renders decimal places as options 0 through 8 and reports the change", () => {
+  it("renders decimal places as options 0 through 8 and reports the change", async () => {
     const { onMeasurementDecimalPlacesChange } = renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Measurements");
 
     const select = selectByLabel("Decimal places");
@@ -533,9 +537,9 @@ describe("SettingsDialog", () => {
     expect(onMeasurementDecimalPlacesChange).toHaveBeenCalledWith(5);
   });
 
-  it("does not activate a control when its name is clicked", () => {
+  it("does not activate a control when its name is clicked", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Accessibility");
     const name = Array.from(dialog().querySelectorAll<HTMLElement>("[class*='settingLabel']")).find(
       (candidate) => candidate.textContent === "High contrast",
@@ -548,9 +552,9 @@ describe("SettingsDialog", () => {
     expect(toggle?.checked).toBe(false);
   });
 
-  it("gives the storage usage output its row name", () => {
+  it("gives the storage usage output its row name", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Advanced");
     const output = Array.from(dialog().querySelectorAll<HTMLOutputElement>("output")).find(
       (candidate) => candidate.className.includes("storageUsage"),
@@ -560,9 +564,9 @@ describe("SettingsDialog", () => {
     expect(document.getElementById(labelId!)?.textContent).toBe("Storage used");
   });
 
-  it("omits decimal places when there is no current session", () => {
+  it("omits decimal places when there is no current session", async () => {
     renderSettings({ measurementDecimalPlaces: null });
-    openSettings();
+    await openSettings();
     openTab("Measurements");
     expect(
       Array.from(dialog().querySelectorAll("[class*='settingLabel']")).some(
@@ -571,9 +575,9 @@ describe("SettingsDialog", () => {
     ).toBe(false);
   });
 
-  it("applies number separators to the live preview and persists them per device", () => {
+  it("applies number separators to the live preview and persists them per device", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Measurements");
 
     const preview = () => dialog().querySelector("output")?.textContent;
@@ -593,9 +597,9 @@ describe("SettingsDialog", () => {
     });
   });
 
-  it("toggles reduce motion and tooltips through document attributes", () => {
+  it("toggles reduce motion and tooltips through document attributes", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Accessibility");
 
     choose("Reduce motion", "Always reduce");
@@ -606,9 +610,9 @@ describe("SettingsDialog", () => {
     expect(document.documentElement.getAttribute("data-tooltips")).toBe("off");
   });
 
-  it("sets the focus ring attribute only when it is not the default", () => {
+  it("sets the focus ring attribute only when it is not the default", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Accessibility");
 
     expect(document.documentElement.hasAttribute("data-focus-ring")).toBe(false);
@@ -618,9 +622,9 @@ describe("SettingsDialog", () => {
     expect(document.documentElement.hasAttribute("data-focus-ring")).toBe(false);
   });
 
-  it("sets the text size attribute only when it is not 100%", () => {
+  it("sets the text size attribute only when it is not 100%", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Accessibility");
 
     expect(document.documentElement.hasAttribute("data-text-size")).toBe(false);
@@ -632,9 +636,9 @@ describe("SettingsDialog", () => {
     expect(document.documentElement.hasAttribute("data-text-size")).toBe(false);
   });
 
-  it("sets the contrast attribute only while High contrast is on", () => {
+  it("sets the contrast attribute only while High contrast is on", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Accessibility");
 
     const contrast = switchControl("High contrast");
@@ -646,9 +650,9 @@ describe("SettingsDialog", () => {
     expect(document.documentElement.hasAttribute("data-contrast")).toBe(false);
   });
 
-  it("stores advanced values as numbers and resets everything after confirmation", () => {
+  it("stores advanced values as numbers and resets everything after confirmation", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Performance");
 
     choose("Maximum zoom", "16×");
@@ -677,9 +681,9 @@ describe("SettingsDialog", () => {
     expect(selectByLabel("Render delay").textContent).toBe("90 ms");
   });
 
-  it("stores the performance options, shows them under Performance and resets them", () => {
+  it("stores the performance options, shows them under Performance and resets them", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Performance");
     expect(selectByLabel("Render quality").textContent).toBe("Balanced");
     expect(selectByLabel("Raster cache").textContent).toBe("Normal");
@@ -715,9 +719,9 @@ describe("SettingsDialog", () => {
     expect(switchControl("Debug overlay").checked).toBe(false);
   });
 
-  it("cancels a pending reset without changing anything", () => {
+  it("cancels a pending reset without changing anything", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Performance");
     choose("Maximum zoom", "4×");
     openTab("Advanced");
@@ -739,12 +743,12 @@ describe("SettingsDialog", () => {
     ).toBe(true);
   });
 
-  it("exposes independent deletion confirmation switches in Confirmations", () => {
+  it("exposes independent deletion confirmation switches in Confirmations", async () => {
     const { onConfirmMeasurementDeletionChange } = renderSettings({
       onConfirmValueDeletionChange: vi.fn(),
       onConfirmDimensionDeletionChange: vi.fn(),
     });
-    openSettings();
+    await openSettings();
     openTab("Confirmations");
 
     expect(switchControl("Confirm before deleting values")).not.toBeNull();
@@ -756,9 +760,9 @@ describe("SettingsDialog", () => {
     expect((dialog() as HTMLDialogElement).open).toBe(true);
   });
 
-  it("renders the recovered workspace select with exact options", () => {
+  it("renders the recovered workspace select with exact options", async () => {
     const { onRecoveredPlanStartupWorkspaceChange } = renderSettings();
-    openSettings();
+    await openSettings();
 
     const select = selectByLabel("Recovered plan workspace");
     expect(select.textContent).toBe("Scales");
@@ -773,10 +777,10 @@ describe("SettingsDialog", () => {
     expect(onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("takeoff");
   });
 
-  it("closes on Escape, on Done, and restores focus to the gear", () => {
+  it("closes on Escape, on Done, and restores focus to the gear", async () => {
     renderSettings();
     trigger().focus();
-    openSettings();
+    await openSettings();
     expect(trigger().getAttribute("aria-expanded")).toBe("true");
     expect(trigger().getAttribute("aria-haspopup")).toBe("dialog");
 
@@ -789,7 +793,7 @@ describe("SettingsDialog", () => {
     expect(trigger().getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(trigger());
 
-    openSettings();
+    await openSettings();
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Done")!
@@ -798,7 +802,7 @@ describe("SettingsDialog", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it("keeps the help button only on settings that are not self-explanatory", () => {
+  it("keeps the help button only on settings that are not self-explanatory", async () => {
     renderSettings({
       onKeyboardAuthoringEnabledChange: vi.fn(),
       onRecoveredPlanStartupWorkspaceChange: vi.fn(),
@@ -811,7 +815,7 @@ describe("SettingsDialog", () => {
         labelClassificationDimensionId: null,
       },
     });
-    openSettings();
+    await openSettings();
     const helpLabels = () =>
       Array.from(dialog().querySelectorAll("button[aria-label^='About ']")).map((button) =>
         button.getAttribute("aria-label"),
@@ -840,9 +844,9 @@ describe("SettingsDialog", () => {
     expect(helpLabels()).toEqual([]);
   });
 
-  it("stores the autosave delay, projects shown and closing confirmation", () => {
+  it("stores the autosave delay, projects shown and closing confirmation", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Advanced");
     expect(selectByLabel("Autosave delay").textContent).toBe("0.3 s");
     act(() => selectByLabel("Autosave delay").click());
@@ -870,7 +874,7 @@ describe("SettingsDialog", () => {
 
   it("exports the settings file and imports one, ignoring invalid values", async () => {
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Advanced");
     const createObjectURL = vi.fn(() => "blob:settings");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
@@ -923,7 +927,7 @@ describe("SettingsDialog", () => {
       },
     });
     renderSettings();
-    openSettings();
+    await openSettings();
     openTab("Advanced");
     await act(async () => undefined);
     expect(dialog().textContent).toContain("Using 5.3 MB of 2048 MB");

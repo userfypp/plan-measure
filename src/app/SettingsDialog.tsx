@@ -509,8 +509,7 @@ function SwitchRow({
 }
 
 export interface SettingsDialogProps {
-  trigger: ReactNode;
-  triggerClassName?: string;
+  onClose: () => void;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   /** Null when no project is open: project view settings are then shown disabled. */
   viewSettings?: ProjectViewSettings | null;
@@ -531,8 +530,7 @@ export interface SettingsDialogProps {
 }
 
 export function SettingsDialog({
-  trigger,
-  triggerClassName,
+  onClose,
   measurementDecimalPlaces = null,
   viewSettings = null,
   classificationDimensions = [],
@@ -549,7 +547,6 @@ export function SettingsDialog({
   onConfirmDimensionDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: SettingsDialogProps) {
-  const [open, setOpen] = useState(false);
   const [section, setSection] = useState<SectionId>("interface");
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importStatus, setImportStatus] = useState("");
@@ -612,596 +609,577 @@ export function SettingsDialog({
 
   return (
     <>
-      <button
-        type="button"
-        className={triggerClassName}
-        aria-label="Settings"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        title="Settings"
-        onClick={() => setOpen(true)}
-      >
-        {trigger}
-      </button>
-      {open &&
-        createPortal(
-          <Dialog
-            open
-            title="Settings"
-            size="large"
-            className={styles.dialog}
-            bodyClassName={styles.dialogBody}
-            onClose={() => {
-              setOpen(false);
-              setConfirmingReset(false);
-            }}
-            actions={
-              <Button size="compact" variant="primary" onClick={() => setOpen(false)}>
-                Done
-              </Button>
-            }
-          >
-            <div className={styles.layout}>
-              <div
-                className={styles.nav}
-                role="tablist"
-                aria-label="Settings sections"
-                aria-orientation="vertical"
-                onKeyDown={handleNavKeyDown}
-              >
-                {SECTIONS.map((item) => (
-                  <button
-                    key={item.id}
-                    ref={(element) => {
-                      tabRefs.current[item.id] = element;
-                    }}
-                    type="button"
-                    role="tab"
-                    id={`${tabIdPrefix}-tab-${item.id}`}
-                    aria-selected={section === item.id}
-                    aria-controls={`${tabIdPrefix}-panel`}
-                    tabIndex={section === item.id ? 0 : -1}
-                    className={styles.navItem}
-                    onClick={() => selectSection(item.id)}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
+      {createPortal(
+        <Dialog
+          open
+          title="Settings"
+          size="large"
+          className={styles.dialog}
+          bodyClassName={styles.dialogBody}
+          onClose={onClose}
+          actions={
+            <Button size="compact" variant="primary" onClick={onClose}>
+              Done
+            </Button>
+          }
+        >
+          <div className={styles.layout}>
+            <div
+              className={styles.nav}
+              role="tablist"
+              aria-label="Settings sections"
+              aria-orientation="vertical"
+              onKeyDown={handleNavKeyDown}
+            >
+              {SECTIONS.map((item) => (
+                <button
+                  key={item.id}
+                  ref={(element) => {
+                    tabRefs.current[item.id] = element;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`${tabIdPrefix}-tab-${item.id}`}
+                  aria-selected={section === item.id}
+                  aria-controls={`${tabIdPrefix}-panel`}
+                  tabIndex={section === item.id ? 0 : -1}
+                  className={styles.navItem}
+                  onClick={() => selectSection(item.id)}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
 
-              <div
-                className={styles.panel}
-                role="tabpanel"
-                id={`${tabIdPrefix}-panel`}
-                aria-labelledby={`${tabIdPrefix}-tab-${section}`}
-              >
-                {section === "interface" && (
-                  <div className={styles.settingList}>
-                    <SelectRow<ThemePreference>
-                      label="Appearance"
-                      value={preference}
-                      options={THEME_OPTIONS}
-                      onChange={setPreference}
-                    />
-                    <SelectRow
-                      label="Zoom step"
-                      value={preferences.zoomStep}
-                      options={ZOOM_STEP_OPTIONS}
-                      onChange={set("zoomStep")}
-                    />
-                    <SelectRow
-                      label="Default zoom"
-                      value={preferences.defaultZoom}
-                      options={DEFAULT_ZOOM_OPTIONS}
-                      onChange={set("defaultZoom")}
-                    />
-                    <SelectRow
-                      label="Mouse wheel"
-                      value={preferences.wheelBehavior}
-                      options={WHEEL_BEHAVIOR_OPTIONS}
-                      onChange={set("wheelBehavior")}
-                    />
-                    <SelectRow
-                      label="Date format"
-                      value={preferences.dateFormat}
-                      options={DATE_FORMAT_OPTIONS}
-                      onChange={set("dateFormat")}
-                    />
+            <div
+              className={styles.panel}
+              role="tabpanel"
+              id={`${tabIdPrefix}-panel`}
+              aria-labelledby={`${tabIdPrefix}-tab-${section}`}
+            >
+              {section === "interface" && (
+                <div className={styles.settingList}>
+                  <SelectRow<ThemePreference>
+                    label="Appearance"
+                    value={preference}
+                    options={THEME_OPTIONS}
+                    onChange={setPreference}
+                  />
+                  <SelectRow
+                    label="Zoom step"
+                    value={preferences.zoomStep}
+                    options={ZOOM_STEP_OPTIONS}
+                    onChange={set("zoomStep")}
+                  />
+                  <SelectRow
+                    label="Default zoom"
+                    value={preferences.defaultZoom}
+                    options={DEFAULT_ZOOM_OPTIONS}
+                    onChange={set("defaultZoom")}
+                  />
+                  <SelectRow
+                    label="Mouse wheel"
+                    value={preferences.wheelBehavior}
+                    options={WHEEL_BEHAVIOR_OPTIONS}
+                    onChange={set("wheelBehavior")}
+                  />
+                  <SelectRow
+                    label="Date format"
+                    value={preferences.dateFormat}
+                    options={DATE_FORMAT_OPTIONS}
+                    onChange={set("dateFormat")}
+                  />
+                  <SwitchRow
+                    label="Wider sidebar"
+                    checked={preferences.widerSidebar}
+                    onChange={set("widerSidebar")}
+                  />
+                  {onKeyboardAuthoringEnabledChange && (
                     <SwitchRow
-                      label="Wider sidebar"
-                      checked={preferences.widerSidebar}
-                      onChange={set("widerSidebar")}
+                      label="Keyboard drawing and editing"
+                      help="Use arrows to move a cursor, Space to place points and E to edit measurements."
+                      checked={keyboardAuthoringEnabled}
+                      onChange={onKeyboardAuthoringEnabledChange}
                     />
-                    {onKeyboardAuthoringEnabledChange && (
-                      <SwitchRow
-                        label="Keyboard drawing and editing"
-                        help="Use arrows to move a cursor, Space to place points and E to edit measurements."
-                        checked={keyboardAuthoringEnabled}
-                        onChange={onKeyboardAuthoringEnabledChange}
-                      />
-                    )}
-                    {onRecoveredPlanStartupWorkspaceChange && (
-                      <SelectRow<RecoveredPlanStartupWorkspace>
-                        label="Recovered plan workspace"
-                        help="Workspace shown after restoring a saved plan."
-                        value={recoveredPlanStartupWorkspace}
-                        options={RECOVERED_PLAN_STARTUP_OPTIONS}
-                        onChange={onRecoveredPlanStartupWorkspaceChange}
-                      />
-                    )}
-                  </div>
-                )}
+                  )}
+                  {onRecoveredPlanStartupWorkspaceChange && (
+                    <SelectRow<RecoveredPlanStartupWorkspace>
+                      label="Recovered plan workspace"
+                      help="Workspace shown after restoring a saved plan."
+                      value={recoveredPlanStartupWorkspace}
+                      options={RECOVERED_PLAN_STARTUP_OPTIONS}
+                      onChange={onRecoveredPlanStartupWorkspaceChange}
+                    />
+                  )}
+                </div>
+              )}
 
-                {section === "accessibility" && (
-                  <div className={styles.settingList}>
+              {section === "accessibility" && (
+                <div className={styles.settingList}>
+                  <SelectRow
+                    label="Reduce motion"
+                    value={preferences.motion}
+                    options={MOTION_OPTIONS}
+                    onChange={set("motion")}
+                  />
+                  <SwitchRow
+                    label="Show tooltips"
+                    checked={preferences.tooltips}
+                    onChange={set("tooltips")}
+                  />
+                  <SelectRow
+                    label="Focus ring"
+                    value={preferences.focusRing}
+                    options={FOCUS_RING_OPTIONS}
+                    onChange={set("focusRing")}
+                  />
+                  <SelectRow
+                    label="Text size"
+                    value={preferences.textSize}
+                    options={TEXT_SIZE_OPTIONS}
+                    onChange={set("textSize")}
+                  />
+                  <SwitchRow
+                    label="High contrast"
+                    checked={preferences.contrast === "more"}
+                    onChange={(enabled) =>
+                      setAppPreference("contrast", enabled ? "more" : "normal")
+                    }
+                  />
+                  <SwitchRow
+                    label="Larger touch targets"
+                    checked={preferences.largeTargets}
+                    onChange={set("largeTargets")}
+                  />
+                </div>
+              )}
+
+              {section === "measurements" && (
+                <div className={styles.settingList}>
+                  {measurementDecimalPlaces !== null && onMeasurementDecimalPlacesChange && (
                     <SelectRow
-                      label="Reduce motion"
-                      value={preferences.motion}
-                      options={MOTION_OPTIONS}
-                      onChange={set("motion")}
-                    />
-                    <SwitchRow
-                      label="Show tooltips"
-                      checked={preferences.tooltips}
-                      onChange={set("tooltips")}
-                    />
-                    <SelectRow
-                      label="Focus ring"
-                      value={preferences.focusRing}
-                      options={FOCUS_RING_OPTIONS}
-                      onChange={set("focusRing")}
-                    />
-                    <SelectRow
-                      label="Text size"
-                      value={preferences.textSize}
-                      options={TEXT_SIZE_OPTIONS}
-                      onChange={set("textSize")}
-                    />
-                    <SwitchRow
-                      label="High contrast"
-                      checked={preferences.contrast === "more"}
-                      onChange={(enabled) =>
-                        setAppPreference("contrast", enabled ? "more" : "normal")
+                      label="Decimal places"
+                      help="Applies to the current project only."
+                      className={styles.narrowSelect}
+                      value={String(measurementDecimalPlaces)}
+                      options={MEASUREMENT_DECIMAL_OPTIONS}
+                      onChange={(value) =>
+                        onMeasurementDecimalPlacesChange(Number(value) as MeasurementDecimalPlaces)
                       }
                     />
-                    <SwitchRow
-                      label="Larger touch targets"
-                      checked={preferences.largeTargets}
-                      onChange={set("largeTargets")}
-                    />
-                  </div>
-                )}
+                  )}
+                  <SelectRow
+                    label="Thousands separator"
+                    value={preferences.thousandsSeparator}
+                    options={THOUSANDS_OPTIONS}
+                    onChange={set("thousandsSeparator")}
+                  />
+                  <SelectRow
+                    label="Decimal separator"
+                    value={preferences.decimalSeparator}
+                    options={DECIMAL_SEPARATOR_OPTIONS}
+                    onChange={set("decimalSeparator")}
+                  />
+                  <SelectRow
+                    label="Label content"
+                    value={preferences.labelContent}
+                    options={LABEL_CONTENT_OPTIONS}
+                    onChange={set("labelContent")}
+                  />
+                  <p className={styles.preview} aria-live="polite">
+                    <span>Preview</span>
+                    <output className={styles.previewValue}>{preview}</output>
+                  </p>
+                  <SelectRow
+                    label="Default unit for new plans"
+                    value={preferences.defaultDisplayUnit}
+                    options={UNIT_OPTIONS}
+                    onChange={set("defaultDisplayUnit")}
+                  />
+                </div>
+              )}
 
-                {section === "measurements" && (
-                  <div className={styles.settingList}>
-                    {measurementDecimalPlaces !== null && onMeasurementDecimalPlacesChange && (
+              {section === "drawing" && (
+                <div className={styles.settingList}>
+                  <SwitchRow
+                    label="Snap on by default"
+                    help="Starts every session with snapping to existing points and edges enabled."
+                    checked={preferences.snapDefault}
+                    onChange={set("snapDefault")}
+                  />
+                  <SwitchRow
+                    label="Ortho on by default"
+                    help="Starts every session with horizontal and vertical constraints enabled."
+                    checked={preferences.orthoDefault}
+                    onChange={set("orthoDefault")}
+                  />
+                  <SelectRow
+                    label="Snap sensitivity"
+                    help="How close the pointer must be to a target to snap. Higher catches targets from farther away."
+                    value={preferences.snapSensitivity}
+                    options={SENSITIVITY_OPTIONS}
+                    onChange={set("snapSensitivity")}
+                  />
+                  <SelectRow
+                    label="Polygon close sensitivity"
+                    help="How close the pointer must be to the first point to close a polygon."
+                    value={preferences.closeSensitivity}
+                    options={SENSITIVITY_OPTIONS}
+                    onChange={set("closeSensitivity")}
+                  />
+                  <SelectRow
+                    label="After finishing"
+                    help="Tool used after completing a measurement. Count always stays active."
+                    value={preferences.afterFinishing}
+                    options={AFTER_FINISHING_OPTIONS}
+                    onChange={set("afterFinishing")}
+                  />
+                  <SwitchRow
+                    label="Crosshair cursor"
+                    checked={preferences.crosshairCursor}
+                    onChange={set("crosshairCursor")}
+                  />
+                  <SwitchRow
+                    label="Live segment length"
+                    checked={preferences.liveLength}
+                    onChange={set("liveLength")}
+                  />
+                  <SwitchRow
+                    label="Finish on double-click"
+                    checked={preferences.finishOnDoubleClick}
+                    onChange={set("finishOnDoubleClick")}
+                  />
+                </div>
+              )}
+
+              {section === "view" && (
+                <div className={styles.settingList}>
+                  {viewSettings && onViewSettingsChange && (
+                    <>
+                      <h3 className={styles.groupTitle}>
+                        This project
+                        <span>Saved with the plan</span>
+                      </h3>
                       <SelectRow
-                        label="Decimal places"
-                        help="Applies to the current project only."
-                        className={styles.narrowSelect}
-                        value={String(measurementDecimalPlaces)}
-                        options={MEASUREMENT_DECIMAL_OPTIONS}
-                        onChange={(value) =>
-                          onMeasurementDecimalPlacesChange(
-                            Number(value) as MeasurementDecimalPlaces,
-                          )
+                        label="Display unit"
+                        value={viewSettings.displayUnit}
+                        options={UNIT_OPTIONS}
+                        onChange={(displayUnit) => onViewSettingsChange({ displayUnit })}
+                      />
+                      <SelectRow
+                        label="Polygon area"
+                        help="Auto picks square units from the display unit; Acres always shows acres."
+                        value={viewSettings.areaDisplay}
+                        options={AREA_DISPLAY_OPTIONS}
+                        onChange={(areaDisplay) => onViewSettingsChange({ areaDisplay })}
+                      />
+                      <SelectRow
+                        label="Label classification"
+                        help="Shows the measurement's value from this classification in on-screen labels."
+                        value={viewSettings.labelClassificationDimensionId ?? ""}
+                        options={[
+                          { value: "", label: "None" },
+                          ...classificationDimensions
+                            .filter(
+                              (dimension) =>
+                                !dimension.archived ||
+                                dimension.id === viewSettings.labelClassificationDimensionId,
+                            )
+                            .map((dimension) => ({ value: dimension.id, label: dimension.name })),
+                        ]}
+                        disabled={classificationDimensions.length === 0}
+                        onChange={(id) =>
+                          onViewSettingsChange({ labelClassificationDimensionId: id || null })
                         }
                       />
-                    )}
-                    <SelectRow
-                      label="Thousands separator"
-                      value={preferences.thousandsSeparator}
-                      options={THOUSANDS_OPTIONS}
-                      onChange={set("thousandsSeparator")}
-                    />
-                    <SelectRow
-                      label="Decimal separator"
-                      value={preferences.decimalSeparator}
-                      options={DECIMAL_SEPARATOR_OPTIONS}
-                      onChange={set("decimalSeparator")}
-                    />
-                    <SelectRow
-                      label="Label content"
-                      value={preferences.labelContent}
-                      options={LABEL_CONTENT_OPTIONS}
-                      onChange={set("labelContent")}
-                    />
-                    <p className={styles.preview} aria-live="polite">
-                      <span>Preview</span>
-                      <output className={styles.previewValue}>{preview}</output>
-                    </p>
-                    <SelectRow
-                      label="Default unit for new plans"
-                      value={preferences.defaultDisplayUnit}
-                      options={UNIT_OPTIONS}
-                      onChange={set("defaultDisplayUnit")}
-                    />
-                  </div>
-                )}
-
-                {section === "drawing" && (
-                  <div className={styles.settingList}>
-                    <SwitchRow
-                      label="Snap on by default"
-                      help="Starts every session with snapping to existing points and edges enabled."
-                      checked={preferences.snapDefault}
-                      onChange={set("snapDefault")}
-                    />
-                    <SwitchRow
-                      label="Ortho on by default"
-                      help="Starts every session with horizontal and vertical constraints enabled."
-                      checked={preferences.orthoDefault}
-                      onChange={set("orthoDefault")}
-                    />
-                    <SelectRow
-                      label="Snap sensitivity"
-                      help="How close the pointer must be to a target to snap. Higher catches targets from farther away."
-                      value={preferences.snapSensitivity}
-                      options={SENSITIVITY_OPTIONS}
-                      onChange={set("snapSensitivity")}
-                    />
-                    <SelectRow
-                      label="Polygon close sensitivity"
-                      help="How close the pointer must be to the first point to close a polygon."
-                      value={preferences.closeSensitivity}
-                      options={SENSITIVITY_OPTIONS}
-                      onChange={set("closeSensitivity")}
-                    />
-                    <SelectRow
-                      label="After finishing"
-                      help="Tool used after completing a measurement. Count always stays active."
-                      value={preferences.afterFinishing}
-                      options={AFTER_FINISHING_OPTIONS}
-                      onChange={set("afterFinishing")}
-                    />
-                    <SwitchRow
-                      label="Crosshair cursor"
-                      checked={preferences.crosshairCursor}
-                      onChange={set("crosshairCursor")}
-                    />
-                    <SwitchRow
-                      label="Live segment length"
-                      checked={preferences.liveLength}
-                      onChange={set("liveLength")}
-                    />
-                    <SwitchRow
-                      label="Finish on double-click"
-                      checked={preferences.finishOnDoubleClick}
-                      onChange={set("finishOnDoubleClick")}
-                    />
-                  </div>
-                )}
-
-                {section === "view" && (
-                  <div className={styles.settingList}>
-                    {viewSettings && onViewSettingsChange && (
-                      <>
-                        <h3 className={styles.groupTitle}>
-                          This project
-                          <span>Saved with the plan</span>
-                        </h3>
-                        <SelectRow
-                          label="Display unit"
-                          value={viewSettings.displayUnit}
-                          options={UNIT_OPTIONS}
-                          onChange={(displayUnit) => onViewSettingsChange({ displayUnit })}
-                        />
-                        <SelectRow
-                          label="Polygon area"
-                          help="Auto picks square units from the display unit; Acres always shows acres."
-                          value={viewSettings.areaDisplay}
-                          options={AREA_DISPLAY_OPTIONS}
-                          onChange={(areaDisplay) => onViewSettingsChange({ areaDisplay })}
-                        />
-                        <SelectRow
-                          label="Label classification"
-                          help="Shows the measurement's value from this classification in on-screen labels."
-                          value={viewSettings.labelClassificationDimensionId ?? ""}
-                          options={[
-                            { value: "", label: "None" },
-                            ...classificationDimensions
-                              .filter(
-                                (dimension) =>
-                                  !dimension.archived ||
-                                  dimension.id === viewSettings.labelClassificationDimensionId,
-                              )
-                              .map((dimension) => ({ value: dimension.id, label: dimension.name })),
-                          ]}
-                          disabled={classificationDimensions.length === 0}
-                          onChange={(id) =>
-                            onViewSettingsChange({ labelClassificationDimensionId: id || null })
-                          }
-                        />
-                        <SwitchRow
-                          label="Labels"
-                          checked={viewSettings.showLabels}
-                          onChange={(showLabels) => onViewSettingsChange({ showLabels })}
-                        />
-                        <SwitchRow
-                          label="Measurements"
-                          checked={viewSettings.showMeasurements}
-                          onChange={(showMeasurements) =>
-                            onViewSettingsChange({ showMeasurements })
-                          }
-                        />
-                        <SwitchRow
-                          label="Calibration"
-                          checked={viewSettings.showCalibration}
-                          onChange={(showCalibration) => onViewSettingsChange({ showCalibration })}
-                        />
-                      </>
-                    )}
-                    {!viewSettings && (
-                      <p className={styles.sectionNote}>
-                        Open a plan to change its display unit and visibility settings.
-                      </p>
-                    )}
+                      <SwitchRow
+                        label="Labels"
+                        checked={viewSettings.showLabels}
+                        onChange={(showLabels) => onViewSettingsChange({ showLabels })}
+                      />
+                      <SwitchRow
+                        label="Measurements"
+                        checked={viewSettings.showMeasurements}
+                        onChange={(showMeasurements) => onViewSettingsChange({ showMeasurements })}
+                      />
+                      <SwitchRow
+                        label="Calibration"
+                        checked={viewSettings.showCalibration}
+                        onChange={(showCalibration) => onViewSettingsChange({ showCalibration })}
+                      />
+                    </>
+                  )}
+                  {!viewSettings && (
                     <p className={styles.sectionNote}>
-                      Line thickness, label size, fills and other canvas appearance settings are in
-                      Canvas.
+                      Open a plan to change its display unit and visibility settings.
                     </p>
-                  </div>
-                )}
+                  )}
+                  <p className={styles.sectionNote}>
+                    Line thickness, label size, fills and other canvas appearance settings are in
+                    Canvas.
+                  </p>
+                </div>
+              )}
 
-                {section === "canvas" && (
-                  <div className={styles.settingList}>
-                    <h3 className={styles.groupTitle}>
-                      This device
-                      <span>Applies to every project</span>
-                    </h3>
-                    <SelectRow
-                      label="Line thickness"
-                      value={preferences.lineThickness}
-                      options={LINE_THICKNESS_OPTIONS}
-                      onChange={set("lineThickness")}
-                    />
-                    <SelectRow
-                      label="Label size"
-                      value={preferences.labelSize}
-                      options={LABEL_SIZE_OPTIONS}
-                      onChange={set("labelSize")}
-                    />
-                    <SelectRow
-                      label="Fill opacity"
-                      value={preferences.fillOpacity}
-                      options={FILL_OPACITY_OPTIONS}
-                      onChange={set("fillOpacity")}
-                    />
-                    <SelectRow
-                      label="Handle size"
-                      value={preferences.handleSize}
-                      options={HANDLE_SIZE_OPTIONS}
-                      onChange={set("handleSize")}
-                    />
-                    <SelectRow
-                      label="Label background"
-                      value={preferences.labelBackground}
-                      options={LABEL_BACKGROUND_OPTIONS}
-                      onChange={set("labelBackground")}
-                    />
-                    <SelectRow
-                      label="Page grid"
-                      value={preferences.pageGrid}
-                      options={PAGE_GRID_OPTIONS}
-                      onChange={set("pageGrid")}
-                    />
-                  </div>
-                )}
+              {section === "canvas" && (
+                <div className={styles.settingList}>
+                  <h3 className={styles.groupTitle}>
+                    This device
+                    <span>Applies to every project</span>
+                  </h3>
+                  <SelectRow
+                    label="Line thickness"
+                    value={preferences.lineThickness}
+                    options={LINE_THICKNESS_OPTIONS}
+                    onChange={set("lineThickness")}
+                  />
+                  <SelectRow
+                    label="Label size"
+                    value={preferences.labelSize}
+                    options={LABEL_SIZE_OPTIONS}
+                    onChange={set("labelSize")}
+                  />
+                  <SelectRow
+                    label="Fill opacity"
+                    value={preferences.fillOpacity}
+                    options={FILL_OPACITY_OPTIONS}
+                    onChange={set("fillOpacity")}
+                  />
+                  <SelectRow
+                    label="Handle size"
+                    value={preferences.handleSize}
+                    options={HANDLE_SIZE_OPTIONS}
+                    onChange={set("handleSize")}
+                  />
+                  <SelectRow
+                    label="Label background"
+                    value={preferences.labelBackground}
+                    options={LABEL_BACKGROUND_OPTIONS}
+                    onChange={set("labelBackground")}
+                  />
+                  <SelectRow
+                    label="Page grid"
+                    value={preferences.pageGrid}
+                    options={PAGE_GRID_OPTIONS}
+                    onChange={set("pageGrid")}
+                  />
+                </div>
+              )}
 
-                {section === "confirmations" && (
-                  <div className={styles.settingList}>
-                    {onConfirmMeasurementDeletionChange && (
-                      <SwitchRow
-                        label="Confirm before deleting measurements"
-                        checked={confirmMeasurementDeletion}
-                        onChange={onConfirmMeasurementDeletionChange}
-                      />
-                    )}
-                    {onConfirmValueDeletionChange && (
-                      <SwitchRow
-                        label="Confirm before deleting values"
-                        checked={confirmValueDeletion}
-                        onChange={onConfirmValueDeletionChange}
-                      />
-                    )}
-                    {onConfirmDimensionDeletionChange && (
-                      <SwitchRow
-                        label="Confirm before deleting dimensions"
-                        checked={confirmDimensionDeletion}
-                        onChange={onConfirmDimensionDeletionChange}
-                      />
-                    )}
+              {section === "confirmations" && (
+                <div className={styles.settingList}>
+                  {onConfirmMeasurementDeletionChange && (
                     <SwitchRow
-                      label="Confirm before closing unsaved work"
-                      checked={preferences.confirmBeforeClosing}
-                      onChange={set("confirmBeforeClosing")}
+                      label="Confirm before deleting measurements"
+                      checked={confirmMeasurementDeletion}
+                      onChange={onConfirmMeasurementDeletionChange}
                     />
-                  </div>
-                )}
-
-                {section === "shortcuts" && (
-                  <div className={styles.settingList}>
-                    {SHORTCUT_GROUPS.map((group) => (
-                      <Fragment key={group.title}>
-                        <h3 className={styles.groupTitle}>{group.title}</h3>
-                        <dl className={styles.shortcutList}>
-                          {group.entries.map((entry) => (
-                            <div key={entry.label} className={styles.shortcutRow}>
-                              <dt>{entry.label}</dt>
-                              <dd>
-                                <kbd className={styles.kbd}>{entry.keys}</kbd>
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      </Fragment>
-                    ))}
-                  </div>
-                )}
-
-                {section === "performance" && (
-                  <div className={styles.settingList}>
-                    <SelectRow
-                      label="Maximum zoom"
-                      help="Highest magnification of the plan viewer. Higher values render more detail but use more memory."
-                      value={String(preferences.maxZoom)}
-                      options={MAX_ZOOM_OPTIONS}
-                      onChange={(value) =>
-                        setAppPreference("maxZoom", Number(value) as AppPreferences["maxZoom"])
-                      }
-                    />
-                    <SelectRow
-                      label="Undo history"
-                      help="How many edits can be undone. Longer histories use more memory on large projects."
-                      value={String(preferences.undoDepth)}
-                      options={UNDO_DEPTH_OPTIONS}
-                      onChange={(value) =>
-                        setAppPreference("undoDepth", Number(value) as AppPreferences["undoDepth"])
-                      }
-                    />
-                    <SelectRow
-                      label="Render delay"
-                      help="Wait after zooming or panning before the plan is redrawn sharply. Lower is crisper sooner, higher is lighter on slow devices."
-                      value={String(preferences.renderDelayMs)}
-                      options={RENDER_DELAY_OPTIONS}
-                      onChange={(value) =>
-                        setAppPreference(
-                          "renderDelayMs",
-                          Number(value) as AppPreferences["renderDelayMs"],
-                        )
-                      }
-                    />
-                    <SelectRow
-                      label="Render quality"
-                      help="Sharpness of the plan raster. Sharp uses more memory; Fast is lighter on slow devices."
-                      value={preferences.renderQuality}
-                      options={RENDER_QUALITY_OPTIONS}
-                      onChange={set("renderQuality")}
-                    />
-                    <SelectRow
-                      label="Raster cache"
-                      help="How many recent renders are kept for instant zoom changes. Larger uses more memory."
-                      value={preferences.rasterCache}
-                      options={RASTER_CACHE_OPTIONS}
-                      onChange={set("rasterCache")}
-                    />
-                    <SelectRow
-                      label="Click tolerance"
-                      help="How close to a measurement a click still selects it."
-                      value={preferences.hitTolerance}
-                      options={HIT_TOLERANCE_OPTIONS}
-                      onChange={set("hitTolerance")}
-                    />
+                  )}
+                  {onConfirmValueDeletionChange && (
                     <SwitchRow
-                      label="Debug overlay"
-                      help="Shows FPS, cache use and the last render time over the plan."
-                      checked={preferences.debugOverlay}
-                      onChange={set("debugOverlay")}
+                      label="Confirm before deleting values"
+                      checked={confirmValueDeletion}
+                      onChange={onConfirmValueDeletionChange}
                     />
-                  </div>
-                )}
+                  )}
+                  {onConfirmDimensionDeletionChange && (
+                    <SwitchRow
+                      label="Confirm before deleting dimensions"
+                      checked={confirmDimensionDeletion}
+                      onChange={onConfirmDimensionDeletionChange}
+                    />
+                  )}
+                  <SwitchRow
+                    label="Confirm before closing unsaved work"
+                    checked={preferences.confirmBeforeClosing}
+                    onChange={set("confirmBeforeClosing")}
+                  />
+                </div>
+              )}
 
-                {section === "advanced" && (
-                  <div className={styles.settingList}>
-                    <SelectRow
-                      label="Autosave delay"
-                      value={String(preferences.autosaveDelayMs)}
-                      options={AUTOSAVE_DELAY_OPTIONS}
-                      onChange={(value) =>
-                        setAppPreference(
-                          "autosaveDelayMs",
-                          Number(value) as AppPreferences["autosaveDelayMs"],
-                        )
-                      }
-                    />
-                    <SelectRow
-                      label="Saved projects shown"
-                      value={preferences.projectsShown}
-                      options={PROJECTS_SHOWN_OPTIONS}
-                      onChange={set("projectsShown")}
-                    />
-                    <Row label="Settings file">
-                      {({ labelId }) => (
-                        <div className={styles.resetActions} role="group" aria-labelledby={labelId}>
-                          <Button
-                            size="compact"
-                            variant="secondary"
-                            onClick={() =>
-                              downloadExportFile(
-                                exportAppPreferencesJson(),
-                                "plan-measure-settings.json",
-                                "application/json;charset=utf-8",
-                              )
-                            }
-                          >
-                            Export settings
-                          </Button>
-                          <Button
-                            size="compact"
-                            variant="secondary"
-                            onClick={() => settingsFileInputRef.current?.click()}
-                          >
-                            Import settings
-                          </Button>
-                          <input
-                            ref={settingsFileInputRef}
-                            className={styles.visuallyHidden}
-                            type="file"
-                            tabIndex={-1}
-                            accept="application/json,.json"
-                            aria-label="Settings file to import"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (file) void importSettingsFile(file);
-                              event.target.value = "";
-                            }}
-                          />
-                        </div>
-                      )}
-                    </Row>
-                    <StorageUsageRow />
-                    <p className={styles.sectionNote} role="status">
-                      {importStatus}
-                    </p>
-                    <div className={styles.resetRow}>
-                      <div className={styles.resetCopy}>
-                        <span className={styles.settingLabel}>Reset settings</span>
-                        <span className={styles.resetHint}>
-                          Restores every option on this device to its default. Projects are not
-                          changed.
-                        </span>
-                      </div>
-                      {confirmingReset ? (
-                        <div className={styles.resetActions}>
-                          <Button
-                            size="compact"
-                            variant="secondary"
-                            onClick={() => setConfirmingReset(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button size="compact" variant="danger" onClick={resetAll}>
-                            Reset
-                          </Button>
-                        </div>
-                      ) : (
+              {section === "shortcuts" && (
+                <div className={styles.settingList}>
+                  {SHORTCUT_GROUPS.map((group) => (
+                    <Fragment key={group.title}>
+                      <h3 className={styles.groupTitle}>{group.title}</h3>
+                      <dl className={styles.shortcutList}>
+                        {group.entries.map((entry) => (
+                          <div key={entry.label} className={styles.shortcutRow}>
+                            <dt>{entry.label}</dt>
+                            <dd>
+                              <kbd className={styles.kbd}>{entry.keys}</kbd>
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+
+              {section === "performance" && (
+                <div className={styles.settingList}>
+                  <SelectRow
+                    label="Maximum zoom"
+                    help="Highest magnification of the plan viewer. Higher values render more detail but use more memory."
+                    value={String(preferences.maxZoom)}
+                    options={MAX_ZOOM_OPTIONS}
+                    onChange={(value) =>
+                      setAppPreference("maxZoom", Number(value) as AppPreferences["maxZoom"])
+                    }
+                  />
+                  <SelectRow
+                    label="Undo history"
+                    help="How many edits can be undone. Longer histories use more memory on large projects."
+                    value={String(preferences.undoDepth)}
+                    options={UNDO_DEPTH_OPTIONS}
+                    onChange={(value) =>
+                      setAppPreference("undoDepth", Number(value) as AppPreferences["undoDepth"])
+                    }
+                  />
+                  <SelectRow
+                    label="Render delay"
+                    help="Wait after zooming or panning before the plan is redrawn sharply. Lower is crisper sooner, higher is lighter on slow devices."
+                    value={String(preferences.renderDelayMs)}
+                    options={RENDER_DELAY_OPTIONS}
+                    onChange={(value) =>
+                      setAppPreference(
+                        "renderDelayMs",
+                        Number(value) as AppPreferences["renderDelayMs"],
+                      )
+                    }
+                  />
+                  <SelectRow
+                    label="Render quality"
+                    help="Sharpness of the plan raster. Sharp uses more memory; Fast is lighter on slow devices."
+                    value={preferences.renderQuality}
+                    options={RENDER_QUALITY_OPTIONS}
+                    onChange={set("renderQuality")}
+                  />
+                  <SelectRow
+                    label="Raster cache"
+                    help="How many recent renders are kept for instant zoom changes. Larger uses more memory."
+                    value={preferences.rasterCache}
+                    options={RASTER_CACHE_OPTIONS}
+                    onChange={set("rasterCache")}
+                  />
+                  <SelectRow
+                    label="Click tolerance"
+                    help="How close to a measurement a click still selects it."
+                    value={preferences.hitTolerance}
+                    options={HIT_TOLERANCE_OPTIONS}
+                    onChange={set("hitTolerance")}
+                  />
+                  <SwitchRow
+                    label="Debug overlay"
+                    help="Shows FPS, cache use and the last render time over the plan."
+                    checked={preferences.debugOverlay}
+                    onChange={set("debugOverlay")}
+                  />
+                </div>
+              )}
+
+              {section === "advanced" && (
+                <div className={styles.settingList}>
+                  <SelectRow
+                    label="Autosave delay"
+                    value={String(preferences.autosaveDelayMs)}
+                    options={AUTOSAVE_DELAY_OPTIONS}
+                    onChange={(value) =>
+                      setAppPreference(
+                        "autosaveDelayMs",
+                        Number(value) as AppPreferences["autosaveDelayMs"],
+                      )
+                    }
+                  />
+                  <SelectRow
+                    label="Saved projects shown"
+                    value={preferences.projectsShown}
+                    options={PROJECTS_SHOWN_OPTIONS}
+                    onChange={set("projectsShown")}
+                  />
+                  <Row label="Settings file">
+                    {({ labelId }) => (
+                      <div className={styles.resetActions} role="group" aria-labelledby={labelId}>
                         <Button
                           size="compact"
                           variant="secondary"
-                          onClick={() => setConfirmingReset(true)}
+                          onClick={() =>
+                            downloadExportFile(
+                              exportAppPreferencesJson(),
+                              "plan-measure-settings.json",
+                              "application/json;charset=utf-8",
+                            )
+                          }
                         >
-                          Reset…
+                          Export settings
                         </Button>
-                      )}
+                        <Button
+                          size="compact"
+                          variant="secondary"
+                          onClick={() => settingsFileInputRef.current?.click()}
+                        >
+                          Import settings
+                        </Button>
+                        <input
+                          ref={settingsFileInputRef}
+                          className={styles.visuallyHidden}
+                          type="file"
+                          tabIndex={-1}
+                          accept="application/json,.json"
+                          aria-label="Settings file to import"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void importSettingsFile(file);
+                            event.target.value = "";
+                          }}
+                        />
+                      </div>
+                    )}
+                  </Row>
+                  <StorageUsageRow />
+                  <p className={styles.sectionNote} role="status">
+                    {importStatus}
+                  </p>
+                  <div className={styles.resetRow}>
+                    <div className={styles.resetCopy}>
+                      <span className={styles.settingLabel}>Reset settings</span>
+                      <span className={styles.resetHint}>
+                        Restores every option on this device to its default. Projects are not
+                        changed.
+                      </span>
                     </div>
+                    {confirmingReset ? (
+                      <div className={styles.resetActions}>
+                        <Button
+                          size="compact"
+                          variant="secondary"
+                          onClick={() => setConfirmingReset(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button size="compact" variant="danger" onClick={resetAll}>
+                          Reset
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="compact"
+                        variant="secondary"
+                        onClick={() => setConfirmingReset(true)}
+                      >
+                        Reset…
+                      </Button>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          </Dialog>,
-          document.body,
-        )}
+          </div>
+        </Dialog>,
+        document.body,
+      )}
     </>
   );
 }

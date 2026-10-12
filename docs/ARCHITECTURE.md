@@ -31,6 +31,10 @@ Tests live next to the code (`*.test.ts(x)`).
 - **State and undo/redo**: `app/sessionState.tsx`, `app/state.tsx`.
 - **Panels and dialogs**: `app/` and `features/<area>/`.
 
+## Lazy loading
+
+Heavy, on-demand UI loads with `import()` through `app/recoverableLazy` + `app/retryableImport`: the viewer, Takeoff, classifications, scale check, export, page browser, and the Settings, project library and scale dialogs (`SettingsButton` is the eager trigger of `SettingsDialog`). Keep new dialogs and workspaces out of the static startup graph; `npm run perf:size` enforces the budget (see `docs/PERFORMANCE.md`).
+
 ## Coordinate model
 
 See `utils/coordinates.ts` and `types/domain.ts`.
