@@ -5,7 +5,12 @@ import {
   DEFAULT_APP_PREFERENCES,
   effectiveThousandsSeparator,
   getAppPreferences,
+  FILL_OPACITY_SCALE,
+  HANDLE_SIZE_SCALE,
+  LABEL_BACKGROUND_OPACITY,
   LABEL_SIZE_SCALE,
+  returnsToSelectAfterFinishing,
+  ZOOM_STEP_FACTOR,
   LINE_THICKNESS_SCALE,
   reloadAppPreferencesFromStorage,
   resetAppPreferences,
@@ -33,6 +38,38 @@ describe("appPreferences", () => {
     setAppPreference("labelSize", "huge" as never);
     expect(getAppPreferences().lineThickness).toBe("thick");
     expect(getAppPreferences().labelSize).toBe("normal");
+  });
+
+  it("defaults the per-device canvas and interaction options to today's behaviour", () => {
+    expect(getAppPreferences()).toMatchObject({
+      fillOpacity: "normal",
+      handleSize: "normal",
+      labelBackground: "solid",
+      afterFinishing: "keep",
+      zoomStep: "normal",
+    });
+    expect(FILL_OPACITY_SCALE).toEqual({ light: 0.5, normal: 1, strong: 1.5 });
+    expect(HANDLE_SIZE_SCALE).toEqual({ small: 0.75, normal: 1, large: 1.5 });
+    expect(LABEL_BACKGROUND_OPACITY).toEqual({ solid: 1, translucent: 0.6, none: 0 });
+    expect(ZOOM_STEP_FACTOR).toEqual({ fine: 1.1, normal: 1.25, coarse: 1.5 });
+    setAppPreference("fillOpacity", "strong");
+    setAppPreference("handleSize", "huge" as never);
+    setAppPreference("labelBackground", "none");
+    setAppPreference("afterFinishing", "later" as never);
+    setAppPreference("zoomStep", "coarse");
+    expect(getAppPreferences()).toMatchObject({
+      fillOpacity: "strong",
+      handleSize: "normal",
+      labelBackground: "none",
+      afterFinishing: "keep",
+      zoomStep: "coarse",
+    });
+  });
+
+  it("returns to Select after finishing only when asked, never for Count", () => {
+    expect(returnsToSelectAfterFinishing("keep", "line")).toBe(false);
+    expect(returnsToSelectAfterFinishing("select", "polygon")).toBe(true);
+    expect(returnsToSelectAfterFinishing("select", "count")).toBe(false);
   });
 
   it("starts from defaults and persists changes as JSON", () => {

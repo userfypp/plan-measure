@@ -100,6 +100,9 @@ Aplazado a propósito:
 ## Estado tras la sección View
 Hecho: Settings → View (proyecto: unidad, área, Labels/Measurements/Calibration; dispositivo: grosor de línea y tamaño de etiqueta). El dock mantiene el acceso rápido. Todo sin migración de esquema.
 
+## Estado Fase A (parcial)
+Hecho (dispositivo, sin migración): Fill opacity, Handle size, Label background, After finishing (Drawing) y Zoom step (Interface). Pendiente del resto de la Fase A.
+
 ## Plan: siguientes ajustes útiles
 Ordenados por valor/riesgo. Ámbito: **D** = dispositivo (sin migración), **P** = proyecto (exige `schemaVersion` + migración + goldens). "Riesgo" indica qué contrato puede tocar.
 

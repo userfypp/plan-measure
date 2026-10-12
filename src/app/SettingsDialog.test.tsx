@@ -300,6 +300,27 @@ describe("SettingsDialog", () => {
     expect(stored.labelSize).toBe("small");
   });
 
+  it("stores fill, handle, label background, after-finishing and zoom step per device", () => {
+    renderSettings({ viewSettings: null });
+    openSettings();
+    openTab("View");
+    choose("Fill opacity", "Strong");
+    choose("Handle size", "Large");
+    choose("Label background", "Translucent");
+    openTab("Drawing");
+    choose("After finishing", "Select");
+    openTab("Interface");
+    choose("Zoom step", "Coarse");
+    const stored = JSON.parse(window.localStorage.getItem("plan-measure.preferences") ?? "{}");
+    expect(stored).toMatchObject({
+      fillOpacity: "strong",
+      handleSize: "large",
+      labelBackground: "translucent",
+      afterFinishing: "select",
+      zoomStep: "coarse",
+    });
+  });
+
   it("renders Appearance as a Select and persists the change while keeping Settings open", () => {
     renderSettings({ theme: "dark" });
     openSettings();

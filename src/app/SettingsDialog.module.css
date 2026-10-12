@@ -93,11 +93,13 @@ dialog.dialog {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-base);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  line-height: var(--line-height-secondary);
+  text-transform: uppercase;
 }
 
 /* Later groups are set apart from the rows above by a full-width divider. */
@@ -109,6 +111,8 @@ dialog.dialog {
 
 .groupTitle span {
   color: var(--color-text-secondary);
+  letter-spacing: normal;
+  text-transform: none;
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-regular);
   line-height: var(--line-height-secondary);

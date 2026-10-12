@@ -12,6 +12,11 @@ export type DecimalSeparator = "point" | "comma";
 export type Sensitivity = "low" | "normal" | "high";
 export type LineThickness = "thin" | "normal" | "thick";
 export type LabelSize = "small" | "normal" | "large";
+export type FillOpacity = "light" | "normal" | "strong";
+export type HandleSize = "small" | "normal" | "large";
+export type LabelBackground = "solid" | "translucent" | "none";
+export type AfterFinishing = "select" | "keep";
+export type ZoomStep = "fine" | "normal" | "coarse";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -28,6 +33,11 @@ export interface AppPreferences {
   renderDelayMs: 50 | 90 | 150 | 250;
   lineThickness: LineThickness;
   labelSize: LabelSize;
+  fillOpacity: FillOpacity;
+  handleSize: HandleSize;
+  labelBackground: LabelBackground;
+  afterFinishing: AfterFinishing;
+  zoomStep: ZoomStep;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -47,6 +57,11 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   renderDelayMs: 90,
   lineThickness: "normal",
   labelSize: "normal",
+  fillOpacity: "normal",
+  handleSize: "normal",
+  labelBackground: "solid",
+  afterFinishing: "keep",
+  zoomStep: "normal",
 };
 
 const oneOf =
@@ -70,6 +85,11 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     renderDelayMs: oneOf(50, 90, 150, 250),
     lineThickness: oneOf("thin", "normal", "thick"),
     labelSize: oneOf("small", "normal", "large"),
+    fillOpacity: oneOf("light", "normal", "strong"),
+    handleSize: oneOf("small", "normal", "large"),
+    labelBackground: oneOf("solid", "translucent", "none"),
+    afterFinishing: oneOf("select", "keep"),
+    zoomStep: oneOf("fine", "normal", "coarse"),
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -79,6 +99,31 @@ export const LINE_THICKNESS_SCALE: Record<LineThickness, number> = {
   thick: 1.5,
 };
 export const LABEL_SIZE_SCALE: Record<LabelSize, number> = { small: 0.85, normal: 1, large: 1.25 };
+
+/** Alpha multiplier for on-screen fills (the result is capped at 1); exports never use it. */
+export const FILL_OPACITY_SCALE: Record<FillOpacity, number> = {
+  light: 0.5,
+  normal: 1,
+  strong: 1.5,
+};
+/** Multiplier for the visible handle radius only; the hit area does not change. */
+export const HANDLE_SIZE_SCALE: Record<HandleSize, number> = { small: 0.75, normal: 1, large: 1.5 };
+/** Opacity of the measurement label background (normal "solid" keeps the original look). */
+export const LABEL_BACKGROUND_OPACITY: Record<LabelBackground, number> = {
+  solid: 1,
+  translucent: 0.6,
+  none: 0,
+};
+/** Zoom factor per +/- step (normal matches the previous fixed 1.25). */
+export const ZOOM_STEP_FACTOR: Record<ZoomStep, number> = { fine: 1.1, normal: 1.25, coarse: 1.5 };
+
+/** Whether finishing a measurement of this type should switch back to the Select tool. */
+export function returnsToSelectAfterFinishing(
+  afterFinishing: AfterFinishing,
+  measurementType: string,
+): boolean {
+  return afterFinishing === "select" && measurementType !== "count";
+}
 
 /** Screen-pixel radius for each sensitivity level (normal matches the previous fixed 10 px). */
 export const SENSITIVITY_PX: Record<Sensitivity, number> = { low: 6, normal: 10, high: 16 };

@@ -1,26 +1,14 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  Circle,
-} from "react-konva";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Circle } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import type {
-  LogicalPageBounds,
-  Point,
-  ViewTransform,
-} from "../../types/domain";
+import type { LogicalPageBounds, Point, ViewTransform } from "../../types/domain";
+import { HANDLE_SIZE_SCALE, useAppPreferences } from "../../utils/appPreferences";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
-import {
-  shouldCancelWholeMeasurementDrag,
-} from "./measurementDrag";
+import { shouldCancelWholeMeasurementDrag } from "./measurementDrag";
 import {
   CANVAS_VISUAL_METRICS,
   circularHandleHitStrokeWidthScreenPx,
+  scaledHandleRadiusScreenPx,
 } from "./canvasVisualRoles";
 
 interface CalibrationReferenceMarkersProps {
@@ -65,6 +53,7 @@ export function CalibrationReferenceMarkers({
   onPointsChange,
   onDragCancellationChange,
 }: CalibrationReferenceMarkersProps) {
+  const { handleSize } = useAppPreferences();
   const frameRef = useRef<number | null>(null);
   const pendingPointsRef = useRef<[Point, Point] | null>(null);
   const dragPointsRef = useRef<[Point, Point]>(points);
@@ -176,14 +165,13 @@ export function CalibrationReferenceMarkers({
   }
 
   return points.map((point, index) => {
-    const spatialEditable =
-      editable && (precisionAuthoringAvailable || activeDragIndex === index);
+    const spatialEditable = editable && (precisionAuthoringAvailable || activeDragIndex === index);
     return (
       <Circle
         key={`${calibrationId}-${index}`}
         x={point.x}
         y={point.y}
-        radius={CANVAS_VISUAL_METRICS.handleRadiusScreenPx / zoom}
+        radius={scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]) / zoom}
         fill={handleFill}
         stroke={stroke}
         strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}

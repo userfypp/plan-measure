@@ -38,6 +38,31 @@ const LABEL_SIZE_OPTIONS = [
   { value: "large", label: "Large" },
 ] as const;
 
+const FILL_OPACITY_OPTIONS = [
+  { value: "light", label: "Light" },
+  { value: "normal", label: "Normal" },
+  { value: "strong", label: "Strong" },
+] as const;
+
+const HANDLE_SIZE_OPTIONS = LABEL_SIZE_OPTIONS;
+
+const LABEL_BACKGROUND_OPTIONS = [
+  { value: "solid", label: "Solid" },
+  { value: "translucent", label: "Translucent" },
+  { value: "none", label: "None" },
+] as const;
+
+const AFTER_FINISHING_OPTIONS = [
+  { value: "keep", label: "Keep tool" },
+  { value: "select", label: "Select" },
+] as const;
+
+const ZOOM_STEP_OPTIONS = [
+  { value: "fine", label: "Fine" },
+  { value: "normal", label: "Normal" },
+  { value: "coarse", label: "Coarse" },
+] as const;
+
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: "system", label: "System" },
   { value: "light", label: "Light" },
@@ -468,6 +493,13 @@ export function SettingsDialog({
                       checked={preferences.tooltips}
                       onChange={set("tooltips")}
                     />
+                    <SelectRow
+                      label="Zoom step"
+                      help="How much each zoom in or out button press and keyboard shortcut changes the zoom."
+                      value={preferences.zoomStep}
+                      options={ZOOM_STEP_OPTIONS}
+                      onChange={set("zoomStep")}
+                    />
                     {onKeyboardAuthoringEnabledChange && (
                       <SwitchRow
                         label="Keyboard drawing and editing"
@@ -560,6 +592,13 @@ export function SettingsDialog({
                       options={SENSITIVITY_OPTIONS}
                       onChange={set("closeSensitivity")}
                     />
+                    <SelectRow
+                      label="After finishing"
+                      help="Tool used after completing a measurement. Count always stays active."
+                      value={preferences.afterFinishing}
+                      options={AFTER_FINISHING_OPTIONS}
+                      onChange={set("afterFinishing")}
+                    />
                   </div>
                 )}
 
@@ -629,6 +668,27 @@ export function SettingsDialog({
                       value={preferences.labelSize}
                       options={LABEL_SIZE_OPTIONS}
                       onChange={set("labelSize")}
+                    />
+                    <SelectRow
+                      label="Fill opacity"
+                      help="Transparency of polygon, rectangle, ellipse and cloud fills on the plan. Does not change exports."
+                      value={preferences.fillOpacity}
+                      options={FILL_OPACITY_OPTIONS}
+                      onChange={set("fillOpacity")}
+                    />
+                    <SelectRow
+                      label="Handle size"
+                      help="Visible size of vertex handles. The touch area does not change."
+                      value={preferences.handleSize}
+                      options={HANDLE_SIZE_OPTIONS}
+                      onChange={set("handleSize")}
+                    />
+                    <SelectRow
+                      label="Label background"
+                      help="Background behind measurement labels. With None the text gets a light outline to stay readable. Does not change exports."
+                      value={preferences.labelBackground}
+                      options={LABEL_BACKGROUND_OPTIONS}
+                      onChange={set("labelBackground")}
                     />
                   </div>
                 )}
