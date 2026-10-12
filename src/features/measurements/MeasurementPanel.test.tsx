@@ -287,9 +287,9 @@ describe("MeasurementRow accessibility", () => {
 
   it("keeps quantity alignment and visibility target sizing independent from the optical eye", () => {
     expect(measurementRowCss).toMatch(/\.value\s*\{[^}]*text-align:\s*right;/s);
-    // The eye cell spans the whole column (edge reserve included) and pins the eye to its start.
+    // The eye is centred vertically in its column and pinned to its start.
     expect(measurementRowCss).toMatch(
-      /\.actions > \*\s*\{[^}]*position:\s*relative;[^}]*display:\s*grid;[^}]*align-items:\s*center;[^}]*justify-items:\s*start;[^}]*width:\s*100%;[^}]*height:\s*100%;/s,
+      /\.actions\s*\{[^}]*display:\s*grid;[^}]*align-items:\s*center;[^}]*justify-items:\s*start;/s,
     );
     expect(measurementRowCss).toMatch(
       /\.visibilityButton svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*height:\s*var\(--geometry-icon-size-small\);/s,
@@ -319,7 +319,7 @@ describe("MeasurementRow accessibility", () => {
     );
     expect(measurementRowCss).not.toMatch(/\.actions \.visibilityButton\s*\{[^}]*tree-edge-end/s);
     expect(measurementRowCss).toMatch(
-      /\.actions \.visibilityButton::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s,
+      /\.actions \.visibilityButton::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 calc\(-1 \* var\(--tree-edge-end, 0px\)\) 0 0;/s,
     );
   });
 });
