@@ -15,7 +15,8 @@
   font-family: var(--font-family-sans);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
-  text-align: start;
+  text-align: center;
+  text-wrap: balance;
   white-space: normal;
   pointer-events: none;
 }

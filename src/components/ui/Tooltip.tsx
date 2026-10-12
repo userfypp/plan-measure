@@ -57,6 +57,24 @@ export function Tooltip({
   useLayoutEffect(() => {
     if (!visible) return;
 
+    // A wrapped bubble keeps its max width even when the last line is short, leaving uneven
+    // space around the text. Shrink it to the widest rendered line so the text sits centred.
+    function fitToText() {
+      const node = tooltipRef.current;
+      if (!node || typeof document.createRange !== "function") return;
+      node.style.width = "";
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if (typeof range.getClientRects !== "function") return;
+      const lines = Array.from(range.getClientRects());
+      if (lines.length === 0) return;
+      const textWidth = Math.max(...lines.map((line) => line.width));
+      const style = window.getComputedStyle(node);
+      const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const fitted = Math.ceil(textWidth + padding);
+      if (fitted < node.getBoundingClientRect().width) node.style.width = `${fitted}px`;
+    }
+
     function updateAnchor() {
       const rect = (anchorRef?.current ?? rootRef.current)?.getBoundingClientRect();
       const tooltip = tooltipRef.current?.getBoundingClientRect();
@@ -79,6 +97,7 @@ export function Tooltip({
       setAnchor((current) => (current.x === x && current.y === y ? current : { x, y }));
     }
 
+    fitToText();
     updateAnchor();
     const observer =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateAnchor);

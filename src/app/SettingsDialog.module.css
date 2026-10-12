@@ -88,24 +88,30 @@ dialog.dialog {
 
 .groupTitle {
   margin: 0;
+  min-height: var(--control-height-compact);
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding: var(--space-12) 0 var(--space-4);
   color: var(--color-text-primary);
-  font-size: var(--font-size-secondary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-secondary);
+  line-height: var(--line-height-base);
 }
 
-.groupTitle:first-child {
-  padding-top: 0;
+/* Later groups are set apart from the rows above by a full-width divider. */
+.groupTitle:not(:first-child) {
+  margin-top: var(--space-8);
+  border-top: var(--border-width) solid var(--color-divider);
+  padding-top: var(--space-8);
 }
 
 .groupTitle span {
   color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-secondary);
 }
 
 .groupTitle + .settingRow {
