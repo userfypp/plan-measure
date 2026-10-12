@@ -115,10 +115,12 @@ function dialog(): HTMLElement {
 }
 
 function selectByLabel(label: string): HTMLButtonElement {
-  const labelElement = Array.from(dialog().querySelectorAll<HTMLLabelElement>("label")).find(
-    (candidate) => candidate.textContent?.trim() === label,
-  );
-  const control = labelElement?.htmlFor ? document.getElementById(labelElement.htmlFor) : null;
+  const labelElement = Array.from(
+    dialog().querySelectorAll<HTMLElement>("[class*='settingLabel']"),
+  ).find((candidate) => candidate.textContent?.trim() === label);
+  const control = labelElement?.id
+    ? dialog().querySelector(`button[aria-labelledby~="${labelElement.id}"]`)
+    : null;
   if (!(control instanceof HTMLButtonElement)) {
     throw new Error(`Select ${label} was not rendered.`);
   }
@@ -423,8 +425,8 @@ describe("SettingsDialog", () => {
     expect(help).not.toBeNull();
     const description = document.getElementById(help!.getAttribute("aria-describedby") ?? "");
     expect(description?.textContent).toContain("Space to place points");
-    const label = dialog().querySelector<HTMLLabelElement>('label[for]:not([for=""])');
-    expect(label).not.toBeNull();
+    // Names are plain text, not <label for>, so clicking one never activates its control.
+    expect(dialog().querySelector("label[for]")).toBeNull();
     // No description text is rendered visibly inside any row.
     expect(
       Array.from(dialog().querySelectorAll("p")).some((p) =>
@@ -469,12 +471,27 @@ describe("SettingsDialog", () => {
     expect(onMeasurementDecimalPlacesChange).toHaveBeenCalledWith(5);
   });
 
+  it("does not activate a control when its name is clicked", () => {
+    renderSettings();
+    openSettings();
+    openTab("Accessibility");
+    const name = Array.from(dialog().querySelectorAll<HTMLElement>("[class*='settingLabel']")).find(
+      (candidate) => candidate.textContent === "High contrast",
+    );
+    const toggle = dialog().querySelector<HTMLInputElement>(
+      'input[role="switch"][aria-label="High contrast"]',
+    );
+    expect(name).toBeTruthy();
+    act(() => name?.click());
+    expect(toggle?.checked).toBe(false);
+  });
+
   it("omits decimal places when there is no current session", () => {
     renderSettings({ measurementDecimalPlaces: null });
     openSettings();
     openTab("Measurements");
     expect(
-      Array.from(dialog().querySelectorAll("label")).some(
+      Array.from(dialog().querySelectorAll("[class*='settingLabel']")).some(
         (label) => label.textContent === "Decimal places",
       ),
     ).toBe(false);

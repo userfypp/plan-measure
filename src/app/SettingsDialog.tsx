@@ -380,9 +380,10 @@ function Row({ label, help, children }: RowProps) {
   return (
     <div className={styles.settingRow}>
       <div className={styles.settingCopy}>
-        <label id={labelId} className={styles.settingLabel} htmlFor={controlId}>
+        {/* A span, not a <label for>: clicking the name must not activate the control. */}
+        <span id={labelId} className={styles.settingLabel}>
           {label}
-        </label>
+        </span>
         {help && (
           <>
             <Tooltip content={help} position="top" describeTrigger={false}>
