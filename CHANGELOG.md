@@ -4,7 +4,7 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
-## [2.10.0](https://github.com/userfypp/plan-measure/compare/v2.9.0...v2.10.0) (2026-10-11)
+## [2.9.1](https://github.com/userfypp/plan-measure/compare/v2.9.0...v2.9.1) (2026-10-11)
 
 
 ### Added
