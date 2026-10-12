@@ -111,16 +111,6 @@
   transition: var(--transition-interactive);
 }
 
-.toolbarButton::after {
-  width: var(--geometry-disclosure-caret-size);
-  height: var(--geometry-disclosure-caret-size);
-  flex: 0 0 auto;
-  border-right: calc(var(--icon-stroke-width) * 1px) solid currentColor;
-  border-bottom: calc(var(--icon-stroke-width) * 1px) solid currentColor;
-  content: "";
-  transform: translateY(-1px) rotate(45deg);
-}
-
 .toolbarButton:hover:not(:disabled) {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);

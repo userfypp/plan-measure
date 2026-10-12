@@ -103,7 +103,7 @@
   min-width: 0;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size);
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size-small);
   align-items: center;
   gap: var(--space-8);
 }
@@ -116,14 +116,7 @@
 }
 
 .valueTriggerContent svg {
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: var(--icon-stroke-width);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: var(--transition-transform);
+  justify-self: end;
 }
 
 .valueTrigger[aria-expanded="true"] .valueTriggerContent svg {

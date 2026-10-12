@@ -306,18 +306,6 @@
   outline-offset: var(--focus-offset);
 }
 
-.chevron {
-  display: block;
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  flex-shrink: 0;
-  transition: var(--transition-transform);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: var(--icon-stroke-width);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 .sourceToggle[aria-expanded="true"] .chevron {
   transform: rotate(180deg);
 }

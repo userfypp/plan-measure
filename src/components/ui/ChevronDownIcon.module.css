@@ -1,0 +1,18 @@
+.icon {
+  display: block;
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--color-text-secondary);
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: var(--transition-transform);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon {
+    transition: none;
+  }
+}

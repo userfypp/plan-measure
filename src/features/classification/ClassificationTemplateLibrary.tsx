@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, Input } from "../../components/ui";
+import { Button, ChevronDownIcon, Input } from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
 import { classificationNameKey } from "../../utils/classificationNames";
 import {
@@ -11,14 +11,6 @@ import {
   type ClassificationTemplateDimension,
 } from "./classificationTemplates";
 import styles from "./ClassificationWorkspace.module.css";
-
-function DisclosureChevron() {
-  return (
-    <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m6.5 8 3.5 3.5L13.5 8" />
-    </svg>
-  );
-}
 
 export function ClassificationTemplateLibrary({
   catalog,
@@ -120,7 +112,7 @@ export function ClassificationTemplateLibrary({
                       {valueCount === 1 ? "value" : "values"}
                     </span>
                   </span>
-                  <DisclosureChevron />
+                  <ChevronDownIcon className={styles.chevron} />
                 </summary>
                 <div className={styles.templateBody}>
                   <dl className={styles.preview}>
@@ -199,7 +191,7 @@ export function ClassificationTemplateLibrary({
       <details className={styles.disclosure}>
         <summary className={styles.saveSummary}>
           <span>Save project as template</span>
-          <DisclosureChevron />
+          <ChevronDownIcon className={styles.chevron} />
         </summary>
         <form className={styles.saveForm} onSubmit={save}>
           <p className={styles.note}>Active dimensions and values only.</p>

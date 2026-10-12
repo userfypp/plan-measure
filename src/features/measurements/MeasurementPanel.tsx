@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { useSessionState } from "../../app/sessionState";
-import { Button, Popover, Select } from "../../components/ui";
+import { Button, ChevronDownIcon, Popover, Select } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
 import { MEASUREMENT_TYPES, measurementPathSpecs } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
@@ -173,6 +173,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             <>
               <span>Filters</span>
               {activeFilterCount > 0 && <span className={styles.activeCount}>· {activeFilterCount}</span>}
+              <ChevronDownIcon />
             </>
           }
           role="dialog"
@@ -284,6 +285,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
               title: groupByNames.length > 0 ? groupByNames.join(", then ") : undefined,
             }}
             trigger={
+              <>
               <span className={styles.truncatedTrigger}>
                 <span className={styles.groupingPrefix}>Group</span>
                 {groupByNames.length > 0 && (
@@ -296,6 +298,8 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                   </>
                 )}
               </span>
+              <ChevronDownIcon />
+              </>
             }
             role="dialog"
             aria-label="Measurement grouping"

@@ -47,18 +47,7 @@
   white-space: nowrap;
 }
 
-.chevron {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  fill: none;
-  stroke: var(--color-text-secondary);
-  stroke-width: var(--icon-stroke-width);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: var(--transition-transform);
-}
-
-.trigger[aria-expanded="true"] .chevron {
+.trigger[aria-expanded="true"] svg {
   transform: rotate(180deg);
 }
 

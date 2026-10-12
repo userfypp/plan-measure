@@ -36,8 +36,7 @@
   gap: var(--space-4);
 }
 
-.triggerContent svg,
-.valueContent svg {
+.tagIcon {
   width: var(--geometry-icon-size);
   height: var(--geometry-icon-size);
   flex: 0 0 auto;

@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { AnchoredMenu } from "../components/ui";
+import { AnchoredMenu, ChevronDownIcon } from "../components/ui";
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import styles from "./WorkspacePanel.module.css";
@@ -13,14 +13,6 @@ const MODULES: Array<{ id: WorkspaceModule; label: string }> = [
 
 export function workspaceModuleLabel(module: WorkspaceModule): string {
   return MODULES.find((candidate) => candidate.id === module)?.label ?? module;
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m6.5 8 3.5 3.5L13.5 8" />
-    </svg>
-  );
 }
 
 function CloseIcon() {
@@ -80,7 +72,7 @@ export function WorkspacePanel({
           trigger={
             <span className={styles.switcherContent}>
               <span>{activeLabel}</span>
-              <ChevronIcon />
+              <ChevronDownIcon />
             </span>
           }
           triggerProps={{

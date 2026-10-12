@@ -1,5 +1,5 @@
 import { memo, useId, useMemo, useState } from "react";
-import { Badge, Button, Select } from "../../components/ui";
+import { Badge, Button, ChevronDownIcon, Select } from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -333,9 +333,7 @@ function SourceToggle({
       <span>
         {count} measurement{count === 1 ? "" : "s"}
       </span>
-      <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-        <path d="m6 8 4 4 4-4" />
-      </svg>
+      <ChevronDownIcon className={styles.chevron} />
     </button>
   );
 }

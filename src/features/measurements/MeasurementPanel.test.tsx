@@ -294,11 +294,10 @@ describe("measurement grouping surfaces", () => {
     expect(measurementPanelCss).toMatch(
       /\.toolbarButton\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
     );
-    expect(measurementPanelCss).toContain(".toolbarButton::after");
+    expect(measurementPanelCss).not.toContain(".toolbarButton::after");
     expect(measurementPanelCss).toMatch(
       /\.toolbarButton\s*\{[^}]*gap:\s*var\(--space-8\);/s,
     );
-    expect(measurementPanelCss).toMatch(/\.toolbarButton::after\s*\{[^}]*width:\s*var\(--geometry-disclosure-caret-size\);[^}]*height:\s*var\(--geometry-disclosure-caret-size\);/s);
     expect(measurementPanelCss).toMatch(
       /@container measurement-panel \(max-width: 359px\)[\s\S]*?\.search\s*\{[^}]*grid-column:\s*1 \/ -1;/,
     );

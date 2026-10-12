@@ -139,18 +139,8 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.chevron {
-  flex: 0 0 auto;
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: var(--icon-stroke-width);
-  color: var(--color-text-secondary);
+summary .chevron {
   transform: rotate(-90deg);
-  transition: var(--transition-transform);
 }
 
 .disclosure[open] > summary .chevron {

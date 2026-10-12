@@ -1,4 +1,5 @@
 import { AnchoredMenu, type AnchoredMenuItem } from "./AnchoredMenu";
+import { ChevronDownIcon } from "./ChevronDownIcon";
 import type { PopoverTriggerProps } from "./Popover";
 import styles from "./Select.module.css";
 
@@ -26,14 +27,6 @@ export interface SelectProps<T extends string> {
 
 /** Lets viewer shortcuts ignore typing on the trigger, as they do for a native select. */
 const SELECT_TRIGGER_ATTRIBUTES = { "data-select-trigger": "true" };
-
-function ChevronIcon() {
-  return (
-    <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m6 8 4 4 4-4" />
-    </svg>
-  );
-}
 
 export function Select<T extends string>({
   id,
@@ -63,7 +56,7 @@ export function Select<T extends string>({
       trigger={
         <>
           <span className={styles.value}>{selected?.label ?? ""}</span>
-          <ChevronIcon />
+          <ChevronDownIcon />
         </>
       }
       triggerProps={{
