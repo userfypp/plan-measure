@@ -9,6 +9,8 @@ import {
   getAppPreferences,
   FILL_OPACITY_SCALE,
   HANDLE_SIZE_SCALE,
+  HIT_TOLERANCE_PX,
+  RASTER_CACHE_LIMITS,
   LABEL_BACKGROUND_OPACITY,
   LABEL_SIZE_SCALE,
   returnsToSelectAfterFinishing,
@@ -252,6 +254,41 @@ describe("formatDisplayNumber with separators", () => {
   it("keeps tiny non-zero values explicit with the chosen decimal mark", () => {
     setAppPreference("decimalSeparator", "comma");
     expect(formatDisplayNumber(0.0004, 2)).toBe("0,0004");
+  });
+});
+
+describe("performance preferences", () => {
+  it("default to today's behaviour", () => {
+    expect(DEFAULT_APP_PREFERENCES).toMatchObject({
+      renderQuality: "balanced",
+      rasterCache: "normal",
+      hitTolerance: "normal",
+      debugOverlay: false,
+    });
+    expect(RASTER_CACHE_LIMITS.normal).toEqual({ maxEntries: 2, maxPixels: 8 * 1024 * 1024 });
+    expect(HIT_TOLERANCE_PX).toEqual({ tight: 8, normal: 12, wide: 16 });
+  });
+
+  it("rejects invalid values and persists valid ones through the settings file", () => {
+    setAppPreference("renderQuality", "ultra" as never);
+    setAppPreference("rasterCache", "huge" as never);
+    setAppPreference("hitTolerance", 3 as never);
+    setAppPreference("debugOverlay", "yes" as never);
+    expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
+    setAppPreference("renderQuality", "fast");
+    setAppPreference("rasterCache", "large");
+    setAppPreference("hitTolerance", "wide");
+    setAppPreference("debugOverlay", true);
+    const json = exportAppPreferencesJson();
+    resetAppPreferences();
+    expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
+    expect(importAppPreferencesJson(json)).toBe(true);
+    expect(getAppPreferences()).toMatchObject({
+      renderQuality: "fast",
+      rasterCache: "large",
+      hitTolerance: "wide",
+      debugOverlay: true,
+    });
   });
 });
 

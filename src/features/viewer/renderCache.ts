@@ -12,8 +12,8 @@ export class LruRenderCache<T> {
   private totalPixels = 0;
 
   constructor(
-    private readonly maxEntries = MAX_RENDER_CACHE_ENTRIES,
-    private readonly maxPixels = MAX_RENDER_CACHE_PIXELS,
+    private maxEntries = MAX_RENDER_CACHE_ENTRIES,
+    private maxPixels = MAX_RENDER_CACHE_PIXELS,
     private readonly dispose?: (value: T) => void,
   ) {}
 
@@ -42,6 +42,18 @@ export class LruRenderCache<T> {
     this.entries.set(key, { value, pixels });
     this.totalPixels += pixels;
 
+    this.evict();
+  }
+
+  /** Changes the limits and evicts the oldest entries that no longer fit. */
+  setLimits(maxEntries: number, maxPixels: number): void {
+    if (maxEntries === this.maxEntries && maxPixels === this.maxPixels) return;
+    this.maxEntries = maxEntries;
+    this.maxPixels = maxPixels;
+    this.evict();
+  }
+
+  private evict(): void {
     while (this.entries.size > this.maxEntries || this.totalPixels > this.maxPixels) {
       const oldestKey = this.entries.keys().next().value as string | undefined;
       if (!oldestKey) break;

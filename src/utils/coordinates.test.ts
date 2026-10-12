@@ -10,6 +10,7 @@ import {
   MAX_PDF_RASTER_DIMENSION,
   MAX_PDF_RASTER_PIXELS,
   pageToScreen,
+  PDF_RASTER_QUALITY_LIMITS,
   pdfRasterLayout,
   rotatedPageBounds,
   screenToPage,
@@ -163,6 +164,46 @@ describe("page and screen coordinates", () => {
     );
     expect(layout.backingWidth).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
     expect(layout.backingHeight).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
+  });
+});
+
+describe("render quality limits", () => {
+  const huge = { width: 100_000, height: 100_000 };
+  const transform = { zoom: 8, panX: 0, panY: 0 };
+  const raster = (quality: keyof typeof PDF_RASTER_QUALITY_LIMITS, dpr = 2) => {
+    const { maxPixels, maxDimension, maxDpr } = PDF_RASTER_QUALITY_LIMITS[quality];
+    return pdfRasterLayout(huge, transform, Math.min(dpr, maxDpr), maxPixels, maxDimension);
+  };
+
+  it("balanced is identical to the default limits", () => {
+    expect(raster("balanced")).toEqual(pdfRasterLayout(huge, transform, 2));
+    const page = { width: 600, height: 800 };
+    const { maxPixels, maxDimension } = PDF_RASTER_QUALITY_LIMITS.balanced;
+    expect(pdfRasterLayout(page, transform, 2, maxPixels, maxDimension)).toEqual(
+      pdfRasterLayout(page, transform, 2),
+    );
+  });
+
+  it("fast caps at 8 Mpx / 4096 and sharp at 32 Mpx / 8192", () => {
+    const fast = raster("fast");
+    expect(fast.backingWidth * fast.backingHeight).toBeLessThanOrEqual(8 * 1024 * 1024 * 1.001);
+    expect(fast.backingWidth).toBeLessThanOrEqual(4096);
+    const sharp = raster("sharp");
+    expect(sharp.backingWidth * sharp.backingHeight).toBeGreaterThan(MAX_PDF_RASTER_PIXELS);
+    expect(sharp.backingWidth).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
+  });
+
+  it("fast limits the pixel ratio to 1.5", () => {
+    const page = { width: 600, height: 800 };
+    const { maxPixels, maxDimension, maxDpr } = PDF_RASTER_QUALITY_LIMITS.fast;
+    const layout = pdfRasterLayout(
+      page,
+      { zoom: 1, panX: 0, panY: 0 },
+      Math.min(3, maxDpr),
+      maxPixels,
+      maxDimension,
+    );
+    expect(layout.rasterScale).toBe(1.5);
   });
 });
 

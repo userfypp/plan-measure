@@ -37,4 +37,20 @@ describe("LruRenderCache", () => {
 
     expect(cache.get("1:a")).toBeUndefined();
   });
+
+  it("evicts the oldest entries when the limits shrink and keeps more when they grow", () => {
+    const disposed: string[] = [];
+    const cache = new LruRenderCache<string>(4, 16, (value) => disposed.push(value));
+    cache.set("a", "A", 4);
+    cache.set("b", "B", 4);
+    cache.set("c", "C", 4);
+    cache.setLimits(1, 4);
+    expect(cache.size).toBe(1);
+    expect(cache.pixels).toBe(4);
+    expect(disposed).toEqual(["A", "B"]);
+    expect(cache.get("c")).toBe("C");
+    cache.setLimits(4, 16);
+    cache.set("d", "D", 4);
+    expect(cache.size).toBe(2);
+  });
 });

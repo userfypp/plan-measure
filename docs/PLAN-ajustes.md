@@ -173,6 +173,7 @@ Estado: implementado "Show classification in label" (esquema V14, `labelClassifi
 | Per-page view overrides | Aplazado | Unidad o visibilidad por página: cambio de modelo grande. |
 
 ### Fase E — Avanzado (dispositivo, plegado; no ampliar presupuestos de rendimiento)
+Estado: HECHA (sin overlay de depuración previo). Render quality, Raster cache, Click tolerance (tight 8/normal 12/wide 16 px) y Debug overlay, en una sección nueva Performance (Advanced no cabía sin scroll); Maximum zoom, Undo history y Render delay se movieron allí. Sin `perf:*` ejecutado.
 Render quality (Balanced/Sharp), raster cache size, hit-test tolerance (4–16 px), debug overlay (FPS/caché). Validar con `perf:*` solo a petición expresa.
 
 ### Reglas para todas las fases

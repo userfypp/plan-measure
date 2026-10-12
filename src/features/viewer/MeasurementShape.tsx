@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import {
   FILL_OPACITY_SCALE,
   HANDLE_SIZE_SCALE,
+  HIT_TOLERANCE_PX,
   LABEL_BACKGROUND_OPACITY,
   LABEL_SIZE_SCALE,
   LINE_THICKNESS_SCALE,
@@ -160,8 +161,15 @@ export const MeasurementShape = memo(function MeasurementShape({
   labelCollisionIndex,
 }: MeasurementShapeProps) {
   useNumberFormatKey(); // re-render when separators change
-  const { lineThickness, labelSize, fillOpacity, handleSize, labelBackground, labelContent } =
-    useAppPreferences();
+  const {
+    lineThickness,
+    labelSize,
+    fillOpacity,
+    handleSize,
+    labelBackground,
+    labelContent,
+    hitTolerance,
+  } = useAppPreferences();
   const fillScale = FILL_OPACITY_SCALE[fillOpacity];
   const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
   const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[labelBackground];
@@ -985,7 +993,7 @@ export const MeasurementShape = memo(function MeasurementShape({
               shadowForStrokeEnabled: true,
             }
           : {})}
-        hitStrokeWidth={CANVAS_VISUAL_METRICS.measurementHitStrokeScreenPx / zoom}
+        hitStrokeWidth={HIT_TOLERANCE_PX[hitTolerance] / zoom}
         hitFunc={drawMeasurementHit}
         {...(measurement.type === "ellipse" || measurement.type === "cloud"
           ? { measurementType: measurement.type, sceneFunc: drawMeasurementOutlineScene }

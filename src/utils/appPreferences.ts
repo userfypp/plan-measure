@@ -27,6 +27,9 @@ export type ProjectsShown = "10" | "25" | "all";
 export type FocusRing = "normal" | "thick";
 export type TextSize = "100" | "110" | "125";
 export type Contrast = "normal" | "more";
+export type RenderQuality = "balanced" | "sharp" | "fast";
+export type RasterCache = "small" | "normal" | "large";
+export type HitTolerance = "tight" | "normal" | "wide";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -63,6 +66,10 @@ export interface AppPreferences {
   textSize: TextSize;
   contrast: Contrast;
   largeTargets: boolean;
+  renderQuality: RenderQuality;
+  rasterCache: RasterCache;
+  hitTolerance: HitTolerance;
+  debugOverlay: boolean;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -102,6 +109,10 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   textSize: "100",
   contrast: "normal",
   largeTargets: false,
+  renderQuality: "balanced",
+  rasterCache: "normal",
+  hitTolerance: "normal",
+  debugOverlay: false,
 };
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
@@ -147,6 +158,10 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     textSize: oneOf("100", "110", "125"),
     contrast: oneOf("normal", "more"),
     largeTargets: isBoolean,
+    renderQuality: oneOf("balanced", "sharp", "fast"),
+    rasterCache: oneOf("small", "normal", "large"),
+    hitTolerance: oneOf("tight", "normal", "wide"),
+    debugOverlay: isBoolean,
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -192,6 +207,16 @@ export function returnsToSelectAfterFinishing(
 
 /** Screen-pixel radius for each sensitivity level (normal matches the previous fixed 10 px). */
 export const SENSITIVITY_PX: Record<Sensitivity, number> = { low: 6, normal: 10, high: 16 };
+
+/** Raster cache limits per level (normal matches the previous fixed 2 entries / 8 Mpx). */
+export const RASTER_CACHE_LIMITS: Record<RasterCache, { maxEntries: number; maxPixels: number }> = {
+  small: { maxEntries: 1, maxPixels: 4 * 1024 * 1024 },
+  normal: { maxEntries: 2, maxPixels: 8 * 1024 * 1024 },
+  large: { maxEntries: 4, maxPixels: 16 * 1024 * 1024 },
+};
+
+/** On-screen hit stroke width of measurements (normal matches the previous fixed 12 px). */
+export const HIT_TOLERANCE_PX: Record<HitTolerance, number> = { tight: 8, normal: 12, wide: 16 };
 
 /** Keeps a separator pair readable: a thousands mark may never equal the decimal mark. */
 export function effectiveThousandsSeparator(

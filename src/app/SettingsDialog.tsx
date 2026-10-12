@@ -38,6 +38,7 @@ type SectionId =
   | "canvas"
   | "confirmations"
   | "shortcuts"
+  | "performance"
   | "advanced";
 
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
@@ -194,6 +195,24 @@ const RENDER_DELAY_OPTIONS = [
   { value: "250", label: "250 ms" },
 ] as const;
 
+const RENDER_QUALITY_OPTIONS = [
+  { value: "fast", label: "Fast" },
+  { value: "balanced", label: "Balanced" },
+  { value: "sharp", label: "Sharp" },
+] as const;
+
+const RASTER_CACHE_OPTIONS = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+] as const;
+
+const HIT_TOLERANCE_OPTIONS = [
+  { value: "tight", label: "Tight" },
+  { value: "normal", label: "Normal" },
+  { value: "wide", label: "Wide" },
+] as const;
+
 const AUTOSAVE_DELAY_OPTIONS = [
   { value: "300", label: "0.3 s" },
   { value: "1000", label: "1 s" },
@@ -348,6 +367,16 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
       <Icon>
         <rect x="2.5" y="5" width="15" height="10" rx="2" />
         <path d="M5.5 8h1M9.5 8h1M13.5 8h1M5.5 12h9" />
+      </Icon>
+    ),
+  },
+  {
+    id: "performance",
+    label: "Performance",
+    icon: (
+      <Icon>
+        <path d="M3 14a7 7 0 1 1 14 0" />
+        <path d="m10 14 3-4" />
       </Icon>
     ),
   },
@@ -1005,7 +1034,7 @@ export function SettingsDialog({
                   </div>
                 )}
 
-                {section === "advanced" && (
+                {section === "performance" && (
                   <div className={styles.settingList}>
                     <SelectRow
                       label="Maximum zoom"
@@ -1037,6 +1066,38 @@ export function SettingsDialog({
                         )
                       }
                     />
+                    <SelectRow
+                      label="Render quality"
+                      help="Sharpness of the plan raster. Sharp uses more memory; Fast is lighter on slow devices."
+                      value={preferences.renderQuality}
+                      options={RENDER_QUALITY_OPTIONS}
+                      onChange={set("renderQuality")}
+                    />
+                    <SelectRow
+                      label="Raster cache"
+                      help="How many recent renders are kept for instant zoom changes. Larger uses more memory."
+                      value={preferences.rasterCache}
+                      options={RASTER_CACHE_OPTIONS}
+                      onChange={set("rasterCache")}
+                    />
+                    <SelectRow
+                      label="Click tolerance"
+                      help="How close to a measurement a click still selects it."
+                      value={preferences.hitTolerance}
+                      options={HIT_TOLERANCE_OPTIONS}
+                      onChange={set("hitTolerance")}
+                    />
+                    <SwitchRow
+                      label="Debug overlay"
+                      help="Shows FPS, cache use and the last render time over the plan."
+                      checked={preferences.debugOverlay}
+                      onChange={set("debugOverlay")}
+                    />
+                  </div>
+                )}
+
+                {section === "advanced" && (
+                  <div className={styles.settingList}>
                     <SelectRow
                       label="Autosave delay"
                       value={String(preferences.autosaveDelayMs)}

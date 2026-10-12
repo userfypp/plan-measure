@@ -1,0 +1,15 @@
+.overlay {
+  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+  position: absolute;
+  z-index: var(--z-feedback);
+  left: var(--space-12);
+  bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-8);
+  pointer-events: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+}

@@ -225,10 +225,12 @@ describe("SettingsDialog", () => {
       "Canvas",
       "Confirmations",
       "Shortcuts",
+      "Performance",
       "Advanced",
     ]);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
+      "false",
       "false",
       "false",
       "false",
@@ -500,7 +502,7 @@ describe("SettingsDialog", () => {
     for (const label of ["Snap on by default", "Ortho on by default", "Snap sensitivity"]) {
       expect(dialog().querySelector(`button[aria-label="About ${label}"]`)).not.toBeNull();
     }
-    openTab("Advanced");
+    openTab("Performance");
     for (const label of ["Maximum zoom", "Undo history", "Render delay"]) {
       expect(dialog().querySelector(`button[aria-label="About ${label}"]`)).not.toBeNull();
     }
@@ -633,7 +635,7 @@ describe("SettingsDialog", () => {
   it("stores advanced values as numbers and resets everything after confirmation", () => {
     renderSettings();
     openSettings();
-    openTab("Advanced");
+    openTab("Performance");
 
     choose("Maximum zoom", "16×");
     choose("Undo history", "200 steps");
@@ -646,25 +648,65 @@ describe("SettingsDialog", () => {
       renderDelayMs: 150,
     });
 
+    openTab("Advanced");
     const reset = Array.from(dialog().querySelectorAll("button")).find(
       (button) => button.textContent === "Reset…",
     )!;
     act(() => reset.click());
-    expect(selectByLabel("Maximum zoom").textContent).toBe("16×");
     const confirm = Array.from(dialog().querySelectorAll("button")).find(
       (button) => button.textContent === "Reset",
     )!;
     act(() => confirm.click());
+    openTab("Performance");
     expect(selectByLabel("Maximum zoom").textContent).toBe("8×");
     expect(selectByLabel("Undo history").textContent).toBe("100 steps");
     expect(selectByLabel("Render delay").textContent).toBe("90 ms");
   });
 
+  it("stores the performance options, shows them under Performance and resets them", () => {
+    renderSettings();
+    openSettings();
+    openTab("Performance");
+    expect(selectByLabel("Render quality").textContent).toBe("Balanced");
+    expect(selectByLabel("Raster cache").textContent).toBe("Normal");
+    expect(selectByLabel("Click tolerance").textContent).toBe("Normal");
+    expect(switchControl("Debug overlay").checked).toBe(false);
+    choose("Render quality", "Fast");
+    choose("Raster cache", "Large");
+    choose("Click tolerance", "Wide");
+    act(() => switchControl("Debug overlay").click());
+    expect(
+      JSON.parse(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY) ?? "{}"),
+    ).toMatchObject({
+      renderQuality: "fast",
+      rasterCache: "large",
+      hitTolerance: "wide",
+      debugOverlay: true,
+    });
+    openTab("Advanced");
+    act(() =>
+      Array.from(dialog().querySelectorAll("button"))
+        .find((button) => button.textContent === "Reset…")!
+        .click(),
+    );
+    act(() =>
+      Array.from(dialog().querySelectorAll("button"))
+        .find((button) => button.textContent === "Reset")!
+        .click(),
+    );
+    openTab("Performance");
+    expect(selectByLabel("Render quality").textContent).toBe("Balanced");
+    expect(selectByLabel("Raster cache").textContent).toBe("Normal");
+    expect(selectByLabel("Click tolerance").textContent).toBe("Normal");
+    expect(switchControl("Debug overlay").checked).toBe(false);
+  });
+
   it("cancels a pending reset without changing anything", () => {
     renderSettings();
     openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     choose("Maximum zoom", "4×");
+    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -675,7 +717,9 @@ describe("SettingsDialog", () => {
         .find((button) => button.textContent === "Cancel")!
         .click(),
     );
+    openTab("Performance");
     expect(selectByLabel("Maximum zoom").textContent).toBe("4×");
+    openTab("Advanced");
     expect(
       Array.from(dialog().querySelectorAll("button")).some((b) => b.textContent === "Reset…"),
     ).toBe(true);
@@ -768,12 +812,18 @@ describe("SettingsDialog", () => {
     expect(helpLabels()).toEqual([]);
     openTab("Confirmations");
     expect(helpLabels()).toEqual([]);
-    openTab("Advanced");
+    openTab("Performance");
     expect(helpLabels()).toEqual([
       "About Maximum zoom",
       "About Undo history",
       "About Render delay",
+      "About Render quality",
+      "About Raster cache",
+      "About Click tolerance",
+      "About Debug overlay",
     ]);
+    openTab("Advanced");
+    expect(helpLabels()).toEqual([]);
   });
 
   it("stores the autosave delay, projects shown and closing confirmation", () => {

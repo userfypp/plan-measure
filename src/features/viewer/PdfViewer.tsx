@@ -13,6 +13,7 @@ import {
 import {
   FILL_OPACITY_SCALE,
   HANDLE_SIZE_SCALE,
+  RASTER_CACHE_LIMITS,
   ZOOM_STEP_FACTOR,
   getAppPreferences,
   wheelAction,
@@ -49,6 +50,7 @@ import {
   initialViewTransform,
   logicalPageBoundsFromViewport,
   normalizeRotation,
+  PDF_RASTER_QUALITY_LIMITS,
   pdfRasterLayout,
   pageToScreen,
   screenToPage,
@@ -77,6 +79,7 @@ import { ScaleCheckLine } from "./ScaleCheckLine";
 import type { ScaleCheckStore } from "../calibration/scaleCheckState";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
+import { DebugOverlay } from "./DebugOverlay";
 import {
   setMainPdfBusy,
   setMainPdfPage,
@@ -203,6 +206,9 @@ export function PdfViewer({
     liveLength,
     finishOnDoubleClick,
     pageGrid,
+    renderQuality,
+    rasterCache,
+    debugOverlay,
   } = useAppPreferences();
   const fillScale = FILL_OPACITY_SCALE[fillOpacity];
   const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
@@ -256,6 +262,19 @@ export function PdfViewer({
     pageNumber: number;
   } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
+  const lastRenderMsRef = useRef<number | null>(null);
+  const getDebugStats = useCallback(
+    () => ({
+      cacheEntries: renderCacheRef.current.size,
+      cachePixels: renderCacheRef.current.pixels,
+      lastRenderMs: lastRenderMsRef.current,
+    }),
+    [],
+  );
+  useEffect(() => {
+    const limits = RASTER_CACHE_LIMITS[rasterCache];
+    renderCacheRef.current.setLimits(limits.maxEntries, limits.maxPixels);
+  }, [rasterCache]);
   const activeMeasurementEditIdRef = useRef(activeMeasurementEditId);
   const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
   const renderRequestRef = useRef(0);
@@ -775,10 +794,13 @@ export function PdfViewer({
 
     setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, true);
     const requestId = ++renderRequestRef.current;
+    const quality = PDF_RASTER_QUALITY_LIMITS[renderQuality];
     const layout = pdfRasterLayout(
       loadedPage.bounds,
       { zoom: viewTransform.zoom, panX: 0, panY: 0 },
-      devicePixelRatio,
+      Math.min(devicePixelRatio, quality.maxDpr),
+      quality.maxPixels,
+      quality.maxDimension,
     );
     const cacheKey = [
       loadedPage.pageNumber,
@@ -840,11 +862,9 @@ export function PdfViewer({
         .then(() => {
           if (requestId !== renderRequestRef.current) return;
           renderTaskRef.current = null;
-          setMainPdfRenderMs(
-            loadedPage.document,
-            loadedPage.pageNumber,
-            performance.now() - startedAt,
-          );
+          const renderMs = performance.now() - startedAt;
+          lastRenderMsRef.current = renderMs;
+          setMainPdfRenderMs(loadedPage.document, loadedPage.pageNumber, renderMs);
           setMainPdfBusy(loadedPage.document, mainRenderOwnerRef.current, false);
           renderCacheRef.current.set(
             cacheKey,
@@ -887,6 +907,7 @@ export function PdfViewer({
   }, [
     devicePixelRatio,
     pageRenderData,
+    renderQuality,
     setError,
     trackPageRenderTask,
     viewTransform.zoom,
@@ -2355,6 +2376,7 @@ export function PdfViewer({
             {pageLoadFailed ? "Could not load this page." : "Rendering page…"}
           </div>
         )}
+        {debugOverlay && <DebugOverlay getStats={getDebugStats} />}
       </div>
     </div>
   );

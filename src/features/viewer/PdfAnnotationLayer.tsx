@@ -145,9 +145,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   const labelContent = appPreferences.labelContent;
   const classificationNames = useMemo(
     () =>
-      labelDimension
-        ? new Map(labelDimension.values.map((value) => [value.id, value.name]))
-        : null,
+      labelDimension ? new Map(labelDimension.values.map((value) => [value.id, value.name])) : null,
     [labelDimension],
   );
   const labelFontScale = LABEL_SIZE_SCALE[appPreferences.labelSize];

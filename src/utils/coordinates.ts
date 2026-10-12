@@ -25,6 +25,17 @@ export const VIEWER_ZOOM_STEP = 1.25;
 export const MAX_PDF_RASTER_PIXELS = 16 * 1024 * 1024;
 export const MAX_PDF_RASTER_DIMENSION = 8192;
 
+/** Raster limits per render quality (balanced matches the constants above). */
+export const PDF_RASTER_QUALITY_LIMITS = {
+  balanced: {
+    maxPixels: MAX_PDF_RASTER_PIXELS,
+    maxDimension: MAX_PDF_RASTER_DIMENSION,
+    maxDpr: Infinity,
+  },
+  sharp: { maxPixels: 32 * 1024 * 1024, maxDimension: MAX_PDF_RASTER_DIMENSION, maxDpr: Infinity },
+  fast: { maxPixels: 8 * 1024 * 1024, maxDimension: 4096, maxDpr: 1.5 },
+} as const;
+
 export function logicalPageBoundsFromViewport(viewport: {
   width: number;
   height: number;
