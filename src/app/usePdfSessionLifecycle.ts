@@ -792,8 +792,10 @@ export function usePdfSessionLifecycle({
     }
   }
 
-  async function openProject(projectId: string) {
+  async function openProject(projectId: string, options: { discardUnsavedProject?: boolean } = {}) {
     if (!canLeaveCurrentProject()) return;
+    // A project that exists only in memory (storage failed) is lost when another one is opened.
+    if (hasUnsavedMemoryProject() && !options.discardUnsavedProject) return;
     const loadGeneration = pdfLoadLifecycleRef.current.begin();
     beginPdfLoad(loadGeneration);
     let loaded: LoadedPdf | null = null;
@@ -1189,6 +1191,7 @@ export function usePdfSessionLifecycle({
     openSampleProject,
     exportProject,
     openProject,
+    hasUnsavedMemoryProject,
     refreshSavedProjects,
     continueRecovery,
     discardRecovery,

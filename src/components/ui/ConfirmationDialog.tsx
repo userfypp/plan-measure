@@ -43,10 +43,10 @@ export function ConfirmationDialog({
       descriptionId={descriptionId}
       actions={
         <>
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" size="compact" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant={intent === "destructive" ? "danger" : "primary"} onClick={onConfirm}>
+          <Button variant={intent === "destructive" ? "danger" : "primary"} size="compact" onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </>

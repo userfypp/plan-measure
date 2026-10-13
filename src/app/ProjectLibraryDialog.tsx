@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Badge, Button, Dialog, IconButton } from "../components/ui";
 import type { SavedProjectSummary } from "../services/persistence";
 import { useAppPreferences } from "../utils/appPreferences";
@@ -12,7 +12,9 @@ interface ProjectLibraryDialogProps {
   activeProjectId: string | null;
   opening: boolean;
   pendingDiscardProjectId: string | null;
-  onOpenProject: (projectId: string) => void;
+  /** The open project exists only in memory, so opening another one would lose it. */
+  discardsCurrentProject?: boolean;
+  onOpenProject: (projectId: string, options?: { discardUnsavedProject?: boolean }) => void;
   onOpenPdf: () => void;
   onImportProject: () => void;
   onExportProject: (projectId?: string) => void;
@@ -54,6 +56,7 @@ export function ProjectLibraryDialog({
   activeProjectId,
   opening,
   pendingDiscardProjectId,
+  discardsCurrentProject = false,
   onOpenProject,
   onOpenPdf,
   onImportProject,
@@ -64,32 +67,61 @@ export function ProjectLibraryDialog({
   onClose,
 }: ProjectLibraryDialogProps) {
   const { dateFormat, projectsShown } = useAppPreferences();
+  const [pendingOpenProjectId, setPendingOpenProjectId] = useState<string | null>(null);
   if (!open) return null;
   const visibleProjects =
     projectsShown === "all" ? projects : projects.slice(0, Number(projectsShown));
   const pendingProject = projects.find((project) => project.id === pendingDiscardProjectId);
   const confirmingDiscard = pendingDiscardProjectId !== null;
+  const confirmingOpen = pendingOpenProjectId !== null && discardsCurrentProject;
+  const openingProject = projects.find((project) => project.id === pendingOpenProjectId);
 
   return (
     <Dialog
       open
-      title={confirmingDiscard ? "Discard project?" : "Projects"}
-      size={confirmingDiscard ? "medium" : "large"}
+      title={confirmingOpen ? "Discard unsaved project?" : confirmingDiscard ? "Discard project?" : "Projects"}
+      size={confirmingDiscard || confirmingOpen ? "medium" : "large"}
       trapFocus
-      onClose={confirmingDiscard ? onCancelDiscard : onClose}
+      onClose={confirmingOpen ? () => setPendingOpenProjectId(null) : confirmingDiscard ? onCancelDiscard : onClose}
     >
-      {confirmingDiscard ? (
+      {confirmingOpen ? (
+        <div className={styles.discardConfirmation}>
+          <p>
+            Opening <strong>{openingProject?.name ?? "this project"}</strong> will discard the
+            current project, which exists only in memory because it could not be saved. Cancel and
+            export it first if you want to keep a copy.
+          </p>
+          <div className={styles.actions}>
+            <Button variant="secondary" size="compact" disabled={opening} onClick={() => setPendingOpenProjectId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="compact"
+              disabled={opening}
+              onClick={() => {
+                const projectId = pendingOpenProjectId;
+                setPendingOpenProjectId(null);
+                if (projectId) onOpenProject(projectId, { discardUnsavedProject: true });
+              }}
+            >
+              Discard and open
+            </Button>
+          </div>
+        </div>
+      ) : confirmingDiscard ? (
         <div className={styles.discardConfirmation}>
           <p>
             Remove <strong>{pendingProject?.name ?? "this project"}</strong> and its PDF from this
             device? Other projects stay saved.
           </p>
           <div className={styles.actions}>
-            <Button variant="secondary" disabled={opening} onClick={onCancelDiscard}>
+            <Button variant="secondary" size="compact" disabled={opening} onClick={onCancelDiscard}>
               Keep project
             </Button>
             <Button
               variant="danger"
+              size="compact"
               disabled={opening}
               onClick={() => {
                 if (pendingDiscardProjectId) onConfirmDiscard(pendingDiscardProjectId);
@@ -128,7 +160,10 @@ export function ProjectLibraryDialog({
                         disabledReason={isOpen ? "This project is already open." : undefined}
                         tooltip={isCurrent && !isOpen ? "Continue" : "Open"}
                         aria-label={`${isOpen ? "Current project" : isCurrent ? "Continue project" : "Open project"} ${project.name}`}
-                        onClick={() => onOpenProject(project.id)}
+                        onClick={() => {
+                          if (discardsCurrentProject && !isOpen) setPendingOpenProjectId(project.id);
+                          else onOpenProject(project.id);
+                        }}
                       />
                       <IconButton
                         icon={exportIcon}

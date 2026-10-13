@@ -30,6 +30,7 @@ function render({
   currentSessionLoaded = true,
   activeProjectId = "current",
   opening = false,
+  discardsCurrentProject = false,
   onOpenProject = vi.fn(),
   onOpenPdf = vi.fn(),
   onImportProject = vi.fn(),
@@ -42,7 +43,8 @@ function render({
   currentSessionLoaded?: boolean;
   activeProjectId?: string | null;
   opening?: boolean;
-  onOpenProject?: (id: string) => void;
+  discardsCurrentProject?: boolean;
+  onOpenProject?: (id: string, options?: { discardUnsavedProject?: boolean }) => void;
   onOpenPdf?: () => void;
   onImportProject?: () => void;
   onExportProject?: (id?: string) => void;
@@ -58,6 +60,7 @@ function render({
         currentSessionLoaded={currentSessionLoaded}
         activeProjectId={activeProjectId}
         opening={opening}
+        discardsCurrentProject={discardsCurrentProject}
         pendingDiscardProjectId={null}
         onOpenProject={onOpenProject}
         onOpenPdf={onOpenPdf}
@@ -178,6 +181,26 @@ describe("ProjectLibraryDialog", () => {
     if (!discardButton) throw new Error("The project discard action was not rendered.");
     act(() => discardButton.click());
     expect(callbacks.onRequestDiscard).toHaveBeenCalledWith("other");
+  });
+
+  it("asks before opening a project over one that exists only in memory", () => {
+    const callbacks = render({ discardsCurrentProject: true });
+    const open = () =>
+      container!.querySelector<HTMLButtonElement>('button[aria-label="Open project Level 02.pdf"]')!;
+
+    act(() => open().click());
+    expect(callbacks.onOpenProject).not.toHaveBeenCalled();
+    expect(container?.textContent).toContain("Discard unsaved project?");
+
+    const cancel = [...container!.querySelectorAll("button")].find((b) => b.textContent === "Cancel")!;
+    act(() => cancel.click());
+    expect(callbacks.onOpenProject).not.toHaveBeenCalled();
+    expect(container?.textContent).toContain("Level 02.pdf");
+
+    act(() => open().click());
+    const confirm = [...container!.querySelectorAll("button")].find((b) => b.textContent === "Discard and open")!;
+    act(() => confirm.click());
+    expect(callbacks.onOpenProject).toHaveBeenCalledWith("other", { discardUnsavedProject: true });
   });
 
   it("opens a project whose id is still active after the session was lost (Fast Refresh desync)", () => {

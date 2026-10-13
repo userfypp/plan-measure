@@ -542,6 +542,27 @@ describe("workspace initialization", () => {
     expect(lifecycleErrors).toEqual([]);
   });
 
+  it("does not open a saved project over a memory-only project without a confirmed discard", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(
+      new DOMException("Full", "QuotaExceededError"),
+    );
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(new File(["pdf"], "Memory.pdf", { type: "application/pdf" }));
+    });
+    expect(harnessSession?.pdf.name).toBe("Memory.pdf");
+    expect(lifecycle!.hasUnsavedMemoryProject()).toBe(true);
+
+    await act(async () => {
+      await lifecycle!.openProject("any-saved-project");
+    });
+    expect(harnessSession?.pdf.name).toBe("Memory.pdf");
+    expect(lifecycleErrors).not.toContain(
+      "This project could not be opened. Its saved copy has been kept on this device.",
+    );
+  });
+
   it("keeps the current project open if saving a new PDF fails", async () => {
     await renderLifecycleHarness();
     await act(async () => {

@@ -362,6 +362,7 @@ function PlanMeasureApp() {
     openSampleProject,
     exportProject,
     openProject,
+    hasUnsavedMemoryProject,
     refreshSavedProjects,
     discardRecovery,
     discardProject,
@@ -1326,14 +1327,15 @@ function PlanMeasureApp() {
         activeProjectId={activeProjectId}
         opening={loading || projectOperationPending}
         pendingDiscardProjectId={pendingDiscardProjectId}
-        onOpenProject={(projectId) => {
+        discardsCurrentProject={hasUnsavedMemoryProject()}
+        onOpenProject={(projectId, options) => {
           setPendingDiscardProjectId(null);
           setProjectLibraryOpen(false);
           setDismissInitialProjectLibrary(true);
           if (session && activePdf && activeProjectId === projectId) {
             return;
           }
-          void openProject(projectId);
+          void openProject(projectId, options);
         }}
         onOpenPdf={() => {
           setPendingDiscardProjectId(null);
