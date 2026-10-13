@@ -45,6 +45,13 @@ async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
   return loadPdf(blob);
 }
 
+class StorageUnreadableError extends Error {
+  constructor() {
+    super("Cannot replace a saved session whose revision is unknown.");
+    this.name = "StorageUnreadableError";
+  }
+}
+
 interface PendingPdf {
   pdfId: string;
   projectId: string;
@@ -577,7 +584,9 @@ export function usePdfSessionLifecycle({
           }
           const expectedRevision = persistenceRevisionRef.current;
           if (expectedRevision === undefined) {
-            throw new Error("Cannot replace a saved session whose revision is unknown.");
+            // The initial read failed without a revision, so nothing can be written safely:
+            // open the PDF in memory (the user already chose to continue without recovery).
+            throw new StorageUnreadableError();
           }
           const revision = await replaceSavedSession(
             candidate.session,
@@ -594,10 +603,11 @@ export function usePdfSessionLifecycle({
           saved = true;
         } catch (error) {
           console.error("Could not save the new PDF session.", error);
-          const discardConfirmedMemoryProject = requiresPendingConfirmation &&
+          const openInMemory = error instanceof StorageUnreadableError;
+          const discardConfirmedMemoryProject = openInMemory || (requiresPendingConfirmation &&
             candidate.discardUnsavedSession === previousSession &&
             hasUnsavedMemoryProject() && !recovery && !recoveryWasProtected &&
-            !(error instanceof PersistenceConflictError);
+            !(error instanceof PersistenceConflictError));
           if (!discardConfirmedMemoryProject && (previousSession || previousPdf || recovery || recoveryWasProtected)) {
             if (autosaveStatusRef.current !== "unavailable") {
               updateAutosaveStatus(previousAutosaveStatus);
@@ -1082,6 +1092,8 @@ export function usePdfSessionLifecycle({
 
   function continueWithoutRecovery() {
     setRecoveryIssue(null);
+    // Without a known revision nothing is ever written, so there is no saved session to protect.
+    if (persistenceRevisionRef.current === undefined) setRecoveryProtected(false);
     updateAutosaveStatus("inactive");
     setAutosaveWarning(
       "The previous saved session is protected. Opening another PDF will require confirmation.",

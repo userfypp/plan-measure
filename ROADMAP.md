@@ -6,7 +6,6 @@ Direction, not a promise: no dates, and priorities may change. The source of tru
 
 Open findings from the code audits, grouped by area. Most are open to contributors.
 
-- **Storage:** [#260](https://github.com/userfypp/plan-measure/issues/260) memory-only project loss (P0), [#261](https://github.com/userfypp/plan-measure/issues/261) blocked recovery (P1).
 - **History:** [#262](https://github.com/userfypp/plan-measure/issues/262) unchanged names clear Redo, [#263](https://github.com/userfypp/plan-measure/issues/263) multi-page visibility requires several Undo steps.
 - **Interaction:** [#264](https://github.com/userfypp/plan-measure/issues/264) Cloud snapping, [#265](https://github.com/userfypp/plan-measure/issues/265) premature IME submission, [#272](https://github.com/userfypp/plan-measure/issues/272) right-click selection.
 - **Numerical edge cases:** [#266](https://github.com/userfypp/plan-measure/issues/266) ratio changes, [#267](https://github.com/userfypp/plan-measure/issues/267) ellipse underflow, [#268](https://github.com/userfypp/plan-measure/issues/268) polygon overflow, [#269](https://github.com/userfypp/plan-measure/issues/269) unit conversion to zero, [#273](https://github.com/userfypp/plan-measure/issues/273) scale copying, [#274](https://github.com/userfypp/plan-measure/issues/274) reversed Cloud scallops.

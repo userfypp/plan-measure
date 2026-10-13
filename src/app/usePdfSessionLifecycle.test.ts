@@ -563,6 +563,32 @@ describe("workspace initialization", () => {
     );
   });
 
+  it("opens a PDF in memory after continuing without recovery when storage cannot be read", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "loadSavedSession").mockRejectedValueOnce(
+      new DOMException("Storage unavailable", "SecurityError"),
+    );
+    await renderLifecycleHarness();
+    expect(lifecycle!.recoveryIssue).not.toBeNull();
+    act(() => lifecycle!.continueWithoutRecovery());
+
+    await act(async () => {
+      await lifecycle!.chooseFile(new File(["pdf"], "plan.pdf", { type: "application/pdf" }));
+    });
+    if (replacementPromptPayload) {
+      await act(async () => {
+        lifecycle!.confirmPdfReplacement({ type: "replacePdf", payload: replacementPromptPayload! });
+        for (let i = 0; i < 20 && !harnessSession; i += 1) await new Promise((r) => setTimeout(r, 0));
+      });
+    }
+
+    expect(harnessSession?.pdf.name).toBe("plan.pdf");
+    expect(lifecycle!.activePdf).not.toBeNull();
+    expect(lifecycle!.autosaveUnavailable).toBe(true);
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("unavailable");
+    expect(lifecycleErrors).not.toContain("The new PDF could not be saved. The current project remains open.");
+  });
+
   it("keeps the current project open if saving a new PDF fails", async () => {
     await renderLifecycleHarness();
     await act(async () => {
