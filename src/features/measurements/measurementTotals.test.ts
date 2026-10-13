@@ -213,7 +213,7 @@ describe("createMeasurementTotals", () => {
     expect(result.groups[2]?.length).toEqual({ kind: "absent" });
   });
 
-  it("uses catalog ordering, archived status, first matching value, and None assigned for classification grouping", () => {
+  it("uses catalog ordering, archived status, first matching value, and Unclassified for classification grouping", () => {
     const result = totals(
       {
         1: page(1, [
@@ -248,7 +248,7 @@ describe("createMeasurementTotals", () => {
       result.groups.map((group) => [group.label, group.archived, group.measurementCount]),
     ).toEqual([
       ["Old value", true, 2],
-      ["None assigned", false, 1],
+      ["Unclassified", false, 1],
     ]);
   });
 

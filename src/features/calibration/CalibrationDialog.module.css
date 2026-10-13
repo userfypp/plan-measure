@@ -32,7 +32,7 @@
 .unitField {
   display: grid;
   gap: var(--space-4);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
@@ -50,7 +50,7 @@
 
 .architecturalGroup legend,
 .fractionField > span {
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
@@ -95,18 +95,11 @@
   border-color: var(--color-danger-semantic);
 }
 
-.error {
-  margin: 0 !important;
-  color: var(--color-danger-semantic) !important;
+.form > .error {
+  margin: 0;
+  color: var(--color-danger-semantic);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-8);
-  margin-top: var(--space-8);
 }
 
 @media (max-width: 520px) {

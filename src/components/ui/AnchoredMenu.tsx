@@ -47,7 +47,6 @@ export interface AnchoredMenuProps {
   className?: string;
   label: string;
   items: readonly AnchoredMenuItem[] | (() => readonly AnchoredMenuItem[]);
-  showMarkerColumn?: boolean;
   placement?: PopoverPlacement;
   matchTriggerWidth?: boolean;
   open?: boolean;
@@ -60,26 +59,12 @@ function firstInitialFocusIndex(items: readonly AnchoredMenuItem[]): number {
   return current >= 0 ? current : items.length > 0 ? 0 : -1;
 }
 
-function SelectionCheckIcon() {
-  return (
-    <svg
-      className={styles.selectionCheck}
-      viewBox="0 0 12 12"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="m2 6.25 2.35 2.35L10 3.4" />
-    </svg>
-  );
-}
-
 export function AnchoredMenu({
   trigger,
   triggerProps,
   className,
   label,
   items: providedItems,
-  showMarkerColumn = true,
   placement = "bottom-start",
   matchTriggerWidth,
   open,
@@ -194,7 +179,6 @@ export function AnchoredMenu({
       className={[
         styles.menu,
         selectionMenu ? styles.selectionMenu : "",
-        !showMarkerColumn ? styles.markerlessMenu : "",
         className,
       ]
         .filter(Boolean)
@@ -203,20 +187,8 @@ export function AnchoredMenu({
       <div className={styles.items} onKeyDown={handleKeyDown}>
         {items.map((item, index) => {
           const role = item.role ?? "menuitem";
-          const activeState = item.checked || item.current;
           const content = (
             <>
-              {showMarkerColumn && (
-                <span className={styles.marker} aria-hidden="true">
-                  {selectionMenu
-                    ? activeState
-                      ? <SelectionCheckIcon />
-                      : null
-                    : activeState
-                      ? "✓"
-                      : ""}
-                </span>
-              )}
               <span className={styles.label}>{item.label}</span>
             </>
           );

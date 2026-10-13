@@ -78,9 +78,6 @@ it("paints both viewer cursors above the help without intercepting its controls"
     container.append(help);
     const helpLayer = Number(getComputedStyle(help).zIndex);
     expect(getComputedStyle(help).cursor).toBe("auto");
-    const button = document.createElement("button");
-    help.append(button);
-    expect(getComputedStyle(button).cursor).toBe("pointer");
     for (const className of ["keyboardCursor", "softwareCursor"]) {
       const cursor = document.createElement("div");
       cursor.className = className;

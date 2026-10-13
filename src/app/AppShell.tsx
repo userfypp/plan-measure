@@ -3,6 +3,7 @@ import type { AppErrorNotification } from "./state";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { ProjectViewSettings } from "./SettingsDialog";
 import { AppBar } from "./AppBar";
+import { Button } from "../components/ui";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { useManagedTabNavigation } from "../components/ui/tabNavigation";
 import styles from "./AppShell.module.css";
@@ -178,9 +179,9 @@ function StatusNotification({ message, tone, actions, onDismiss }: {
     >
       <span>{message}</span>
       {onDismiss && (
-        <button type="button" aria-label="Dismiss message" onClick={onDismiss}>
+        <Button variant="ghost" size="compact" className={styles.dismiss} onClick={onDismiss}>
           Dismiss
-        </button>
+        </Button>
       )}
       {actions && <div className={styles.statusActions}>{actions}</div>}
     </div>

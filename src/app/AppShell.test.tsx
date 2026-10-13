@@ -26,6 +26,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function dismissButton() {
+  return (
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Dismiss",
+    ) ?? null
+  );
+}
+
 function render(message: string | null, onDismiss?: () => void, actions?: ReactNode) {
   act(() => root.render(
     <AppShell
@@ -102,7 +110,7 @@ describe("AppShell notifications", () => {
     triggerError("Second");
     act(() => container.querySelector<HTMLButtonElement>('[data-clear]')!.click());
     expect(messages()).toEqual(["Autosave is unavailable.", "First", "First", "Second"]);
-    act(() => container.querySelector<HTMLButtonElement>('[aria-label="Dismiss message"]')!.click());
+    act(() => dismissButton()!.click());
     expect(messages()).toEqual(["Autosave is unavailable.", "First", "Second"]);
     advance(8000);
     expect(messages()).toEqual(["Autosave is unavailable."]);
@@ -158,7 +166,7 @@ describe("AppShell notifications", () => {
   it("pauses dismissal during keyboard interaction and preserves manual dismissal", () => {
     const dismiss = vi.fn();
     render("Error", dismiss);
-    const button = container.querySelector<HTMLButtonElement>('[aria-label="Dismiss message"]')!;
+    const button = dismissButton()!;
     act(() => button.focus());
     advance(10000);
     expect(dismiss).not.toHaveBeenCalled();
@@ -177,7 +185,7 @@ describe("AppShell notifications", () => {
     render("Autosave is unavailable.", undefined, <button onClick={retry}>Retry saving</button>);
     advance(60000);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("Autosave");
-    expect(container.querySelector('[aria-label="Dismiss message"]')).toBeNull();
+    expect(dismissButton()).toBeNull();
     act(() => container.querySelector<HTMLButtonElement>('[role="alert"] button')!.click());
     expect(retry).toHaveBeenCalledOnce();
   });

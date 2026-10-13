@@ -147,7 +147,7 @@ describe("AnchoredMenu", () => {
     expect(buttons()[0]?.querySelector("svg")).toBeNull();
   });
 
-  it("uses a single SVG check for the selected item without adding glyph text", () => {
+  it("marks the selected item with state attributes and no check glyph", () => {
     openMenu();
     const menuButtons = buttons();
 
@@ -156,9 +156,12 @@ describe("AnchoredMenu", () => {
       "Classifications",
       "Scales",
     ]);
-    expect(menuButtons[0]?.querySelector("svg")).not.toBeNull();
-    expect(menuButtons[1]?.querySelector("svg")).toBeNull();
-    expect(menuButtons[2]?.querySelector("svg")).toBeNull();
+    expect(menuButtons.map((button) => button.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    menuButtons.forEach((button) => expect(button.querySelector("svg")).toBeNull());
   });
 
   it("can omit reserved marker space and render a non-focusable section separator", () => {
@@ -167,7 +170,6 @@ describe("AnchoredMenu", () => {
         <AnchoredMenu
           trigger="Add scale"
           label="Add scale"
-          showMarkerColumn={false}
           items={[
             { id: "uniform", label: "Uniform", onSelect: vi.fn() },
             {

@@ -43,7 +43,7 @@ function measurement(id: string, classificationValueIds: string[], visible = tru
 }
 
 describe("createMeasurementGroups", () => {
-  it("groups by the chosen dimension in catalog and page order, with None assigned last", () => {
+  it("groups by the chosen dimension in catalog and page order, with Unclassified last", () => {
     const groups = createMeasurementGroups(
       [
         measurement("line-1", ["electrical", "approved"]),
@@ -55,7 +55,7 @@ describe("createMeasurementGroups", () => {
       "trade",
     );
 
-    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "None assigned"]);
+    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "Unclassified"]);
     expect(groups.map((group) => group.dimensionLabel)).toEqual(["Trade", "Trade", "Trade"]);
     expect(groups.map((group) => group.measurementIds)).toEqual([
       ["line-1", "line-4"],
@@ -83,14 +83,14 @@ describe("createMeasurementGroups", () => {
 
     expect(createMeasurementGroups(measurements, catalog, "trade")).toMatchObject([
       { label: "Electrical", measurementIds: ["line-1"] },
-      { label: "None assigned", measurementIds: ["line-2"] },
+      { label: "Unclassified", measurementIds: ["line-2"] },
     ]);
     expect(createMeasurementGroups(measurements, catalog, "status")).toMatchObject([
       { label: "Approved", measurementIds: ["line-1", "line-2"] },
     ]);
   });
 
-  it("derives archive state and visibility without treating None assigned as historical", () => {
+  it("derives archive state and visibility without treating Unclassified as historical", () => {
     const tradeDimension = catalog.dimensions[0]!;
     const archivedCatalog: ClassificationCatalog = {
       dimensions: [{ ...tradeDimension, archived: true }],
@@ -107,7 +107,7 @@ describe("createMeasurementGroups", () => {
 
     expect(groups).toMatchObject([
       { label: "Electrical", archived: true, visibility: "mixed" },
-      { label: "None assigned", archived: false, visibility: "visible" },
+      { label: "Unclassified", archived: false, visibility: "visible" },
     ]);
     expect(
       createMeasurementGroups(
@@ -157,7 +157,7 @@ describe("createMeasurementGroups", () => {
       },
       {
         key: "dimension:status:unclassified",
-        label: "None assigned",
+        label: "Unclassified",
         measurementIds: ["unassigned"],
       },
     ]);
@@ -178,34 +178,34 @@ describe("createMeasurementGroups", () => {
     ];
 
     const groups = createMeasurementGroups(measurements, catalog, ["trade", "status"]);
-    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "None assigned"]);
+    expect(groups.map((group) => group.label)).toEqual(["Electrical", "Plumbing", "Unclassified"]);
     expect(groups[0]).toMatchObject({ visibility: "mixed", measurementIds: ["first", "second"] });
     expect(groups[0]?.children).toMatchObject([
       { label: "Approved", measurementIds: ["first"], visibility: "visible" },
-      { label: "None assigned", measurementIds: ["second"], visibility: "hidden" },
+      { label: "Unclassified", measurementIds: ["second"], visibility: "hidden" },
     ]);
     expect(
       groups[0]?.children?.map(({ dimensionLabel, label }) => [dimensionLabel, label]),
     ).toEqual([
       ["Status", "Approved"],
-      ["Status", "None assigned"],
+      ["Status", "Unclassified"],
     ]);
     expect(groups[1]).toMatchObject({ archived: true, children: [{ archived: false }] });
     expect(groups[1]?.children?.[0]?.key).toBe(
       "dimension:trade:value:plumbing/dimension:status:value:approved",
     );
-    expect(groups[2]?.children?.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
+    expect(groups[2]?.children?.map((group) => group.label)).toEqual(["Approved", "Unclassified"]);
     expect(groups[2]?.children?.map((group) => group.dimensionLabel)).toEqual(["Status", "Status"]);
     expect(
       groups.flatMap((group) => group.children?.flatMap((child) => child.measurementIds) ?? []),
     ).toEqual(["first", "second", "third", "fourth", "fifth"]);
 
     const reversed = createMeasurementGroups(measurements, catalog, ["status", "trade"]);
-    expect(reversed.map((group) => group.label)).toEqual(["Approved", "None assigned"]);
+    expect(reversed.map((group) => group.label)).toEqual(["Approved", "Unclassified"]);
     expect(reversed[0]?.children?.map((group) => group.label)).toEqual([
       "Electrical",
       "Plumbing",
-      "None assigned",
+      "Unclassified",
     ]);
   });
 
@@ -265,17 +265,17 @@ function group(
 }
 
 describe("compactMeasurementGroups", () => {
-  it("fuses a chain of same-scope None assigned groups into one with all segments", () => {
+  it("fuses a chain of same-scope Unclassified groups into one with all segments", () => {
     const chain = group(
       "a:unclassified",
-      "None assigned",
+      "Unclassified",
       ["m1", "m2"],
       [
         group(
           "a:unclassified/b:unclassified",
-          "None assigned",
+          "Unclassified",
           ["m2", "m1"],
-          [group("a:unclassified/b:unclassified/c:unclassified", "None assigned", ["m1", "m2"])],
+          [group("a:unclassified/b:unclassified/c:unclassified", "Unclassified", ["m1", "m2"])],
         ),
       ],
     );

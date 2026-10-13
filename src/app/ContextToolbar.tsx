@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Button, IconButton } from "../components/ui";
+import { Button, IconButton, Input } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
@@ -283,7 +283,7 @@ function MeasurementNameEditor({
       data-toolbar-inline-editor
       onSubmit={submitRename}
     >
-      <input
+      <Input
         ref={inputRef}
         className={styles.renameInput}
         value={draftName}
@@ -661,7 +661,7 @@ export function ContextToolbar({
       {onClearMeasurementSelection && (
         <IconButton
           className={styles.selectionIconButton}
-          aria-label="Clear measurement selection"
+          aria-label="Clear selection"
           tooltip="Clear selection"
           tooltipPosition="bottom"
           icon={

@@ -97,7 +97,7 @@ dialog.dialog {
   font-family: var(--font-family-sans);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-overline);
   line-height: var(--line-height-secondary);
   text-transform: uppercase;
 }

@@ -43,6 +43,11 @@
   stroke-width: var(--icon-stroke-width);
 }
 
+.scaleTrigger .chevron {
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+}
+
 .dock .pagesTrigger {
   width: var(--target-current);
   height: var(--target-current);
@@ -161,7 +166,7 @@
   overflow: hidden;
   color: inherit;
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -214,7 +219,7 @@
 .scaleMenuLabel strong {
   color: inherit;
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
 }
 
@@ -255,31 +260,6 @@
 .pageLabelHeading {
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
-}
-
-.pageLabelField {
-  display: grid;
-  gap: var(--space-4);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
-}
-
-.pageLabelField input {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--target-current);
-  padding: 0 var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-panel);
-  color: var(--color-text-primary);
-  font: inherit;
-}
-
-.pageLabelField input:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .pageLabelSource,

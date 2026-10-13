@@ -76,10 +76,11 @@
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
   width: min(
     var(--geometry-keyboard-feedback-width),
-    calc(100% - var(--viewer-right-obstruction, 0px) - var(--space-48) - var(--space-32))
+    calc(100% - var(--viewer-right-obstruction, 0px) - 2 * var(--space-40))
   );
   max-height: calc(
-    100% - var(--viewer-dock-bottom-exclusion, 0px) - var(--space-48) - var(--space-12)
+    100% - var(--viewer-dock-bottom-exclusion, 0px) - var(--geometry-viewer-dock-height) - var(--space-8) -
+      var(--space-12)
   );
   overflow: auto;
   display: grid;
@@ -110,29 +111,10 @@
   background: var(--color-surface-panel);
   font: inherit;
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 .keyboardHint {
   color: var(--color-text-secondary);
-}
-.keyboardFeedback button {
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: inherit;
-  font-weight: var(--font-weight-semibold);
-  text-decoration: underline;
-  cursor: pointer;
-}
-.keyboardFeedback button:hover {
-  background: var(--color-control-hover-surface);
-}
-.keyboardFeedback button:active {
-  background: var(--color-control-active-surface);
-}
-.keyboardFeedback button:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 .keyboardTarget {
   display: grid;

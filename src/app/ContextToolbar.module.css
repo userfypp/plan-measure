@@ -1,5 +1,5 @@
 .toolbar {
-  --selection-control-size: var(--geometry-context-control-height);
+  --selection-control-size: var(--control-height-compact);
   position: absolute;
   z-index: var(--z-controls);
   top: var(--geometry-context-toolbar-top);
@@ -22,12 +22,12 @@
   border-radius: var(--radius-overlay);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-floating);
 }
 
 .status,
 .toolIdentity {
-  min-height: var(--geometry-context-control-height);
+  min-height: var(--control-height-compact);
   min-width: 0;
   display: inline-flex;
   align-items: center;
@@ -41,7 +41,7 @@
 }
 
 .modifierHint {
-  min-height: var(--geometry-context-control-height);
+  min-height: var(--control-height-compact);
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);
@@ -74,7 +74,7 @@
 .measurementNameTrigger {
   min-width: 0;
   max-width: var(--geometry-context-name-max-width);
-  min-height: var(--geometry-context-control-height);
+  min-height: var(--control-height-compact);
   padding: 0 var(--space-8);
   overflow: hidden;
   border: var(--border-width) solid transparent;
@@ -117,29 +117,13 @@
   gap: var(--space-4);
 }
 
-.renameInput {
+.renameForm .renameInput {
   width: var(--geometry-context-rename-width);
   min-width: var(--geometry-context-rename-min-width);
-  height: var(--geometry-context-control-height);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
-  font: inherit;
-}
-
-.renameInput:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
-.renameInput[aria-invalid="true"] {
-  border-color: var(--color-danger-semantic);
 }
 
 .renameAction {
-  min-height: var(--geometry-context-control-height);
+  min-height: var(--control-height-compact);
   flex: 0 0 auto;
 }
 
@@ -152,7 +136,7 @@
 }
 
 .action {
-  min-height: var(--geometry-context-control-height);
+  min-height: var(--control-height-compact);
   flex: 0 0 auto;
 }
 
@@ -204,11 +188,11 @@
   .modifierHint,
   .measurementNameTrigger,
     .renameInput {
-    height: var(--geometry-context-control-height-coarse);
+    height: var(--target-coarse);
   }
 
   .toolbar {
-    --selection-control-size: var(--geometry-context-control-height-coarse);
+    --selection-control-size: var(--target-coarse);
   }
 }
 
@@ -272,12 +256,12 @@
   transition: var(--transition-interactive);
 }
 
-.toolbar .selectionIconButton:hover {
+.toolbar .selectionIconButton:hover:not(:disabled):not([data-disabled="true"]):not([aria-disabled="true"]) {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
 }
 
-.toolbar .selectionIconButton:active {
+.toolbar .selectionIconButton:active:not(:disabled):not([data-disabled="true"]):not([aria-disabled="true"]) {
   border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
 }
@@ -310,12 +294,12 @@
 
 @media (any-pointer: coarse), (max-width: 800px) {
   .toolbar[data-context-kind="selection"] {
-    --selection-control-size: var(--geometry-context-control-height-coarse);
+    --selection-control-size: var(--target-coarse);
   }
 }
 
 .toolbar .selectionDanger {
-  color: var(--color-danger);
+  color: var(--color-danger-semantic);
 }
 
 .toolbar .selectionDanger:hover:not(:disabled) {
@@ -345,13 +329,13 @@
 :global(:root[data-targets="large"]) .modifierHint,
 :global(:root[data-targets="large"]) .measurementNameTrigger,
 :global(:root[data-targets="large"]) .renameInput {
-  height: var(--geometry-context-control-height-coarse);
+  height: var(--target-coarse);
 }
 
 :global(:root[data-targets="large"]) .toolbar {
-  --selection-control-size: var(--geometry-context-control-height-coarse);
+  --selection-control-size: var(--target-coarse);
 }
 
 :global(:root[data-targets="large"]) .toolbar[data-context-kind="selection"] {
-  --selection-control-size: var(--geometry-context-control-height-coarse);
+  --selection-control-size: var(--target-coarse);
 }

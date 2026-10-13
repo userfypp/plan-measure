@@ -1,0 +1,67 @@
+.field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.label {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
+.control {
+  composes: focusRing disabledSurface from "./controlStates.module.css";
+  width: 100%;
+  min-width: 0;
+  min-height: var(--geometry-measurement-note-min-height);
+  padding: var(--space-8) var(--space-12);
+  resize: vertical;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  background-color: var(--color-surface-field);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  transition: var(--transition-interactive);
+}
+
+.control::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.control:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background-color: var(--color-control-hover-surface);
+}
+
+.control:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background-color: var(--color-control-active-surface);
+}
+
+.control[aria-invalid="true"]:not(:disabled) {
+  border-color: var(--color-danger-semantic);
+}
+
+.description,
+.error {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.description {
+  color: var(--color-text-secondary);
+}
+
+.error {
+  color: var(--color-danger-semantic);
+  font-weight: var(--font-weight-medium);
+}

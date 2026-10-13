@@ -762,7 +762,7 @@ describe("selection actions in the context bar", () => {
       buttons.indexOf(buttonByLabel("Hide selected measurements")),
     );
     expect(buttons.indexOf(buttonByLabel("Hide selected measurements"))).toBeLessThan(
-      buttons.indexOf(buttonByLabel("Clear measurement selection")),
+      buttons.indexOf(buttonByLabel("Clear selection")),
     );
     act(() => buttonByLabel("Hide selected measurements").click());
     expect(document.querySelector('[role="menu"]')).toBeNull();
@@ -772,7 +772,7 @@ describe("selection actions in the context bar", () => {
     });
     act(() => buttonByLabel("Delete").click());
     expect(onDelete).toHaveBeenCalledOnce();
-    act(() => buttonByLabel("Clear measurement selection").click());
+    act(() => buttonByLabel("Clear selection").click());
     expect(onClear).toHaveBeenCalledOnce();
   });
 

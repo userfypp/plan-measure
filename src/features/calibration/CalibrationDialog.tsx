@@ -5,8 +5,7 @@ import {
   MAX_SAFE_ARCHITECTURAL_SIXTEENTHS,
 } from "../../utils/format";
 import { toMillimetres } from "../../utils/units";
-import { Modal } from "../../components/Modal";
-import { Button, Input, Select } from "../../components/ui";
+import { Button, Dialog, Input, Select } from "../../components/ui";
 import styles from "./CalibrationDialog.module.css";
 
 interface CalibrationDialogProps {
@@ -108,6 +107,7 @@ export function CalibrationDialog({
   const [fractionSixteenths, setFractionSixteenths] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
+  const formId = useId();
   const displayError = error || confirmationError;
 
   function changeUnit(nextUnit: CalibrationInputUnit) {
@@ -150,8 +150,24 @@ export function CalibrationDialog({
   }
 
   return (
-    <Modal title={title} onCancel={onCancel} modal={false} trapFocus>
-      <form onSubmit={submit} className={styles.form}>
+    <Dialog
+      open
+      title={title}
+      onClose={onCancel}
+      modal={false}
+      trapFocus
+      actions={
+        <>
+          <Button variant="ghost" size="compact" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button size="compact" type="submit" form={formId}>
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className={styles.form}>
         <p>
           {referenceLabel
             ? "Enter the real-world distance along the reference's axis."
@@ -270,11 +286,7 @@ export function CalibrationDialog({
             {displayError}
           </p>
         )}
-        <div className={styles.actions}>
-          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button type="submit">{confirmLabel}</Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

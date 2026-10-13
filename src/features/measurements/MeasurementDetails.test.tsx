@@ -131,19 +131,19 @@ describe("MeasurementDetails", () => {
     expect(container!.querySelectorAll("[data-count-item-remove]")).toHaveLength(50);
     expect(buttonByText("Previous items").disabled).toBe(true);
     act(() => buttonByText("Next items").click());
-    expect(container!.querySelector('[aria-label="Remove item 51"]')).not.toBeNull();
-    expect(container!.querySelector('[aria-label="Remove item 1"]')).toBeNull();
+    expect(container!.querySelector('[aria-label="Delete item 51"]')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Delete item 1"]')).toBeNull();
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Move item 51 to another count"]')!.click());
     const option = document.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
     expect(document.activeElement).toBe(option);
     act(() => option.click());
     expect(props.onMoveCountItem).toHaveBeenCalledWith(50, "target");
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 51"]')!.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 51"]')!.click());
     expect(props.onRemoveCountItem).toHaveBeenCalledWith(50);
     renderDetails({ ...props, measurement: { ...count, name: "Renamed" } });
-    expect(container!.querySelector('[aria-label="Remove item 51"]')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Delete item 51"]')).not.toBeNull();
     act(() => buttonByText("Previous items").click());
-    expect(container!.querySelector('[aria-label="Remove item 1"]')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Delete item 1"]')).not.toBeNull();
   });
 
   it("clamps the last item page after removal and focuses the nearest remaining item", () => {
@@ -155,10 +155,10 @@ describe("MeasurementDetails", () => {
       const props = createProps({ measurement: count, onRemoveCountItem: vi.fn() });
       renderDetails(props);
       act(() => buttonByText("Next items").click());
-      act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 51"]')!.click());
+      act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 51"]')!.click());
       renderDetails({ ...props, measurement: { ...count, points: count.points.slice(0, 50) } });
       act(() => frame!(0));
-      expect(document.activeElement).toBe(container!.querySelector('[aria-label="Remove item 50"]'));
+      expect(document.activeElement).toBe(container!.querySelector('[aria-label="Delete item 50"]'));
       expect(container!.querySelectorAll("[data-count-item-remove]")).toHaveLength(50);
       expect(container!.querySelector('[aria-label="Count items pagination"]')).toBeNull();
     } finally { raf.mockRestore(); }
@@ -174,11 +174,11 @@ describe("MeasurementDetails", () => {
       const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null };
       const props = createProps({ measurement: count, onRemoveCountItem: vi.fn() });
       renderDetails(props);
-      const remove = container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 2"]')!;
+      const remove = container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 2"]')!;
       act(() => { remove.focus(); remove.click(); });
       renderDetails({ ...props, measurement: { ...count, points: [count.points[0]!] } });
       act(() => frame!(0));
-      expect(document.activeElement).toBe(container!.querySelector('[aria-label="Remove item 1"]'));
+      expect(document.activeElement).toBe(container!.querySelector('[aria-label="Delete item 1"]'));
     } finally {
       animationFrame.mockRestore();
     }
@@ -203,7 +203,7 @@ describe("MeasurementDetails", () => {
     expect(onMoveCountItem).toHaveBeenCalledExactlyOnceWith(1, "target");
     expect(document.querySelector('[role="menu"][aria-label="Move item 2 to count"]')).toBeNull();
     expect(container!.querySelectorAll('ul[aria-label="Items in Plug"] li')).toHaveLength(2);
-    expect(container!.querySelector('[aria-label="Remove item 2"] svg')).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Delete item 2"] svg')).not.toBeNull();
   });
 
   it("disables transfers when no other count is available and respects blocked editing", () => {
@@ -220,7 +220,7 @@ describe("MeasurementDetails", () => {
     renderDetails(createProps({
       measurement: count, onRemoveCountItem: vi.fn(), assignmentDisabled: true,
     }));
-    expect(container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 1"]')!.disabled).toBe(true);
+    expect(container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 1"]')!.disabled).toBe(true);
   });
 
   it("shows Count properties without unavailable scale warnings", () => {
@@ -238,11 +238,11 @@ describe("MeasurementDetails", () => {
     const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null, points: [{ x: 20, y: 30 }, { x: 60, y: 70 }] };
     renderDetails(createProps({ measurement: count, onRemoveCountItem, onDelete }));
     expect(container!.textContent).toContain("2 items");
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 2"]')!.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 2"]')!.click());
     expect(onRemoveCountItem).toHaveBeenCalledExactlyOnceWith(1);
     expect(onDelete).not.toHaveBeenCalled();
     renderDetails(createProps({ measurement: { ...count, points: [count.points[0]!] }, onRemoveCountItem, onDelete }));
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Remove item 1"]')!.click());
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 1"]')!.click());
     expect(onDelete).toHaveBeenCalledOnce();
   });
 

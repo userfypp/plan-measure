@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { AnchoredMenu, ChevronDownIcon } from "../components/ui";
+import { AnchoredMenu, ChevronDownIcon, IconButton } from "../components/ui";
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import styles from "./WorkspacePanel.module.css";
@@ -91,15 +91,13 @@ export function WorkspacePanel({
           matchTriggerWidth
         />
         {drawer.isNarrow && (
-          <button
-            type="button"
-            className={styles.drawerClose}
+          <IconButton
+            icon={<CloseIcon />}
             aria-label="Close workspace"
-            title="Close workspace"
+            tooltip="Close workspace"
+            tooltipPosition="bottom"
             onClick={() => drawer.close(true)}
-          >
-            <CloseIcon />
-          </button>
+          />
         )}
       </header>
       <div className={styles.body}>

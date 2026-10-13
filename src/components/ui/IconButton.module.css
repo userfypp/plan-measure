@@ -1,8 +1,8 @@
 .button {
   composes: focusRing disabledSurface from "./controlStates.module.css";
   display: inline-grid;
-  width: var(--control-height-regular);
-  height: var(--control-height-regular);
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   place-items: center;
   padding: 0;
   color: var(--color-text-secondary);
@@ -26,25 +26,25 @@
 }
 
 .button.pressed:not(:disabled):not([data-disabled="true"]) {
-  color: var(--color-primary);
-  background-color: var(--color-selected);
-  border-color: var(--color-primary);
+  color: var(--color-accent);
+  background-color: var(--color-selection-surface);
+  border-color: var(--color-accent);
 }
 
 .button.pressed:hover:not(:disabled):not([data-disabled="true"]) {
-  color: var(--color-primary);
-  background-color: var(--color-selected);
+  color: var(--color-accent);
+  background-color: var(--color-selection-surface);
   border-color: var(--color-control-hover-border);
 }
 
 .button.pressed:active:not(:disabled):not([data-disabled="true"]) {
-  color: var(--color-primary);
-  background-color: var(--color-selected);
+  color: var(--color-accent);
+  background-color: var(--color-selection-surface);
   border-color: var(--color-control-active-border);
 }
 
 .danger {
-  color: var(--color-danger);
+  color: var(--color-danger-semantic);
 }
 
 .danger:hover:not(:disabled):not([data-disabled="true"]) {

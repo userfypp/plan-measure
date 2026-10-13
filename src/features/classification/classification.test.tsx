@@ -100,7 +100,7 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(/\.valueList\s*\{[^}]*gap:\s*var\(--space-8\);/s);
     expect(managerCss).toMatch(/\.valueSection\s*\{[^}]*gap:\s*var\(--space-8\);/s);
     expect(managerCss).toMatch(
-      /\.valueList \.valueChipTrigger\s*\{[^}]*min-height:\s*var\(--control-height-compact\)/s,
+      /\.valueList \.valueChipTrigger\s*\{[^}]*height:\s*var\(--control-height-compact\)/s,
     );
     expect(managerCss).not.toMatch(/\.item\s*\{[^}]*border:\s*var\(--border-width\) solid/s);
     expect(managerCss).toMatch(
@@ -125,11 +125,9 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(
       /\.inlineForm\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;[^}]*column-gap:\s*var\(--space-8\);[^}]*row-gap:\s*var\(--space-8\);/s,
     );
+    expect(managerCss).not.toContain(".compactInput");
     expect(managerCss).toMatch(
-      /\.compactInput\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*padding-inline:\s*var\(--space-8\);/s,
-    );
-    expect(managerCss).toMatch(
-      /\.inlineLabel\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*overflow:\s*hidden;[^}]*clip:\s*rect\(0, 0, 0, 0\);/s,
+      /\.inlineLabel\s*\{[^}]*composes:\s*visuallyHidden from "..\/..\/styles\/visuallyHidden\.module\.css";/s,
     );
     expect(managerCss).toMatch(
       /\.create\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,

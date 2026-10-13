@@ -3,21 +3,8 @@ import { IconButton } from "../../components/ui";
 import { measurementPathSpecs } from "../../utils/geometry";
 import { ToolIcon } from "../viewer/ToolIcon";
 import type { MeasurementViewModel } from "./measurementViewModels";
+import { VisibilityIcon } from "./VisibilityIcon";
 import styles from "./MeasurementRow.module.css";
-
-function VisibilityIcon({ visible }: { visible: boolean }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path
-        d="M2.08 10s2.71 -4.38 7.92 -4.38S17.92 10 17.92 10 15.21 14.38 10 14.38 2.08 10 2.08 10Z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="10" cy="10" r="2.08" />
-      {!visible && <path d="m3.33 3.33 13.33 13.33" strokeLinecap="round" />}
-    </svg>
-  );
-}
 
 export interface MeasurementRowProps {
   viewModel: MeasurementViewModel & { selected: boolean };
@@ -93,7 +80,7 @@ export const MeasurementRow = memo(function MeasurementRow({
       </button>
       <div className={styles.actions}>
         <IconButton
-          icon={<VisibilityIcon visible={viewModel.visible} />}
+          icon={<VisibilityIcon state={viewModel.visible ? "visible" : "hidden"} />}
           className={styles.visibilityButton}
           data-measurement-id={viewModel.id}
           data-measurement-control="visibility"

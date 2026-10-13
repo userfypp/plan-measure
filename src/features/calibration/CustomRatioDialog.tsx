@@ -218,10 +218,12 @@ export function CustomRatioDialog(props: CustomRatioDialogProps) {
         )}
 
         <div className={styles.actions}>
-          <Button variant="secondary" onClick={props.onCancel}>
+          <Button variant="ghost" size="compact" onClick={props.onCancel}>
             Cancel
           </Button>
-          <Button type="submit">{props.purpose === "create" ? "Save scale" : "Save"}</Button>
+          <Button type="submit" size="compact">
+            Save scale
+          </Button>
         </div>
       </form>
     </Dialog>

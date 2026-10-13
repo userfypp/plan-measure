@@ -28,6 +28,7 @@ export interface CanvasVisualRoles {
   labelText: string;
   labelBackground: string;
   pageHitRegionFill: string;
+  pageGrid: string;
 }
 
 const DOCUMENT_OVERLAY_ROLES = {
@@ -48,6 +49,7 @@ const DOCUMENT_OVERLAY_ROLES = {
   // Keep the page hit rect practically transparent so the PDF raster remains
   // visually untouched while Stage background interactions still work.
   pageHitRegionFill: "rgba(255,255,255,0.001)",
+  pageGrid: "#6b7280",
 } as const;
 
 const LIGHT_CANVAS_VISUAL_ROLES: CanvasVisualRoles = Object.freeze({

@@ -29,3 +29,5 @@ export type {
 } from "./AnchoredMenu";
 export { Tooltip } from "./Tooltip";
 export type { TooltipPosition, TooltipProps } from "./Tooltip";
+export { Textarea } from "./Textarea";
+export type { TextareaProps } from "./Textarea";

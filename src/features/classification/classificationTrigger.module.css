@@ -1,0 +1,39 @@
+/* Select-like trigger shared by the classification value pickers (assignment and measurement menu).
+   Compose it from the owning module; the open state follows Select (active border, same surface). */
+.trigger {
+  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  min-width: 0;
+  height: var(--control-height-compact);
+  padding: 0 var(--space-8);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+  transition: var(--transition-interactive);
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
+.trigger:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.trigger[aria-expanded="true"]:not(:disabled) {
+  border-color: var(--color-control-active-border);
+}
+
+.trigger[aria-expanded="true"]:hover:not(:disabled) {
+  border-color: var(--color-control-hover-border);
+}
+
+.trigger[aria-expanded="true"]:active:not(:disabled) {
+  border-color: var(--color-control-active-border);
+}

@@ -9,8 +9,8 @@
   border-radius: var(--radius-control);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
   white-space: nowrap;
   cursor: pointer;
   transition: var(--transition-interactive);
@@ -44,9 +44,9 @@
 }
 
 .primary {
-  color: var(--color-on-primary);
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+  color: var(--color-surface-panel);
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .primary:hover:not(:disabled):not([data-disabled="true"]) {
@@ -92,9 +92,9 @@
 }
 
 .danger {
-  color: var(--color-on-danger);
-  background-color: var(--color-danger);
-  border-color: var(--color-danger);
+  color: var(--color-surface-panel);
+  background-color: var(--color-danger-semantic);
+  border-color: var(--color-danger-semantic);
 }
 
 .danger:hover:not(:disabled):not([data-disabled="true"]) {
@@ -108,9 +108,9 @@
 }
 
 .dangerSecondary {
-  color: var(--color-danger);
+  color: var(--color-danger-semantic);
   background-color: var(--color-surface-panel);
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-semantic);
 }
 
 .dangerSecondary:hover:not(:disabled):not([data-disabled="true"]) {

@@ -142,7 +142,7 @@ describe("Takeoff exports", () => {
         perimeter_status: "absent",
       }),
       expect.objectContaining({
-        group: "None assigned",
+        group: "Unclassified",
         archived: "false",
         measurement_count: 2,
         excluded_count: 1,

@@ -13,8 +13,8 @@
   overflow-wrap: anywhere;
   padding: var(--space-8) var(--space-12);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
   text-align: center;
   text-wrap: balance;
   white-space: normal;

@@ -1,5 +1,5 @@
 import { useId, useState, type Ref } from "react";
-import { Select } from "../../components/ui";
+import { Button, Select } from "../../components/ui";
 import type { Measurement } from "../../types/domain";
 import styles from "./PdfViewer.module.css";
 
@@ -44,8 +44,9 @@ export function KeyboardGeometryHelp({
             ? "Keyboard editing"
             : "Keyboard drawing and editing"}
       </strong>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="compact"
         aria-label="Dismiss keyboard help"
         onClick={() => {
           setDismissed(true);
@@ -53,7 +54,7 @@ export function KeyboardGeometryHelp({
         }}
       >
         Dismiss
-      </button>
+      </Button>
       <div className={styles.keyboardFeedbackCopy}>
         <p>
           <kbd>Arrows</kbd> Move precisely · <kbd>Shift</kbd> Move faster

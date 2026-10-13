@@ -74,8 +74,8 @@
 
 .emptyIcon {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: var(--target-coarse);
+  height: var(--target-coarse);
   margin-bottom: var(--space-12);
   place-items: center;
   border-radius: 50%;
@@ -84,8 +84,8 @@
 }
 
 .emptyIcon svg {
-  width: 22px;
-  height: 22px;
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;

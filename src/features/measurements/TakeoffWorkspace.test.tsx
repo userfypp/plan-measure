@@ -223,7 +223,7 @@ describe("Takeoff source measurements", () => {
     act(() => button("Show measurements in Old").click());
     expect(container.querySelectorAll('[aria-label="Source measurements"] li')).toHaveLength(2);
     expect(button("Open Missing on page 1")).toBeNull();
-    act(() => button("Show measurements in None assigned").click());
+    act(() => button("Show measurements in Unclassified").click());
     expect(container.querySelectorAll('[aria-label="Source measurements"] li')).toHaveLength(1);
     expect(button("Open Missing on page 1")).not.toBeNull();
     choose("page");

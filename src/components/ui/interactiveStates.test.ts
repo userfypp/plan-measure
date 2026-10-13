@@ -9,6 +9,8 @@ const selectCss = readFileSync(new URL("./Select.module.css", import.meta.url), 
 const popoverCss = readFileSync(new URL("./Popover.module.css", import.meta.url), "utf8");
 const buttonCss = readFileSync(new URL("./Button.module.css", import.meta.url), "utf8");
 const iconButtonCss = readFileSync(new URL("./IconButton.module.css", import.meta.url), "utf8");
+const inputCss = readFileSync(new URL("./Input.module.css", import.meta.url), "utf8");
+const textareaCss = readFileSync(new URL("./Textarea.module.css", import.meta.url), "utf8");
 const switchCss = readFileSync(new URL("./Switch.module.css", import.meta.url), "utf8");
 const menuCss = readFileSync(new URL("./AnchoredMenu.module.css", import.meta.url), "utf8");
 const scalesCss = readFileSync(
@@ -83,10 +85,10 @@ describe("shared interactive-state contract", () => {
 
   it("preserves IconButton selected state while distinguishing selected hover and active", () => {
     expect(iconButtonCss).toMatch(
-      /\.button\.pressed:hover[^}]*background-color:\s*var\(--color-selected\);[^}]*border-color:\s*var\(--color-control-hover-border\);/s,
+      /\.button\.pressed:hover[^}]*background-color:\s*var\(--color-selection-surface\);[^}]*border-color:\s*var\(--color-control-hover-border\);/s,
     );
     expect(iconButtonCss).toMatch(
-      /\.button\.pressed:active[^}]*background-color:\s*var\(--color-selected\);[^}]*border-color:\s*var\(--color-control-active-border\);/s,
+      /\.button\.pressed:active[^}]*background-color:\s*var\(--color-selection-surface\);[^}]*border-color:\s*var\(--color-control-active-border\);/s,
     );
   });
 
@@ -118,13 +120,24 @@ describe("shared interactive-state contract", () => {
     expect(menuCss).toMatch(/\.item\s*\{[^}]*min-height:\s*var\(--target-current\);/s);
     expect(menuCss).toMatch(/\.selectionMenu \.items\s*\{[^}]*gap:\s*0;/s);
     expect(menuCss).toMatch(
-      /\.selectionMenu \.item\s*\{[^}]*grid-template-columns:\s*var\(--space-12\) minmax\(0, 1fr\);[^}]*gap:\s*var\(--space-4\);[^}]*padding-inline:\s*var\(--space-4\);/s,
+      /\.item\[aria-checked="true"\]:not\(\[aria-disabled="true"\]\),\s*\.item\[aria-current="true"\]:not\(\[aria-disabled="true"\]\)\s*\{[^}]*background:\s*var\(--color-selection-surface\);/s,
     );
+    expect(menuCss).not.toMatch(/\.marker|\.selectionCheck/);
     expect(tokensCss).toMatch(/--target-fine:\s*32px;/);
     expect(tokensCss).toMatch(/--target-coarse:\s*44px;/);
     expect(tokensCss).toMatch(
       /@media \(any-pointer: coarse\)\s*\{[^}]*:root\s*\{[^}]*--target-current:\s*var\(--target-coarse\);/s,
     );
+  });
+
+  it("gives Textarea the same state contract as Input", () => {
+    for (const css of [inputCss, textareaCss]) {
+      expect(css).toMatch(/\.control\s*\{[^}]*composes:[^;]*\bfocusRing\b[^;]*controlStates\.module\.css/s);
+      expect(css).toContain(".control:hover:not(:disabled)");
+      expect(css).toContain(".control:active:not(:disabled)");
+      expect(css).toContain('.control[aria-invalid="true"]:not(:disabled)');
+    }
+    expect(textareaCss).toMatch(/resize:\s*vertical/);
   });
 
   it("shares a thin overlay-style scrollbar that never reserves a gutter", () => {

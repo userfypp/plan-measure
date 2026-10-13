@@ -255,7 +255,7 @@ describe("MeasurementCollection keyboard model", () => {
                 {
                   key: "trade:electrical/status:unassigned",
                   dimensionLabel: "Status",
-                  label: "None assigned",
+                  label: "Unclassified",
                   archived: false,
                   unassigned: false,
                   measurementIds: ["line-1"],
@@ -270,7 +270,7 @@ describe("MeasurementCollection keyboard model", () => {
     );
 
     const merged = container!.querySelector<HTMLElement>(
-      '[aria-label="Trade · Electrical, Status · None assigned measurement group"]',
+      '[aria-label="Trade · Electrical, Status · Unclassified measurement group"]',
     );
     expect(merged).not.toBeNull();
     expect(merged!.querySelectorAll("section")).toHaveLength(0);
@@ -278,7 +278,7 @@ describe("MeasurementCollection keyboard model", () => {
     expect(header?.querySelector('[aria-label="1 measurements"]')).not.toBeNull();
     const visibility = header?.querySelector<HTMLButtonElement>("[data-group-visibility]");
     expect(visibility?.getAttribute("aria-label")).toBe(
-      "Hide all measurements in Trade · Electrical, Status · None assigned; currently all visible",
+      "Hide all measurements in Trade · Electrical, Status · Unclassified; currently all visible",
     );
     act(() => visibility?.click());
     expect(onSetMeasurementsVisibility).toHaveBeenCalledWith(["line-1"], false);
@@ -318,7 +318,7 @@ describe("MeasurementCollection keyboard model", () => {
                 {
                   key: "trade:electrical/dimension:status:unclassified",
                   dimensionLabel: "Status",
-                  label: "None assigned",
+                  label: "Unclassified",
                   archived: false,
                   unassigned: false,
                   measurementIds: ["line-2"],
@@ -355,7 +355,7 @@ describe("MeasurementCollection keyboard model", () => {
     act(() =>
       container!
         .querySelector<HTMLButtonElement>(
-          '[aria-label="Hide all measurements in Status · None assigned; currently all visible"]',
+          '[aria-label="Hide all measurements in Status · Unclassified; currently all visible"]',
         )
         ?.click(),
     );

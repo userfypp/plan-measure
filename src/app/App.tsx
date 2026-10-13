@@ -900,16 +900,16 @@ function PlanMeasureApp() {
       statusActions={autosaveFailed ? (
         <>
           {canRetryAutosave && (
-            <button type="button" disabled={projectOperationPending} onClick={() => void retryAutosave()}>
+            <Button variant="secondary" size="compact" disabled={projectOperationPending} onClick={() => void retryAutosave()}>
               Retry saving
-            </button>
+            </Button>
           )}
-          <button type="button" disabled={projectOperationPending} onClick={() => void exportProject()}>
+          <Button variant="secondary" size="compact" disabled={projectOperationPending} onClick={() => void exportProject()}>
             Export project
-          </button>
-          <button type="button" disabled={projectOperationPending} onClick={() => setConfirmAutosaveReload(true)}>
+          </Button>
+          <Button variant="secondary" size="compact" disabled={projectOperationPending} onClick={() => setConfirmAutosaveReload(true)}>
             Reload saved projects
-          </button>
+          </Button>
         </>
       ) : undefined}
       onDismissStatus={
@@ -1288,10 +1288,10 @@ function PlanMeasureApp() {
             <>
               <p>The unreadable saved session and its local PDF will be permanently removed.</p>
               <div className={styles.modalActions}>
-                <Button variant="secondary" onClick={hideDiscardRecoveryConfirmation}>
+                <Button variant="ghost" size="compact" onClick={hideDiscardRecoveryConfirmation}>
                   Cancel
                 </Button>
-                <Button variant="danger" onClick={() => void discardRecovery()}>
+                <Button variant="danger" size="compact" onClick={() => void discardRecovery()}>
                   Discard saved session
                 </Button>
               </div>
@@ -1300,10 +1300,10 @@ function PlanMeasureApp() {
             <>
               <p>{recoveryIssue}</p>
               <div className={styles.modalActions}>
-                <Button variant="secondary" onClick={continueWithoutRecovery}>
+                <Button variant="secondary" size="compact" onClick={continueWithoutRecovery}>
                   Continue without recovery
                 </Button>
-                <Button variant="dangerSecondary" onClick={showDiscardRecoveryConfirmation}>
+                <Button variant="dangerSecondary" size="compact" onClick={showDiscardRecoveryConfirmation}>
                   Discard saved session
                 </Button>
               </div>

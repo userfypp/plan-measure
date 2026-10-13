@@ -44,7 +44,7 @@ export function OverlayHost({
     return (
       <ConfirmationDialog
         open
-        title={discardUnsavedProject ? "Discard unsaved project?" : recoveryProtected ? "Replace unreadable session?" : "Open as a new project?"}
+        title={discardUnsavedProject ? "Discard unsaved project?" : recoveryProtected ? "Replace unreadable session?" : "Open as new project"}
         description={
           discardUnsavedProject ? (
             <>

@@ -80,15 +80,12 @@
 .restoreAction {
   min-height: var(--control-height-compact);
   padding-inline: var(--space-8);
-  font-size: var(--font-size-secondary);
 }
 
 .dimensionMenuTrigger {
   composes: focusRing from "../../components/ui/controlStates.module.css";
   width: var(--control-height-compact);
   height: var(--control-height-compact);
-  min-width: var(--control-height-compact);
-  min-height: var(--control-height-compact);
   display: grid;
   place-items: center;
   border: var(--border-width) solid transparent;
@@ -144,15 +141,14 @@
 
 .valueList .valueChipTrigger {
   width: auto;
-  height: auto;
+  height: var(--control-height-compact);
   min-width: var(--control-height-compact);
-  min-height: var(--control-height-compact);
   max-width: 100%;
   display: inline-flex;
   align-items: center;
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: var(--space-4) var(--space-8);
+  padding: 0 var(--space-8);
   color: var(--color-text-primary);
   background: var(--color-surface-field);
   font-family: var(--font-family-sans);
@@ -207,14 +203,14 @@
 
 .readOnlyValue {
   min-width: 0;
-  min-height: var(--control-height-compact);
+  height: var(--control-height-compact);
   max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: var(--space-8);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: var(--space-4) var(--space-8);
+  padding: 0 var(--space-8);
   color: var(--color-text-secondary);
   background: var(--color-surface-field);
   font-size: var(--font-size-secondary);
@@ -236,22 +232,8 @@
   min-width: 0;
 }
 
-.compactInput {
-  min-height: var(--control-height-compact);
-  padding-inline: var(--space-8);
-  font-size: var(--font-size-base);
-}
-
 .inlineLabel {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  composes: visuallyHidden from "../../styles/visuallyHidden.module.css";
 }
 
 .inlineForm {

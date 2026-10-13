@@ -74,7 +74,7 @@
   min-width: 0;
   min-height: var(--geometry-measurement-row-height);
   display: grid;
-  grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr);
+  grid-template-columns: var(--geometry-icon-size-small) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
   border: var(--border-width) solid transparent;
@@ -94,8 +94,8 @@
 
 .glyph {
   margin-inline-start: calc(-1 * var(--space-4));
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   display: grid;
   place-items: center;
   color: var(--color-accent);
@@ -130,6 +130,7 @@
   grid-row: 1;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
 }
 
 .selected .name {

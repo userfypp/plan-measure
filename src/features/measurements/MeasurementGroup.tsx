@@ -1,7 +1,8 @@
 import { Fragment, useId, type CSSProperties, type ReactNode, type RefCallback } from "react";
-import { IconButton } from "../../components/ui";
+import { ChevronDownIcon, IconButton } from "../../components/ui";
 import type { MeasurementGroup as MeasurementGroupModel } from "./measurementGrouping";
 import { MeasurementRow } from "./MeasurementRow";
+import { VisibilityIcon } from "./VisibilityIcon";
 import type { MeasurementViewModel } from "./measurementViewModels";
 import styles from "./MeasurementGroup.module.css";
 
@@ -27,41 +28,6 @@ const visibilityStateLabel = {
   hidden: "all hidden",
   mixed: "mixed visibility",
 } as const;
-
-function ChevronIcon() {
-  return (
-    <svg
-      className={styles.chevron}
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m7.5 4.17 5.83 5.83 -5.83 5.83" />
-    </svg>
-  );
-}
-
-function GroupVisibilityIcon({ state }: { state: "visible" | "hidden" | "mixed" }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <path
-        d="M2.08 10s2.71 -4.38 7.92 -4.38S17.92 10 17.92 10 15.21 14.38 10 14.38 2.08 10 2.08 10Z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {state === "mixed" ? (
-        <path d="M7.92 10h4.17" strokeLinecap="round" />
-      ) : (
-        <circle cx="10" cy="10" r="2.08" />
-      )}
-      {state === "hidden" && <path d="m3.33 3.33 13.33 13.33" strokeLinecap="round" />}
-    </svg>
-  );
-}
 
 export function MeasurementGroup({
   group,
@@ -149,7 +115,7 @@ export function MeasurementGroup({
             aria-label={`${collapsed ? "Expand" : "Collapse"} ${groupName} group`}
             onClick={onToggleCollapsed}
           >
-            <ChevronIcon />
+            <ChevronDownIcon className={styles.chevron} />
           </button>
           <h3 className={styles.title} aria-label={fullGroupLabel} title={fullGroupLabel}>
             {(sharedValue && !segments[0]!.unassigned) ||
@@ -188,7 +154,7 @@ export function MeasurementGroup({
             {group.measurementIds.length}
           </span>
           <IconButton
-            icon={<GroupVisibilityIcon state={group.visibility} />}
+            icon={<VisibilityIcon state={group.visibility} />}
             className={styles.visibilityControl}
             data-group-visibility={group.visibility}
             aria-label={bulkActionLabel}

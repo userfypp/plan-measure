@@ -1154,7 +1154,7 @@ export function SettingsDialog({
                       <div className={styles.resetActions}>
                         <Button
                           size="compact"
-                          variant="secondary"
+                          variant="ghost"
                           onClick={() => setConfirmingReset(false)}
                         >
                           Cancel

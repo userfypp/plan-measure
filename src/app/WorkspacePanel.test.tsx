@@ -127,10 +127,6 @@ describe("WorkspacePanel", () => {
       "Classifications",
       "Scales",
     ]);
-    expect(items[0]?.querySelector("svg")).toBeNull();
-    expect(items[1]?.querySelector("svg")).toBeNull();
-    expect(items[2]?.querySelector("svg")).toBeNull();
-    expect(items[3]?.querySelector("svg")).not.toBeNull();
     expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
       "false",
       "false",

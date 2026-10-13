@@ -73,7 +73,6 @@ export function Select<T extends string>({
       items={items}
       placement="bottom-start"
       matchTriggerWidth
-      showMarkerColumn={false}
       className={styles.list}
     />
   );

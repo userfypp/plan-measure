@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Button } from "../../components/ui";
+import { Button, Input } from "../../components/ui";
 import {
   filterPages,
   PAGE_OVERSCAN,
@@ -250,8 +250,9 @@ export function PageBrowser({
       </header>
       <div className={styles.controls}>
         <div className={styles.search}>
-          <input
+          <Input
             ref={searchRef}
+            className={styles.searchInput}
             type="search"
             aria-label="Search labels"
             placeholder="Search labels"
@@ -293,9 +294,11 @@ export function PageBrowser({
             if (number !== null) navigate(number);
           }}
         >
-          <label htmlFor={`${id}-number`}>Go to page</label>
-          <div className={styles.numberField} data-invalid={goError || undefined}>
-            <input
+          <label id={`${id}-number-label`} htmlFor={`${id}-number`}>Go to page</label>
+          <div className={styles.numberField}>
+            <Input
+              className={styles.numberInput}
+              aria-labelledby={`${id}-number-label`}
               id={`${id}-number`}
               type="number"
               min={1}

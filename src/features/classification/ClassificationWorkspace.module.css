@@ -25,7 +25,13 @@
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 
-.header h2,
+.header h2 {
+  margin: 0;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  font-weight: var(--font-weight-semibold);
+}
+
 .emptyState h3 {
   margin: 0;
   font-size: var(--font-size-base);
@@ -35,7 +41,6 @@
 
 .header > button {
   padding-inline: var(--space-8);
-  font-size: var(--font-size-secondary);
 }
 
 .library {
@@ -64,15 +69,7 @@
 }
 
 .visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  composes: visuallyHidden from "../../styles/visuallyHidden.module.css";
 }
 
 .emptyState {
@@ -141,6 +138,7 @@
 
 summary .chevron {
   transform: rotate(-90deg);
+  transition: var(--transition-transform);
 }
 
 .disclosure[open] > summary .chevron {
@@ -187,19 +185,13 @@ summary .chevron {
   min-height: var(--control-height-compact);
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .saveForm {
   display: grid;
   gap: var(--space-8);
   padding: var(--space-8) var(--space-16) var(--space-16);
-}
-
-.compactInput {
-  min-height: var(--control-height-compact);
-  padding-inline: var(--space-8);
-  font-size: var(--font-size-base);
 }
 
 .saveForm > button {

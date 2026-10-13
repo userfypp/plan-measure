@@ -185,7 +185,6 @@ export function ClassificationManager({
       >
         <Input
           label={<span className={styles.inlineLabel}>Rename {editing.type}</span>}
-          className={styles.compactInput}
           placeholder="New name"
           value={editName}
           error={nameError}
@@ -247,7 +246,6 @@ export function ClassificationManager({
                                 disabled,
                               }}
                               label={`Actions for dimension ${dimension.name}`}
-                              showMarkerColumn={false}
                               items={[{
                                 id: "delete",
                                 label: "Delete",
@@ -264,7 +262,6 @@ export function ClassificationManager({
                               disabled,
                             }}
                             label={`Actions for dimension ${dimension.name}`}
-                            showMarkerColumn={false}
                             items={[
                               {
                                 id: "rename",
@@ -324,7 +321,6 @@ export function ClassificationManager({
                                   disabled,
                                 }}
                                 label={`Actions for ${value.archived ? "archived " : ""}value ${value.name}`}
-                                showMarkerColumn={false}
                                 items={[
                                   ...(dimension.archived ? [] : value.archived
                                     ? [
@@ -385,7 +381,6 @@ export function ClassificationManager({
                               New value for {dimension.name}
                             </span>
                           }
-                          className={styles.compactInput}
                           placeholder="New value…"
                           value={valueNames[dimension.id] ?? ""}
                           error={valueErrors[dimension.id]}
@@ -418,7 +413,6 @@ export function ClassificationManager({
         <form className={styles.create} onSubmit={submitDimension}>
           <Input
             label="New dimension"
-            className={styles.compactInput}
             placeholder="Dimension name"
             value={dimensionName}
             error={createError}

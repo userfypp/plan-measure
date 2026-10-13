@@ -92,7 +92,7 @@ export function ProjectLibraryDialog({
             export it first if you want to keep a copy.
           </p>
           <div className={styles.actions}>
-            <Button variant="secondary" size="compact" disabled={opening} onClick={() => setPendingOpenProjectId(null)}>
+            <Button variant="ghost" size="compact" disabled={opening} onClick={() => setPendingOpenProjectId(null)}>
               Cancel
             </Button>
             <Button
@@ -116,7 +116,7 @@ export function ProjectLibraryDialog({
             device? Other projects stay saved.
           </p>
           <div className={styles.actions}>
-            <Button variant="secondary" size="compact" disabled={opening} onClick={onCancelDiscard}>
+            <Button variant="ghost" size="compact" disabled={opening} onClick={onCancelDiscard}>
               Keep project
             </Button>
             <Button

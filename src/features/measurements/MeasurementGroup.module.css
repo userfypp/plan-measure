@@ -58,24 +58,18 @@
   border-color: var(--color-control-active-border);
 }
 
-.toggle:focus-visible {
-  color: var(--color-text-primary);
-  background: var(--color-surface-field);
-}
-
-.chevron {
-  display: block;
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
+.toggle .chevron {
+  stroke: currentColor;
+  transform: rotate(-90deg);
   transition: var(--transition-transform);
 }
 
 .toggle[aria-expanded="true"] .chevron {
-  transform: rotate(90deg);
+  transform: rotate(0deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chevron {
+  .toggle .chevron {
     transition: none;
   }
 }
@@ -109,6 +103,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -120,6 +115,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -148,6 +144,7 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -170,6 +167,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
 }
 
 /* Eye cell (the tooltip wrapper): it hugs the square button, so only the button is clickable. */

@@ -200,12 +200,11 @@ export function AppBar({
             triggerProps={{ className: styles.iconTrigger, "aria-label": "Feedback", title: "Feedback" }}
             label="Feedback options"
             items={FEEDBACK_ITEMS}
-            showMarkerColumn={false}
             placement="bottom-end"
           />
           <SettingsButton
             trigger={<SettingsIcon />}
-            triggerClassName={styles.iconTrigger}
+            triggerClassName={styles.iconAction}
             measurementDecimalPlaces={measurementDecimalPlaces}
             viewSettings={viewSettings}
             classificationDimensions={classificationDimensions}

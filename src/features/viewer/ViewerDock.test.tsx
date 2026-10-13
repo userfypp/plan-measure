@@ -165,7 +165,7 @@ describe("ViewerDock", () => {
     expect(props.navigation.onPageChange).toHaveBeenCalledWith(2);
     act(() => buttonByLabel("Zoom out").click());
     act(() => buttonByLabel("Zoom in").click());
-    act(() => buttonByLabel("Fit page to viewer").click());
+    act(() => buttonByLabel("Fit page").click());
     expect(props.navigation.onZoomOut).toHaveBeenCalledOnce();
     expect(props.navigation.onZoomIn).toHaveBeenCalledOnce();
     expect(props.navigation.onFit).toHaveBeenCalledOnce();
@@ -196,8 +196,6 @@ describe("ViewerDock", () => {
     expect(items).toHaveLength(2);
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
     expect(items[0]?.getAttribute("aria-current")).toBe("true");
-    expect(items[0]?.querySelector("svg")).not.toBeNull();
-    expect(items[1]?.querySelector("svg")).toBeNull();
     expect(items[1]?.textContent).toContain("Survey correction");
     expect(items[1]?.textContent).toContain("X 1:100 · Y 1:98 · X/Y");
 
@@ -253,7 +251,7 @@ describe("ViewerDock", () => {
     expect(buttonByLabel("Next page")).toBeTruthy();
     expect(buttonByLabel("Zoom out")).toBeTruthy();
     expect(buttonByLabel("Zoom in")).toBeTruthy();
-    expect(buttonByLabel("Fit page to viewer")).toBeTruthy();
+    expect(buttonByLabel("Fit page")).toBeTruthy();
     expect(activeScaleTrigger()).toBeTruthy();
     expect(buttonByLabel("View options")).toBeTruthy();
   });
@@ -277,7 +275,7 @@ describe("ViewerDock", () => {
       "Next page",
       "Zoom out",
       "Zoom in",
-      "Fit page to viewer",
+      "Fit page",
       expect.stringMatching(/^Active scale:/),
       "View options",
     ]);
@@ -311,9 +309,7 @@ describe("ViewerDock", () => {
     expect(controlStatesCss).toMatch(
       /\.focusRing:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
     );
-    expect(popoverCss).toMatch(
-      /\.trigger:focus-visible\s*\{[^}]*outline:\s*var\(--focus-outline\);/s,
-    );
+    expect(popoverCss).toMatch(/\.trigger\s*\{[^}]*composes:[^;]*\bfocusRing\b[^;]*controlStates\.module\.css/s);
   });
 
   it("moves through page and zoom commands with arrows, Home, and End", () => {
@@ -340,7 +336,7 @@ describe("ViewerDock", () => {
 
     const zoomOut = buttonByLabel("Zoom out");
     const zoomIn = buttonByLabel("Zoom in");
-    const fit = buttonByLabel("Fit page to viewer");
+    const fit = buttonByLabel("Fit page");
     expect(zoomOut.tabIndex).toBe(0);
     act(() => zoomOut.focus());
     press("ArrowRight");
@@ -391,7 +387,7 @@ describe("ViewerDock", () => {
     expect(props.navigation.onPageChange).not.toHaveBeenCalled();
     expect(buttonByLabel("Zoom out").disabled).toBe(false);
     expect(buttonByLabel("Zoom in").disabled).toBe(false);
-    expect(buttonByLabel("Fit page to viewer").disabled).toBe(false);
+    expect(buttonByLabel("Fit page").disabled).toBe(false);
     expect(buttonByLabel("View options").disabled).toBe(false);
     act(() => pageLabelTrigger().click());
     expect(pageLabelDialog()).toBeTruthy();

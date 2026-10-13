@@ -58,9 +58,9 @@
   margin: 0;
   overflow: hidden;
   color: var(--color-text-primary);
-  font-size: var(--font-size-heading);
+  font-size: var(--font-size-identity);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
+  line-height: var(--line-height-identity);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -81,6 +81,7 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -91,7 +92,7 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-result);
   font-variant-numeric: var(--font-variant-numeric-quantities);
-  font-weight: var(--font-weight-regular);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-result);
 }
 
@@ -169,21 +170,12 @@
 }
 
 .identity .renameAction {
-  /* Small inline affordance hugging the name; coarse pointers keep the touch target. */
-  width: var(--space-24);
-  height: var(--space-24);
-  min-width: 0;
-  min-height: 0;
+  /* Square IconButton at the compact height, hugging the name. */
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   flex: none;
   border-color: transparent;
   color: var(--color-text-secondary);
-}
-
-@media (any-pointer: coarse), (max-width: 800px) {
-  .identity .renameAction {
-    width: var(--control-height-compact);
-    height: var(--control-height-compact);
-  }
 }
 
 .identity .renameAction:hover {
@@ -243,6 +235,7 @@
   color: var(--color-text-primary);
   font: inherit;
   font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   cursor: pointer;
   transition: var(--transition-interactive);
 }
@@ -268,6 +261,14 @@
   border-color: transparent;
 }
 
+.itemRemoveIcon {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: var(--icon-stroke-width);
+}
+
 .noteForm {
   min-width: 0;
 }
@@ -278,35 +279,6 @@
   padding-top: var(--space-8);
 }
 
-.noteForm textarea {
-  width: 100%;
-  min-height: var(--geometry-measurement-note-min-height);
-  resize: vertical;
-  padding: var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-panel);
-  color: var(--color-text-primary);
-  font: inherit;
-  transition: var(--transition-interactive);
-}
-
-.noteForm textarea:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-}
-
-.noteForm textarea:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-}
-
-.noteForm textarea:disabled {
-  cursor: not-allowed;
-  border-color: var(--color-divider);
-  background-color: var(--color-surface-panel);
-  color: var(--color-text-disabled);
-}
-
 .itemsPagination {
   display: flex;
   flex-wrap: wrap;
@@ -315,13 +287,9 @@
   gap: var(--space-8);
   font-size: var(--font-size-base);
   font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-base);
 }
 
 .itemsHeader h3 {
   margin: 0;
-}
-
-:global(:root[data-targets="large"]) .identity .renameAction {
-  width: var(--control-height-compact);
-  height: var(--control-height-compact);
 }

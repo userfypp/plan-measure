@@ -88,7 +88,7 @@ export function createMeasurementGroups(
     groups.push({
       key: `dimension:${dimension.id}:unclassified`,
       dimensionLabel: dimension.name,
-      label: "None assigned",
+      label: "Unclassified",
       archived: false,
       unassigned: true,
       measurementIds: unclassified.map((measurement) => measurement.id),
@@ -136,7 +136,7 @@ function toSegment(group: MeasurementGroup): MeasurementGroupSegment {
 
 /**
  * Fuses a group with its only child when both cover exactly the same measurements, so chains such
- * as None assigned > None assigned > None assigned render as one header. The head keeps its identity;
+ * as Unclassified > Unclassified > Unclassified render as one header. The head keeps its identity;
  * `segments` records the whole chain and `children` come from the tail. Does not mutate the input.
  */
 export function compactMeasurementGroups(groups: readonly MeasurementGroup[]): MeasurementGroup[] {

@@ -287,7 +287,7 @@ dialog.dialog[open] {
 }
 
 .columnOption input:disabled {
-  opacity: 1;
+  opacity: var(--opacity-disabled);
   cursor: default;
 }
 
@@ -295,19 +295,12 @@ dialog.dialog[open] {
   min-width: 0;
 }
 
-.requiredBadge,
 .compactBadge {
   min-height: var(--geometry-count-badge-size);
   padding: 0 var(--space-4);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
-}
-
-.requiredBadge {
-  color: var(--color-text-secondary);
-  background: transparent;
-  border-color: var(--color-divider);
 }
 
 .classificationRow {

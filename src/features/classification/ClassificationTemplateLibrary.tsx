@@ -202,7 +202,6 @@ export function ClassificationTemplateLibrary({
           )}
           <Input
             label="Template name"
-            className={styles.compactInput}
             value={name}
             disabled={disabled || !!library.error || !canSave}
             placeholder="e.g. Residential finishes"

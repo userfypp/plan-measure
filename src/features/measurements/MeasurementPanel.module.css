@@ -28,7 +28,7 @@
 .search {
   display: grid;
   min-width: 0;
-  min-height: var(--control-height-compact);
+  height: var(--control-height-compact);
   grid-template-columns: var(--geometry-icon-size) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
@@ -41,10 +41,26 @@
   transition: var(--transition-interactive);
 }
 
+.search:hover:not(:has(input:disabled)) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+}
+
 .search:focus-within {
-  border-color: var(--color-focus-semantic);
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
+}
+
+.search:has(input:disabled) {
+  cursor: not-allowed;
+  border-color: var(--color-divider);
+  background-color: var(--color-surface-panel);
+  color: var(--color-text-disabled);
+}
+
+.search input:disabled {
+  cursor: not-allowed;
+  color: var(--color-text-disabled);
 }
 
 .searchIcon {
@@ -82,15 +98,7 @@
 }
 
 .visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
+  composes: visuallyHidden from "../../styles/visuallyHidden.module.css";
 }
 
 /* Icon-only triggers, IconButton geometry: square at the compact height, icon centred. */
@@ -110,7 +118,7 @@
   color: var(--color-text-secondary);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   white-space: nowrap;
@@ -144,22 +152,22 @@
 
 /* A filter or a grouping is applied: IconButton's pressed look, kept while open. */
 .toolbarButton.active {
-  border-color: var(--color-primary);
-  background: var(--color-selected);
-  color: var(--color-primary);
+  border-color: var(--color-accent);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
 }
 
 .toolbarButton.active:hover:not(:disabled) {
   border-color: var(--color-control-hover-border);
-  background: var(--color-selected);
-  color: var(--color-primary);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
 }
 
 .toolbarButton.active:active:not(:disabled),
 .toolbarButton.active[aria-expanded="true"] {
   border-color: var(--color-control-active-border);
-  background: var(--color-selected);
-  color: var(--color-primary);
+  background: var(--color-selection-surface);
+  color: var(--color-accent);
 }
 
 .activeCount {

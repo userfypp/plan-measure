@@ -334,7 +334,7 @@ describe("measurement grouping surfaces", () => {
       /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--geometry-tree-inset-end\)/s,
     );
     expect(measurementPanelCss).toMatch(
-      /\.search\s*\{[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
+      /\.search\s*\{[^}]*height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
     );
     // Icon-only triggers with IconButton geometry; an applied filter or grouping looks pressed.
     expect(measurementPanelCss).toMatch(
@@ -342,7 +342,7 @@ describe("measurement grouping surfaces", () => {
     );
     expect(measurementPanelCss).not.toContain(".toolbarButton::after");
     expect(measurementPanelCss).toMatch(
-      /\.toolbarButton\.active\s*\{[^}]*border-color:\s*var\(--color-primary\);[^}]*background:\s*var\(--color-selected\);[^}]*color:\s*var\(--color-primary\);/s,
+      /\.toolbarButton\.active\s*\{[^}]*border-color:\s*var\(--color-accent\);[^}]*background:\s*var\(--color-selection-surface\);[^}]*color:\s*var\(--color-accent\);/s,
     );
     // One toolbar row at every sidebar width: no wrap rule, no truncated trigger text.
     expect(measurementPanelCss).not.toMatch(
@@ -554,16 +554,16 @@ describe("measurement grouping surfaces", () => {
     expect(controlledId).toBeTruthy();
     expect(markup).toContain(`id="${controlledId}"`);
     expect(markup).toMatch(new RegExp(`<div id="${controlledId}"[^>]*hidden=""`));
-    expect(markup).toContain('d="m7.5 4.17 5.83 5.83 -5.83 5.83"');
+    expect(markup).toContain('d="m6 8 4 4 4-4"');
     expect(markup).not.toContain("▸");
     expect(markup).not.toContain("▾");
   });
 
-  it('renders a composed None assigned chain as one section folded into "No A · B"', () => {
+  it('renders a composed Unclassified chain as one section folded into "No A · B"', () => {
     const none = (key: string, dimensionLabel: string) => ({
       key,
       dimensionLabel,
-      label: "None assigned",
+      label: "Unclassified",
       archived: false,
       unassigned: true,
       measurementIds: ["line-1"],
@@ -592,6 +592,6 @@ describe("measurement grouping surfaces", () => {
     );
     expect(markup.match(/<section/g)?.filter(Boolean)).toHaveLength(2); // collection + one group
     expect(markup).toContain("No Inside · FDS · GAGRE");
-    expect(markup).not.toContain("None assigned</span>");
+    expect(markup).not.toContain("Unclassified</span>");
   });
 });

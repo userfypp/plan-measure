@@ -1,33 +1,6 @@
 .trigger,
 .valueTrigger {
-  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
-  min-width: 0;
-  min-height: var(--control-height-compact);
-  padding: 0 var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
-  font: inherit;
-  transition: var(--transition-interactive);
-}
-
-.trigger:hover:not(:disabled),
-.valueTrigger:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.trigger:active:not(:disabled),
-.valueTrigger:active:not(:disabled) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-}
-
-.trigger[aria-expanded="true"],
-.valueTrigger[aria-expanded="true"] {
-  border-color: var(--color-accent);
-  background: var(--color-selection-surface);
+  composes: trigger from "../classification/classificationTrigger.module.css";
 }
 
 .triggerContent {

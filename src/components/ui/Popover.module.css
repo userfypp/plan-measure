@@ -1,11 +1,7 @@
 .trigger {
+  composes: focusRing from "./controlStates.module.css";
   min-width: var(--target-current);
   min-height: var(--target-current);
-}
-
-.trigger:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .content {

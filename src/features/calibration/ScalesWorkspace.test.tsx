@@ -542,7 +542,7 @@ describe("ScalesWorkspace", () => {
     expect(document.querySelector("#custom-ratio-name")).toBeNull();
 
     setInputValue(ratio, "60");
-    act(() => buttonWithin(document.querySelector("dialog")!, "Save").click());
+    act(() => buttonWithin(document.querySelector("dialog")!, "Save scale").click());
     await new Promise<void>((resolve) => queueMicrotask(resolve));
 
     expect(props.onSetRatio).toHaveBeenCalledWith(
@@ -581,7 +581,7 @@ describe("ScalesWorkspace", () => {
     const ratio = document.querySelector<HTMLInputElement>("#custom-ratio-uniform")!;
     expect(ratio.value).toBe("65.345");
     setInputValue(ratio, "50");
-    act(() => buttonWithin(document.querySelector("dialog")!, "Save").click());
+    act(() => buttonWithin(document.querySelector("dialog")!, "Save scale").click());
 
     expect(props.onSetRatio).toHaveBeenCalledWith(
       "point-uniform",
@@ -614,7 +614,7 @@ describe("ScalesWorkspace", () => {
     expect(document.querySelector('input[name="custom-ratio-mode"]')).toBeNull();
     setInputValue(x, "80");
     setInputValue(y, "40");
-    act(() => buttonWithin(document.querySelector("dialog")!, "Save").click());
+    act(() => buttonWithin(document.querySelector("dialog")!, "Save scale").click());
 
     expect(props.onSetRatio).toHaveBeenCalledWith(
       "xy-ratio",

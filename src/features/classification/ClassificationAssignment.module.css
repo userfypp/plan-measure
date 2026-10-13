@@ -57,46 +57,9 @@
 }
 
 .valueTrigger {
-  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  composes: trigger from "./classificationTrigger.module.css";
   width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-compact);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-base);
   text-align: left;
-  transition: var(--transition-interactive);
-}
-
-.valueTrigger:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.valueTrigger:active:not(:disabled) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-}
-
-.valueTrigger[aria-expanded="true"]:not(:disabled) {
-  border-color: var(--color-accent);
-  background: var(--color-selection-surface);
-}
-
-.valueTrigger[aria-expanded="true"]:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-selection-surface);
-}
-
-.valueTrigger[aria-expanded="true"]:active:not(:disabled) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-selection-surface);
 }
 
 .valueTriggerContent {
@@ -121,6 +84,7 @@
 
 .valueTrigger[aria-expanded="true"] .valueTriggerContent svg {
   transform: rotate(180deg);
+  transition: var(--transition-transform);
 }
 
 .empty {

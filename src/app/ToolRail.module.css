@@ -14,7 +14,7 @@
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-overlay);
   background: var(--color-surface-raised);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-floating);
 }
 
 .tools {
@@ -131,11 +131,11 @@
   display: grid;
   place-items: center;
   border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-overlay);
+  border-radius: var(--radius-control);
   padding: 0;
   background: var(--color-surface-raised);
   color: var(--color-text-secondary);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-floating);
   transition: var(--transition-interactive);
 }
 
@@ -195,5 +195,5 @@
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-overlay);
   background: var(--color-surface-raised);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-floating);
 }

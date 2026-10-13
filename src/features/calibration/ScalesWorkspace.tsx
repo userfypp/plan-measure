@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
-import { AnchoredMenu, Button, Input } from "../../components/ui";
+import { AnchoredMenu, Button, ChevronDownIcon, Input } from "../../components/ui";
 import type {
   CalibrationReferenceKey,
   MeasurementDisplayUnit,
@@ -81,14 +81,6 @@ function CustomRatioOptionLabel() {
       <strong>Custom ratio</strong>
       <span>Enter 1:n</span>
     </span>
-  );
-}
-
-function DisclosureIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-      <path d="m7 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 
@@ -256,7 +248,7 @@ export function ScalesWorkspace({
                   title={`${inspected ? "Collapse" : "Expand"} ${calibration.name}`}
                   onClick={() => toggleScale(calibration.id, inspected)}
                 >
-                  <DisclosureIcon />
+                  <ChevronDownIcon />
                 </Button>
               </div>
               <div id={detailId} className={styles.scaleDetails} hidden={!inspected}>
@@ -485,7 +477,6 @@ export function ScalesWorkspace({
           }}
           className={styles.addScaleMenu}
           label="Add scale"
-          showMarkerColumn={false}
           items={[
             {
               id: "uniform",

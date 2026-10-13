@@ -99,7 +99,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         disabled={disabled}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
-        aria-invalid={hasError || undefined}
+        aria-invalid={hasError || inputProps["aria-invalid"] || undefined}
         aria-describedby={describedBy || undefined}
       />
       {hasDescription && (

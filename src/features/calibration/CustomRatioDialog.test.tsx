@@ -156,12 +156,12 @@ describe("CustomRatioDialog", () => {
     expect(document.activeElement).toBe(ratio);
 
     setInputValue(ratio, "0");
-    act(() => button("Save").click());
+    act(() => button("Save scale").click());
     expect(ratio.getAttribute("aria-invalid")).toBe("true");
     expect(onConfirm).not.toHaveBeenCalled();
 
     setInputValue(ratio, "60");
-    act(() => button("Save").click());
+    act(() => button("Save scale").click());
     expect(onConfirm).toHaveBeenCalledWith(
       createPageCalibrationFromRatio({ mode: "uniform", denominator: 60 }),
     );
@@ -181,7 +181,7 @@ describe("CustomRatioDialog", () => {
 
     setInputValue(x, "80");
     setInputValue(y, "40");
-    act(() => button("Save").click());
+    act(() => button("Save scale").click());
     expect(onConfirm).toHaveBeenCalledWith(
       createPageCalibrationFromRatio({ mode: "xy", xDenominator: 80, yDenominator: 40 }),
     );

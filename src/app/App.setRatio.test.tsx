@@ -358,7 +358,7 @@ function saveUniformRatio(denominator: number) {
   const input = document.querySelector<HTMLInputElement>("#custom-ratio-uniform");
   if (!input) throw new Error("Uniform ratio input was not rendered.");
   setInputValue(input, String(denominator));
-  act(() => buttonByText("Save").click());
+  act(() => buttonByText("Save scale").click());
 }
 
 function saveXyRatio(xDenominator: number, yDenominator: number) {
@@ -367,7 +367,7 @@ function saveXyRatio(xDenominator: number, yDenominator: number) {
   if (!x || !y) throw new Error("X/Y ratio inputs were not rendered.");
   setInputValue(x, String(xDenominator));
   setInputValue(y, String(yDenominator));
-  act(() => buttonByText("Save").click());
+  act(() => buttonByText("Save scale").click());
 }
 
 beforeEach(() => {

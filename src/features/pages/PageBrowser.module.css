@@ -15,7 +15,7 @@
   border-right: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
   color: var(--color-text-primary);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-floating);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-base);
 }
@@ -68,41 +68,18 @@
   gap: var(--space-8);
   padding: var(--space-8) var(--space-12);
 }
-.search,
 .goTo {
   display: flex;
   align-items: center;
   gap: var(--space-4);
   min-width: 0;
 }
-.controls input {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-compact);
-  padding: 0 var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-field);
-  color: var(--color-text-primary);
-  font: inherit;
-  font-weight: var(--font-weight-medium);
-}
-.controls input:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-}
-.controls input:disabled {
-  border-color: var(--color-divider);
-  background: var(--color-surface-panel);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-.controls input[aria-invalid="true"] {
-  border-color: var(--color-danger-semantic);
-}
 .search {
   position: relative;
+  display: grid;
+  min-width: 0;
 }
-.search input {
+.searchInput {
   padding-right: calc(var(--target-current) + var(--space-8));
 }
 .clearSearch {
@@ -111,35 +88,12 @@
   top: 50%;
   transform: translateY(-50%);
 }
-.search input::-webkit-search-cancel-button {
+.searchInput::-webkit-search-cancel-button {
   appearance: none;
 }
-.controls input::placeholder {
-  color: var(--color-text-secondary);
-  opacity: 1;
-}
-.controls input:focus-visible,
 .list:focus-visible {
   outline: var(--focus-outline);
   outline-offset: calc(-1 * var(--focus-width));
-}
-.goTo input {
-  width: var(--geometry-page-goto-input-width);
-  flex: 0 0 var(--geometry-page-goto-input-width);
-  min-height: calc(var(--control-height-compact) - 2 * var(--border-width));
-  border: 0;
-  background: transparent;
-  text-align: center;
-  font-variant-numeric: var(--font-variant-numeric-quantities);
-  appearance: textfield;
-}
-.goTo input::-webkit-inner-spin-button,
-.goTo input::-webkit-outer-spin-button {
-  appearance: none;
-  margin: 0;
-}
-.goTo input:focus-visible {
-  outline: none;
 }
 .goTo {
   justify-content: space-between;
@@ -151,21 +105,18 @@
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  padding-right: var(--space-8);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-field);
+  gap: var(--space-8);
 }
-.numberField:hover {
-  border-color: var(--color-control-hover-border);
+.numberField .numberInput {
+  width: var(--geometry-page-goto-input-width);
+  text-align: center;
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  appearance: textfield;
 }
-.numberField:focus-within {
-  outline: var(--focus-outline);
-  outline-offset: calc(-1 * var(--focus-width));
-}
-.numberField[data-invalid="true"] {
-  border-color: var(--color-danger-semantic);
-  outline-color: var(--color-danger-semantic);
+.numberField .numberInput::-webkit-inner-spin-button,
+.numberField .numberInput::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
 }
 .goTo span {
   color: var(--color-text-secondary);
@@ -286,14 +237,7 @@
     min-height: var(--control-height-regular);
     flex-basis: var(--control-height-regular);
   }
-  .controls input {
-    min-height: var(--control-height-regular);
-  }
-  .goTo input {
-    min-height: calc(var(--control-height-regular) - 2 * var(--border-width));
-  }
-  .search input {
-    min-height: var(--control-height-regular);
+  .searchInput {
     padding-right: calc(var(--control-height-regular) + var(--space-8));
   }
   .list {

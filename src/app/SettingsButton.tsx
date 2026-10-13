@@ -1,4 +1,5 @@
 import { Suspense, useState, type ReactNode } from "react";
+import { IconButton } from "../components/ui";
 import { recoverableLazy } from "./recoverableLazy";
 import { retryableImport } from "./retryableImport";
 import type { SettingsDialogProps } from "./SettingsDialog";
@@ -18,19 +19,18 @@ export function SettingsButton({ trigger, triggerClassName, ...dialogProps }: Se
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
+      <IconButton
         className={triggerClassName}
+        icon={trigger}
         aria-label="Settings"
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="Settings"
+        tooltip="Settings"
+        tooltipPosition="bottom"
         onPointerEnter={() => void loadSettingsDialog().catch(() => undefined)}
         onFocus={() => void loadSettingsDialog().catch(() => undefined)}
         onClick={() => setOpen(true)}
-      >
-        {trigger}
-      </button>
+      />
       {open && (
         <Suspense fallback={null}>
           <LazySettingsDialog {...dialogProps} onClose={() => setOpen(false)} />

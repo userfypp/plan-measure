@@ -319,11 +319,11 @@ export function WorkspaceShell({
             ref={workspaceTriggerRef}
             type="button"
             className={styles.workspaceLauncher}
-            aria-label={workspaceDrawerOpen ? "Workspace open" : "Open workspace"}
+            aria-label="Open workspace"
             aria-controls={WORKSPACE_DRAWER_ID}
             aria-expanded={workspaceDrawerOpen}
             hidden={workspaceDrawerOpen}
-            title="Workspace"
+            title="Open workspace"
             onFocus={() => {
               workspaceLauncherFocusedRef.current = true;
             }}

@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
-import { AnchoredMenu, Button, IconButton, Popover, Select, Switch } from "../../components/ui";
+import { AnchoredMenu, Button, ChevronDownIcon, IconButton, Input, Popover, Select, Switch } from "../../components/ui";
 import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
@@ -105,14 +105,6 @@ function FitIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M7 4H4v3M13 4h3v3M7 16H4v-3M13 16h3v-3" />
-    </svg>
-  );
-}
-
-function DisclosureIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m6.5 8 3.5 4 3.5-4" />
     </svg>
   );
 }
@@ -250,6 +242,7 @@ export function ViewerDock({
             className={styles.pagesTrigger}
             icon={<PagesIcon />}
             aria-label="Pages"
+            tooltip="Pages"
             pressed={pagesOpen}
             aria-controls="page-browser"
             onClick={onTogglePages}
@@ -296,9 +289,8 @@ export function ViewerDock({
         >
           <form className={styles.pageLabelEditor} onSubmit={handlePageLabelSubmit}>
             <strong className={styles.pageLabelHeading}>Page label</strong>
-            <label className={styles.pageLabelField} htmlFor={pageLabelInputId}>
-              <span>Label</span>
-              <input
+            <Input
+                label="Label"
                 ref={pageLabelInputRef}
                 id={pageLabelInputId}
                 data-popover-autofocus="true"
@@ -315,7 +307,6 @@ export function ViewerDock({
                   event.currentTarget.form?.requestSubmit();
                 }}
               />
-            </label>
             <div className={styles.pageLabelSource}>
               PDF label:{" "}
               <span title={sourcePageLabel ?? undefined}>
@@ -341,7 +332,7 @@ export function ViewerDock({
                   {sourcePageLabel === null ? "Remove label" : "Restore PDF label"}
                 </Button>
               )}
-              <Button variant="secondary" size="compact" onClick={closePageLabelEditor}>
+              <Button variant="ghost" size="compact" onClick={closePageLabelEditor}>
                 Cancel
               </Button>
               <Button size="compact" type="submit">
@@ -405,8 +396,8 @@ export function ViewerDock({
           variant="ghost"
           size="compact"
           className={styles.iconButton}
-          aria-label="Fit page to viewer"
-          title="Fit"
+          aria-label="Fit page"
+          title="Fit page"
           onClick={navigation.onFit}
         >
           <FitIcon />
@@ -430,7 +421,7 @@ export function ViewerDock({
                 <small>Create a scale to measure</small>
               )}
             </span>
-            <DisclosureIcon />
+            <ChevronDownIcon className={styles.chevron} />
           </>
         }
         triggerProps={{

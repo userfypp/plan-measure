@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Shape } from "react-konva";
 import type { PageGrid } from "../../utils/appPreferences";
+import { useCanvasVisualRoles } from "./canvasVisualRoles";
 import { pageGridLines } from "./pageGrid";
 
 interface PageGridLinesProps {
@@ -12,6 +13,7 @@ interface PageGridLinesProps {
 
 /** Faint non-interactive grid over the page: one Shape, one path, only mounted while active. */
 export function PageGridLines({ grid, zoom, width, height }: PageGridLinesProps) {
+  const roles = useCanvasVisualRoles();
   const segments = useMemo(() => {
     const { vertical, horizontal } = pageGridLines(grid, zoom, width, height);
     return [...vertical, ...horizontal];
@@ -21,7 +23,7 @@ export function PageGridLines({ grid, zoom, width, height }: PageGridLinesProps)
     <Shape
       name="page-grid"
       listening={false}
-      stroke="#6b7280"
+      stroke={roles.pageGrid}
       strokeWidth={1 / zoom}
       opacity={0.35}
       sceneFunc={(context, shape) => {

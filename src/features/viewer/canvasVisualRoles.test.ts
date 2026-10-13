@@ -29,6 +29,7 @@ describe("V2 canvas visual roles", () => {
       labelText: "#ffffff",
       labelBackground: "#242a31",
       pageHitRegionFill: "rgba(255,255,255,0.001)",
+      pageGrid: "#6b7280",
     });
   });
 

@@ -75,7 +75,7 @@
   margin: 0;
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
+  line-height: var(--line-height-heading);
 }
 
 .body {
@@ -88,7 +88,7 @@
 .body :global(p) {
   margin: 0;
   color: var(--color-text-secondary);
-  line-height: var(--line-height-normal);
+  line-height: var(--line-height-base);
   overflow-wrap: anywhere;
 }
 

@@ -140,14 +140,13 @@
 }
 
 .disclosureButton svg {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  stroke-width: var(--icon-stroke-width);
+  stroke: currentColor;
+  transform: rotate(-90deg);
   transition: var(--transition-transform);
 }
 
 .disclosureButton[aria-expanded="true"] svg {
-  transform: rotate(90deg);
+  transform: rotate(0deg);
 }
 
 .scaleDetails {
@@ -301,7 +300,7 @@
 
 .addOptionLabel strong {
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
 }
 

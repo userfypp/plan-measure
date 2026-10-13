@@ -37,14 +37,12 @@
 
 .groupDivider {
   width: var(--border-width);
-  height: 16px;
+  height: var(--space-16);
   flex: 0 0 auto;
   background: var(--color-divider);
 }
 
 .iconAction {
-  width: var(--target-current);
-  height: var(--target-current);
   border-color: transparent;
 }
 
@@ -67,7 +65,7 @@
 
 .identityDivider {
   width: var(--border-width);
-  height: 16px;
+  height: var(--space-16);
   flex: 0 0 auto;
   background: var(--color-divider);
 }

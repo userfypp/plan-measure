@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
-import { AnchoredMenu, Button, IconButton, Input } from "../../components/ui";
+import { AnchoredMenu, Button, IconButton, Input, Textarea } from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -159,7 +159,7 @@ export function MeasurementDetails({
             />
             <div className={styles.renameActions}>
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="compact"
                 onClick={() => {
                   setName(measurement.name);
@@ -275,7 +275,6 @@ export function MeasurementDetails({
                         }}
                         label={`Move item ${index + 1} to count`}
                         placement="bottom-end"
-                        showMarkerColumn={false}
                         items={() => otherCounts.map((count) => ({
                           id: count.id,
                           label: `${count.name}${count.visible ? "" : " (hidden)"}`,
@@ -285,8 +284,8 @@ export function MeasurementDetails({
                     )}
                     <IconButton
                       className={styles.itemRemove}
-                      aria-label={`Remove item ${index + 1}`}
-                      tooltip={`Remove item ${index + 1}`}
+                      aria-label={`Delete item ${index + 1}`}
+                      tooltip={`Delete item ${index + 1}`}
                       tooltipPosition="left"
                       tone="danger"
                       disabled={assignmentDisabled}
@@ -307,12 +306,8 @@ export function MeasurementDetails({
                       }}
                       icon={
                         <svg
+                          className={styles.itemRemoveIcon}
                           viewBox="0 0 20 20"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
                           aria-hidden="true"
                           focusable="false"
                         >
@@ -347,7 +342,7 @@ export function MeasurementDetails({
               onSaveNote(note);
             }}
           >
-            <textarea
+            <Textarea
               id="measurement-note"
               aria-label="Note"
               value={note}

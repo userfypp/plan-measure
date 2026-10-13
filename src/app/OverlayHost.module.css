@@ -10,8 +10,8 @@
 }
 
 .deletePreference input {
-  width: 16px;
-  height: 16px;
+  width: var(--geometry-checkbox-size);
+  height: var(--geometry-checkbox-size);
   margin: 0;
   accent-color: var(--color-accent);
 }
