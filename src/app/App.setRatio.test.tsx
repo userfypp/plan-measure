@@ -3,9 +3,10 @@
 import { chooseSelectOption } from "../components/ui/selectTestUtils";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession, PageCalibration } from "../types/domain";
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
+import { preloadCustomRatioDialog } from "../features/calibration/ScalesWorkspace";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { formatLinearValue } from "../utils/format";
 import { toMillimetres } from "../utils/units";
@@ -369,6 +370,9 @@ function saveXyRatio(xDenominator: number, yDenominator: number) {
   setInputValue(y, String(yDenominator));
   act(() => buttonByText("Save scale").click());
 }
+
+// The Custom ratio dialog is a lazy chunk; once loaded it mounts in the same commit.
+beforeAll(() => preloadCustomRatioDialog());
 
 beforeEach(() => {
   (

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { Suspense, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
 import { AnchoredMenu, Button, ChevronDownIcon, Input } from "../../components/ui";
 import type {
@@ -11,16 +11,22 @@ import { formatDisplayNumber, formatLinearValue } from "../../utils/format";
 import { defaultCalibrationName } from "../../utils/calibration";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
-import { CustomRatioDialog } from "./CustomRatioDialog";
-import {
-  scaleRatioSpecFromCalibration,
-  type RatioCalibrationInput,
-} from "./ratioCalibration";
+import { retryableImport } from "../../app/retryableImport";
+import { recoverableLazy } from "../../app/recoverableLazy";
+import { scaleRatioSpecFromCalibration, type RatioCalibrationInput } from "./ratioCalibration";
 import {
   STANDARD_SCALE_PRESET_RATIOS,
   type StandardScalePresetRatio,
 } from "./standardScalePresets";
 import styles from "./ScalesWorkspace.module.css";
+
+const CustomRatioDialog = recoverableLazy(
+  retryableImport(() =>
+    import("./CustomRatioDialog").then((module) => ({ default: module.CustomRatioDialog })),
+  ),
+  "Custom ratio",
+);
+export const preloadCustomRatioDialog = CustomRatioDialog.preload;
 
 export interface ScalesWorkspaceProps {
   page: PageState;
@@ -46,10 +52,7 @@ interface RenameState {
 const WORKFLOW_DISABLED_REASON = "Finish or cancel the current scale workflow first.";
 const EMPTY_SCALE_NAME_ERROR = "Scale name cannot be empty.";
 
-function formatReferenceDistance(
-  millimetres: number,
-  displayUnit: MeasurementDisplayUnit,
-): string {
+function formatReferenceDistance(millimetres: number, displayUnit: MeasurementDisplayUnit): string {
   if (displayUnit === "in" || displayUnit === "ft" || displayUnit === "ft-in") {
     return formatLinearValue(millimetres, displayUnit);
   }
@@ -160,7 +163,8 @@ export function ScalesWorkspace({
   }
 
   function commitRename(calibration: PageCalibration) {
-    if (!renameState || renameState.calibrationId !== calibration.id || actionsDisabled) return false;
+    if (!renameState || renameState.calibrationId !== calibration.id || actionsDisabled)
+      return false;
     const normalizedName = renameState.draftName.trim();
     if (!normalizedName) {
       setRenameState({ ...renameState, error: EMPTY_SCALE_NAME_ERROR });
@@ -196,7 +200,11 @@ export function ScalesWorkspace({
           return (
             <article
               key={calibration.id}
-              className={[styles.scaleRow, active ? styles.active : "", inspected ? styles.inspected : ""]
+              className={[
+                styles.scaleRow,
+                active ? styles.active : "",
+                inspected ? styles.inspected : "",
+              ]
                 .filter(Boolean)
                 .join(" ")}
               role="listitem"
@@ -215,8 +223,12 @@ export function ScalesWorkspace({
                           aria-label={`Check scale ${calibration.name}`}
                           title={`Check scale ${calibration.name}`}
                           disabled={spatialActionsDisabled}
-                          disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                          onClick={() => workspace.requestPrecisionAuthoring(() => onCheckScale(calibration))}
+                          disabledReason={
+                            spatialActionsDisabled ? spatialDisabledReason : undefined
+                          }
+                          onClick={() =>
+                            workspace.requestPrecisionAuthoring(() => onCheckScale(calibration))
+                          }
                         >
                           Check
                         </Button>
@@ -354,7 +366,10 @@ export function ScalesWorkspace({
                     <div className={styles.detailRow}>
                       <strong
                         className={styles.detailValue}
-                        title={formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
+                        title={formatReferenceDistance(
+                          calibration.referenceDistanceMm,
+                          displayUnit,
+                        )}
                       >
                         <span className={styles.visuallyHidden}>Uniform reference: </span>
                         {formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
@@ -396,7 +411,9 @@ export function ScalesWorkspace({
                           size="compact"
                           aria-label="Edit X reference points"
                           disabled={spatialActionsDisabled}
-                          disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                          disabledReason={
+                            spatialActionsDisabled ? spatialDisabledReason : undefined
+                          }
                           onClick={() =>
                             workspace.requestPrecisionAuthoring(() =>
                               onEditReference(calibration, "x"),
@@ -426,7 +443,9 @@ export function ScalesWorkspace({
                           size="compact"
                           aria-label="Edit Y reference points"
                           disabled={spatialActionsDisabled}
-                          disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
+                          disabledReason={
+                            spatialActionsDisabled ? spatialDisabledReason : undefined
+                          }
                           onClick={() =>
                             workspace.requestPrecisionAuthoring(() =>
                               onEditReference(calibration, "y"),
@@ -534,29 +553,31 @@ export function ScalesWorkspace({
         </p>
       )}
 
-      {customRatioDialogOpen && (
-        <CustomRatioDialog
-          purpose="create"
-          initialName={defaultCalibrationName(page)}
-          onCancel={closeCustomRatioDialog}
-          onConfirm={({ name, calibration }) => {
-            onAddCustomRatioScale(name, calibration);
-            closeCustomRatioDialog();
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {customRatioDialogOpen && (
+          <CustomRatioDialog
+            purpose="create"
+            initialName={defaultCalibrationName(page)}
+            onCancel={closeCustomRatioDialog}
+            onConfirm={({ name, calibration }) => {
+              onAddCustomRatioScale(name, calibration);
+              closeCustomRatioDialog();
+            }}
+          />
+        )}
 
-      {setRatioCalibration && (
-        <CustomRatioDialog
-          purpose="set"
-          initialRatio={scaleRatioSpecFromCalibration(setRatioCalibration)}
-          onCancel={() => setSetRatioScaleId(null)}
-          onConfirm={(calibration) => {
-            onSetRatio(setRatioCalibration.id, calibration);
-            setSetRatioScaleId(null);
-          }}
-        />
-      )}
+        {setRatioCalibration && (
+          <CustomRatioDialog
+            purpose="set"
+            initialRatio={scaleRatioSpecFromCalibration(setRatioCalibration)}
+            onCancel={() => setSetRatioScaleId(null)}
+            onConfirm={(calibration) => {
+              onSetRatio(setRatioCalibration.id, calibration);
+              setSetRatioScaleId(null);
+            }}
+          />
+        )}
+      </Suspense>
     </section>
   );
 }

@@ -1,4 +1,11 @@
-import { Component, lazy, type ComponentType, type ComponentProps, type ReactNode } from "react";
+import {
+  Component,
+  lazy,
+  useState,
+  type ComponentType,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import styles from "./recoverableLazy.module.css";
 
 class ModuleErrorBoundary extends Component<{
@@ -28,12 +35,25 @@ export function recoverableLazy<C extends ComponentType<any>>(
   load: () => Promise<{ default: C }>,
   name: string,
 ) {
-  const Module = lazy(load) as unknown as ComponentType<ComponentProps<C>>;
-  return function RecoverableLazyModule(props: ComponentProps<C>) {
+  let loaded: C | null = null;
+  const remember = () =>
+    load().then((module) => {
+      loaded = module.default;
+      return module;
+    });
+  const Module = lazy(remember) as unknown as ComponentType<ComponentProps<C>>;
+  function RecoverableLazyModule(props: ComponentProps<C>) {
+    // React 19 holds a Suspense reveal for ~300 ms after its fallback commits, so a module
+    // that is already downloaded renders directly. The type is fixed per mount to keep state.
+    const [Resolved] = useState<ComponentType<ComponentProps<C>>>(() => loaded ?? Module);
     return (
       <ModuleErrorBoundary name={name}>
-        <Module {...props} />
+        <Resolved {...props} />
       </ModuleErrorBoundary>
     );
-  };
+  }
+  /** Downloads the module ahead of use; later mounts then render without suspending. */
+  RecoverableLazyModule.preload = (): Promise<void> =>
+    loaded ? Promise.resolve() : remember().then(() => undefined);
+  return RecoverableLazyModule;
 }

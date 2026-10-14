@@ -49,3 +49,35 @@ it("renders the loaded module when the import succeeds", async () => {
   expect(container.textContent).toContain("Pages ready");
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
+
+it("renders a preloaded module without suspending", async () => {
+  const load = vi.fn(() =>
+    Promise.resolve({ default: ({ text }: { text: string }) => <p>{text}</p> }),
+  );
+  const Module = recoverableLazy(load, "pages");
+  await Module.preload();
+  act(() => root.render(<Suspense fallback={<p>Loading</p>}><Module text="Pages ready" /></Suspense>));
+  // Rendered in the same commit: no fallback, no throttled Suspense reveal.
+  expect(container.textContent).toBe("Pages ready");
+  await Module.preload();
+  expect(load).toHaveBeenCalledTimes(1);
+});
+
+it("keeps a suspended mount on the lazy component once the import resolves", async () => {
+  function Counter({ text }: { text: string }) {
+    const [count, setCount] = useState(0);
+    return <button onClick={() => setCount(count + 1)}>{`${text} ${count}`}</button>;
+  }
+  let resolve!: (module: { default: typeof Counter }) => void;
+  const Module = recoverableLazy(
+    () => new Promise<{ default: typeof Counter }>((done) => (resolve = done)),
+    "pages",
+  );
+  act(() => root.render(<Suspense fallback={<p>Loading</p>}><Module text="Pages" /></Suspense>));
+  expect(container.textContent).toBe("Loading");
+  await act(async () => resolve({ default: Counter }));
+  act(() => container.querySelector("button")!.click());
+  // A re-render after the module resolved must not swap the component type and reset state.
+  act(() => root.render(<Suspense fallback={<p>Loading</p>}><Module text="Pages" /></Suspense>));
+  expect(container.textContent).toBe("Pages 1");
+});

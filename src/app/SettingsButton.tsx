@@ -8,6 +8,7 @@ const loadSettingsDialog = retryableImport(() =>
   import("./SettingsDialog").then((module) => ({ default: module.SettingsDialog })),
 );
 const LazySettingsDialog = recoverableLazy(loadSettingsDialog, "Settings");
+export const preloadSettingsDialog = () => LazySettingsDialog.preload().catch(() => undefined);
 
 export interface SettingsButtonProps extends Omit<SettingsDialogProps, "onClose"> {
   trigger: ReactNode;
@@ -27,8 +28,8 @@ export function SettingsButton({ trigger, triggerClassName, ...dialogProps }: Se
         aria-expanded={open}
         tooltip="Settings"
         tooltipPosition="bottom"
-        onPointerEnter={() => void loadSettingsDialog().catch(() => undefined)}
-        onFocus={() => void loadSettingsDialog().catch(() => undefined)}
+        onPointerEnter={preloadSettingsDialog}
+        onFocus={preloadSettingsDialog}
         onClick={() => setOpen(true)}
       />
       {open && (

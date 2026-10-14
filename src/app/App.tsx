@@ -1,6 +1,9 @@
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
+import { preloadWhenIdle } from "./idlePreload";
+import { preloadSettingsDialog } from "./SettingsButton";
+import { preloadPageBrowser } from "./ViewerShell";
 import { AppProvider, useAppState } from "./state";
 import { SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider, useWorkspaceState } from "./workspaceState";
@@ -20,7 +23,7 @@ import { useMeasurementShortcuts } from "./useMeasurementShortcuts";
 import { useCalibrationActions } from "./useCalibrationActions";
 import { Modal } from "../components/Modal";
 import { Button, ConfirmationDialog } from "../components/ui";
-import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
+import { preloadCustomRatioDialog, ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import {
   MeasurementPanel,
   type MeasurementDeleteRequest,
@@ -62,38 +65,42 @@ import {
 import styles from "./App.module.css";
 
 const loadViewer = retryableImport(() => import("../features/viewer/PdfViewer"));
-const PdfViewer = recoverableLazy(() =>
-  loadViewer().then((module) => ({ default: module.PdfViewer })),
+const PdfViewer = recoverableLazy(
+  () => loadViewer().then((module) => ({ default: module.PdfViewer })),
   "viewer",
 );
 
 const loadScaleCheck = retryableImport(() => import("../features/calibration/ScaleCheckPanel"));
-const ScaleCheckPanel = recoverableLazy(() =>
-  loadScaleCheck().then((module) => ({ default: module.ScaleCheckPanel })),
+const ScaleCheckPanel = recoverableLazy(
+  () => loadScaleCheck().then((module) => ({ default: module.ScaleCheckPanel })),
   "scale check",
 );
 
-const loadClassifications = retryableImport(() => import("../features/classification/ClassificationWorkspace"));
-const ClassificationWorkspace = recoverableLazy(() =>
-  loadClassifications().then((module) => ({ default: module.ClassificationWorkspace })),
+const loadClassifications = retryableImport(
+  () => import("../features/classification/ClassificationWorkspace"),
+);
+const ClassificationWorkspace = recoverableLazy(
+  () => loadClassifications().then((module) => ({ default: module.ClassificationWorkspace })),
   "classifications",
 );
 
 const loadTakeoff = retryableImport(() => import("../features/measurements/TakeoffWorkspace"));
-const TakeoffWorkspace = recoverableLazy(() =>
-  loadTakeoff().then((module) => ({ default: module.TakeoffWorkspace })),
+const TakeoffWorkspace = recoverableLazy(
+  () => loadTakeoff().then((module) => ({ default: module.TakeoffWorkspace })),
   "takeoff",
 );
 
 const loadProjectLibrary = retryableImport(() => import("./ProjectLibraryDialog"));
-const ProjectLibraryDialog = recoverableLazy(() =>
-  loadProjectLibrary().then((module) => ({ default: module.ProjectLibraryDialog })),
+const ProjectLibraryDialog = recoverableLazy(
+  () => loadProjectLibrary().then((module) => ({ default: module.ProjectLibraryDialog })),
   "project library",
 );
 
-const loadCalibrationDialog = retryableImport(() => import("../features/calibration/CalibrationDialog"));
-const CalibrationDialog = recoverableLazy(() =>
-  loadCalibrationDialog().then((module) => ({ default: module.CalibrationDialog })),
+const loadCalibrationDialog = retryableImport(
+  () => import("../features/calibration/CalibrationDialog"),
+);
+const CalibrationDialog = recoverableLazy(
+  () => loadCalibrationDialog().then((module) => ({ default: module.CalibrationDialog })),
   "scale dialog",
 );
 
@@ -273,11 +280,11 @@ function PlanMeasureApp() {
   const [confirmMeasurementDeletion, setConfirmMeasurementDeletionState] = useState(
     readMeasurementDeleteConfirmationPreference,
   );
-  const [confirmValueDeletion, setConfirmValueDeletionState] = useState(
-    () => readClassificationDeleteConfirmationPreference("value"),
+  const [confirmValueDeletion, setConfirmValueDeletionState] = useState(() =>
+    readClassificationDeleteConfirmationPreference("value"),
   );
-  const [confirmDimensionDeletion, setConfirmDimensionDeletionState] = useState(
-    () => readClassificationDeleteConfirmationPreference("dimension"),
+  const [confirmDimensionDeletion, setConfirmDimensionDeletionState] = useState(() =>
+    readClassificationDeleteConfirmationPreference("dimension"),
   );
   const [recoveredPlanStartupWorkspace, setRecoveredPlanStartupWorkspaceState] = useState(
     readRecoveredPlanStartupWorkspacePreference,
@@ -319,7 +326,10 @@ function PlanMeasureApp() {
         document.querySelectorAll<HTMLElement>(
           '[data-measurement-id][data-measurement-control="selection"]',
         ),
-      ).find((candidate) => candidate.dataset.measurementId === measurementId && !candidate.closest("[hidden]"));
+      ).find(
+        (candidate) =>
+          candidate.dataset.measurementId === measurementId && !candidate.closest("[hidden]"),
+      );
       if (row && !row.closest("[hidden]")) {
         row.focus({ preventScroll: true });
         if (document.activeElement === row) return;
@@ -387,6 +397,22 @@ function PlanMeasureApp() {
 
   const sourcePageLabels = usePdfPageLabels(activePdf);
 
+  const planOpen = Boolean(activePdf);
+  useEffect(() => {
+    // Fetch the small on-demand panels once a plan is open so their first open is instant.
+    if (!planOpen || import.meta.env.MODE === "test") return;
+    return preloadWhenIdle([
+      preloadSettingsDialog,
+      preloadPageBrowser,
+      TakeoffWorkspace.preload,
+      ClassificationWorkspace.preload,
+      CalibrationDialog.preload,
+      preloadCustomRatioDialog,
+      loadExportDialog,
+      ProjectLibraryDialog.preload,
+    ]);
+  }, [planOpen]);
+
   const {
     setKeyboardAuthoringEnabled,
     setConfirmMeasurementDeletion,
@@ -436,12 +462,18 @@ function PlanMeasureApp() {
         measurementName: measurement.name,
       });
     },
-    [confirmMeasurementDeletion, openDeleteMeasurementConfirmation, performMeasurementDelete, session],
+    [
+      confirmMeasurementDeletion,
+      openDeleteMeasurementConfirmation,
+      performMeasurementDelete,
+      session,
+    ],
   );
 
   const sampleLinkHandledRef = useRef(false);
   useEffect(() => {
-    if (sampleLinkHandledRef.current || !recoveryChecked || loading || projectOperationPending) return;
+    if (sampleLinkHandledRef.current || !recoveryChecked || loading || projectOperationPending)
+      return;
     sampleLinkHandledRef.current = true;
     const params = new URLSearchParams(window.location.search);
     if (params.get("sample") !== "1") return;
@@ -453,7 +485,14 @@ function PlanMeasureApp() {
       `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
     );
     if (!session && !recoveryIssue) void openSampleProject();
-  }, [recoveryChecked, loading, projectOperationPending, session, recoveryIssue, openSampleProject]);
+  }, [
+    recoveryChecked,
+    loading,
+    projectOperationPending,
+    session,
+    recoveryIssue,
+    openSampleProject,
+  ]);
 
   useEffect(() => {
     reconcileSelection(
@@ -495,7 +534,9 @@ function PlanMeasureApp() {
           calibrationReferenceEdit ||
           activeMeasurementEditIdRef.current !== null
         ) {
-          setError("Finish or cancel the current measurement or scale workflow before switching pages.");
+          setError(
+            "Finish or cancel the current measurement or scale workflow before switching pages.",
+          );
           return;
         }
         scaleCheckStore.clear();
@@ -540,16 +581,19 @@ function PlanMeasureApp() {
     [],
   );
 
-  const handleMeasurementEditActiveChange = useCallback((measurementId: string, active: boolean) => {
-    if (active) {
-      activeMeasurementEditIdRef.current = measurementId;
-      setActiveMeasurementEditId(measurementId);
-      return;
-    }
-    if (activeMeasurementEditIdRef.current !== measurementId) return;
-    activeMeasurementEditIdRef.current = null;
-    setActiveMeasurementEditId(null);
-  }, []);
+  const handleMeasurementEditActiveChange = useCallback(
+    (measurementId: string, active: boolean) => {
+      if (active) {
+        activeMeasurementEditIdRef.current = measurementId;
+        setActiveMeasurementEditId(measurementId);
+        return;
+      }
+      if (activeMeasurementEditIdRef.current !== measurementId) return;
+      activeMeasurementEditIdRef.current = null;
+      setActiveMeasurementEditId(null);
+    },
+    [],
+  );
 
   const handleViewerViewZoomChange = useCallback((pageNumber: number, zoom: number | null) => {
     if (zoom !== null) {
@@ -607,11 +651,11 @@ function PlanMeasureApp() {
     : null;
   const calibrationReferenceEditIsValid = Boolean(
     calibrationReferencePreview &&
-      calibrationReferenceEdit &&
-      isValidCalibrationReferenceEdit(
-        calibrationReferencePreview,
-        calibrationReferenceEdit.reference,
-      ),
+    calibrationReferenceEdit &&
+    isValidCalibrationReferenceEdit(
+      calibrationReferencePreview,
+      calibrationReferenceEdit.reference,
+    ),
   );
   const previewPage = getPreviewPage(
     currentPage,
@@ -631,21 +675,46 @@ function PlanMeasureApp() {
   }, [closeMeasurementDetails, focusViewer, measurementDetailsOpen, selectedMeasurement]);
   const measurementEditActive = activeMeasurementEditId !== null;
   const summaryExportBlocked = Boolean(
-    draft || measurementEditActive || calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+    draft ||
+    measurementEditActive ||
+    calibrationFlow ||
+    calibrationCandidate ||
+    calibrationReferenceEdit,
   );
-  const openTakeoffMeasurement = useCallback((pageNumber: number, measurementId: string) => {
-    if (summaryExportBlocked || !session?.pages[pageNumber]?.measurements.some((measurement) => measurement.id === measurementId)) return;
-    chooseWorkspaceTool("select");
-    selectMeasurementFromPanel(pageNumber, measurementId);
-    openMeasurementDetails();
-    focusMeasurementDetails();
-  }, [summaryExportBlocked, session, chooseWorkspaceTool, selectMeasurementFromPanel, openMeasurementDetails, focusMeasurementDetails]);
-  const currentPageSelectedMeasurements = currentPage?.measurements.filter((measurement) =>
-    selectedMeasurementIds.includes(measurement.id),
-  ) ?? [];
-  const duplicateDisabled = !currentPage || currentPageSelectedMeasurements.length === 0 ||
+  const openTakeoffMeasurement = useCallback(
+    (pageNumber: number, measurementId: string) => {
+      if (
+        summaryExportBlocked ||
+        !session?.pages[pageNumber]?.measurements.some(
+          (measurement) => measurement.id === measurementId,
+        )
+      )
+        return;
+      chooseWorkspaceTool("select");
+      selectMeasurementFromPanel(pageNumber, measurementId);
+      openMeasurementDetails();
+      focusMeasurementDetails();
+    },
+    [
+      summaryExportBlocked,
+      session,
+      chooseWorkspaceTool,
+      selectMeasurementFromPanel,
+      openMeasurementDetails,
+      focusMeasurementDetails,
+    ],
+  );
+  const currentPageSelectedMeasurements =
+    currentPage?.measurements.filter((measurement) =>
+      selectedMeasurementIds.includes(measurement.id),
+    ) ?? [];
+  const duplicateDisabled =
+    !currentPage ||
+    currentPageSelectedMeasurements.length === 0 ||
     currentPageSelectedMeasurements.length !== selectedMeasurementIds.length ||
-    currentPageSelectedMeasurements.some((measurement) => !canDuplicateMeasurement(currentPage, measurement)) ||
+    currentPageSelectedMeasurements.some(
+      (measurement) => !canDuplicateMeasurement(currentPage, measurement),
+    ) ||
     isMeasurementClipboardActionBlocked("paste-measurement", {
       measurementEditActive,
       draftActive: Boolean(draft),
@@ -769,597 +838,638 @@ function PlanMeasureApp() {
   const calibrationDialog =
     calibrationCandidate && session && calibrationCandidatePage ? (
       <Suspense fallback={null}>
-      <CalibrationDialog
-        initialName={
-          calibrationCandidate.name ??
-          calibrationCandidateTarget?.name ??
-          defaultCalibrationName(calibrationCandidatePage)
-        }
-        title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
-        referenceLabel={
-          calibrationCandidate.phase === "x"
-            ? "horizontal X"
-            : calibrationCandidate.phase === "y"
-              ? "vertical Y"
-              : undefined
-        }
-        includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
-        onCancel={() => {
-          cancelCalibration();
-        }}
-        onConfirm={({ name, referenceDistanceMm }) => {
-          if (session.currentPage !== calibrationCandidate.pageNumber) {
+        <CalibrationDialog
+          initialName={
+            calibrationCandidate.name ??
+            calibrationCandidateTarget?.name ??
+            defaultCalibrationName(calibrationCandidatePage)
+          }
+          title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
+          referenceLabel={
+            calibrationCandidate.phase === "x"
+              ? "horizontal X"
+              : calibrationCandidate.phase === "y"
+                ? "vertical Y"
+                : undefined
+          }
+          includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
+          onCancel={() => {
             cancelCalibration();
-            return;
-          }
-          if (!calibrationFlow) {
-            cancelCalibration();
-            return;
-          }
-          const calibrationName = calibrationCandidateTarget?.name ?? name;
-          const confirmation = confirmCalibration(
-            calibrationFlow,
-            calibrationCandidate,
-            referenceDistanceMm,
-            calibrationName,
-          );
-          if (confirmation.kind === "select-y") {
-            advanceCalibrationStep(confirmation.flow);
-            chooseTool("calibrate");
-            focusViewer();
-            return;
-          }
-          const calibration = confirmation.calibration;
-          if (calibrationCandidate.calibrationId) {
-            if (!calibrationCandidateTarget) {
-              setError("The scale to recalibrate is no longer available.");
+          }}
+          onConfirm={({ name, referenceDistanceMm }) => {
+            if (session.currentPage !== calibrationCandidate.pageNumber) {
+              cancelCalibration();
+              return;
+            }
+            if (!calibrationFlow) {
+              cancelCalibration();
+              return;
+            }
+            const calibrationName = calibrationCandidateTarget?.name ?? name;
+            const confirmation = confirmCalibration(
+              calibrationFlow,
+              calibrationCandidate,
+              referenceDistanceMm,
+              calibrationName,
+            );
+            if (confirmation.kind === "select-y") {
+              advanceCalibrationStep(confirmation.flow);
+              chooseTool("calibrate");
+              focusViewer();
+              return;
+            }
+            const calibration = confirmation.calibration;
+            if (calibrationCandidate.calibrationId) {
+              if (!calibrationCandidateTarget) {
+                setError("The scale to recalibrate is no longer available.");
+              } else {
+                recalibrateCalibration({
+                  pageNumber: calibrationCandidate.pageNumber,
+                  calibrationId: calibrationCandidateTarget.id,
+                  calibration,
+                });
+              }
             } else {
-              recalibrateCalibration({
+              addCalibration({
                 pageNumber: calibrationCandidate.pageNumber,
-                calibrationId: calibrationCandidateTarget.id,
+                id: crypto.randomUUID(),
+                name: calibrationName,
                 calibration,
               });
             }
-          } else {
-            addCalibration({
-              pageNumber: calibrationCandidate.pageNumber,
-              id: crypto.randomUUID(),
-              name: calibrationName,
-              calibration,
-            });
-          }
-          completeCalibration();
-          clearDraft();
-          chooseWorkspaceTool("select");
-          focusViewer();
-        }}
-      />
+            completeCalibration();
+            clearDraft();
+            chooseWorkspaceTool("select");
+            focusViewer();
+          }}
+        />
       </Suspense>
     ) : null;
 
   return (
     <>
-    <AppShell
-      interactionBlocked={loading}
-      saveStatus={session && saveStatusStore ? (
-        <SaveStatusIndicator
-          store={saveStatusStore}
-          pending={projectOperationPending}
-          canRetry={canRetryAutosave}
-          onExport={() => void exportProject()}
-          onRetry={() => void retryAutosave()}
-          onReload={() => setConfirmAutosaveReload(true)}
-        />
-      ) : undefined}
-      documentName={session?.pdf.name ?? null}
-      canExport={Boolean(session)}
-      savedProjectCount={savedProjects.length}
-      canUndo={canUndo}
-      canRedo={canRedo}
-      measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
-      viewSettings={
-        session
-          ? {
-              displayUnit: session.settings.displayUnit,
-              areaDisplay: session.settings.areaDisplay,
-              showLabels: session.settings.showLabels,
-              showMeasurements: session.settings.showMeasurements,
-              showCalibration: session.settings.showCalibration,
-              labelClassificationDimensionId: session.settings.labelClassificationDimensionId,
-            }
-          : null
-      }
-      classificationDimensions={session?.classificationCatalog.dimensions}
-      keyboardAuthoringEnabled={keyboardAuthoringEnabled}
-      confirmMeasurementDeletion={confirmMeasurementDeletion}
-      confirmValueDeletion={confirmValueDeletion}
-      confirmDimensionDeletion={confirmDimensionDeletion}
-      recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
-      onExport={openExportDialog}
-      onOpenProjects={() => {
-        setProjectLibraryOpen(true);
-        void refreshSavedProjects();
-      }}
-      onUndo={undo}
-      onRedo={redo}
-      onViewSettingsChange={updateSettings}
-      onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
-        updateSettings({ measurementDecimalPlaces })
-      }
-      onKeyboardAuthoringEnabledChange={setKeyboardAuthoringEnabled}
-      onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
-      onConfirmValueDeletionChange={setConfirmValueDeletion}
-      onConfirmDimensionDeletionChange={setConfirmDimensionDeletion}
-      onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
-      errorNotifications={appState.errorNotifications}
-      onDismissError={dismissError}
-      statusMessage={autosaveWarning}
-      statusTone="warning"
-      statusActions={autosaveFailed ? (
-        <>
-          {canRetryAutosave && (
-            <Button variant="secondary" size="compact" disabled={projectOperationPending} onClick={() => void retryAutosave()}>
-              Retry saving
-            </Button>
-          )}
-          <Button variant="secondary" size="compact" disabled={projectOperationPending} onClick={() => void exportProject()}>
-            Export project
-          </Button>
-          <Button variant="secondary" size="compact" disabled={projectOperationPending} onClick={() => setConfirmAutosaveReload(true)}>
-            Reload saved projects
-          </Button>
-        </>
-      ) : undefined}
-      onDismissStatus={
-        autosaveWarning && !autosaveUnavailable
-          ? dismissAutosaveWarning
-          : undefined
-      }
-    >
-      {confirmAutosaveReload && (
-        <ConfirmationDialog
-          open
-          title="Reload saved projects?"
-          description="Reloading closes this session and discards edits that have not been saved. Export your project first to keep a copy of these edits."
-          confirmLabel="Reload saved projects"
-          cancelLabel="Keep editing"
-          onCancel={() => setConfirmAutosaveReload(false)}
-          onConfirm={() => window.location.reload()}
-        />
-      )}
-      <input
-        ref={fileInputRef}
-        className={styles.hiddenInput}
-        type="file"
-        tabIndex={-1}
-        accept="application/pdf,.pdf"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void chooseFile(file);
-          event.target.value = "";
-        }}
-      />
-      <input
-        ref={projectFileInputRef}
-        className={styles.hiddenInput}
-        type="file"
-        tabIndex={-1}
-        accept=".planmeasure"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) {
-            setProjectLibraryOpen(false);
-            void importProject(file);
-          }
-          event.target.value = "";
-        }}
-      />
-      {session && activePdf && currentPage && previewPage ? (
-        <WorkspaceShell
-          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
-          dragActive={dragActive}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          pdfDocument={activePdf.document}
-          sourcePageLabels={sourcePageLabels}
-          logicalPageBounds={
-            viewerPageBounds?.pageNumber === currentPage.pageNumber ? viewerPageBounds.bounds : null
-          }
-          workspacePanel={
-            <WorkspacePanel
-              measurements={
-                <MeasurementPanel
-                  key={workspaceVersion}
-                  page={previewPage}
-                  pages={previewPages ?? session.pages}
-                  pageLabelOverrides={session.pageLabelOverrides}
-                  sourcePageLabels={sourcePageLabels}
-                  selectedMeasurementId={selectedMeasurementId}
-                  selectedMeasurementIds={selectedMeasurementIds}
-                  onSelectMeasurement={selectMeasurementFromPanel}
-                  onSetMeasurementVisibility={setMeasurementVisibility}
-                  onSetMeasurementsVisibility={setMeasurementsVisibility}
-                />
+      <AppShell
+        interactionBlocked={loading}
+        saveStatus={
+          session && saveStatusStore ? (
+            <SaveStatusIndicator
+              store={saveStatusStore}
+              pending={projectOperationPending}
+              canRetry={canRetryAutosave}
+              onExport={() => void exportProject()}
+              onRetry={() => void retryAutosave()}
+              onReload={() => setConfirmAutosaveReload(true)}
+            />
+          ) : undefined
+        }
+        documentName={session?.pdf.name ?? null}
+        canExport={Boolean(session)}
+        savedProjectCount={savedProjects.length}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
+        viewSettings={
+          session
+            ? {
+                displayUnit: session.settings.displayUnit,
+                areaDisplay: session.settings.areaDisplay,
+                showLabels: session.settings.showLabels,
+                showMeasurements: session.settings.showMeasurements,
+                showCalibration: session.settings.showCalibration,
+                labelClassificationDimensionId: session.settings.labelClassificationDimensionId,
               }
-              takeoff={
-                <Suspense fallback={null}>
-                  <TakeoffWorkspace
+            : null
+        }
+        classificationDimensions={session?.classificationCatalog.dimensions}
+        keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+        confirmMeasurementDeletion={confirmMeasurementDeletion}
+        confirmValueDeletion={confirmValueDeletion}
+        confirmDimensionDeletion={confirmDimensionDeletion}
+        recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
+        onExport={openExportDialog}
+        onOpenProjects={() => {
+          setProjectLibraryOpen(true);
+          void refreshSavedProjects();
+        }}
+        onUndo={undo}
+        onRedo={redo}
+        onViewSettingsChange={updateSettings}
+        onMeasurementDecimalPlacesChange={(measurementDecimalPlaces) =>
+          updateSettings({ measurementDecimalPlaces })
+        }
+        onKeyboardAuthoringEnabledChange={setKeyboardAuthoringEnabled}
+        onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
+        onConfirmValueDeletionChange={setConfirmValueDeletion}
+        onConfirmDimensionDeletionChange={setConfirmDimensionDeletion}
+        onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
+        errorNotifications={appState.errorNotifications}
+        onDismissError={dismissError}
+        statusMessage={autosaveWarning}
+        statusTone="warning"
+        statusActions={
+          autosaveFailed ? (
+            <>
+              {canRetryAutosave && (
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  disabled={projectOperationPending}
+                  onClick={() => void retryAutosave()}
+                >
+                  Retry saving
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="compact"
+                disabled={projectOperationPending}
+                onClick={() => void exportProject()}
+              >
+                Export project
+              </Button>
+              <Button
+                variant="secondary"
+                size="compact"
+                disabled={projectOperationPending}
+                onClick={() => setConfirmAutosaveReload(true)}
+              >
+                Reload saved projects
+              </Button>
+            </>
+          ) : undefined
+        }
+        onDismissStatus={
+          autosaveWarning && !autosaveUnavailable ? dismissAutosaveWarning : undefined
+        }
+      >
+        {confirmAutosaveReload && (
+          <ConfirmationDialog
+            open
+            title="Reload saved projects?"
+            description="Reloading closes this session and discards edits that have not been saved. Export your project first to keep a copy of these edits."
+            confirmLabel="Reload saved projects"
+            cancelLabel="Keep editing"
+            onCancel={() => setConfirmAutosaveReload(false)}
+            onConfirm={() => window.location.reload()}
+          />
+        )}
+        <input
+          ref={fileInputRef}
+          className={styles.hiddenInput}
+          type="file"
+          tabIndex={-1}
+          accept="application/pdf,.pdf"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void chooseFile(file);
+            event.target.value = "";
+          }}
+        />
+        <input
+          ref={projectFileInputRef}
+          className={styles.hiddenInput}
+          type="file"
+          tabIndex={-1}
+          accept=".planmeasure"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              setProjectLibraryOpen(false);
+              void importProject(file);
+            }
+            event.target.value = "";
+          }}
+        />
+        {session && activePdf && currentPage && previewPage ? (
+          <WorkspaceShell
+            keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+            dragActive={dragActive}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            pdfDocument={activePdf.document}
+            sourcePageLabels={sourcePageLabels}
+            logicalPageBounds={
+              viewerPageBounds?.pageNumber === currentPage.pageNumber
+                ? viewerPageBounds.bounds
+                : null
+            }
+            workspacePanel={
+              <WorkspacePanel
+                measurements={
+                  <MeasurementPanel
                     key={workspaceVersion}
+                    page={previewPage}
                     pages={previewPages ?? session.pages}
-                    catalog={session.classificationCatalog}
-                    onOpenMeasurement={openTakeoffMeasurement}
-                    navigationBlocked={summaryExportBlocked}
-                    displayUnit={session.settings.displayUnit}
-                    decimalPlaces={session.settings.measurementDecimalPlaces}
-                    areaDisplay={session.settings.areaDisplay}
                     pageLabelOverrides={session.pageLabelOverrides}
                     sourcePageLabels={sourcePageLabels}
+                    selectedMeasurementId={selectedMeasurementId}
+                    selectedMeasurementIds={selectedMeasurementIds}
+                    onSelectMeasurement={selectMeasurementFromPanel}
+                    onSetMeasurementVisibility={setMeasurementVisibility}
+                    onSetMeasurementsVisibility={setMeasurementsVisibility}
                   />
-                </Suspense>
-              }
-              classifications={
-                <Suspense fallback={null}>
-                  <ClassificationWorkspace
-                    key={workspaceVersion}
-                    catalog={session.classificationCatalog}
-                    disabled={Boolean(
-                      calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                    )}
-                    onCreateDimension={(name) =>
-                      addClassificationDimension(crypto.randomUUID(), name)
-                    }
-                    onApplyTemplate={applyClassificationTemplate}
-                    onRenameDimension={renameClassificationDimension}
-                    onDeleteDimension={(dimensionId) => {
-                      const dimension = session.classificationCatalog.dimensions.find(
-                        (item) => item.id === dimensionId,
-                      );
-                      if (dimension && !confirmDimensionDeletion) {
-                        deleteClassificationDimension(dimensionId);
-                      } else if (dimension) {
-                        requestDeleteClassification({ target: "dimension", dimensionId, name: dimension.name });
+                }
+                takeoff={
+                  <Suspense fallback={null}>
+                    <TakeoffWorkspace
+                      key={workspaceVersion}
+                      pages={previewPages ?? session.pages}
+                      catalog={session.classificationCatalog}
+                      onOpenMeasurement={openTakeoffMeasurement}
+                      navigationBlocked={summaryExportBlocked}
+                      displayUnit={session.settings.displayUnit}
+                      decimalPlaces={session.settings.measurementDecimalPlaces}
+                      areaDisplay={session.settings.areaDisplay}
+                      pageLabelOverrides={session.pageLabelOverrides}
+                      sourcePageLabels={sourcePageLabels}
+                    />
+                  </Suspense>
+                }
+                classifications={
+                  <Suspense fallback={null}>
+                    <ClassificationWorkspace
+                      key={workspaceVersion}
+                      catalog={session.classificationCatalog}
+                      disabled={Boolean(
+                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                      )}
+                      onCreateDimension={(name) =>
+                        addClassificationDimension(crypto.randomUUID(), name)
                       }
-                    }}
-                    onArchiveDimension={archiveClassificationDimension}
-                    onRestoreDimension={restoreClassificationDimension}
-                    onCreateValue={(dimensionId, name) =>
-                      addClassificationValue(dimensionId, crypto.randomUUID(), name)
-                    }
-                    onRenameValue={renameClassificationValue}
-                    onDeleteValue={(dimensionId, valueId) => {
-                      const value = session.classificationCatalog.dimensions
-                        .find((item) => item.id === dimensionId)
-                        ?.values.find((item) => item.id === valueId);
-                      if (value && !confirmValueDeletion) {
-                        deleteClassificationValue(dimensionId, valueId);
-                      } else if (value) {
-                        requestDeleteClassification({ target: "value", dimensionId, valueId, name: value.name });
+                      onApplyTemplate={applyClassificationTemplate}
+                      onRenameDimension={renameClassificationDimension}
+                      onDeleteDimension={(dimensionId) => {
+                        const dimension = session.classificationCatalog.dimensions.find(
+                          (item) => item.id === dimensionId,
+                        );
+                        if (dimension && !confirmDimensionDeletion) {
+                          deleteClassificationDimension(dimensionId);
+                        } else if (dimension) {
+                          requestDeleteClassification({
+                            target: "dimension",
+                            dimensionId,
+                            name: dimension.name,
+                          });
+                        }
+                      }}
+                      onArchiveDimension={archiveClassificationDimension}
+                      onRestoreDimension={restoreClassificationDimension}
+                      onCreateValue={(dimensionId, name) =>
+                        addClassificationValue(dimensionId, crypto.randomUUID(), name)
                       }
-                    }}
-                    onArchiveValue={archiveClassificationValue}
-                    onRestoreValue={restoreClassificationValue}
-                  />
-                </Suspense>
-              }
-              scales={
-                <ScalesWorkspace
-                  page={currentPage}
-                  displayUnit={session.settings.displayUnit}
-                  actionsDisabled={calibrationActionsDisabled}
-                  onCheckScale={(calibration) => {
-                    if (calibrationActionsDisabled || measurementEditActive || draft) return;
-                    setScaleCheckLoaded(true);
-                    scaleCheckStore.begin({
-                      pageNumber: currentPage.pageNumber,
-                      activeCalibrationId: currentPage.activeCalibrationId,
-                      workspaceVersion,
-                      calibration,
-                    });
-                    clearDraft();
-                    chooseWorkspaceTool("calibrate");
-                    clearError();
-                    focusViewer();
-                  }}
-                  onAddScale={beginNewCalibration}
-                  onAddCustomRatioScale={addCustomRatioScale}
-                  onAddPresetScale={addStandardScalePreset}
-                  onSetRatio={setScaleRatio}
-                  onRenameScale={(calibrationId, name) =>
-                    renameCalibration({
-                      pageNumber: currentPage.pageNumber,
-                      calibrationId,
-                      name,
-                    })
-                  }
-                  onRecalibrate={requestRecalibration}
-                  onEditReference={beginCalibrationReferenceEdit}
-                  onCopyScale={(calibration) => copyScale(currentPage.pageNumber, calibration)}
-                />
-              }
-              details={
-                selectedMeasurement ? (
-                  <MeasurementDetails
-                    key={selectedMeasurement.id}
-                    page={previewPage}
-                    measurement={selectedMeasurement}
+                      onRenameValue={renameClassificationValue}
+                      onDeleteValue={(dimensionId, valueId) => {
+                        const value = session.classificationCatalog.dimensions
+                          .find((item) => item.id === dimensionId)
+                          ?.values.find((item) => item.id === valueId);
+                        if (value && !confirmValueDeletion) {
+                          deleteClassificationValue(dimensionId, valueId);
+                        } else if (value) {
+                          requestDeleteClassification({
+                            target: "value",
+                            dimensionId,
+                            valueId,
+                            name: value.name,
+                          });
+                        }
+                      }}
+                      onArchiveValue={archiveClassificationValue}
+                      onRestoreValue={restoreClassificationValue}
+                    />
+                  </Suspense>
+                }
+                scales={
+                  <ScalesWorkspace
+                    page={currentPage}
                     displayUnit={session.settings.displayUnit}
-                    areaDisplay={session.settings.areaDisplay}
-                    measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
-                    catalog={session.classificationCatalog}
-                    returnModule={workspaceModule}
-                    assignmentDisabled={Boolean(
-                      calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                    )}
-                    onBack={() => {
-                      closeMeasurementDetails();
-                      focusMeasurementRow(selectedMeasurement.id);
-                    }}
-                    onRename={(name) =>
-                      renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
-                    }
-                    onSaveNote={(note) =>
-                      setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
-                    }
-                    onChangeColor={(color) =>
-                      setMeasurementColor(currentPage.pageNumber, selectedMeasurement.id, color)
-                    }
-                    onAssignClassification={assignClassification}
-                    onAddCountItems={beginAddingCountItems}
-                    addCountItemsDisabledReason={addCountItemsDisabledReason}
-                    onMoveCountItem={(itemIndex, targetId) => {
-                      if (!moveCountItem({
+                    actionsDisabled={calibrationActionsDisabled}
+                    onCheckScale={(calibration) => {
+                      if (calibrationActionsDisabled || measurementEditActive || draft) return;
+                      setScaleCheckLoaded(true);
+                      scaleCheckStore.begin({
                         pageNumber: currentPage.pageNumber,
-                        sourceId: selectedMeasurement.id,
-                        targetId,
-                        itemIndex,
-                      })) return;
-                      if (selectedMeasurement.points.length === 1) {
-                        chooseTool("select");
-                        selectWorkspaceMeasurement(targetId);
-                        focusMeasurementDetails();
-                      }
+                        activeCalibrationId: currentPage.activeCalibrationId,
+                        workspaceVersion,
+                        calibration,
+                      });
+                      clearDraft();
+                      chooseWorkspaceTool("calibrate");
+                      clearError();
+                      focusViewer();
                     }}
-                    onRemoveCountItem={(index) => {
-                      updateMeasurements([{
+                    onAddScale={beginNewCalibration}
+                    onAddCustomRatioScale={addCustomRatioScale}
+                    onAddPresetScale={addStandardScalePreset}
+                    onSetRatio={setScaleRatio}
+                    onRenameScale={(calibrationId, name) =>
+                      renameCalibration({
                         pageNumber: currentPage.pageNumber,
-                        id: selectedMeasurement.id,
-                        points: selectedMeasurement.points.filter((_, pointIndex) => pointIndex !== index),
-                      }]);
-                    }}
-                    onDelete={() =>
-                      requestMeasurementDelete({
-                        pageNumber: currentPage.pageNumber,
-                        measurementId: selectedMeasurement.id,
-                        measurementName: selectedMeasurement.name,
+                        calibrationId,
+                        name,
                       })
                     }
+                    onRecalibrate={requestRecalibration}
+                    onEditReference={beginCalibrationReferenceEdit}
+                    onCopyScale={(calibration) => copyScale(currentPage.pageNumber, calibration)}
                   />
-                ) : null
-              }
-            />
-          }
-          authoringIntentScopeKey={`${currentPage.pageNumber}:${workspaceVersion}:${selectedMeasurementId ?? ""}`}
-          toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
-          contextToolbar={
-            <ContextToolbar
-              selectedMeasurementId={selectedMeasurement?.id ?? null}
-              selectedMeasurementName={selectedMeasurement?.name ?? null}
-              selectedMeasurements={selectedMeasurements}
-              classificationCatalog={session.classificationCatalog}
-              onEditSelectedMeasurements={editMeasurements}
-              onAddCountItems={beginAddingCountItems}
-              addCountItemsDisabledReason={addCountItemsDisabledReason}
-              onClearMeasurementSelection={() => {
-                clearSelection();
-                focusViewer();
-              }}
-              duplicateDisabled={duplicateDisabled}
-              referenceEditValid={calibrationReferenceEditIsValid}
-              measurementEditActive={measurementEditActive}
-              calibrationDialogOpen={Boolean(calibrationCandidate)}
-              onDeleteSelectedMeasurement={() => {
-                if (!selectedMeasurement) {
-                  requestSelectedMeasurementsDelete();
+                }
+                details={
+                  selectedMeasurement ? (
+                    <MeasurementDetails
+                      key={selectedMeasurement.id}
+                      page={previewPage}
+                      measurement={selectedMeasurement}
+                      displayUnit={session.settings.displayUnit}
+                      areaDisplay={session.settings.areaDisplay}
+                      measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
+                      catalog={session.classificationCatalog}
+                      returnModule={workspaceModule}
+                      assignmentDisabled={Boolean(
+                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                      )}
+                      onBack={() => {
+                        closeMeasurementDetails();
+                        focusMeasurementRow(selectedMeasurement.id);
+                      }}
+                      onRename={(name) =>
+                        renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
+                      }
+                      onSaveNote={(note) =>
+                        setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
+                      }
+                      onChangeColor={(color) =>
+                        setMeasurementColor(currentPage.pageNumber, selectedMeasurement.id, color)
+                      }
+                      onAssignClassification={assignClassification}
+                      onAddCountItems={beginAddingCountItems}
+                      addCountItemsDisabledReason={addCountItemsDisabledReason}
+                      onMoveCountItem={(itemIndex, targetId) => {
+                        if (
+                          !moveCountItem({
+                            pageNumber: currentPage.pageNumber,
+                            sourceId: selectedMeasurement.id,
+                            targetId,
+                            itemIndex,
+                          })
+                        )
+                          return;
+                        if (selectedMeasurement.points.length === 1) {
+                          chooseTool("select");
+                          selectWorkspaceMeasurement(targetId);
+                          focusMeasurementDetails();
+                        }
+                      }}
+                      onRemoveCountItem={(index) => {
+                        updateMeasurements([
+                          {
+                            pageNumber: currentPage.pageNumber,
+                            id: selectedMeasurement.id,
+                            points: selectedMeasurement.points.filter(
+                              (_, pointIndex) => pointIndex !== index,
+                            ),
+                          },
+                        ]);
+                      }}
+                      onDelete={() =>
+                        requestMeasurementDelete({
+                          pageNumber: currentPage.pageNumber,
+                          measurementId: selectedMeasurement.id,
+                          measurementName: selectedMeasurement.name,
+                        })
+                      }
+                    />
+                  ) : null
+                }
+              />
+            }
+            authoringIntentScopeKey={`${currentPage.pageNumber}:${workspaceVersion}:${selectedMeasurementId ?? ""}`}
+            toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
+            contextToolbar={
+              <ContextToolbar
+                selectedMeasurementId={selectedMeasurement?.id ?? null}
+                selectedMeasurementName={selectedMeasurement?.name ?? null}
+                selectedMeasurements={selectedMeasurements}
+                classificationCatalog={session.classificationCatalog}
+                onEditSelectedMeasurements={editMeasurements}
+                onAddCountItems={beginAddingCountItems}
+                addCountItemsDisabledReason={addCountItemsDisabledReason}
+                onClearMeasurementSelection={() => {
+                  clearSelection();
+                  focusViewer();
+                }}
+                duplicateDisabled={duplicateDisabled}
+                referenceEditValid={calibrationReferenceEditIsValid}
+                measurementEditActive={measurementEditActive}
+                calibrationDialogOpen={Boolean(calibrationCandidate)}
+                onDeleteSelectedMeasurement={() => {
+                  if (!selectedMeasurement) {
+                    requestSelectedMeasurementsDelete();
+                    return;
+                  }
+                  requestMeasurementDelete({
+                    pageNumber: currentPage.pageNumber,
+                    measurementId: selectedMeasurement.id,
+                    measurementName: selectedMeasurement.name,
+                  });
+                }}
+                onDuplicateSelectedMeasurement={duplicateSelectedMeasurements}
+                onRenameSelectedMeasurement={(name) => {
+                  if (selectedMeasurement) {
+                    renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name);
+                  }
+                }}
+                onOpenMeasurementDetails={() => {
+                  openMeasurementDetails();
+                  focusMeasurementDetails();
+                }}
+                onExitDrawingTool={() => {
+                  chooseTool("select");
+                  focusViewer();
+                }}
+                onCancelCalibration={cancelCalibration}
+                onCancelReferenceEdit={cancelCalibrationReferenceEdit}
+                onSaveReferenceEdit={requestCalibrationReferenceEditSave}
+              />
+            }
+            viewerOverlay={calibrationDialog}
+            viewerTransientOverlay={
+              scaleCheckLoaded ? (
+                <Suspense fallback={null}>
+                  <ScaleCheckPanel store={scaleCheckStore} />
+                </Suspense>
+              ) : null
+            }
+            viewer={
+              <Suspense
+                fallback={
+                  <div className={styles.viewerLoading} role="status">
+                    Loading viewer…
+                  </div>
+                }
+              >
+                <PdfViewer
+                  keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+                  document={activePdf.document}
+                  page={previewPage}
+                  onPageChange={handlePageChange}
+                  onPageBoundsChange={handleViewerPageBoundsChange}
+                  onViewZoomChange={handleViewerViewZoomChange}
+                  activeMeasurementEditId={activeMeasurementEditId}
+                  onMeasurementEditActiveChange={handleMeasurementEditActiveChange}
+                  onChooseTool={chooseTool}
+                  scaleCheckStore={scaleCheckStore}
+                  onCalibrationCandidate={(points) => {
+                    if (scaleCheckStore.getSnapshot()) {
+                      scaleCheckStore.select(points);
+                      return;
+                    }
+                    const flow = calibrationFlow;
+                    if (!flow) return;
+                    const phase = flow.phase;
+                    if (phase === "x" && !isAlignedXyReference(points[0], points[1], "x")) {
+                      chooseTool("calibrate");
+                      setError(
+                        "X reference must be nearly horizontal. Place both points along the horizontal reference.",
+                      );
+                      return;
+                    }
+                    if (phase === "y" && !isAlignedXyReference(points[0], points[1], "y")) {
+                      chooseTool("calibrate");
+                      setError(
+                        "Y reference must be nearly vertical. Place both points along the vertical reference.",
+                      );
+                      return;
+                    }
+                    updateCalibrationCandidate(selectCalibrationReference(flow, points));
+                  }}
+                  onCalibrationCancel={cancelCalibration}
+                  calibrationReferenceEdit={
+                    calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
+                      ? {
+                          calibrationId: calibrationReferenceEdit.calibrationId,
+                          reference: calibrationReferenceEdit.reference,
+                          points: calibrationReferenceEdit.points,
+                          valid: calibrationReferenceEditIsValid,
+                        }
+                      : null
+                  }
+                  measurementEditingBlocked={Boolean(calibrationFlow || calibrationCandidate)}
+                  onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
+                  onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
+                  onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
+                />
+              </Suspense>
+            }
+            onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
+          />
+        ) : (
+          <WorkspaceShell
+            keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+            isEmpty
+            dropOverlay="Drop PDF to open it"
+            dragActive={dragActive}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            emptyState={
+              <EmptyWorkspaceState
+                onOpenPdf={() => fileInputRef.current?.click()}
+                onOpenSample={() => void openSampleProject()}
+                disabled={!recoveryChecked || loading || projectOperationPending}
+                projects={recoveryChecked ? savedProjects : []}
+                onOpenProject={(projectId) => void openProject(projectId)}
+                onShowAllProjects={() => setProjectLibraryOpen(true)}
+              />
+            }
+          />
+        )}
+
+        {!recoveryChecked && <LoadingOverlay>Checking for a saved session…</LoadingOverlay>}
+
+        {recoveryIssue && !session && (
+          <Modal title="Saved session unavailable">
+            {confirmDiscardRecovery ? (
+              <>
+                <p>The unreadable saved session and its local PDF will be permanently removed.</p>
+                <div className={styles.modalActions}>
+                  <Button variant="ghost" size="compact" onClick={hideDiscardRecoveryConfirmation}>
+                    Cancel
+                  </Button>
+                  <Button variant="danger" size="compact" onClick={() => void discardRecovery()}>
+                    Discard saved session
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>{recoveryIssue}</p>
+                <div className={styles.modalActions}>
+                  <Button variant="secondary" size="compact" onClick={continueWithoutRecovery}>
+                    Continue without recovery
+                  </Button>
+                  <Button
+                    variant="dangerSecondary"
+                    size="compact"
+                    onClick={showDiscardRecoveryConfirmation}
+                  >
+                    Discard saved session
+                  </Button>
+                </div>
+              </>
+            )}
+          </Modal>
+        )}
+
+        <OverlayHost
+          onDialogConfirm={confirmPdfReplacement}
+          onDialogCancel={cancelPdfReplacement}
+          onConfirmationConfirm={handleOverlayConfirmationConfirm}
+        />
+
+        {projectLibraryOpen && (
+          <Suspense fallback={null}>
+            <ProjectLibraryDialog
+              open
+              projects={savedProjects}
+              currentSessionLoaded={Boolean(session && activePdf)}
+              activeProjectId={activeProjectId}
+              opening={loading || projectOperationPending}
+              pendingDiscardProjectId={pendingDiscardProjectId}
+              discardsCurrentProject={hasUnsavedMemoryProject()}
+              onOpenProject={(projectId, options) => {
+                setPendingDiscardProjectId(null);
+                setProjectLibraryOpen(false);
+                if (session && activePdf && activeProjectId === projectId) {
                   return;
                 }
-                requestMeasurementDelete({
-                  pageNumber: currentPage.pageNumber,
-                  measurementId: selectedMeasurement.id,
-                  measurementName: selectedMeasurement.name,
-                });
+                void openProject(projectId, options);
               }}
-              onDuplicateSelectedMeasurement={duplicateSelectedMeasurements}
-              onRenameSelectedMeasurement={(name) => {
-                if (selectedMeasurement) {
-                  renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name);
-                }
+              onOpenPdf={() => {
+                setPendingDiscardProjectId(null);
+                setProjectLibraryOpen(false);
+                fileInputRef.current?.click();
               }}
-              onOpenMeasurementDetails={() => {
-                openMeasurementDetails();
-                focusMeasurementDetails();
+              onImportProject={() => projectFileInputRef.current?.click()}
+              onExportProject={(projectId) => void exportProject(projectId)}
+              onRequestDiscard={setPendingDiscardProjectId}
+              onCancelDiscard={() => setPendingDiscardProjectId(null)}
+              onConfirmDiscard={(projectId) => {
+                setPendingDiscardProjectId(null);
+                if (!session) setProjectLibraryOpen(true);
+                void discardProject(projectId);
               }}
-              onExitDrawingTool={() => {
-                chooseTool("select");
-                focusViewer();
+              onClose={() => {
+                setPendingDiscardProjectId(null);
+                setProjectLibraryOpen(false);
               }}
-              onCancelCalibration={cancelCalibration}
-              onCancelReferenceEdit={cancelCalibrationReferenceEdit}
-              onSaveReferenceEdit={requestCalibrationReferenceEditSave}
             />
-          }
-          viewerOverlay={calibrationDialog}
-          viewerTransientOverlay={scaleCheckLoaded ? (
-            <Suspense fallback={null}>
-              <ScaleCheckPanel store={scaleCheckStore} />
-            </Suspense>
-          ) : null}
-          viewer={
-            <Suspense
-              fallback={
-                <div className={styles.viewerLoading} role="status">
-                  Loading viewer…
-                </div>
-              }
-            >
-              <PdfViewer
-                keyboardAuthoringEnabled={keyboardAuthoringEnabled}
-                document={activePdf.document}
-                page={previewPage}
-                onPageChange={handlePageChange}
-                onPageBoundsChange={handleViewerPageBoundsChange}
-                onViewZoomChange={handleViewerViewZoomChange}
-                activeMeasurementEditId={activeMeasurementEditId}
-                onMeasurementEditActiveChange={handleMeasurementEditActiveChange}
-                onChooseTool={chooseTool}
-                scaleCheckStore={scaleCheckStore}
-                onCalibrationCandidate={(points) => {
-                  if (scaleCheckStore.getSnapshot()) {
-                    scaleCheckStore.select(points);
-                    return;
-                  }
-                  const flow = calibrationFlow;
-                  if (!flow) return;
-                  const phase = flow.phase;
-                  if (phase === "x" && !isAlignedXyReference(points[0], points[1], "x")) {
-                    chooseTool("calibrate");
-                    setError(
-                      "X reference must be nearly horizontal. Place both points along the horizontal reference.",
-                    );
-                    return;
-                  }
-                  if (phase === "y" && !isAlignedXyReference(points[0], points[1], "y")) {
-                    chooseTool("calibrate");
-                    setError(
-                      "Y reference must be nearly vertical. Place both points along the vertical reference.",
-                    );
-                    return;
-                  }
-                  updateCalibrationCandidate(selectCalibrationReference(flow, points));
-                }}
-                onCalibrationCancel={cancelCalibration}
-                calibrationReferenceEdit={
-                  calibrationReferenceEdit?.pageNumber === currentPage.pageNumber
-                    ? {
-                        calibrationId: calibrationReferenceEdit.calibrationId,
-                        reference: calibrationReferenceEdit.reference,
-                        points: calibrationReferenceEdit.points,
-                        valid: calibrationReferenceEditIsValid,
-                      }
-                    : null
-                }
-                measurementEditingBlocked={Boolean(calibrationFlow || calibrationCandidate)}
-                onCalibrationReferencePointsChange={updateCalibrationReferenceEdit}
-                onCalibrationReferenceEditCancel={cancelCalibrationReferenceEdit}
-                onCalibrationReferenceEditSave={requestCalibrationReferenceEditSave}
-              />
-            </Suspense>
-          }
-          onAuthoringCapabilityChange={handleAuthoringCapabilityChange}
-        />
-      ) : (
-        <WorkspaceShell
-          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
-          isEmpty
-          dropOverlay="Drop PDF to open it"
-          dragActive={dragActive}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          emptyState={
-            <EmptyWorkspaceState
-              onOpenPdf={() => fileInputRef.current?.click()}
-              onOpenSample={() => void openSampleProject()}
-              disabled={!recoveryChecked || loading || projectOperationPending}
-              projects={recoveryChecked ? savedProjects : []}
-              onOpenProject={(projectId) => void openProject(projectId)}
-              onShowAllProjects={() => setProjectLibraryOpen(true)}
-            />
-          }
-        />
-      )}
+          </Suspense>
+        )}
 
-      {!recoveryChecked && <LoadingOverlay>Checking for a saved session…</LoadingOverlay>}
-
-      {recoveryIssue && !session && (
-        <Modal title="Saved session unavailable">
-          {confirmDiscardRecovery ? (
-            <>
-              <p>The unreadable saved session and its local PDF will be permanently removed.</p>
-              <div className={styles.modalActions}>
-                <Button variant="ghost" size="compact" onClick={hideDiscardRecoveryConfirmation}>
-                  Cancel
-                </Button>
-                <Button variant="danger" size="compact" onClick={() => void discardRecovery()}>
-                  Discard saved session
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p>{recoveryIssue}</p>
-              <div className={styles.modalActions}>
-                <Button variant="secondary" size="compact" onClick={continueWithoutRecovery}>
-                  Continue without recovery
-                </Button>
-                <Button variant="dangerSecondary" size="compact" onClick={showDiscardRecoveryConfirmation}>
-                  Discard saved session
-                </Button>
-              </div>
-            </>
-          )}
-        </Modal>
-      )}
-
-      <OverlayHost
-        onDialogConfirm={confirmPdfReplacement}
-        onDialogCancel={cancelPdfReplacement}
-        onConfirmationConfirm={handleOverlayConfirmationConfirm}
-      />
-
-      {projectLibraryOpen && (
-      <Suspense fallback={null}>
-      <ProjectLibraryDialog
-        open
-        projects={savedProjects}
-        currentSessionLoaded={Boolean(session && activePdf)}
-        activeProjectId={activeProjectId}
-        opening={loading || projectOperationPending}
-        pendingDiscardProjectId={pendingDiscardProjectId}
-        discardsCurrentProject={hasUnsavedMemoryProject()}
-        onOpenProject={(projectId, options) => {
-          setPendingDiscardProjectId(null);
-          setProjectLibraryOpen(false);
-          if (session && activePdf && activeProjectId === projectId) {
-            return;
-          }
-          void openProject(projectId, options);
-        }}
-        onOpenPdf={() => {
-          setPendingDiscardProjectId(null);
-          setProjectLibraryOpen(false);
-          fileInputRef.current?.click();
-        }}
-        onImportProject={() => projectFileInputRef.current?.click()}
-        onExportProject={(projectId) => void exportProject(projectId)}
-        onRequestDiscard={setPendingDiscardProjectId}
-        onCancelDiscard={() => setPendingDiscardProjectId(null)}
-        onConfirmDiscard={(projectId) => {
-          setPendingDiscardProjectId(null);
-          if (!session) setProjectLibraryOpen(true);
-          void discardProject(projectId);
-        }}
-        onClose={() => {
-          setPendingDiscardProjectId(null);
-          setProjectLibraryOpen(false);
-        }}
-      />
-      </Suspense>
-      )}
-
-      {exportDialogOpen && session && ExportDialog && (
+        {exportDialogOpen && session && ExportDialog && (
           <ExportDialog
             session={session}
             summaryBlocked={summaryExportBlocked}
@@ -1367,17 +1477,17 @@ function PlanMeasureApp() {
             onExportAnnotatedPdf={
               activePdf
                 ? async () => {
-                    const { downloadAnnotatedPdf } = await import("../features/export/annotatedPdf");
+                    const { downloadAnnotatedPdf } =
+                      await import("../features/export/annotatedPdf");
                     await downloadAnnotatedPdf(session, activePdf.document);
                   }
                 : undefined
             }
             onClose={() => setExportDialogOpen(false)}
           />
-      )}
-
-    </AppShell>
-    {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
+        )}
+      </AppShell>
+      {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
     </>
   );
 }

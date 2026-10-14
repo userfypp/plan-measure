@@ -4,14 +4,18 @@
 import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceDrawerProvider } from "../../app/WorkspaceDrawerContext";
 import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { Measurement, PageCalibration, PageState } from "../../types/domain";
 import { scaleByRatio } from "../../utils/units";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createPageCalibrationFromRatio } from "./ratioCalibration";
-import { ScalesWorkspace, type ScalesWorkspaceProps } from "./ScalesWorkspace";
+import {
+  preloadCustomRatioDialog,
+  ScalesWorkspace,
+  type ScalesWorkspaceProps,
+} from "./ScalesWorkspace";
 import styles from "./ScalesWorkspace.module.css";
 
 const scalesCss = readFileSync("src/features/calibration/ScalesWorkspace.module.css", "utf8");
@@ -180,6 +184,9 @@ function scaleNameInput(): HTMLInputElement {
   if (!input) throw new Error("Scale rename input was not rendered.");
   return input;
 }
+
+// The dialog is a lazy chunk; once loaded it mounts in the same commit as before.
+beforeAll(() => preloadCustomRatioDialog());
 
 beforeEach(() => {
   (

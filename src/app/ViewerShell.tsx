@@ -33,6 +33,7 @@ const PageBrowserHost = recoverableLazy(() =>
   loadPageBrowser().then((module) => ({ default: module.PageBrowserHost })),
   "pages",
 );
+export const preloadPageBrowser = PageBrowserHost.preload;
 
 interface ViewerShellProps {
   children?: ReactNode;
