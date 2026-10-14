@@ -4,16 +4,6 @@ import { useAppPreferences } from "../utils/appPreferences";
 import { formatSavedDate } from "../utils/dateFormat";
 import styles from "./EmptyWorkspaceState.module.css";
 
-export const START_SCREEN_PROJECT_LIMIT = 5;
-
-function ChevronIcon() {
-  return (
-    <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M8 5.5 12.5 10 8 14.5" />
-    </svg>
-  );
-}
-
 interface EmptyWorkspaceStateProps {
   onOpenPdf: () => void;
   onOpenSample: () => void;
@@ -28,12 +18,11 @@ export function EmptyWorkspaceState({
   onOpenSample,
   disabled,
   projects = [],
-  onOpenProject = () => undefined,
-  onShowAllProjects = () => undefined,
+  onOpenProject,
+  onShowAllProjects,
 }: EmptyWorkspaceStateProps) {
   const { dateFormat } = useAppPreferences();
   const hasProjects = projects.length > 0;
-  const recent = projects.slice(0, START_SCREEN_PROJECT_LIMIT);
   return (
     <section
       className={`${styles.start} ${hasProjects ? styles.withProjects : ""}`}
@@ -51,10 +40,7 @@ export function EmptyWorkspaceState({
             Try a sample
           </Button>
         </div>
-        <p className={styles.note}>
-          <span className={styles.dropHint}>Drop a PDF anywhere. </span>
-          Files stay in this browser.
-        </p>
+        <p className={styles.note}>Drop a PDF anywhere. Files stay in this browser.</p>
       </div>
       {hasProjects && (
         <section className={styles.projects} aria-labelledby="start-projects-title">
@@ -67,29 +53,26 @@ export function EmptyWorkspaceState({
             </Button>
           </header>
           <ul className={styles.list}>
-            {recent.map((project) => (
+            {projects.slice(0, 5).map((project) => (
               <li key={project.id}>
                 <button
                   type="button"
                   className={styles.project}
                   disabled={disabled}
-                  aria-label={`${project.isCurrent ? "Continue project" : "Open project"} ${project.name}`}
-                  onClick={() => onOpenProject(project.id)}
+                  onClick={() => onOpenProject?.(project.id)}
                 >
                   <span className={styles.projectText}>
                     <span className={styles.projectName}>
-                      <span className={styles.projectLabel} title={project.name}>
-                        {project.name}
-                      </span>
+                      <span className={styles.projectLabel}>{project.name}</span>
                       {project.isCurrent && <Badge variant="info">Current</Badge>}
                     </span>
                     <span className={styles.projectMeta}>
                       {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
-                      <span aria-hidden="true"> · </span>
-                      Saved {formatSavedDate(project.savedAt, dateFormat)}
+                      {" · Saved "}
+                      {formatSavedDate(project.savedAt, dateFormat)}
                     </span>
                   </span>
-                  <ChevronIcon />
+                  <span className={styles.chevron} aria-hidden="true" />
                 </button>
               </li>
             ))}

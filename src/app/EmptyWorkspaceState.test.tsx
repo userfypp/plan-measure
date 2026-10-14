@@ -22,7 +22,9 @@ afterEach(() => {
 });
 
 function button(label: string): HTMLButtonElement {
-  const match = [...container.querySelectorAll("button")].find((candidate) => candidate.textContent === label);
+  const match = [...container.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === label,
+  );
   if (!match) throw new Error(`Missing button: ${label}`);
   return match;
 }
@@ -71,7 +73,9 @@ describe("EmptyWorkspaceState recent projects", () => {
       isCurrent: index === 0,
     }));
   const byLabel = (label: string) => {
-    const match = container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    const match = [...container.querySelectorAll<HTMLButtonElement>("ul button")].find((row) =>
+      row.textContent?.startsWith(label),
+    );
     if (!match) throw new Error(`Missing: ${label}`);
     return match;
   };
@@ -80,7 +84,12 @@ describe("EmptyWorkspaceState recent projects", () => {
   function renderWith(props: Partial<Parameters<typeof EmptyWorkspaceState>[0]>) {
     act(() =>
       root.render(
-        <EmptyWorkspaceState onOpenPdf={vi.fn()} onOpenSample={vi.fn()} disabled={false} {...props} />,
+        <EmptyWorkspaceState
+          onOpenPdf={vi.fn()}
+          onOpenSample={vi.fn()}
+          disabled={false}
+          {...props}
+        />,
       ),
     );
   }
@@ -94,11 +103,11 @@ describe("EmptyWorkspaceState recent projects", () => {
   it("lists projects with current badge and page counts", () => {
     renderWith({ projects: make(2) });
     expect(container.querySelector("#start-projects-title")?.textContent).toBe("Recent projects");
-    expect(byLabel("Continue project Project 0").textContent).toContain("1 page");
-    expect(byLabel("Continue project Project 0").textContent).not.toContain("1 pages");
-    expect(byLabel("Continue project Project 0").textContent).toContain("Current");
-    expect(byLabel("Open project Project 1").textContent).toContain("3 pages");
-    expect(byLabel("Open project Project 1").textContent).not.toContain("Current");
+    expect(byLabel("Project 0").textContent).toContain("1 page");
+    expect(byLabel("Project 0").textContent).not.toContain("1 pages");
+    expect(byLabel("Project 0").textContent).toContain("Current");
+    expect(byLabel("Project 1").textContent).toContain("3 pages");
+    expect(byLabel("Project 1").textContent).not.toContain("Current");
   });
 
   it("caps rows at five and opens all projects", () => {
@@ -112,7 +121,7 @@ describe("EmptyWorkspaceState recent projects", () => {
   it("opens a project from its row", () => {
     const onOpenProject = vi.fn();
     renderWith({ projects: make(2), onOpenProject });
-    act(() => byLabel("Open project Project 1").click());
+    act(() => byLabel("Project 1").click());
     expect(onOpenProject).toHaveBeenCalledWith("p1");
   });
 
@@ -122,7 +131,7 @@ describe("EmptyWorkspaceState recent projects", () => {
     renderWith({ projects: make(2), disabled: true, onOpenProject, onShowAllProjects });
     expect([...rows()].every((row) => (row as HTMLButtonElement).disabled)).toBe(true);
     expect(button("All projects").disabled).toBe(true);
-    act(() => byLabel("Open project Project 1").click());
+    act(() => byLabel("Project 1").click());
     expect(onOpenProject).not.toHaveBeenCalled();
   });
 });

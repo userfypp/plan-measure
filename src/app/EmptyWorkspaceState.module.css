@@ -127,19 +127,18 @@
 }
 
 .chevron {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  fill: none;
-  stroke: var(--color-text-secondary);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: var(--icon-stroke-width);
+  width: 7px;
+  height: 7px;
+  margin-right: var(--space-4);
+  border: solid var(--color-text-secondary);
+  border-width: 1.5px 1.5px 0 0;
+  transform: rotate(45deg);
   transition: var(--transition-interactive);
 }
 
 .project:hover:not(:disabled) .chevron,
 .project:focus-visible .chevron {
-  stroke: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 @keyframes startFadeIn {
@@ -154,12 +153,6 @@
 @media (prefers-reduced-motion: reduce) {
   .projects {
     animation: none;
-  }
-}
-
-@media (any-pointer: coarse) and (hover: none) {
-  .dropHint {
-    display: none;
   }
 }
 
