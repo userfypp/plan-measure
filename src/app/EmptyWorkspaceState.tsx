@@ -1,67 +1,101 @@
-import { Button } from "../components/ui";
+import { Badge, Button } from "../components/ui";
+import type { SavedProjectSummary } from "../services/persistence";
+import { useAppPreferences } from "../utils/appPreferences";
+import { formatSavedDate } from "../utils/dateFormat";
 import styles from "./EmptyWorkspaceState.module.css";
 
-function PlanIllustration() {
+export const START_SCREEN_PROJECT_LIMIT = 5;
+
+function ChevronIcon() {
   return (
-    <svg className={styles.illustration} viewBox="0 0 96 72" aria-hidden="true" focusable="false">
-      <rect className={styles.sheet} x="14" y="4" width="68" height="64" rx="2" />
-      <path className={styles.walls} d="M24 14h30v14h18v18H24z" />
-      <path className={styles.walls} d="M24 28h12" />
-      <path className={styles.dimension} d="M24 55h48M24 51.5v7M72 51.5v7" />
-      <rect className={styles.label} x="38" y="49.5" width="20" height="11" rx="2" />
-      <path className={styles.labelMark} d="M43 55h10" />
+    <svg className={styles.chevron} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M8 5.5 12.5 10 8 14.5" />
     </svg>
   );
 }
 
-function LockIcon() {
-  return (
-    <svg className={styles.metaIcon} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" />
-      <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
-    </svg>
-  );
+interface EmptyWorkspaceStateProps {
+  onOpenPdf: () => void;
+  onOpenSample: () => void;
+  disabled: boolean;
+  projects?: SavedProjectSummary[];
+  onOpenProject?: (projectId: string) => void;
+  onShowAllProjects?: () => void;
 }
 
 export function EmptyWorkspaceState({
   onOpenPdf,
   onOpenSample,
   disabled,
-}: {
-  onOpenPdf: () => void;
-  onOpenSample: () => void;
-  disabled: boolean;
-}) {
+  projects = [],
+  onOpenProject = () => undefined,
+  onShowAllProjects = () => undefined,
+}: EmptyWorkspaceStateProps) {
+  const { dateFormat } = useAppPreferences();
+  const hasProjects = projects.length > 0;
+  const recent = projects.slice(0, START_SCREEN_PROJECT_LIMIT);
   return (
-    <section className={styles.card} aria-labelledby="start-title">
-      <div className={styles.intro}>
-        <PlanIllustration />
+    <section
+      className={`${styles.start} ${hasProjects ? styles.withProjects : ""}`}
+      aria-labelledby="start-title"
+    >
+      <div className={styles.open}>
         <h1 id="start-title" className={styles.title}>
           Open a plan to start measuring
         </h1>
-        <p className={styles.lead}>
-          Measure distances, perimeters, and areas on architectural PDF plans.
-        </p>
-        <Button onClick={onOpenPdf} disabled={disabled}>
-          Open PDF
-        </Button>
-        <p className={styles.hint}>or drop a PDF anywhere on this screen</p>
-      </div>
-      <div className={styles.sample}>
-        <div className={styles.sampleText}>
-          <h2 className={styles.sampleTitle}>New here?</h2>
-          <p className={styles.sampleLead}>Explore a house drawing set with measurements already made.</p>
+        <div className={styles.actions}>
+          <Button onClick={onOpenPdf} disabled={disabled}>
+            Open PDF
+          </Button>
+          <Button variant="ghost" onClick={onOpenSample} disabled={disabled}>
+            Try a sample
+          </Button>
         </div>
-        <Button variant="secondary" size="compact" onClick={onOpenSample} disabled={disabled}>
-          Try a sample
-        </Button>
+        <p className={styles.note}>
+          <span className={styles.dropHint}>Drop a PDF anywhere. </span>
+          Files stay in this browser.
+        </p>
       </div>
-      <p className={styles.meta}>
-        <LockIcon />
-        <span>Your plan stays in this browser</span>
-        <span className={styles.metaDot} aria-hidden="true">·</span>
-        <span>PDF files up to 100 MB</span>
-      </p>
+      {hasProjects && (
+        <section className={styles.projects} aria-labelledby="start-projects-title">
+          <header className={styles.projectsHeader}>
+            <h2 id="start-projects-title" className={styles.projectsTitle}>
+              Recent projects
+            </h2>
+            <Button variant="ghost" size="compact" onClick={onShowAllProjects} disabled={disabled}>
+              All projects
+            </Button>
+          </header>
+          <ul className={styles.list}>
+            {recent.map((project) => (
+              <li key={project.id}>
+                <button
+                  type="button"
+                  className={styles.project}
+                  disabled={disabled}
+                  aria-label={`${project.isCurrent ? "Continue project" : "Open project"} ${project.name}`}
+                  onClick={() => onOpenProject(project.id)}
+                >
+                  <span className={styles.projectText}>
+                    <span className={styles.projectName}>
+                      <span className={styles.projectLabel} title={project.name}>
+                        {project.name}
+                      </span>
+                      {project.isCurrent && <Badge variant="info">Current</Badge>}
+                    </span>
+                    <span className={styles.projectMeta}>
+                      {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
+                      <span aria-hidden="true"> · </span>
+                      Saved {formatSavedDate(project.savedAt, dateFormat)}
+                    </span>
+                  </span>
+                  <ChevronIcon />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }
