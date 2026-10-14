@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPageCalibrationFromRatio } from "./ratioCalibration";
 import { createScaleCheckStore } from "./scaleCheckState";
 import { formatScaleCheckResult, scaleCheckResult } from "./scaleCheck";
@@ -104,6 +104,8 @@ describe("scale check calculations", () => {
 });
 
 describe("scale check export boundary", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("leaves session, CSV, XLSX, ODS, JSON and project archive structurally identical", async () => {
     const session = createEmptySession({ name: "scale.pdf", size: 4, lastModified: 1 }, 1);
     session.pages[1]!.calibrations = scales;
@@ -120,6 +122,8 @@ describe("scale check export boundary", () => {
       },
     ];
     const pdf = new Blob(["%PDF"]);
+    // XLSX/ODS archives embed the current time; freeze it so two exports cannot straddle a tick.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-01-01T00:00:00Z") });
     async function exports() {
       return {
         json: buildDataJson(session),
