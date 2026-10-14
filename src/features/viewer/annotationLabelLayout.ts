@@ -1,5 +1,12 @@
 import { Text as KonvaTextNode } from "konva/lib/shapes/Text";
-import type { LogicalPageBounds, MeasurementType, PageState, Point } from "../../types/domain";
+import type {
+  LogicalPageBounds,
+  Measurement,
+  MeasurementType,
+  PageCalibration,
+  PageState,
+  Point,
+} from "../../types/domain";
 import {
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
@@ -27,6 +34,28 @@ export interface MeasurementLabelData {
   minY: number;
   maxY: number;
   text: string | null;
+}
+
+/**
+ * Reuses each measurement's label data while the measurement and its scale are unchanged, so an
+ * edit only formats the measurements it touched. Create a new cache when display options change.
+ */
+export function createMeasurementLabelDataCache() {
+  const entries = new WeakMap<
+    Measurement,
+    { calibration: PageCalibration | null; data: MeasurementLabelData }
+  >();
+  return (
+    measurement: Measurement,
+    calibration: PageCalibration | null,
+    build: () => MeasurementLabelData,
+  ): MeasurementLabelData => {
+    const cached = entries.get(measurement);
+    if (cached && cached.calibration === calibration) return cached.data;
+    const data = build();
+    entries.set(measurement, { calibration, data });
+    return data;
+  };
 }
 
 export function averagePoint(points: Point[]): Point {
@@ -188,4 +217,30 @@ export function planLabelLayout({
     }
   }
   return { placements, occupiedRects, occupied };
+}
+
+/**
+ * A stable collision index that forwards to the latest label plan. The plan is rebuilt on every
+ * page edit, and shapes only consult it while dragging, so they need not re-render for it.
+ */
+export function createForwardingLabelCollisionIndex() {
+  // Empty until the first plan commits; shapes cannot drag before that.
+  let target: LabelCollisionIndex = {
+    insert() {},
+    hasCollision: () => false,
+    somePotentialCollision: () => false,
+  };
+  // Plans always build their index with createLabelCollisionIndex, which has hasCollision.
+  const index: Required<LabelCollisionIndex> = {
+    insert: (rect) => target.insert(rect),
+    hasCollision: (candidate, gap, ignore) => target.hasCollision!(candidate, gap, ignore),
+    somePotentialCollision: (candidate, gap, visit) =>
+      target.somePotentialCollision(candidate, gap, visit),
+  };
+  return {
+    index,
+    forwardTo(next: LabelCollisionIndex) {
+      target = next;
+    },
+  };
 }

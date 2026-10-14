@@ -438,6 +438,12 @@ function pushEllipseTargets(
   }
 }
 
+// Measurements are immutable, so an edit only re-extracts the measurements it replaced.
+const measurementTargetCache = new WeakMap<
+  Measurement,
+  { measurementIndex: number; width: number; height: number; targets: SnapTarget[] }
+>();
+
 /** Extracts only geometry that is currently rendered for snapping. */
 export function extractSnapTargets(
   measurements: readonly Measurement[],
@@ -446,55 +452,81 @@ export function extractSnapTargets(
   buildSpatialIndex = true,
 ): SnapTarget[] {
   const targets: SnapTarget[] = [];
+  const width = bounds?.width ?? Number.NaN;
+  const height = bounds?.height ?? Number.NaN;
 
   measurements.forEach((measurement, measurementIndex) => {
     if (!shouldRenderMeasurement(measurement, showMeasurements)) return;
-
-    if (measurement.type === "ellipse") {
-      pushEllipseTargets(targets, measurement, measurementIndex, bounds);
-      return;
-    }
-
-    measurement.points.forEach((point, primitiveIndex) => {
-      if (!finitePoint(point)) return;
-      if (bounds && !isPointInPage(point, bounds)) return;
-      targets.push({
-        kind: "vertex",
-        measurementId: measurement.id,
+    let cached = measurementTargetCache.get(measurement);
+    if (
+      !cached ||
+      cached.measurementIndex !== measurementIndex ||
+      !Object.is(cached.width, width) ||
+      !Object.is(cached.height, height)
+    ) {
+      cached = {
         measurementIndex,
-        primitiveIndex,
-        point,
-      });
-    });
-
-    if (measurement.type === "count") return;
-
-    const segmentCount = measurementPathSpecs[measurement.type].closed
-      ? measurement.points.length
-      : Math.max(0, measurement.points.length - 1);
-    for (let primitiveIndex = 0; primitiveIndex < segmentCount; primitiveIndex += 1) {
-      const start = measurement.points[primitiveIndex];
-      const end = measurement.points[(primitiveIndex + 1) % measurement.points.length];
-      if (!start || !end || !finitePoint(start) || !finitePoint(end)) continue;
-      if (start.x === end.x && start.y === end.y) continue;
-      const visibleSegment = bounds ? clipSegmentToPage(start, end, bounds) : { start, end };
-      if (!visibleSegment) continue;
-      targets.push({
-        kind: "segment",
-        measurementId: measurement.id,
-        measurementIndex,
-        primitiveIndex,
-        start: visibleSegment.start,
-        end: visibleSegment.end,
-        endVertexIndex: (primitiveIndex + 1) % measurement.points.length,
-      });
+        width,
+        height,
+        targets: measurementSnapTargets(measurement, measurementIndex, bounds),
+      };
+      measurementTargetCache.set(measurement, cached);
     }
+    for (const target of cached.targets) targets.push(target);
   });
 
   // Build outside the pointer-move path so the first preview cannot pay the
   // one-time tree construction cost for a dense page. Callers can skip this
   // while snapping is disabled to keep page rendering free of index work.
   if (buildSpatialIndex) extractedTargetIndices.set(targets, buildTargetIndex(targets));
+  return targets;
+}
+
+function measurementSnapTargets(
+  measurement: Measurement,
+  measurementIndex: number,
+  bounds: LogicalPageBounds | undefined,
+): SnapTarget[] {
+  const targets: SnapTarget[] = [];
+  if (measurement.type === "ellipse") {
+    pushEllipseTargets(targets, measurement, measurementIndex, bounds);
+    return targets;
+  }
+
+  measurement.points.forEach((point, primitiveIndex) => {
+    if (!finitePoint(point)) return;
+    if (bounds && !isPointInPage(point, bounds)) return;
+    targets.push({
+      kind: "vertex",
+      measurementId: measurement.id,
+      measurementIndex,
+      primitiveIndex,
+      point,
+    });
+  });
+
+  if (measurement.type === "count") return targets;
+
+  const segmentCount = measurementPathSpecs[measurement.type].closed
+    ? measurement.points.length
+    : Math.max(0, measurement.points.length - 1);
+  for (let primitiveIndex = 0; primitiveIndex < segmentCount; primitiveIndex += 1) {
+    const start = measurement.points[primitiveIndex];
+    const end = measurement.points[(primitiveIndex + 1) % measurement.points.length];
+    if (!start || !end || !finitePoint(start) || !finitePoint(end)) continue;
+    if (start.x === end.x && start.y === end.y) continue;
+    const visibleSegment = bounds ? clipSegmentToPage(start, end, bounds) : { start, end };
+    if (!visibleSegment) continue;
+    targets.push({
+      kind: "segment",
+      measurementId: measurement.id,
+      measurementIndex,
+      primitiveIndex,
+      start: visibleSegment.start,
+      end: visibleSegment.end,
+      endVertexIndex: (primitiveIndex + 1) % measurement.points.length,
+    });
+  }
   return targets;
 }
 

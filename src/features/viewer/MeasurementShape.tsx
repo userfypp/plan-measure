@@ -26,11 +26,10 @@ import type {
   Measurement,
   MeasurementDecimalPlaces,
   MeasurementDisplayUnit,
-  PageState,
+  PageCalibration,
   Point,
   ViewTransform,
 } from "../../types/domain";
-import { getMeasurementCalibration } from "../../utils/calibration";
 import { measurementPathSpecs } from "../../utils/geometry";
 import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
 import { formatMeasurement } from "../../utils/format";
@@ -97,7 +96,8 @@ import {
 interface MeasurementShapeProps {
   measurement: Measurement;
   pageNumber: number;
-  page: PageState;
+  /** The measurement's own scale; passed instead of the page so unrelated edits skip this shape. */
+  calibration: PageCalibration | null;
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
   classificationLabel?: string;
@@ -108,7 +108,8 @@ interface MeasurementShapeProps {
   zoom: number;
   transform: ViewTransform;
   selected: boolean;
-  selectable: boolean;
+  /** Whether a click selects; a getter so tool switches skip unchanged shapes. */
+  isSelectable: () => boolean;
   editable: boolean;
   wholeDragEditable: boolean;
   groupMeasurements?: readonly Measurement[];
@@ -131,10 +132,46 @@ interface MeasurementShapeProps {
   labelCollisionIndex: LabelCollisionIndex;
 }
 
+function sameLabelRect(
+  left: Partial<OccupiedLabelRect> | null,
+  right: Partial<OccupiedLabelRect> | null,
+): boolean {
+  return (
+    left === right ||
+    (left !== null &&
+      right !== null &&
+      left.x === right.x &&
+      left.y === right.y &&
+      left.width === right.width &&
+      left.height === right.height)
+  );
+}
+
+/**
+ * The label plan is rebuilt on every page edit; equal placements must not re-render the shape.
+ * Editing permissions only reach handles and gestures of selected shapes (deselection cancels
+ * gestures), so tool and pan switches skip the unselected ones. Selected shapes keep the latest
+ * occupied rect: drags ignore their own label in the current plan by identity.
+ */
+function measurementShapePropsEqual(
+  previous: MeasurementShapeProps,
+  next: MeasurementShapeProps,
+): boolean {
+  const keys = Object.keys(next) as (keyof MeasurementShapeProps)[];
+  if (keys.length !== Object.keys(previous).length) return false;
+  const unselected = !previous.selected && !next.selected;
+  return keys.every((key) =>
+    key === "plannedLabelPlacement" || (unselected && key === "plannedOccupiedLabelRect")
+      ? sameLabelRect(previous[key], next[key])
+      : (unselected && (key === "editable" || key === "wholeDragEditable")) ||
+        Object.is(previous[key], next[key]),
+  );
+}
+
 export const MeasurementShape = memo(function MeasurementShape({
   measurement,
   pageNumber,
-  page,
+  calibration,
   displayUnit,
   areaDisplay,
   classificationLabel,
@@ -145,7 +182,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   zoom,
   transform,
   selected,
-  selectable,
+  isSelectable,
   editable,
   wholeDragEditable,
   groupMeasurements,
@@ -238,7 +275,6 @@ export const MeasurementShape = memo(function MeasurementShape({
     if (!points) return measurement;
     return { ...measurement, points };
   }, [dragPoints, groupPreviewPoints, measurement]);
-  const calibration = getMeasurementCalibration(page, visibleMeasurement);
   const flatPoints = useMemo(
     () => pointsToFlat(visibleMeasurement.points),
     [visibleMeasurement.points],
@@ -936,7 +972,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   }
 
   function select(event: KonvaEventObject<MouseEvent>) {
-    if (!selectable) return;
+    if (!isSelectable()) return;
     event.cancelBubble = true;
     onSelectMeasurement(
       measurement.id,
@@ -1192,4 +1228,4 @@ export const MeasurementShape = memo(function MeasurementShape({
         ))}
     </Group>
   );
-});
+}, measurementShapePropsEqual);

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   LABEL_BACKGROUND_OPACITY,
   LABEL_SIZE_SCALE,
@@ -36,6 +36,8 @@ import { MeasurementShape } from "./MeasurementShape";
 import {
   averagePoint,
   CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
+  createForwardingLabelCollisionIndex,
+  createMeasurementLabelDataCache,
   LABEL_PADDING_SCREEN_PX,
   measureLabelText,
   planLabelLayout,
@@ -173,21 +175,30 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   const showMeasurementLabels = showMeasurements && showLabels;
 
   // Geometry and formatted values depend on domain data, not pan or zoom.
+  const labelDataCache = useMemo(
+    () => createMeasurementLabelDataCache(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new cache whenever label text options change
+    [
+      displayUnit,
+      measurementDecimalPlaces,
+      areaDisplay,
+      showMeasurementLabels,
+      numberFormatKey,
+      labelContent,
+      classificationNames,
+    ],
+  );
   const labelData = useMemo(
     () =>
       new Map(
         page.measurements.map((measurement) => {
           const calibration = getMeasurementCalibration(page, measurement);
           const points = measurement.points;
-          const { minX, maxX, minY, maxY } = measurementOutlineBounds(measurement.type, points);
           return [
             measurement.id,
-            {
+            labelDataCache(measurement, calibration, () => ({
+              ...measurementOutlineBounds(measurement.type, points),
               anchor: averagePoint(points),
-              minX,
-              maxX,
-              minY,
-              maxY,
               text:
                 (calibration || measurement.type === "count") &&
                 shouldRenderMeasurement(measurement, showMeasurementLabels)
@@ -204,21 +215,38 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                       classificationLabelFor(measurement, classificationNames),
                     )
                   : null,
-            },
+            })),
           ];
         }),
-      ), // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
+      ),
+    // The builder only runs on cache misses; the options also key the cache itself.
     [
       page,
+      labelDataCache,
       displayUnit,
       measurementDecimalPlaces,
       areaDisplay,
       showMeasurementLabels,
-      numberFormatKey,
       labelContent,
       classificationNames,
     ],
   );
+
+  // react-konva compares props by identity, and a new array redraws the whole layer.
+  const calibrationDash = useMemo(
+    () => CANVAS_VISUAL_METRICS.calibrationDashScreenPx.map((value) => value / transform.zoom),
+    [transform.zoom],
+  );
+  const calibrationLinePoints = useMemo(() => {
+    const cache = new Map<string, { start: Point; end: Point; points: number[] }>();
+    return (key: string, start: Point, end: Point) => {
+      const cached = cache.get(key);
+      if (cached && cached.start === start && cached.end === end) return cached.points;
+      const points = pointsToFlat([start, end]);
+      cache.set(key, { start, end, points });
+      return points;
+    };
+  }, []);
 
   const plannedLabelLayout = useMemo(() => {
     return planLabelLayout({
@@ -243,6 +271,25 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     transform.zoom,
     labelFontScale,
   ]);
+
+  const [labelCollisionIndex] = useState(createForwardingLabelCollisionIndex);
+  useLayoutEffect(
+    () => labelCollisionIndex.forwardTo(plannedLabelLayout.occupied),
+    [labelCollisionIndex, plannedLabelLayout],
+  );
+
+  // Read at click time, so switching tools does not re-render every shape.
+  const selectable =
+    activeTool === "select" &&
+    !spacePan &&
+    !isPanning &&
+    !calibrationReferenceEdit &&
+    !measurementEditingBlocked;
+  const selectableRef = useRef(selectable);
+  useLayoutEffect(() => {
+    selectableRef.current = selectable;
+  }, [selectable]);
+  const isSelectable = useCallback(() => selectableRef.current, []);
 
   const visibleMeasurements = useMemo(() => {
     if (!viewport || isPanning) return page.measurements;
@@ -344,16 +391,18 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                 opacity={active ? 1 : 0.72}
               >
                 <Line
-                  points={pointsToFlat([visibleReference.start, visibleReference.end])}
+                  points={calibrationLinePoints(
+                    layoutKey,
+                    visibleReference.start,
+                    visibleReference.end,
+                  )}
                   stroke={stroke}
                   strokeWidth={
                     (referenceIsEditing || active
                       ? CANVAS_VISUAL_METRICS.calibrationEmphasizedStrokeScreenPx
                       : CANVAS_VISUAL_METRICS.calibrationStrokeScreenPx) / transform.zoom
                   }
-                  dash={CANVAS_VISUAL_METRICS.calibrationDashScreenPx.map(
-                    (value) => value / transform.zoom,
-                  )}
+                  dash={calibrationDash}
                   lineCap="round"
                   lineJoin="round"
                 />
@@ -405,13 +454,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                 ? selectedMeasurementIds.includes(measurement.id)
                 : selectedMeasurementId === measurement.id
             }
-            selectable={
-              activeTool === "select" &&
-              !spacePan &&
-              !isPanning &&
-              !calibrationReferenceEdit &&
-              !measurementEditingBlocked
-            }
+            isSelectable={isSelectable}
             editable={
               (selectedMeasurementIds?.length ?? 0) <= 1 &&
               measurementEditingEnabled(
@@ -448,7 +491,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
             onGroupDragPreview={previewGroupDrag}
             showLabel={showLabels}
             classificationLabel={classificationLabelFor(measurement, classificationNames)}
-            page={page}
+            calibration={getMeasurementCalibration(page, measurement)}
             displayUnit={displayUnit}
             areaDisplay={areaDisplay}
             measurementDecimalPlaces={measurementDecimalPlaces}
@@ -465,7 +508,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
             plannedOccupiedLabelRect={
               plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`) ?? null
             }
-            labelCollisionIndex={plannedLabelLayout.occupied}
+            labelCollisionIndex={labelCollisionIndex.index}
           />
         ))}
     </>
