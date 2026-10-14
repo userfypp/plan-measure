@@ -37,67 +37,15 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  place-items: center;
   padding: var(--space-32);
-  overflow: hidden;
-  background: var(--color-surface-viewer);
-}
-
-.dropCard {
-  width: min(520px, 100%);
-  display: grid;
-  justify-items: center;
-  padding: var(--space-48) var(--space-40);
-  border: var(--border-width) dashed var(--color-divider);
-  border-radius: var(--radius-surface);
-  background: var(--color-surface-panel);
-  text-align: center;
-}
-
-.dropCard h1 {
-  margin: var(--space-16) 0 var(--space-4);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-title);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-result);
-}
-
-.dropCard p {
-  margin: var(--space-4) 0 var(--space-12);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-}
-
-.dropCard small {
-  margin-top: var(--space-16);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-}
-
-.startActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-8);
-}
-
-.documentMark {
-  width: 54px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border: var(--border-width) solid var(--color-text-disabled);
-  border-radius: var(--radius-surface);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-}
-
-.dragActive .dropCard {
-  border-color: var(--color-accent);
-  background: var(--color-status-info-surface);
+  overflow: auto;
+  background-color: var(--color-surface-viewer);
+  background-image: radial-gradient(
+    circle at center,
+    var(--color-viewer-grid-dot) var(--geometry-viewer-grid-dot-radius),
+    transparent calc(var(--geometry-viewer-grid-dot-radius) * 1.5)
+  );
+  background-size: var(--geometry-viewer-grid-spacing) var(--geometry-viewer-grid-spacing);
 }
 
 .dropOverlay {
@@ -209,8 +157,3 @@
   }
 }
 
-@media (max-width: 640px) {
-  .dropCard {
-    padding: var(--space-40) var(--space-24);
-  }
-}

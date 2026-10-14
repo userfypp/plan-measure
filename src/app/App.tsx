@@ -1265,6 +1265,7 @@ function PlanMeasureApp() {
         <WorkspaceShell
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           isEmpty
+          dropOverlay="Drop PDF to open it"
           dragActive={dragActive}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}

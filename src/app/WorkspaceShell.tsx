@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Button } from "../components/ui";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import type { LogicalPageBounds } from "../types/domain";
 import { ViewerShell } from "./ViewerShell";
@@ -19,6 +18,8 @@ import {
 } from "./responsiveLayout";
 import { WorkspaceDrawerProvider } from "./WorkspaceDrawerContext";
 import styles from "./WorkspaceShell.module.css";
+
+export { EmptyWorkspaceState } from "./EmptyWorkspaceState";
 
 const WORKSPACE_DRAWER_ID = "workspace-drawer";
 
@@ -264,6 +265,7 @@ export function WorkspaceShell({
         {...dropZoneProps}
       >
         {emptyState}
+        {dragActive && <div className={styles.dropOverlay}>{dropOverlay}</div>}
       </main>
     );
   }
@@ -341,34 +343,5 @@ export function WorkspaceShell({
         {dragActive && <div className={styles.dropOverlay}>{dropOverlay}</div>}
       </WorkspaceDrawerProvider>
     </main>
-  );
-}
-
-export function EmptyWorkspaceState({
-  onOpenPdf,
-  onOpenSample,
-  disabled,
-}: {
-  onOpenPdf: () => void;
-  onOpenSample: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className={styles.dropCard}>
-      <div className={styles.documentMark} aria-hidden="true">
-        PDF
-      </div>
-      <h1>Drop a PDF here</h1>
-      <p>or</p>
-      <div className={styles.startActions}>
-        <Button onClick={onOpenPdf} disabled={disabled}>
-          Open PDF
-        </Button>
-        <Button variant="secondary" onClick={onOpenSample} disabled={disabled}>
-          Try a sample
-        </Button>
-      </div>
-      <small>PDF files up to 100 MB · Your plan stays in this browser</small>
-    </div>
   );
 }
