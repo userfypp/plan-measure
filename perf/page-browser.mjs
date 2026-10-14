@@ -49,17 +49,17 @@ export async function pageBrowserBenchmarks({ context, root, fixtures, samples, 
       await ready(c.page);
       await c.page.waitForTimeout(700);
       await record('closed-pan', () => gesture(c.page, 'pan'), { fps: true });
-      await c.page.getByRole('button', { name: 'Fit page to viewer', exact: true }).click();
+      await c.page.getByRole('button', { name: 'Fit page', exact: true }).click();
       await c.page.waitForTimeout(500);
       await record('closed-zoom', () => gesture(c.page, 'zoom'), { fps: true });
-      await c.page.getByRole('button', { name: 'Fit page to viewer', exact: true }).click();
+      await c.page.getByRole('button', { name: 'Fit page', exact: true }).click();
       await c.page.waitForTimeout(500);
       await record('first-thumbnail', async () => {
         await c.page.getByRole('button', { name: 'Pages', exact: true }).click();
         await c.page.waitForFunction(() => [...document.querySelectorAll('canvas[aria-label^="Thumbnail for page"]')].some(canvas => window.perfAudit.draws.has(canvas)));
       });
       await record('open-pan', () => gesture(c.page, 'pan'), { fps: true });
-      await c.page.getByRole('button', { name: 'Fit page to viewer', exact: true }).click();
+      await c.page.getByRole('button', { name: 'Fit page', exact: true }).click();
       await c.page.waitForTimeout(500);
       await record('open-zoom', () => gesture(c.page, 'zoom'), { fps: true });
       await record('traverse', async () => {

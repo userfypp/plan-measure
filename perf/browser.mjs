@@ -48,7 +48,7 @@ export async function seed(page, count) {
         tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(tx.error);
       };
     }), { count, source: prepareSession.toString() });
-    await page.reload(); await page.getByRole('button', { name: /Continue project/ }).click(); await ready(page);
+    await page.reload(); await page.getByRole('region', { name: 'Recent projects' }).getByRole('button').filter({ hasText: 'Current' }).click(); await ready(page);
   }
   await page.waitForTimeout(700);
   return unavailable ? 'runtime (Blob IndexedDB no disponible)' : 'IndexedDB + reapertura';

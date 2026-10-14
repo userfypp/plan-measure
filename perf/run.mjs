@@ -89,9 +89,9 @@ try {
         c.persistence = await seed(c.page, count);
         const name = `M${count}/${cpu}x`;
         await record(name + '/pan', sample, c, () => gesture(c.page, 'pan'), { fps: true });
-        await c.page.getByRole('button', { name: 'Fit page to viewer', exact: true }).click(); await c.page.waitForTimeout(500);
+        await c.page.getByRole('button', { name: 'Fit page', exact: true }).click(); await c.page.waitForTimeout(500);
         await record(name + '/zoom', sample, c, () => gesture(c.page, 'zoom'), { fps: true });
-        await c.page.getByRole('button', { name: 'Fit page to viewer', exact: true }).click(); await c.page.waitForTimeout(500);
+        await c.page.getByRole('button', { name: 'Fit page', exact: true }).click(); await c.page.waitForTimeout(500);
         await record(name + '/drag', sample, c, () => drag(c.page), { fps: true });
         await record(name + '/firstCSV', sample, c, async () => {
           // Incluye descarga inicial del chunk y apertura del diálogo; primera exportación real.
