@@ -149,6 +149,21 @@ PERF_SAMPLES=1 PERF_COUNT=1000 PERF_CPU=1 PERF_SKIP_PDF=1 npm run perf:e2e
 create a baseline. `PERF_BROWSER_CHANNEL=chrome` allows investigating an installed
 Chromium; recording a different browser requires declaring that difference.
 
+## Canvas rendering rules
+
+react-konva compares props by identity and redraws the whole layer on any
+attribute change; with thousands of measurements one redraw costs a visible frame.
+
+- Do not pass new arrays or objects (`points`, `dash`, styles) to Konva nodes on
+  every render of `PdfAnnotationLayer`; memoize them by their inputs.
+- `MeasurementShape` is memoized with a custom comparator: pass it values that
+  only change when that measurement changes (its calibration, not the page;
+  getters through refs for flags such as `isSelectable`). Label placements are
+  compared by value, except the occupied rect of selected shapes, which drags
+  ignore by identity in the current plan.
+- Per-measurement derivations (label data, snap targets) are cached in a
+  `WeakMap` keyed by the immutable measurement; measurements are never mutated.
+
 ## How to interpret and update a baseline
 
 First check that `dist` matches the commit, that all five cases per scenario were
