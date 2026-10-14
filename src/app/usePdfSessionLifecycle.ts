@@ -38,7 +38,7 @@ import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
 import { createProjectFile, projectFileName, readProjectFile } from "../services/projectFile";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import type { WorkspaceModule } from "./workspaceState";
-import sampleProjectUrl from "../../assets/plan_measure_demo_floor_plan_clean_A3_1-50.planmeasure?url";
+import sampleProjectUrl from "../../assets/orchard-house-sample.planmeasure?url";
 
 async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
   const { loadPdf } = await import("../services/pdf");

@@ -14,7 +14,7 @@
 
 Measure distances, perimeters, and areas on architectural PDF plans, then export takeoff totals. Missing something? [Open an issue](https://github.com/userfypp/plan-measure/issues/new/choose). I usually reply within a day.
 
-![Plan Measure workspace](assets/screenshots/plan-measure-overview.png)
+![Plan Measure workspace](assets/screenshots/plan-measure-overview.webp)
 
 ## Why Plan Measure
 
