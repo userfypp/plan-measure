@@ -84,32 +84,8 @@ export async function buildSpreadsheetTables(
     const { writeOds } = await import("./ods");
     return writeOds(tables);
   }
-  const { utils, write } = await import("xlsx");
-  const workbook = utils.book_new();
-  for (const [name, table] of tables) {
-    // Protect literal OOXML escape sequences before the XLSX writer escapes control characters.
-    const worksheet = utils.aoa_to_sheet(
-      [table.headers, ...table.rows].map((row) =>
-        row.map((value) =>
-          typeof value === "string" ? value.replace(/_(?=x[0-9a-f]{4}_)/gi, "_x005F_") : value,
-        ),
-      ),
-    );
-    worksheet["!cols"] = table.headers.map((header, index) => ({
-      wch: Math.min(
-        40,
-        Math.max(
-          12,
-          header.length + 2,
-          ...table.rows.slice(0, 100).map((row) => String(row[index] ?? "").length + 2),
-        ),
-      ),
-    }));
-    utils.book_append_sheet(workbook, worksheet, name);
-  }
-  return new Uint8Array(
-    write(workbook, { bookType: "xlsx", type: "array", compression: true, bookSST: true }),
-  );
+  const { writeXlsx } = await import("./xlsx");
+  return writeXlsx(tables);
 }
 
 export async function downloadSpreadsheet(
