@@ -37,10 +37,10 @@ import {
   averagePoint,
   CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
   createForwardingLabelCollisionIndex,
+  createLabelLayoutPlanner,
   createMeasurementLabelDataCache,
   LABEL_PADDING_SCREEN_PX,
   measureLabelText,
-  planLabelLayout,
 } from "./annotationLabelLayout";
 
 export interface CalibrationReferenceEditPreview {
@@ -248,6 +248,8 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     };
   }, []);
 
+  // Keeps the previous plan, so a page edit only places the labels from the first changed one on.
+  const [planLabelLayout] = useState(createLabelLayoutPlanner);
   const plannedLabelLayout = useMemo(() => {
     return planLabelLayout({
       bounds,
@@ -268,6 +270,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     showMeasurementLabels,
     transform.zoom,
     labelFontScale,
+    planLabelLayout,
   ]);
 
   const [labelCollisionIndex] = useState(createForwardingLabelCollisionIndex);

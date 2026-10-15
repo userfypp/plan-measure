@@ -167,6 +167,10 @@ attribute change; with thousands of measurements one redraw costs a visible fram
   scale, display settings and number separators before reusing one. Polygon
   ring validation is cached per points array and recomputed if its coordinates
   differ.
+- Labels are planned in page order, and `createLabelLayoutPlanner` reuses the
+  previous plan up to the first measurement whose object or label data object
+  changed. Keep label data objects stable: a new one places that label and every
+  later label again.
 - Unselected `MeasurementShape`s ignore `transform` (pan) and editing-permission
   changes: only handles and gestures of selected shapes read them, and
   deselection cancels gestures. Zoom still re-renders them through `zoom`.
