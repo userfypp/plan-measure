@@ -1,7 +1,15 @@
 // Helpers compartidos por los tests de comportamiento del visor (PdfViewer, PdfAnnotationLayer, App).
 // No contiene lógica de producción: dobles de pdfjs/Konva/ResizeObserver y generadores de sesión.
 
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { vi } from "vitest";
 import { createEmptySession } from "../../app/sessionState";
@@ -86,6 +94,72 @@ export function createAnnotationLayerMock() {
     PdfAnnotationLayer: (props: CapturedProps) => {
       konvaCapture.annotationLayers.push(props);
       return null;
+    },
+  };
+}
+
+/** Estado compartido entre un test de App y el doble de `usePdfSessionLifecycle`. */
+export interface SessionLifecycleDouble {
+  loading: boolean;
+  /** Última sesión que App publicó al ciclo de vida. */
+  session: CurrentSession | null;
+  /** Documento que publica "abrir un PDF". */
+  pdf: PDFDocumentProxy | null;
+  /** Sesión que carga "abrir un PDF"; por defecto, una vacía de dos páginas. */
+  createSession?: (file: File) => CurrentSession;
+}
+
+/**
+ * Sustituye solo el ciclo de vida (IndexedDB, parseo de PDF, autoguardado) para `vi.mock`: "abrir un
+ * PDF" carga la sesión de `lifecycle` y publica su documento doble; el resto de App es real.
+ */
+export function createSessionLifecycleMock(lifecycle: SessionLifecycleDouble) {
+  return {
+    preloadPdfRuntime: async () => undefined,
+    usePdfSessionLifecycle: (options: {
+      session: CurrentSession | null;
+      loadSession: (session: CurrentSession) => void;
+    }) => {
+      const [activePdf, setActivePdf] = useState<{ document: PDFDocumentProxy } | null>(null);
+      const { session, loadSession } = options;
+      useEffect(() => {
+        lifecycle.session = session;
+      }, [session]);
+      return {
+        saveStatusStore: undefined,
+        activePdf: session ? activePdf : null,
+        recovery: null,
+        savedProjects: [],
+        recoveryChecked: true,
+        recoveryIssue: null,
+        confirmDiscardRecovery: false,
+        loading: lifecycle.loading,
+        autosaveWarning: null,
+        autosaveFailed: false,
+        canRetryAutosave: false,
+        projectOperationPending: false,
+        retryAutosave: () => undefined,
+        exportProject: () => undefined,
+        autosaveUnavailable: false,
+        chooseFile: async (file: File) => {
+          loadSession(
+            lifecycle.createSession?.(file) ??
+              createEmptySession({ name: file.name, size: file.size, lastModified: 1 }, 2),
+          );
+          setActivePdf({ document: lifecycle.pdf! });
+        },
+        openProject: () => undefined,
+        refreshSavedProjects: async () => [],
+        continueRecovery: () => undefined,
+        discardRecovery: () => undefined,
+        discardProject: async () => undefined,
+        continueWithoutRecovery: () => undefined,
+        showDiscardRecoveryConfirmation: () => undefined,
+        hideDiscardRecoveryConfirmation: () => undefined,
+        dismissAutosaveWarning: () => undefined,
+        confirmPdfReplacement: () => undefined,
+        cancelPdfReplacement: () => undefined,
+      };
     },
   };
 }
