@@ -45,6 +45,11 @@ export const MeasurementRow = memo(function MeasurementRow({
       aria-setsize={setSize}
       className={[styles.row, viewModel.selected ? styles.selected : ""].filter(Boolean).join(" ")}
       role="listitem"
+      onClick={(event) => {
+        // The whole row lights up on hover, so the space around the eye selects too.
+        if ((event.target as Element).closest("button")) return;
+        onSelectMeasurement(viewModel.id, event.shiftKey || event.ctrlKey || event.metaKey);
+      }}
     >
       <span className={styles.selectionMarker} aria-hidden="true" />
       <button
