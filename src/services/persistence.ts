@@ -364,30 +364,73 @@ export async function loadSavedSession(): Promise<SavedSession | null> {
   }
 }
 
+type ProjectSessionSummary = Pick<SavedProjectSummary, "name" | "pageCount">;
+
+// Listing a project only needs its name and page count, but it must decode its whole session to
+// skip invalid ones, which blocks the UI for every saved project. The result is a pure function of
+// the serialized text, so it is kept per project and reused while that text is unchanged.
+const projectSessionSummaries = new Map<
+  string,
+  { serialized: string; summary: ProjectSessionSummary | null }
+>();
+
+function readProjectSessionSummary(record: ProjectRecord): ProjectSessionSummary | null {
+  const cached = projectSessionSummaries.get(record.projectId);
+  if (cached?.serialized === record.serialized) return cached.summary;
+  let summary: ProjectSessionSummary | null;
+  try {
+    const session = deserializeSessionForRecovery(record.serialized).session;
+    summary = { name: session.pdf.name, pageCount: session.pageCount };
+  } catch {
+    summary = null;
+  }
+  projectSessionSummaries.set(record.projectId, { serialized: record.serialized, summary });
+  return summary;
+}
+
+/**
+ * Records the summary of a session this module just wrote. serializeSession validates it against
+ * the same schema decoding checks, so the decoded name and page count are the session's own.
+ */
+function rememberProjectSessionSummary(
+  projectId: string,
+  serialized: string,
+  session: CurrentSession,
+): void {
+  projectSessionSummaries.set(projectId, {
+    serialized,
+    summary: { name: session.pdf.name, pageCount: session.pageCount },
+  });
+}
+
 export async function listSavedProjects(): Promise<SavedProjectSummary[]> {
   const database = await getDatabase();
   const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
   const state = await readOrCreatePersistenceState(transaction);
-  const [records, pdfRecords] = await Promise.all([
+  const [records, pdfKeys] = await Promise.all([
     transaction.objectStore("sessions").getAll(),
-    transaction.objectStore("pdfs").getAll(),
+    transaction.objectStore("pdfs").getAllKeys(),
   ]);
-  const pdfKeys = new Set(pdfRecords.map((record) => record.key));
+  const storedPdfKeys = new Set<string>(pdfKeys);
+  const listedProjectIds = new Set<string>();
   const projects = records.flatMap((record) => {
-    if (!isProjectRecord(record) || !pdfKeys.has(projectRecordKey(record.projectId))) return [];
-    try {
-      const session = deserializeSessionForRecovery(record.serialized).session;
-      return [{
-        id: record.projectId,
-        name: session.pdf.name,
-        pageCount: session.pageCount,
-        savedAt: record.savedAt,
-        isCurrent: record.projectId === state.activeProjectId,
-      }];
-    } catch {
+    if (!isProjectRecord(record) || !storedPdfKeys.has(projectRecordKey(record.projectId))) {
       return [];
     }
+    listedProjectIds.add(record.projectId);
+    const summary = readProjectSessionSummary(record);
+    if (!summary) return [];
+    return [{
+      id: record.projectId,
+      name: summary.name,
+      pageCount: summary.pageCount,
+      savedAt: record.savedAt,
+      isCurrent: record.projectId === state.activeProjectId,
+    }];
   });
+  for (const projectId of projectSessionSummaries.keys()) {
+    if (!listedProjectIds.has(projectId)) projectSessionSummaries.delete(projectId);
+  }
   await transaction.done;
   return projects.sort(
     (left, right) =>
@@ -480,6 +523,10 @@ export async function activateSavedProject(
     }),
   );
   await finishWrites(transaction, writes);
+  rememberProjectSessionSummary(projectId, project.serialized, decoded.session);
+  if (state.activeProjectId && serializedCurrentSession && activePdf && currentSession) {
+    rememberProjectSessionSummary(state.activeProjectId, serializedCurrentSession, currentSession);
+  }
   return {
     ...decoded,
     projectId,
@@ -531,6 +578,10 @@ export async function replaceSavedSession(
     }),
   );
   await finishWrites(transaction, writes);
+  rememberProjectSessionSummary(projectId, serialized, session);
+  if (state.activeProjectId && serializedCurrentSession && activePdf && currentSession) {
+    rememberProjectSessionSummary(state.activeProjectId, serializedCurrentSession, currentSession);
+  }
   return revision;
 }
 
@@ -649,6 +700,9 @@ async function saveSerializedSessionMetadata(
         ? [putProjectSessionSnapshot(transaction, state.activeProjectId, serialized, preparedPdfBlob, sessionRecord.savedAt)]
         : [],
     );
+    if (snapshot && state.activeProjectId) {
+      rememberProjectSessionSummary(state.activeProjectId, serialized, snapshot);
+    }
     return currentExpectedRevision;
   }
   if (!preparedPdfBlob) {
@@ -673,6 +727,9 @@ async function saveSerializedSessionMetadata(
     writes.push(putProjectSessionSnapshot(transaction, state.activeProjectId, serialized, preparedPdfBlob));
   }
   await finishWrites(transaction, writes);
+  if (snapshot && state.activeProjectId) {
+    rememberProjectSessionSummary(state.activeProjectId, serialized, snapshot);
+  }
   return revision;
 }
 
@@ -767,6 +824,7 @@ export async function discardSavedProject(
 }
 
 export async function resetPersistenceForTests(): Promise<void> {
+  projectSessionSummaries.clear();
   if (databasePromise) {
     const database = await databasePromise;
     database.close();

@@ -2419,6 +2419,37 @@ describe("session persistence", () => {
     expect((await listSavedProjects()).map((project) => project.id)).toEqual([activeId]);
   });
 
+  it("lists each project from the session text currently stored for it", async () => {
+    const projectId = "listed-project";
+    const original = createEmptySession({ name: "Plan.pdf", size: 3, lastModified: 1 }, 2);
+    await replaceSavedSession(original, new Blob(["pdf"]), null, projectId);
+    const writeProjectSession = async (serialized: string) => {
+      const database = await openPersistenceDatabase();
+      const transaction = database.transaction("sessions", "readwrite");
+      const sessions = transaction.objectStore("sessions");
+      const request = sessions.get(`project:${projectId}`);
+      request.onsuccess = () => sessions.put({ ...request.result, serialized });
+      await completeTransaction(transaction);
+      database.close();
+    };
+
+    expect(await listSavedProjects()).toEqual([
+      expect.objectContaining({ id: projectId, name: "Plan.pdf", pageCount: 2 }),
+    ]);
+    await writeProjectSession(
+      JSON.stringify(createEmptySession({ name: "Renamed.pdf", size: 3, lastModified: 1 }, 3)),
+    );
+    expect(await listSavedProjects()).toEqual([
+      expect.objectContaining({ id: projectId, name: "Renamed.pdf", pageCount: 3 }),
+    ]);
+    await writeProjectSession("{");
+    expect(await listSavedProjects()).toEqual([]);
+    await writeProjectSession(JSON.stringify(original));
+    expect(await listSavedProjects()).toEqual([
+      expect.objectContaining({ id: projectId, name: "Plan.pdf", pageCount: 2 }),
+    ]);
+  });
+
   it("opens, replaces, and autosaves without writing a Blob read from IndexedDB", async () => {
     const projectA = createEmptySession({ name: "A.pdf", size: 1, lastModified: 1 }, 1);
     const projectB = createEmptySession({ name: "B.pdf", size: 1, lastModified: 2 }, 1);
