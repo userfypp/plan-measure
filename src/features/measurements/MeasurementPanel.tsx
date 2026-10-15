@@ -11,6 +11,7 @@ import { createMeasurementGroups } from "./measurementGrouping";
 import {
   createMeasurementViewModel,
   getMeasurementEmptyMessage,
+  type MeasurementValueLabelCache,
 } from "./measurementViewModels";
 import styles from "./MeasurementPanel.module.css";
 
@@ -89,6 +90,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   )
     ? selectedClassificationFilter
     : "";
+  const [valueLabels] = useState<MeasurementValueLabelCache>(() => new WeakMap());
   const sourceMeasurementsById = useMemo(
     () => new Map(Object.values(pages).flatMap((candidatePage) =>
       candidatePage.measurements.map((measurement) => [measurement.id, measurement] as const),
@@ -105,6 +107,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           selectedMeasurementIds ? selectedMeasurementIds.includes(measurement.id) : measurement.id === selectedMeasurementId,
           measurementDecimalPlaces,
           areaDisplay,
+          valueLabels,
         ),
         pageNumber: candidatePage.pageNumber,
         pageLabel:
@@ -114,7 +117,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       })),
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
-    [areaDisplay, displayUnit, measurementDecimalPlaces, numberFormatKey, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels],
+    [areaDisplay, displayUnit, measurementDecimalPlaces, numberFormatKey, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels, valueLabels],
   );
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const measurements = useMemo(

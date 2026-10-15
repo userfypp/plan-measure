@@ -1,8 +1,9 @@
 // @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Measurement, PageState } from "../../types/domain";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementGroup } from "./MeasurementGroup";
 import { MeasurementRow } from "./MeasurementRow";
@@ -10,6 +11,7 @@ import { MeasurementsHeader } from "./MeasurementsHeader";
 import {
   createMeasurementViewModel,
   getMeasurementEmptyMessage,
+  type MeasurementValueLabelCache,
   shouldRenderMeasurement,
 } from "./measurementViewModels";
 
@@ -97,6 +99,66 @@ describe("measurement view models", () => {
       { x: 0, y: 0 },
       { x: 10, y: 0 },
     ]);
+  });
+
+  describe("value label cache", () => {
+    afterEach(() => resetAppPreferences());
+
+    function cachedLabel(
+      cache: MeasurementValueLabelCache,
+      candidatePage = page,
+      candidate = measurement,
+      displayUnit: "m" | "cm" = "m",
+      decimals: 2 | 3 = 2,
+    ) {
+      return createMeasurementViewModel(
+        candidatePage,
+        candidate,
+        displayUnit,
+        false,
+        decimals,
+        "auto",
+        cache,
+      ).valueLabel;
+    }
+
+    it("reuses the value of an unchanged measurement", () => {
+      const cache: MeasurementValueLabelCache = new WeakMap();
+      expect(cachedLabel(cache)).toBe("1.00 m");
+      const entry = cache.get(measurement);
+      expect(cachedLabel(cache)).toBe("1.00 m");
+      expect(cache.get(measurement)).toBe(entry);
+    });
+
+    it("recomputes the value when the scale, settings or number format change", () => {
+      const cache: MeasurementValueLabelCache = new WeakMap();
+      const longer: Measurement = {
+        ...measurement,
+        points: [
+          { x: 0, y: 0 },
+          { x: 12345, y: 0 },
+        ],
+      };
+      const calibration = page.calibrations[0]!;
+      if (calibration.mode !== "uniform") throw new Error("Expected uniform calibration.");
+      const rescaled: PageState = {
+        ...page,
+        calibrations: [{ ...calibration, referenceDistanceMm: 2000 }],
+      };
+      // Each step changes one input from the previous one.
+      expect(cachedLabel(cache, page, longer)).toBe("1234.50 m");
+      expect(cachedLabel(cache, page, longer, "cm")).toBe("123450.00 cm");
+      expect(cachedLabel(cache, page, longer, "cm", 3)).toBe("123450.000 cm");
+      expect(cachedLabel(cache, rescaled, longer, "cm", 3)).toBe("246900.000 cm");
+      setAppPreference("thousandsSeparator", "comma");
+      expect(cachedLabel(cache, rescaled, longer, "cm", 3)).toBe("246,900.000 cm");
+      setAppPreference("thousandsSeparator", "space");
+      setAppPreference("decimalSeparator", "comma");
+      const spaced = cachedLabel(cache, rescaled, longer, "cm", 3);
+      setAppPreference("decimalSeparator", "point");
+      expect(cachedLabel(cache, rescaled, longer, "cm", 3)).not.toBe(spaced);
+      expect(cachedLabel(cache, { ...page, calibrations: [] }, longer)).toBe("Scale unavailable");
+    });
   });
 
   it("formats decimal imperial and architectural values through the shared view model", () => {
