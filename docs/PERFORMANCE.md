@@ -178,7 +178,9 @@ attribute change; with thousands of measurements one redraw costs a visible fram
   is measured once per font, and a Text inside `setAttrs` defers its layout and
   its Label/Tag sync until the call returns, so a zoom lays out each label once.
   Both are pure functions of the final attrs; check parity screenshots after
-  upgrading Konva.
+  upgrading Konva. A synchronous `Layer.draw` also satisfies the batched draw
+  already queued for that layer, so its frame no longer draws the layer again;
+  use `flushBatchDraw` to draw a layer now only when a batched draw is pending.
 - `itsFineRuntime.ts` (aliased as `its-fine`) makes the context accessors that
   react-konva's bridge redefines configurable, so Stage renders do not throw and
   catch an exception per context.

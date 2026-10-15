@@ -2,11 +2,13 @@
 // registers only the nodes Plan Measure renders through react-konva (Stage, Layer, Group and Shape
 // are part of the core). Register a new node here before using it.
 import Konva from "konva/lib/Core";
+import { Layer } from "konva/lib/Layer";
 import "konva/lib/shapes/Circle";
 import { Label } from "konva/lib/shapes/Label";
 import "konva/lib/shapes/Line";
 import "konva/lib/shapes/Rect";
 import { Text } from "konva/lib/shapes/Text";
+import { Util } from "konva/lib/Util";
 
 // Every Text draw measures a sample "M" to place its baseline, which costs a font parse and a
 // measureText per label per redraw. The sample depends only on the font, so it is measured once
@@ -116,5 +118,39 @@ Text.prototype.setAttrs = function setAttrs(this: BatchedText, config) {
   }
   return this;
 };
+
+// A synchronous Layer.draw shows every change requested before it, but the frame an earlier
+// batchDraw requested still drew the whole layer again: a zoom drew 1,000 measurements twice.
+// The frame now draws only if a draw was requested after the last full draw. drawScene or drawHit
+// alone do not count as a full draw.
+type BatchedLayer = Layer & { _drawRequested?: boolean };
+const drawLayer = Layer.prototype.draw;
+
+Layer.prototype.draw = function draw(this: BatchedLayer) {
+  this._drawRequested = false;
+  return drawLayer.call(this);
+};
+
+Layer.prototype.batchDraw = function batchDraw(this: BatchedLayer) {
+  this._drawRequested = true;
+  if (!this._waitingForDraw) {
+    this._waitingForDraw = true;
+    Util.requestAnimFrame(() => {
+      // Reset before drawing, as Konva does, so a draw handler can request the next frame.
+      this._waitingForDraw = false;
+      if (this._drawRequested) this.draw();
+    }, this.getStage()?._getOwnerWindow());
+  }
+  return this;
+};
+
+/**
+ * Draws a layer now if a batched draw is pending, so the changes it shows appear together with a
+ * change made outside the canvas in the same task. A layer with no pending draw already shows its
+ * nodes and is not drawn again; one this patch has not seen (a test double) is always drawn.
+ */
+export function flushBatchDraw(layer: Layer) {
+  if ((layer as BatchedLayer)._drawRequested !== false) layer.draw();
+}
 
 export default Konva;

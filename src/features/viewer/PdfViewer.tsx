@@ -68,6 +68,7 @@ import {
 import { boxFromCorners } from "../../utils/quickShapesCore";
 import { buildDraftPreviewPoints } from "./draftPreview";
 import { drawMeasurementOutlineScene } from "./annotationKonva";
+import { flushBatchDraw } from "./konvaRuntime";
 import { useKeyboardGeometry } from "./useKeyboardGeometry";
 import { KeyboardGeometryHelp } from "./KeyboardGeometryHelp";
 import {
@@ -1827,7 +1828,8 @@ export function PdfViewer({
     if (candidatePageData && preparedCandidate !== candidateVisualKey) return;
     const activePage = activePageRequestRef.current;
     if (activePage.document !== document || activePage.pageNumber !== page.pageNumber) return;
-    if (!candidatePageData) annotationLayerRef.current?.draw();
+    // Annotations still waiting for their batched draw swap in with the raster.
+    if (!candidatePageData && annotationLayerRef.current) flushBatchDraw(annotationLayerRef.current);
     const canvas = canvasRef.current;
     if (!canvas || !copyRasterToCanvas(readyRaster.canvas, canvas)) {
       setPageReady(false);
