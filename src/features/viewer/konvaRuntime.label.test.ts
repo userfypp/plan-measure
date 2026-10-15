@@ -49,12 +49,12 @@ describe("label text batching", () => {
   it("lays out once per setAttrs and syncs without cascading, matching per-attr updates", () => {
     for (const direction of ["none", "up", "right", "down", "left"]) {
       const batched = label(direction);
-      // Each sync pass sets the Tag geometry once: one pass, then one confirming the Tag size it set
-      // changed nothing more. Each layout measures its baseline sample once.
+      // One sync pass sets the Tag geometry once; the Tag size it sets does not sync again. Each
+      // layout measures its baseline sample once.
       const sync = vi.spyOn(batched.getTag(), "setAttrs");
       const textData = vi.spyOn(batched.getText(), "measureSize");
       batched.getText().setAttrs(FINAL);
-      expect(sync).toHaveBeenCalledTimes(2);
+      expect(sync).toHaveBeenCalledTimes(1);
       expect(textData).toHaveBeenCalledTimes(1);
 
       const stepwise = label(direction);

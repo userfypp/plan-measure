@@ -39,7 +39,11 @@ if (typeof document !== "undefined" && "fonts" in document) {
 // attrs, so a Text defers them until its setAttrs returns and then runs each once. Individual
 // setters outside setAttrs still update immediately.
 type BatchedText = Text & { _attrsBatched?: boolean; _textDataPending?: boolean };
-type BatchedLabel = Label & { _syncDeferred?: boolean; _syncPending?: boolean };
+type BatchedLabel = Label & {
+  _syncDeferred?: boolean;
+  _syncPending?: boolean;
+  _syncRunning?: boolean;
+};
 const setTextAttrs = Text.prototype.setAttrs;
 const setTextData = Text.prototype._setTextData;
 const syncLabel = Label.prototype._sync;
@@ -52,22 +56,20 @@ Text.prototype._setTextData = function _setTextData(this: BatchedText): void {
   setTextData.call(this);
 };
 
-// Label binds _sync in its constructor, so the bound listener runs this override. The Tag size the
-// sync sets would re-enter it; that request reruns the sync once it returns instead, until a pass
-// changes nothing.
+// Label binds _sync in its constructor, so the bound listener runs this override. The sync reads
+// only the Text size and the Tag pointer attrs and writes the Tag size and both positions, so the
+// Tag size change it fires itself cannot change its result and is ignored.
 Label.prototype._sync = function _sync(this: BatchedLabel): void {
+  if (this._syncRunning) return;
   if (this._syncDeferred) {
     this._syncPending = true;
     return;
   }
-  this._syncDeferred = true;
+  this._syncRunning = true;
   try {
-    do {
-      this._syncPending = false;
-      syncLabel.call(this);
-    } while (this._syncPending);
+    syncLabel.call(this);
   } finally {
-    this._syncDeferred = false;
+    this._syncRunning = false;
   }
 };
 
