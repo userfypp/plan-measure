@@ -238,6 +238,8 @@
   padding: 0 var(--space-8);
   background: transparent;
   color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   text-align: left;
   transition: var(--transition-interactive);
 }
