@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PAGE_REVEAL_DURATION_MS, revealPageContent } from "./pageReveal";
+import { REVEAL_DURATION_MS, revealElements } from "./reveal";
 
 function animatable() {
   const animate = vi.fn();
@@ -13,15 +13,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("revealPageContent", () => {
+describe("revealElements", () => {
   it("fades each present element in with an opacity-only animation", () => {
     const canvas = animatable();
     const stage = animatable();
-    revealPageContent([canvas.element, null, undefined, stage.element]);
+    revealElements([canvas.element, null, undefined, stage.element]);
     for (const { animate } of [canvas, stage]) {
       expect(animate).toHaveBeenCalledOnce();
       expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], {
-        duration: PAGE_REVEAL_DURATION_MS,
+        duration: REVEAL_DURATION_MS,
         easing: expect.any(String),
       });
     }
@@ -30,7 +30,7 @@ describe("revealPageContent", () => {
   it("does nothing when the app's reduce-motion preference is on", () => {
     document.documentElement.dataset.motion = "reduce";
     const { element, animate } = animatable();
-    revealPageContent([element]);
+    revealElements([element]);
     expect(animate).not.toHaveBeenCalled();
   });
 
@@ -40,11 +40,11 @@ describe("revealPageContent", () => {
       vi.fn((query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)" })),
     );
     const { element, animate } = animatable();
-    revealPageContent([element]);
+    revealElements([element]);
     expect(animate).not.toHaveBeenCalled();
   });
 
   it("tolerates environments without the Web Animations API", () => {
-    expect(() => revealPageContent([document.createElement("div")])).not.toThrow();
+    expect(() => revealElements([document.createElement("div")])).not.toThrow();
   });
 });

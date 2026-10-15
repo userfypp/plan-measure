@@ -7,7 +7,13 @@ import styles from "./PageBrowser.module.css";
  */
 export function PageBrowserSkeleton() {
   return (
-    <aside className={styles.panel} aria-busy="true" aria-label="Pages" data-page-browser-skeleton>
+    <aside
+      className={styles.panel}
+      aria-busy="true"
+      aria-label="Pages"
+      data-page-browser
+      data-page-browser-skeleton
+    >
       <header className={styles.header}>
         <div className={styles.heading}>
           <h2>Pages</h2>

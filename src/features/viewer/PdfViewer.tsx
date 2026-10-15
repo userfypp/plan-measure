@@ -110,13 +110,13 @@ import { safeViewerLayout, useViewerBottomExclusion } from "./viewerLayout";
 import { pointsToFlat } from "./geometry";
 import { CLOUD_FILL_OPACITY, DEFAULT_CLOUD_COLOR, withHexAlpha } from "../../utils/cloudColors";
 import { getActiveCalibration } from "../../utils/calibration";
+import { revealElements } from "../../utils/reveal";
 import { DraftPointMarkers } from "./DraftPointMarkers";
 import { BoxDraftGuides } from "./BoxDraftGuides";
 import { SOFTWARE_CURSORS } from "./softwareCursor";
 import { PageGridLines } from "./PageGridLines";
 import { LiveLengthLabel } from "./LiveLengthLabel";
 import { useSoftwareCursor } from "./useSoftwareCursor";
-import { revealPageContent } from "./pageReveal";
 import {
   copyRasterToCanvas,
   panCachePixelRatio,
@@ -1858,7 +1858,7 @@ export function PdfViewer({
   useLayoutEffect(() => {
     // Fade a document's first raster and its annotations in together instead of popping them in.
     if (!hasCanvasPage) return;
-    revealPageContent([canvasRef.current, stageRef.current?.getContent()]);
+    revealElements([canvasRef.current, stageRef.current?.getContent()]);
   }, [hasCanvasPage]);
 
   useLayoutEffect(() => {

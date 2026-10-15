@@ -4,7 +4,7 @@
 }
 
 .content {
-  composes: overlaySurface from "./overlaySurface.module.css";
+  composes: overlaySurface overlayEnter from "./overlaySurface.module.css";
   position: fixed;
   z-index: var(--z-tooltip);
   width: max-content;

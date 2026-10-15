@@ -227,6 +227,7 @@ export function PageBrowser({
     <aside
       ref={panelRef}
       id="page-browser"
+      data-page-browser
       aria-label="Pages"
       className={styles.panel}
       onKeyDown={(event) => {

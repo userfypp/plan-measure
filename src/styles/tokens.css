@@ -251,6 +251,8 @@
   --dialog-ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --dialog-offset: 8px;
   --dialog-scale-from: 0.98;
+  /* Menus, popovers and tooltips: a quick fade so they arrive softly but still feel instant. */
+  --overlay-duration-enter: 120ms;
 
   /* Loading states (app overlay, viewer, page raster) stay invisible this long, so quick loads
    * never flash a dimmed screen or a status that disappears before it can be read. */
@@ -339,6 +341,7 @@
     --dialog-scale-from: 1;
     --dialog-duration-enter: 100ms;
     --dialog-duration-exit: 80ms;
+    --overlay-duration-enter: 80ms;
   }
 }
 
@@ -350,6 +353,7 @@
   --dialog-scale-from: 1;
   --dialog-duration-enter: 100ms;
   --dialog-duration-exit: 80ms;
+  --overlay-duration-enter: 80ms;
 }
 
 :root[data-motion="reduce"] *,

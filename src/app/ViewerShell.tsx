@@ -26,6 +26,7 @@ import {
 import { ViewerDockContainer } from "./ViewerDockContainer";
 import { PageBrowserSkeleton } from "../features/pages/PageBrowserSkeleton";
 import { releaseRetainedThumbnails } from "../features/pages/thumbnailRetention";
+import { revealElements } from "../utils/reveal";
 import { retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
 import styles from "./ViewerShell.module.css";
@@ -97,6 +98,12 @@ export function ViewerShell({
   );
   const viewerFrameRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    // Fade the page browser in as it opens. Revealed once per opening, so a loading skeleton
+    // that gives way to the real panel does not fade a second time.
+    if (!pagesOpen) return;
+    revealElements([viewerFrameRef.current?.querySelector("[data-page-browser]")]);
+  }, [pagesOpen]);
   const finePointer = useFinePointerAvailable();
   const registerNavigation = useCallback((next: ViewerNavigationModel) => {
     navigationActionsRef.current = {

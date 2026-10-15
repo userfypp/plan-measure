@@ -7,3 +7,15 @@
   color: var(--color-text-primary);
   box-shadow: var(--shadow-overlay);
 }
+
+/* Enter fade for surfaces that mount when shown (Popover, Tooltip). Opacity only: the surface is
+ * measured and positioned while it animates, and it must not shift under the pointer. */
+.overlayEnter {
+  animation: overlayEnter var(--overlay-duration-enter) var(--dialog-ease-enter);
+}
+
+@keyframes overlayEnter {
+  from {
+    opacity: 0;
+  }
+}

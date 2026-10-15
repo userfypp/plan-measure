@@ -155,3 +155,36 @@ it("isolates Pages state/thumbnail updates from shapes and measurements, with no
     container.querySelector('[aria-controls="page-browser"]')?.getAttribute("aria-pressed"),
   ).toBe("false");
 });
+it("fades the page browser in once per opening, whether its skeleton or the panel mounts first", async () => {
+  const animate = vi.fn();
+  Object.defineProperty(HTMLElement.prototype, "animate", { configurable: true, value: animate });
+  try {
+    await act(async () =>
+      root.render(
+        <AppProvider>
+          <SessionProvider>
+            <WorkspaceProvider>
+              <Harness />
+            </WorkspaceProvider>
+          </SessionProvider>
+        </AppProvider>,
+      ),
+    );
+    await act(async () => vi.dynamicImportSettled());
+    animate.mockClear();
+    await click("Pages");
+    await act(async () => vi.dynamicImportSettled());
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(container.querySelector("aside#page-browser")).not.toBeNull();
+    const panelFades = () =>
+      animate.mock.contexts.filter((element) =>
+        (element as Element).hasAttribute("data-page-browser"),
+      ).length;
+    expect(panelFades()).toBe(1);
+    await click("Close pages");
+    await click("Pages");
+    expect(panelFades()).toBe(2);
+  } finally {
+    delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+  }
+});
