@@ -15,7 +15,6 @@ import type {
   LogicalPageBounds,
   PageCalibration,
   PageState,
-  Point,
   Tool,
 } from "../types/domain";
 import {
@@ -306,9 +305,8 @@ export function useCalibrationActions({
     focusViewer();
   }
 
-  function updateCalibrationReferenceEdit(points: [Point, Point]) {
-    updateReferenceEdit(points);
-  }
+  // Passed down to every measurement shape's layer, so it keeps the stable dispatcher's identity.
+  const updateCalibrationReferenceEdit = updateReferenceEdit;
 
   function cancelCalibrationReferenceEdit() {
     cancelReferenceEdit();
