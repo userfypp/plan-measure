@@ -40,8 +40,13 @@ import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPrefer
 import type { WorkspaceModule } from "./workspaceState";
 import sampleProjectUrl from "../../assets/orchard-house-sample.planmeasure?url";
 
+const importPdfRuntime = () => import("../services/pdf");
+
+/** Downloads PDF.js ahead of the first plan so opening one does not wait for it. */
+export const preloadPdfRuntime = (): Promise<void> => importPdfRuntime().then(() => undefined);
+
 async function loadPdfRuntime(blob: Blob): Promise<LoadedPdf> {
-  const { loadPdf } = await import("../services/pdf");
+  const { loadPdf } = await importPdfRuntime();
   return loadPdf(blob);
 }
 

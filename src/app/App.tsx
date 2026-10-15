@@ -15,7 +15,7 @@ import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { WorkspacePanel } from "./WorkspacePanel";
 import { ContextToolbar } from "./ContextToolbar";
 import { ToolRail } from "./ToolRail";
-import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
+import { preloadPdfRuntime, usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { usePdfPageLabels } from "./usePdfPageLabels";
 import { useFileDropZone } from "./useFileDropZone";
 import { useAppPreferenceSetters } from "./useAppPreferenceSetters";
@@ -398,9 +398,15 @@ function PlanMeasureApp() {
   const sourcePageLabels = usePdfPageLabels(activePdf);
 
   useEffect(() => {
-    // The start screen also offers settings and the project library, so fetch them first.
+    // The start screen also offers settings and the project library, so fetch them first; then
+    // the viewer and PDF.js, so opening a plan neither downloads them nor shows a loading state.
     if (import.meta.env.MODE === "test") return;
-    return preloadWhenIdle([ProjectLibraryDialog.preload, preloadSettingsDialog]);
+    return preloadWhenIdle([
+      ProjectLibraryDialog.preload,
+      preloadSettingsDialog,
+      PdfViewer.preload,
+      preloadPdfRuntime,
+    ]);
   }, []);
   const planOpen = Boolean(activePdf);
   useEffect(() => {
