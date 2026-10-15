@@ -397,19 +397,22 @@ function PlanMeasureApp() {
 
   const sourcePageLabels = usePdfPageLabels(activePdf);
 
+  useEffect(() => {
+    // The start screen also offers settings and the project library, so fetch them first.
+    if (import.meta.env.MODE === "test") return;
+    return preloadWhenIdle([ProjectLibraryDialog.preload, preloadSettingsDialog]);
+  }, []);
   const planOpen = Boolean(activePdf);
   useEffect(() => {
     // Fetch the small on-demand panels once a plan is open so their first open is instant.
     if (!planOpen || import.meta.env.MODE === "test") return;
     return preloadWhenIdle([
-      preloadSettingsDialog,
       preloadPageBrowser,
       TakeoffWorkspace.preload,
       ClassificationWorkspace.preload,
       CalibrationDialog.preload,
       preloadCustomRatioDialog,
       loadExportDialog,
-      ProjectLibraryDialog.preload,
     ]);
   }, [planOpen]);
 
