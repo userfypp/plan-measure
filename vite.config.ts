@@ -19,6 +19,11 @@ export default defineConfig(({ mode }) => ({
         // Absolute: dependency pre-bundling in dev cannot resolve root-relative paths.
         replacement: `${import.meta.dirname}/src/features/viewer/konvaRuntime.ts`,
       },
+      {
+        // Stops react-konva's context bridge from throwing on every Stage render.
+        find: /^its-fine$/,
+        replacement: `${import.meta.dirname}/src/features/viewer/itsFineRuntime.ts`,
+      },
     ],
   },
   worker: {
