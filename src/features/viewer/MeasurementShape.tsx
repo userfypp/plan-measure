@@ -982,14 +982,49 @@ export const MeasurementShape = memo(function MeasurementShape({
     );
   }
 
+  const lineHandlers = {
+    prepareWholeMouseDrag,
+    prepareWholeTouchDrag,
+    handleWholeDragStart,
+    handleWholeDragMove,
+    handleWholeDragEnd,
+    select,
+  };
+  const lineHandlersRef = useRef(lineHandlers);
+  useLayoutEffect(() => {
+    lineHandlersRef.current = lineHandlers;
+  });
+  // Konva rebinds a listener whenever its prop changes identity, an off/on pair per shape and
+  // render (a zoom re-renders them all), so the Line gets stable listeners and a stable ref.
+  const lineListeners = useMemo(
+    () => ({
+      onMouseDown: (event: KonvaEventObject<MouseEvent>) =>
+        lineHandlersRef.current.prepareWholeMouseDrag(event),
+      onTouchStart: (event: KonvaEventObject<TouchEvent>) =>
+        lineHandlersRef.current.prepareWholeTouchDrag(event),
+      onDragStart: (event: KonvaEventObject<MouseEvent>) =>
+        lineHandlersRef.current.handleWholeDragStart(event),
+      onDragMove: (event: KonvaEventObject<MouseEvent>) =>
+        lineHandlersRef.current.handleWholeDragMove(event),
+      onDragEnd: (event: KonvaEventObject<MouseEvent>) =>
+        lineHandlersRef.current.handleWholeDragEnd(event),
+      onClick: (event: KonvaEventObject<MouseEvent>) => lineHandlersRef.current.select(event),
+    }),
+    [],
+  );
+  const setLineNode = useCallback(
+    (node: KonvaNode | null) => {
+      if (measurement.type !== "count") wholeDragNodeRef.current = node;
+    },
+    [measurement.type],
+  );
+
   return (
     <Group ref={measurementGroupRef}>
       <Line
         name="measurement-preview-line"
         visible={measurement.type !== "count"}
-        ref={(node) => {
-          if (measurement.type !== "count") wholeDragNodeRef.current = node;
-        }}
+        ref={setLineNode}
         points={flatPoints}
         closed={measurementPathSpecs[measurement.type].closed}
         fill={
@@ -1040,12 +1075,12 @@ export const MeasurementShape = memo(function MeasurementShape({
         lineJoin="round"
         draggable={wholeMeasurementDraggable}
         dragDistance={MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX}
-        onMouseDown={prepareWholeMouseDrag}
-        onTouchStart={prepareWholeTouchDrag}
-        onDragStart={wholeMeasurementDraggable ? handleWholeDragStart : undefined}
-        onDragMove={wholeMeasurementDraggable ? handleWholeDragMove : undefined}
-        onDragEnd={wholeMeasurementDraggable ? handleWholeDragEnd : undefined}
-        onClick={select}
+        onMouseDown={lineListeners.onMouseDown}
+        onTouchStart={lineListeners.onTouchStart}
+        onDragStart={wholeMeasurementDraggable ? lineListeners.onDragStart : undefined}
+        onDragMove={wholeMeasurementDraggable ? lineListeners.onDragMove : undefined}
+        onDragEnd={wholeMeasurementDraggable ? lineListeners.onDragEnd : undefined}
+        onClick={lineListeners.onClick}
       />
       {showLabel && labelText && labelPlacement && (
         <Label
