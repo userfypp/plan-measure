@@ -990,8 +990,8 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
       {
         "fontSize": 24,
         "text": "P 5.72 m · A 2.54 m²",
-        "x": 288,
-        "y": 19.83234036527574,
+        "x": 84.42672261456028,
+        "y": 67.83234036527574,
       },
       {
         "fontSize": 24,
@@ -1063,13 +1063,13 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
         "fontSize": 24,
         "text": "1.28 m",
         "x": 91.27261972492562,
-        "y": 58.459019041930645,
+        "y": 154.45901904193065,
       },
       {
         "fontSize": 24,
         "text": "P 10.30 m · A 8.24 m²",
         "x": 236.6931571431458,
-        "y": 36.67259341804311,
+        "y": 8,
       },
       {
         "fontSize": 24,
@@ -1117,7 +1117,7 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
         "fontSize": 24,
         "text": "8.09 m",
         "x": 156.83540483117105,
-        "y": 164.78020895970985,
+        "y": 212.78020895970985,
       },
       {
         "fontSize": 24,
@@ -1147,7 +1147,7 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
         "fontSize": 24,
         "text": "2.58 m",
         "x": 303.2284920068458,
-        "y": 101.87133052619176,
+        "y": 149.87133052619174,
       },
       {
         "fontSize": 24,
@@ -1176,8 +1176,8 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
       {
         "fontSize": 24,
         "text": "0.89 m",
-        "x": 324.70536523756107,
-        "y": 175.26620734409272,
+        "x": 250.14536523756107,
+        "y": 127.26620734409272,
       },
       {
         "fontSize": 24,
@@ -1542,6 +1542,12 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
       },
       {
         "fontSize": 24,
+        "text": "1.28 m",
+        "x": 91.27261972492562,
+        "y": 154.45901904193065,
+      },
+      {
+        "fontSize": 24,
         "text": "1.74 m",
         "x": 419.75021743362305,
         "y": 368.16036942969856,
@@ -1586,7 +1592,7 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
         "fontSize": 24,
         "text": "8.09 m",
         "x": 156.83540483117105,
-        "y": 164.78020895970985,
+        "y": 212.78020895970985,
       },
       {
         "fontSize": 24,
@@ -1610,7 +1616,7 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
         "fontSize": 24,
         "text": "2.58 m",
         "x": 303.2284920068458,
-        "y": 101.87133052619176,
+        "y": 149.87133052619174,
       },
       {
         "fontSize": 24,
@@ -1633,8 +1639,8 @@ exports[`PdfAnnotationLayer V2 visual semantics > conserva el golden determinist
       {
         "fontSize": 24,
         "text": "0.89 m",
-        "x": 324.70536523756107,
-        "y": 175.26620734409272,
+        "x": 250.14536523756107,
+        "y": 127.26620734409272,
       },
       {
         "fontSize": 24,

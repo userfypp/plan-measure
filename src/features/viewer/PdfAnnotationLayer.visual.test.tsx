@@ -676,7 +676,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(Number.isFinite(Number(captured.labels[0]?.y))).toBe(true);
   });
 
-  it("keeps selected-first collision planning deterministic and excludes hidden measurements", () => {
+  it("plans label collisions in page order whatever is selected and excludes hidden measurements", () => {
     const page = uniformPage();
     const first = page.measurements[0]!;
     page.measurements = [
@@ -684,22 +684,25 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       { ...first, id: "polygon-2", name: "Second" },
       { ...first, id: "polygon-hidden", name: "Hidden", visible: false },
     ];
+    const placementsWith = (selectedMeasurementId: string | null) => {
+      captured.lines.length = 0;
+      captured.circles.length = 0;
+      captured.labels.length = 0;
+      captured.tags.length = 0;
+      captured.texts.length = 0;
+      renderLayer({ page, selectedMeasurementId });
+      return captured.labels.map((label) => ({ x: label.x, y: label.y }));
+    };
 
-    renderLayer({ page, selectedMeasurementId: "polygon-2" });
-    const firstPass = captured.labels.map((label) => ({ x: label.x, y: label.y }));
+    const unselected = placementsWith(null);
 
-    expect(firstPass).toHaveLength(2);
-    expect(firstPass[0]?.y).toBe(68);
-    expect(firstPass[1]?.y).toBe(80);
-
-    captured.lines.length = 0;
-    captured.circles.length = 0;
-    captured.labels.length = 0;
-    captured.tags.length = 0;
-    captured.texts.length = 0;
-    renderLayer({ page, selectedMeasurementId: "polygon-2" });
-
-    expect(captured.labels.map((label) => ({ x: label.x, y: label.y }))).toEqual(firstPass);
+    expect(unselected).toHaveLength(2);
+    // The earlier measurement keeps the preferred spot; the later one moves aside.
+    expect(unselected[0]?.y).toBe(80);
+    expect(unselected[1]?.y).toBe(68);
+    // Selecting either measurement leaves every label where it was.
+    expect(placementsWith("polygon-2")).toEqual(unselected);
+    expect(placementsWith("polygon-1")).toEqual(unselected);
   });
 
   it("replans labels at the current zoom and keeps them inside the page", () => {

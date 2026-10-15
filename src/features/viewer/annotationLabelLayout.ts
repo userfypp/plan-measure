@@ -105,7 +105,6 @@ export function planLabelLayout({
   calibrationReferenceEdit,
   page,
   labelData,
-  selectedMeasurementId,
   showCalibration,
   showMeasurementLabels,
   zoom,
@@ -115,7 +114,6 @@ export function planLabelLayout({
   calibrationReferenceEdit: CalibrationReferenceEditPreview | null;
   page: PageState;
   labelData: Map<string, MeasurementLabelData>;
-  selectedMeasurementId: string | null;
   showCalibration: boolean;
   showMeasurementLabels: boolean;
   zoom: number;
@@ -195,10 +193,9 @@ export function planLabelLayout({
   }
 
   if (showMeasurementLabels) {
-    const orderedMeasurements = [...page.measurements].sort((left, right) =>
-      left.id === selectedMeasurementId ? -1 : right.id === selectedMeasurementId ? 1 : 0,
-    );
-    for (const measurement of orderedMeasurements) {
+    // Page order, independent of selection: selecting or adding a measurement never moves the
+    // labels placed before it.
+    for (const measurement of page.measurements) {
       if (!shouldRenderMeasurement(measurement, showMeasurementLabels)) continue;
       const data = labelData.get(measurement.id)!;
       if (data.text === null) continue;
