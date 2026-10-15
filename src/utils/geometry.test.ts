@@ -97,6 +97,27 @@ describe("path geometry", () => {
     ).toBe(false);
   });
 
+  it("revalidates a Polygon whose points were mutated after a previous check", () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 0, y: 4 },
+      { x: 4, y: 4 },
+      { x: 4, y: 0 },
+    ];
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+
+    points[2]!.x = 4;
+    points[2]!.y = 0;
+    points[3] = { x: 4, y: 4 };
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+
+    points.splice(2, 2, { x: 4, y: 4 }, { x: 4, y: 0 });
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(true);
+
+    points.push({ x: 2, y: 6 });
+    expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
+  });
+
   it("rejects an asymmetric crossing with a plausible non-zero shoelace area", () => {
     const points = [
       { x: 0, y: 0 },
