@@ -149,9 +149,10 @@ function sameLabelRect(
 
 /**
  * The label plan is rebuilt on every page edit; equal placements must not re-render the shape.
- * Editing permissions only reach handles and gestures of selected shapes (deselection cancels
- * gestures), so tool and pan switches skip the unselected ones. Selected shapes keep the latest
- * occupied rect: drags ignore their own label in the current plan by identity.
+ * Editing permissions and the view transform only reach handles and gestures of selected shapes
+ * (deselection cancels gestures; zoom has its own prop), so tool switches and pans skip the
+ * unselected ones. Selected shapes keep the latest occupied rect: drags ignore their own label
+ * in the current plan by identity.
  */
 function measurementShapePropsEqual(
   previous: MeasurementShapeProps,
@@ -163,7 +164,8 @@ function measurementShapePropsEqual(
   return keys.every((key) =>
     key === "plannedLabelPlacement" || (unselected && key === "plannedOccupiedLabelRect")
       ? sameLabelRect(previous[key], next[key])
-      : (unselected && (key === "editable" || key === "wholeDragEditable")) ||
+      : (unselected &&
+          (key === "editable" || key === "wholeDragEditable" || key === "transform")) ||
         Object.is(previous[key], next[key]),
   );
 }

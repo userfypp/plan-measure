@@ -102,6 +102,7 @@ interface LayerOptions {
   page?: PageState;
   activeTool?: Tool;
   selected?: string[];
+  transform?: { zoom: number; panX: number; panY: number };
   measurementEditingBlocked?: boolean;
   showMeasurements?: boolean;
   onSelectMeasurement?: (id: string, additive?: boolean) => void;
@@ -137,6 +138,7 @@ describe("PdfAnnotationLayer behavior", () => {
     page = pageWith("polygon", SQUARE),
     activeTool = "select",
     selected = [],
+    transform = TRANSFORM,
     measurementEditingBlocked = false,
     showMeasurements = true,
     onSelectMeasurement = noop,
@@ -152,7 +154,7 @@ describe("PdfAnnotationLayer behavior", () => {
         <PdfAnnotationLayer
           page={page}
           bounds={BOUNDS}
-          transform={TRANSFORM}
+          transform={transform}
           activeTool={activeTool}
           spacePan={false}
           isPanning={false}
@@ -254,6 +256,41 @@ describe("PdfAnnotationLayer behavior", () => {
       renderLayer({ selected: ["m-1"] });
       expect(captured.circles.map(({ x, y }) => ({ x, y }))).toEqual(SQUARE);
       expect(shape().stroke).toBe(roles.measurementSelectedStroke);
+    });
+
+    it("re-renders an unselected measurement on zoom but not on pan", () => {
+      const page = pageWith("polygon", SQUARE);
+      renderLayer({ page });
+      expect(shape()).toBeDefined();
+      renderLayer({ page, transform: { ...TRANSFORM, panX: 40, panY: 20 } });
+      expect(shape()).toBeUndefined();
+      renderLayer({ page, transform: { zoom: 3, panX: 40, panY: 20 } });
+      expect(shape()).toBeDefined();
+      renderLayer({ page, transform: { zoom: 3, panX: 40, panY: 20 }, selected: ["m-1"] });
+      renderLayer({ page, transform: { zoom: 3, panX: 0, panY: 0 }, selected: ["m-1"] });
+      expect(shape()).toBeDefined();
+    });
+
+    it("drags with the latest pan once a measurement panned while unselected is selected", () => {
+      const page = pageWith("polygon", SQUARE);
+      const panned = { ...TRANSFORM, panX: 40, panY: 20 };
+      renderLayer({ page });
+      renderLayer({ page, transform: panned });
+      expect(shape()).toBeUndefined();
+      renderLayer({ page, transform: panned, selected: ["m-1"] });
+      const handle = captured.circles[2]!;
+      const { node, moveTo } = dragNode();
+      const event = mouseEvent(node);
+      moveTo({ x: 150 * 2 + 40, y: 120 * 2 + 20 });
+      fire(handle, "onMouseDown", event);
+      fire(handle, "onDragStart", event);
+      moveTo({ x: 360 + 40, y: 300 + 20 });
+      fire(handle, "onDragEnd", event);
+      expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
+        pageNumber: 1,
+        id: "m-1",
+        points: [SQUARE[0], SQUARE[1], { x: 180, y: 150 }, SQUARE[3]],
+      });
     });
 
     it("removes handles when the selection is cleared", () => {
