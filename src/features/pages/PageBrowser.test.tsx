@@ -8,10 +8,12 @@ import {
   PAGE_OVERSCAN,
   PAGE_ROW_HEIGHT,
   filterPages,
+  initialPageWindow,
   pageBrowserLabel,
   parsePhysicalPage,
 } from "./pageBrowserModel";
-import { DEFERRED_PREVIEW_FILE_BYTES } from "./thumbnailQueue";
+import { DEFERRED_PREVIEW_FILE_BYTES, prefetchThumbnails } from "./thumbnailQueue";
+import { releaseRetainedThumbnails } from "./thumbnailRetention";
 
 let root: Root, container: HTMLDivElement;
 let pdf: PDFDocumentProxy;
@@ -88,6 +90,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  releaseRetainedThumbnails();
   container.remove();
   await vi.advanceTimersByTimeAsync(1);
   vi.useRealTimers();
@@ -263,7 +266,57 @@ describe("page browser", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 });
+describe("previews across openings", () => {
+  function render(currentPage: number) {
+    return act(async () =>
+      root.render(
+        <PageBrowser
+          document={pdf}
+          labels={labels}
+          currentPage={currentPage}
+          navigationDisabled={false}
+          onNavigate={navigate}
+          onClose={close}
+        />,
+      ),
+    );
+  }
+  function thumbnails() {
+    return [...container.querySelectorAll("canvas")].map((canvas) =>
+      Number(canvas.getAttribute("aria-label")!.replace(/\D+/g, "")),
+    );
+  }
+  it("paints the previews of an earlier opening in its first frame without rendering again", async () => {
+    await render(250);
+    await act(async () => vi.advanceTimersByTimeAsync(10));
+    const shown = thumbnails();
+    expect(shown.length).toBeGreaterThan(0);
+    const requests = vi.mocked(pdf.getPage).mock.calls.length;
+    await act(async () => root.render(null));
+
+    await render(250);
+    expect(thumbnails()).toEqual(shown); // Before any queued work runs.
+    await act(async () => vi.advanceTimersByTimeAsync(10));
+    expect(pdf.getPage).toHaveBeenCalledTimes(requests);
+  });
+  it("prefetches exactly the previews a new panel shows first", async () => {
+    const expected = initialPageWindow(pdf.numPages, 250, 320);
+    prefetchThumbnails(pdf, expected);
+    await act(async () => vi.advanceTimersByTimeAsync(10));
+    expect(vi.mocked(pdf.getPage).mock.calls.map(([number]) => number)).toEqual(expected);
+
+    await render(250);
+    expect(thumbnails().sort((a, b) => a - b)).toEqual([...expected].sort((a, b) => a - b));
+    await act(async () => vi.advanceTimersByTimeAsync(10));
+    expect(pdf.getPage).toHaveBeenCalledTimes(expected.length);
+  });
+});
 describe("page search model", () => {
+  it("predicts the initial window with the current page scrolled just into view", () => {
+    expect(initialPageWindow(500, 1, 320)).toEqual([1, 2, 3, 4]);
+    expect(initialPageWindow(500, 250, 320)).toEqual([249, 250, 247, 248, 251, 252]);
+    expect(initialPageWindow(3, 3, 900)).toEqual([1, 2, 3]);
+  });
   it("falls back to physical numbers and never guesses numeric labels for direct navigation", () => {
     expect(filterPages(5, null, " 4 ")).toEqual([4]);
     expect(filterPages(4, ["i", "ii", "iii", "iv"], " IV ")).toEqual([4]);

@@ -3,6 +3,22 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useSessionState } from "../../app/sessionState";
 import { useWorkspaceState } from "../../app/workspaceState";
 import { PageBrowser } from "./PageBrowser";
+import { initialPageWindow } from "./pageBrowserModel";
+import { prefetchThumbnails } from "./thumbnailQueue";
+
+/** Starts the previews a panel opened now would show first, so they are ready when it opens. */
+export function prefetchPageThumbnails(
+  document: PDFDocumentProxy,
+  fileBytes: number,
+  currentPage: number,
+  listHeight: number,
+) {
+  prefetchThumbnails(
+    document,
+    initialPageWindow(document.numPages, currentPage, listHeight),
+    fileBytes,
+  );
+}
 
 export function PageBrowserHost({
   document,

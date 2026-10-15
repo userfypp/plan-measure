@@ -1,6 +1,7 @@
 import {
   Suspense,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -24,6 +25,7 @@ import {
 } from "../features/viewer/AuthoringCapability";
 import { ViewerDockContainer } from "./ViewerDockContainer";
 import { PageBrowserSkeleton } from "../features/pages/PageBrowserSkeleton";
+import { releaseRetainedThumbnails } from "../features/pages/thumbnailRetention";
 import { retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
 import styles from "./ViewerShell.module.css";
@@ -70,6 +72,12 @@ export function ViewerShell({
   >(null);
   const [pageBrowserDocument, setPageBrowserDocument] = useState<PDFDocumentProxy | null>(null);
   const pagesOpen = Boolean(pdfDocument && pageBrowserDocument === pdfDocument);
+  // A closed page browser keeps the thumbnails of the open document only.
+  useEffect(() => releaseRetainedThumbnails, [pdfDocument]);
+  const currentPdfDocument = useRef(pdfDocument);
+  useLayoutEffect(() => {
+    currentPdfDocument.current = pdfDocument;
+  }, [pdfDocument]);
   const closePages = useCallback(() => {
     setPageBrowserDocument(null);
     window.document
@@ -253,6 +261,25 @@ export function ViewerShell({
                   onTogglePages={
                     pdfDocument
                       ? () => setPageBrowserDocument(pagesOpen ? null : pdfDocument)
+                      : undefined
+                  }
+                  onPreparePages={
+                    pdfDocument && !pagesOpen
+                      ? (fileBytes, currentPage) => {
+                          // Hovering or focusing Pages renders its first previews before the click.
+                          const listHeight = viewerFrameSize.height || window.innerHeight;
+                          void loadPageBrowser()
+                            .then((module) => {
+                              if (currentPdfDocument.current !== pdfDocument) return;
+                              module.prefetchPageThumbnails(
+                                pdfDocument,
+                                fileBytes,
+                                currentPage,
+                                listHeight,
+                              );
+                            })
+                            .catch(() => {});
+                        }
                       : undefined
                   }
                   sourcePageLabels={sourcePageLabels}

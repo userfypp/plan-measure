@@ -15,9 +15,13 @@ import {
   MAX_THUMBNAILS,
   MAX_THUMBNAIL_PIXELS,
   ThumbnailQueue,
+  acquireThumbnailQueue,
+  parkedThumbnails,
+  prefetchThumbnails,
   thumbnailFromRaster,
   thumbnailViewport,
 } from "./thumbnailQueue";
+import { releaseRetainedThumbnails } from "./thumbnailRetention";
 
 function pdfDouble({ automatic = false, rotation = 0, width = 800, height = 600 } = {}) {
   let active = 0,
@@ -90,6 +94,7 @@ beforeEach(() => {
   } as unknown as CanvasRenderingContext2D);
 });
 afterEach(async () => {
+  releaseRetainedThumbnails();
   queues.splice(0).forEach((item) => item.dispose());
   await tick();
   vi.useRealTimers();
@@ -257,8 +262,12 @@ describe("demand-driven thumbnails", () => {
     const background = raster(2400, 1800);
     setMainPdfPage(pdf.document, 1);
     setMainPdfRasterSource(pdf.document, (number) => (number === 1 ? background : undefined));
-    const thumbnails = queue(pdf.document);
+    const notify = vi.fn();
+    const thumbnails = new ThumbnailQueue(pdf.document, notify);
+    queues.push(thumbnails);
     thumbnails.setWindow([1, 2]);
+    expect(thumbnails.get(1)).toBeDefined(); // Ready before the panel paints.
+    expect(notify).toHaveBeenCalled();
     await tick();
     await tick();
     expect(pdf.getPage.mock.calls).toEqual([[2]]);
@@ -318,5 +327,109 @@ describe("demand-driven thumbnails", () => {
     thumbnails.setWindow([5]);
     await tick();
     expect(pdf.getPage.mock.calls).toEqual([[5]]);
+  });
+});
+describe("thumbnails across panels", () => {
+  function acquire(document: PDFDocumentProxy, notify = vi.fn()) {
+    const result = acquireThumbnailQueue(document, notify);
+    queues.push(result);
+    return result;
+  }
+  it("keeps a closed panel's previews for the next panel of the same document only", async () => {
+    const pdf = pdfDouble({ automatic: true }),
+      other = pdfDouble({ automatic: true });
+    const first = acquire(pdf.document);
+    first.setWindow([1, 2]);
+    await tick();
+    await tick();
+    expect(first.size).toBe(2);
+    first.park();
+    expect([...parkedThumbnails(pdf.document).keys()]).toEqual([1, 2]);
+    expect(parkedThumbnails(pdf.document, 1).size).toBe(0);
+    expect(parkedThumbnails(other.document).size).toBe(0);
+
+    const notify = vi.fn();
+    const reopened = acquire(pdf.document, notify);
+    expect(reopened).toBe(first);
+    reopened.setWindow([1, 2]);
+    await tick();
+    expect(pdf.render).toHaveBeenCalledTimes(2);
+    expect(notify).toHaveBeenCalled();
+    expect(parkedThumbnails(pdf.document).size).toBe(0); // Owned by the open panel again.
+
+    reopened.park();
+    const replaced = acquire(other.document);
+    expect(replaced).not.toBe(first);
+    expect(first.size).toBe(0);
+    expect(parkedThumbnails(pdf.document).size).toBe(0);
+  });
+  it("stops rendering when parked and when its document's thumbnails are released", async () => {
+    const pdf = pdfDouble();
+    const thumbnails = acquire(pdf.document);
+    thumbnails.setWindow([1, 2]);
+    await tick();
+    thumbnails.park();
+    expect(pdf.tasks[0]!.cancel).toHaveBeenCalledTimes(1);
+    await tick();
+    expect(pdf.render).toHaveBeenCalledTimes(1);
+    releaseRetainedThumbnails();
+    expect(parkedThumbnails(pdf.document).size).toBe(0);
+    expect(acquire(pdf.document)).not.toBe(thumbnails);
+  });
+  it("prefetches the first previews for a panel that opens afterwards", async () => {
+    const pdf = pdfDouble();
+    prefetchThumbnails(pdf.document, [3, 4]);
+    await tick();
+    expect(pdf.getPage.mock.calls).toEqual([[3]]);
+    pdf.tasks[0]!.finish();
+    await tick();
+    expect([...parkedThumbnails(pdf.document).keys()]).toEqual([3]);
+
+    const notify = vi.fn();
+    const panel = acquire(pdf.document, notify);
+    expect(panel.get(3)).toBeDefined();
+    pdf.tasks[1]!.finish(); // The prefetch's render of page 4 continues for the panel.
+    await tick();
+    expect(notify).toHaveBeenCalled();
+    expect(panel.get(4)).toBeDefined();
+
+    prefetchThumbnails(pdf.document, [9]); // A panel is open: nothing to prepare.
+    await tick();
+    expect(pdf.render).toHaveBeenCalledTimes(2);
+  });
+  it("drops kept previews rendered for another pixel density", async () => {
+    const dpr = window.devicePixelRatio;
+    try {
+      Object.defineProperty(window, "devicePixelRatio", { value: 1, configurable: true });
+      const pdf = pdfDouble({ automatic: true });
+      const first = acquire(pdf.document);
+      first.setWindow([1]);
+      await tick();
+      await tick();
+      Object.defineProperty(window, "devicePixelRatio", { value: 2, configurable: true });
+      first.park(); // Parked after the change, but its previews are still 1x.
+      expect(parkedThumbnails(pdf.document).size).toBe(0);
+      expect(acquire(pdf.document)).not.toBe(first);
+      expect(first.size).toBe(0);
+    } finally {
+      Object.defineProperty(window, "devicePixelRatio", { value: dpr, configurable: true });
+    }
+  });
+  it("asks again before decoding a heavy document's previews in a new panel", async () => {
+    const pdf = pdfDouble({ automatic: true });
+    const first = acquireThumbnailQueue(pdf.document, vi.fn(), DEFERRED_PREVIEW_FILE_BYTES);
+    queues.push(first);
+    first.setWindow([1]);
+    first.loadDeferred();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(first.get(1)).toBeDefined();
+    first.park();
+
+    prefetchThumbnails(pdf.document, [2], DEFERRED_PREVIEW_FILE_BYTES);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(pdf.getPage.mock.calls).toEqual([[1]]);
+    const reopened = acquireThumbnailQueue(pdf.document, vi.fn(), DEFERRED_PREVIEW_FILE_BYTES);
+    expect(reopened).toBe(first);
+    expect(reopened.deferred).toBe(true);
   });
 });

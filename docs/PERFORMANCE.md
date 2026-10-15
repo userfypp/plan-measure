@@ -182,6 +182,18 @@ attribute change; with thousands of measurements one redraw costs a visible fram
   is added when a Stage mounts; the cleanup re-adds its listeners on every press
   so it stays behind. Cancelling first loses the dragend and the edit.
 
+## Panel rules
+
+- A closed Pages panel parks its thumbnail queue (`thumbnailRetention.ts`)
+  instead of disposing it: work stops, but the LRU cache stays for the open
+  document, so reopening paints every cached preview in its first render. Only
+  one document's thumbnails are retained; the viewer shell releases them when
+  the document changes.
+- Hovering or focusing the Pages trigger prefetches the rows the panel shows
+  first (`initialPageWindow`), and `setWindow` copies the main page's rendered
+  background synchronously, so the panel opens without a placeholder cascade.
+  Heavy documents keep their deferred previews.
+
 ## How to interpret and update a baseline
 
 First check that `dist` matches the commit, that all five cases per scenario were

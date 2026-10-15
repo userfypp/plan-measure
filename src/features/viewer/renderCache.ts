@@ -31,6 +31,11 @@ export class LruRenderCache<T> {
     return undefined;
   }
 
+  /** Visits every entry, oldest first, without changing recency. */
+  forEach(visit: (value: T, key: string) => void): void {
+    this.entries.forEach((entry, key) => visit(entry.value, key));
+  }
+
   set(key: string, value: T, pixels: number): void {
     if (pixels <= 0 || pixels > this.maxPixels) return;
     const previous = this.entries.get(key);

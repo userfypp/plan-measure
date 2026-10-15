@@ -7,6 +7,12 @@ import {
   mainPdfRenderMs,
   subscribePdfPriority,
 } from "../viewer/pdfRenderPriority";
+import {
+  reclaimThumbnails,
+  releaseRetainedThumbnails,
+  retainedThumbnails,
+  retainThumbnails,
+} from "./thumbnailRetention";
 
 export const THUMBNAIL_WIDTH = 144;
 export const THUMBNAIL_HEIGHT = 104;
@@ -65,6 +71,8 @@ interface Request {
 
 // Also serialize cancellation across rapid close/reopen and document replacement.
 let thumbnailOwner: object | null = null;
+// The queue of the open panel, which prefetching must not duplicate.
+let panelQueue: ThumbnailQueue | null = null;
 const waitingQueues = new Set<() => void>();
 
 export class ThumbnailQueue {
@@ -80,11 +88,13 @@ export class ThumbnailQueue {
   private loadRequested = false;
   private reportedDeferred = false;
   private disposed = false;
+  // Density of every cached thumbnail; NaN once the device pixel ratio changed between renders.
+  private cacheDensity = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly unsubscribe: () => void;
   constructor(
     private readonly document: PDFDocumentProxy,
-    private readonly notify: () => void,
+    private notify: () => void,
     private readonly fileBytes = 0,
   ) {
     this.unsubscribe = subscribePdfPriority(document, this.schedule);
@@ -92,6 +102,48 @@ export class ThumbnailQueue {
   }
   get(number: number) {
     return this.cache.get(String(number));
+  }
+  /** Every cached thumbnail by page number, read without changing cache recency. */
+  cached() {
+    const thumbnails = new Map<number, HTMLCanvasElement>();
+    this.cache.forEach((canvas, key) => thumbnails.set(Number(key), canvas));
+    return thumbnails;
+  }
+  /** Stops all work but keeps the cached thumbnails for the next panel of this document. */
+  park() {
+    if (this.disposed) return;
+    this.notify = () => {};
+    this.wanted = [];
+    this.loadRequested = false; // Heavy previews need a new request in each panel.
+    this.cancel();
+    this.failed.clear(); // Failed pages get one attempt per panel lifetime.
+    this.completedWindow.clear();
+    this.retain();
+  }
+  private retain() {
+    if (panelQueue === this) panelQueue = null;
+    retainThumbnails(this);
+  }
+  /** Whether a new panel can show this queue's parked thumbnails as they are. */
+  resumable(document: PDFDocumentProxy, fileBytes: number) {
+    return (
+      !this.disposed &&
+      this.document === document &&
+      this.fileBytes === fileBytes &&
+      (this.cache.size === 0 ||
+        this.cacheDensity === thumbnailDensity(window.devicePixelRatio || 1))
+    );
+  }
+  /** Resumes a parked queue for a new panel. */
+  resume(notify: () => void) {
+    reclaimThumbnails(this);
+    this.notify = notify;
+  }
+  /** Renders the given previews ahead of a panel, keeping them for it. */
+  prefetch(numbers: number[]) {
+    if (this.disposed) return;
+    this.retain();
+    this.setWindow(numbers);
   }
   get size() {
     return this.cache.size;
@@ -122,16 +174,33 @@ export class ThumbnailQueue {
     return !this.failed.has(number) && !this.completedWindow.has(number) && !this.get(number);
   }
   private store(number: number, canvas: HTMLCanvasElement) {
+    const density = thumbnailDensity(window.devicePixelRatio || 1);
+    if (this.cache.size === 0) this.cacheDensity = density;
+    else if (this.cacheDensity !== density) this.cacheDensity = NaN;
     this.cache.set(String(number), canvas, canvas.width * canvas.height);
     // A caller larger than the cache must finish rather than rerender evicted rows forever.
     this.completedWindow.add(number);
     this.notify();
+  }
+  private storeRaster(number: number, source: HTMLCanvasElement) {
+    const canvas = thumbnailFromRaster(source, window.devicePixelRatio || 1);
+    if (canvas) this.store(number, canvas);
+    else {
+      this.failed.add(number);
+      this.notify();
+    }
   }
   setWindow(numbers: number[]) {
     this.wanted = numbers;
     this.completedWindow = new Set(
       [...this.completedWindow].filter((number) => numbers.includes(number)),
     );
+    // Copying a rendered page needs no decode, so it is ready for the panel's first paint.
+    if (!this.disposed && !mainPdfBusy(this.document))
+      for (const number of numbers) {
+        const source = this.pending(number) ? mainPdfRaster(this.document, number) : undefined;
+        if (source) this.storeRaster(number, source);
+      }
     if (this.active && (!numbers.includes(this.active.number) || mainPdfBusy(this.document)))
       this.cancel();
     this.notify();
@@ -165,12 +234,7 @@ export class ThumbnailQueue {
     }
     const source = mainPdfRaster(this.document, number);
     if (source) {
-      const canvas = thumbnailFromRaster(source, window.devicePixelRatio || 1);
-      if (canvas) this.store(number, canvas);
-      else {
-        this.failed.add(number);
-        this.notify();
-      }
+      this.storeRaster(number, source);
       this.schedule();
       return;
     }
@@ -208,6 +272,8 @@ export class ThumbnailQueue {
     }
   }
   dispose() {
+    reclaimThumbnails(this);
+    if (panelQueue === this) panelQueue = null;
     this.disposed = true;
     this.wanted = [];
     this.cancel();
@@ -219,4 +285,33 @@ export class ThumbnailQueue {
     this.failed.clear();
     this.completedWindow.clear();
   }
+}
+
+function parkedQueue(document: PDFDocumentProxy, fileBytes: number) {
+  const parked = retainedThumbnails();
+  return parked instanceof ThumbnailQueue && parked.resumable(document, fileBytes) ? parked : null;
+}
+/** Thumbnails a previous panel of this document left cached, for the first paint of a new one. */
+export function parkedThumbnails(document: PDFDocumentProxy, fileBytes = 0) {
+  const parked = parkedQueue(document, fileBytes);
+  return parked?.cached() ?? new Map<number, HTMLCanvasElement>();
+}
+/** Resumes the queue a previous panel of this document parked, or starts a new one. */
+export function acquireThumbnailQueue(
+  document: PDFDocumentProxy,
+  notify: () => void,
+  fileBytes = 0,
+) {
+  const parked = parkedQueue(document, fileBytes);
+  if (parked) parked.resume(notify);
+  else releaseRetainedThumbnails();
+  panelQueue = parked ?? new ThumbnailQueue(document, notify, fileBytes);
+  return panelQueue;
+}
+/** Starts rendering the previews a panel would show first, unless a panel is already open. */
+export function prefetchThumbnails(document: PDFDocumentProxy, numbers: number[], fileBytes = 0) {
+  if (panelQueue) return;
+  const parked = parkedQueue(document, fileBytes);
+  if (!parked) releaseRetainedThumbnails();
+  (parked ?? new ThumbnailQueue(document, () => {}, fileBytes)).prefetch(numbers);
 }

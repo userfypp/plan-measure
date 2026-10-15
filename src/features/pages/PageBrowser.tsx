@@ -18,7 +18,12 @@ import {
   pageWindow,
   parsePhysicalPage,
 } from "./pageBrowserModel";
-import { MAX_THUMBNAIL_WINDOW, ThumbnailQueue } from "./thumbnailQueue";
+import {
+  acquireThumbnailQueue,
+  MAX_THUMBNAIL_WINDOW,
+  parkedThumbnails,
+  type ThumbnailQueue,
+} from "./thumbnailQueue";
 import styles from "./PageBrowser.module.css";
 
 interface PageBrowserProps {
@@ -81,10 +86,11 @@ export function PageBrowser({
     top: Math.max(0, (currentPage - 1) * PAGE_ROW_HEIGHT),
     height: 320,
   });
-  const [previews, setPreviews] = useState({
-    thumbnails: new Map<number, HTMLCanvasElement>(),
+  // Reopening the panel paints the previews its document already has instead of placeholders.
+  const [previews, setPreviews] = useState(() => ({
+    thumbnails: parkedThumbnails(document, fileBytes),
     deferred: false,
-  });
+  }));
   const thumbnails = previews.thumbnails;
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -112,23 +118,21 @@ export function PageBrowser({
 
   useEffect(() => {
     let live = true;
-    const queue = new ThumbnailQueue(
+    const queue = acquireThumbnailQueue(
       document,
       () => {
         if (!live) return;
-        const next = new Map<number, HTMLCanvasElement>();
-        for (const number of wantedRef.current) {
-          const canvas = queue.get(number);
-          if (canvas) next.set(number, canvas);
-        }
-        setPreviews({ thumbnails: next, deferred: queue.deferred });
+        // Keep wanted previews the most recent in the cache, but offer every cached one: rows
+        // can mount before the wanted window catches up with the list's geometry.
+        for (const number of wantedRef.current) queue.get(number);
+        setPreviews({ thumbnails: queue.cached(), deferred: queue.deferred });
       },
       fileBytes,
     );
     queueRef.current = queue;
     return () => {
       live = false;
-      queue.dispose();
+      queue.park();
       queueRef.current = null;
     };
   }, [document, fileBytes]);

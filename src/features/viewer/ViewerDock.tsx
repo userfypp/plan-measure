@@ -52,6 +52,8 @@ export interface ViewerDockProps {
   navigation: ViewerNavigationModel;
   pagesOpen?: boolean;
   onTogglePages?: () => void;
+  /** Called when the Pages trigger is about to be used, to prepare the panel. */
+  onPreparePages?: () => void;
   sourcePageLabel: string | null;
   customPageLabel: string | null;
   effectivePageLabel: string;
@@ -122,6 +124,7 @@ export function ViewerDock({
   navigation,
   pagesOpen = false,
   onTogglePages,
+  onPreparePages,
   sourcePageLabel,
   customPageLabel,
   effectivePageLabel,
@@ -245,6 +248,8 @@ export function ViewerDock({
             tooltip="Pages"
             pressed={pagesOpen}
             aria-controls="page-browser"
+            onPointerEnter={onPreparePages}
+            onFocus={onPreparePages}
             onClick={onTogglePages}
           />
         )}

@@ -13,12 +13,14 @@ export function ViewerDockContainer({
   navigation,
   pagesOpen = false,
   onTogglePages,
+  onPreparePages,
   sourcePageLabels,
   logicalPageBounds,
 }: {
   navigation: ViewerNavigationModel;
   pagesOpen?: boolean;
   onTogglePages?: () => void;
+  onPreparePages?: (fileBytes: number, currentPage: number) => void;
   sourcePageLabels: readonly string[] | null;
   logicalPageBounds: LogicalPageBounds | null;
 }) {
@@ -66,6 +68,9 @@ export function ViewerDockContainer({
       navigation={navigation}
       pagesOpen={pagesOpen}
       onTogglePages={onTogglePages}
+      onPreparePages={
+        onPreparePages && (() => onPreparePages(session.pdf.size, session.currentPage))
+      }
       sourcePageLabel={pdfPageLabel}
       customPageLabel={customPageLabel}
       effectivePageLabel={effectivePageLabel(
