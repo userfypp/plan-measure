@@ -18,6 +18,8 @@
     0;
   border-top: var(--border-width) solid transparent;
   background: transparent;
+  cursor: pointer;
+  user-select: none;
 }
 
 .header[data-group-depth="0"] {
@@ -46,13 +48,16 @@
   transition: var(--transition-interactive);
 }
 
-.toggle:hover {
+/* A click anywhere on the header but the eye toggles, so hovering it lights the chevron. */
+.toggle:hover,
+.header:hover:not(:has(.visibilityControl:hover)) .toggle {
   color: var(--color-text-primary);
   background: var(--color-control-hover-surface);
   border-color: var(--color-control-hover-border);
 }
 
-.toggle:active {
+.toggle:active,
+.header:active:not(:has(.visibilityControl:active)) .toggle {
   color: var(--color-text-primary);
   background: var(--color-control-active-surface);
   border-color: var(--color-control-active-border);

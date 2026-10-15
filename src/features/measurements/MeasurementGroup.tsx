@@ -106,6 +106,11 @@ export function MeasurementGroup({
           data-virtual-key={headerKey}
           className={styles.header}
           data-group-depth={depth}
+          onClick={(event) => {
+            // The chevron is the keyboard control; a click on the rest of the header toggles too.
+            if ((event.target as Element).closest("button")) return;
+            onToggleCollapsed();
+          }}
         >
           <button
             type="button"
