@@ -16,6 +16,7 @@ test('El grafo de arranque sigue imports estáticos y excluye import()', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-size-'));
   try {
     fs.mkdirSync(path.join(tmp, 'assets'));
+    fs.writeFileSync(path.join(tmp, 'assets/PdfViewer-ABCD.js'), 'export const viewer=1');
     fs.writeFileSync(path.join(tmp, 'index.html'), '<script type="module" src="/plan-measure/assets/index.js"></script>');
     fs.writeFileSync(path.join(tmp, 'assets/index.js'), 'import "./shared.js";import("./pdf-lib.js")');
     fs.writeFileSync(path.join(tmp, 'assets/shared.js'), 'export const a=1');
@@ -32,6 +33,27 @@ test('El grafo de arranque sigue imports estáticos y excluye import()', () => {
     fs.writeFileSync(path.join(tmp, 'index.html'), '<script src="/assets/index.js"></script><link href="/assets/es-ABCD.js" rel="modulepreload">');
     fs.writeFileSync(path.join(tmp, 'assets/es-ABCD.js'), 'export const pdfLib=1');
     assert.throws(() => checkSize(measureSize(tmp)));
+  } finally { fs.rmSync(tmp, { recursive: true }); }
+});
+test('El visor cuenta su grafo estático que no está en el arranque', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-viewer-'));
+  const write = (file, text) => fs.writeFileSync(path.join(tmp, file), text);
+  try {
+    fs.mkdirSync(path.join(tmp, 'assets'));
+    write('index.html', '<script type="module" src="/assets/index.js"></script>');
+    write('assets/index.js', 'import "./shared.js";import("./PdfViewer-ABCD.js")');
+    write('assets/shared.js', 'export const shared=1');
+    write('assets/PdfViewer-ABCD.js', 'import "./shared.js";import "./pdf-ABCD.js";import("./export-ABCD.js")');
+    write('assets/pdf-ABCD.js', 'export const pdf=1');
+    write('assets/export-ABCD.js', 'export const csv=1');
+    const metrics = measureSize(tmp);
+    assert.deepEqual(metrics.viewerFiles, ['assets/PdfViewer-ABCD.js', 'assets/pdf-ABCD.js']);
+    assert.equal(metrics.viewerBytes, fs.statSync(path.join(tmp, 'assets/PdfViewer-ABCD.js')).size + fs.statSync(path.join(tmp, 'assets/pdf-ABCD.js')).size);
+    write('assets/PdfViewer-EFGH.js', 'export const other=1');
+    assert.throws(() => measureSize(tmp), /PdfViewer/);
+    fs.rmSync(path.join(tmp, 'assets/PdfViewer-ABCD.js'));
+    fs.rmSync(path.join(tmp, 'assets/PdfViewer-EFGH.js'));
+    assert.throws(() => measureSize(tmp), /PdfViewer/);
   } finally { fs.rmSync(tmp, { recursive: true }); }
 });
 test('La comparación falla con +31 % y muestras incompletas; FPS absolutos solo bloquean en estricto', () => {

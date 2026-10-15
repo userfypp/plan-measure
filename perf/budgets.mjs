@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-export const sizeLimits = { mainBytes: 480_000, mainGzipBytes: 140_000, startupBytes: 511_660 };
+export const sizeLimits = { mainBytes: 480_000, mainGzipBytes: 140_000, startupBytes: 511_660, viewerBytes: 833_000 };
 export const forbiddenStartup = /(?:pdfjs|pdf(?:[.-]|\.worker)|pdf-lib|annotatedPdf|xlsx|pdfjs-dist|pdfLib|(?:^|\/)es-[^/]+\.js(?:[?#]|$))/i;
 export function checkStartup(requests, workers = []) {
   for (const request of requests) assert.ok(!forbiddenStartup.test(request), `Carga inicial diferida infringida: ${request}`);
