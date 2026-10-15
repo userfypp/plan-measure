@@ -307,6 +307,75 @@ describe("whole-measurement drag", () => {
     expect(cancelTouchReady).toHaveBeenCalledTimes(1);
   });
 
+  it("lets a drag end that a later-registered release listener fires win over the cleanup", async () => {
+    // A browser runs queued microtasks after each listener of a native event, which a scripted
+    // dispatchEvent does not, so this target emulates that dispatch.
+    const listeners = new Map<string, EventListener[]>();
+    const keyOf = (type: string, options?: boolean | EventListenerOptions) =>
+      `${type}:${typeof options === "boolean" ? options : Boolean(options?.capture)}`;
+    const windowTarget = {
+      addEventListener(
+        type: string,
+        listener: EventListener,
+        options?: boolean | AddEventListenerOptions,
+      ) {
+        const list = listeners.get(keyOf(type, options)) ?? [];
+        if (!list.includes(listener)) list.push(listener);
+        listeners.set(keyOf(type, options), list);
+      },
+      removeEventListener(
+        type: string,
+        listener: EventListener,
+        options?: boolean | EventListenerOptions,
+      ) {
+        const list = listeners.get(keyOf(type, options)) ?? [];
+        listeners.set(
+          keyOf(type, options),
+          list.filter((candidate) => candidate !== listener),
+        );
+      },
+      async dispatchNative(type: string) {
+        const event = new Event(type);
+        for (const capture of [true, false]) {
+          for (const listener of [...(listeners.get(keyOf(type, capture)) ?? [])]) {
+            listener(event);
+            await Promise.resolve();
+          }
+        }
+      },
+    };
+    const registry = createWholeMeasurementDragCancellationRegistry();
+    const cancel = vi.fn();
+    const unregister = registerWholeMeasurementDragPointerReleaseCleanup({
+      windowTarget,
+      cancelPreparedDrag: () => registry.cancelActive(),
+    });
+    // Konva adds its window release listener when the Stage mounts, after the viewer's effect.
+    const finishDrag = () => registry.set("dragged", null);
+    windowTarget.addEventListener("mouseup", finishDrag);
+    windowTarget.addEventListener("touchend", finishDrag);
+
+    for (const [press, release] of [
+      ["mousedown", "mouseup"],
+      ["touchstart", "touchend"],
+    ] as const) {
+      await windowTarget.dispatchNative(press);
+      registry.set("dragged", cancel);
+      await windowTarget.dispatchNative(release);
+      expect(cancel).not.toHaveBeenCalled();
+      expect(registry.activeMeasurementId()).toBeNull();
+    }
+
+    // A prepared gesture that no drag end claims is still cleared.
+    await windowTarget.dispatchNative("mousedown");
+    registry.set("prepared", cancel);
+    await windowTarget.dispatchNative("touchcancel");
+    expect(cancel).toHaveBeenCalledTimes(1);
+
+    unregister();
+    expect([...listeners.values()].flat()).toEqual([finishDrag, finishDrag]);
+  });
+
   it("starts cleanly after sub-threshold cleanup and still commits the next completed drag once", async () => {
     const windowTarget = new EventTarget();
     const registry = createWholeMeasurementDragCancellationRegistry();

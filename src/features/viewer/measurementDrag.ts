@@ -240,14 +240,32 @@ export function registerWholeMeasurementDragPointerReleaseCleanup({
   const handleMouseUp = () => {
     queueMicrotask(cancelPreparedDrag);
   };
-
-  windowTarget.addEventListener("mouseup", handleMouseUp);
-  windowTarget.addEventListener("touchend", handleMouseUp);
-  windowTarget.addEventListener("touchcancel", handleMouseUp);
-  return () => {
+  const addReleaseListeners = () => {
+    windowTarget.addEventListener("mouseup", handleMouseUp);
+    windowTarget.addEventListener("touchend", handleMouseUp);
+    windowTarget.addEventListener("touchcancel", handleMouseUp);
+  };
+  const removeReleaseListeners = () => {
     windowTarget.removeEventListener("mouseup", handleMouseUp);
     windowTarget.removeEventListener("touchend", handleMouseUp);
     windowTarget.removeEventListener("touchcancel", handleMouseUp);
+  };
+  // The cleanup must run after Konva's own window release listener has fired dragend. Konva adds
+  // that listener when a Stage is created, possibly after this registration, and a microtask
+  // queued by an earlier listener runs before later listeners. Re-adding on every press moves
+  // these listeners behind any registered before the gesture began.
+  const handlePress = () => {
+    removeReleaseListeners();
+    addReleaseListeners();
+  };
+
+  addReleaseListeners();
+  windowTarget.addEventListener("mousedown", handlePress, { capture: true });
+  windowTarget.addEventListener("touchstart", handlePress, { capture: true, passive: true });
+  return () => {
+    removeReleaseListeners();
+    windowTarget.removeEventListener("mousedown", handlePress, { capture: true });
+    windowTarget.removeEventListener("touchstart", handlePress, { capture: true });
   };
 }
 
