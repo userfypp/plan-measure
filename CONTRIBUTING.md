@@ -32,6 +32,7 @@ Use `npm run format` only when formatting is part of the change.
 - Record validation and known limitations. Include screenshots when useful.
 - Link the relevant issue with `Closes #123` when fully resolved.
 - Update the relevant documentation when behavior or setup changes.
+- Changes to startup, the viewer, the canvas or the panels follow [Adding features without losing performance](docs/PERFORMANCE.md#adding-features-without-losing-performance). A failing test in `src/performance/` is a regression to fix, not an expectation to update.
 
 ## AI-assisted contributions
 

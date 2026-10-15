@@ -27,6 +27,15 @@ measurements. It protects:
   priorities, and visibility. With 5,000 measurements it requires one layout run
   per new zoom and none additional per pan; it does not presuppose a global cache
   or a transient transform that would alter those outputs.
+- Annotation layer props (`annotationLayerProps.test.tsx`): drives the real
+  `App` through drawing, selection, editing, zoom, pan, menus, panel actions,
+  undo and page changes, and fixes which `PdfAnnotationLayer` props each step may
+  change. Callbacks and fixed values keep one identity for the whole session.
+- Measurement shape renders (`layerRenders.test.tsx`): with 1,000 measurements in
+  the real layer, mounting renders each shape once; identical props, pan and tool
+  switches render none; a selection change renders only the measurements that
+  enter, leave or change group; adding, editing or hiding one measurement renders
+  only that one; zoom renders each visible shape once.
 
 These tests do not represent the cost of painting on a real GPU. The Konva mount
 test uses a simulated renderer to count shapes; the third layer observes mounting
@@ -46,6 +55,12 @@ excluding `import()`. The main chunk must weigh ≤480,000 bytes and ≤140,000 
 gzip. The initial JS set must weigh ≤511,660 bytes: the original reference is
 487,295 bytes (main + runtime + format) with a 5% margin. These are decimal bytes,
 not KiB. The limit does not include CSS or demo resources.
+
+The viewer graph is what opening a plan loads on top of startup: the
+`PdfViewer-*.js` chunk plus its static imports that are not already in the
+initial set (PDF.js, canvas roles). It must weigh ≤833,000 bytes: 793,223 bytes
+when it was introduced, with a 5% margin. A full Konva import or a heavy
+dependency pulled into the viewer fails it.
 
 If the check fails, load the new heavy component lazily (`recoverableLazy`) instead of raising the limits.
 
@@ -174,6 +189,9 @@ attribute change; with thousands of measurements one redraw costs a visible fram
 - Unselected `MeasurementShape`s ignore `transform` (pan) and editing-permission
   changes: only handles and gestures of selected shapes read them, and
   deselection cancels gestures. Zoom still re-renders them through `zoom`.
+- Props that only a selected shape uses are passed to selected shapes only:
+  `groupMeasurements` is a new array on every multi-selection change and would
+  render every measurement again.
 - `konvaRuntime.ts` (aliased as `konva`) patches Konva: the Text baseline sample
   is measured once per font, and a Text inside `setAttrs` defers its layout and
   its Label/Tag sync until the call returns, so a zoom lays out each label once.
@@ -199,6 +217,55 @@ attribute change; with thousands of measurements one redraw costs a visible fram
   first (`initialPageWindow`), and `setWindow` copies the main page's rendered
   background synchronously, so the panel opens without a placeholder cascade.
   Heavy documents keep their deferred previews.
+
+## Adding features without losing performance
+
+The counts above only protect what they cover. Before merging a feature that
+touches startup, the viewer, the canvas or the panels, check each point:
+
+1. **Startup stays small.** The main chunk has a few hundred bytes of headroom on
+   purpose. A new panel, dialog, workspace or dependency goes behind
+   `retryableImport` + `recoverableLazy` and is preloaded on intent (hover or
+   focus of its trigger) or with `preloadWhenIdle`, so it opens without a
+   Suspense fallback. If `perf:size` fails, split the code; do not raise a limit.
+2. **Props of `PdfAnnotationLayer` keep their identity.** It is `memo` and
+   compares thousands of shapes when any prop changes. Callbacks use
+   `useCallback` with ref-backed getters for changing state; arrays and objects
+   are memoized by their inputs; reducer cases return the existing value when
+   nothing changed (an empty selection keeps its array). A new prop or
+   interaction adds a step to `annotationLayerProps.test.tsx` listing exactly
+   the props it may change; a step that should not touch the layer lists none.
+3. **Each `MeasurementShape` receives only what changes with it.** Pass
+   per-measurement values (its calibration, its label placement), not page-wide
+   ones. A prop that only matters while selected goes to selected shapes only,
+   or is added to the comparator's unselected list with the reason. A new
+   interaction adds a case to `layerRenders.test.tsx`; the expected list is the
+   measurements whose output really changes.
+4. **Derived data is cached by identity.** Per-measurement derivations live in
+   a `WeakMap` keyed by the immutable measurement; session edits keep unchanged
+   objects (measurements, calibrations, label data) so caches, the label planner
+   and the shape comparator can reuse them. Never mutate a measurement.
+5. **Konva stays minimal.** Import nodes from `konva/lib/...`; a new node type is
+   registered in `konvaRuntime.ts` before use. Request draws with `batchDraw`;
+   when a layer must be painted now (raster swaps), use `flushBatchDraw` so the
+   pending frame does not draw it again. The dev server pre-bundles react-konva
+   with stock Konva, so measure canvas changes on a build; check parity
+   screenshots after upgrading Konva.
+6. **Lists stay virtual.** Panels mount at most the visible rows plus overscan,
+   and cache formatted values by measurement and display settings.
+7. **Motion only hides waits, never adds them.** Animate opacity only (never
+   transform: it slows the e2e timings and makes automation wait for movement).
+   One-time entrances use WAAPI through `src/utils/reveal.ts`; menus and
+   popovers use the CSS `overlayEnter` fade. Loading overlays wait
+   `--loading-reveal-delay` before appearing, so fast loads show nothing. Both
+   reduced-motion paths (system preference and `data-motion="reduce"`) must
+   disable the animation.
+8. **Verify on a heavy session.** Run lint, tests and build. For interaction
+   changes, profile a 1,000-measurement session at CPU×4 against the base
+   commit, and run `npm run perf:e2e` when the change is large. A failing
+   contract test (`src/performance/`, label goldens, CSV hash,
+   `konvaRuntime.layer.test.ts`) means the change regressed or the contract must
+   be discussed: find the cause before touching the expectation.
 
 ## How to interpret and update a baseline
 

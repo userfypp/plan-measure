@@ -17,7 +17,11 @@ values. This formatting is preserved in release notes; use plain text for UI lab
 
 ## Validation
 
-<!-- What did you test or check? -->
+<!--
+What did you test or check? For changes to startup, the viewer, the canvas or
+the panels, confirm the checklist in docs/PERFORMANCE.md ("Adding features
+without losing performance").
+-->
 
 ## Related Issue
 
