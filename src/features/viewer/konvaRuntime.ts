@@ -29,6 +29,25 @@ Text.prototype.measureSize = function measureSize(this: Text, text: string): Tex
   return { ...size };
 };
 
+// Every font string a Text builds (each layout, measure and draw) normalizes its font family again:
+// split, trim, quote and join. Konva's own string is kept for each family, minus its prefix.
+const contextFont = Text.prototype._getContextFont;
+const normalizedFamilies = new Map<string, string>();
+
+Text.prototype._getContextFont = function _getContextFont(this: Text): string {
+  const family = this.fontFamily();
+  const prefix = `${this.fontStyle()} ${this.fontVariant()} ${this.fontSize()}px `;
+  let normalized = normalizedFamilies.get(family);
+  if (normalized === undefined) {
+    const font = contextFont.call(this);
+    if (!font.startsWith(prefix)) return font;
+    normalized = font.slice(prefix.length);
+    if (normalizedFamilies.size >= MAX_CACHED_SAMPLE_FONTS) normalizedFamilies.clear();
+    normalizedFamilies.set(family, normalized);
+  }
+  return prefix + normalized;
+};
+
 if (typeof document !== "undefined" && "fonts" in document) {
   document.fonts.addEventListener("loadingdone", () => sampleSizes.clear());
 }

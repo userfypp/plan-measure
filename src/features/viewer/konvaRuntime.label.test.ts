@@ -86,6 +86,24 @@ describe("label text batching", () => {
     expect(text.y()).toBe(-(text.height() + 10));
   });
 
+  it("builds the same context font as Konva for each family", () => {
+    const text = new Konva.Text({ fontSize: 9, fontStyle: "bold" });
+    const fonts = ["Inter Variable, system-ui , sans-serif", "Arial", "'Noto Sans', serif"].map(
+      (fontFamily) => {
+        text.fontFamily(fontFamily);
+        return [text._getContextFont(), text._getContextFont()];
+      },
+    );
+    expect(fonts).toEqual([
+      ['bold normal 9px "Inter Variable", system-ui, sans-serif', expect.any(String)],
+      ["bold normal 9px Arial", expect.any(String)],
+      ["bold normal 9px 'Noto Sans', serif", expect.any(String)],
+    ]);
+    for (const [first, cached] of fonts) expect(cached).toBe(first);
+    text.fontSize(12.5);
+    expect(text._getContextFont()).toBe("bold normal 12.5px 'Noto Sans', serif");
+  });
+
   it("lays out a Text outside a Label after setAttrs", () => {
     const text = new Konva.Text({ text: "a", fontSize: 10 });
     text.setAttrs({ text: "a\nb\nc", fontSize: 20 });
