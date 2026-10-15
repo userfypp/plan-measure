@@ -101,18 +101,19 @@ function gridCellRange(
   return { minX, maxX, minY, maxY };
 }
 
-function gridCellKey(x: number, y: number): string {
-  return `${x}:${y}`;
-}
-
 class UniformLabelCollisionIndex implements LabelCollisionIndex {
   private readonly all: Array<{ order: number; rect: OccupiedLabelRect }> = [];
   private readonly overflow: Array<{ order: number; rect: OccupiedLabelRect }> = [];
+  // Rows of cells, keyed by number so queries allocate no keys.
   private readonly buckets = new Map<
-    string,
-    Array<{ order: number; rect: OccupiedLabelRect }>
+    number,
+    Map<number, Array<{ order: number; rect: OccupiedLabelRect }>>
   >();
   private cellSize: number | null = null;
+
+  private bucket(x: number, y: number) {
+    return this.buckets.get(y)?.get(x);
+  }
 
   insert(rect: OccupiedLabelRect): void {
     const entry = { order: this.all.length, rect };
@@ -134,27 +135,35 @@ class UniformLabelCollisionIndex implements LabelCollisionIndex {
     }
 
     for (let cellY = range.minY; cellY <= range.maxY; cellY += 1) {
+      let row = this.buckets.get(cellY);
+      if (!row) this.buckets.set(cellY, (row = new Map()));
       for (let cellX = range.minX; cellX <= range.maxX; cellX += 1) {
-        const key = gridCellKey(cellX, cellY);
-        const bucket = this.buckets.get(key);
+        const bucket = row.get(cellX);
         if (bucket) bucket.push(entry);
-        else this.buckets.set(key, [entry]);
+        else row.set(cellX, [entry]);
       }
     }
   }
 
   hasCollision(candidate: OccupiedLabelRect, gap: number, ignore?: OccupiedLabelRect | null): boolean {
-    const visit = (entry: { rect: OccupiedLabelRect }) =>
-      entry.rect !== ignore && overlapsWithGap(candidate, entry.rect, gap);
-    if (this.cellSize === null) return this.all.some(visit);
+    // Runs for every candidate placement of every label, so it avoids callbacks.
+    const collides = (entries: ReadonlyArray<{ rect: OccupiedLabelRect }>) => {
+      for (const entry of entries)
+        if (entry.rect !== ignore && overlapsWithGap(candidate, entry.rect, gap)) return true;
+      return false;
+    };
+    if (this.cellSize === null) return collides(this.all);
     const range = gridCellRange(candidate, gap, this.cellSize);
-    if (!range) return this.all.some(visit);
-    if (this.overflow.some(visit)) return true;
+    if (!range) return collides(this.all);
+    if (collides(this.overflow)) return true;
     // Collision is a pure boolean query: bucket order and duplicate candidates
     // cannot change it. Keep ordered visitation for the public callback API.
     for (let y = range.minY; y <= range.maxY; y++) {
+      const row = this.buckets.get(y);
+      if (!row) continue;
       for (let x = range.minX; x <= range.maxX; x++) {
-        if (this.buckets.get(gridCellKey(x, y))?.some(visit)) return true;
+        const bucket = row.get(x);
+        if (bucket && collides(bucket)) return true;
       }
     }
     return false;
@@ -175,7 +184,7 @@ class UniformLabelCollisionIndex implements LabelCollisionIndex {
     if (this.overflow.length > 0) sources.push(this.overflow);
     for (let cellY = range.minY; cellY <= range.maxY; cellY += 1) {
       for (let cellX = range.minX; cellX <= range.maxX; cellX += 1) {
-        const bucket = this.buckets.get(gridCellKey(cellX, cellY));
+        const bucket = this.bucket(cellX, cellY);
         if (bucket && bucket.length > 0) sources.push(bucket);
       }
     }
