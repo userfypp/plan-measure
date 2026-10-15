@@ -252,6 +252,10 @@
   --dialog-offset: 8px;
   --dialog-scale-from: 0.98;
 
+  /* Loading states (app overlay, viewer, page raster) stay invisible this long, so quick loads
+   * never flash a dimmed screen or a status that disappears before it can be read. */
+  --loading-reveal-delay: 500ms;
+
   /* Base component geometry (components/ui). */
   --spinner-size: 14px;
   --badge-min-height: 24px;

@@ -412,6 +412,33 @@ describe("ViewerDock", () => {
     expect(trigger.getAttribute("aria-label")).toBe("Page 1 of 3. No page label. Set page label");
   });
 
+  it("hides the page label and zoom until the document supplies them instead of flashing defaults", () => {
+    const pendingValue = (element: Element | null | undefined) =>
+      /pendingValue/.test(element?.className ?? "");
+    const zoomValue = () =>
+      Array.from(
+        document.querySelector('[aria-label="Zoom controls"]')?.querySelectorAll("span") ?? [],
+      ).find((span) => span.textContent?.endsWith("%"));
+
+    renderDock(
+      createProps({
+        sourcePageLabel: null,
+        effectivePageLabel: "",
+        pageLabelPending: true,
+        navigation: { ...createProps().navigation, zoomPending: true },
+      }),
+    );
+    expect(pendingValue(pageLabelTrigger().querySelector("strong"))).toBe(true);
+    expect(pendingValue(zoomValue())).toBe(true);
+    expect(pageLabelTrigger().textContent).toContain("1 / 3");
+
+    renderDock(createProps());
+    expect(pendingValue(pageLabelTrigger().querySelector("strong"))).toBe(false);
+    expect(pendingValue(zoomValue())).toBe(false);
+    expect(zoomValue()?.textContent).toBe("100%");
+    expect(dockCss).toMatch(/\.pendingValue \{\s*opacity: 0;/);
+  });
+
   it("opens the page-label editor with focused selected effective content and source metadata", () => {
     renderDock(createProps());
     act(() => pageLabelTrigger().click());

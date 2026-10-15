@@ -4,6 +4,8 @@ export interface ViewerNavigationModel {
   pageNumber: number;
   pageCount: number;
   zoom: number;
+  /** True until the first page of a document has been measured, while `zoom` is still a default. */
+  zoomPending?: boolean;
   onPageChange: (pageNumber: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;

@@ -47,6 +47,7 @@ interface WorkspaceShellProps {
   viewer?: ReactNode;
   pdfDocument?: PDFDocumentProxy;
   sourcePageLabels?: readonly string[] | null;
+  sourcePageLabelsPending?: boolean;
   logicalPageBounds?: LogicalPageBounds | null;
   keyboardAuthoringEnabled?: boolean;
   emptyState?: ReactNode;
@@ -70,6 +71,7 @@ export function WorkspaceShell({
   viewer,
   pdfDocument,
   sourcePageLabels = null,
+  sourcePageLabelsPending = false,
   logicalPageBounds = null,
   keyboardAuthoringEnabled = false,
   emptyState,
@@ -309,6 +311,7 @@ export function WorkspaceShell({
           viewerTransientOverlay={viewerTransientOverlay}
           pdfDocument={pdfDocument}
           sourcePageLabels={sourcePageLabels}
+          sourcePageLabelsPending={sourcePageLabelsPending}
           logicalPageBounds={logicalPageBounds}
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           rightObstruction={geometry.rightObstruction}

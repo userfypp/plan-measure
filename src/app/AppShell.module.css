@@ -101,6 +101,15 @@
   background: var(--color-loading-overlay);
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
+  cursor: progress;
+  animation: loadingReveal var(--dialog-duration-enter) var(--dialog-ease-enter)
+    var(--loading-reveal-delay) backwards;
+}
+
+@keyframes loadingReveal {
+  from {
+    opacity: 0;
+  }
 }
 
 .loadingMessage {

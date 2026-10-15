@@ -168,4 +168,17 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   box-shadow: var(--shadow-structural);
+  animation: loadingReveal var(--dialog-duration-enter) var(--dialog-ease-enter)
+    var(--loading-reveal-delay) backwards;
+}
+
+/* The app-wide loading overlay already reports the load; avoid a second, offset status box. */
+:global(body:has([data-app-loading])) .loading {
+  visibility: hidden;
+}
+
+@keyframes loadingReveal {
+  from {
+    opacity: 0;
+  }
 }

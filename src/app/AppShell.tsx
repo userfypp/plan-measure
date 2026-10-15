@@ -195,5 +195,5 @@ export function LoadingOverlay({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", blockApplicationKey, true);
     return () => window.removeEventListener("keydown", blockApplicationKey, true);
   }, []);
-  return <div role="status" className={styles.loadingOverlay}><span className={styles.loadingMessage}>{children}</span></div>;
+  return <div role="status" className={styles.loadingOverlay} data-app-loading><span className={styles.loadingMessage}>{children}</span></div>;
 }

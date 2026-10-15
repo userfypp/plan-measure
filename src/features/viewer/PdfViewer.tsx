@@ -116,6 +116,7 @@ import { SOFTWARE_CURSORS } from "./softwareCursor";
 import { PageGridLines } from "./PageGridLines";
 import { LiveLengthLabel } from "./LiveLengthLabel";
 import { useSoftwareCursor } from "./useSoftwareCursor";
+import { revealPageContent } from "./pageReveal";
 import {
   copyRasterToCanvas,
   panCachePixelRatio,
@@ -998,12 +999,15 @@ export function PdfViewer({
     ],
   );
 
+  // Before a document's first page is measured the zoom is a placeholder, not the fit zoom.
+  const zoomPending = !bounds && !canvasPageData;
   useLayoutEffect(() => {
     onViewZoomChange(page.pageNumber, viewTransform.zoom);
     onNavigationChange?.({
       pageNumber: page.pageNumber,
       pageCount: session?.pageCount ?? 1,
       zoom: viewTransform.zoom,
+      zoomPending,
       onPageChange: changePage,
       onZoomOut: () => {
         if (safeViewer.center)
@@ -1023,6 +1027,7 @@ export function PdfViewer({
     page.pageNumber,
     session?.pageCount,
     viewTransform.zoom,
+    zoomPending,
     safeViewer.center,
     zoomAround,
   ]);
@@ -1848,6 +1853,13 @@ export function PdfViewer({
     showPage,
     viewTransform,
   ]);
+
+  const hasCanvasPage = canvasPageData !== null;
+  useLayoutEffect(() => {
+    // Fade a document's first raster and its annotations in together instead of popping them in.
+    if (!hasCanvasPage) return;
+    revealPageContent([canvasRef.current, stageRef.current?.getContent()]);
+  }, [hasCanvasPage]);
 
   useLayoutEffect(() => {
     if (isPresentedTarget || !canvasPageData) return;

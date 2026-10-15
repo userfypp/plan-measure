@@ -64,6 +64,16 @@
   border-color: var(--color-accent);
 }
 
+/* Values the dock shows before the document has supplied them stay hidden, so the dock does not
+ * flash a placeholder ("No label", 100%) and then correct it a frame later. */
+.settlingValue {
+  transition: opacity 120ms ease;
+}
+
+.pendingValue {
+  opacity: 0;
+}
+
 .zoomValue {
   min-width: var(--geometry-viewer-zoom-min-width);
   flex: 0 0 auto;

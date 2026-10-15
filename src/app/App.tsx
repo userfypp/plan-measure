@@ -395,7 +395,8 @@ function PlanMeasureApp() {
     setError,
   });
 
-  const sourcePageLabels = usePdfPageLabels(activePdf);
+  const { labels: sourcePageLabels, pending: sourcePageLabelsPending } =
+    usePdfPageLabels(activePdf);
 
   useEffect(() => {
     // The start screen also offers settings and the project library, so fetch them first; then
@@ -1059,6 +1060,7 @@ function PlanMeasureApp() {
             onDrop={handleDrop}
             pdfDocument={activePdf.document}
             sourcePageLabels={sourcePageLabels}
+            sourcePageLabelsPending={sourcePageLabelsPending}
             logicalPageBounds={
               viewerPageBounds?.pageNumber === currentPage.pageNumber
                 ? viewerPageBounds.bounds

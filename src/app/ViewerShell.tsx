@@ -45,6 +45,7 @@ interface ViewerShellProps {
   viewerTransientOverlay?: ReactNode;
   pdfDocument?: PDFDocumentProxy;
   sourcePageLabels?: readonly string[] | null;
+  sourcePageLabelsPending?: boolean;
   logicalPageBounds?: LogicalPageBounds | null;
   keyboardAuthoringEnabled?: boolean;
   rightObstruction?: number;
@@ -62,13 +63,14 @@ export function ViewerShell({
   viewerTransientOverlay,
   pdfDocument,
   sourcePageLabels = null,
+  sourcePageLabelsPending = false,
   logicalPageBounds = null,
   keyboardAuthoringEnabled = false,
   rightObstruction = 0,
   onAuthoringCapabilityChange,
 }: ViewerShellProps) {
   const [navigation, setNavigation] = useState<
-    Pick<ViewerNavigationModel, "pageNumber" | "pageCount" | "zoom"> | null
+    Pick<ViewerNavigationModel, "pageNumber" | "pageCount" | "zoom" | "zoomPending"> | null
   >(null);
   const [pageBrowserDocument, setPageBrowserDocument] = useState<PDFDocumentProxy | null>(null);
   const pagesOpen = Boolean(pdfDocument && pageBrowserDocument === pdfDocument);
@@ -107,9 +109,15 @@ export function ViewerShell({
       current &&
       current.pageNumber === next.pageNumber &&
       current.pageCount === next.pageCount &&
-      current.zoom === next.zoom
+      current.zoom === next.zoom &&
+      current.zoomPending === next.zoomPending
         ? current
-        : { pageNumber: next.pageNumber, pageCount: next.pageCount, zoom: next.zoom },
+        : {
+            pageNumber: next.pageNumber,
+            pageCount: next.pageCount,
+            zoom: next.zoom,
+            zoomPending: next.zoomPending,
+          },
     );
   }, []);
 
@@ -283,6 +291,7 @@ export function ViewerShell({
                       : undefined
                   }
                   sourcePageLabels={sourcePageLabels}
+                  sourcePageLabelsPending={sourcePageLabelsPending}
                   logicalPageBounds={logicalPageBounds}
                   navigation={{
                     ...navigation,

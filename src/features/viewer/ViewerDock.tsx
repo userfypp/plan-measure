@@ -57,6 +57,8 @@ export interface ViewerDockProps {
   sourcePageLabel: string | null;
   customPageLabel: string | null;
   effectivePageLabel: string;
+  /** The PDF's labels are still being read, so the label is not shown yet rather than "No label". */
+  pageLabelPending?: boolean;
   calibrations: readonly PageCalibration[];
   activeCalibrationId: string | null;
   pageNavigationDisabled?: boolean;
@@ -128,6 +130,7 @@ export function ViewerDock({
   sourcePageLabel,
   customPageLabel,
   effectivePageLabel,
+  pageLabelPending = false,
   calibrations,
   activeCalibrationId,
   pageNavigationDisabled = false,
@@ -272,7 +275,13 @@ export function ViewerDock({
         <Popover
           trigger={
             <span className={styles.pageTriggerText}>
-              <strong>{effectivePageLabel || "No label"}</strong>
+              <strong
+                className={[styles.settlingValue, pageLabelPending ? styles.pendingValue : ""]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {effectivePageLabel || "No label"}
+              </strong>
               <small>
                 {navigation.pageNumber} / {navigation.pageCount}
               </small>
@@ -385,7 +394,17 @@ export function ViewerDock({
         >
           <MinusIcon />
         </Button>
-        <span className={styles.zoomValue}>{Math.round(navigation.zoom * 100)}%</span>
+        <span
+          className={[
+            styles.zoomValue,
+            styles.settlingValue,
+            navigation.zoomPending ? styles.pendingValue : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {Math.round(navigation.zoom * 100)}%
+        </span>
         <Button
           variant="ghost"
           size="compact"

@@ -15,6 +15,7 @@ export function ViewerDockContainer({
   onTogglePages,
   onPreparePages,
   sourcePageLabels,
+  sourcePageLabelsPending = false,
   logicalPageBounds,
 }: {
   navigation: ViewerNavigationModel;
@@ -22,6 +23,7 @@ export function ViewerDockContainer({
   onTogglePages?: () => void;
   onPreparePages?: (fileBytes: number, currentPage: number) => void;
   sourcePageLabels: readonly string[] | null;
+  sourcePageLabelsPending?: boolean;
   logicalPageBounds: LogicalPageBounds | null;
 }) {
   const {
@@ -73,6 +75,7 @@ export function ViewerDockContainer({
       }
       sourcePageLabel={pdfPageLabel}
       customPageLabel={customPageLabel}
+      pageLabelPending={sourcePageLabelsPending && customPageLabel === null}
       effectivePageLabel={effectivePageLabel(
         pageNumber,
         session.pageLabelOverrides,

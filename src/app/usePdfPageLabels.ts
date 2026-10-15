@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import type { LoadedPdf } from "../services/pdf";
 
-export function usePdfPageLabels(pdf: LoadedPdf | null): readonly string[] | null {
+export interface PdfPageLabels {
+  labels: readonly string[] | null;
+  /** The PDF's own labels are still being read, so `labels: null` does not yet mean "none". */
+  pending: boolean;
+}
+
+export function usePdfPageLabels(pdf: LoadedPdf | null): PdfPageLabels {
   const [resolved, setResolved] = useState<{ pdf: LoadedPdf; labels: string[] | null } | null>(
     null,
   );
@@ -15,5 +21,6 @@ export function usePdfPageLabels(pdf: LoadedPdf | null): readonly string[] | nul
       live = false;
     };
   }, [pdf]);
-  return resolved?.pdf === pdf ? resolved.labels : (pdf?.pageLabels ?? null);
+  if (resolved?.pdf === pdf) return { labels: resolved.labels, pending: false };
+  return { labels: pdf?.pageLabels ?? null, pending: Boolean(pdf?.pageLabelsReady) };
 }
