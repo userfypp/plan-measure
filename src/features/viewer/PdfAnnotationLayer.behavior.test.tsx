@@ -541,14 +541,14 @@ describe("PdfAnnotationLayer behavior", () => {
   describe("whole measurement drag", () => {
     const LINE: Point[] = [{ x: 50, y: 50 }, { x: 150, y: 50 }];
 
-    function dragWhole(from: Point, to: Point, button = 0) {
+    function dragWhole(from: Point, to: Point, button = 0, line = shape()) {
       const target = dragNode();
       const event = mouseEvent(target.node, button);
       target.moveTo(from);
-      fire(shape(), "onMouseDown", event);
-      fire(shape(), "onDragStart", event);
+      fire(line, "onMouseDown", event);
+      fire(line, "onDragStart", event);
       target.moveTo(to);
-      return { event, ...target, end: () => fire(shape(), "onDragEnd", event) };
+      return { event, ...target, end: () => fire(line, "onDragEnd", event) };
     }
 
     it("is draggable only when selected with the select tool", () => {
@@ -568,6 +568,22 @@ describe("PdfAnnotationLayer behavior", () => {
         id: "m-1",
         points: [{ x: 70, y: 60 }, { x: 170, y: 60 }],
       });
+    });
+
+    it("moves the whole selection, including a measurement just added to it, and nothing else", () => {
+      const page = pageWith("line", LINE);
+      const lineAt = (id: string, y: number) => ({ ...page.measurements[0]!, id, points: [{ x: 50, y }, { x: 150, y }] });
+      page.measurements.push(lineAt("m-2", 200), lineAt("m-3", 300), lineAt("m-4", 400));
+      renderLayer({ page, selected: ["m-1", "m-2"] });
+      renderLayer({ page, selected: ["m-1", "m-2", "m-3"] });
+      const added = captured.lines.find((line) => line.name === "measurement-preview-line" && (line.points as number[])[1] === 300)!;
+      dragWhole({ x: 200, y: 600 }, { x: 240, y: 620 }, 0, added).end();
+      expect(captured.updateMeasurement).not.toHaveBeenCalled();
+      expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
+        { pageNumber: 1, id: "m-1", points: [{ x: 70, y: 60 }, { x: 170, y: 60 }] },
+        { pageNumber: 1, id: "m-2", points: [{ x: 70, y: 210 }, { x: 170, y: 210 }] },
+        { pageNumber: 1, id: "m-3", points: [{ x: 70, y: 310 }, { x: 170, y: 310 }] },
+      ]);
     });
 
     it("keeps the whole measurement inside the page while dragging past an edge", () => {

@@ -443,75 +443,79 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
         })}
       {visibleMeasurements
         .filter((measurement) => shouldRenderMeasurement(measurement, showMeasurements))
-        .map((measurement) => (
-          <MeasurementShape
-            key={measurement.id}
-            measurement={measurement}
-            bounds={bounds}
-            zoom={transform.zoom}
-            transform={transform}
-            selected={
-              selectedMeasurementIds
-                ? selectedMeasurementIds.includes(measurement.id)
-                : selectedMeasurementId === measurement.id
-            }
-            isSelectable={isSelectable}
-            editable={
-              (selectedMeasurementIds?.length ?? 0) <= 1 &&
-              measurementEditingEnabled(
+        .map((measurement) => {
+          const selected = selectedMeasurementIds
+            ? selectedMeasurementIds.includes(measurement.id)
+            : selectedMeasurementId === measurement.id;
+          return (
+            <MeasurementShape
+              key={measurement.id}
+              measurement={measurement}
+              bounds={bounds}
+              zoom={transform.zoom}
+              transform={transform}
+              selected={selected}
+              isSelectable={isSelectable}
+              editable={
+                (selectedMeasurementIds?.length ?? 0) <= 1 &&
+                measurementEditingEnabled(
+                  activeTool,
+                  spacePan,
+                  isPanning,
+                  Boolean(calibrationReferenceEdit),
+                  measurementEditingBlocked ||
+                    !precisionAuthoringAvailable ||
+                    (selectedMeasurementIds?.length ?? 0) > 1,
+                  activeMeasurementEditId,
+                  measurement.id,
+                )
+              }
+              wholeDragEditable={measurementEditingEnabled(
                 activeTool,
                 spacePan,
                 isPanning,
                 Boolean(calibrationReferenceEdit),
                 measurementEditingBlocked ||
                   !precisionAuthoringAvailable ||
-                  (selectedMeasurementIds?.length ?? 0) > 1,
+                  ((selectedMeasurementIds?.length ?? 0) > 1 && !groupMoveAvailable),
                 activeMeasurementEditId,
                 measurement.id,
-              )
-            }
-            wholeDragEditable={measurementEditingEnabled(
-              activeTool,
-              spacePan,
-              isPanning,
-              Boolean(calibrationReferenceEdit),
-              measurementEditingBlocked ||
-                !precisionAuthoringAvailable ||
-                ((selectedMeasurementIds?.length ?? 0) > 1 && !groupMoveAvailable),
-              activeMeasurementEditId,
-              measurement.id,
-            )}
-            groupMeasurements={groupMoveAvailable ? selectedPageMeasurements : undefined}
-            groupPreviewPoints={
-              groupDragPreview &&
-              groupDragPreview.ownerId !== measurement.id &&
-              selectedMeasurementIds?.includes(measurement.id)
-                ? translateMeasurementPoints(measurement.points, groupDragPreview.delta)
-                : null
-            }
-            onGroupDragPreview={previewGroupDrag}
-            showLabel={showLabels}
-            classificationLabel={classificationLabelFor(measurement, classificationNames)}
-            calibration={getMeasurementCalibration(page, measurement)}
-            displayUnit={displayUnit}
-            areaDisplay={areaDisplay}
-            measurementDecimalPlaces={measurementDecimalPlaces}
-            visualRoles={visualRoles}
-            interactionTargetScreenPx={interactionTargetScreenPx}
-            pageNumber={page.pageNumber}
-            onSelectMeasurement={onSelectMeasurement}
-            onMeasurementEditActiveChange={onMeasurementEditActiveChange}
-            onWholeMeasurementDragCancellationChange={onWholeMeasurementDragCancellationChange}
-            onVertexDragCancellationChange={onVertexDragCancellationChange}
-            plannedLabelPlacement={
-              plannedLabelLayout.placements.get(`measurement:${measurement.id}`) ?? null
-            }
-            plannedOccupiedLabelRect={
-              plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`) ?? null
-            }
-            labelCollisionIndex={labelCollisionIndex.index}
-          />
-        ))}
+              )}
+              // Only selected shapes start a group drag; the others keep their props when it changes.
+              groupMeasurements={
+                groupMoveAvailable && selected ? selectedPageMeasurements : undefined
+              }
+              groupPreviewPoints={
+                groupDragPreview &&
+                groupDragPreview.ownerId !== measurement.id &&
+                selectedMeasurementIds?.includes(measurement.id)
+                  ? translateMeasurementPoints(measurement.points, groupDragPreview.delta)
+                  : null
+              }
+              onGroupDragPreview={previewGroupDrag}
+              showLabel={showLabels}
+              classificationLabel={classificationLabelFor(measurement, classificationNames)}
+              calibration={getMeasurementCalibration(page, measurement)}
+              displayUnit={displayUnit}
+              areaDisplay={areaDisplay}
+              measurementDecimalPlaces={measurementDecimalPlaces}
+              visualRoles={visualRoles}
+              interactionTargetScreenPx={interactionTargetScreenPx}
+              pageNumber={page.pageNumber}
+              onSelectMeasurement={onSelectMeasurement}
+              onMeasurementEditActiveChange={onMeasurementEditActiveChange}
+              onWholeMeasurementDragCancellationChange={onWholeMeasurementDragCancellationChange}
+              onVertexDragCancellationChange={onVertexDragCancellationChange}
+              plannedLabelPlacement={
+                plannedLabelLayout.placements.get(`measurement:${measurement.id}`) ?? null
+              }
+              plannedOccupiedLabelRect={
+                plannedLabelLayout.occupiedRects.get(`measurement:${measurement.id}`) ?? null
+              }
+              labelCollisionIndex={labelCollisionIndex.index}
+            />
+          );
+        })}
     </>
   );
 });
