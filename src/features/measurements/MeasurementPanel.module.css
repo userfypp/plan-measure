@@ -13,7 +13,10 @@
 .toolbar {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  /* One column per button present, so a missing Group button leaves no empty gap behind. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8);

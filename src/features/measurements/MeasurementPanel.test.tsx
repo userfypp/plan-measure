@@ -393,7 +393,7 @@ describe("measurement grouping surfaces", () => {
       /\.panel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);/s,
     );
     expect(measurementPanelCss).toMatch(
-      /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--geometry-tree-inset-end\)/s,
+      /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*grid-auto-columns:\s*auto;[^}]*grid-auto-flow:\s*column;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--geometry-tree-inset-end\)/s,
     );
     expect(measurementPanelCss).toMatch(
       /\.search\s*\{[^}]*height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
