@@ -109,7 +109,9 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         ...state,
         activeTool: "select",
         selectedMeasurementId: null,
-        selectedMeasurementIds: [],
+        // An empty selection keeps its array, so the outgoing page does not render again for it.
+        selectedMeasurementIds:
+          state.selectedMeasurementIds.length === 0 ? state.selectedMeasurementIds : [],
         draft: null,
         calibrationFlow: null,
         calibrationCandidate: null,

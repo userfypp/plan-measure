@@ -218,6 +218,19 @@ describe("workspace selection state", () => {
     });
   });
 
+  it("keeps an empty selection's array when the page changes", () => {
+    const selected = workspaceReducer(initialWorkspaceState, {
+      type: "SELECT_MEASUREMENT",
+      id: "measurement-1",
+    });
+    const cleared = workspaceReducer(selected, { type: "PAGE_CHANGED" });
+    expect(cleared.selectedMeasurementIds).toEqual([]);
+
+    expect(workspaceReducer(cleared, { type: "PAGE_CHANGED" }).selectedMeasurementIds).toBe(
+      cleared.selectedMeasurementIds,
+    );
+  });
+
   it("starts with Ortho disabled", () => {
     expect(initialWorkspaceState.orthogonal).toBe(false);
   });
