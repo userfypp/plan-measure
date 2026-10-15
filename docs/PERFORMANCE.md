@@ -163,6 +163,24 @@ attribute change; with thousands of measurements one redraw costs a visible fram
   ignore by identity in the current plan.
 - Per-measurement derivations (label data, snap targets) are cached in a
   `WeakMap` keyed by the immutable measurement; measurements are never mutated.
+  The measurement panel caches formatted values the same way and checks the
+  scale, display settings and number separators before reusing one. Polygon
+  ring validation is cached per points array and recomputed if its coordinates
+  differ.
+- Unselected `MeasurementShape`s ignore `transform` (pan) and editing-permission
+  changes: only handles and gestures of selected shapes read them, and
+  deselection cancels gestures. Zoom still re-renders them through `zoom`.
+- `konvaRuntime.ts` (aliased as `konva`) patches Konva: the Text baseline sample
+  is measured once per font, and a Text inside `setAttrs` defers its layout and
+  its Label/Tag sync until the call returns, so a zoom lays out each label once.
+  Both are pure functions of the final attrs; check parity screenshots after
+  upgrading Konva.
+- `itsFineRuntime.ts` (aliased as `its-fine`) makes the context accessors that
+  react-konva's bridge redefines configurable, so Stage renders do not throw and
+  catch an exception per context.
+- Drag release cleanup must run after Konva's own window release listener, which
+  is added when a Stage mounts; the cleanup re-adds its listeners on every press
+  so it stays behind. Cancelling first loses the dragend and the edit.
 
 ## How to interpret and update a baseline
 
