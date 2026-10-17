@@ -910,16 +910,19 @@ export function SettingsDialog({
                       />
                       <SwitchRow
                         label="Labels"
+                        help="Shows each measurement's value on the plan. Label size and background are in Canvas."
                         checked={viewSettings.showLabels}
                         onChange={(showLabels) => onViewSettingsChange({ showLabels })}
                       />
                       <SwitchRow
                         label="Measurements"
+                        help="Shows measurements on the plan. Line thickness and fills are in Canvas."
                         checked={viewSettings.showMeasurements}
                         onChange={(showMeasurements) => onViewSettingsChange({ showMeasurements })}
                       />
                       <SwitchRow
                         label="Calibration"
+                        help="Shows the reference line each scale was calibrated with."
                         checked={viewSettings.showCalibration}
                         onChange={(showCalibration) => onViewSettingsChange({ showCalibration })}
                       />
@@ -930,10 +933,6 @@ export function SettingsDialog({
                       Open a plan to change its display unit and visibility settings.
                     </p>
                   )}
-                  <p className={styles.sectionNote}>
-                    Line thickness, label size, fills and other canvas appearance settings are in
-                    Canvas.
-                  </p>
                 </div>
               )}
 

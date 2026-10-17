@@ -839,7 +839,12 @@ describe("SettingsDialog", () => {
       "About Polygon area",
       "About Measure clouds",
       "About Label classification",
+      "About Labels",
+      "About Measurements",
+      "About Calibration",
     ]);
+    // Where canvas appearance lives is told in the visibility tooltips, not in a note below them.
+    expect(dialog().textContent).not.toContain("appearance settings are in");
     openTab("Canvas");
     expect(helpLabels()).toEqual(["About Label text"]);
     openTab("Confirmations");
