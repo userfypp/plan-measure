@@ -50,6 +50,7 @@ function renderAppBar({
   canRedo = true,
   onExport = vi.fn(),
   onOpenProjects = vi.fn(),
+  onCloseProject = vi.fn(),
   onUndo = vi.fn(),
   onRedo = vi.fn(),
 }: {
@@ -60,6 +61,7 @@ function renderAppBar({
   canRedo?: boolean;
   onExport?: () => void;
   onOpenProjects?: () => void;
+  onCloseProject?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
 } = {}) {
@@ -77,6 +79,7 @@ function renderAppBar({
           recoveredPlanStartupWorkspace="scales"
           onExport={onExport}
           onOpenProjects={onOpenProjects}
+          onCloseProject={onCloseProject}
           onUndo={onUndo}
           onRedo={onRedo}
           onMeasurementDecimalPlacesChange={vi.fn()}
@@ -86,7 +89,7 @@ function renderAppBar({
       </ThemeProvider>,
     );
   });
-  return { onExport, onOpenProjects, onUndo, onRedo };
+  return { onExport, onOpenProjects, onCloseProject, onUndo, onRedo };
 }
 
 beforeEach(() => {
@@ -160,7 +163,15 @@ describe("AppBar", () => {
           "header button, header a",
         ),
       ).map((action) => action.getAttribute("aria-label") || action.textContent?.trim()),
-    ).toEqual(["Undo", "Redo", "Export", "Projects, 2 saved", "Feedback", "Settings"]);
+    ).toEqual([
+      "Close project",
+      "Undo",
+      "Redo",
+      "Export",
+      "Projects, 2 saved",
+      "Feedback",
+      "Settings",
+    ]);
   });
 
   it("uses the primary variant for Export", () => {
@@ -310,5 +321,19 @@ describe("AppBar", () => {
     act(() => buttonByLabel("Feedback").click());
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
     expect(buttonByLabel("Settings")).toBeTruthy();
+  });
+
+  it("closes the open project from beside its name", () => {
+    const { onCloseProject } = renderAppBar();
+
+    act(() => buttonByLabel("Close project").click());
+
+    expect(onCloseProject).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no Close project action when no document is open", () => {
+    renderAppBar({ documentName: null, canExport: false });
+
+    expect(document.querySelector('button[aria-label="Close project"]')).toBeNull();
   });
 });

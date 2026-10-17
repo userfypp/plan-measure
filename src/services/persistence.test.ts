@@ -32,6 +32,7 @@ import {
   beginSessionMetadataSaveOnPageExit,
   discardSavedSession,
   activateSavedProject,
+  closeActiveSession,
   discardSavedProject,
   listSavedProjects,
   loadSavedProject,
@@ -2834,6 +2835,32 @@ describe("session persistence", () => {
 
     expect(await loadSavedSession()).toBeNull();
     expect((await listSavedProjects()).map((project) => project.id)).toEqual([archivedId]);
+  });
+
+  it("closes the active project and keeps its latest session in the library", async () => {
+    const session = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const projectId = "closed-project";
+    const revision = await replaceSavedSession(session, new Blob(["pdf"]), null, projectId);
+    const edited = structuredClone(session);
+    edited.settings.showLabels = false;
+
+    await closeActiveSession(revision, edited);
+
+    expect(await loadSavedSession()).toBeNull();
+    expect(await listSavedProjects()).toEqual([
+      expect.objectContaining({ id: projectId, isCurrent: false }),
+    ]);
+    expect((await loadSavedProject(projectId)).session.settings.showLabels).toBe(false);
+  });
+
+  it("rejects closing a project whose active revision changed", async () => {
+    const session = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    await replaceSavedSession(session, new Blob(["pdf"]), null);
+
+    await expect(closeActiveSession("stale-revision")).rejects.toBeInstanceOf(
+      PersistenceConflictError,
+    );
+    expect(await loadSavedSession()).not.toBeNull();
   });
 
   it("keeps the revision for an unchanged recovery autosave", async () => {

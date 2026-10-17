@@ -49,6 +49,7 @@ interface AppBarProps {
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onExport: () => void;
   onOpenProjects?: () => void;
+  onCloseProject?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
@@ -88,6 +89,14 @@ function RedoIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
+    </svg>
+  );
+}
+
 function FeedbackIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -114,6 +123,7 @@ export function AppBar({
   recoveredPlanStartupWorkspace = "scales",
   onExport,
   onOpenProjects,
+  onCloseProject,
   onUndo,
   onRedo,
   onMeasurementDecimalPlacesChange,
@@ -139,6 +149,16 @@ export function AppBar({
         <div className={styles.documentName} title={documentName ?? undefined}>
           {documentName ?? "No PDF loaded"}
         </div>
+        {documentName && onCloseProject && (
+          <IconButton
+            className={styles.iconAction}
+            icon={<CloseIcon />}
+            aria-label="Close project"
+            tooltip="Close project"
+            tooltipPosition="bottom"
+            onClick={onCloseProject}
+          />
+        )}
       </div>
 
       <div

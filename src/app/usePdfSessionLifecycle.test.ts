@@ -434,6 +434,63 @@ describe("workspace initialization", () => {
     );
   });
 
+  it("closes the current project to the start screen and keeps its latest edits saved", async () => {
+    const project = createEmptySession({ name: "Closed.pdf", size: 3, lastModified: 1 }, 1);
+    await replaceSavedSession(project, new Blob(["pdf"]), null, "closed-project");
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    act(() =>
+      setHarnessSession!({
+        ...harnessSession!,
+        settings: { ...harnessSession!.settings, showLabels: false },
+      }),
+    );
+
+    await act(async () => {
+      await lifecycle!.closeProject();
+    });
+
+    expect(harnessSession).toBeNull();
+    expect(lifecycle!.activePdf).toBeNull();
+    expect(lifecycle!.activeProjectId).toBeNull();
+    expect(await loadSavedSession()).toBeNull();
+    expect(lifecycle!.savedProjects).toEqual([
+      expect.objectContaining({ id: "closed-project", isCurrent: false }),
+    ]);
+    expect((await loadSavedProject("closed-project")).session.settings.showLabels).toBe(false);
+
+    await act(async () => {
+      await lifecycle!.openProject("closed-project");
+    });
+    expect(harnessSession?.settings.showLabels).toBe(false);
+  });
+
+  it("closes a memory-only project only after a confirmed discard", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(
+      new DOMException("Full", "QuotaExceededError"),
+    );
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.chooseFile(new File(["pdf"], "Memory.pdf", { type: "application/pdf" }));
+    });
+    expect(lifecycle!.hasUnsavedMemoryProject()).toBe(true);
+
+    await act(async () => {
+      await lifecycle!.closeProject();
+    });
+    expect(harnessSession?.pdf.name).toBe("Memory.pdf");
+
+    await act(async () => {
+      await lifecycle!.closeProject({ discardUnsavedProject: true });
+    });
+    expect(harnessSession).toBeNull();
+    expect(lifecycle!.activePdf).toBeNull();
+    expect(lifecycleErrors).not.toContain("The project could not be closed.");
+  });
+
   it("releases the previous PDF runtime after the viewer effects clean up", async () => {
     const projectA = createEmptySession({ name: "A.pdf", size: 3, lastModified: 1 }, 1);
     const projectB = createEmptySession({ name: "B.pdf", size: 4, lastModified: 2 }, 1);

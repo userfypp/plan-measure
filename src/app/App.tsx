@@ -286,6 +286,7 @@ function PlanMeasureApp() {
   }, [ExportDialog, setError]);
   const [projectLibraryOpen, setProjectLibraryOpen] = useState(false);
   const [pendingDiscardProjectId, setPendingDiscardProjectId] = useState<string | null>(null);
+  const [confirmingCloseProject, setConfirmingCloseProject] = useState(false);
   const [keyboardAuthoringEnabled, setKeyboardAuthoringEnabledState] = useState(
     readKeyboardAuthoringPreference,
   );
@@ -389,6 +390,7 @@ function PlanMeasureApp() {
     refreshSavedProjects,
     discardRecovery,
     discardProject,
+    closeProject,
     continueWithoutRecovery,
     showDiscardRecoveryConfirmation,
     hideDiscardRecoveryConfirmation,
@@ -1003,6 +1005,10 @@ function PlanMeasureApp() {
           setProjectLibraryOpen(true);
           void refreshSavedProjects();
         }}
+        onCloseProject={() => {
+          if (hasUnsavedMemoryProject()) setConfirmingCloseProject(true);
+          else void closeProject();
+        }}
         onUndo={undo}
         onRedo={redo}
         onViewSettingsChange={updateSettings}
@@ -1487,6 +1493,21 @@ function PlanMeasureApp() {
           onDialogCancel={cancelPdfReplacement}
           onConfirmationConfirm={handleOverlayConfirmationConfirm}
         />
+
+        {confirmingCloseProject && (
+          <ConfirmationDialog
+            open
+            intent="destructive"
+            title="Discard unsaved project?"
+            description="Closing will discard this project, which exists only in memory because it could not be saved. Cancel and export it first if you want to keep a copy."
+            confirmLabel="Discard and close"
+            onCancel={() => setConfirmingCloseProject(false)}
+            onConfirm={() => {
+              setConfirmingCloseProject(false);
+              void closeProject({ discardUnsavedProject: true });
+            }}
+          />
+        )}
 
         {projectLibraryOpen && (
           <Suspense fallback={null}>

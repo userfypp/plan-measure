@@ -31,6 +31,7 @@ interface AppShellProps {
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onExport: () => void;
   onOpenProjects?: () => void;
+  onCloseProject?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
@@ -70,6 +71,7 @@ export function AppShell({
   recoveredPlanStartupWorkspace = "scales",
   onExport,
   onOpenProjects,
+  onCloseProject,
   onUndo,
   onRedo,
   onMeasurementDecimalPlacesChange,
@@ -116,6 +118,7 @@ export function AppShell({
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onExport={onExport}
         onOpenProjects={onOpenProjects}
+        onCloseProject={onCloseProject}
         onUndo={onUndo}
         onRedo={onRedo}
         onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}

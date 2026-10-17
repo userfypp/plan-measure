@@ -153,6 +153,7 @@ export function createSessionLifecycleMock(lifecycle: SessionLifecycleDouble) {
         continueRecovery: () => undefined,
         discardRecovery: () => undefined,
         discardProject: async () => undefined,
+        closeProject: async () => undefined,
         continueWithoutRecovery: () => undefined,
         showDiscardRecoveryConfirmation: () => undefined,
         hideDiscardRecoveryConfirmation: () => undefined,

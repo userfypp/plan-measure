@@ -785,6 +785,45 @@ export async function discardSavedSession(expectedRevision: string): Promise<voi
   await transaction.done;
 }
 
+/** Leaves no project open while keeping the active one, with its latest session, in the library. */
+export async function closeActiveSession(
+  expectedRevision: string | null,
+  currentSession?: CurrentSession,
+): Promise<void> {
+  const serializedCurrentSession = currentSession ? serializeSession(currentSession) : null;
+  const database = await getDatabase();
+  const transaction = database.transaction(["sessions", "pdfs"], "readwrite");
+  void transaction.done.catch(() => undefined);
+  const state = await requireExpectedRevision(transaction, expectedRevision);
+  const activePdf = await transaction.objectStore("pdfs").get(ACTIVE_KEY);
+  const writes: Array<Promise<unknown>> = [];
+  if (state.activeProjectId && serializedCurrentSession && activePdf) {
+    writes.push(
+      putProjectSessionSnapshot(
+        transaction,
+        state.activeProjectId,
+        serializedCurrentSession,
+        activePdf.blob,
+      ),
+    );
+  }
+  writes.push(
+    transaction.objectStore("sessions").delete(ACTIVE_KEY),
+    transaction.objectStore("pdfs").delete(ACTIVE_KEY),
+    transaction.objectStore("sessions").delete(LEGACY_ACTIVE_KEY),
+    transaction.objectStore("pdfs").delete(LEGACY_ACTIVE_KEY),
+    transaction.objectStore("sessions").put({
+      key: STATE_KEY,
+      activeRevision: null,
+      activeProjectId: null,
+    }),
+  );
+  await finishWrites(transaction, writes);
+  if (state.activeProjectId && serializedCurrentSession && activePdf && currentSession) {
+    rememberProjectSessionSummary(state.activeProjectId, serializedCurrentSession, currentSession);
+  }
+}
+
 export async function discardSavedProject(
   projectId: string,
   expectedRevision: string | null,
