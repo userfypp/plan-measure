@@ -50,6 +50,15 @@ describe("overlay state", () => {
     });
   });
 
+  it("requests a scale deletion confirmation unless a dialog is open", () => {
+    const payload = { pageNumber: 1, calibrationId: "xy", calibrationName: "Survey" };
+    const state = overlayReducer(initialOverlayState, { type: "REQUEST_DELETE_SCALE", payload });
+    expect(state.active).toEqual({ kind: "confirmation", descriptor: { type: "deleteScale", payload } });
+
+    const dialog = overlayReducer(initialOverlayState, { type: "REQUEST_REPLACE_PDF", payload: { pdfId: "pdf-1" } });
+    expect(overlayReducer(dialog, { type: "REQUEST_DELETE_SCALE", payload })).toBe(dialog);
+  });
+
   it("cannot represent two blocking overlays at the same time", () => {
     const dialog = overlayReducer(initialOverlayState, { type: "REQUEST_REPLACE_PDF", payload: { pdfId: "pdf-1" } });
     const confirmation = overlayReducer(dialog, { type: "REQUEST_DELETE_MEASUREMENT", payload: { pageNumber: 1, measurementId: "line-1", measurementName: "Hallway" } });

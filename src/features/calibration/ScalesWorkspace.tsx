@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
 import { AnchoredMenu, Button, ChevronDownIcon, Input } from "../../components/ui";
 import type {
@@ -41,6 +41,8 @@ export interface ScalesWorkspaceProps {
   onRecalibrate: (calibrationId: string) => void;
   onEditReference: (calibration: PageCalibration, reference: CalibrationReferenceKey) => void;
   onCopyScale: (calibration: PageCalibration) => void;
+  /** Omitted: the scale details offer no Delete. */
+  onDeleteScale?: (calibration: PageCalibration) => void;
 }
 
 interface RenameState {
@@ -51,6 +53,15 @@ interface RenameState {
 
 const WORKFLOW_DISABLED_REASON = "Finish or cancel the current scale workflow first.";
 const EMPTY_SCALE_NAME_ERROR = "Scale name cannot be empty.";
+
+function findCalibration(calibrations: readonly PageCalibration[], calibrationId: string) {
+  return calibrations.some((calibration) => calibration.id === calibrationId);
+}
+
+// The session refuses to delete a scale that measurements still use.
+function scaleInUseReason(measurementCount: number): string {
+  return `${measurementCount} ${measurementCount === 1 ? "measurement uses" : "measurements use"} this scale. Move ${measurementCount === 1 ? "it" : "them"} to another scale or delete ${measurementCount === 1 ? "it" : "them"} first.`;
+}
 
 function formatReferenceDistance(millimetres: number, displayUnit: MeasurementDisplayUnit): string {
   if (displayUnit === "in" || displayUnit === "ft" || displayUnit === "ft-in") {
@@ -109,6 +120,7 @@ export function ScalesWorkspace({
   onCheckScale,
   onEditReference,
   onCopyScale,
+  onDeleteScale,
 }: ScalesWorkspaceProps) {
   useNumberFormatKey(); // re-render when separators change
   const workspace = useWorkspaceDrawerPresentation();
@@ -120,6 +132,7 @@ export function ScalesWorkspace({
   const returnFocusScaleIdRef = useRef<string | null>(null);
   const addScaleContainerRef = useRef<HTMLDivElement>(null);
   const returnFocusToAddScaleRef = useRef(false);
+  const deletingScaleIdRef = useRef<string | null>(null);
   const precisionActionsDisabled = !workspace.precisionActionAvailable;
   const precisionDisabledReason = workspace.precisionDisabledReason;
   const spatialActionsDisabled = actionsDisabled || precisionActionsDisabled;
@@ -146,6 +159,34 @@ export function ScalesWorkspace({
       ?.querySelector<HTMLButtonElement>('button[aria-label="Add scale"]')
       ?.focus({ preventScroll: true });
   }, [customRatioDialogOpen]);
+
+  // Deleting a scale from its Delete button removes the focused button, or the button a
+  // confirmation returns focus to, so focus falls back to the page or to the viewer. A confirmation
+  // may queue that fallback in a microtask from its unmount cleanup, so the move to "Add scale" is
+  // queued after it. A scale removed any other way, such as an undo, leaves focus where it is.
+  useEffect(() => {
+    const deletingScaleId = deletingScaleIdRef.current;
+    if (!deletingScaleId || findCalibration(page.calibrations, deletingScaleId)) return;
+    deletingScaleIdRef.current = null;
+    queueMicrotask(() => {
+      const focused = document.activeElement;
+      const fellBack =
+        !focused ||
+        focused === document.body ||
+        (focused instanceof HTMLElement && focused.hasAttribute("data-dialog-focus-fallback"));
+      if (!fellBack) return;
+      addScaleContainerRef.current
+        ?.querySelector<HTMLButtonElement>('button[aria-label="Add scale"]')
+        ?.focus({ preventScroll: true });
+    });
+  }, [page.calibrations]);
+
+  // A cancelled confirmation keeps the scale; collapsing it or inspecting another one ends that
+  // delete. Declared after the effect above so a delete that also clears the inspection still moves
+  // focus first.
+  useEffect(() => {
+    deletingScaleIdRef.current = null;
+  }, [inspectedScaleId]);
 
   function closeCustomRatioDialog() {
     returnFocusToAddScaleRef.current = true;
@@ -197,6 +238,9 @@ export function ScalesWorkspace({
           const active = calibration.id === page.activeCalibrationId;
           const inspected = inspectedScaleId === calibration.id;
           const detailId = `scale-details-${calibration.id}`;
+          const measurementCount = page.measurements.filter(
+            (measurement) => measurement.calibrationId === calibration.id,
+          ).length;
           return (
             <article
               key={calibration.id}
@@ -474,6 +518,29 @@ export function ScalesWorkspace({
                       Recalibrate scale
                     </Button>
                   </div>
+                  {onDeleteScale && (
+                    <span className={styles.deleteScaleControl}>
+                      <Button
+                        variant="dangerSecondary"
+                        size="compact"
+                        aria-label={`Delete scale ${calibration.name}`}
+                        disabled={actionsDisabled || measurementCount > 0}
+                        disabledReason={
+                          actionsDisabled
+                            ? WORKFLOW_DISABLED_REASON
+                            : measurementCount > 0
+                              ? scaleInUseReason(measurementCount)
+                              : undefined
+                        }
+                        onClick={() => {
+                          deletingScaleIdRef.current = calibration.id;
+                          onDeleteScale(calibration);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </span>
+                  )}
                 </div>
               </div>
             </article>

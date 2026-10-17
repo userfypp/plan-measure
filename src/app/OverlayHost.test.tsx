@@ -40,6 +40,17 @@ function ClassificationDeleteRequest({ target }: { target: "dimension" | "value"
     : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" })}>Request classification delete</button>;
 }
 
+const deleteScalePayload = { pageNumber: 1, calibrationId: "xy", calibrationName: "Survey" };
+
+function ScaleDeleteRequest() {
+  const { requestDeleteScale } = useOverlayState();
+  return (
+    <button type="button" onClick={() => requestDeleteScale(deleteScalePayload)}>
+      Request scale delete
+    </button>
+  );
+}
+
 function SetRatioRequest() {
   const { requestSetScaleRatio } = useOverlayState();
   return (
@@ -190,6 +201,39 @@ describe("OverlayHost Set ratio confirmation", () => {
   });
 });
 
+describe("OverlayHost scale deletion", () => {
+  it("confirms deleting a scale with the opt-out, or cancels without deleting", () => {
+    const confirm = vi.fn();
+    const cancel = vi.fn();
+    act(() => {
+      root!.render(
+        <OverlayProvider>
+          <ScaleDeleteRequest />
+          <OverlayHost onConfirmationConfirm={confirm} onConfirmationCancel={cancel} />
+        </OverlayProvider>,
+      );
+    });
+
+    act(() => buttonByText("Request scale delete").click());
+    const dialog = document.querySelector<HTMLDialogElement>("dialog");
+    expect(dialog?.textContent).toContain("Delete scale “Survey”?");
+    expect(dialog?.textContent).toContain(
+      "This scale will be removed from the current page. No measurements use it. You can undo this change.",
+    );
+    act(() => buttonByText("Cancel").click());
+    expect(cancel).toHaveBeenCalledWith({ type: "deleteScale", payload: deleteScalePayload });
+    expect(confirm).not.toHaveBeenCalled();
+
+    act(() => buttonByText("Request scale delete").click());
+    act(() => document.querySelector<HTMLInputElement>('dialog input[type="checkbox"]')?.click());
+    act(() => buttonByText("Delete").click());
+    expect(confirm).toHaveBeenCalledWith(
+      { type: "deleteScale", payload: deleteScalePayload },
+      { dontAskAgain: true },
+    );
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+});
 
 describe("OverlayHost classification deletion", () => {
   it.each(["dimension", "value"] as const)("confirms or cancels deleting a %s", (target) => {

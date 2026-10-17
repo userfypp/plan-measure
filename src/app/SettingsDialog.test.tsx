@@ -42,12 +42,14 @@ interface RenderOptions {
   classificationDimensions?: ClassificationDimension[];
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
+  confirmScaleDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onKeyboardAuthoringEnabledChange?: (enabled: boolean) => void;
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
   onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
+  onConfirmScaleDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
@@ -62,12 +64,14 @@ function renderSettings({
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
+  confirmScaleDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange = vi.fn(),
   onKeyboardAuthoringEnabledChange,
   onConfirmMeasurementDeletionChange = vi.fn(),
   onConfirmValueDeletionChange,
   onConfirmDimensionDeletionChange,
+  onConfirmScaleDeletionChange,
   onRecoveredPlanStartupWorkspaceChange = vi.fn(),
 }: RenderOptions = {}) {
   window.localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -85,12 +89,14 @@ function renderSettings({
           confirmMeasurementDeletion={confirmMeasurementDeletion}
           confirmValueDeletion={confirmValueDeletion}
           confirmDimensionDeletion={confirmDimensionDeletion}
+          confirmScaleDeletion={confirmScaleDeletion}
           recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
           onMeasurementDecimalPlacesChange={onMeasurementDecimalPlacesChange}
           onKeyboardAuthoringEnabledChange={onKeyboardAuthoringEnabledChange}
           onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
           onConfirmValueDeletionChange={onConfirmValueDeletionChange}
           onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
+          onConfirmScaleDeletionChange={onConfirmScaleDeletionChange}
           onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
         />
         <button type="button">After settings</button>
@@ -874,6 +880,38 @@ describe("SettingsDialog", () => {
     act(() => measurements.click());
     expect(onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(false);
     expect((dialog() as HTMLDialogElement).open).toBe(true);
+  });
+
+  it("confirms scale deletion by default and resets the opt-out", async () => {
+    const onConfirmScaleDeletionChange = vi.fn();
+    renderSettings({ confirmScaleDeletion: false, onConfirmScaleDeletionChange });
+    await openSettings();
+    openTab("Confirmations");
+
+    const labels = Array.from(dialog().querySelectorAll('[role="switch"]')).map((control) =>
+      control.getAttribute("aria-label"),
+    );
+    expect(labels.indexOf("Confirm before deleting scales")).toBe(
+      labels.indexOf("Confirm before deleting measurements") + 1,
+    );
+    const scales = switchControl("Confirm before deleting scales");
+    expect(scales.checked).toBe(false);
+    act(() => scales.click());
+    expect(onConfirmScaleDeletionChange).toHaveBeenLastCalledWith(true);
+
+    onConfirmScaleDeletionChange.mockClear();
+    openTab("Advanced");
+    act(() =>
+      Array.from(dialog().querySelectorAll("button"))
+        .find((button) => button.textContent === "Reset…")!
+        .click(),
+    );
+    act(() =>
+      Array.from(dialog().querySelectorAll("button"))
+        .find((button) => button.textContent === "Reset")!
+        .click(),
+    );
+    expect(onConfirmScaleDeletionChange).toHaveBeenCalledWith(true);
   });
 
   it("renders the recovered workspace select with exact options", async () => {

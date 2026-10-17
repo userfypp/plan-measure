@@ -668,6 +668,7 @@ export interface SettingsDialogProps {
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
+  confirmScaleDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onMeasurementDecimalPlacesChange?: (decimalPlaces: MeasurementDecimalPlaces) => void;
   onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
@@ -675,6 +676,7 @@ export interface SettingsDialogProps {
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
   onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
+  onConfirmScaleDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
@@ -688,6 +690,7 @@ export function SettingsDialog({
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
+  confirmScaleDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onMeasurementDecimalPlacesChange,
   onViewSettingsChange,
@@ -695,6 +698,7 @@ export function SettingsDialog({
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
   onConfirmDimensionDeletionChange,
+  onConfirmScaleDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: SettingsDialogProps) {
   const [section, setSection] = useState<SectionId>("interface");
@@ -751,6 +755,7 @@ export function SettingsDialog({
     onConfirmMeasurementDeletionChange?.(true);
     onConfirmValueDeletionChange?.(true);
     onConfirmDimensionDeletionChange?.(true);
+    onConfirmScaleDeletionChange?.(true);
     onRecoveredPlanStartupWorkspaceChange?.("scales");
     setConfirmingReset(false);
   }
@@ -1140,6 +1145,13 @@ export function SettingsDialog({
                       label="Confirm before deleting measurements"
                       checked={confirmMeasurementDeletion}
                       onChange={onConfirmMeasurementDeletionChange}
+                    />
+                  )}
+                  {onConfirmScaleDeletionChange && (
+                    <SwitchRow
+                      label="Confirm before deleting scales"
+                      checked={confirmScaleDeletion}
+                      onChange={onConfirmScaleDeletionChange}
                     />
                   )}
                   {onConfirmValueDeletionChange && (

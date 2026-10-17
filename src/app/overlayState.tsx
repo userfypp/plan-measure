@@ -16,6 +16,8 @@ export type DeleteMeasurementPayload =
   | { pageNumber: number; measurementId: string; measurementName: string; measurementIds?: never }
   | { measurementIds: string[] };
 
+export interface DeleteScalePayload { pageNumber: number; calibrationId: string; calibrationName: string }
+
 export type DeleteClassificationPayload =
   | { target: "dimension"; dimensionId: string; name: string }
   | { target: "value"; dimensionId: string; valueId: string; name: string };
@@ -26,7 +28,8 @@ export type OverlayConfirmation =
   | { type: "recalibrateScale"; payload: RecalibrationPayload }
   | { type: "setScaleRatio"; payload: SetScaleRatioPayload }
   | { type: "saveCalibrationReferenceEdit"; payload: CalibrationReferenceEditConfirmationPayload }
-  | { type: "deleteMeasurement"; payload: DeleteMeasurementPayload };
+  | { type: "deleteMeasurement"; payload: DeleteMeasurementPayload }
+  | { type: "deleteScale"; payload: DeleteScalePayload };
 
 export type ActiveOverlay =
   | { kind: "confirmation"; descriptor: OverlayConfirmation }
@@ -43,6 +46,7 @@ export type OverlayAction =
   | { type: "REQUEST_SET_SCALE_RATIO"; payload: SetScaleRatioPayload }
   | { type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT"; payload: CalibrationReferenceEditConfirmationPayload }
   | { type: "REQUEST_DELETE_MEASUREMENT"; payload: DeleteMeasurementPayload }
+  | { type: "REQUEST_DELETE_SCALE"; payload: DeleteScalePayload }
   | { type: "CLOSE_CONFIRMATION"; confirmation?: OverlayConfirmation }
   | { type: "CLOSE_ALL_OVERLAYS" };
 
@@ -71,6 +75,9 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
     case "REQUEST_DELETE_MEASUREMENT":
       if (state.active?.kind === "dialog") return state;
       return { active: { kind: "confirmation", descriptor: { type: "deleteMeasurement", payload: action.payload } } };
+    case "REQUEST_DELETE_SCALE":
+      if (state.active?.kind === "dialog") return state;
+      return { active: { kind: "confirmation", descriptor: { type: "deleteScale", payload: action.payload } } };
     case "CLOSE_CONFIRMATION":
       return state.active?.kind === "confirmation" && descriptorsMatch(state.active.descriptor, action.confirmation) ? initialOverlayState : state;
     case "CLOSE_ALL_OVERLAYS":
@@ -89,6 +96,7 @@ interface OverlayContextValue {
   requestSaveCalibrationReferenceEdit: (payload: CalibrationReferenceEditConfirmationPayload) => void;
   requestDeleteClassification: (payload: DeleteClassificationPayload) => void;
   requestDeleteMeasurement: (payload: DeleteMeasurementPayload) => void;
+  requestDeleteScale: (payload: DeleteScalePayload) => void;
   closeConfirmation: (confirmation?: OverlayConfirmation) => void;
   closeAllOverlays: () => void;
 }
@@ -127,6 +135,10 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "REQUEST_DELETE_MEASUREMENT", payload }),
     [],
   );
+  const requestDeleteScale = useCallback(
+    (payload: DeleteScalePayload) => dispatch({ type: "REQUEST_DELETE_SCALE", payload }),
+    [],
+  );
   const closeConfirmation = useCallback(
     (confirmation?: OverlayConfirmation) =>
       dispatch({ type: "CLOSE_CONFIRMATION", confirmation }),
@@ -145,6 +157,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     requestSaveCalibrationReferenceEdit,
     requestDeleteClassification,
     requestDeleteMeasurement,
+    requestDeleteScale,
     closeConfirmation,
     closeAllOverlays,
   }), [
@@ -153,6 +166,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     closeDialog,
     requestDeleteClassification,
     requestDeleteMeasurement,
+    requestDeleteScale,
     requestRecalibration,
     requestReplacePdf,
     requestSetScaleRatio,

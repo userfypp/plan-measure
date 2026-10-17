@@ -117,6 +117,23 @@ export function OverlayHost({
         />
       );
     }
+    if (confirmation.type === "deleteScale") {
+      return (
+        <DeleteConfirmation
+          key="scale"
+          title={`Delete scale “${confirmation.payload.calibrationName}”?`}
+          description="This scale will be removed from the current page. No measurements use it. You can undo this change."
+          onCancel={() => {
+            closeConfirmation(confirmation);
+            onConfirmationCancel?.(confirmation);
+          }}
+          onConfirm={(dontAskAgain) => {
+            closeConfirmation(confirmation);
+            onConfirmationConfirm?.(confirmation, { dontAskAgain });
+          }}
+        />
+      );
+    }
 
     if (confirmation.type === "recalibrateScale") {
       const { calibrationName, measurementCount } = confirmation.payload;

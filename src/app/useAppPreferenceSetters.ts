@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { writeClassificationDeleteConfirmationPreference } from "./classificationDeletePreference";
 import { writeMeasurementDeleteConfirmationPreference } from "./measurementDeletePreference";
+import { writeScaleDeleteConfirmationPreference } from "./scaleDeletePreference";
 import { writeRecoveredPlanStartupWorkspacePreference } from "./recoveredPlanStartupPreference";
 import { writeKeyboardAuthoringPreference } from "./keyboardAuthoringPreference";
 
@@ -13,6 +14,7 @@ interface AppPreferenceStateSetters {
   setConfirmMeasurementDeletionState: (enabled: boolean) => void;
   setConfirmValueDeletionState: (enabled: boolean) => void;
   setConfirmDimensionDeletionState: (enabled: boolean) => void;
+  setConfirmScaleDeletionState: (enabled: boolean) => void;
   setRecoveredPlanStartupWorkspaceState: (workspace: RecoveredPlanStartupWorkspace) => void;
 }
 
@@ -21,6 +23,7 @@ export function useAppPreferenceSetters({
   setConfirmMeasurementDeletionState,
   setConfirmValueDeletionState,
   setConfirmDimensionDeletionState,
+  setConfirmScaleDeletionState,
   setRecoveredPlanStartupWorkspaceState,
 }: AppPreferenceStateSetters) {
   const setKeyboardAuthoringEnabled = useCallback((enabled: boolean) => {
@@ -43,6 +46,11 @@ export function useAppPreferenceSetters({
     writeClassificationDeleteConfirmationPreference("dimension", enabled);
   }, [setConfirmDimensionDeletionState]);
 
+  const setConfirmScaleDeletion = useCallback((enabled: boolean) => {
+    setConfirmScaleDeletionState(enabled);
+    writeScaleDeleteConfirmationPreference(enabled);
+  }, [setConfirmScaleDeletionState]);
+
   const setRecoveredPlanStartupWorkspace = useCallback(
     (workspace: RecoveredPlanStartupWorkspace) => {
       setRecoveredPlanStartupWorkspaceState(workspace);
@@ -56,6 +64,7 @@ export function useAppPreferenceSetters({
     setConfirmMeasurementDeletion,
     setConfirmValueDeletion,
     setConfirmDimensionDeletion,
+    setConfirmScaleDeletion,
     setRecoveredPlanStartupWorkspace,
   };
 }

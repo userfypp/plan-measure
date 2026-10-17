@@ -236,6 +236,79 @@ describe("ScalesWorkspace", () => {
     expect(props.onCopyScale).toHaveBeenCalledWith(uniform);
   });
 
+  it("deletes an unused scale from its details and explains why a used one cannot be deleted", () => {
+    const onDeleteScale = vi.fn();
+    renderScales(createProps({ onDeleteScale }));
+
+    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    const used = buttonByLabel("Delete scale Ground floor");
+    expect(used.textContent).toBe("Delete");
+    expect(used.getAttribute("aria-disabled")).toBe("true");
+    const reason = document.getElementById(used.getAttribute("aria-describedby") ?? "");
+    expect(reason?.textContent).toBe(
+      "1 measurement uses this scale. Move it to another scale or delete it first.",
+    );
+    act(() => used.click());
+    expect(onDeleteScale).not.toHaveBeenCalled();
+
+    act(() => buttonByLabel("Expand scale Survey correction").click());
+    const unused = buttonByLabel("Delete scale Survey correction");
+    expect(unused.getAttribute("aria-disabled")).not.toBe("true");
+    act(() => unused.click());
+    expect(onDeleteScale).toHaveBeenCalledWith(xy);
+  });
+
+  it("blocks deleting scales during a scale workflow and offers no Delete without a handler", () => {
+    renderScales(createProps({ onDeleteScale: vi.fn(), actionsDisabled: true }));
+    act(() => buttonByLabel("Expand scale Survey correction").click());
+    const blocked = buttonByLabel("Delete scale Survey correction");
+    expect(blocked.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(blocked.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe("Finish or cancel the current scale workflow first.");
+
+    renderScales(createProps());
+    expect(container?.querySelector('button[aria-label^="Delete scale"]')).toBeNull();
+  });
+
+  it("moves focus to Add scale when a scale deleted from its Delete button takes focus with it", async () => {
+    const props = createProps({ onDeleteScale: vi.fn() });
+    renderScales(props);
+    act(() => buttonByLabel("Expand scale Survey correction").click());
+    const remove = buttonByLabel("Delete scale Survey correction");
+    remove.focus();
+    act(() => remove.click());
+    renderScales({ ...props, page: { ...page, calibrations: [uniform] } });
+    await Promise.resolve();
+    expect(document.activeElement).toBe(buttonByLabel("Add scale"));
+  });
+
+  it("moves focus from the dialog fallback to Add scale after a confirmed delete only", async () => {
+    const fallback = document.createElement("div");
+    fallback.tabIndex = -1;
+    fallback.setAttribute("data-dialog-focus-fallback", "");
+    document.body.append(fallback);
+    try {
+      const props = createProps({ onDeleteScale: vi.fn() });
+      renderScales(props);
+      act(() => buttonByLabel("Expand scale Survey correction").click());
+      act(() => buttonByLabel("Delete scale Survey correction").click());
+      fallback.focus();
+      renderScales({ ...props, page: { ...page, calibrations: [uniform] } });
+      await Promise.resolve();
+      expect(document.activeElement).toBe(buttonByLabel("Add scale"));
+
+      // An undo that removes the inspected scale leaves focus in the viewer.
+      renderScales(props);
+      fallback.focus();
+      renderScales({ ...props, page: { ...page, calibrations: [uniform] } });
+      await Promise.resolve();
+      expect(document.activeElement).toBe(fallback);
+    } finally {
+      fallback.remove();
+    }
+  });
+
   it("lists page scales, marks active status structurally, and keeps administration separate from switching", () => {
     renderScales(createProps());
 

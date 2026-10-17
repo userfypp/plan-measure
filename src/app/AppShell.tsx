@@ -27,6 +27,7 @@ interface AppShellProps {
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
+  confirmScaleDeletion?: boolean;
   recoveredPlanStartupWorkspace?: RecoveredPlanStartupWorkspace;
   onExport: () => void;
   onOpenProjects?: () => void;
@@ -38,6 +39,7 @@ interface AppShellProps {
   onConfirmMeasurementDeletionChange?: (enabled: boolean) => void;
   onConfirmValueDeletionChange?: (enabled: boolean) => void;
   onConfirmDimensionDeletionChange?: (enabled: boolean) => void;
+  onConfirmScaleDeletionChange?: (enabled: boolean) => void;
   onRecoveredPlanStartupWorkspaceChange?: (workspace: RecoveredPlanStartupWorkspace) => void;
   statusMessage?: string | null;
   statusTone?: StatusTone;
@@ -64,6 +66,7 @@ export function AppShell({
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
   confirmDimensionDeletion = true,
+  confirmScaleDeletion = true,
   recoveredPlanStartupWorkspace = "scales",
   onExport,
   onOpenProjects,
@@ -75,6 +78,7 @@ export function AppShell({
   onConfirmMeasurementDeletionChange,
   onConfirmValueDeletionChange,
   onConfirmDimensionDeletionChange,
+  onConfirmScaleDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
   statusMessage,
   statusTone = "error",
@@ -108,6 +112,7 @@ export function AppShell({
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         confirmValueDeletion={confirmValueDeletion}
         confirmDimensionDeletion={confirmDimensionDeletion}
+        confirmScaleDeletion={confirmScaleDeletion}
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onExport={onExport}
         onOpenProjects={onOpenProjects}
@@ -119,6 +124,7 @@ export function AppShell({
         onConfirmMeasurementDeletionChange={onConfirmMeasurementDeletionChange}
         onConfirmValueDeletionChange={onConfirmValueDeletionChange}
         onConfirmDimensionDeletionChange={onConfirmDimensionDeletionChange}
+        onConfirmScaleDeletionChange={onConfirmScaleDeletionChange}
         onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
       />
       <div className={styles.content}>

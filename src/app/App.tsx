@@ -51,6 +51,7 @@ import {
 import { isAlignedXyReference } from "../utils/geometry";
 import { readClassificationDeleteConfirmationPreference } from "./classificationDeletePreference";
 import { readMeasurementDeleteConfirmationPreference } from "./measurementDeletePreference";
+import { readScaleDeleteConfirmationPreference } from "./scaleDeletePreference";
 import { readRecoveredPlanStartupWorkspacePreference } from "./recoveredPlanStartupPreference";
 import { readKeyboardAuthoringPreference } from "./keyboardAuthoringPreference";
 import { createScaleCheckStore } from "../features/calibration/scaleCheckState";
@@ -143,6 +144,7 @@ function PlanMeasureApp() {
     addCalibration,
     recalibrateCalibration,
     renameCalibration,
+    deleteCalibration,
     updateCalibration,
     pasteMeasurements,
     updateMeasurements,
@@ -177,6 +179,7 @@ function PlanMeasureApp() {
     requestSetScaleRatio: openSetScaleRatioConfirmation,
     requestSaveCalibrationReferenceEdit: openCalibrationReferenceEditConfirmation,
     requestDeleteMeasurement: openDeleteMeasurementConfirmation,
+    requestDeleteScale: openDeleteScaleConfirmation,
     closeConfirmation,
     closeAllOverlays,
   } = useOverlayState();
@@ -294,6 +297,9 @@ function PlanMeasureApp() {
   );
   const [confirmDimensionDeletion, setConfirmDimensionDeletionState] = useState(() =>
     readClassificationDeleteConfirmationPreference("dimension"),
+  );
+  const [confirmScaleDeletion, setConfirmScaleDeletionState] = useState(
+    readScaleDeleteConfirmationPreference,
   );
   const [recoveredPlanStartupWorkspace, setRecoveredPlanStartupWorkspaceState] = useState(
     readRecoveredPlanStartupWorkspacePreference,
@@ -437,12 +443,14 @@ function PlanMeasureApp() {
     setConfirmMeasurementDeletion,
     setConfirmValueDeletion,
     setConfirmDimensionDeletion,
+    setConfirmScaleDeletion,
     setRecoveredPlanStartupWorkspace,
   } = useAppPreferenceSetters({
     setKeyboardAuthoringEnabledState,
     setConfirmMeasurementDeletionState,
     setConfirmValueDeletionState,
     setConfirmDimensionDeletionState,
+    setConfirmScaleDeletionState,
     setRecoveredPlanStartupWorkspaceState,
   });
 
@@ -773,6 +781,7 @@ function PlanMeasureApp() {
     addCustomRatioScale,
     setScaleRatio,
     requestRecalibration,
+    requestScaleDelete,
     assignClassification,
     beginCalibrationReferenceEdit,
     updateCalibrationReferenceEdit,
@@ -817,6 +826,10 @@ function PlanMeasureApp() {
     setConfirmMeasurementDeletion,
     editMeasurements,
     performMeasurementDelete,
+    confirmScaleDeletion,
+    setConfirmScaleDeletion,
+    openDeleteScaleConfirmation,
+    deleteCalibration,
   });
   const precisionAuthoringDisabledReason = getPrecisionAuthoringDisabledReason(authoringCapability);
   const primaryToolsLocked = Boolean(calibrationFlow || calibrationReferenceEdit);
@@ -983,6 +996,7 @@ function PlanMeasureApp() {
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         confirmValueDeletion={confirmValueDeletion}
         confirmDimensionDeletion={confirmDimensionDeletion}
+        confirmScaleDeletion={confirmScaleDeletion}
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onExport={openExportDialog}
         onOpenProjects={() => {
@@ -999,6 +1013,7 @@ function PlanMeasureApp() {
         onConfirmMeasurementDeletionChange={setConfirmMeasurementDeletion}
         onConfirmValueDeletionChange={setConfirmValueDeletion}
         onConfirmDimensionDeletionChange={setConfirmDimensionDeletion}
+        onConfirmScaleDeletionChange={setConfirmScaleDeletion}
         onRecoveredPlanStartupWorkspaceChange={setRecoveredPlanStartupWorkspace}
         errorNotifications={appState.errorNotifications}
         onDismissError={dismissError}
@@ -1213,6 +1228,9 @@ function PlanMeasureApp() {
                     onRecalibrate={requestRecalibration}
                     onEditReference={beginCalibrationReferenceEdit}
                     onCopyScale={(calibration) => copyScale(currentPage.pageNumber, calibration)}
+                    onDeleteScale={(calibration) =>
+                      requestScaleDelete(currentPage.pageNumber, calibration)
+                    }
                   />
                 }
                 details={

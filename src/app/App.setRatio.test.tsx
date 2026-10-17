@@ -7,6 +7,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { CurrentSession, PageCalibration } from "../types/domain";
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { preloadCustomRatioDialog } from "../features/calibration/ScalesWorkspace";
+import { SCALE_DELETE_CONFIRMATION_STORAGE_KEY } from "./scaleDeletePreference";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { formatLinearValue } from "../utils/format";
 import { toMillimetres } from "../utils/units";
@@ -569,6 +570,44 @@ describe("App Set ratio impact confirmation", () => {
   });
 });
 
+
+describe("App scale deletion", () => {
+  beforeEach(() => window.localStorage.removeItem(SCALE_DELETE_CONFIRMATION_STORAGE_KEY));
+  afterEach(() => window.localStorage.removeItem(SCALE_DELETE_CONFIRMATION_STORAGE_KEY));
+
+  it("deletes the unused active scale after confirmation and stops asking after Don’t ask again", async () => {
+    const initial = buildSession(uniformScale(), { withMeasurement: true, withOtherScale: true });
+    await renderApp(initial);
+    const scaleIds = () => currentSession().pages[1]!.calibrations.map(({ id }) => id);
+
+    act(() => buttonByLabel("Expand scale Ground floor").click());
+    expect(buttonByLabel("Delete scale Ground floor").getAttribute("aria-disabled")).toBe("true");
+
+    act(() => buttonByLabel("Expand scale Other scale, active").click());
+    act(() => buttonByLabel("Delete scale Other scale").click());
+    expect(document.querySelector("dialog")?.textContent).toContain("Delete scale “Other scale”?");
+    act(() => dialogButtonByText("Cancel").click());
+    expect(scaleIds()).toEqual(["target-scale", "other-scale"]);
+
+    act(() => buttonByLabel("Delete scale Other scale").click());
+    act(() => document.querySelector<HTMLInputElement>('dialog input[type="checkbox"]')?.click());
+    act(() => dialogButtonByText("Delete").click());
+    expect(scaleIds()).toEqual(["target-scale"]);
+    expect(currentSession().pages[1]!.activeCalibrationId).toBe("target-scale");
+    expect(document.querySelector('[data-testid="history"]')?.textContent).toBe("true:false");
+    expect(window.localStorage.getItem(SCALE_DELETE_CONFIRMATION_STORAGE_KEY)).toBe("false");
+    // The confirmation's focus fallback runs in a microtask; focus then moves on to Add scale.
+    await act(async () => {});
+    expect(document.activeElement).toBe(buttonByLabel("Add scale"));
+
+    act(() => lifecycleHarness.loadSession?.(initial));
+    // The restored scale's details stay open: they were the last ones inspected.
+    expect(buttonByLabel("Collapse scale Other scale, active")).toBeTruthy();
+    act(() => buttonByLabel("Delete scale Other scale").click());
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(scaleIds()).toEqual(["target-scale"]);
+  });
+});
 
 describe("App multiple measurement selection", () => {
   function assignedSession() {
