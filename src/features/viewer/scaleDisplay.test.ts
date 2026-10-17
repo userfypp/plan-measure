@@ -105,4 +105,18 @@ describe("scaleDisplayMetadata", () => {
 
     expect(scaleDisplayMetadata(pointCalibration).ratioLabel).toBe("1:283.46");
   });
+
+  it("shows a reference picked slightly off a 1:50 scale bar instead of snapping it to 1:50", () => {
+    // 5 m picked over 283.715 pt; an exact 1:50 bar is 283.465 pt long.
+    const offByQuarterPoint: PageCalibration = {
+      id: "hand-picked",
+      name: "Ground Floor 1:50",
+      mode: "uniform",
+      start: { x: 90.39378873654894, y: 711.5935142596484 },
+      end: { x: 374.10919080285356, y: 711.5935142596484 },
+      referenceDistanceMm: 5000,
+    };
+
+    expect(scaleDisplayMetadata(offByQuarterPoint).ratioLabel).toBe("1:49.96");
+  });
 });
