@@ -3,7 +3,7 @@
 import { chooseSelectOption, selectOptionLabels } from "../../components/ui/selectTestUtils";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PathMeasurement, CurrentSession, Measurement, PageState } from "../../types/domain";
 
 const state = vi.hoisted(() => ({
@@ -16,7 +16,7 @@ vi.mock("../../app/workspaceState", () => ({
   useWorkspaceState: () => ({ selectedMeasurementId: state.selectedMeasurementId }),
 }));
 
-import { MeasurementPanel } from "./MeasurementPanel";
+import { MeasurementPanel, preloadMeasurementFilters } from "./MeasurementPanel";
 import { TakeoffWorkspace } from "./TakeoffWorkspace";
 
 let root: Root | null = null;
@@ -124,6 +124,10 @@ function renderPanel(
   });
 }
 
+beforeAll(async () => {
+  await preloadMeasurementFilters();
+});
+
 beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -136,6 +140,7 @@ afterEach(() => {
   root = null;
   container = null;
   state.session = null;
+  state.selectedMeasurementId = null;
 });
 
 describe("MeasurementPanel and TakeoffWorkspace", () => {
@@ -156,7 +161,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
     chooseSelectOption(
       document.querySelector<HTMLButtonElement>('button[aria-label="Type"]')!,
-      "Count",
+      "Count (1)",
     );
     expect(
       container!.querySelector(
@@ -191,7 +196,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       document.querySelector<HTMLButtonElement>(
         '[aria-label="Measurement filters"] button[aria-label="Classification"]',
       )!,
-      "Trade: Electrical",
+      "Trade: Electrical (1)",
     );
     const rerender = (next: CurrentSession) => {
       state.session = next;
@@ -386,7 +391,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       document.querySelector<HTMLButtonElement>(
         '[role="dialog"][aria-label="Measurement filters"] button[aria-label="Page"]',
       )!,
-      "Page 2",
+      "Page 2 (1)",
     );
 
     act(() => {
@@ -413,7 +418,7 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       document.querySelector<HTMLButtonElement>(
         '[role="dialog"][aria-label="Measurement filters"] button[aria-label="Page"]',
       )?.textContent,
-    ).toBe("Page 2");
+    ).toBe("Page 2 (1)");
 
     act(() => document.body.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     expect(document.querySelector('[role="dialog"][aria-label="Measurement filters"]')).toBeNull();
@@ -493,16 +498,16 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       chooseSelectOption(select, optionLabel);
     }
 
-    chooseFilter("Page", "Page 1");
+    chooseFilter("Page", "Page 1 (1)");
+    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
+    chooseFilter("Page", "This page (1)");
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
     chooseFilter("Page", "All pages");
-    chooseFilter("Type", "Polygon");
+    chooseFilter("Type", "Line (2)");
+    chooseFilter("Visibility", "Visible (1)");
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
-    chooseFilter("Type", "Line");
-    chooseFilter("Visibility", "Visible");
-    expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).toBeNull();
-    chooseFilter("Visibility", "Hidden");
-    chooseFilter("Classification", "Trade: Electrical");
+    chooseFilter("Visibility", "Hidden (1)");
+    chooseFilter("Classification", "Trade: Electrical (1)");
     expect(container!.querySelector('[aria-label="Select measurement Kitchen"]')).not.toBeNull();
     expect(
       container!
@@ -530,6 +535,53 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
         .click(),
     );
     expect(onSelectMeasurement).toHaveBeenCalledWith(2, "line-2", false);
+  });
+
+  it("offers only present filter values with counts and filters by scale, classification and selection", () => {
+    const activePage = {
+      ...page([
+        measurement({ name: "Hallway", classificationValueIds: ["electrical"] }),
+        measurement({ id: "line-2", name: "Kitchen", calibrationId: "old-scale" }),
+        {
+          id: "count-1",
+          type: "count" as const,
+          name: "Socket",
+          points: [{ x: 1, y: 2 }],
+          calibrationId: null,
+          classificationValueIds: [],
+          visible: true,
+        },
+      ]),
+    };
+    state.selectedMeasurementId = "line-2";
+    // Page 2 reuses the scale id, but only page 1 is on screen.
+    const otherPage = { ...page([measurement({ id: "line-3", name: "Garage" })]), pageNumber: 2 };
+    renderPanel(session({ 1: activePage, 2: otherPage }), activePage);
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click());
+    const filterSelect = (labelText: string) =>
+      document.querySelector<HTMLButtonElement>(
+        `[role="dialog"][aria-label="Measurement filters"] button[aria-label="${labelText}"]`,
+      )!;
+    const listed = () =>
+      Array.from(container!.querySelectorAll('[data-measurement-control="selection"]'), (control) =>
+        control.getAttribute("data-measurement-id"),
+      );
+
+    expect(selectOptionLabels(filterSelect("Type"))).toEqual([
+      "All types",
+      "Line (3)",
+      "Count (1)",
+    ]);
+    chooseSelectOption(filterSelect("Scale"), "Active: Scale (1)");
+    expect(listed()).toEqual(["line-1"]);
+    chooseSelectOption(filterSelect("Scale"), "Other scales (2)");
+    expect(listed().sort()).toEqual(["line-2", "line-3"]);
+    chooseSelectOption(filterSelect("Scale"), "All scales");
+    chooseSelectOption(filterSelect("Classification"), "Unclassified (3)");
+    expect(listed().sort()).toEqual(["count-1", "line-2", "line-3"]);
+    chooseSelectOption(filterSelect("Selection"), "Selected (1)");
+    expect(listed()).toEqual(["line-2"]);
+    expect(container!.querySelector('[aria-label="Filters, 2 active"]')).not.toBeNull();
   });
 
   it("shows project totals with accessible, compact breakdown controls", () => {

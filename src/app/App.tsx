@@ -28,6 +28,7 @@ import { Button, ConfirmationDialog } from "../components/ui";
 import { preloadCustomRatioDialog, ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import {
   MeasurementPanel,
+  preloadMeasurementFilters,
   type MeasurementDeleteRequest,
 } from "../features/measurements/MeasurementPanel";
 import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
@@ -436,6 +437,7 @@ function PlanMeasureApp() {
       ClassificationWorkspace.preload,
       CalibrationDialog.preload,
       preloadCustomRatioDialog,
+      preloadMeasurementFilters,
       loadExportDialog,
     ]);
   }, [planOpen]);

@@ -1,13 +1,21 @@
-import { memo, useMemo, useState } from "react";
+import { memo, Suspense, useMemo, useState } from "react";
+import { recoverableLazy } from "../../app/recoverableLazy";
+import { retryableImport } from "../../app/retryableImport";
 import { useNumberFormatKey } from "../../utils/appPreferences";
 import { useSessionState } from "../../app/sessionState";
-import { Button, Popover, Select } from "../../components/ui";
+import { Popover } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
-import { MEASUREMENT_TYPES, measurementPathSpecs } from "../../utils/geometry";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { MeasurementCollection } from "./MeasurementCollection";
 import { MeasurementsHeader } from "./MeasurementsHeader";
 import { createMeasurementGroups } from "./measurementGrouping";
+import {
+  CURRENT_PAGE_FILTER,
+  NO_MEASUREMENT_FILTERS,
+  UNCLASSIFIED_FILTER,
+  measurementScaleFilterValue,
+  type MeasurementFilters,
+} from "./measurementFilters";
 import {
   createMeasurementViewModel,
   getMeasurementEmptyMessage,
@@ -16,6 +24,16 @@ import {
 import styles from "./MeasurementPanel.module.css";
 
 const emptyClassificationCatalog: ClassificationCatalog = { dimensions: [] };
+
+const MeasurementFilterFields = recoverableLazy(
+  retryableImport(() =>
+    import("./MeasurementFilterFields").then((module) => ({
+      default: module.MeasurementFilterFields,
+    })),
+  ),
+  "Filters",
+);
+export const preloadMeasurementFilters = MeasurementFilterFields.preload;
 
 function FilterIcon() {
   return (
@@ -74,10 +92,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   const measureClouds = session?.settings.measureClouds ?? false;
   const [selectedGroupByDimensionIds, setGroupByDimensionIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [pageFilter, setPageFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [visibilityFilter, setVisibilityFilter] = useState("");
-  const [selectedClassificationFilter, setClassificationFilter] = useState("");
+  const [selectedFilters, setFilters] = useState<MeasurementFilters>(NO_MEASUREMENT_FILTERS);
   const [openControls, setOpenControls] = useState<"filters" | "grouping" | null>(null);
   const catalog = session?.classificationCatalog ?? emptyClassificationCatalog;
   const groupByDimensionIds = useMemo(
@@ -86,11 +101,15 @@ export const MeasurementPanel = memo(function MeasurementPanel({
     ),
     [catalog, selectedGroupByDimensionIds],
   );
-  const classificationFilter = catalog.dimensions.some((dimension) =>
-    dimension.values.some((value) => value.id === selectedClassificationFilter),
-  )
-    ? selectedClassificationFilter
-    : "";
+  // A classification filter whose value was deleted is ignored until undo restores the value.
+  const filters =
+    !selectedFilters.classification ||
+    (selectedFilters.classification === UNCLASSIFIED_FILTER && catalog.dimensions.length > 0) ||
+    catalog.dimensions.some((dimension) =>
+      dimension.values.some((value) => value.id === selectedFilters.classification),
+    )
+      ? selectedFilters
+      : { ...selectedFilters, classification: "" };
   const [valueLabels] = useState<MeasurementValueLabelCache>(() => new WeakMap());
   const sourceMeasurementsById = useMemo(
     () => new Map(Object.values(pages).flatMap((candidatePage) =>
@@ -116,6 +135,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           effectivePageLabel(candidatePage.pageNumber, pageLabelOverrides, sourcePageLabels) ||
           `Page ${candidatePage.pageNumber}`,
         classificationValueIds: measurement.classificationValueIds,
+        calibrationId: measurement.calibrationId,
       })),
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
@@ -134,26 +154,48 @@ export const MeasurementPanel = memo(function MeasurementPanel({
     ],
   );
   const normalizedQuery = query.trim().toLocaleLowerCase();
+  const currentPageNumber = page.pageNumber;
+  const activeCalibrationId = page.activeCalibrationId;
+  const activeCalibration = page.calibrations.find(
+    (calibration) => calibration.id === activeCalibrationId,
+  );
+  const { page: pageFilter, type, scale, classification, visibility, selection } = filters;
   const measurements = useMemo(
     () => allMeasurements.filter((measurement) =>
       (!normalizedQuery || measurement.name.toLocaleLowerCase().includes(normalizedQuery)) &&
-      (!pageFilter || String(measurement.pageNumber) === pageFilter) &&
-      (!typeFilter || measurement.type === typeFilter) &&
-      (!visibilityFilter || String(measurement.visible) === visibilityFilter) &&
-      (!classificationFilter || measurement.classificationValueIds.includes(classificationFilter)),
+      (!pageFilter ||
+        measurement.pageNumber ===
+          (pageFilter === CURRENT_PAGE_FILTER ? currentPageNumber : Number(pageFilter))) &&
+      (!type || measurement.type === type) &&
+      (!scale ||
+        measurementScaleFilterValue(measurement, currentPageNumber, activeCalibrationId) ===
+          scale) &&
+      (!classification ||
+        (classification === UNCLASSIFIED_FILTER
+          ? measurement.classificationValueIds.length === 0
+          : measurement.classificationValueIds.includes(classification))) &&
+      (!visibility || String(measurement.visible) === visibility) &&
+      (!selection || measurement.selected),
     ),
-    [allMeasurements, classificationFilter, normalizedQuery, pageFilter, typeFilter, visibilityFilter],
+    [
+      activeCalibrationId,
+      allMeasurements,
+      classification,
+      currentPageNumber,
+      normalizedQuery,
+      pageFilter,
+      scale,
+      selection,
+      type,
+      visibility,
+    ],
   );
   const measurementsById = useMemo(
     () => new Map(measurements.map((measurement) => [measurement.id, measurement])),
     [measurements],
   );
   const hasGroupBy = catalog.dimensions.length > 0;
-  const activeFilterCount =
-    Number(Boolean(pageFilter)) +
-    Number(Boolean(typeFilter)) +
-    Number(Boolean(visibilityFilter)) +
-    Number(Boolean(classificationFilter));
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const groupByNames = groupByDimensionIds.map(
     (dimensionId) =>
       catalog.dimensions.find((dimension) => dimension.id === dimensionId)?.name ??
@@ -226,93 +268,26 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           placement="bottom-end"
           className={styles.controlsPopover}
         >
-          <div className={styles.fields}>
-            {(
-              [
-                {
-                  label: "Page",
-                  value: pageFilter,
-                  onChange: setPageFilter,
-                  options: [
-                    { value: "", label: "All pages" },
-                    ...Object.values(pages)
-                      .sort((a, b) => a.pageNumber - b.pageNumber)
-                      .map((candidatePage) => ({
-                        value: String(candidatePage.pageNumber),
-                        label:
-                          effectivePageLabel(
-                            candidatePage.pageNumber,
-                            pageLabelOverrides,
-                            sourcePageLabels,
-                          ) || `Page ${candidatePage.pageNumber}`,
-                      })),
-                  ],
-                },
-                {
-                  label: "Type",
-                  value: typeFilter,
-                  onChange: setTypeFilter,
-                  options: [
-                    { value: "", label: "All types" },
-                    ...MEASUREMENT_TYPES.map((type) => ({
-                      value: type as string,
-                      label: measurementPathSpecs[type].label,
-                    })),
-                  ],
-                },
-                {
-                  label: "Visibility",
-                  value: visibilityFilter,
-                  onChange: setVisibilityFilter,
-                  options: [
-                    { value: "", label: "All" },
-                    { value: "true", label: "Visible" },
-                    { value: "false", label: "Hidden" },
-                  ],
-                },
-                {
-                  label: "Classification",
-                  value: classificationFilter,
-                  onChange: setClassificationFilter,
-                  options: [
-                    { value: "", label: "All classifications" },
-                    ...catalog.dimensions.flatMap((dimension) =>
-                      dimension.values.map((value) => ({
-                        value: value.id,
-                        label: `${dimension.name}: ${value.name}`,
-                      })),
-                    ),
-                  ],
-                },
-              ] as const
-            ).map((field) => (
-              <label className={styles.field} key={field.label}>
-                <span>{field.label}</span>
-                <Select
-                  label={field.label}
-                  value={field.value}
-                  options={field.options}
-                  onChange={field.onChange}
-                />
-              </label>
-            ))}
-          </div>
-          {activeFilterCount > 0 && (
-            <footer className={styles.popoverFooter}>
-              <Button
-                variant="ghost"
-                size="compact"
-                onClick={() => {
-                  setPageFilter("");
-                  setTypeFilter("");
-                  setVisibilityFilter("");
-                  setClassificationFilter("");
-                }}
-              >
-                Clear filters
-              </Button>
-            </footer>
-          )}
+          {/* A cold first open keeps the list on screen while the fields load. */}
+          <Suspense fallback={null}>
+            <MeasurementFilterFields
+              measurements={allMeasurements}
+              filters={filters}
+              activeFilterCount={activeFilterCount}
+              currentPageNumber={currentPageNumber}
+              activeScale={
+                activeCalibration
+                  ? { id: activeCalibration.id, name: activeCalibration.name }
+                  : null
+              }
+              catalog={catalog}
+              pageLabel={(pageNumber) =>
+                effectivePageLabel(pageNumber, pageLabelOverrides, sourcePageLabels) ||
+                `Page ${pageNumber}`
+              }
+              onChange={setFilters}
+            />
+          </Suspense>
         </Popover>
         {hasGroupBy && (
           <Popover
