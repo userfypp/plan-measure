@@ -11,6 +11,27 @@ declare global {
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/plan-measure/" : "/",
   plugins: [react()],
+  css: {
+    postcss: {
+      plugins: [
+        {
+          // `composes: name from "./file.module.css"` makes postcss-modules prepend that file's CSS
+          // as a string, so its declarations have no source file and Vite warned that a PostCSS
+          // plugin did not pass `from`. They take the importing file as their source; one with a
+          // url() keeps the warning, since its relative path would resolve from the wrong folder.
+          postcssPlugin: "plan-measure:composed-css-source",
+          OnceExit(root) {
+            const input = root.source?.input;
+            if (!input?.file) return;
+            root.walkDecls((declaration) => {
+              if (declaration.source?.input.file || declaration.value.includes("url(")) return;
+              declaration.source = { input };
+            });
+          },
+        },
+      ],
+    },
+  },
   resolve: {
     alias: [
       {
