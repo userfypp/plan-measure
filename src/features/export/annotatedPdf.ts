@@ -9,10 +9,10 @@ import type {
   SessionSettings,
 } from "../../types/domain";
 import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
-import { getMeasurementCalibration } from "../../utils/calibration";
+import { getMeasuringCalibration } from "../../utils/calibration";
 import { normalizeRotation } from "../../utils/coordinates";
 import { formatMeasurement } from "../../utils/format";
-import { measurementPathSpecs } from "../../utils/geometry";
+import { measurementPathSpecs, measurementTypeRequiresScale } from "../../utils/geometry";
 import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import {
   createLabelCollisionIndex,
@@ -168,7 +168,12 @@ export function planAnnotatedPdfMeasurements(
   bounds: LogicalPageBounds,
   settings: Pick<
     SessionSettings,
-    "showMeasurements" | "showLabels" | "displayUnit" | "measurementDecimalPlaces" | "areaDisplay"
+    | "showMeasurements"
+    | "showLabels"
+    | "displayUnit"
+    | "measurementDecimalPlaces"
+    | "areaDisplay"
+    | "measureClouds"
   >,
   measureLabel: (text: string) => LabelDimensions,
 ): AnnotatedPdfMeasurementPlan[] {
@@ -182,15 +187,19 @@ export function planAnnotatedPdfMeasurements(
 
     let label: AnnotatedPdfLabelPlan | null = null;
     if (settings.showLabels) {
-      const calibration = getMeasurementCalibration(page, measurement);
-      if (calibration || measurement.type === "count") {
-        const text = formatMeasurement(
-          measurement,
-          calibration,
-          settings.displayUnit,
-          settings.measurementDecimalPlaces,
-          settings.areaDisplay,
-        );
+      const calibration = getMeasuringCalibration(page, measurement, settings.measureClouds);
+      if (calibration || !measurementTypeRequiresScale(measurement.type)) {
+        // An unmeasured cloud is markup: its label is its name.
+        const text =
+          measurement.type === "cloud" && !calibration
+            ? measurement.name
+            : formatMeasurement(
+                measurement,
+                calibration,
+                settings.displayUnit,
+                settings.measurementDecimalPlaces,
+                settings.areaDisplay,
+              );
         const dimensions = measureLabel(text);
         const placement =
           placeLabelInsideMeasurementGeometry(

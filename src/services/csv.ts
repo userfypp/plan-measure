@@ -9,7 +9,7 @@ import type {
   PageState,
 } from "../types/domain";
 import { downloadExportFile, exportFileName } from "./exportDownload";
-import { getMeasurementCalibration } from "../utils/calibration";
+import { getMeasuringCalibration } from "../utils/calibration";
 import {
   calibrationScaleX,
   calibrationScaleY,
@@ -18,6 +18,7 @@ import {
   type MeasurementPathSpec,
   measurementPathSpecs,
   measurementResultsMm,
+  measurementTypeRequiresScale,
   millimetresPerPageUnit,
 } from "../utils/geometry";
 import { formatCsvNumber, resolveLinearUnit } from "../utils/format";
@@ -31,6 +32,11 @@ import {
   fromSquareMillimetres,
   fromSquareMillimetresToAcres,
 } from "../utils/units";
+
+/** False for counts and unmeasured clouds, whose value cells stay empty. */
+function hasMeasures(result: ReturnType<typeof measurementResultsMm>): boolean {
+  return result.lengthMm !== null || result.perimeterMm !== null || result.areaMm2 !== null;
+}
 
 interface CsvRowContext {
   pdfName: string;
@@ -243,7 +249,9 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: false,
     extract: (context) =>
-      context.spec.closed ? fromMillimetres(context.result.perimeterMm ?? 0, context.unit) : null,
+      context.result.perimeterMm === null
+        ? null
+        : fromMillimetres(context.result.perimeterMm, context.unit),
   },
   {
     id: "area",
@@ -254,11 +262,11 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: false,
     extract: (context) =>
-      context.spec.closed
-        ? context.areaDisplay === "ac"
-          ? fromSquareMillimetresToAcres(context.result.areaMm2 ?? 0)
-          : fromSquareMillimetres(context.result.areaMm2 ?? 0, context.unit)
-        : null,
+      context.result.areaMm2 === null
+        ? null
+        : context.areaDisplay === "ac"
+          ? fromSquareMillimetresToAcres(context.result.areaMm2)
+          : fromSquareMillimetres(context.result.areaMm2, context.unit),
   },
   {
     id: "count",
@@ -278,7 +286,7 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "text",
     defaultEnabled: true,
     required: true,
-    extract: (context) => context.measurement.type === "count" ? "" : context.unit,
+    extract: (context) => (hasMeasures(context.result) ? context.unit : ""),
   },
   {
     id: "area_unit",
@@ -289,7 +297,11 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: true,
     extract: (context) =>
-      context.spec.closed ? (context.areaDisplay === "ac" ? "ac" : `${context.unit}²`) : "",
+      context.result.areaMm2 !== null
+        ? context.areaDisplay === "ac"
+          ? "ac"
+          : `${context.unit}²`
+        : "",
   },
   {
     id: "pdf_name",
@@ -634,8 +646,9 @@ function createCsvRowContext(
   page: PageState,
   session: CurrentSession,
 ): CsvRowContext {
-  const calibration = getMeasurementCalibration(page, measurement);
-  if (!calibration && measurement.type !== "count") {
+  // Counts and unmeasured clouds (markup) carry no scale or measures, so their cells stay empty.
+  const calibration = getMeasuringCalibration(page, measurement, session.settings.measureClouds);
+  if (!calibration && measurementTypeRequiresScale(measurement.type)) {
     throw new Error(`Measurement ${measurement.id} has a missing calibration.`);
   }
   const scaleX = calibration ? calibrationScaleX(calibration) : null;

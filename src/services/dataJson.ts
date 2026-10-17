@@ -1,6 +1,7 @@
 import { buildTakeoffSummary } from "./takeoffSummary";
 import type { TakeoffSelection } from "../features/measurements/measurementTotals";
 import type { Calibration, CurrentSession, PageCalibration, Point } from "../types/domain";
+import { isCloudMeasured } from "../utils/calibration";
 import {
   calibrationScaleX,
   calibrationScaleY,
@@ -113,10 +114,14 @@ export function buildDataJson(
       ) {
         throw new Error(`Measurement ${measurement.id} has invalid geometry for JSON export.`);
       }
+      // Counts and revision clouds drawn without a scale carry `calibrationId: null`.
+      const withoutScale =
+        measurement.type === "count" ||
+        (measurement.type === "cloud" && measurement.calibrationId === null);
       const calibration = page!.calibrations.find(
         (candidate) => candidate.id === measurement.calibrationId,
       );
-      if (!calibration && measurement.type !== "count") {
+      if (!calibration && !withoutScale) {
         throw new Error(`Measurement ${measurement.id} has a missing calibration.`);
       }
       const assignedDimensions = new Set<string>();
@@ -132,7 +137,14 @@ export function buildDataJson(
         }
         assignedDimensions.add(dimensionId);
       }
-      const results = measurementResultsMm(measurement, calibration ?? null);
+      // A cloud is markup unless the project measures clouds and it has a scale.
+      const unmeasured =
+        withoutScale ||
+        (measurement.type === "cloud" &&
+          !isCloudMeasured(measurement, calibration ?? null, session.settings.measureClouds));
+      const results = unmeasured
+        ? { lengthMm: null, perimeterMm: null, areaMm2: null }
+        : measurementResultsMm(measurement, calibration ?? null);
       for (const result of Object.values(results)) {
         if (result !== null) finiteNumber(result);
       }
@@ -163,10 +175,20 @@ export function buildDataJson(
   return JSON.stringify(
     {
       schemaVersion: Object.values(session.pages).some((page) =>
-        page.measurements.some((measurement) => QUICK_SHAPE_TYPES.has(measurement.type)),
-      ) ? 4 : Object.values(session.pages).some((page) =>
-        page.measurements.some((measurement) => measurement.type === "count"),
-      ) ? 3 : takeoffSelection ? 2 : 1,
+        page.measurements.some((measurement) => measurement.type === "cloud"),
+      )
+        ? 5
+        : Object.values(session.pages).some((page) =>
+              page.measurements.some((measurement) => QUICK_SHAPE_TYPES.has(measurement.type)),
+            )
+          ? 4
+          : Object.values(session.pages).some((page) =>
+                page.measurements.some((measurement) => measurement.type === "count"),
+              )
+            ? 3
+            : takeoffSelection
+              ? 2
+              : 1,
       pdf: {
         name: session.pdf.name,
         size: finiteNumber(session.pdf.size),

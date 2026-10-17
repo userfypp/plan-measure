@@ -531,4 +531,49 @@ describe("MeasurementDetails", () => {
     });
   });
 
+  describe("revision cloud without measures", () => {
+    const cloud: Measurement = {
+      id: "cloud-1",
+      type: "cloud",
+      name: "Cloud 1",
+      calibrationId: "historical",
+      classificationValueIds: [],
+      visible: true,
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 },
+      ],
+    };
+    const summary = () => container!.querySelector("[data-measurement-summary]");
+    const scaleCell = () =>
+      Array.from(container!.querySelectorAll("dl[aria-label='Measurement properties'] > div")).find(
+        (cell) => cell.querySelector("dt")?.textContent === "Scale",
+      );
+
+    it("shows no value card and no zero when the project does not measure clouds", () => {
+      renderDetails(createProps({ measurement: cloud }));
+
+      expect(summary()).toBeNull();
+      expect(container!.textContent).not.toContain("P 0");
+      expect(container!.textContent).not.toContain("Repair required");
+      expect(container!.textContent).not.toContain("m²");
+    });
+
+    it("shows None as the scale of a cloud drawn without one, even when clouds are measured", () => {
+      const free: Measurement = { ...cloud, calibrationId: null } as Measurement;
+      renderDetails(createProps({ measurement: free, measureClouds: true }));
+
+      expect(summary()).toBeNull();
+      expect(scaleCell()?.querySelector("dd")?.textContent).toBe("None");
+      expect(container!.textContent).not.toContain("Scale unavailable");
+    });
+
+    it("shows the area and perimeter of a cloud with a scale when clouds are measured", () => {
+      renderDetails(createProps({ measurement: cloud, measureClouds: true }));
+
+      expect(summary()?.textContent).toMatch(/m²/);
+      expect(scaleCell()?.querySelector("dd")?.textContent).toContain("Original scale");
+    });
+  });
 });

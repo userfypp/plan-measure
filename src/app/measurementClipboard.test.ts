@@ -104,6 +104,22 @@ describe("measurement clipboard orchestration", () => {
     ).toBe(false);
   });
 
+  it("allows duplicating a cloud without a scale, like a count, but not a line without one", () => {
+    const page = { calibrations: [] };
+    const points = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 10 },
+    ];
+
+    expect(
+      canDuplicateMeasurement(page, { ...measurement, type: "cloud", calibrationId: null, points }),
+    ).toBe(true);
+    expect(canDuplicateMeasurement(page, { ...measurement, calibrationId: "missing-scale" })).toBe(
+      false,
+    );
+  });
+
   it.each([
     [
       "line",

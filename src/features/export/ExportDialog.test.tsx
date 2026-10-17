@@ -50,7 +50,7 @@ let container: HTMLDivElement | null = null;
 
 function sessionFixture(): CurrentSession {
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount: 1,
     currentPage: 1,
@@ -71,6 +71,7 @@ function sessionFixture(): CurrentSession {
       showMeasurements: true,
       showCalibration: true,
       labelClassificationDimensionId: null,
+      measureClouds: false,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",

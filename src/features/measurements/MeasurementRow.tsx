@@ -1,6 +1,6 @@
 import { memo, type RefCallback } from "react";
 import { IconButton } from "../../components/ui";
-import { measurementPathSpecs } from "../../utils/geometry";
+import { measurementPathSpecs, measurementTypeRequiresScale } from "../../utils/geometry";
 import { ToolIcon } from "../viewer/ToolIcon";
 import type { MeasurementViewModel } from "./measurementViewModels";
 import { VisibilityIcon } from "./VisibilityIcon";
@@ -32,7 +32,11 @@ export const MeasurementRow = memo(function MeasurementRow({
   const detailsId = `measurement-details-${viewModel.id}`;
   const quantityLines =
     measurementPathSpecs[viewModel.type].closed ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
-  const scaleSummary = viewModel.type === "count" ? "" : ` · ${viewModel.calibrationSummary.split(" · ")[0]}`;
+  // Counts and clouds without a measuring scale have none to show.
+  const scaleSummary =
+    !measurementTypeRequiresScale(viewModel.type) && !viewModel.hasCalibration
+      ? ""
+      : ` · ${viewModel.calibrationSummary.split(" · ")[0]}`;
   const metadata = `${viewModel.typeLabel}${scaleSummary}${
     viewModel.pageLabel ? ` · ${viewModel.pageLabel}` : ""
   }`;
@@ -75,7 +79,12 @@ export const MeasurementRow = memo(function MeasurementRow({
             ))}
           </span>
           <span
-            className={[styles.metadata, viewModel.type !== "count" && !viewModel.hasCalibration ? styles.unavailable : ""]
+            className={[
+              styles.metadata,
+              measurementTypeRequiresScale(viewModel.type) && !viewModel.hasCalibration
+                ? styles.unavailable
+                : "",
+            ]
               .filter(Boolean)
               .join(" ")}
           >

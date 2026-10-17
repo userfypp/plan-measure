@@ -7,7 +7,7 @@ import type {
   PageState,
 } from "../../types/domain";
 import { getAppPreferences } from "../../utils/appPreferences";
-import { getActiveCalibration, getMeasurementCalibration } from "../../utils/calibration";
+import { getActiveCalibration, getMeasuringCalibration } from "../../utils/calibration";
 import { formatMeasurement } from "../../utils/format";
 import { measurementPathSpecs } from "../../utils/geometry";
 
@@ -35,6 +35,9 @@ interface CachedValueLabel {
   label: string;
 }
 
+/** Value shown for a revision cloud that is not measured (markup, or the project does not measure clouds). */
+export const NO_MEASURES_LABEL = "No measures";
+
 /**
  * Formatted values by measurement. The list rebuilds every view model when any measurement or the
  * selection changes; measurements are immutable, so unchanged ones reuse their value while its
@@ -50,6 +53,7 @@ function measurementValueLabel(
   areaDisplay: AreaDisplay,
   cache: MeasurementValueLabelCache | undefined,
 ): string {
+  if (measurement.type === "cloud" && !calibration) return NO_MEASURES_LABEL;
   if (!calibration && measurement.type !== "count") return "Scale unavailable";
   if (!cache) {
     return formatMeasurement(measurement, calibration, displayUnit, decimalPlaces, areaDisplay);
@@ -98,8 +102,9 @@ export function createMeasurementViewModel(
   measurementDecimalPlaces: MeasurementDecimalPlaces = 2,
   areaDisplay: AreaDisplay = "auto",
   valueLabels?: MeasurementValueLabelCache,
+  measureClouds = false,
 ): MeasurementViewModel & { selected: boolean } {
-  const calibration = getMeasurementCalibration(page, measurement);
+  const calibration = getMeasuringCalibration(page, measurement, measureClouds);
   const calibrationMode = calibration?.mode === "xy" ? "X/Y correction" : "Uniform";
 
   return {
@@ -115,9 +120,12 @@ export function createMeasurementViewModel(
       areaDisplay,
       valueLabels,
     ),
-    calibrationSummary: measurement.type === "count" ? "No scale required" : calibration
-      ? `${calibration.name} · ${calibrationMode}`
-      : "Scale unavailable",
+    calibrationSummary:
+      measurement.type === "count" || (measurement.type === "cloud" && !calibration)
+        ? "No scale required"
+        : calibration
+          ? `${calibration.name} · ${calibrationMode}`
+          : "Scale unavailable",
     hasCalibration: calibration !== null,
     visible: measurement.visible,
     selected,

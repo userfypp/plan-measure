@@ -9,7 +9,7 @@ import type {
   MeasurementDisplayUnit,
   PageState,
 } from "../../types/domain";
-import { getMeasurementCalibration } from "../../utils/calibration";
+import { getMeasurementCalibration, isCloudMeasured } from "../../utils/calibration";
 import { measurementPathSpecs } from "../../utils/geometry";
 import {
   MEASUREMENT_NAME_EMPTY_ERROR,
@@ -28,6 +28,8 @@ export interface MeasurementDetailsProps {
   measurement: Measurement;
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
+  /** Whether revision clouds are measured (a project setting). */
+  measureClouds?: boolean;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   catalog: ClassificationCatalog;
   returnModule: WorkspaceModule;
@@ -52,6 +54,7 @@ export function MeasurementDetails({
   measurement,
   displayUnit,
   areaDisplay,
+  measureClouds = false,
   measurementDecimalPlaces,
   catalog,
   returnModule,
@@ -85,13 +88,20 @@ export function MeasurementDetails({
     true,
     measurementDecimalPlaces,
     areaDisplay,
+    undefined,
+    measureClouds,
   );
   const calibration = getMeasurementCalibration(page, measurement);
+  // A cloud without a measuring scale is markup: no result card, and having no scale is normal.
+  const unmeasuredCloud =
+    measurement.type === "cloud" && !isCloudMeasured(measurement, calibration, measureClouds);
   const scaleMetadata = calibration ? scaleDisplayMetadata(calibration) : null;
   const scaleLabel =
     calibration && scaleMetadata
       ? `${calibration.name} · ${scaleMetadata.ratioLabel}`
-      : "Scale unavailable";
+      : measurement.type === "cloud"
+        ? "None"
+        : "Scale unavailable";
   const [perimeterResult, areaResult] = viewModel.valueLabel.split(" · ");
   const polygonResults = measurementPathSpecs[measurement.type].closed && perimeterResult && areaResult;
   const otherCounts = useMemo(() => page.measurements.filter(
@@ -193,25 +203,27 @@ export function MeasurementDetails({
           </div>
         )}
 
-        <div className={styles.summary} data-measurement-summary>
-          <span className={styles.result}>
-            {polygonResults ? (
-              <>
-                <span>{areaResult}</span>
-                <span>{perimeterResult}</span>
-              </>
-            ) : (
-              viewModel.valueLabel
-            )}
-          </span>
-        </div>
+        {!unmeasuredCloud && (
+          <div className={styles.summary} data-measurement-summary>
+            <span className={styles.result}>
+              {polygonResults ? (
+                <>
+                  <span>{areaResult}</span>
+                  <span>{perimeterResult}</span>
+                </>
+              ) : (
+                viewModel.valueLabel
+              )}
+            </span>
+          </div>
+        )}
 
         <dl className={styles.properties} aria-label="Measurement properties">
           <div className={styles.cell}>
             <dt>Type</dt>
             <dd>{viewModel.typeLabel}</dd>
           </div>
-          {measurement.type !== "count" && (
+          {measurement.type !== "count" && (calibration || measurement.type !== "cloud") && (
             <div className={styles.cell}>
               <dt>Mode</dt>
               <dd>{scaleMetadata?.modeLabel ?? "Unavailable"}</dd>

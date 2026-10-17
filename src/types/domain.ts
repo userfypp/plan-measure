@@ -94,9 +94,18 @@ export interface SessionSettingsV13 extends Omit<SessionSettingsV9, "displayUnit
   areaDisplay: AreaDisplay;
 }
 
-export interface SessionSettings extends SessionSettingsV13 {
+export interface SessionSettingsV14 extends SessionSettingsV13 {
   /** Classification dimension whose value is shown in on-screen labels; null shows none. */
   labelClassificationDimensionId: string | null;
+}
+
+export interface SessionSettings extends SessionSettingsV14 {
+  /**
+   * Show area and perimeter for revision clouds, measured with straight sides between their
+   * vertices (approximate: the scallops are ignored). False by default: clouds are markup with
+   * no measures.
+   */
+  measureClouds: boolean;
 }
 
 interface LegacyMeasurementBase {
@@ -257,9 +266,13 @@ export interface SessionV5 {
   classificationCatalog: ClassificationCatalogV6;
 }
 
-/** Calibrated path shape used by historical sessions and current measurements. */
-export interface PathMeasurement extends MeasurementBase {
+/**
+ * Path shape used by historical sessions and current measurements. `calibrationId` is null only
+ * on a revision cloud drawn without a scale; every other path type always has a calibration.
+ */
+export interface PathMeasurement extends Omit<MeasurementBase, "calibrationId"> {
   type: PathMeasurementType;
+  calibrationId: string | null;
   points: Point[];
   classificationValueIds: string[];
   visible: boolean;
@@ -356,10 +369,15 @@ export interface SessionV13 extends Omit<SessionV12, "schemaVersion"> {
 
 export interface SessionV14 extends Omit<SessionV13, "schemaVersion" | "settings"> {
   schemaVersion: 14;
+  settings: SessionSettingsV14;
+}
+
+export interface SessionV15 extends Omit<SessionV14, "schemaVersion" | "settings"> {
+  schemaVersion: 15;
   settings: SessionSettings;
 }
 
-export type CurrentSession = SessionV14;
+export type CurrentSession = SessionV15;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

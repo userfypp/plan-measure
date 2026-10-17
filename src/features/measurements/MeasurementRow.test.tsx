@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MeasurementRow } from "./MeasurementRow";
+import { MeasurementRow, type MeasurementRowProps } from "./MeasurementRow";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -22,7 +22,7 @@ afterEach(() => {
   container = null;
 });
 
-function renderRow() {
+function renderRow(viewModel: Partial<MeasurementRowProps["viewModel"]> = {}) {
   const onSelectMeasurement = vi.fn();
   const onToggleVisibility = vi.fn();
   act(() =>
@@ -38,6 +38,7 @@ function renderRow() {
           hasCalibration: true,
           visible: true,
           selected: false,
+          ...viewModel,
         }}
         onSelectMeasurement={onSelectMeasurement}
         onToggleVisibility={onToggleVisibility}
@@ -80,5 +81,35 @@ describe("MeasurementRow", () => {
 
     click(control("selection"));
     expect(onSelectMeasurement).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an unmeasured cloud without a scale or an unavailable warning", () => {
+    renderRow({
+      id: "cloud-1",
+      type: "cloud",
+      name: "Cloud 1",
+      typeLabel: "Cloud",
+      valueLabel: "No measures",
+      calibrationSummary: "No scale required",
+      hasCalibration: false,
+    });
+
+    const metadata = container!.querySelector<HTMLElement>(
+      '[data-measurement-control="selection"]',
+    )!.title;
+    expect(metadata).toBe("Cloud");
+    expect(container!.textContent).toContain("No measures");
+    expect(container!.textContent).not.toContain("Scale unavailable");
+    expect(container!.querySelector('[class*="unavailable"]')).toBeNull();
+  });
+
+  it("flags a line without a scale as unavailable", () => {
+    renderRow({
+      valueLabel: "Scale unavailable",
+      calibrationSummary: "Scale unavailable",
+      hasCalibration: false,
+    });
+
+    expect(container!.querySelector('[class*="unavailable"]')).not.toBeNull();
   });
 });

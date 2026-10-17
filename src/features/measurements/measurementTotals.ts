@@ -4,7 +4,7 @@ import type {
   MeasurementType,
   PageState,
 } from "../../types/domain";
-import { getMeasurementCalibration } from "../../utils/calibration";
+import { getMeasurementCalibration, isCloudMeasured } from "../../utils/calibration";
 import {
   hasValidMeasurementPoints,
   isValidPageCalibration,
@@ -76,7 +76,10 @@ function sumQuantity(values: readonly (number | null)[]): TotalQuantity {
   return { kind: "value", value: total };
 }
 
-function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasurement {
+function calculateMeasurement(
+  measurement: LocatedMeasurement,
+  measureClouds: boolean,
+): CalculatedMeasurement {
   if (measurement.measurement.type === "count") {
     const valid = hasValidMeasurementPoints("count", measurement.measurement.points);
     return {
@@ -89,6 +92,20 @@ function calculateMeasurement(measurement: LocatedMeasurement): CalculatedMeasur
     };
   }
   const calibration = getMeasurementCalibration(measurement.page, measurement.measurement);
+  if (
+    measurement.measurement.type === "cloud" &&
+    !isCloudMeasured(measurement.measurement, calibration, measureClouds)
+  ) {
+    // Markup, not a problem: it contributes no quantity and is not reported as excluded.
+    return {
+      length: null,
+      perimeter: null,
+      area: null,
+      count: null,
+      excluded: false,
+      exclusionReason: null,
+    };
+  }
   if (!calibration)
     return {
       length: null,
@@ -185,6 +202,7 @@ export function createMeasurementTotals({
   classificationDimensionId,
   pageLabelOverrides,
   sourcePageLabels,
+  measureClouds = false,
 }: {
   pages: Readonly<Record<number, PageState>>;
   catalog: ClassificationCatalog;
@@ -192,6 +210,8 @@ export function createMeasurementTotals({
   classificationDimensionId: string | null;
   pageLabelOverrides: Readonly<Record<number, string>>;
   sourcePageLabels: readonly string[] | null;
+  /** Whether revision clouds contribute perimeter and area (a project setting). */
+  measureClouds?: boolean;
 }): MeasurementTotalsResult {
   const orderedPages = Object.values(pages).sort(
     (left, right) => left.pageNumber - right.pageNumber,
@@ -202,7 +222,7 @@ export function createMeasurementTotals({
   const calculationsByMeasurement = new Map<Measurement, CalculatedMeasurement>(
     allMeasurements.map(({ page, measurement }) => [
       measurement,
-      calculateMeasurement({ page, measurement }),
+      calculateMeasurement({ page, measurement }, measureClouds),
     ]),
   );
   const sourcesByMeasurement = new Map(

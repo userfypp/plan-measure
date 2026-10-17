@@ -60,9 +60,9 @@ export function isMeasurementType(value: string): value is MeasurementType {
   return (MEASUREMENT_TYPES as readonly string[]).includes(value);
 }
 
-/** Whether drawing this type needs an active scale; Count only tallies items. */
+/** Whether drawing this type needs an active scale; Count tallies items and Cloud marks revisions. */
 export function measurementTypeRequiresScale(type: MeasurementType): boolean {
-  return type !== "count";
+  return type !== "count" && type !== "cloud";
 }
 
 export function hasValidMeasurementPoints(
@@ -836,6 +836,10 @@ export function measurementResultsMm(
   calibration: Calibration | PageCalibration | null,
 ): { lengthMm: number | null; perimeterMm: number | null; areaMm2: number | null } {
   if (measurement.type === "count") {
+    return { lengthMm: null, perimeterMm: null, areaMm2: null };
+  }
+  // A cloud is markup unless it is measured; without a scale it has no measures.
+  if (measurement.type === "cloud" && !calibration) {
     return { lengthMm: null, perimeterMm: null, areaMm2: null };
   }
   if (!calibration) throw new RangeError("Measurement requires a calibration.");

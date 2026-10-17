@@ -78,10 +78,12 @@ describe("appDerivations", () => {
     for (const { id } of toolRailRegistry) {
       expect(map[id], id).toBeDefined();
     }
-    for (const type of ["line", "polyline", "polygon", "rectangle", "ellipse", "cloud"] as const) {
+    for (const type of ["line", "polyline", "polygon", "rectangle", "ellipse"] as const) {
       expect(map[type], type).toEqual({ enabled: false, disabledReason: "needs scale" });
     }
-    expect(map.count).toEqual({ enabled: true, disabledReason: "blocked" });
+    for (const type of ["count", "cloud"] as const) {
+      expect(map[type], type).toEqual({ enabled: true, disabledReason: "blocked" });
+    }
     expect(map.select?.enabled).toBe(true);
   });
 });

@@ -69,7 +69,7 @@ function sessionFixture(pageCount = 1): CurrentSession {
     };
   }
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount,
     currentPage: 1,
@@ -82,6 +82,7 @@ function sessionFixture(pageCount = 1): CurrentSession {
       showMeasurements: true,
       showCalibration: false,
       labelClassificationDimensionId: null,
+      measureClouds: false,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
     },
@@ -185,6 +186,39 @@ describe("annotated PDF export", () => {
         () => ({ width: 40, height: 20 }),
       ),
     ).toEqual([]);
+  });
+
+  it("labels a revision cloud with its name unless the project measures clouds and it has a scale", () => {
+    const session = sessionFixture();
+    const page = session.pages[1]!;
+    const cloud: PathMeasurement = {
+      id: "cloud-1",
+      name: "Cloud 1",
+      type: "cloud",
+      calibrationId: "scale-1",
+      classificationValueIds: [],
+      visible: true,
+      points: [
+        { x: 10, y: 10 },
+        { x: 60, y: 10 },
+        { x: 10, y: 60 },
+      ],
+    };
+    const plan = (cloudPage: PageState, measureClouds: boolean) =>
+      planAnnotatedPdfMeasurements(
+        cloudPage,
+        { width: 200, height: 120, rotation: 0 },
+        { ...session.settings, measureClouds },
+        (text) => ({ width: text.length * 6 + 8, height: 20 }),
+      )[0]?.label?.text;
+    const withCloud = (measurement: PathMeasurement): PageState => ({
+      ...page,
+      measurements: [measurement],
+    });
+
+    expect(plan(withCloud(cloud), false)).toBe("Cloud 1");
+    expect(plan(withCloud({ ...cloud, calibrationId: null }), true)).toBe("Cloud 1");
+    expect(plan(withCloud(cloud), true)).toMatch(/^P .+ · A .+m²$/);
   });
 
   it("writes visible measurement geometry and labels while preserving original pages", async () => {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { LineMeasurement, PolygonMeasurement, UniformPageCalibration } from "../types/domain";
+import type {
+  LineMeasurement,
+  PathMeasurement,
+  PolygonMeasurement,
+  UniformPageCalibration,
+} from "../types/domain";
 import {
   formatArchitecturalLength,
   formatAreaValue,
@@ -175,5 +180,27 @@ describe("measurement formatting", () => {
     const acreMm2 = (43_560 * 1524 * 1524) / 25;
     expect(formatAreaValue(acreMm2, "m", "ac", 2)).toBe("1.00 ac");
     expect(formatAreaValue(acreMm2, "ft-in", "auto", 2)).toBe("43560.00 ft²");
+  });
+});
+
+describe("revision cloud labels", () => {
+  const cloud: PathMeasurement = {
+    id: "cloud-1",
+    type: "cloud",
+    name: "Revision A",
+    calibrationId: calibration.id,
+    points: polygon.points,
+    classificationValueIds: [],
+    visible: true,
+  };
+
+  it("formats a measured cloud like a polygon", () => {
+    expect(formatMeasurement(cloud, calibration, "m", 2)).toBe(
+      formatMeasurement(polygon, calibration, "m", 2),
+    );
+  });
+
+  it("has no value when it is not measured, never zero or a repair message", () => {
+    expect(formatMeasurement(cloud, null, "m", 2)).toBe("");
   });
 });

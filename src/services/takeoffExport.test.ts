@@ -108,6 +108,45 @@ function objects(table: ExportTable) {
   );
 }
 describe("Takeoff exports", () => {
+  it("adds clouds to the totals only when the project measures them and they have a scale", () => {
+    const session = fixture();
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const cloud = {
+      id: "cloud",
+      name: "Cloud",
+      type: "cloud" as const,
+      points: square,
+      classificationValueIds: [],
+      visible: true,
+    };
+    session.pages[1]!.measurements.push(
+      { ...cloud, calibrationId: "scale" },
+      { ...cloud, id: "free-cloud", calibrationId: null },
+    );
+    const project = () => objects(buildTakeoffTables(session, selection).project)[0]!;
+
+    expect(session.settings.measureClouds).toBe(false);
+    expect(project()).toMatchObject({
+      measurement_count: 6,
+      excluded_count: 2,
+      perimeter: 4,
+      area: 1,
+    });
+
+    session.settings.measureClouds = true;
+    expect(project()).toMatchObject({
+      measurement_count: 6,
+      excluded_count: 2,
+      perimeter: 8,
+      area: 2,
+    });
+  });
+
   it("matches Takeoff totals, includes hidden measurements and reports exclusions per group", () => {
     const session = fixture();
     const tables = buildTakeoffTables(session, selection);

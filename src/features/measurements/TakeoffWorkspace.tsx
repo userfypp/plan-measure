@@ -29,6 +29,8 @@ export interface TakeoffWorkspaceProps {
   displayUnit: MeasurementDisplayUnit;
   decimalPlaces: MeasurementDecimalPlaces;
   areaDisplay: AreaDisplay;
+  /** Whether revision clouds count towards the totals (a project setting). */
+  measureClouds?: boolean;
   pageLabelOverrides: Readonly<Record<number, string>>;
   sourcePageLabels: readonly string[] | null;
   onOpenMeasurement?: (pageNumber: number, measurementId: string) => void;
@@ -111,8 +113,15 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
         classificationDimensionId: null,
         pageLabelOverrides: props.pageLabelOverrides,
         sourcePageLabels: props.sourcePageLabels,
+        measureClouds: props.measureClouds,
       }),
-    [props.catalog, props.pageLabelOverrides, props.pages, props.sourcePageLabels],
+    [
+      props.catalog,
+      props.measureClouds,
+      props.pageLabelOverrides,
+      props.pages,
+      props.sourcePageLabels,
+    ],
   );
   const activeDimensionId = props.catalog.dimensions.some(
     (dimension) => dimension.id === dimensionId,
@@ -130,11 +139,13 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
             classificationDimensionId: breakdown === "classification" ? activeDimensionId : null,
             pageLabelOverrides: props.pageLabelOverrides,
             sourcePageLabels: props.sourcePageLabels,
+            measureClouds: props.measureClouds,
           }),
     [
       activeDimensionId,
       breakdown,
       props.catalog,
+      props.measureClouds,
       props.pageLabelOverrides,
       props.pages,
       props.sourcePageLabels,

@@ -71,6 +71,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
+  const measureClouds = session?.settings.measureClouds ?? false;
   const [selectedGroupByDimensionIds, setGroupByDimensionIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [pageFilter, setPageFilter] = useState("");
@@ -108,6 +109,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
           measurementDecimalPlaces,
           areaDisplay,
           valueLabels,
+          measureClouds,
         ),
         pageNumber: candidatePage.pageNumber,
         pageLabel:
@@ -117,7 +119,19 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       })),
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
-    [areaDisplay, displayUnit, measurementDecimalPlaces, numberFormatKey, pageLabelOverrides, pages, selectedMeasurementId, selectedMeasurementIds, sourcePageLabels, valueLabels],
+    [
+      areaDisplay,
+      displayUnit,
+      measureClouds,
+      measurementDecimalPlaces,
+      numberFormatKey,
+      pageLabelOverrides,
+      pages,
+      selectedMeasurementId,
+      selectedMeasurementIds,
+      sourcePageLabels,
+      valueLabels,
+    ],
   );
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const measurements = useMemo(

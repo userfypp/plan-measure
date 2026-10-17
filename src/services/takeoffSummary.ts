@@ -29,6 +29,7 @@ export function buildTakeoffSummary(
     pageLabelOverrides: session.pageLabelOverrides,
     sourcePageLabels: pageLabels,
     classificationDimensionId: null,
+    measureClouds: session.settings.measureClouds,
   };
   const dimensions = new Set(selection.classificationDimensionIds);
   for (const id of dimensions) {

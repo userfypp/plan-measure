@@ -18,8 +18,8 @@ import type {
   Tool,
   ViewTransform,
 } from "../../types/domain";
-import { getMeasurementCalibration } from "../../utils/calibration";
-import { formatMeasurement } from "../../utils/format";
+import { getMeasuringCalibration } from "../../utils/calibration";
+import { measurementLabelText } from "./labelContent";
 import { placeLabelWithinBounds } from "../../utils/labelLayout";
 import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 import {
@@ -27,7 +27,6 @@ import {
   measurementEditingEnabled,
   translateMeasurementPoints,
 } from "./measurementDrag";
-import { composeLabelText } from "./labelContent";
 import { CANVAS_VISUAL_METRICS, type CanvasVisualRoles, labelTextPaint } from "./canvasVisualRoles";
 import { measurementOutlineBounds } from "../../utils/quickShapesOutline";
 import { pointsToFlat } from "./geometry";
@@ -74,6 +73,8 @@ interface PdfAnnotationLayerProps {
 
   displayUnit: MeasurementDisplayUnit;
   areaDisplay: AreaDisplay;
+  /** Whether revision clouds are measured (a project setting); clouds are markup otherwise. */
+  measureClouds?: boolean;
   measurementDecimalPlaces: MeasurementDecimalPlaces;
   showCalibration: boolean;
   showMeasurements: boolean;
@@ -130,6 +131,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   interactionTargetScreenPx,
   displayUnit,
   areaDisplay,
+  measureClouds = false,
   measurementDecimalPlaces,
   showCalibration,
   showMeasurements,
@@ -182,6 +184,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       displayUnit,
       measurementDecimalPlaces,
       areaDisplay,
+      measureClouds,
       showMeasurementLabels,
       numberFormatKey,
       labelContent,
@@ -192,29 +195,24 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
     () =>
       new Map(
         page.measurements.map((measurement) => {
-          const calibration = getMeasurementCalibration(page, measurement);
+          const calibration = getMeasuringCalibration(page, measurement, measureClouds);
           const points = measurement.points;
           return [
             measurement.id,
             labelDataCache(measurement, calibration, () => ({
               ...measurementOutlineBounds(measurement.type, points),
               anchor: averagePoint(points),
-              text:
-                (calibration || measurement.type === "count") &&
-                shouldRenderMeasurement(measurement, showMeasurementLabels)
-                  ? composeLabelText(
-                      formatMeasurement(
-                        measurement,
-                        calibration,
-                        displayUnit,
-                        measurementDecimalPlaces,
-                        areaDisplay,
-                      ),
-                      measurement.name,
-                      labelContent,
-                      classificationLabelFor(measurement, classificationNames),
-                    )
-                  : null,
+              text: shouldRenderMeasurement(measurement, showMeasurementLabels)
+                ? measurementLabelText(
+                    measurement,
+                    calibration,
+                    displayUnit,
+                    measurementDecimalPlaces,
+                    areaDisplay,
+                    labelContent,
+                    classificationLabelFor(measurement, classificationNames),
+                  )
+                : null,
             })),
           ];
         }),
@@ -226,6 +224,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
       displayUnit,
       measurementDecimalPlaces,
       areaDisplay,
+      measureClouds,
       showMeasurementLabels,
       labelContent,
       classificationNames,
@@ -495,7 +494,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
               onGroupDragPreview={previewGroupDrag}
               showLabel={showLabels}
               classificationLabel={classificationLabelFor(measurement, classificationNames)}
-              calibration={getMeasurementCalibration(page, measurement)}
+              calibration={getMeasuringCalibration(page, measurement, measureClouds)}
               displayUnit={displayUnit}
               areaDisplay={areaDisplay}
               measurementDecimalPlaces={measurementDecimalPlaces}

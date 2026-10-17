@@ -31,7 +31,7 @@ describe("SessionState", () => {
   it("creates a V12 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(14);
+    expect(created.schemaVersion).toBe(15);
     expect(created.pageLabelOverrides).toEqual({});
     expect(created.settings.measurementDecimalPlaces).toBe(2);
     expect(created.settings.areaDisplay).toBe("auto");
@@ -48,7 +48,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(14);
+    expect(loaded.session?.schemaVersion).toBe(15);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -114,7 +114,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(14);
+    expect(state.session?.schemaVersion).toBe(15);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });
@@ -1242,5 +1242,286 @@ describe("SessionState", () => {
       "scale-2",
     ]);
     expect(deleted.session?.pages[1]?.activeCalibrationId).toBe("scale-2");
+  });
+
+  describe("revision clouds without a scale", () => {
+    const cloudPoints = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const scale = {
+      mode: "uniform" as const,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 0 },
+      referenceDistanceMm: 1000,
+    };
+
+    function withScale(state: SessionCommandResult, pageNumber: number, id: string) {
+      return sessionReducer(state, {
+        type: "ADD_CALIBRATION",
+        pageNumber,
+        id,
+        name: id,
+        calibration: scale,
+      });
+    }
+
+    it("creates sessions that do not measure clouds as rectangles and updates the setting", () => {
+      let state = sessionReducer(initialSessionState, { type: "LOAD_SESSION", session: session() });
+      expect(state.session?.settings.measureClouds).toBe(false);
+
+      state = sessionReducer(state, {
+        type: "UPDATE_SETTINGS",
+        settings: { measureClouds: true },
+      });
+      expect(state.session?.settings.measureClouds).toBe(true);
+      expect(state.session?.settings.areaDisplay).toBe("auto");
+      expect(state.error).toBeNull();
+    });
+
+    it("adds a cloud to a page without scales with a null calibration", () => {
+      const state = sessionReducer(
+        { session: session(), error: null },
+        {
+          type: "ADD_MEASUREMENT",
+          pageNumber: 1,
+          id: "cloud-1",
+          measurementType: "cloud",
+          points: cloudPoints,
+        },
+      );
+
+      expect(state.error).toBeNull();
+      expect(state.session?.pages[1]?.calibrations).toEqual([]);
+      expect(state.session?.pages[1]?.measurements).toEqual([
+        {
+          id: "cloud-1",
+          type: "cloud",
+          name: "Cloud 1",
+          calibrationId: null,
+          points: cloudPoints,
+          classificationValueIds: [],
+          visible: true,
+        },
+      ]);
+      expect(state.session?.pages[1]?.nextMeasurementNumber.cloud).toBe(2);
+    });
+
+    it("gives a new cloud the active scale when the page has one", () => {
+      let state = withScale({ session: session(), error: null }, 1, "scale-1");
+      state = sessionReducer(state, {
+        type: "ADD_MEASUREMENT",
+        pageNumber: 1,
+        id: "cloud-1",
+        measurementType: "cloud",
+        points: cloudPoints,
+      });
+
+      expect(state.session?.pages[1]?.measurements[0]).toMatchObject({ calibrationId: "scale-1" });
+    });
+
+    it.each([
+      [
+        "line",
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+      ],
+      [
+        "polyline",
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      ],
+      [
+        "polygon",
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      ],
+      ["rectangle", cloudPoints],
+      ["ellipse", cloudPoints],
+    ] as const)("still rejects a %s on a page without scales", (measurementType, points) => {
+      const initial = { session: session(), error: null };
+      const rejected = sessionReducer(initial, {
+        type: "ADD_MEASUREMENT",
+        pageNumber: 1,
+        id: "shape-1",
+        measurementType,
+        points: [...points],
+      });
+
+      expect(rejected.error).toContain("valid scale");
+      expect(rejected.session?.pages[1]?.measurements).toEqual([]);
+    });
+
+    it("pastes a cloud without a scale on its own page keeping the null calibration", () => {
+      let state = sessionReducer(
+        { session: session(), error: null },
+        {
+          type: "ADD_MEASUREMENT",
+          pageNumber: 1,
+          id: "cloud-1",
+          measurementType: "cloud",
+          points: cloudPoints,
+        },
+      );
+      state = withScale(state, 1, "scale-1");
+      const source = state.session!.pages[1]!.measurements[0]!;
+
+      const pasted = sessionReducer(state, {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 1,
+        id: "cloud-copy",
+        sourcePageNumber: 1,
+        measurement: source,
+      });
+
+      expect(pasted.error).toBeNull();
+      expect(pasted.session?.pages[1]?.measurements.at(-1)).toMatchObject({
+        id: "cloud-copy",
+        type: "cloud",
+        calibrationId: null,
+      });
+    });
+
+    it("pastes a cloud on another page, adopting its active scale or none", () => {
+      let state = sessionReducer(
+        { session: session(), error: null },
+        {
+          type: "ADD_MEASUREMENT",
+          pageNumber: 1,
+          id: "cloud-1",
+          measurementType: "cloud",
+          points: cloudPoints,
+        },
+      );
+      const source = state.session!.pages[1]!.measurements[0]!;
+      const withoutScale = sessionReducer(state, {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 2,
+        id: "cloud-copy-1",
+        sourcePageNumber: 1,
+        measurement: source,
+      });
+      expect(withoutScale.error).toBeNull();
+      expect(withoutScale.session?.pages[2]?.measurements[0]).toMatchObject({
+        id: "cloud-copy-1",
+        calibrationId: null,
+      });
+
+      state = withScale(state, 2, "scale-2");
+      const withScaleOnTarget = sessionReducer(state, {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 2,
+        id: "cloud-copy-2",
+        sourcePageNumber: 1,
+        measurement: source,
+      });
+      expect(withScaleOnTarget.error).toBeNull();
+      expect(withScaleOnTarget.session?.pages[2]?.measurements[0]).toMatchObject({
+        id: "cloud-copy-2",
+        calibrationId: "scale-2",
+      });
+    });
+
+    it("keeps rejecting a same-page paste of a cloud whose scale no longer exists", () => {
+      const state = { session: session(), error: null } as SessionCommandResult;
+      const orphan: Measurement = {
+        id: "cloud-orphan",
+        type: "cloud",
+        name: "Cloud orphan",
+        calibrationId: "missing-scale",
+        points: cloudPoints,
+        classificationValueIds: [],
+        visible: true,
+      };
+
+      const rejected = sessionReducer(state, {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 1,
+        id: "cloud-copy",
+        sourcePageNumber: 1,
+        measurement: orphan,
+      });
+
+      expect(rejected.session).toBe(state.session);
+      expect(rejected.error).toContain("scale is no longer available");
+    });
+
+    it("keeps rejecting a paste of a line without a calibration on the same page", () => {
+      const state = { session: session(), error: null } as SessionCommandResult;
+      const line: Measurement = {
+        id: "line-orphan",
+        type: "line",
+        name: "Line orphan",
+        calibrationId: null,
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+        classificationValueIds: [],
+        visible: true,
+      };
+
+      const rejected = sessionReducer(state, {
+        type: "PASTE_MEASUREMENT",
+        pageNumber: 1,
+        id: "line-copy",
+        sourcePageNumber: 1,
+        measurement: line,
+      });
+
+      expect(rejected.session).toBe(state.session);
+      expect(rejected.error).toContain("scale is no longer available");
+    });
+
+    it("deleting a scale never touches clouds without one, and they can be assigned a scale later", () => {
+      let state = sessionReducer(
+        { session: session(), error: null },
+        {
+          type: "ADD_MEASUREMENT",
+          pageNumber: 1,
+          id: "cloud-1",
+          measurementType: "cloud",
+          points: cloudPoints,
+        },
+      );
+      state = withScale(state, 1, "scale-1");
+
+      const deleted = sessionReducer(state, {
+        type: "DELETE_CALIBRATION",
+        pageNumber: 1,
+        calibrationId: "scale-1",
+      });
+      expect(deleted.error).toBeNull();
+      expect(deleted.session?.pages[1]?.calibrations).toEqual([]);
+      expect(deleted.session?.pages[1]?.measurements).toHaveLength(1);
+      expect(deleted.session?.pages[1]?.measurements[0]).toMatchObject({ calibrationId: null });
+
+      const assigned = sessionReducer(state, {
+        type: "ASSIGN_MEASUREMENT_CALIBRATION",
+        pageNumber: 1,
+        measurementId: "cloud-1",
+        calibrationId: "scale-1",
+      });
+      expect(assigned.error).toBeNull();
+      expect(assigned.session?.pages[1]?.measurements[0]).toMatchObject({
+        calibrationId: "scale-1",
+      });
+      const blocked = sessionReducer(assigned, {
+        type: "DELETE_CALIBRATION",
+        pageNumber: 1,
+        calibrationId: "scale-1",
+      });
+      expect(blocked.error).toContain("used by measurements");
+    });
   });
 });

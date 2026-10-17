@@ -21,6 +21,7 @@ import type {
   SessionV12,
   SessionV13,
   SessionV14,
+  SessionV15,
   PageState,
   CurrentSession,
 } from "../types/domain";
@@ -185,6 +186,19 @@ function isCountMeasurement(value: unknown): value is Measurement {
     (value.note === undefined || typeof value.note === "string")
   );
 }
+/** A revision cloud drawn without a scale (schema V15 onwards): the only path with a null calibration. */
+function isUncalibratedCloudMeasurement(value: unknown): value is Measurement {
+  return (
+    isObject(value) &&
+    value.type === "cloud" &&
+    value.calibrationId === null &&
+    hasValidMeasurementIdentity(value) &&
+    hasValidMeasurementPoints("cloud", value.points as Point[]) &&
+    hasValidClassificationValueIds(value) &&
+    typeof value.visible === "boolean" &&
+    (value.note === undefined || typeof value.note === "string")
+  );
+}
 
 function hasValidSessionHeader(value: Record<string, unknown>): boolean {
   return (
@@ -305,7 +319,14 @@ function hasValidMeasurementCounters(value: unknown): boolean {
     (type) => Number.isInteger(value[type]) && (value[type] as number) >= 1,
   );
 }
-function assertValidSessionV4(value: Record<string, unknown>, allowCounts = false): void {
+function assertValidSessionV4(
+  value: Record<string, unknown>,
+  allowCounts = false,
+  allowUncalibratedClouds = false,
+): void {
+  const needsCalibration = (measurement: unknown) =>
+    !isCountMeasurement(measurement) &&
+    !(allowUncalibratedClouds && isUncalibratedCloudMeasurement(measurement));
   if (!hasValidSessionHeader(value)) throw new Error("The saved session is invalid.");
   assertCanonicalPageKeysWithinPageCount(value);
   const pageCount = value.pageCount as number;
@@ -319,7 +340,12 @@ function assertValidSessionV4(value: Record<string, unknown>, allowCounts = fals
       !Array.isArray(page.calibrations) ||
       !page.calibrations.every(isPageCalibrationV3) ||
       !Array.isArray(page.measurements) ||
-      !page.measurements.every((measurement) => isMeasurementV4(measurement) || (allowCounts && isCountMeasurement(measurement))) ||
+      !page.measurements.every(
+        (measurement) =>
+          isMeasurementV4(measurement) ||
+          (allowCounts && isCountMeasurement(measurement)) ||
+          (allowUncalibratedClouds && isUncalibratedCloudMeasurement(measurement)),
+      ) ||
       !Number.isInteger(page.nextCalibrationNumber) ||
       (page.nextCalibrationNumber as number) < 1 ||
       !hasValidMeasurementCounters(page.nextMeasurementNumber) ||
@@ -339,9 +365,15 @@ function assertValidSessionV4(value: Record<string, unknown>, allowCounts = fals
         !calibrationIds.has(page.activeCalibrationId))
     )
       throw new Error(`Page ${pageNumber} has an active calibration that does not exist.`);
-    if (page.measurements.some((measurement) => !isCountMeasurement(measurement)) && page.calibrations.length === 0)
+    if (page.measurements.some(needsCalibration) && page.calibrations.length === 0)
       throw new Error(`Page ${pageNumber} has measurements without calibration.`);
-    if (page.measurements.some((measurement) => !isCountMeasurement(measurement) && !calibrationIds.has((measurement as Measurement).calibrationId!)))
+    if (
+      page.measurements.some(
+        (measurement) =>
+          needsCalibration(measurement) &&
+          !calibrationIds.has((measurement as Measurement).calibrationId!),
+      )
+    )
       throw new Error(`Page ${pageNumber} has a measurement with a missing calibration.`);
     for (const measurement of page.measurements) {
       const id = (measurement as { id: string }).id;
@@ -459,9 +491,10 @@ function assertValidSessionV7(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
   allowCounts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 7) throw new Error("The saved session is invalid.");
-  assertValidSessionV4(value, allowCounts);
+  assertValidSessionV4(value, allowCounts, allowUncalibratedClouds);
   const valueDimensions = assertValidClassificationCatalog(
     value.classificationCatalog,
     true,
@@ -469,7 +502,14 @@ function assertValidSessionV7(
   );
   const pages = value.pages as Record<string, { measurements: unknown[] }>;
   for (const page of Object.values(pages)) {
-    if (!page.measurements.every((measurement) => isMeasurement(measurement) || (allowCounts && isCountMeasurement(measurement))))
+    if (
+      !page.measurements.every(
+        (measurement) =>
+          isMeasurement(measurement) ||
+          (allowCounts && isCountMeasurement(measurement)) ||
+          (allowUncalibratedClouds && isUncalibratedCloudMeasurement(measurement)),
+      )
+    )
       throw new Error("The saved session has an invalid measurement classification or visibility.");
     for (const measurement of page.measurements as Measurement[]) {
       if (measurement.classificationValueIds.some((id) => !valueDimensions.has(id)))
@@ -501,18 +541,30 @@ function assertValidSessionV8(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
   allowCounts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 8) throw new Error("The saved session is invalid.");
-  assertValidSessionV7({ ...value, schemaVersion: 7 }, allowClassificationNameConflicts, allowCounts);
+  assertValidSessionV7(
+    { ...value, schemaVersion: 7 },
+    allowClassificationNameConflicts,
+    allowCounts,
+    allowUncalibratedClouds,
+  );
   assertValidCsvExportSettings(value);
 }
 function assertValidSessionV9(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
   allowCounts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 9) throw new Error("The saved session is invalid.");
-  assertValidSessionV8({ ...value, schemaVersion: 8 }, allowClassificationNameConflicts, allowCounts);
+  assertValidSessionV8(
+    { ...value, schemaVersion: 8 },
+    allowClassificationNameConflicts,
+    allowCounts,
+    allowUncalibratedClouds,
+  );
   const settings = value.settings;
   if (
     !isRecord(settings) ||
@@ -527,6 +579,7 @@ function assertValidSessionV10(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
   allowCounts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 10) throw new Error("The saved session is invalid.");
   const settings = value.settings;
@@ -539,6 +592,7 @@ function assertValidSessionV10(
     },
     allowClassificationNameConflicts,
     allowCounts,
+    allowUncalibratedClouds,
   );
   if (
     typeof settings.displayUnit !== "string" ||
@@ -557,9 +611,15 @@ function assertValidSessionV11(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
   allowCounts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 11) throw new Error("The saved session is invalid.");
-  assertValidSessionV10({ ...value, schemaVersion: 10 }, allowClassificationNameConflicts, allowCounts);
+  assertValidSessionV10(
+    { ...value, schemaVersion: 10 },
+    allowClassificationNameConflicts,
+    allowCounts,
+    allowUncalibratedClouds,
+  );
   const pageLabelOverrides = value.pageLabelOverrides;
   if (!isRecord(pageLabelOverrides)) {
     throw new Error("The saved page label overrides are invalid.");
@@ -578,9 +638,18 @@ function assertValidSessionV11(
     }
   }
 }
-function assertValidSessionV12(value: Record<string, unknown>, allowClassificationNameConflicts = false): void {
+function assertValidSessionV12(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+  allowUncalibratedClouds = false,
+): void {
   if (value.schemaVersion !== 12) throw new Error("The saved session is invalid.");
-  assertValidSessionV11({ ...value, schemaVersion: 11 }, allowClassificationNameConflicts, true);
+  assertValidSessionV11(
+    { ...value, schemaVersion: 11 },
+    allowClassificationNameConflicts,
+    true,
+    allowUncalibratedClouds,
+  );
 }
 
 const QUICK_SHAPE_TYPES = ["rectangle", "ellipse", "cloud"] as const;
@@ -588,9 +657,14 @@ const QUICK_SHAPE_TYPES = ["rectangle", "ellipse", "cloud"] as const;
 function assertValidSessionV13(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 13) throw new Error("The saved session is invalid.");
-  assertValidSessionV12({ ...value, schemaVersion: 12 }, allowClassificationNameConflicts);
+  assertValidSessionV12(
+    { ...value, schemaVersion: 12 },
+    allowClassificationNameConflicts,
+    allowUncalibratedClouds,
+  );
   const pages = value.pages as Record<string, unknown>;
   for (let pageNumber = 1; pageNumber <= (value.pageCount as number); pageNumber += 1) {
     const page = pages[pageNumber];
@@ -620,14 +694,32 @@ function assertValidSessionV13(
 function assertValidSessionV14(
   value: Record<string, unknown>,
   allowClassificationNameConflicts = false,
+  allowUncalibratedClouds = false,
 ): void {
   if (value.schemaVersion !== 14) throw new Error("The saved session is invalid.");
-  assertValidSessionV13({ ...value, schemaVersion: 13 }, allowClassificationNameConflicts);
+  assertValidSessionV13(
+    { ...value, schemaVersion: 13 },
+    allowClassificationNameConflicts,
+    allowUncalibratedClouds,
+  );
   const id = (value.settings as Record<string, unknown>).labelClassificationDimensionId;
   if (id === null) return;
   const catalog = value.classificationCatalog as { dimensions: Array<{ id: unknown }> };
   if (typeof id !== "string" || !catalog.dimensions.some((dimension) => dimension.id === id)) {
     throw new Error("The saved session is invalid.");
+  }
+}
+
+/** V15 = V14 + the cloud measuring setting + revision clouds without a scale (null calibration). */
+function assertValidSessionV15(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
+  if (value.schemaVersion !== 15) throw new Error("The saved session is invalid.");
+  assertValidSessionV14({ ...value, schemaVersion: 14 }, allowClassificationNameConflicts, true);
+  const settings = value.settings as Record<string, unknown>;
+  if (typeof settings.measureClouds !== "boolean") {
+    throw new Error("The saved cloud measurement setting is invalid.");
   }
 }
 
@@ -674,6 +766,14 @@ function migrateSessionV13(session: SessionV13): SessionV14 {
     ...session,
     schemaVersion: 14,
     settings: { ...session.settings, labelClassificationDimensionId: null },
+  };
+}
+
+function migrateSessionV14(session: SessionV14): SessionV15 {
+  return {
+    ...session,
+    schemaVersion: 15,
+    settings: { ...session.settings, measureClouds: false },
   };
 }
 
@@ -951,12 +1051,24 @@ function canonicalizeSessionV14(session: SessionV14): SessionV14 {
   };
 }
 
+function canonicalizeSessionV15(session: SessionV15): SessionV15 {
+  const canonical = canonicalizeSessionV14({ ...session, schemaVersion: 14 });
+  return {
+    ...canonical,
+    schemaVersion: 15,
+    settings: {
+      ...canonical.settings,
+      measureClouds: session.settings.measureClouds,
+    },
+  };
+}
+
 function migrateAndCanonicalizeSessionV9(session: SessionV9): SessionV11 {
   return canonicalizeSessionV11(migrateSessionV10(migrateSessionV9(session)));
 }
 
 export function serializeSession(session: CurrentSession): string {
-  assertValidSessionV14(session as unknown as Record<string, unknown>);
+  assertValidSessionV15(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
 
@@ -1075,13 +1187,14 @@ function requiresClassificationNameRepair(value: unknown): boolean {
 }
 
 function finalizeDecodedSession(
-  source: SessionV11 | SessionV12 | SessionV13 | CurrentSession,
+  source: SessionV11 | SessionV12 | SessionV13 | SessionV14 | CurrentSession,
   allowHistoricalGeometry: boolean,
   classificationRepairRequired = false,
 ): DecodedSession {
   const sessionV12 = source.schemaVersion === 11 ? migrateSessionV11(source) : source;
   const sessionV13 = sessionV12.schemaVersion === 12 ? migrateSessionV12(sessionV12) : sessionV12;
-  const session = sessionV13.schemaVersion === 13 ? migrateSessionV13(sessionV13) : sessionV13;
+  const sessionV14 = sessionV13.schemaVersion === 13 ? migrateSessionV13(sessionV13) : sessionV13;
+  const session = sessionV14.schemaVersion === 14 ? migrateSessionV14(sessionV14) : sessionV14;
   const incompatibleMeasurementIds = Object.values(session.pages).flatMap((page) =>
     page.measurements
       .filter((measurement) => !hasValidMeasurementPoints(measurement.type, measurement.points))
@@ -1090,12 +1203,12 @@ function finalizeDecodedSession(
   const historicalGeometryRepairRequired =
     allowHistoricalGeometry && incompatibleMeasurementIds.length > 0;
   if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
-    assertValidSessionV14(session as unknown as Record<string, unknown>);
+    assertValidSessionV15(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
   }
 
   // Validate every other migrated field without changing the repairable snapshot returned below.
-  const validationProbe = canonicalizeSessionV14(session);
+  const validationProbe = canonicalizeSessionV15(session);
   for (const page of Object.values(validationProbe.pages)) {
     page.measurements = page.measurements.map((measurement) =>
       hasValidMeasurementPoints(measurement.type, measurement.points)
@@ -1106,7 +1219,7 @@ function finalizeDecodedSession(
           },
     );
   }
-  assertValidSessionV14(
+  assertValidSessionV15(
     validationProbe as unknown as Record<string, unknown>,
     classificationRepairRequired,
   );
@@ -1311,6 +1424,17 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV14(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV14(value as unknown as SessionV14),
+      false,
+      classificationRepairRequired,
+    );
+  }
+  if (value.schemaVersion === 15) {
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionV15(value, classificationRepairRequired);
+    return finalizeDecodedSession(
+      canonicalizeSessionV15(value as unknown as SessionV15),
       false,
       classificationRepairRequired,
     );

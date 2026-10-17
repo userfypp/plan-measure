@@ -202,6 +202,101 @@ describe("public JSON data export", () => {
     expect(parsed.pages[0].measurements[0].areaMm2).toBeCloseTo(Math.PI * 2 * 1, 10);
   });
 
+  it("exports cloud results only when the project measures clouds and the cloud has a scale", () => {
+    const session = createEmptySession({ name: "m.pdf", size: 1, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    page.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1,
+      },
+    ];
+    page.activeCalibrationId = "scale";
+    const points = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 2 },
+      { x: 0, y: 2 },
+    ];
+    const base = { type: "cloud" as const, points, classificationValueIds: [], visible: true };
+    page.measurements = [
+      { ...base, id: "scaled", name: "Cloud 1", calibrationId: "scale" },
+      { ...base, id: "free", name: "Cloud 2", calibrationId: null },
+    ];
+    const clouds = () => JSON.parse(buildDataJson(session));
+
+    expect(session.settings.measureClouds).toBe(false);
+    let parsed = clouds();
+    expect(parsed.schemaVersion).toBe(5);
+    expect(parsed.pages[0].measurements).toEqual([
+      expect.objectContaining({
+        id: "scaled",
+        calibrationId: "scale",
+        lengthMm: null,
+        perimeterMm: null,
+        areaMm2: null,
+      }),
+      expect.objectContaining({
+        id: "free",
+        calibrationId: null,
+        lengthMm: null,
+        perimeterMm: null,
+        areaMm2: null,
+      }),
+    ]);
+
+    session.settings.measureClouds = true;
+    parsed = clouds();
+    expect(parsed.schemaVersion).toBe(5);
+    expect(parsed.pages[0].measurements).toEqual([
+      expect.objectContaining({ id: "scaled", lengthMm: null, perimeterMm: 12, areaMm2: 8 }),
+      expect.objectContaining({
+        id: "free",
+        calibrationId: null,
+        lengthMm: null,
+        perimeterMm: null,
+        areaMm2: null,
+      }),
+    ]);
+  });
+
+  it("keeps schema version 4 for rectangles and ellipses without clouds", () => {
+    const session = createEmptySession({ name: "r.pdf", size: 1, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    page.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1,
+      },
+    ];
+    page.measurements = [
+      {
+        id: "rect",
+        name: "Rectangle 1",
+        type: "rectangle",
+        calibrationId: "scale",
+        points: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 2 },
+          { x: 0, y: 2 },
+        ],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    expect(JSON.parse(buildDataJson(session)).schemaVersion).toBe(4);
+  });
+
   it("exports the color of a cloud only when it has one", () => {
     const session = createEmptySession({ name: "c.pdf", size: 1, lastModified: 1 }, 1);
     const page = session.pages[1]!;
@@ -226,6 +321,58 @@ describe("public JSON data export", () => {
     expect(plain).not.toHaveProperty("color");
     expect(blue.color).toBe("#2465c7");
     expect(polygon).not.toHaveProperty("color");
+  });
+
+  it("exports a cloud without a scale with a null calibration and no results", () => {
+    const session = createEmptySession({ name: "n.pdf", size: 1, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    const points = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 0, y: 2 },
+    ];
+    page.measurements = [
+      {
+        id: "free",
+        name: "Cloud 1",
+        type: "cloud",
+        calibrationId: null,
+        points,
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+
+    const parsed = JSON.parse(buildDataJson(session));
+
+    expect(parsed.schemaVersion).toBe(5);
+    expect(parsed.pages[0].calibrations).toEqual([]);
+    expect(parsed.pages[0].measurements).toEqual([
+      {
+        id: "free",
+        name: "Cloud 1",
+        note: null,
+        type: "cloud",
+        visible: true,
+        calibrationId: null,
+        points,
+        classificationValueIds: [],
+        lengthMm: null,
+        perimeterMm: null,
+        areaMm2: null,
+      },
+    ]);
+
+    page.measurements = [
+      {
+        ...page.measurements[0]!,
+        id: "line",
+        name: "Line 1",
+        type: "line",
+        points: points.slice(0, 2),
+      },
+    ];
+    expect(() => buildDataJson(session)).toThrow(/missing calibration/);
   });
 
   it("exports empty and uninitialized pages and catalogs without measurements", () => {

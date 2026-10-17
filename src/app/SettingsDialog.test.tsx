@@ -334,6 +334,7 @@ describe("SettingsDialog", () => {
         showMeasurements: true,
         showCalibration: false,
         labelClassificationDimensionId: null,
+        measureClouds: false,
       },
     });
     await openSettings();
@@ -347,6 +348,10 @@ describe("SettingsDialog", () => {
     expect(switchControl("Calibration").checked).toBe(false);
     act(() => switchControl("Calibration").click());
     expect(onViewSettingsChange).toHaveBeenLastCalledWith({ showCalibration: true });
+    expect(switchControl("Measure clouds").checked).toBe(false);
+    expect(dialog().textContent).toContain("so they may not be exact");
+    act(() => switchControl("Measure clouds").click());
+    expect(onViewSettingsChange).toHaveBeenLastCalledWith({ measureClouds: true });
   });
 
   describe("Label classification", () => {
@@ -357,6 +362,7 @@ describe("SettingsDialog", () => {
       showMeasurements: true,
       showCalibration: true,
       labelClassificationDimensionId: null,
+      measureClouds: false,
     };
     const dimensions: ClassificationDimension[] = [
       { id: "trade", name: "Trade", archived: false, values: [] },
@@ -813,6 +819,7 @@ describe("SettingsDialog", () => {
         showMeasurements: true,
         showCalibration: true,
         labelClassificationDimensionId: null,
+        measureClouds: false,
       },
     });
     await openSettings();
@@ -825,7 +832,11 @@ describe("SettingsDialog", () => {
       "About Recovered plan workspace",
     ]);
     openTab("View");
-    expect(helpLabels()).toEqual(["About Polygon area", "About Label classification"]);
+    expect(helpLabels()).toEqual([
+      "About Polygon area",
+      "About Measure clouds",
+      "About Label classification",
+    ]);
     openTab("Canvas");
     expect(helpLabels()).toEqual([]);
     openTab("Confirmations");

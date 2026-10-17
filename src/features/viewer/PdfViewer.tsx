@@ -1714,6 +1714,7 @@ export function PdfViewer({
   const displayUnit = session?.settings.displayUnit ?? "m";
   const measurementDecimalPlaces = session?.settings.measurementDecimalPlaces ?? 2;
   const areaDisplay = session?.settings.areaDisplay ?? "auto";
+  const measureClouds = session?.settings.measureClouds ?? false;
   const showCalibration = session?.settings.showCalibration ?? false;
   const showLabels = session?.settings.showLabels ?? true;
   const labelClassificationDimensionId = session?.settings.labelClassificationDimensionId ?? null;
@@ -1735,6 +1736,7 @@ export function PdfViewer({
       canvasVisualRoles,
       displayUnit,
       isPanning,
+      measureClouds,
       measurementDecimalPlaces,
       measurementEditingBlocked,
       page,
@@ -1760,6 +1762,7 @@ export function PdfViewer({
       canvasVisualRoles,
       displayUnit,
       isPanning,
+      measureClouds,
       measurementDecimalPlaces,
       measurementEditingBlocked,
       page,
@@ -1926,6 +1929,7 @@ export function PdfViewer({
     document,
     annotationsStatic,
     layerZoom,
+    measureClouds,
     measurementDecimalPlaces,
     measurementEditingBlocked,
     page,
@@ -2160,6 +2164,7 @@ export function PdfViewer({
                   interactionTargetScreenPx={canvasInteractionTarget}
                   displayUnit={displayUnit}
                   areaDisplay={areaDisplay}
+                  measureClouds={measureClouds}
                   measurementDecimalPlaces={measurementDecimalPlaces}
                   showCalibration={showCalibration}
                   showMeasurements={showMeasurements}

@@ -947,6 +947,7 @@ function PlanMeasureApp() {
                 showMeasurements: session.settings.showMeasurements,
                 showCalibration: session.settings.showCalibration,
                 labelClassificationDimensionId: session.settings.labelClassificationDimensionId,
+                measureClouds: session.settings.measureClouds,
               }
             : null
         }
@@ -1093,6 +1094,7 @@ function PlanMeasureApp() {
                       displayUnit={session.settings.displayUnit}
                       decimalPlaces={session.settings.measurementDecimalPlaces}
                       areaDisplay={session.settings.areaDisplay}
+                      measureClouds={session.settings.measureClouds}
                       pageLabelOverrides={session.pageLabelOverrides}
                       sourcePageLabels={sourcePageLabels}
                     />
@@ -1194,6 +1196,7 @@ function PlanMeasureApp() {
                       measurement={selectedMeasurement}
                       displayUnit={session.settings.displayUnit}
                       areaDisplay={session.settings.areaDisplay}
+                      measureClouds={session.settings.measureClouds}
                       measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
                       catalog={session.classificationCatalog}
                       returnModule={workspaceModule}

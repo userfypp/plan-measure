@@ -414,3 +414,68 @@ it("reports exclusion causes without changing calculation or grouping semantics"
  expect(result.groups[0]!.length).toEqual({kind:"absent"});
  expect(result.excludedCount).toBe(4);
 });
+
+describe("revision clouds in totals", () => {
+  const triangle = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 10 },
+  ];
+  const scaledCloud = measurement("cloud-scaled", "cloud", triangle);
+  const freeCloud = measurement("cloud-free", "cloud", triangle, { calibrationId: null });
+  const polygon = measurement("polygon", "polygon", triangle);
+  const pages = { 1: page(1, [scaledCloud, freeCloud, polygon]) };
+  const compute = (measureClouds: boolean, grouping: "overall" | "type" = "overall") =>
+    createMeasurementTotals({
+      pages,
+      catalog,
+      grouping,
+      classificationDimensionId: null,
+      pageLabelOverrides: {},
+      sourcePageLabels: null,
+      measureClouds,
+    });
+
+  it("adds nothing for clouds when the project does not measure them, without excluding them", () => {
+    const result = compute(false);
+    expect(result.excludedCount).toBe(0);
+    expect(result.groups[0]).toMatchObject({
+      measurementCount: 3,
+      excludedCount: 0,
+      area: { kind: "value", value: 500000 },
+    });
+  });
+
+  it("does not make a group of unmeasured clouds look like zero", () => {
+    const result = createMeasurementTotals({
+      pages: { 1: page(1, [scaledCloud, freeCloud]) },
+      catalog,
+      grouping: "type",
+      classificationDimensionId: null,
+      pageLabelOverrides: {},
+      sourcePageLabels: null,
+    });
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0]).toMatchObject({
+      key: "type:cloud",
+      measurementCount: 2,
+      excludedCount: 0,
+      length: { kind: "absent" },
+      perimeter: { kind: "absent" },
+      area: { kind: "absent" },
+      count: { kind: "absent" },
+    });
+  });
+
+  it("includes measured clouds, but a cloud without a scale stays unmeasured", () => {
+    const result = compute(true);
+    expect(result.excludedCount).toBe(0);
+    expect(result.groups[0]).toMatchObject({
+      measurementCount: 3,
+      excludedCount: 0,
+      area: { kind: "value", value: 1000000 },
+    });
+    const clouds = compute(true, "type").groups.find((group) => group.key === "type:cloud");
+    expect(clouds).toMatchObject({ area: { kind: "value", value: 500000 } });
+  });
+});

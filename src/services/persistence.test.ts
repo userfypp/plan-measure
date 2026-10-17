@@ -13,6 +13,7 @@ import { createStandardScalePreset } from "../features/calibration/standardScale
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import type {
   CurrentSession,
+  PathMeasurement,
   PathMeasurementV5,
   Point,
   SessionV1,
@@ -432,7 +433,7 @@ it("persists a custom Uniform ratio as the existing PageCalibration shape and pr
   await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
   const recovered = await loadSavedSession();
   const page = recovered?.session.pages[1];
-  expect(recovered?.session.schemaVersion).toBe(14);
+  expect(recovered?.session.schemaVersion).toBe(15);
   expect(page?.calibrations[0]).toEqual({ id: "custom-uniform", name: "Scale 1", ...calibration });
   expect(page?.activeCalibrationId).toBe("custom-uniform");
   expect(page?.measurements[0]?.calibrationId).toBe("custom-uniform");
@@ -1161,7 +1162,7 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v7,
-      schemaVersion: 14,
+      schemaVersion: 15,
       pages: withQuickShapeCounters(v7.pages),
       pageLabelOverrides: {},
       settings: {
@@ -1170,6 +1171,7 @@ describe("session persistence", () => {
         measurementDecimalPlaces: 2,
         areaDisplay: "auto",
         labelClassificationDimensionId: null,
+        measureClouds: false,
       },
     });
   });
@@ -1180,13 +1182,14 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v8));
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v8.settings,
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
+      measureClouds: false,
     });
   });
 
@@ -1197,12 +1200,13 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v9));
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v9.settings,
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
+      measureClouds: false,
     });
     expect(migrated.pages).toEqual(v9.pages);
     expect(migrated.classificationCatalog).toEqual(v9.classificationCatalog);
@@ -1217,10 +1221,14 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v10,
-      schemaVersion: 14,
+      schemaVersion: 15,
       pages: withQuickShapeCounters(v10.pages),
       pageLabelOverrides: {},
-      settings: { ...v10.settings, labelClassificationDimensionId: null },
+      settings: {
+        ...v10.settings,
+        labelClassificationDimensionId: null,
+        measureClouds: false,
+      },
     });
   });
 
@@ -1228,7 +1236,7 @@ describe("session persistence", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
@@ -1290,6 +1298,7 @@ describe("session persistence", () => {
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
+      measureClouds: false,
     });
     expect(page.measurements.map((measurement) => measurement.calibrationId)).toEqual([
       calibration.id,
@@ -1333,7 +1342,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -1349,7 +1358,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -1372,7 +1381,7 @@ describe("session persistence", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -1396,7 +1405,7 @@ describe("session persistence", () => {
     it("migrates a hand-serialized V13 session to V14 with no label classification", () => {
       const migrated = deserializeSession(v13Serialized());
 
-      expect(migrated.schemaVersion).toBe(14);
+      expect(migrated.schemaVersion).toBe(15);
       expect(migrated.settings.labelClassificationDimensionId).toBeNull();
       expect(migrated.classificationCatalog).toEqual(archivedCurrentSession().classificationCatalog);
     });
@@ -1434,8 +1443,252 @@ describe("session persistence", () => {
         labelClassificationDimensionId: null,
       });
       const migrated = deserializeSession(JSON.stringify(v7MeasuredSession()));
-      expect(migrated.schemaVersion).toBe(14);
+      expect(migrated.schemaVersion).toBe(15);
       expect(migrated.settings.labelClassificationDimensionId).toBeNull();
+    });
+  });
+
+  describe("schema V15 clouds without a scale", () => {
+    type LooseSession = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    const cloudPoints = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 10 },
+    ];
+    const shapePoints: Record<string, { x: number; y: number }[]> = {
+      line: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+      polyline: cloudPoints,
+      polygon: cloudPoints,
+      rectangle: [
+        { x: 1, y: 1 },
+        { x: 5, y: 1 },
+        { x: 5, y: 4 },
+        { x: 1, y: 4 },
+      ],
+      ellipse: [
+        { x: 1, y: 1 },
+        { x: 5, y: 1 },
+        { x: 5, y: 4 },
+        { x: 1, y: 4 },
+      ],
+    };
+
+    function uncalibratedCloud(id = "free-cloud"): PathMeasurement {
+      return {
+        id,
+        type: "cloud",
+        name: "Cloud 1",
+        calibrationId: null,
+        points: cloudPoints,
+        classificationValueIds: [],
+        visible: true,
+      };
+    }
+
+    /** Page 1 has no scales at all; page 2 keeps the `custom-scale` line. */
+    function cloudSession(): CurrentSession {
+      const session = currentMeasuredSession();
+      session.pages[1]!.measurements.push(uncalibratedCloud());
+      return session;
+    }
+
+    function v14Serialized(
+      session: CurrentSession,
+      mutate?: (value: LooseSession) => void,
+    ): string {
+      const value = structuredClone(session) as unknown as LooseSession;
+      value.schemaVersion = 14;
+      delete value.settings.measureClouds;
+      mutate?.(value);
+      return JSON.stringify(value);
+    }
+
+    it("migrates a hand-serialized V14 session to V15 with the setting off and nothing else changed", () => {
+      const session = archivedCurrentSession();
+      session.settings.labelClassificationDimensionId = "discipline";
+
+      const migrated = deserializeSession(v14Serialized(session));
+
+      expect(migrated.schemaVersion).toBe(15);
+      expect(migrated.settings.measureClouds).toBe(false);
+      expect(migrated).toEqual(session);
+    });
+
+    it("overwrites a leaked cloud measuring key when migrating V14", () => {
+      const migrated = deserializeSession(
+        v14Serialized(currentMeasuredSession(), (value) => {
+          value.settings.measureClouds = true;
+        }),
+      );
+
+      expect(migrated.settings.measureClouds).toBe(false);
+    });
+
+    it("round trips the cloud measuring setting", () => {
+      const session = currentMeasuredSession();
+      session.settings.measureClouds = true;
+
+      const restored = deserializeSession(serializeSession(session));
+
+      expect(restored.settings.measureClouds).toBe(true);
+      expect(restored).toEqual(session);
+    });
+
+    it("rejects a non-boolean cloud measuring setting", () => {
+      for (const value of ["true", 1, null, undefined]) {
+        const parsed = JSON.parse(serializeSession(currentMeasuredSession()));
+        parsed.settings.measureClouds = value;
+        expect(() => deserializeSession(JSON.stringify(parsed))).toThrow();
+      }
+      const session = currentMeasuredSession();
+      (session.settings as unknown as LooseSession).measureClouds = "yes";
+      expect(() => serializeSession(session)).toThrow();
+    });
+
+    it("accepts a cloud with a null calibration on a page without scales", () => {
+      const session = cloudSession();
+      session.pages[1]!.measurements.push({
+        id: "free-count",
+        type: "count",
+        name: "Count 1",
+        calibrationId: null,
+        points: [{ x: 3, y: 3 }],
+        classificationValueIds: [],
+        visible: true,
+      });
+      expect(session.pages[1]!.calibrations).toEqual([]);
+
+      const restored = deserializeSession(serializeSession(session));
+
+      expect(restored).toEqual(session);
+      expect(restored.pages[1]!.measurements[0]!.calibrationId).toBeNull();
+    });
+
+    it("keeps the null calibration and color of a cloud next to calibrated measurements", () => {
+      const session = cloudSession();
+      const cloud = session.pages[1]!.measurements[0]!;
+      if (cloud.type === "count") throw new Error("Expected a path measurement.");
+      cloud.color = "#2465c7";
+      session.pages[2]!.measurements.push(uncalibratedCloud("other-free-cloud"));
+
+      const restored = deserializeSession(serializeSession(session));
+
+      expect(restored).toEqual(session);
+      expect(
+        restored.pages[2]!.measurements.map((measurement) => measurement.calibrationId),
+      ).toEqual(["custom-scale", null]);
+    });
+
+    it("still resolves a cloud scale id against the page calibrations", () => {
+      const session = cloudSession();
+      session.pages[1]!.measurements[0]!.calibrationId = "missing-scale";
+      expect(() => serializeSession(session)).toThrow();
+
+      const onOtherPage = cloudSession();
+      onOtherPage.pages[1]!.measurements[0]!.calibrationId = "custom-scale";
+      expect(() => serializeSession(onOtherPage)).toThrow();
+
+      const valid = cloudSession();
+      valid.pages[2]!.measurements.push({
+        ...uncalibratedCloud("scaled-cloud"),
+        calibrationId: "custom-scale",
+      });
+      expect(deserializeSession(serializeSession(valid))).toEqual(valid);
+    });
+
+    it.each(["line", "polyline", "polygon", "rectangle", "ellipse"] as const)(
+      "rejects a %s with a null calibration",
+      (type) => {
+        const measurement = {
+          id: "shape",
+          type,
+          name: "Shape",
+          calibrationId: "custom-scale",
+          points: shapePoints[type]!,
+          classificationValueIds: [],
+          visible: true,
+        };
+        const valid = currentMeasuredSession();
+        valid.pages[2]!.measurements.push(measurement);
+        expect(deserializeSession(serializeSession(valid))).toEqual(valid);
+
+        const onCalibratedPage = currentMeasuredSession();
+        onCalibratedPage.pages[2]!.measurements.push({ ...measurement, calibrationId: null });
+        expect(() => serializeSession(onCalibratedPage)).toThrow();
+        const parsed = JSON.parse(serializeSession(valid));
+        parsed.pages[2].measurements[1].calibrationId = null;
+        expect(() => deserializeSession(JSON.stringify(parsed))).toThrow();
+
+        const onUncalibratedPage = currentMeasuredSession();
+        onUncalibratedPage.pages[1]!.measurements.push({ ...measurement, calibrationId: null });
+        expect(() => serializeSession(onUncalibratedPage)).toThrow();
+      },
+    );
+
+    it("keeps rejecting a cloud with a null calibration in a V14 session", () => {
+      const session = cloudSession();
+
+      expect(() => deserializeSession(v14Serialized(session))).toThrow();
+      expect(() =>
+        deserializeSession(
+          v14Serialized(session, (value) => {
+            value.pages[1].measurements[0].calibrationId = "missing-scale";
+          }),
+        ),
+      ).toThrow();
+    });
+
+    it("keeps rejecting a cloud with a null calibration in V13 sessions", () => {
+      const parsed = JSON.parse(v14Serialized(cloudSession()));
+      parsed.schemaVersion = 13;
+      delete parsed.settings.labelClassificationDimensionId;
+
+      expect(() => deserializeSession(JSON.stringify(parsed))).toThrow();
+    });
+
+    it("still validates the rest of a cloud without a scale", () => {
+      const mutations: Array<(cloud: LooseSession) => void> = [
+        (cloud) => {
+          cloud.points = [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+          ];
+        },
+        (cloud) => {
+          cloud.points = [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+            { x: 10, y: 0 },
+            { x: 0, y: 10 },
+          ];
+        },
+        (cloud) => {
+          cloud.classificationValueIds = ["missing"];
+        },
+        (cloud) => {
+          cloud.visible = "yes";
+        },
+        (cloud) => {
+          cloud.color = "#123456";
+        },
+        (cloud) => {
+          cloud.id = "line-id";
+        },
+        (cloud) => {
+          cloud.name = " ";
+        },
+      ];
+      for (const mutate of mutations) {
+        const session = cloudSession();
+        session.pages[2]!.measurements[0]!.id = "line-id";
+        const parsed = JSON.parse(serializeSession(session));
+        mutate(parsed.pages[1].measurements[0]);
+        expect(() => deserializeSession(JSON.stringify(parsed))).toThrow();
+      }
     });
   });
 
@@ -1492,7 +1745,7 @@ describe("session persistence", () => {
     it("migrates V12 to V13 adding the quick shape counters", () => {
       const migrated = deserializeSession(v12Serialized());
 
-      expect(migrated.schemaVersion).toBe(14);
+      expect(migrated.schemaVersion).toBe(15);
       for (const page of Object.values(migrated.pages)) {
         expect(page.nextMeasurementNumber).toMatchObject({ rectangle: 1, ellipse: 1, cloud: 1 });
       }
@@ -1598,7 +1851,7 @@ describe("session persistence", () => {
     };
     session.settings.measurementDecimalPlaces = 6;
     const serialized = serializeSession(session);
-    expect(JSON.parse(serialized).schemaVersion).toBe(14);
+    expect(JSON.parse(serialized).schemaVersion).toBe(15);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -1658,7 +1911,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -1682,7 +1935,7 @@ describe("session persistence", () => {
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.pdf).toEqual(v6.pdf);
     expect(migrated.settings).toEqual({
       ...v6.settings,
@@ -1690,6 +1943,7 @@ describe("session persistence", () => {
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
+      measureClouds: false,
     });
     expect(migratedDimension).toEqual({
       id: "discipline",
@@ -1707,7 +1961,7 @@ describe("session persistence", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(14);
+    expect(restored.schemaVersion).toBe(15);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
@@ -2019,7 +2273,7 @@ describe("session persistence", () => {
     const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
 
     expect(recovered.compatibility).toBe("classification-repair-required");
-    expect(recovered.session.schemaVersion).toBe(14);
+    expect(recovered.session.schemaVersion).toBe(15);
     expect(recovered.session.classificationCatalog.dimensions).toEqual([
       {
         id: "discipline",
@@ -2162,7 +2416,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(14);
+    expect(restored.schemaVersion).toBe(15);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -2779,7 +3033,7 @@ describe("session persistence", () => {
 
     const recovered = await loadSavedSession();
 
-    expect(recovered?.session.schemaVersion).toBe(14);
+    expect(recovered?.session.schemaVersion).toBe(15);
     expect(recovered?.session.pdf).toEqual(historical.pdf);
     expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
       "legacy-line",

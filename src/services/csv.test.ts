@@ -172,6 +172,79 @@ describe("quick shape CSV rows", () => {
   });
 });
 
+describe("revision cloud CSV rows", () => {
+  function cloudSession(measureClouds: boolean, calibrationId: string | null): CurrentSession {
+    const session = smallMeasuredSession("mm");
+    session.settings.measureClouds = measureClouds;
+    session.pages[1]!.measurements = [
+      {
+        id: "cloud-id",
+        type: "cloud",
+        name: "Cloud 1",
+        calibrationId,
+        points: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+          { x: 0, y: 4 },
+        ],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+    return session;
+  }
+
+  function cloudRow(session: CurrentSession): Record<string, string> {
+    const [header, row] = buildCsv(session, null, allColumns(session)).split("\r\n");
+    const columns = header!.replace(/^\uFEFF/, "").split(",");
+    const cells = row!.split(",");
+    return Object.fromEntries(columns.map((column, index) => [column, cells[index]!]));
+  }
+
+  it("leaves every value, unit and scale cell empty when the project does not measure clouds", () => {
+    const row = cloudRow(cloudSession(false, "small-scale"));
+
+    expect(row).toMatchObject({ name: "Cloud 1", type: "Cloud" });
+    expect(row).toMatchObject({
+      length: "",
+      perimeter: "",
+      area: "",
+      unit: "",
+      area_unit: "",
+      length_mm: "",
+      perimeter_mm: "",
+      area_mm2: "",
+      calibration_id: "",
+      calibration_name: "",
+    });
+  });
+
+  it("exports the polygon perimeter and area of a cloud with a scale when clouds are measured", () => {
+    const row = cloudRow(cloudSession(true, "small-scale"));
+
+    expect(row).toMatchObject({
+      perimeter: "16.00",
+      area: "16.00",
+      unit: "mm",
+      area_unit: "mm²",
+      calibration_id: "small-scale",
+    });
+  });
+
+  it("keeps a cloud without a scale empty even when clouds are measured", () => {
+    const row = cloudRow(cloudSession(true, null));
+
+    expect(row).toMatchObject({
+      perimeter: "",
+      area: "",
+      unit: "",
+      area_unit: "",
+      calibration_id: "",
+    });
+  });
+});
+
 function classifiedMeasuredSession(): CurrentSession {
   const session = measuredSession();
   session.classificationCatalog = {

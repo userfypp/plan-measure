@@ -226,7 +226,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     pdf,
     pageCount,
     currentPage: 1,
@@ -241,6 +241,7 @@ export function createEmptySession(
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
+      measureClouds: false,
       ...settings,
     },
     classificationCatalog: { dimensions: [] },
@@ -478,7 +479,8 @@ export function sessionReducer(
       const duplicateId = Object.values(state.session.pages).some((candidatePage) =>
         candidatePage.measurements.some((measurement) => measurement.id === id),
       );
-      if (!page || (measurementType !== "count" && !calibration)) {
+      // Counts and revision clouds can be drawn without a scale; every other path needs one.
+      if (!page || (measurementType !== "count" && measurementType !== "cloud" && !calibration)) {
         return { ...state, error: "Select a valid scale before creating measurements." };
       }
       if (!id.trim() || duplicateId || !hasValidMeasurementPoints(measurementType, points)) {
@@ -501,7 +503,7 @@ export function sessionReducer(
             id,
             ...(measurementType === "count"
               ? { type: "count" as const, calibrationId: null }
-              : { type: measurementType, calibrationId: calibration!.id }),
+              : { type: measurementType, calibrationId: calibration?.id ?? null }),
             name: `${measurementPathSpecs[measurementType].label} ${currentPage.nextMeasurementNumber[measurementType]}`,
             points,
             classificationValueIds: [],
@@ -590,7 +592,13 @@ export function sessionReducer(
       const duplicateId = Object.values(state.session.pages).some((candidatePage) =>
         candidatePage.measurements.some((candidate) => candidate.id === id),
       );
-      if (!page || (measurement.type !== "count" && !calibration)) {
+      // Counts and revision clouds may go without a scale. A cloud pasted on its own page keeps its
+      // scale, so one that points to a scale that no longer exists stays invalid.
+      const scaleOptional =
+        measurement.type === "count" ||
+        (measurement.type === "cloud" &&
+          (sourcePageNumber !== pageNumber || measurement.calibrationId === null));
+      if (!page || (!scaleOptional && !calibration)) {
         return {
           ...state,
           error:
@@ -620,7 +628,7 @@ export function sessionReducer(
             id,
             ...(measurement.type === "count"
               ? { type: "count" as const, calibrationId: null }
-              : { type: measurement.type, calibrationId: calibration!.id }),
+              : { type: measurement.type, calibrationId: calibration?.id ?? null }),
             points: measurement.points.map((point) => ({ ...point })),
             classificationValueIds: measurement.classificationValueIds.filter((id) =>
               state.session!.classificationCatalog.dimensions.some((dimension) =>

@@ -1,6 +1,6 @@
 # JSON data export
 
-**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected, version `3` when Count markers are present, or version `4` when any rectangle, ellipse or cloud is present. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
+**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected, version `3` when Count markers are present, version `4` when any rectangle or ellipse is present, or version `5` when any revision cloud is present. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
 
 All pages, calibrations, measurements (including hidden measurements), and classification dimensions and values (including archived entries) are included. CSV column preferences and display units do not affect JSON. Numbers retain JavaScript's full numeric precision without display rounding. Strings, including notes, Unicode and formula-like text, are preserved exactly.
 
@@ -26,7 +26,7 @@ Each measurement has:
 - `id`, `name`, `type` (`"line"`, `"polyline"`, `"polygon"`, and from schema version 4 `"rectangle"`, `"ellipse"` or `"cloud"`), and `visible` (boolean).
 - `color` (only on `"cloud"` measurements with a custom color, from schema version 4): the review color as `#rrggbb`. When absent, the cloud uses the default review red `#d92d20`.
 - `note` (string, or `null` when absent), `calibrationId` (the calibration used for this measurement on its page), `points` (ordered vertices) and `classificationValueIds` (assigned catalog value IDs).
-- `lengthMm`, `perimeterMm` and `areaMm2`. Lines and polylines have a numeric length and `null` perimeter and area. Polygons, rectangles, ellipses and clouds have `null` length and numeric perimeter and area. Applicable zero results remain numeric zero. Results use the measurement's own calibration and canonical millimetres or square millimetres.
+- `lengthMm`, `perimeterMm` and `areaMm2`. Lines and polylines have a numeric length and `null` perimeter and area. Polygons, rectangles and ellipses have `null` length and numeric perimeter and area; clouds follow the same rule only when they are measured (see schema version 5). Applicable zero results remain numeric zero. Results use the measurement's own calibration and canonical millimetres or square millimetres.
 
 Measurement IDs are unique across all pages. A closed ring (polygon, rectangle, ellipse, cloud) closes implicitly; its last vertex does not repeat its first vertex. A rectangle has four axis-aligned corners in order. An ellipse stores the four corners of its axis-aligned bounding box, and its perimeter (Ramanujan approximation) and area are computed from the semi-axes scaled by the X and Y calibration. A cloud stores its control polygon, and its perimeter and area are those of that polygon, not of the scalloped outline. Each classification dimension has `id`, `name`, `archived` and `values`; each value has `id`, `name` and `archived`. Dimension and value IDs are unique across the catalog. Assigned value IDs resolve to their containing dimensions, with at most one assigned value per dimension. Archived dimensions and values retain their IDs and assignments.
 
@@ -66,3 +66,13 @@ When selected, `projectTotals` contains `key`, `label`, `archived`, `measurement
 Version `3` preserves the preceding fields and permits `type: "count"` measurements. Each Count measurement contains one or more points, with one item per point, `calibrationId: null`, numeric `count` equal to `points.length`, and `lengthMm`, `perimeterMm`, and `areaMm2` all `null`. Names, notes, visibility and classification assignments follow the same rules as paths. Count markers require no calibration; path measurements still require their own valid calibration.
 
 When a Takeoff summary is selected, its `count` quantity sums the items in Count measurements, independently of physical quantities and `measurementCount` (the number of measurement records of every type). Its status is `absent` when the group has no valid Count markers.
+
+## Schema version 5: revision clouds as markup
+
+Version `5` preserves the preceding fields and applies whenever the project has any revision cloud (version `4` exports of clouds always carried a calibration and numeric results).
+
+A cloud is markup unless the project setting **Measure revision clouds** is on and the cloud has a scale. Because of that:
+
+- `calibrationId` of a `"cloud"` measurement may be `null`: clouds can be drawn without a scale, as Count markers can. Every other path type still requires a valid calibration.
+- `lengthMm`, `perimeterMm` and `areaMm2` of a cloud are all `null` unless the project measures clouds and the cloud has a `calibrationId`. A cloud with a `calibrationId` is still exported with `null` results while the setting is off. When they are present, `perimeterMm` and `areaMm2` follow the control polygon (straight sides between the vertices, ignoring the scallops), so they are approximate.
+- With a Takeoff summary selected, unmeasured clouds count in `measurementCount` but add nothing to `length`, `perimeter` or `area`, and are not reported as excluded.

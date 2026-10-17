@@ -52,6 +52,32 @@ export function getMeasurementCalibration(
   return findPageCalibration(page, measurement.calibrationId);
 }
 
+/**
+ * A revision cloud is markup unless the project measures clouds and the cloud has a scale to
+ * measure with. Every other measurement type is unaffected by the setting.
+ */
+export function isCloudMeasured(
+  measurement: Pick<Measurement, "type">,
+  calibration: PageCalibration | null,
+  measureClouds: boolean,
+): boolean {
+  return measurement.type === "cloud" && measureClouds && calibration !== null;
+}
+
+/**
+ * The scale a measurement is measured with: null for a cloud that is not measured (setting off or
+ * no scale), so every derivation treats it as having no measures.
+ */
+export function getMeasuringCalibration(
+  page: Pick<PageState, "calibrations">,
+  measurement: Pick<Measurement, "type" | "calibrationId">,
+  measureClouds: boolean,
+): PageCalibration | null {
+  const calibration = getMeasurementCalibration(page, measurement);
+  if (measurement.type !== "cloud") return calibration;
+  return isCloudMeasured(measurement, calibration, measureClouds) ? calibration : null;
+}
+
 export function getCalibrationReference(
   calibration: PageCalibration,
   reference: CalibrationReferenceKey,

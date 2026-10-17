@@ -50,6 +50,7 @@ export type ProjectViewSettings = Pick<
   | "showMeasurements"
   | "showCalibration"
   | "labelClassificationDimensionId"
+  | "measureClouds"
 >;
 
 const AREA_DISPLAY_OPTIONS: Array<{ value: ProjectViewSettings["areaDisplay"]; label: string }> = [
@@ -873,6 +874,12 @@ export function SettingsDialog({
                         value={viewSettings.areaDisplay}
                         options={AREA_DISPLAY_OPTIONS}
                         onChange={(areaDisplay) => onViewSettingsChange({ areaDisplay })}
+                      />
+                      <SwitchRow
+                        label="Measure clouds"
+                        help="Shows each cloud's area and perimeter with straight sides between its corners, as for a rectangle, so they may not be exact."
+                        checked={viewSettings.measureClouds}
+                        onChange={(measureClouds) => onViewSettingsChange({ measureClouds })}
                       />
                       <SelectRow
                         label="Label classification"

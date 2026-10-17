@@ -3,7 +3,7 @@ import type { MeasurementClipboard } from "./workspaceState";
 import type { LogicalPageBounds, Measurement, PageState } from "../types/domain";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { isPointInPage } from "../utils/coordinates";
-import { hasValidMeasurementPoints } from "../utils/geometry";
+import { hasValidMeasurementPoints, measurementTypeRequiresScale } from "../utils/geometry";
 
 export const MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX = 12;
 
@@ -71,7 +71,8 @@ export function canDuplicateMeasurement(
   measurement: Measurement,
 ): boolean {
   return (
-    (measurement.type === "count" || getMeasurementCalibration(page, measurement) !== null) &&
+    (!measurementTypeRequiresScale(measurement.type) ||
+      getMeasurementCalibration(page, measurement) !== null) &&
     hasValidMeasurementPoints(measurement.type, measurement.points)
   );
 }

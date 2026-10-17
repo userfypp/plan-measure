@@ -1,4 +1,4 @@
-import { composeLabelText } from "./labelContent";
+import { measurementLabelText } from "./labelContent";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   FILL_OPACITY_SCALE,
@@ -32,7 +32,6 @@ import type {
 } from "../../types/domain";
 import { measurementPathSpecs } from "../../utils/geometry";
 import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
-import { formatMeasurement } from "../../utils/format";
 import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
 import {
@@ -287,20 +286,15 @@ export const MeasurementShape = memo(function MeasurementShape({
   );
   const labelText = useMemo(
     () =>
-      calibration || visibleMeasurement.type === "count"
-        ? composeLabelText(
-            formatMeasurement(
-              visibleMeasurement,
-              calibration,
-              displayUnit,
-              measurementDecimalPlaces,
-              areaDisplay,
-            ),
-            visibleMeasurement.name,
-            labelContent,
-            classificationLabel,
-          )
-        : null,
+      measurementLabelText(
+        visibleMeasurement,
+        calibration,
+        displayUnit,
+        measurementDecimalPlaces,
+        areaDisplay,
+        labelContent,
+        classificationLabel,
+      ),
     [
       areaDisplay,
       calibration,
@@ -445,15 +439,20 @@ export const MeasurementShape = memo(function MeasurementShape({
     }
     preview.line.points(pointsToFlat(points));
     points.forEach((point, index) => preview.handles[index]?.position(point));
-    if (preview.label && preview.text && (calibration || measurement.type === "count")) {
-      const currentMeasurement = { ...measurement, points };
-      const text = formatMeasurement(
-        currentMeasurement,
-        calibration,
-        displayUnit,
-        measurementDecimalPlaces,
-        areaDisplay,
-      );
+    // The same text as the resting label, so the name and classification stay while dragging.
+    const text =
+      preview.label && preview.text
+        ? measurementLabelText(
+            { ...measurement, points },
+            calibration,
+            displayUnit,
+            measurementDecimalPlaces,
+            areaDisplay,
+            labelContent,
+            classificationLabel,
+          )
+        : null;
+    if (preview.label && preview.text && text !== null) {
       preview.text.text(text);
       const dimensions = { width: preview.text.width(), height: preview.text.height() };
       const placement =
