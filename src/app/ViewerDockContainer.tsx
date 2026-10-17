@@ -1,4 +1,4 @@
-import { ViewerDock } from "../features/viewer/ViewerDock";
+import { Suspense } from "react";
 import {
   copyCalibrationToPage,
   fitCalibrationReferencesToPage,
@@ -8,6 +8,16 @@ import type { LogicalPageBounds } from "../types/domain";
 import { effectivePageLabel, sourcePageLabel } from "../utils/pageLabels";
 import { useSessionState } from "./sessionState";
 import { useWorkspaceState } from "./workspaceState";
+import { recoverableLazy } from "./recoverableLazy";
+import { loadViewerModule } from "./viewerModule";
+
+// The dock renders only once the viewer has registered its navigation, so it ships in the viewer
+// chunk and loading the viewer preloads it: it then mounts without suspending.
+const ViewerDock = recoverableLazy(
+  () => loadViewerModule().then((module) => ({ default: module.ViewerDock })),
+  "viewer controls",
+);
+export const preloadViewerDock = ViewerDock.preload;
 
 export function ViewerDockContainer({
   navigation,
@@ -66,33 +76,37 @@ export function ViewerDockContainer({
   }
 
   return (
-    <ViewerDock
-      navigation={navigation}
-      pagesOpen={pagesOpen}
-      onTogglePages={onTogglePages}
-      onPreparePages={
-        onPreparePages && (() => onPreparePages(session.pdf.size, session.currentPage))
-      }
-      sourcePageLabel={pdfPageLabel}
-      customPageLabel={customPageLabel}
-      pageLabelPending={sourcePageLabelsPending && customPageLabel === null}
-      effectivePageLabel={effectivePageLabel(
-        pageNumber,
-        session.pageLabelOverrides,
-        sourcePageLabels,
-      )}
-      calibrations={currentPage.calibrations}
-      activeCalibrationId={currentPage.activeCalibrationId}
-      pageNavigationDisabled={Boolean(draft || calibrationFlow || calibrationReferenceEdit)}
-      scaleSwitchDisabled={scaleWorkflowActive}
-      copiedScaleName={copiedScaleName}
-      scaleApplyDisabled={scaleWorkflowActive}
-      settings={session.settings}
-      onScaleChange={(calibrationId) => setActiveCalibration(currentPage.pageNumber, calibrationId)}
-      onApplyCopiedScale={applyCopiedScale}
-      onSetPageLabelOverride={(label) => setPageLabelOverride(pageNumber, label)}
-      onRemovePageLabelOverride={() => removePageLabelOverride(pageNumber)}
-      onSettingsChange={updateSettings}
-    />
+    <Suspense fallback={null}>
+      <ViewerDock
+        navigation={navigation}
+        pagesOpen={pagesOpen}
+        onTogglePages={onTogglePages}
+        onPreparePages={
+          onPreparePages && (() => onPreparePages(session.pdf.size, session.currentPage))
+        }
+        sourcePageLabel={pdfPageLabel}
+        customPageLabel={customPageLabel}
+        pageLabelPending={sourcePageLabelsPending && customPageLabel === null}
+        effectivePageLabel={effectivePageLabel(
+          pageNumber,
+          session.pageLabelOverrides,
+          sourcePageLabels,
+        )}
+        calibrations={currentPage.calibrations}
+        activeCalibrationId={currentPage.activeCalibrationId}
+        pageNavigationDisabled={Boolean(draft || calibrationFlow || calibrationReferenceEdit)}
+        scaleSwitchDisabled={scaleWorkflowActive}
+        copiedScaleName={copiedScaleName}
+        scaleApplyDisabled={scaleWorkflowActive}
+        settings={session.settings}
+        onScaleChange={(calibrationId) =>
+          setActiveCalibration(currentPage.pageNumber, calibrationId)
+        }
+        onApplyCopiedScale={applyCopiedScale}
+        onSetPageLabelOverride={(label) => setPageLabelOverride(pageNumber, label)}
+        onRemovePageLabelOverride={() => removePageLabelOverride(pageNumber)}
+        onSettingsChange={updateSettings}
+      />
+    </Suspense>
   );
 }

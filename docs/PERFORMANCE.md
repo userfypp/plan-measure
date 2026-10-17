@@ -227,7 +227,10 @@ touches startup, the viewer, the canvas or the panels, check each point:
    purpose. A new panel, dialog, workspace or dependency goes behind
    `retryableImport` + `recoverableLazy` and is preloaded on intent (hover or
    focus of its trigger) or with `preloadWhenIdle`, so it opens without a
-   Suspense fallback. If `perf:size` fails, split the code; do not raise a limit.
+   Suspense fallback. UI that only renders once the viewer is up ships in the
+   viewer chunk (the dock is re-exported from `PdfViewer` and preloaded with it
+   through `viewerModule.ts`). If `perf:size` fails, split the code; do not
+   raise a limit.
 2. **Props of `PdfAnnotationLayer` keep their identity.** It is `memo` and
    compares thousands of shapes when any prop changes. Callbacks use
    `useCallback` with ref-backed getters for changing state; arrays and objects

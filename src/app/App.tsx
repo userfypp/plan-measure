@@ -2,6 +2,8 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
 import { preloadWhenIdle } from "./idlePreload";
+import { loadViewerModule } from "./viewerModule";
+import { preloadViewerDock } from "./ViewerDockContainer";
 import { preloadSettingsDialog } from "./SettingsButton";
 import { preloadPageBrowser } from "./ViewerShell";
 import { AppProvider, useAppState } from "./state";
@@ -64,9 +66,12 @@ import {
 } from "./appDerivations";
 import styles from "./App.module.css";
 
-const loadViewer = retryableImport(() => import("../features/viewer/PdfViewer"));
 const PdfViewer = recoverableLazy(
-  () => loadViewer().then((module) => ({ default: module.PdfViewer })),
+  // The dock ships in the viewer chunk: resolving both means it mounts without suspending.
+  () =>
+    Promise.all([loadViewerModule(), preloadViewerDock()]).then(([module]) => ({
+      default: module.PdfViewer,
+    })),
   "viewer",
 );
 

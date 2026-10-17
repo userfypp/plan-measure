@@ -212,7 +212,7 @@ vi.mock("../features/viewer/PdfViewer", async () => {
   const { PageBrowserHost } = await import("../features/pages/PageBrowserHost");
   const pdf = { numPages: 2, getPage: vi.fn().mockRejectedValue(new Error("Thumbnail unavailable in App harness")) } as unknown as import("pdfjs-dist").PDFDocumentProxy;
   const { useWorkspaceState } = await import("./workspaceState");
-  return { PdfViewer: ({ onCalibrationCandidate, onPageChange, onChooseTool }: {
+  return { ViewerDock: () => null, PdfViewer: ({ onCalibrationCandidate, onPageChange, onChooseTool }: {
     onCalibrationCandidate: (points: [{ x: number; y: number }, { x: number; y: number }]) => void;
     onPageChange: (page: number) => void;
     onChooseTool: (tool: "hand") => void;

@@ -128,6 +128,9 @@ import {
   type StagePage,
 } from "./pdfViewerRaster";
 
+// The dock only renders once this viewer has registered its navigation, so it ships in this chunk.
+export { ViewerDock } from "./ViewerDock";
+
 // With many measurements, wheel zoom only scales the page group: the annotations keep their last
 // settled zoom (and, when the whole page is visible, a cached bitmap) until the wheel has been
 // idle this long.
