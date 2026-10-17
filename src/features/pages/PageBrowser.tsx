@@ -63,7 +63,7 @@ function Thumbnail({ number, source }: { number: number; source?: HTMLCanvasElem
       {source ? (
         <canvas ref={canvasRef} aria-label={`Thumbnail for page ${number}`} />
       ) : (
-        <span>{number}</span>
+        <span className={styles.thumbnailPlaceholder}>{number}</span>
       )}
     </span>
   );
@@ -145,9 +145,11 @@ export function PageBrowser({
     const list = listRef.current;
     if (!list || index < 0) return;
     const top = index * PAGE_ROW_HEIGHT;
+    // The bottom padding sits under the floating dock, so it does not count as visible.
+    const visible = list.clientHeight - (parseFloat(getComputedStyle(list).paddingBottom) || 0);
     if (top < list.scrollTop) list.scrollTop = top;
-    else if (top + PAGE_ROW_HEIGHT > list.scrollTop + list.clientHeight) {
-      list.scrollTop = Math.max(0, top + PAGE_ROW_HEIGHT - list.clientHeight);
+    else if (top + PAGE_ROW_HEIGHT > list.scrollTop + visible) {
+      list.scrollTop = Math.max(0, top + PAGE_ROW_HEIGHT - visible);
     }
     setGeometry({ top: list.scrollTop, height: list.clientHeight || 320 });
   }, []);

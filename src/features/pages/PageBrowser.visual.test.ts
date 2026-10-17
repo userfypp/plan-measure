@@ -13,4 +13,15 @@ describe("page browser visual contract", () => {
     expect(css).not.toContain("animation:");
     expect(css).toContain("--geometry-workspace-drawer-width");
   });
+
+  it("clamps portrait and landscape previews inside the fixed thumbnail slot", () => {
+    const css = readFileSync(new URL("./PageBrowser.module.css", import.meta.url), "utf8");
+    const rule = (selector: string) =>
+      css.match(new RegExp(`(?:^|\\n)${selector.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
+    // A grid track sizes itself to the canvas, so a percentage max-height never clamps a tall page.
+    expect(rule(".thumbnail")).toContain("display: flex");
+    expect(rule(".thumbnail")).not.toContain("border:");
+    expect(rule(".thumbnail canvas")).toContain("max-height: 100%");
+    expect(rule(".thumbnail canvas")).toContain("max-width: 100%");
+  });
 });

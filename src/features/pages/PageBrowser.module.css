@@ -142,6 +142,8 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* The dock floats over the panel, so the last page must be able to scroll clear of it. */
+  padding-bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-8));
 }
 .row {
   position: absolute;
@@ -171,16 +173,21 @@
   outline: var(--focus-outline);
   outline-offset: calc(-1 * var(--focus-width));
 }
+/* A fixed slot keeps every row the same height; the framed paper inside it takes the page's own
+   shape. Flex (not grid) gives the canvas a definite box, so max-height clamps portrait pages. */
 .thumbnail {
   width: var(--geometry-page-thumbnail-width);
   height: var(--geometry-page-thumbnail-height);
   flex: 0 0 var(--geometry-page-thumbnail-height);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+}
+.thumbnail canvas,
+.thumbnailPlaceholder {
   border: var(--border-width) solid var(--color-control-hover-border);
   background: var(--color-surface-field);
-  color: var(--color-text-secondary);
 }
 .thumbnail canvas {
   width: auto;
@@ -188,6 +195,13 @@
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+.thumbnailPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-secondary);
 }
 .label {
   max-width: 100%;
@@ -245,6 +259,7 @@
       --viewer-dock-bottom-exclusion,
       calc(var(--geometry-viewer-dock-height-coarse) + var(--geometry-viewer-dock-bottom-inset))
     );
+    padding-bottom: 0;
   }
 }
 
