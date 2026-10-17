@@ -430,6 +430,8 @@ describe("SettingsDialog", () => {
     choose("Fill opacity", "Strong");
     choose("Handle size", "Large");
     choose("Label background", "Translucent");
+    expect(selectByLabel("Label text").textContent).toBe("Auto");
+    choose("Label text", "Red");
     openTab("Drawing");
     choose("After finishing", "Select");
     openTab("Interface");
@@ -439,6 +441,7 @@ describe("SettingsDialog", () => {
       fillOpacity: "strong",
       handleSize: "large",
       labelBackground: "translucent",
+      labelTextColor: "red",
       afterFinishing: "select",
       zoomStep: "coarse",
     });
@@ -838,7 +841,7 @@ describe("SettingsDialog", () => {
       "About Label classification",
     ]);
     openTab("Canvas");
-    expect(helpLabels()).toEqual([]);
+    expect(helpLabels()).toEqual(["About Label text"]);
     openTab("Confirmations");
     expect(helpLabels()).toEqual([]);
     openTab("Performance");

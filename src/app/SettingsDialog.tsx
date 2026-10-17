@@ -84,6 +84,14 @@ const LABEL_BACKGROUND_OPTIONS = [
   { value: "none", label: "None" },
 ] as const;
 
+const LABEL_TEXT_COLOR_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "black", label: "Black" },
+  { value: "white", label: "White" },
+  { value: "blue", label: "Blue" },
+  { value: "red", label: "Red" },
+] as const;
+
 const AFTER_FINISHING_OPTIONS = [
   { value: "keep", label: "Keep tool" },
   { value: "select", label: "Select" },
@@ -964,6 +972,13 @@ export function SettingsDialog({
                     value={preferences.labelBackground}
                     options={LABEL_BACKGROUND_OPTIONS}
                     onChange={set("labelBackground")}
+                  />
+                  <SelectRow
+                    label="Label text"
+                    help="Auto keeps labels readable on the plan: white on solid labels, dark where the plan shows through."
+                    value={preferences.labelTextColor}
+                    options={LABEL_TEXT_COLOR_OPTIONS}
+                    onChange={set("labelTextColor")}
                   />
                   <SelectRow
                     label="Page grid"

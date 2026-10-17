@@ -1,5 +1,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { useTheme, type ResolvedTheme } from "../../app/themeState";
+import type { LabelTextColor } from "../../utils/appPreferences";
+import { hexToRgb } from "../../utils/cloudColors";
 
 export const COARSE_POINTER_QUERY = "(any-pointer: coarse)";
 
@@ -160,19 +162,68 @@ export function scaledAlpha(alpha: number, scale: number): number {
   return Math.min(1, alpha * scale);
 }
 
+/** Text colors that can be chosen for on-screen labels (Settings → Canvas → Label text). */
+export const LABEL_TEXT_COLORS: Readonly<Record<Exclude<LabelTextColor, "auto">, string>> =
+  Object.freeze({
+    black: DOCUMENT_OVERLAY_ROLES.labelBackground,
+    white: DOCUMENT_OVERLAY_ROLES.labelText,
+    blue: "#2465c7",
+    red: "#d92d20",
+  });
+
+export interface LabelColors {
+  text: string;
+  /** Label background, and the text halo when the label has no background. */
+  background: string;
+}
+
+function relativeLuminance(color: string): number {
+  const { r, g, b } = hexToRgb(color);
+  const linear = (value: number) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+
+/** WCAG contrast ratio between two `#rrggbb` colors. */
+export function contrastRatio(first: string, second: string): number {
+  const a = relativeLuminance(first);
+  const b = relativeLuminance(second);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
 /**
- * Text paint for measurement labels. Without a background the text would be
- * unreadable on light plans, so it flips to the dark role with a light halo.
+ * Colors of an on-screen label. "auto" stays readable without sampling the plan: an opaque
+ * dark background keeps white text, and wherever the plan shows through (translucent or no
+ * background) the text turns dark over a light veil or halo, legible on light and dark paper.
+ * A chosen color gets the dark or light background that contrasts with it more.
  */
-export function labelTextPaint(
+export function resolveLabelColors(
   roles: Pick<CanvasVisualRoles, "labelText" | "labelBackground">,
+  textColor: LabelTextColor,
   backgroundOpacity: number,
-  zoom: number,
-) {
-  if (backgroundOpacity > 0) return { fill: roles.labelText };
+): LabelColors {
+  const light = roles.labelText;
+  const dark = roles.labelBackground;
+  if (textColor === "auto") {
+    return backgroundOpacity >= 1
+      ? { text: light, background: dark }
+      : { text: dark, background: light };
+  }
+  const text = LABEL_TEXT_COLORS[textColor];
   return {
-    fill: roles.labelBackground,
-    stroke: roles.labelText,
+    text,
+    background: contrastRatio(text, light) >= contrastRatio(text, dark) ? light : dark,
+  };
+}
+
+/** Text paint for labels: without a background the text gets a halo of the background color. */
+export function labelTextPaint(colors: LabelColors, backgroundOpacity: number, zoom: number) {
+  if (backgroundOpacity > 0) return { fill: colors.text };
+  return {
+    fill: colors.text,
+    stroke: colors.background,
     strokeWidth: 3 / zoom,
     fillAfterStrokeEnabled: true,
   };

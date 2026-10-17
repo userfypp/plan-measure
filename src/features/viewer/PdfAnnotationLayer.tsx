@@ -27,7 +27,12 @@ import {
   measurementEditingEnabled,
   translateMeasurementPoints,
 } from "./measurementDrag";
-import { CANVAS_VISUAL_METRICS, type CanvasVisualRoles, labelTextPaint } from "./canvasVisualRoles";
+import {
+  CANVAS_VISUAL_METRICS,
+  type CanvasVisualRoles,
+  labelTextPaint,
+  resolveLabelColors,
+} from "./canvasVisualRoles";
 import { measurementOutlineBounds } from "../../utils/quickShapesOutline";
 import { pointsToFlat } from "./geometry";
 import { CalibrationReferenceMarkers } from "./CalibrationReferenceMarkers";
@@ -154,6 +159,11 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
   );
   const labelFontScale = LABEL_SIZE_SCALE[appPreferences.labelSize];
   const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[appPreferences.labelBackground];
+  const labelTextColor = appPreferences.labelTextColor;
+  const labelColors = useMemo(
+    () => resolveLabelColors(visualRoles, labelTextColor, labelBackgroundOpacity),
+    [visualRoles, labelTextColor, labelBackgroundOpacity],
+  );
   const [groupDragPreview, setGroupDragPreview] = useState<{
     ownerId: string;
     delta: Point;
@@ -422,7 +432,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                 />
                 <Label x={labelPlacement.x} y={labelPlacement.y}>
                   <Tag
-                    fill={visualRoles.labelBackground}
+                    fill={labelColors.background}
                     opacity={(referenceIsEditing || active ? 1 : 0.88) * labelBackgroundOpacity}
                     stroke={referenceIsEditing ? visualRoles.measurementSelectedStroke : undefined}
                     strokeWidth={referenceIsEditing ? 1 / transform.zoom : 0}
@@ -430,7 +440,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                   />
                   <Text
                     text={labelText}
-                    {...labelTextPaint(visualRoles, labelBackgroundOpacity, transform.zoom)}
+                    {...labelTextPaint(labelColors, labelBackgroundOpacity, transform.zoom)}
                     fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
                     fontSize={CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX / transform.zoom}
                     padding={LABEL_PADDING_SCREEN_PX / transform.zoom}

@@ -74,6 +74,7 @@ import {
   CANVAS_VISUAL_METRICS,
   circularHandleHitStrokeWidthScreenPx,
   labelTextPaint,
+  resolveLabelColors,
   scaleFillAlpha,
   scaledAlpha,
   scaledHandleRadiusScreenPx,
@@ -205,12 +206,17 @@ export const MeasurementShape = memo(function MeasurementShape({
     fillOpacity,
     handleSize,
     labelBackground,
+    labelTextColor,
     labelContent,
     hitTolerance,
   } = useAppPreferences();
   const fillScale = FILL_OPACITY_SCALE[fillOpacity];
   const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
   const labelBackgroundOpacity = LABEL_BACKGROUND_OPACITY[labelBackground];
+  const labelColors = useMemo(
+    () => resolveLabelColors(visualRoles, labelTextColor, labelBackgroundOpacity),
+    [visualRoles, labelTextColor, labelBackgroundOpacity],
+  );
   const strokeScale = LINE_THICKNESS_SCALE[lineThickness];
   const labelFontSize = MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * LABEL_SIZE_SCALE[labelSize];
   const { updateMeasurement: updateSessionMeasurement, updateMeasurements } =
@@ -1089,7 +1095,7 @@ export const MeasurementShape = memo(function MeasurementShape({
           listening={false}
         >
           <Tag
-            fill={visualRoles.labelBackground}
+            fill={labelColors.background}
             opacity={(selected ? 1 : 0.88) * labelBackgroundOpacity}
             stroke={selected ? visualRoles.measurementSelectedStroke : (cloudColor ?? undefined)}
             strokeWidth={selected || cloudColor ? 1 / zoom : 0}
@@ -1097,7 +1103,7 @@ export const MeasurementShape = memo(function MeasurementShape({
           />
           <Text
             text={labelText}
-            {...labelTextPaint(visualRoles, labelBackgroundOpacity, zoom)}
+            {...labelTextPaint(labelColors, labelBackgroundOpacity, zoom)}
             fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
             fontSize={labelFontSize / zoom}
             padding={LABEL_PADDING_SCREEN_PX / zoom}

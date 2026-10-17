@@ -3,8 +3,11 @@ import {
   CANVAS_VISUAL_METRICS,
   canvasInteractionTargetScreenPx,
   circularHandleHitStrokeWidthScreenPx,
+  contrastRatio,
+  LABEL_TEXT_COLORS,
   labelTextPaint,
   resolveCanvasVisualRoles,
+  resolveLabelColors,
   scaleFillAlpha,
   scaledAlpha,
   scaledHandleRadiusScreenPx,
@@ -74,12 +77,49 @@ describe("canvas preference helpers", () => {
   });
 
   it("keeps label text unchanged with a background and outlines it without one", () => {
-    const roles = resolveCanvasVisualRoles("light");
-    expect(labelTextPaint(roles, 0.6, 2)).toEqual({ fill: roles.labelText });
-    expect(labelTextPaint(roles, 0, 2)).toMatchObject({
-      fill: roles.labelBackground,
-      stroke: roles.labelText,
+    const colors = { text: "#ffffff", background: "#242a31" };
+    expect(labelTextPaint(colors, 0.6, 2)).toEqual({ fill: "#ffffff" });
+    expect(labelTextPaint(colors, 0, 2)).toEqual({
+      fill: "#ffffff",
+      stroke: "#242a31",
       strokeWidth: 1.5,
+      fillAfterStrokeEnabled: true,
     });
+  });
+
+  it("measures WCAG contrast", () => {
+    expect(contrastRatio("#ffffff", "#000000")).toBeCloseTo(21);
+    expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21);
+    expect(contrastRatio("#777777", "#777777")).toBe(1);
+  });
+
+  it("keeps automatic label text readable over the plan for every background", () => {
+    const roles = resolveCanvasVisualRoles("light");
+    // Solid: the original white text on the dark label.
+    expect(resolveLabelColors(roles, "auto", 1)).toEqual({
+      text: roles.labelText,
+      background: roles.labelBackground,
+    });
+    // Translucent and none: the plan shows through, so dark text over a light veil or halo.
+    for (const opacity of [0.6, 0]) {
+      expect(resolveLabelColors(roles, "auto", opacity)).toEqual({
+        text: roles.labelBackground,
+        background: roles.labelText,
+      });
+    }
+    expect(resolveCanvasVisualRoles("dark").labelText).toBe(roles.labelText);
+  });
+
+  it("pairs every chosen label color with an AA background in every mode", () => {
+    const roles = resolveCanvasVisualRoles("light");
+    for (const [name, color] of Object.entries(LABEL_TEXT_COLORS)) {
+      for (const opacity of [1, 0.6, 0]) {
+        const colors = resolveLabelColors(roles, name as keyof typeof LABEL_TEXT_COLORS, opacity);
+        expect(colors.text, name).toBe(color);
+        expect(contrastRatio(colors.text, colors.background), name).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    expect(resolveLabelColors(roles, "black", 1).background).toBe(roles.labelText);
+    expect(resolveLabelColors(roles, "white", 1).background).toBe(roles.labelBackground);
   });
 });

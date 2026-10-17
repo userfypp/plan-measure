@@ -22,7 +22,12 @@ import {
   measureLabelText,
   placeMeasurementLabel,
 } from "./annotationLabelLayout";
-import { CANVAS_VISUAL_METRICS, labelTextPaint, type CanvasVisualRoles } from "./canvasVisualRoles";
+import {
+  CANVAS_VISUAL_METRICS,
+  labelTextPaint,
+  resolveLabelColors,
+  type CanvasVisualRoles,
+} from "./canvasVisualRoles";
 
 /** Nothing is ever inserted: the live label ignores other labels, like a lone final label. */
 const EMPTY_LABEL_INDEX = createLabelCollisionIndex();
@@ -50,7 +55,7 @@ export function LiveLengthLabel({
   decimalPlaces,
 }: LiveLengthLabelProps) {
   useNumberFormatKey(); // re-render when separators change
-  const { labelSize, labelBackground } = useAppPreferences();
+  const { labelSize, labelBackground, labelTextColor } = useAppPreferences();
   const hidden = !bounds || !calibration || (from.x === to.x && from.y === to.y);
   const text = hidden
     ? ""
@@ -66,6 +71,7 @@ export function LiveLengthLabel({
   if (hidden) return null;
   const metrics = CANVAS_VISUAL_METRICS;
   const backgroundOpacity = LABEL_BACKGROUND_OPACITY[labelBackground];
+  const colors = resolveLabelColors(roles, labelTextColor, backgroundOpacity);
   const points = [from, to];
   const placement = placeMeasurementLabel(
     "line",
@@ -79,13 +85,13 @@ export function LiveLengthLabel({
   return (
     <Label name="live-length-label" x={placement.x} y={placement.y} listening={false}>
       <Tag
-        fill={roles.labelBackground}
+        fill={colors.background}
         opacity={0.88 * backgroundOpacity}
         cornerRadius={metrics.labelCornerRadiusScreenPx / zoom}
       />
       <Text
         text={text}
-        {...labelTextPaint(roles, backgroundOpacity, zoom)}
+        {...labelTextPaint(colors, backgroundOpacity, zoom)}
         fontFamily={metrics.fontFamily}
         fontSize={fontSize / zoom}
         padding={LABEL_PADDING_SCREEN_PX / zoom}

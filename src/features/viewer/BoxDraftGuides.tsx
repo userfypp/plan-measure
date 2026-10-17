@@ -5,7 +5,12 @@ import type {
   PageCalibration,
   Point,
 } from "../../types/domain";
-import { CANVAS_VISUAL_METRICS, type CanvasVisualRoles } from "./canvasVisualRoles";
+import { useAppPreferences } from "../../utils/appPreferences";
+import {
+  CANVAS_VISUAL_METRICS,
+  resolveLabelColors,
+  type CanvasVisualRoles,
+} from "./canvasVisualRoles";
 import { boxGuideBounds, boxGuideDimensionTexts } from "./boxGuides";
 
 interface BoxDraftGuidesProps {
@@ -33,6 +38,9 @@ export function BoxDraftGuides({
   displayUnit,
   decimalPlaces,
 }: BoxDraftGuidesProps) {
+  const { labelTextColor } = useAppPreferences();
+  // The dimension tag is nearly opaque whatever the label background setting, so it reads as solid.
+  const labelColors = resolveLabelColors(roles, labelTextColor, 1);
   const bounds = boxGuideBounds(ring);
   if (!bounds) return null;
   const metrics = CANVAS_VISUAL_METRICS;
@@ -77,13 +85,13 @@ export function BoxDraftGuides({
     return (
       <Label key={key} name={`box-guide-dimension-${key}`} x={labelX} y={labelY} listening={false}>
         <Tag
-          fill={roles.labelBackground}
+          fill={labelColors.background}
           opacity={0.82}
           cornerRadius={metrics.labelCornerRadiusScreenPx / zoom}
         />
         <Text
           text={text}
-          fill={roles.labelText}
+          fill={labelColors.text}
           fontFamily={metrics.fontFamily}
           fontSize={labelFontScreenPx / zoom}
           padding={metrics.labelPaddingScreenPx / zoom}

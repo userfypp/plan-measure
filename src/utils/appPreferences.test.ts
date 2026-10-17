@@ -50,6 +50,7 @@ describe("appPreferences", () => {
       fillOpacity: "normal",
       handleSize: "normal",
       labelBackground: "solid",
+      labelTextColor: "auto",
       afterFinishing: "keep",
       zoomStep: "normal",
     });
@@ -60,12 +61,14 @@ describe("appPreferences", () => {
     setAppPreference("fillOpacity", "strong");
     setAppPreference("handleSize", "huge" as never);
     setAppPreference("labelBackground", "none");
+    setAppPreference("labelTextColor", "black");
     setAppPreference("afterFinishing", "later" as never);
     setAppPreference("zoomStep", "coarse");
     expect(getAppPreferences()).toMatchObject({
       fillOpacity: "strong",
       handleSize: "normal",
       labelBackground: "none",
+      labelTextColor: "black",
       afterFinishing: "keep",
       zoomStep: "coarse",
     });

@@ -81,6 +81,23 @@ describe("LiveLengthLabel", () => {
     setAppPreference("labelBackground", "solid");
   });
 
+  it("keeps the text readable over the plan and follows a chosen text color", () => {
+    const { roles } = base;
+    renderToStaticMarkup(<LiveLengthLabel {...base} />);
+    expect(prop("Tag").fill).toBe(roles.labelBackground);
+    expect(prop("Text").fill).toBe(roles.labelText);
+    setAppPreference("labelBackground", "translucent");
+    renderToStaticMarkup(<LiveLengthLabel {...base} />);
+    expect(prop("Tag").fill).toBe(roles.labelText);
+    expect(prop("Text").fill).toBe(roles.labelBackground);
+    setAppPreference("labelTextColor", "red");
+    setAppPreference("labelBackground", "solid");
+    renderToStaticMarkup(<LiveLengthLabel {...base} />);
+    expect(prop("Tag").fill).toBe(roles.labelText);
+    expect(prop("Text").fill).toBe("#d92d20");
+    setAppPreference("labelTextColor", "auto");
+  });
+
   it("renders nothing without bounds", () => {
     expect(() => renderToStaticMarkup(<LiveLengthLabel {...base} bounds={null} />)).not.toThrow();
     expect(captured.props.Label).toBeUndefined();

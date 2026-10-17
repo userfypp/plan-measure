@@ -15,6 +15,8 @@ export type LabelSize = "small" | "normal" | "large";
 export type FillOpacity = "light" | "normal" | "strong";
 export type HandleSize = "small" | "normal" | "large";
 export type LabelBackground = "solid" | "translucent" | "none";
+/** "auto" keeps labels readable on the plan; the others pick one text color. */
+export type LabelTextColor = "auto" | "black" | "white" | "blue" | "red";
 export type AfterFinishing = "select" | "keep";
 export type ZoomStep = "fine" | "normal" | "coarse";
 export type DefaultZoom = "fit-page" | "fit-width" | "actual";
@@ -49,6 +51,7 @@ export interface AppPreferences {
   fillOpacity: FillOpacity;
   handleSize: HandleSize;
   labelBackground: LabelBackground;
+  labelTextColor: LabelTextColor;
   afterFinishing: AfterFinishing;
   zoomStep: ZoomStep;
   defaultZoom: DefaultZoom;
@@ -93,6 +96,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   fillOpacity: "normal",
   handleSize: "normal",
   labelBackground: "solid",
+  labelTextColor: "auto",
   afterFinishing: "keep",
   zoomStep: "normal",
   defaultZoom: "fit-page",
@@ -143,6 +147,7 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     fillOpacity: oneOf("light", "normal", "strong"),
     handleSize: oneOf("small", "normal", "large"),
     labelBackground: oneOf("solid", "translucent", "none"),
+    labelTextColor: oneOf("auto", "black", "white", "blue", "red"),
     afterFinishing: oneOf("select", "keep"),
     zoomStep: oneOf("fine", "normal", "coarse"),
     defaultZoom: oneOf("fit-page", "fit-width", "actual"),
