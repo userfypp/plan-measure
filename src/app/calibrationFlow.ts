@@ -13,7 +13,6 @@ export interface CalibrationFlow {
   calibrationId: string | null;
   mode: CalibrationMode;
   phase: CalibrationPhase;
-  name?: string;
   xReference?: XyCalibrationReference;
 }
 
@@ -23,7 +22,6 @@ export interface CalibrationSelection {
   calibrationId: string | null;
   mode: CalibrationMode;
   phase: CalibrationPhase;
-  name?: string;
   xReference?: XyCalibrationReference;
 }
 
@@ -56,7 +54,6 @@ export function selectCalibrationReference(
     calibrationId: flow.calibrationId,
     mode: flow.mode,
     phase: flow.phase,
-    name: flow.name,
     xReference: flow.xReference,
   };
 }
@@ -65,7 +62,6 @@ export function completeXReference(
   flow: CalibrationFlow,
   points: [Point, Point],
   referenceDistanceMm: number,
-  name: string,
 ): CalibrationFlow {
   if (flow.mode !== "xy" || flow.phase !== "x") {
     throw new Error("An X reference can only complete the X phase of an X/Y flow.");
@@ -73,7 +69,6 @@ export function completeXReference(
   return {
     ...flow,
     phase: "y",
-    name,
     xReference: {
       start: points[0],
       end: points[1],
@@ -109,16 +104,16 @@ export function completeCalibration(
   throw new Error("Calibration is not ready to be completed.");
 }
 
+/** The flow carries no scale name: the dialog of the last step asks for it. */
 export function confirmCalibration(
   flow: CalibrationFlow,
   selection: CalibrationSelection,
   referenceDistanceMm: number,
-  name: string,
 ): CalibrationConfirmation {
   if (flow.mode === "xy" && flow.phase === "x") {
     return {
       kind: "select-y",
-      flow: completeXReference(flow, selection.points, referenceDistanceMm, name),
+      flow: completeXReference(flow, selection.points, referenceDistanceMm),
     };
   }
   return {

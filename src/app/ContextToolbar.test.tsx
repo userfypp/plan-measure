@@ -659,14 +659,18 @@ describe("ContextToolbar V2", () => {
 
     act(() => workspace!.cancelCalibration());
     act(() => workspace!.startCalibration(beginCalibrationFlow(1, null, "xy")));
-    expect(container?.textContent).toContain("Calibrating X reference");
+    expect(container?.textContent).toContain(
+      "Calibrating X reference (1 of 2) · Select two points on a horizontal line",
+    );
     act(() =>
       workspace!.advanceCalibrationStep({
         ...beginCalibrationFlow(1, null, "xy"),
         phase: "y",
       }),
     );
-    expect(container?.textContent).toContain("Calibrating Y reference");
+    expect(container?.textContent).toContain(
+      "Calibrating Y reference (2 of 2) · Select two points on a vertical line",
+    );
   });
 
   it("hides stale point-selection guidance while the calibration dialog owns the next step", () => {

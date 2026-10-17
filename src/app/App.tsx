@@ -107,6 +107,7 @@ const CalibrationDialog = recoverableLazy(
 const loadExportDialog = retryableImport(() => import("../features/export/ExportDialog"));
 
 type ExportDialogComponent = typeof import("../features/export/ExportDialog").ExportDialog;
+type CalibrationInputUnit = import("../features/calibration/CalibrationDialog").CalibrationInputUnit;
 
 export function App() {
   return (
@@ -253,6 +254,8 @@ function PlanMeasureApp() {
   const activeMeasurementEditIdRef = useRef<string | null>(null);
   const viewerPageZoomRef = useRef<{ pageNumber: number; zoom: number } | null>(null);
   const [activeMeasurementEditId, setActiveMeasurementEditId] = useState<string | null>(null);
+  // Session-only: the Y step and later scales open on the unit last confirmed.
+  const [calibrationUnit, setCalibrationUnit] = useState<CalibrationInputUnit>("m");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [ExportDialog, setExportDialog] = useState<ExportDialogComponent | null>(null);
   const openExportDialog = useCallback(() => {
@@ -850,10 +853,9 @@ function PlanMeasureApp() {
       <Suspense fallback={null}>
         <CalibrationDialog
           initialName={
-            calibrationCandidate.name ??
-            calibrationCandidateTarget?.name ??
-            defaultCalibrationName(calibrationCandidatePage)
+            calibrationCandidateTarget?.name ?? defaultCalibrationName(calibrationCandidatePage)
           }
+          initialUnit={calibrationUnit}
           title={calibrationCandidateTarget ? "Recalibrate scale" : "Add scale"}
           referenceLabel={
             calibrationCandidate.phase === "x"
@@ -862,11 +864,18 @@ function PlanMeasureApp() {
                 ? "vertical Y"
                 : undefined
           }
-          includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "y"}
+          step={
+            calibrationCandidate.mode === "xy"
+              ? { current: calibrationCandidate.phase === "x" ? 1 : 2, total: 2 }
+              : undefined
+          }
+          // A new scale is named once, in its last step, after its distances.
+          includeName={!calibrationCandidate.calibrationId && calibrationCandidate.phase !== "x"}
+          confirmLabel={calibrationCandidate.phase === "x" ? "Next: Y reference" : undefined}
           onCancel={() => {
             cancelCalibration();
           }}
-          onConfirm={({ name, referenceDistanceMm }) => {
+          onConfirm={({ name, referenceDistanceMm, unit }) => {
             if (session.currentPage !== calibrationCandidate.pageNumber) {
               cancelCalibration();
               return;
@@ -875,12 +884,12 @@ function PlanMeasureApp() {
               cancelCalibration();
               return;
             }
+            setCalibrationUnit(unit);
             const calibrationName = calibrationCandidateTarget?.name ?? name;
             const confirmation = confirmCalibration(
               calibrationFlow,
               calibrationCandidate,
               referenceDistanceMm,
-              calibrationName,
             );
             if (confirmation.kind === "select-y") {
               advanceCalibrationStep(confirmation.flow);

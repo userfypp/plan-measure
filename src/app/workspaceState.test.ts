@@ -310,7 +310,6 @@ describe("workspace selection state", () => {
       flow: {
         ...started.calibrationFlow!,
         phase: "y",
-        name: "Survey",
         xReference: {
           start: candidate.points[0],
           end: candidate.points[1],

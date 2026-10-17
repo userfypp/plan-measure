@@ -125,7 +125,11 @@ describe("CalibrationDialog", () => {
     setInputValue(distance, "2");
     act(() => saveButton().click());
 
-    expect(onConfirm).toHaveBeenCalledWith({ name: "Existing scale", referenceDistanceMm: 2000 });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: "Existing scale",
+      referenceDistanceMm: 2000,
+      unit: "m",
+    });
   });
 
   it("keeps scale naming available for new-scale creation", () => {
@@ -149,7 +153,75 @@ describe("CalibrationDialog", () => {
     setInputValue(distance, "1.5");
     act(() => saveButton().click());
 
-    expect(onConfirm).toHaveBeenCalledWith({ name: "Named scale", referenceDistanceMm: 1500 });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: "Named scale",
+      referenceDistanceMm: 1500,
+      unit: "m",
+    });
+  });
+
+  it("asks for the distance first and the scale name last", () => {
+    renderDialog();
+    const fields = Array.from(document.querySelectorAll("dialog input")).map((input) => input.id);
+    expect(fields).toEqual(["calibration-distance", "calibration-name"]);
+    expect(document.activeElement?.id).toBe("calibration-distance");
+  });
+
+  it("numbers the X step of an X/Y scale and leads on to the Y reference", () => {
+    const { onConfirm } = renderDialog({
+      referenceLabel: "horizontal X",
+      step: { current: 1, total: 2 },
+      includeName: false,
+      confirmLabel: "Next: Y reference",
+    });
+    const dialog = document.querySelector("dialog")!;
+    expect(dialog.textContent).toContain("Step 1 of 2 · Horizontal X reference");
+    expect(dialog.textContent).not.toContain("This is the horizontal X reference.");
+    expect(document.getElementById("calibration-name")).toBeNull();
+    expect(Array.from(dialog.querySelectorAll("button")).map((button) => button.textContent)).toContain(
+      "Next: Y reference",
+    );
+    expect(document.activeElement?.id).toBe("calibration-distance");
+
+    setInputValue(document.getElementById("calibration-distance") as HTMLInputElement, "4");
+    submitFormDirectly();
+    expect(onConfirm).toHaveBeenCalledWith({ name: "Scale 1", referenceDistanceMm: 4000, unit: "m" });
+  });
+
+  it("names a new X/Y scale in its Y step, after the distance", () => {
+    const { onConfirm } = renderDialog({
+      initialName: "Scale 2",
+      referenceLabel: "vertical Y",
+      step: { current: 2, total: 2 },
+    });
+    expect(document.querySelector("dialog")?.textContent).toContain("Step 2 of 2 · Vertical Y reference");
+    const fields = Array.from(document.querySelectorAll("dialog input")).map((input) => input.id);
+    expect(fields).toEqual(["calibration-distance", "calibration-name"]);
+
+    setInputValue(document.getElementById("calibration-distance") as HTMLInputElement, "3");
+    setInputValue(document.getElementById("calibration-name") as HTMLInputElement, "Survey");
+    act(() => saveButton().click());
+    expect(onConfirm).toHaveBeenCalledWith({ name: "Survey", referenceDistanceMm: 3000, unit: "m" });
+  });
+
+  it("opens on the unit it is given and focuses its first field", () => {
+    const { onConfirm } = renderDialog({ initialUnit: "ft" });
+    expect(document.querySelector('button[aria-label="Calibration unit"]')?.textContent).toContain(
+      "Feet",
+    );
+    setInputValue(document.getElementById("calibration-distance") as HTMLInputElement, "10");
+    act(() => saveButton().click());
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: "Scale 1",
+      referenceDistanceMm: 3048,
+      unit: "ft",
+    });
+
+    act(() => root!.unmount());
+    root = createRoot(container!);
+    renderDialog({ initialUnit: "ft-in" });
+    expect(document.getElementById("calibration-distance")).toBeNull();
+    expect(document.activeElement?.id).toBe("calibration-feet");
   });
 
   it("offers all six calibration input modes", () => {
@@ -199,6 +271,7 @@ describe("CalibrationDialog", () => {
     expect(onConfirm).toHaveBeenCalledWith({
       name: "Imperial scale",
       referenceDistanceMm: expectedMm,
+      unit,
     });
   });
 
@@ -231,6 +304,7 @@ describe("CalibrationDialog", () => {
     expect(onConfirm).toHaveBeenCalledWith({
       name: "Architectural scale",
       referenceDistanceMm: (2376 * 127) / 80,
+      unit: "ft-in",
     });
     expect((2376 * 127) / 80).toBe(3771.9);
   });
@@ -258,6 +332,7 @@ describe("CalibrationDialog", () => {
     expect(onConfirm).toHaveBeenCalledWith({
       name: "X/Y scale",
       referenceDistanceMm: 3771.9,
+      unit: "ft-in",
     });
     },
   );
@@ -284,6 +359,7 @@ describe("CalibrationDialog", () => {
       expect(onConfirm).toHaveBeenCalledWith({
         name: "Scale 1",
         referenceDistanceMm: expectedMm,
+        unit: "ft-in",
       });
     },
   );
@@ -346,7 +422,7 @@ describe("CalibrationDialog", () => {
   it("confines Tab and Shift+Tab to the calibration dialog", () => {
     renderDialog();
     const dialog = document.querySelector<HTMLDialogElement>('[role="dialog"]')!;
-    const first = document.getElementById("calibration-name") as HTMLInputElement;
+    const first = document.getElementById("calibration-distance") as HTMLInputElement;
     const last = saveButton();
 
     act(() => last.focus());
@@ -372,7 +448,7 @@ describe("CalibrationDialog", () => {
 
   it("recovers focus when focus is moved outside programmatically", () => {
     renderDialog();
-    const first = document.getElementById("calibration-name") as HTMLInputElement;
+    const first = document.getElementById("calibration-distance") as HTMLInputElement;
     const outside = document.createElement("button");
     outside.textContent = "Viewer control";
     document.body.append(outside);
@@ -416,9 +492,9 @@ describe("CalibrationDialog", () => {
       trigger.focus();
       trigger.click();
     });
-    expect((document.activeElement as HTMLElement | null)?.id).toBe("calibration-name");
+    expect((document.activeElement as HTMLElement | null)?.id).toBe("calibration-distance");
 
-    const focusedInput = document.getElementById("calibration-name") as HTMLInputElement;
+    const focusedInput = document.getElementById("calibration-distance") as HTMLInputElement;
     act(() => {
       focusedInput.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
@@ -432,7 +508,7 @@ describe("CalibrationDialog", () => {
 
   it("keeps initial focus and the explicit Cancel button behavior intact", () => {
     const { onCancel } = renderDialog({ initialName: "Keyboard scale" });
-    expect((document.activeElement as HTMLElement | null)?.id).toBe("calibration-name");
+    expect((document.activeElement as HTMLElement | null)?.id).toBe("calibration-distance");
 
     act(() => cancelButton().click());
     expect(onCancel).toHaveBeenCalledOnce();

@@ -31,12 +31,12 @@ describe("calibration flow", () => {
     const xSelection = selectCalibrationReference(started, [xPoints[0], xPoints[1]]);
     expect(xSelection.phase).toBe("x");
 
-    const afterX = confirmCalibration(started, xSelection, 1000, "Survey");
+    const afterX = confirmCalibration(started, xSelection, 1000);
     expect(afterX.kind).toBe("select-y");
     if (afterX.kind !== "select-y") throw new Error("Expected the Y selection phase.");
     expect(afterX.flow.phase).toBe("y");
     expect(afterX.flow.calibrationId).toBeNull();
-    expect(afterX.flow.name).toBe("Survey");
+    expect(afterX.flow).not.toHaveProperty("name");
     expect(afterX.flow.xReference).toEqual({
       start: xPoints[0],
       end: xPoints[1],
@@ -47,7 +47,7 @@ describe("calibration flow", () => {
     expect(ySelection.phase).toBe("y");
     expect(ySelection.xReference).toEqual(afterX.flow.xReference);
 
-    const completed = confirmCalibration(afterX.flow, ySelection, 2000, "Survey");
+    const completed = confirmCalibration(afterX.flow, ySelection, 2000);
     expect(completed.kind).toBe("complete");
     if (completed.kind !== "complete") throw new Error("Expected a complete calibration.");
     expect(completed.calibration).toEqual({
@@ -80,7 +80,7 @@ describe("calibration flow", () => {
   it("does not create a partial PageCalibration after confirming only X", () => {
     const started = beginCalibrationFlow(1, null, "xy");
     const xSelection = selectCalibrationReference(started, [xPoints[0], xPoints[1]]);
-    const afterX = confirmCalibration(started, xSelection, 1000, "Survey");
+    const afterX = confirmCalibration(started, xSelection, 1000);
 
     expect(afterX.kind).toBe("select-y");
     expect(loadedState().session!.pages[1]!.calibrations).toHaveLength(0);
@@ -90,7 +90,7 @@ describe("calibration flow", () => {
     const started = beginCalibrationFlow(1, null, "uniform");
     expect(started.phase).toBe("uniform");
     const selection = selectCalibrationReference(started, [xPoints[0], xPoints[1]]);
-    const completed = confirmCalibration(started, selection, 1000, "Uniform scale");
+    const completed = confirmCalibration(started, selection, 1000);
 
     expect(completed.kind).toBe("complete");
     if (completed.kind !== "complete") throw new Error("Expected a complete calibration.");
@@ -114,7 +114,6 @@ describe("calibration flow", () => {
       started,
       selectCalibrationReference(started, [xPoints[0], xPoints[1]]),
       1500,
-      "Existing XY revised",
     );
     expect(afterX.kind).toBe("select-y");
     if (afterX.kind !== "select-y") throw new Error("Expected the Y selection phase.");
@@ -123,7 +122,6 @@ describe("calibration flow", () => {
       afterX.flow,
       selectCalibrationReference(afterX.flow, [yPoints[0], yPoints[1]]),
       2500,
-      "Existing XY revised",
     );
     expect(completed.kind).toBe("complete");
     if (completed.kind !== "complete") throw new Error("Expected a complete calibration.");

@@ -403,12 +403,14 @@ export function ContextToolbar({
   if (calibrationFlow && !calibrationDialogOpen) {
     const calibrationLabel =
       calibrationFlow.mode === "xy"
-        ? `Calibrating ${calibrationFlow.phase.toUpperCase()} reference`
-        : "Calibrating scale";
+        ? calibrationFlow.phase === "x"
+          ? "Calibrating X reference (1 of 2) · Select two points on a horizontal line"
+          : "Calibrating Y reference (2 of 2) · Select two points on a vertical line"
+        : "Calibrating scale · Select two points";
     return (
       <ToolbarComposite label="Calibration controls" contextKind="calibration">
         <span className={styles.status} role="status">
-          {calibrationLabel} · Select two points
+          {calibrationLabel}
         </span>
         <Divider />
         <Button

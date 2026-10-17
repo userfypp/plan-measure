@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import type { LinearUnit } from "../../types/domain";
 import {
   architecturalSixteenthsToMillimetres,
@@ -8,19 +8,27 @@ import { toMillimetres } from "../../utils/units";
 import { Button, Dialog, Input, Select } from "../../components/ui";
 import styles from "./CalibrationDialog.module.css";
 
+export type CalibrationInputUnit = LinearUnit | "ft-in";
+
 interface CalibrationDialogProps {
   initialName: string;
+  /** Opens on this unit, so the steps of one scale and later scales share it. */
+  initialUnit?: CalibrationInputUnit;
   title: string;
   referenceLabel?: string;
+  /** Position within a multi-reference scale, such as X then Y. */
+  step?: { current: number; total: number };
   distanceLabel?: string;
   includeName?: boolean;
   confirmLabel?: string;
   confirmationError?: string | null;
-  onConfirm: (calibration: { name: string; referenceDistanceMm: number }) => void;
+  onConfirm: (calibration: {
+    name: string;
+    referenceDistanceMm: number;
+    unit: CalibrationInputUnit;
+  }) => void;
   onCancel: () => void;
 }
-
-type CalibrationInputUnit = LinearUnit | "ft-in";
 
 const SIXTEENTHS_PER_INCH = 16;
 const SIXTEENTHS_PER_FOOT = 12 * SIXTEENTHS_PER_INCH;
@@ -90,8 +98,10 @@ function structuredArchitecturalDistanceMm(
 
 export function CalibrationDialog({
   initialName,
+  initialUnit = "m",
   title,
   referenceLabel,
+  step,
   distanceLabel = "Reference distance",
   includeName = true,
   confirmLabel = "Save scale",
@@ -101,13 +111,15 @@ export function CalibrationDialog({
 }: CalibrationDialogProps) {
   const [name, setName] = useState(initialName);
   const [distance, setDistance] = useState("");
-  const [unit, setUnit] = useState<CalibrationInputUnit>("m");
+  const [unit, setUnit] = useState<CalibrationInputUnit>(initialUnit);
   const [feet, setFeet] = useState("0");
   const [inches, setInches] = useState("0");
   const [fractionSixteenths, setFractionSixteenths] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
   const formId = useId();
+  // The distance is the one value to type, so it takes focus; the name already has a default.
+  const firstFieldRef = useRef<HTMLInputElement>(null);
   const displayError = error || confirmationError;
 
   function changeUnit(nextUnit: CalibrationInputUnit) {
@@ -146,7 +158,7 @@ export function CalibrationDialog({
       setError("Enter a valid distance that is not excessively large.");
       return;
     }
-    onConfirm({ name: trimmedName, referenceDistanceMm });
+    onConfirm({ name: trimmedName, referenceDistanceMm, unit });
   }
 
   return (
@@ -156,6 +168,7 @@ export function CalibrationDialog({
       onClose={onCancel}
       modal={false}
       trapFocus
+      initialFocus={firstFieldRef}
       actions={
         <>
           <Button variant="ghost" size="compact" onClick={onCancel}>
@@ -168,24 +181,24 @@ export function CalibrationDialog({
       }
     >
       <form id={formId} onSubmit={submit} className={styles.form}>
+        {step && (
+          <p className={styles.step}>
+            Step {step.current} of {step.total}
+            {referenceLabel
+              ? ` · ${referenceLabel[0]!.toUpperCase()}${referenceLabel.slice(1)} reference`
+              : ""}
+          </p>
+        )}
         <p>
           {referenceLabel
             ? "Enter the real-world distance along the reference's axis."
             : "Enter the real-world distance between the two selected points."}
-          {referenceLabel ? ` This is the ${referenceLabel} reference.` : ""}
+          {referenceLabel && !step ? ` This is the ${referenceLabel} reference.` : ""}
         </p>
-        {includeName && (
-          <Input
-            id="calibration-name"
-            label="Scale name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoFocus
-          />
-        )}
         <div className={`${styles.inputRow} ${unit === "ft-in" ? styles.unitOnlyRow : ""}`}>
           {unit !== "ft-in" && (
             <Input
+              ref={firstFieldRef}
               id="calibration-distance"
               label={distanceLabel}
               type="number"
@@ -198,7 +211,6 @@ export function CalibrationDialog({
                 setDistance(event.target.value);
                 setError(null);
               }}
-              autoFocus={!includeName}
             />
           )}
           <label className={styles.unitField}>
@@ -221,6 +233,7 @@ export function CalibrationDialog({
             <div className={styles.architecturalInputs}>
               <div className={styles.inputWithSuffix}>
                 <Input
+                  ref={firstFieldRef}
                   id="calibration-feet"
                   label="Feet"
                   type="number"
@@ -280,6 +293,14 @@ export function CalibrationDialog({
               </label>
             </div>
           </fieldset>
+        )}
+        {includeName && (
+          <Input
+            id="calibration-name"
+            label="Scale name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
         )}
         {displayError && (
           <p id={errorId} className={styles.error} role="alert">
