@@ -8,7 +8,7 @@ import {
   isAxisAlignedBoxRing,
   moveBoxVertex,
   placeholderPointsFor,
-} from "./quickShapes";
+} from "./quickShapesCore";
 import {
   cloudArcs,
   measurementOutlineBounds,
