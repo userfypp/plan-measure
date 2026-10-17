@@ -60,6 +60,11 @@ export function isMeasurementType(value: string): value is MeasurementType {
   return (MEASUREMENT_TYPES as readonly string[]).includes(value);
 }
 
+/** Whether drawing this type needs an active scale; Count only tallies items. */
+export function measurementTypeRequiresScale(type: MeasurementType): boolean {
+  return type !== "count";
+}
+
 export function hasValidMeasurementPoints(
   type: MeasurementType,
   points: readonly Point[],

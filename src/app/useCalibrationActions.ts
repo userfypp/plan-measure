@@ -23,7 +23,7 @@ import {
   getActiveCalibration,
   isValidCalibrationReferenceEdit,
 } from "../utils/calibration";
-import { isMeasurementType } from "../utils/geometry";
+import { isMeasurementType, measurementTypeRequiresScale } from "../utils/geometry";
 import { calibrationMeasurementCount, calibrationReferenceEditPreview } from "./appDerivations";
 import { beginCalibrationFlow } from "./calibrationFlow";
 import {
@@ -133,7 +133,10 @@ export function useCalibrationActions({
     if (isMeasurementType(tool) && precisionAuthoringBlocked) {
       return;
     }
-    if (isMeasurementType(tool) && (!currentPage || (tool !== "count" && !activePageCalibration))) {
+    if (
+      isMeasurementType(tool) &&
+      (!currentPage || (measurementTypeRequiresScale(tool) && !activePageCalibration))
+    ) {
       clearDraft();
       chooseWorkspaceTool("select");
       setError("Select a valid scale before creating measurements.");

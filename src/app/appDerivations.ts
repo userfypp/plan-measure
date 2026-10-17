@@ -2,6 +2,7 @@ import type { AuthoringCapability } from "../features/viewer/AuthoringCapability
 import type { ToolAvailabilityMap } from "../features/viewer/toolRegistry";
 import type { CurrentSession, Measurement, PageCalibration, PageState } from "../types/domain";
 import { findPageCalibration, replaceCalibrationReferencePoints } from "../utils/calibration";
+import { MEASUREMENT_TYPES, measurementTypeRequiresScale } from "../utils/geometry";
 import type { CalibrationReferenceEdit } from "./calibrationReferenceEdit";
 
 export function calibrationMeasurementCount(page: PageState, calibrationId: string): number {
@@ -79,17 +80,18 @@ export function getToolAvailability(
   precisionAuthoringBlocked: boolean,
   precisionAuthoringDisabledReason: string,
 ): ToolAvailabilityMap {
-  return {
-    select: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
-    hand: { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason },
-    line: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
-    polyline: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
-    polygon: { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason },
-    count: {
-      enabled: !primaryToolsLocked && !precisionAuthoringBlocked,
-      disabledReason: primaryToolsLocked ? primaryToolLockReason : precisionAuthoringDisabledReason,
-    },
+  const navigation = { enabled: !primaryToolsLocked, disabledReason: primaryToolLockReason };
+  const scaled = { enabled: canCreateMeasurements, disabledReason: measurementToolDisabledReason };
+  const unscaled = {
+    enabled: !primaryToolsLocked && !precisionAuthoringBlocked,
+    disabledReason: primaryToolsLocked ? primaryToolLockReason : precisionAuthoringDisabledReason,
   };
+  // Every measurement tool gets an entry, so a new tool cannot appear enabled without a scale.
+  const availability: ToolAvailabilityMap = { select: navigation, hand: navigation };
+  for (const type of MEASUREMENT_TYPES) {
+    availability[type] = measurementTypeRequiresScale(type) ? scaled : unscaled;
+  }
+  return availability;
 }
 
 export function getPrecisionAuthoringDisabledReason(

@@ -63,6 +63,7 @@ import {
   getViewerKeyboardAction,
   shouldIgnoreGlobalKeyboardShortcut,
   shouldIgnoreViewerKeyboardShortcut,
+  viewerShortcuts,
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
 import { boxFromCorners } from "../../utils/quickShapesCore";
@@ -133,6 +134,11 @@ import {
 const WHEEL_ZOOM_SETTLE_MS = 120;
 const WHEEL_ZOOM_MAX_SETTLE_MS = 600;
 const WHEEL_ZOOM_MIN_MEASUREMENTS = 200;
+const TOOL_SHORTCUT_KEYS = viewerShortcuts.flatMap(({ key, action }) =>
+  typeof action === "object" ? [key.toUpperCase()] : [],
+);
+// Derived from the shortcut registry so a new tool is announced with the others.
+const TOOL_SHORTCUT_HINT = `Use ${TOOL_SHORTCUT_KEYS.slice(0, -1).join(", ")}, or ${TOOL_SHORTCUT_KEYS.at(-1)} to select a tool.`;
 
 interface PdfViewerProps {
   document: PDFDocumentProxy;
@@ -1986,7 +1992,7 @@ export function PdfViewer({
         role="region"
         tabIndex={0}
         data-dialog-focus-fallback
-        aria-label={`PDF viewer, page ${page.pageNumber}. Use V, H, L, M, P, or C to select a tool.`}
+        aria-label={`PDF viewer, page ${page.pageNumber}. ${TOOL_SHORTCUT_HINT}`}
         aria-describedby={keyboardAuthoringEnabled ? keyboardHelpId : undefined}
         onBlur={(event) => {
           if (event.currentTarget.contains(event.relatedTarget)) return;

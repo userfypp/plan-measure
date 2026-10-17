@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { toolRailRegistry } from "../features/viewer/toolRegistry";
 import type { CurrentSession, Measurement, PageState } from "../types/domain";
 import {
   calibrationMeasurementCount,
@@ -70,5 +71,17 @@ describe("appDerivations", () => {
     expect(map.select).toEqual({ enabled: false, disabledReason: "locked" });
     expect(map.line).toEqual({ enabled: false, disabledReason: "needs scale" });
     expect(map.count).toEqual({ enabled: false, disabledReason: "locked" });
+  });
+
+  it("locks every scaled drawing tool in the rail without a scale, and only those", () => {
+    const map = getToolAvailability(false, "locked", false, "needs scale", false, "blocked");
+    for (const { id } of toolRailRegistry) {
+      expect(map[id], id).toBeDefined();
+    }
+    for (const type of ["line", "polyline", "polygon", "rectangle", "ellipse", "cloud"] as const) {
+      expect(map[type], type).toEqual({ enabled: false, disabledReason: "needs scale" });
+    }
+    expect(map.count).toEqual({ enabled: true, disabledReason: "blocked" });
+    expect(map.select?.enabled).toBe(true);
   });
 });

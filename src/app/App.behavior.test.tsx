@@ -161,6 +161,17 @@ describe("App open, calibrate and measure flow", () => {
     });
   });
 
+  it("locks the scaled drawing tools until a scale exists and names every tool shortcut", async () => {
+    await openPdf();
+    const scaled = ["Line, shortcut L", "Polyline, shortcut M", "Polygon, shortcut P", "Rectangle, shortcut R", "Ellipse, shortcut I", "Cloud, shortcut K"];
+    for (const label of scaled) expect(button(label).getAttribute("aria-disabled"), label).toBe("true");
+    expect(button("Count, shortcut C").getAttribute("aria-disabled")).toBeNull();
+    expect(document.querySelector("[data-dialog-focus-fallback]")?.getAttribute("aria-label")).toBe(
+      "PDF viewer, page 1. Use V, H, L, M, P, R, I, K, or C to select a tool.");
+    await calibrate();
+    for (const label of scaled) expect(button(label).getAttribute("aria-disabled"), label).toBeNull();
+  });
+
   it("does not create a scale when the calibration dialog is cancelled", async () => {
     await openPdf();
     await calibrate({ cancel: true });
