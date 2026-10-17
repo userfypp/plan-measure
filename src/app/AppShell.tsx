@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { AppErrorNotification } from "./state";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
-import type { ProjectViewSettings } from "./SettingsDialog";
+import type { LabelPreviewMeasurement, ProjectViewSettings } from "./SettingsDialog";
 import { AppBar } from "./AppBar";
 import { Button } from "../components/ui";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -19,6 +19,7 @@ interface AppShellProps {
   savedProjectCount?: number;
   canUndo?: boolean;
   canRedo?: boolean;
+  labelPreviewMeasurement?: LabelPreviewMeasurement | null;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   viewSettings?: ProjectViewSettings | null;
   classificationDimensions?: readonly ClassificationDimension[];
@@ -55,6 +56,7 @@ export function AppShell({
   savedProjectCount = 0,
   canUndo = false,
   canRedo = false,
+  labelPreviewMeasurement = null,
   measurementDecimalPlaces = null,
   viewSettings = null,
   classificationDimensions,
@@ -98,6 +100,7 @@ export function AppShell({
         savedProjectCount={savedProjectCount}
         canUndo={canUndo}
         canRedo={canRedo}
+        labelPreviewMeasurement={labelPreviewMeasurement}
         measurementDecimalPlaces={measurementDecimalPlaces}
         viewSettings={viewSettings}
         classificationDimensions={classificationDimensions}

@@ -39,6 +39,7 @@ import {
   defaultCalibrationName,
   findPageCalibration,
   getActiveCalibration,
+  getMeasuringCalibration,
   isValidCalibrationReferenceEdit,
 } from "../utils/calibration";
 import {
@@ -951,6 +952,18 @@ function PlanMeasureApp() {
         savedProjectCount={savedProjects.length}
         canUndo={canUndo}
         canRedo={canRedo}
+        labelPreviewMeasurement={
+          session && currentPage && selectedMeasurement
+            ? {
+                measurement: selectedMeasurement,
+                calibration: getMeasuringCalibration(
+                  currentPage,
+                  selectedMeasurement,
+                  session.settings.measureClouds,
+                ),
+              }
+            : null
+        }
         measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
         viewSettings={
           session

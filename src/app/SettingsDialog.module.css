@@ -255,23 +255,55 @@ dialog.dialog {
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
-.preview {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-16);
+/* Closes the Measurements section, set apart like a later group, and shows labels as text. */
+.labelPreview {
+  min-width: 0;
+  margin-top: var(--space-8);
   border-top: var(--border-width) solid var(--color-divider);
+  padding-top: var(--space-8);
+}
+
+.labelPreviewList {
+  margin: 0;
+  display: grid;
+}
+
+.labelPreviewRow {
+  min-width: 0;
+  min-height: calc(var(--control-height-compact) + var(--space-16));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-16);
   padding-block: var(--space-8);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
 
-.previewValue {
+.labelPreviewRow + .labelPreviewRow {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.labelPreviewRow dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+}
+
+.labelPreviewValue {
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-control);
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-surface-field);
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-base);
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .storageUsage {
