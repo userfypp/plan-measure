@@ -702,6 +702,10 @@ export function PdfViewer({
     bounds,
     transform: viewTransform,
     screenCenter: safeViewer.center ?? { x: 0, y: 0 },
+    visibleSize: {
+      width: safeViewer.size.width - authoringCapability.rightObstruction,
+      height: safeViewer.size.height,
+    },
     tool: activeTool,
     draft: workspaceDraft,
     selectedIds: selectedMeasurementIds,

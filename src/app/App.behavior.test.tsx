@@ -152,6 +152,15 @@ describe("App open, calibrate and measure flow", () => {
     expect(document.querySelector("dialog[open]")).toBeNull();
   });
 
+  it("hands focus to the plan when a new scale starts, so the keyboard can place it", async () => {
+    await openPdf();
+    await press("Add scale");
+    await menuItem("Uniform");
+    await vi.waitFor(() => {
+      expect(document.activeElement?.hasAttribute("data-dialog-focus-fallback")).toBe(true);
+    });
+  });
+
   it("does not create a scale when the calibration dialog is cancelled", async () => {
     await openPdf();
     await calibrate({ cancel: true });

@@ -179,6 +179,8 @@ export function useCalibrationActions({
     if (!currentPage) return;
     startCalibration(beginCalibrationFlow(currentPage.pageNumber, null, mode));
     chooseTool("calibrate");
+    // Hand focus to the plan so keyboard drawing can place the reference right away.
+    focusViewer();
   }
 
   function addStandardScalePreset(ratio: StandardScalePresetRatio) {

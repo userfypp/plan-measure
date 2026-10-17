@@ -60,6 +60,7 @@ beforeEach(() => {
     bounds: { width: 100, height: 100, rotation: 0 },
     transform: { zoom: 2, panX: 0, panY: 0 },
     screenCenter: { x: 100, y: 100 },
+    visibleSize: { width: 200, height: 200 },
     tool: "select",
     draft: null,
     selectedIds: ["line"],
@@ -162,6 +163,44 @@ describe("keyboard geometry interaction", () => {
     press(" ");
     press(" ", false, true);
     expect(options.placePoint).toHaveBeenCalledExactlyOnceWith({ x: 101, y: 100 });
+    expect(options.commit).not.toHaveBeenCalled();
+  });
+
+  it("keeps the cursor across tool changes and resumes it after it was hidden", () => {
+    render({ tool: "polygon", selectedIds: [], bounds: { width: 1000, height: 1000, rotation: 0 } });
+    press("ArrowRight");
+    press("ArrowRight");
+    expect(result.cursor).toEqual({ x: 51, y: 50 });
+    render({ tool: "line" });
+    expect(result.cursor).toEqual({ x: 51, y: 50 });
+    render({ tool: "hand" });
+    expect(result.cursor).toBeNull();
+    render({ tool: "rectangle" });
+    press("ArrowRight");
+    expect(result.cursor).toEqual({ x: 51.5, y: 50 });
+    // Blur, zoom and clicks hide the cursor; the next arrow continues from where it was.
+    act(() => result.cancel());
+    expect(result.cursor).toBeNull();
+    press("ArrowRight");
+    expect(result.cursor).toEqual({ x: 52, y: 50 });
+    // Another page starts over at the center.
+    render({ page: { ...options.page, pageNumber: 2 } });
+    expect(result.cursor).toBeNull();
+    press("ArrowRight");
+    expect(result.cursor).toEqual({ x: 50.5, y: 50 });
+    // A remembered cursor panned out of view also restarts at the visible center.
+    act(() => result.cancel());
+    render({ transform: { zoom: 2, panX: -500, panY: 0 } });
+    press("ArrowRight");
+    expect(result.cursor).toEqual({ x: 300.5, y: 50 });
+  });
+
+  it("ends a keyboard edit on a tool change but leaves the cursor in place", () => {
+    press("e");
+    expect(result.editing).toBe(true);
+    render({ tool: "line" });
+    expect(result.editing).toBe(false);
+    expect(result.cursor).toEqual({ x: 20, y: 20 });
     expect(options.commit).not.toHaveBeenCalled();
   });
 

@@ -36,6 +36,8 @@ interface KeyboardGeometryOptions {
   bounds: LogicalPageBounds | null;
   transform: ViewTransform;
   screenCenter: Point;
+  /** Visible viewer area in screen pixels; a remembered cursor outside it restarts at the center. */
+  visibleSize: { width: number; height: number };
   tool: Tool;
   draft: DrawingDraft | null;
   selectedIds: readonly string[];
@@ -74,6 +76,9 @@ export function useKeyboardGeometry(options: KeyboardGeometryOptions) {
   } = options;
   const [cursor, setCursor] = useState<Point | null>(null);
   const cursorRef = useRef<Point | null>(null);
+  // Where the cursor was last shown on this page, so hiding it (blur, zoom, a click, a tool with
+  // no cursor) does not send the next arrow press back to the center.
+  const lastCursorRef = useRef<Point | null>(null);
   const [edit, setEdit] = useState<KeyboardEdit | null>(null);
   const editRef = useRef<KeyboardEdit | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -84,6 +89,7 @@ export function useKeyboardGeometry(options: KeyboardGeometryOptions) {
 
   const updateCursor = (point: Point) => {
     cursorRef.current = point;
+    lastCursorRef.current = point;
     setCursor(point);
     setAnnouncement(`Cursor X ${point.x.toFixed(2)}, Y ${point.y.toFixed(2)}.`);
   };
@@ -91,19 +97,31 @@ export function useKeyboardGeometry(options: KeyboardGeometryOptions) {
     editRef.current = next;
     setEdit(next);
   };
-  const cancel = useCallback(() => {
+  const endEdit = useCallback(() => {
     movementRef.current = { key: "", fast: false, repeats: 0 };
-    cursorRef.current = null;
     editRef.current = null;
-    setCursor(null);
     setEdit(null);
   }, []);
+  const cancel = useCallback(() => {
+    endEdit();
+    cursorRef.current = null;
+    setCursor(null);
+  }, [endEdit]);
 
+  useLayoutEffect(() => {
+    lastCursorRef.current = null;
+  }, [document, page.pageNumber]);
   useLayoutEffect(() => {
     // Keyboard previews have the same navigation/environment ownership boundary as pointer drags.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     cancel();
-  }, [cancel, document, page.pageNumber, tool, disabled]);
+  }, [cancel, document, page.pageNumber, disabled]);
+  useLayoutEffect(() => {
+    // A new tool ends any edit but keeps the cursor where the user left it; Hand has no cursor.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (tool === "hand") cancel();
+    else endEdit();
+  }, [cancel, endEdit, tool]);
 
   useLayoutEffect(() => {
     const current = editRef.current;
@@ -240,6 +258,18 @@ export function useKeyboardGeometry(options: KeyboardGeometryOptions) {
     return moveKeyboardCursor(point, event.key, transform.zoom, event.shiftKey, bounds!, repeats);
   }
 
+  function resumePoint(pageBounds: LogicalPageBounds) {
+    const last = lastCursorRef.current;
+    if (last) {
+      const screen = pageToScreen(last, transform);
+      const { width, height } = options.visibleSize;
+      if (screen.x >= 0 && screen.y >= 0 && screen.x <= width && screen.y <= height) {
+        return clampPointToPage(last, pageBounds);
+      }
+    }
+    return clampPointToPage(screenToPage(options.screenCenter, transform), pageBounds);
+  }
+
   function handleKeyUp(event: KeyboardEvent) {
     if (event.key.startsWith("Arrow") || event.key === "Shift") {
       movementRef.current = { key: "", fast: false, repeats: 0 };
@@ -344,10 +374,7 @@ export function useKeyboardGeometry(options: KeyboardGeometryOptions) {
       return true;
     }
     if (arrow && (tool === "select" || tool === "calibrate" || isMeasurementType(tool))) {
-      const origin =
-        currentEdit?.rawPoint ??
-        cursorRef.current ??
-        clampPointToPage(screenToPage(options.screenCenter, transform), bounds);
+      const origin = currentEdit?.rawPoint ?? cursorRef.current ?? resumePoint(bounds);
       const next = movementPoint(origin, event);
       const effectivePoint = currentEdit
         ? keyboardEditPreview({
