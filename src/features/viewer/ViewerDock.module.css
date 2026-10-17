@@ -1,5 +1,5 @@
 .dock {
-  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   width: fit-content;
   min-width: 0;
   min-height: var(--geometry-viewer-dock-height);
@@ -154,7 +154,7 @@
 }
 
 .pageTrigger {
-  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   width: var(--geometry-viewer-page-width);
   max-width: min(var(--geometry-viewer-page-width), 24vw);
   flex: 0 1 auto;
@@ -191,7 +191,7 @@
 }
 
 .scaleTrigger {
-  composes: focusRing from "../../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   position: relative;
   min-width: var(--target-current);
   width: auto;
@@ -301,7 +301,7 @@
 }
 
 .viewTrigger {
-  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   display: inline-flex;
   align-items: center;
   padding: 0 var(--space-8);

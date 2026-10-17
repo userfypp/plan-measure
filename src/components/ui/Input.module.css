@@ -13,7 +13,7 @@
 }
 
 .control {
-  composes: focusRing disabledSurface from "./controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   width: 100%;
   min-width: 0;
   min-height: var(--control-height-compact);

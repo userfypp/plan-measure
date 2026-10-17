@@ -2,7 +2,7 @@
   --tree-indent: calc(var(--target-current) / 2);
   --tree-edge-end: var(--geometry-tree-inset-end);
 
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   min-width: 0;
   min-height: 0;
   overflow-x: clip;

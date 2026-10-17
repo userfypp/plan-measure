@@ -12,7 +12,7 @@
 }
 
 .open {
-  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   min-width: 0;
   display: grid;
   justify-items: start;
@@ -44,7 +44,7 @@
 }
 
 .projects {
-  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   min-width: 0;
   animation: startFadeIn 180ms ease both;
 }
@@ -74,7 +74,7 @@
 }
 
 .project {
-  composes: focusRing disabledSurface from "../components/ui/controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   width: 100%;
   min-width: 0;
   min-height: calc(var(--control-height-compact) + var(--space-16));

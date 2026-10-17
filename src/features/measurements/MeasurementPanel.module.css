@@ -101,12 +101,12 @@
 }
 
 .visuallyHidden {
-  composes: visuallyHidden from "../../styles/visuallyHidden.module.css";
+  composes: visuallyHidden from global;
 }
 
 /* Icon-only triggers, IconButton geometry: square at the compact height, icon centred. */
 .toolbarButton {
-  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   display: inline-flex;
   min-width: var(--control-height-compact);
   min-height: var(--control-height-compact);

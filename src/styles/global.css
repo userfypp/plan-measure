@@ -1,4 +1,12 @@
 @import "./tokens.css";
+/* Classes that CSS modules share through `composes: … from global`. Composing them from their own
+ * module made postcss-modules copy their rules into every composing module, so each lazy chunk
+ * shipped them again. Loaded here, they come once, after the entry stylesheet's modules and before
+ * the lazy chunks' stylesheets: the order in which those copies took effect. */
+@import "../components/ui/controlStates.css";
+@import "../components/ui/overlaySurface.css";
+@import "../components/ui/scrollSurface.css";
+@import "./visuallyHidden.css";
 
 :root {
   font-family: var(--font-family-sans);

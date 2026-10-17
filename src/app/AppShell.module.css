@@ -113,7 +113,7 @@
 }
 
 .loadingMessage {
-  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   padding: var(--space-8) var(--space-16);
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);

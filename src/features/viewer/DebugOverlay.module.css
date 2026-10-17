@@ -1,5 +1,5 @@
 .overlay {
-  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   position: absolute;
   z-index: var(--z-feedback);
   left: var(--space-12);

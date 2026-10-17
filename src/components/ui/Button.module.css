@@ -1,5 +1,5 @@
 .button {
-  composes: focusRing disabledSurface from "./controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   display: inline-flex;
   min-width: 0;
   align-items: center;

@@ -1,7 +1,7 @@
 /* Select-like trigger shared by the classification value pickers (assignment and measurement menu).
    Compose it from the owning module; the open state follows Select (active border, same surface). */
 .trigger {
-  composes: focusRing disabledSurface from "../../components/ui/controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   min-width: 0;
   height: var(--control-height-compact);
   padding: 0 var(--space-8);

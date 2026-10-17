@@ -69,7 +69,7 @@
 }
 
 .keyboardFeedback {
-  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   position: absolute;
   z-index: var(--z-feedback);
   top: var(--space-12);

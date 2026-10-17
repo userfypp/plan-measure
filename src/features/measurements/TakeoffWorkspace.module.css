@@ -1,5 +1,5 @@
 .workspace {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -328,7 +328,7 @@
 }
 
 .sourceList {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   list-style: none;
   margin: var(--space-8) 0 0;
   padding: 0;

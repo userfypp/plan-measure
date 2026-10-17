@@ -23,7 +23,7 @@ dialog.dialog {
 }
 
 .navItem {
-  composes: focusRing from "../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   min-width: 0;
   min-height: var(--control-height-compact);
   display: flex;

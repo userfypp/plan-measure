@@ -10,7 +10,7 @@
 }
 
 .body {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -83,7 +83,7 @@
 }
 
 .dimensionMenuTrigger {
-  composes: focusRing from "../../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   width: var(--control-height-compact);
   height: var(--control-height-compact);
   display: grid;
@@ -233,7 +233,7 @@
 }
 
 .inlineLabel {
-  composes: visuallyHidden from "../../styles/visuallyHidden.module.css";
+  composes: visuallyHidden from global;
 }
 
 .inlineForm {

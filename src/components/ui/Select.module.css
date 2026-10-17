@@ -1,5 +1,5 @@
 .trigger {
-  composes: focusRing disabledSurface from "./controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   width: 100%;
   min-width: 0;
   min-height: var(--control-height-compact);
@@ -52,7 +52,7 @@
 }
 
 .list {
-  composes: scrollSurface from "./scrollSurface.module.css";
+  composes: scrollSurface from global;
   /* Room for ten rows at the current target size, so short lists never scroll. */
   max-height: calc(var(--target-current) * 10 + var(--space-8));
   overflow-y: auto;

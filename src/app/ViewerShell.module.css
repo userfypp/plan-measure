@@ -89,7 +89,7 @@
 }
 
 .authoringNotice {
-  composes: overlaySurface from "../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
   position: absolute;
   z-index: var(--z-controls);
   right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));

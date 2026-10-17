@@ -1,9 +1,9 @@
 .checkControls {
-  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
 }
 
 .checkResult {
-  composes: overlaySurface from "../../components/ui/overlaySurface.module.css";
+  composes: overlaySurface from global;
 }
 
 .checkControls,
@@ -63,7 +63,7 @@
 }
 
 .checkResult {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   width: var(--geometry-viewer-popover-width);
   max-height: 100%;
   display: grid;

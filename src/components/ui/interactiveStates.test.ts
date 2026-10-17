@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const globalCss = readFileSync(new URL("../../styles/global.css", import.meta.url), "utf8");
 const tokensCss = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
-const scrollSurfaceCss = readFileSync(new URL("./scrollSurface.module.css", import.meta.url), "utf8");
+const scrollSurfaceCss = readFileSync(new URL("./scrollSurface.css", import.meta.url), "utf8");
 const selectCss = readFileSync(new URL("./Select.module.css", import.meta.url), "utf8");
 const popoverCss = readFileSync(new URL("./Popover.module.css", import.meta.url), "utf8");
 const buttonCss = readFileSync(new URL("./Button.module.css", import.meta.url), "utf8");
@@ -132,7 +132,7 @@ describe("shared interactive-state contract", () => {
 
   it("gives Textarea the same state contract as Input", () => {
     for (const css of [inputCss, textareaCss]) {
-      expect(css).toMatch(/\.control\s*\{[^}]*composes:[^;]*\bfocusRing\b[^;]*controlStates\.module\.css/s);
+      expect(css).toMatch(/\.control\s*\{[^}]*composes:[^;]*\bfocusRing\b[^;]*from global/s);
       expect(css).toContain(".control:hover:not(:disabled)");
       expect(css).toContain(".control:active:not(:disabled)");
       expect(css).toContain('.control[aria-invalid="true"]:not(:disabled)');
@@ -145,8 +145,8 @@ describe("shared interactive-state contract", () => {
     expect(scrollSurfaceCss).toMatch(/scrollbar-color:\s*var\(--color-scrollbar-thumb\)\s+transparent/);
     expect(scrollSurfaceCss).not.toContain("scrollbar-gutter");
     expect(tokensCss.match(/--color-scrollbar-thumb:/g)).toHaveLength(2);
-    expect(popoverCss).toContain("scrollSurface.module.css");
-    expect(selectCss).toContain("scrollSurface.module.css");
+    expect(popoverCss).toMatch(/composes:[^;]*\bscrollSurface\b[^;]*from global/);
+    expect(selectCss).toMatch(/composes:[^;]*\bscrollSurface\b[^;]*from global/);
   });
 
   it("keeps the Select trigger as the only hit target so the cursor is uniform", () => {

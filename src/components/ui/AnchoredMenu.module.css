@@ -12,7 +12,7 @@
 }
 
 .item {
-  composes: focusRing from "./controlStates.module.css";
+  composes: focusRing from global;
   width: 100%;
   min-height: var(--target-current);
   display: grid;

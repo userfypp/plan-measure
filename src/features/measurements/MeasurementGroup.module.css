@@ -31,7 +31,7 @@
 }
 
 .toggle {
-  composes: focusRing from "../../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   display: grid;
   place-items: center;
   flex: 0 0 auto;

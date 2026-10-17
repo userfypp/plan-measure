@@ -1,4 +1,5 @@
-/* Floating surface shared by Dialog, Popover and Tooltip. Use with `composes`. */
+/* Floating surface shared by Dialog, Popover and Tooltip.
+ * Global, loaded once by global.css: use `composes: … from global`. */
 
 .overlaySurface {
   border: var(--border-width) solid var(--color-divider);

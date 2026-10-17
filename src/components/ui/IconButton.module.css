@@ -1,5 +1,5 @@
 .button {
-  composes: focusRing disabledSurface from "./controlStates.module.css";
+  composes: focusRing disabledSurface from global;
   display: inline-grid;
   width: var(--control-height-compact);
   height: var(--control-height-compact);

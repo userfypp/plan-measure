@@ -68,7 +68,7 @@
 }
 
 .selection {
-  composes: focusRing from "../../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   position: relative;
   z-index: var(--z-raised);
   min-width: 0;

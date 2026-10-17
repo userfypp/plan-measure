@@ -127,7 +127,7 @@ describe("classification surfaces", () => {
     );
     expect(managerCss).not.toContain(".compactInput");
     expect(managerCss).toMatch(
-      /\.inlineLabel\s*\{[^}]*composes:\s*visuallyHidden from "..\/..\/styles\/visuallyHidden\.module\.css";/s,
+      /\.inlineLabel\s*\{[^}]*composes:\s*visuallyHidden from global;/s,
     );
     expect(managerCss).toMatch(
       /\.create\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,

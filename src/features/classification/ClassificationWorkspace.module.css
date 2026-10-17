@@ -44,7 +44,7 @@
 }
 
 .library {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   overflow-y: auto;
 }
 
@@ -69,7 +69,7 @@
 }
 
 .visuallyHidden {
-  composes: visuallyHidden from "../../styles/visuallyHidden.module.css";
+  composes: visuallyHidden from global;
 }
 
 .emptyState {

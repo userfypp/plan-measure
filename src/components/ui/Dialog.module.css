@@ -1,5 +1,5 @@
 .dialog {
-  composes: overlaySurface from "./overlaySurface.module.css";
+  composes: overlaySurface from global;
   width: min(var(--dialog-width-default), calc(100vw - var(--space-32)));
   max-height: calc(100dvh - var(--space-32));
   margin: auto;
@@ -79,7 +79,7 @@
 }
 
 .body {
-  composes: scrollSurface from "./scrollSurface.module.css";
+  composes: scrollSurface from global;
   max-height: calc(100dvh - var(--dialog-body-chrome));
   padding: var(--space-16);
   overflow-y: auto;

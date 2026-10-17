@@ -7,7 +7,7 @@
 }
 
 .swatch {
-  composes: focusRing from "../../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   width: var(--geometry-swatch-size);
   height: var(--geometry-swatch-size);
   padding: 0;

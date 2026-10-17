@@ -1,4 +1,4 @@
-/* Shared control states. Use with `composes` from component modules. */
+/* Shared control states. Global, loaded once by global.css: use `composes: … from global`. */
 
 .focusRing:focus-visible {
   outline: var(--focus-outline);

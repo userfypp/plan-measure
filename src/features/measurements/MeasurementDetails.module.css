@@ -8,7 +8,7 @@
 }
 
 .scrollArea {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -201,7 +201,7 @@
 }
 
 .itemsList {
-  composes: scrollSurface from "../../components/ui/scrollSurface.module.css";
+  composes: scrollSurface from global;
   max-height: min(var(--geometry-measurement-list-max-height), 50dvh);
   overflow: auto;
   margin: 0;
@@ -226,7 +226,7 @@
 }
 
 .itemMove {
-  composes: focusRing from "../../components/ui/controlStates.module.css";
+  composes: focusRing from global;
   min-height: var(--control-height-compact);
   padding: 0 var(--space-8);
   border: var(--border-width) solid transparent;

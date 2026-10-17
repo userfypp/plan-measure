@@ -1,4 +1,4 @@
-/* Text for assistive technology only. Use with `composes` from component modules. */
+/* Text for assistive technology only. Global, loaded once by global.css: use `composes: … from global`. */
 .visuallyHidden {
   position: absolute;
   width: 1px;
