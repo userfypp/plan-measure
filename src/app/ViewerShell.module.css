@@ -22,7 +22,9 @@
 
 .viewerInteractionShield {
   position: absolute;
-  z-index: var(--z-feedback);
+  /* Above viewer feedback (keyboard help, scale check), which sits later in the DOM at
+     --z-feedback, so a viewer dialog is never covered by it or clickable through it. */
+  z-index: var(--z-cursor);
   inset: 0;
   min-width: 0;
   min-height: 0;
