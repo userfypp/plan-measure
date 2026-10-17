@@ -88,8 +88,12 @@ describe("LiveLengthLabel", () => {
     expect(prop("Text").fill).toBe(roles.labelText);
     setAppPreference("labelBackground", "translucent");
     renderToStaticMarkup(<LiveLengthLabel {...base} />);
-    expect(prop("Tag").fill).toBe(roles.labelText);
+    expect(prop("Tag").fill).toBe(roles.labelBackground);
+    expect(prop("Text").fill).toBe(roles.labelText);
+    setAppPreference("labelBackground", "none");
+    renderToStaticMarkup(<LiveLengthLabel {...base} />);
     expect(prop("Text").fill).toBe(roles.labelBackground);
+    expect(prop("Text").stroke).toBe(roles.labelText);
     setAppPreference("labelTextColor", "red");
     setAppPreference("labelBackground", "solid");
     renderToStaticMarkup(<LiveLengthLabel {...base} />);

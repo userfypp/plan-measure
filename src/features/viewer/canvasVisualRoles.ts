@@ -194,10 +194,11 @@ export function contrastRatio(first: string, second: string): number {
 }
 
 /**
- * Colors of an on-screen label. "auto" stays readable without sampling the plan: an opaque
- * dark background keeps white text, and wherever the plan shows through (translucent or no
- * background) the text turns dark over a light veil or halo, legible on light and dark paper.
- * A chosen color gets the dark or light background that contrasts with it more.
+ * Colors of an on-screen label. "auto" stays readable without sampling the plan: a solid or
+ * translucent dark background keeps white text (the translucent one is dense enough to keep AA
+ * contrast over white paper), and without a background the text turns dark inside a light halo,
+ * legible on light and dark paper. A chosen color gets the dark or light background that
+ * contrasts with it more.
  */
 export function resolveLabelColors(
   roles: Pick<CanvasVisualRoles, "labelText" | "labelBackground">,
@@ -207,7 +208,7 @@ export function resolveLabelColors(
   const light = roles.labelText;
   const dark = roles.labelBackground;
   if (textColor === "auto") {
-    return backgroundOpacity >= 1
+    return backgroundOpacity > 0
       ? { text: light, background: dark }
       : { text: dark, background: light };
   }

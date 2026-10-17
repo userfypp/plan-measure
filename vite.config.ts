@@ -26,6 +26,20 @@ export default defineConfig(({ mode }) => ({
       },
     ],
   },
+  optimizeDeps: {
+    // Pre-bundling react-konva inlined its own copy of the aliased Konva runtime: that copy patched
+    // the shared prototypes a second time and kept running stale code after the runtime changed.
+    // react-konva is served as is so it imports the app's copy. Its Konva core imports are
+    // pre-bundled with the app's, so both share one Konva, and so are its CommonJS dependencies.
+    exclude: ["react-konva"],
+    include: [
+      "react-konva > konva/lib/Core.js",
+      "react-konva > konva/lib/Global.js",
+      "react-konva > react-reconciler",
+      "react-konva > react-reconciler/constants.js",
+      "react-konva > scheduler",
+    ],
+  },
   worker: {
     format: "es",
   },

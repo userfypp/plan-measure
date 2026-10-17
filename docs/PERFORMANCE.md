@@ -251,9 +251,10 @@ touches startup, the viewer, the canvas or the panels, check each point:
 5. **Konva stays minimal.** Import nodes from `konva/lib/...`; a new node type is
    registered in `konvaRuntime.ts` before use. Request draws with `batchDraw`;
    when a layer must be painted now (raster swaps), use `flushBatchDraw` so the
-   pending frame does not draw it again. The dev server pre-bundles react-konva
-   with stock Konva, so measure canvas changes on a build; check parity
-   screenshots after upgrading Konva.
+   pending frame does not draw it again. The dev server serves react-konva
+   unbundled (`optimizeDeps` in `vite.config.ts`) so it shares the app's Konva
+   and runtime patches, which apply once per Konva; still measure canvas changes
+   on a build, and check parity screenshots after upgrading Konva.
 6. **Lists stay virtual.** Panels mount at most the visible rows plus overscan,
    and cache formatted values by measurement and display settings.
 7. **Motion only hides waits, never adds them.** Animate opacity only (never

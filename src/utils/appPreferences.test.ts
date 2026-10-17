@@ -56,7 +56,7 @@ describe("appPreferences", () => {
     });
     expect(FILL_OPACITY_SCALE).toEqual({ light: 0.5, normal: 1, strong: 1.5 });
     expect(HANDLE_SIZE_SCALE).toEqual({ small: 0.75, normal: 1, large: 1.5 });
-    expect(LABEL_BACKGROUND_OPACITY).toEqual({ solid: 1, translucent: 0.6, none: 0 });
+    expect(LABEL_BACKGROUND_OPACITY).toEqual({ solid: 1, translucent: 0.75, none: 0 });
     expect(ZOOM_STEP_FACTOR).toEqual({ fine: 1.1, normal: 1.25, coarse: 1.5 });
     setAppPreference("fillOpacity", "strong");
     setAppPreference("handleSize", "huge" as never);

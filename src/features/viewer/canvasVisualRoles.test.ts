@@ -12,6 +12,19 @@ import {
   scaledAlpha,
   scaledHandleRadiusScreenPx,
 } from "./canvasVisualRoles";
+import { LABEL_BACKGROUND_OPACITY, type LabelTextColor } from "../../utils/appPreferences";
+
+/** The opaque color a translucent color shows over white paper. */
+function overWhite(color: string, alpha: number) {
+  const channels = [1, 3, 5].map((start) => Number.parseInt(color.slice(start, start + 2), 16));
+  return `#${channels
+    .map((channel) =>
+      Math.round(channel * alpha + 255 * (1 - alpha))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
 
 describe("V2 canvas visual roles", () => {
   it("maps every governed overlay role to the validated V2 palette", () => {
@@ -78,7 +91,7 @@ describe("canvas preference helpers", () => {
 
   it("keeps label text unchanged with a background and outlines it without one", () => {
     const colors = { text: "#ffffff", background: "#242a31" };
-    expect(labelTextPaint(colors, 0.6, 2)).toEqual({ fill: "#ffffff" });
+    expect(labelTextPaint(colors, 0.75, 2)).toEqual({ fill: "#ffffff" });
     expect(labelTextPaint(colors, 0, 2)).toEqual({
       fill: "#ffffff",
       stroke: "#242a31",
@@ -95,25 +108,37 @@ describe("canvas preference helpers", () => {
 
   it("keeps automatic label text readable over the plan for every background", () => {
     const roles = resolveCanvasVisualRoles("light");
-    // Solid: the original white text on the dark label.
-    expect(resolveLabelColors(roles, "auto", 1)).toEqual({
-      text: roles.labelText,
-      background: roles.labelBackground,
-    });
-    // Translucent and none: the plan shows through, so dark text over a light veil or halo.
-    for (const opacity of [0.6, 0]) {
+    // Solid and translucent: white text on the dark label.
+    for (const opacity of [LABEL_BACKGROUND_OPACITY.solid, LABEL_BACKGROUND_OPACITY.translucent]) {
       expect(resolveLabelColors(roles, "auto", opacity)).toEqual({
-        text: roles.labelBackground,
-        background: roles.labelText,
+        text: roles.labelText,
+        background: roles.labelBackground,
       });
     }
+    // None: the plan shows through, so dark text inside a light halo.
+    expect(resolveLabelColors(roles, "auto", LABEL_BACKGROUND_OPACITY.none)).toEqual({
+      text: roles.labelBackground,
+      background: roles.labelText,
+    });
     expect(resolveCanvasVisualRoles("dark").labelText).toBe(roles.labelText);
+  });
+
+  it("keeps AA contrast on a translucent label over white paper", () => {
+    const roles = resolveCanvasVisualRoles("light");
+    // An unselected label draws its background at 88 % of the preference opacity.
+    const opacity = 0.88 * LABEL_BACKGROUND_OPACITY.translucent;
+    const names = ["auto", ...Object.keys(LABEL_TEXT_COLORS)] as LabelTextColor[];
+    for (const name of names) {
+      const colors = resolveLabelColors(roles, name, opacity);
+      const background = overWhite(colors.background, opacity);
+      expect(contrastRatio(colors.text, background), name).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it("pairs every chosen label color with an AA background in every mode", () => {
     const roles = resolveCanvasVisualRoles("light");
     for (const [name, color] of Object.entries(LABEL_TEXT_COLORS)) {
-      for (const opacity of [1, 0.6, 0]) {
+      for (const opacity of Object.values(LABEL_BACKGROUND_OPACITY)) {
         const colors = resolveLabelColors(roles, name as keyof typeof LABEL_TEXT_COLORS, opacity);
         expect(colors.text, name).toBe(color);
         expect(contrastRatio(colors.text, colors.background), name).toBeGreaterThanOrEqual(4.5);

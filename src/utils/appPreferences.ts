@@ -191,7 +191,7 @@ export const HANDLE_SIZE_SCALE: Record<HandleSize, number> = { small: 0.75, norm
 /** Opacity of the measurement label background (normal "solid" keeps the original look). */
 export const LABEL_BACKGROUND_OPACITY: Record<LabelBackground, number> = {
   solid: 1,
-  translucent: 0.6,
+  translucent: 0.75,
   none: 0,
 };
 /** Zoom factor per +/- step (normal matches the previous fixed 1.25). */

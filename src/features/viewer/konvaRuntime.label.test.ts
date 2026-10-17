@@ -110,4 +110,19 @@ describe("label text batching", () => {
     expect(text.textArr).toHaveLength(3);
     expect(text.height()).toBe(60);
   });
+
+  // The dev server evaluates this module twice (react-konva's pre-bundle inlines a copy).
+  it("sizes the Tag when the runtime is evaluated again", async () => {
+    const sync = Konva.Label.prototype._sync;
+    const again = "./konvaRuntime.ts?again";
+    await import(/* @vite-ignore */ again);
+
+    const node = label();
+    node.getText().setAttrs(FINAL);
+    const text = node.getText();
+    expect(node.getTag().width()).toBeGreaterThan(0);
+    expect(node.getTag().width()).toBe(text.width());
+    expect(node.getTag().height()).toBe(text.height());
+    expect(Konva.Label.prototype._sync).toBe(sync);
+  });
 });
