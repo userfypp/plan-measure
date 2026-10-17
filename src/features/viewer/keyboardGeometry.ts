@@ -1,4 +1,4 @@
-import type { LogicalPageBounds, PageState, Point } from "../../types/domain";
+import type { LogicalPageBounds, MeasurementType, PageState, Point } from "../../types/domain";
 import { clampPointToPage } from "../../utils/coordinates";
 import {
   constrainOrthogonal,
@@ -6,7 +6,12 @@ import {
   isPointStrictlyInsidePolygon,
   measurementPathSpecs,
 } from "../../utils/geometry";
-import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
+import {
+  applyMeasurementVertexEdit,
+  BOX_SIDE_TARGET_OFFSET,
+  measurementEditTargetCount,
+  measurementEditTargetPoint,
+} from "../../utils/quickShapesCore";
 import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import { constrainMeasurementTranslation, translateMeasurementPoints } from "./measurementDrag";
 import {
@@ -17,6 +22,31 @@ import {
 } from "./snapping";
 
 export type KeyboardMeasurement = PageState["measurements"][number];
+
+/** Where the keyboard cursor sits for an edit target; the whole measurement (-1) uses vertex 1. */
+export function keyboardEditTargetPoint(measurement: KeyboardMeasurement, target: number): Point {
+  return (
+    measurementEditTargetPoint(measurement.type, measurement.points, target < 0 ? 0 : target) ??
+    measurement.points[0]!
+  );
+}
+
+/** Name of an edit target: "Vertex 2 of 3", and "Corner 1 of 4" or "Top side" for a box. */
+export function measurementEditTargetLabel(
+  type: MeasurementType,
+  points: readonly Point[],
+  target: number,
+): string {
+  const box = measurementEditTargetCount(type, points) > points.length;
+  if (!box) return `Vertex ${target + 1} of ${points.length}`;
+  if (target < BOX_SIDE_TARGET_OFFSET) return `Corner ${target + 1} of ${points.length}`;
+  const side = target - BOX_SIDE_TARGET_OFFSET;
+  const start = points[side]!;
+  const end = points[(side + 1) % 4]!;
+  const opposite = points[(side + 2) % 4]!;
+  if (start.y === end.y) return start.y <= opposite.y ? "Top side" : "Bottom side";
+  return start.x <= opposite.x ? "Left side" : "Right side";
+}
 
 export function moveKeyboardCursor(
   point: Point,

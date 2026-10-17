@@ -9,6 +9,7 @@ import {
 import { startsViewerPan } from "./navigation";
 import {
   beginMeasurementVertexDrag,
+  boxSideHandles,
   canStartMeasurementVertexDrag,
   cancelPreparedMeasurementVertexDrag,
   cancelMeasurementVertexDrag,
@@ -707,5 +708,80 @@ describe("measurement vertex drag lifecycle", () => {
       finishMeasurementVertexDrag(state, secondNode, 1, { x: 105, y: 115 }, effects).outcome,
     ).toBe("accepted");
     expect(commit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("box side drag", () => {
+  const box: Point[] = [
+    { x: 20, y: 30 },
+    { x: 120, y: 30 },
+    { x: 120, y: 70 },
+    { x: 20, y: 70 },
+  ];
+
+  function beginSideDrag(node: FakeDragNode, effects: MeasurementVertexDragEffects) {
+    const state = createMeasurementVertexDragState();
+    beginMeasurementVertexDrag(
+      state,
+      {
+        owner: {},
+        node,
+        vertexIndex: 6,
+        measurementType: "rectangle",
+        sourcePoints: box,
+        transform,
+        bounds,
+      },
+      { x: 70, y: 70 },
+      effects,
+    );
+    return state;
+  }
+
+  it("keeps the handle in the middle of the moved side and commits only that side", () => {
+    const node = new FakeDragNode();
+    const { commit, previews, effects } = dragEffects();
+    const state = beginSideDrag(node, effects);
+    expect(node.point).toEqual({ x: 70, y: 70 });
+
+    updateMeasurementVertexDrag(state, node, 6, { x: 10, y: 90 }, effects);
+    expect(node.point).toEqual({ x: 70, y: 90 });
+    expect(previews.at(-1)).toEqual([box[0], box[1], { x: 120, y: 90 }, { x: 20, y: 90 }]);
+
+    const result = finishMeasurementVertexDrag(state, node, 6, { x: 300, y: 100 }, effects);
+    expect(result).toEqual({
+      outcome: "accepted",
+      points: [box[0], box[1], { x: 120, y: 100 }, { x: 20, y: 100 }],
+    });
+    expect(commit).toHaveBeenCalledExactlyOnceWith(result.points);
+    expect(node.point).toEqual({ x: 70, y: 100 });
+  });
+
+  it("returns the handle to the middle of the original side when rejected or cancelled", () => {
+    const rejectedNode = new FakeDragNode();
+    const rejected = dragEffects(vi.fn<(points: Point[]) => boolean>(() => false));
+    const rejectedState = beginSideDrag(rejectedNode, rejected.effects);
+    finishMeasurementVertexDrag(rejectedState, rejectedNode, 6, { x: 70, y: 30 }, rejected.effects);
+    expect(rejectedNode.point).toEqual({ x: 70, y: 70 });
+
+    const cancelledNode = new FakeDragNode();
+    const cancelled = dragEffects();
+    const cancelledState = beginSideDrag(cancelledNode, cancelled.effects);
+    updateMeasurementVertexDrag(cancelledState, cancelledNode, 6, { x: 70, y: 200 }, cancelled.effects);
+    cancelMeasurementVertexDrag(cancelledState, cancelled.effects);
+    expect(cancelledNode.point).toEqual({ x: 70, y: 70 });
+    expect(cancelled.commit).not.toHaveBeenCalled();
+  });
+
+  it("shows a side handle only when the side is twice the interaction target on screen", () => {
+    // Lados de 100 y 40 unidades de página.
+    expect(boxSideHandles("rectangle", box, 1, 32)).toEqual([
+      { index: 4, point: { x: 70, y: 30 } },
+      { index: 6, point: { x: 70, y: 70 } },
+    ]);
+    expect(boxSideHandles("ellipse", box, 1.6, 32).map(({ index }) => index)).toEqual([4, 5, 6, 7]);
+    expect(boxSideHandles("rectangle", box, 1.6, 44).map(({ index }) => index)).toEqual([4, 6]);
+    expect(boxSideHandles("rectangle", box, 0.5, 32)).toEqual([]);
+    expect(boxSideHandles("polygon", box, 10, 32)).toEqual([]);
   });
 });

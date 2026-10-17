@@ -13,6 +13,7 @@ type Handler = (event: unknown) => void;
 const captured = vi.hoisted(() => ({
   isolatedPreview: false,
   previewPoints: [] as number[],
+  previewSideHandles: [] as { draggable: ReturnType<typeof vi.fn>; getAttr: (name: string) => unknown; position: ReturnType<typeof vi.fn> }[],
   lines: [] as Props[],
   circles: [] as Props[],
   texts: [] as Props[],
@@ -30,7 +31,7 @@ vi.mock("react-konva", () => ({
       getStage: () => ({ add: vi.fn() }),
       visible: vi.fn(),
       clone: () => ({
-        find: () => [],
+        find: (selector: string) => selector === ".measurement-preview-side-handle" ? captured.previewSideHandles : [],
         findOne: (selector: string) => selector === ".measurement-preview-line" ? {
           draggable: vi.fn(), fill: vi.fn(),
           points: (points: number[]) => { captured.previewPoints = points; },
@@ -119,6 +120,7 @@ describe("PdfAnnotationLayer behavior", () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     captured.isolatedPreview = false;
     captured.previewPoints = [];
+    captured.previewSideHandles = [];
     captured.lines.length = 0;
     captured.circles.length = 0;
     captured.texts.length = 0;
@@ -211,9 +213,12 @@ describe("PdfAnnotationLayer behavior", () => {
     cancelBubble: false,
   });
 
-  /** Arrastra el vértice `index` desde su posición hasta `to` (coordenadas de pantalla). */
-  function dragVertex(index: number, to: Point, { button = 0 } = {}) {
-    const handle = captured.circles[index]!;
+  /** Tiradores de vértice (las esquinas de un rectángulo), sin los de lado. */
+  const cornerHandles = () => captured.circles.filter((circle) => circle.name === "measurement-preview-handle");
+  const sideHandles = () => captured.circles.filter((circle) => circle.name === "measurement-preview-side-handle");
+
+  /** Arrastra el tirador `handle` desde su posición hasta `to` (coordenadas de pantalla). */
+  function dragHandle(handle: Props, to: Point, { button = 0 } = {}) {
     const { node, moveTo } = dragNode();
     const event = mouseEvent(node, button);
     moveTo(toScreen({ x: handle.x as number, y: handle.y as number }));
@@ -222,6 +227,10 @@ describe("PdfAnnotationLayer behavior", () => {
     moveTo(to);
     return { handle, node, event, end: () => fire(handle, "onDragEnd", event) };
   }
+
+  /** Arrastra el vértice `index` desde su posición hasta `to` (coordenadas de pantalla). */
+  const dragVertex = (index: number, to: Point, options?: { button?: number }) =>
+    dragHandle(cornerHandles()[index]!, to, options);
 
   describe("selection", () => {
     it("selects on click when the select tool is active and reports additive modifiers", () => {
@@ -336,6 +345,71 @@ describe("PdfAnnotationLayer behavior", () => {
           { x: 50, y: 150 },
         ],
       });
+    });
+
+    it.each(["rectangle", "ellipse"] as const)("offers a handle in the middle of each %s side, beneath the corners", (type) => {
+      renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
+      expect(sideHandles().map(({ editTarget, x, y }) => ({ editTarget, x, y }))).toEqual([
+        { editTarget: 4, x: 100, y: 50 },
+        { editTarget: 5, x: 150, y: 85 },
+        { editTarget: 6, x: 100, y: 120 },
+        { editTarget: 7, x: 50, y: 85 },
+      ]);
+      expect(captured.circles.slice(0, 4)).toEqual(sideHandles());
+      expect(cornerHandles().map(({ x, y }) => ({ x, y }))).toEqual(SQUARE);
+      expect(sideHandles().every((handle) => handle.radius === cornerHandles()[0]!.radius && handle.draggable === true)).toBe(true);
+    });
+
+    it("offers side handles only on boxes, while selected and editable", () => {
+      renderLayer({ page: pageWith("polygon", SQUARE), selected: ["m-1"] });
+      expect(sideHandles()).toHaveLength(0);
+      renderLayer({ page: pageWith("rectangle", SQUARE) });
+      expect(sideHandles()).toHaveLength(0);
+      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"], measurementEditingBlocked: true });
+      expect(sideHandles()).toHaveLength(0);
+    });
+
+    it("hides the handles of sides too short on screen to grab apart from the corners", () => {
+      // 100 × 70 de página; el mínimo es el doble del objetivo táctil (2 × 32 px).
+      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"], transform: { zoom: 0.8, panX: 0, panY: 0 } });
+      expect(sideHandles().map((handle) => handle.editTarget)).toEqual([4, 6]);
+      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"], transform: { zoom: 0.5, panX: 0, panY: 0 } });
+      expect(sideHandles()).toHaveLength(0);
+      expect(cornerHandles()).toHaveLength(4);
+    });
+
+    it("moves only the dragged rectangle side across its length", () => {
+      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"] });
+      const right = sideHandles().find((handle) => handle.editTarget === 5)!;
+      const drag = dragHandle(right, { x: 360, y: 300 });
+      drag.end();
+      expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
+        pageNumber: 1,
+        id: "m-1",
+        points: [SQUARE[0], { x: 180, y: 50 }, { x: 180, y: 120 }, SQUARE[3]],
+      });
+      expect(drag.node.position).toHaveBeenLastCalledWith({ x: 180, y: 85 });
+    });
+
+    it("moves only the dragged ellipse side and keeps the opposite one", () => {
+      renderLayer({ page: pageWith("ellipse", SQUARE), selected: ["m-1"] });
+      const bottom = sideHandles().find((handle) => handle.editTarget === 6)!;
+      dragHandle(bottom, { x: 120, y: 400 }).end();
+      expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
+        pageNumber: 1,
+        id: "m-1",
+        points: [SQUARE[0], SQUARE[1], { x: 150, y: 200 }, { x: 50, y: 200 }],
+      });
+    });
+
+    it("returns a rejected side drag to the middle of the original side", () => {
+      captured.updateMeasurement.mockReturnValueOnce(false);
+      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"] });
+      const top = sideHandles().find((handle) => handle.editTarget === 4)!;
+      const drag = dragHandle(top, toScreen({ x: 100, y: 120 }));
+      drag.end();
+      expect(captured.updateMeasurement).toHaveBeenCalledOnce();
+      expect(drag.node.position).toHaveBeenLastCalledWith({ x: 100, y: 50 });
     });
 
     it("hit-tests an ellipse on its contour and traces it with a true ellipse", () => {
@@ -459,7 +533,7 @@ describe("PdfAnnotationLayer behavior", () => {
       const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frame = callback; return 1; });
       try {
         renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
-        const handle = captured.circles[2]!;
+        const handle = cornerHandles()[2]!;
         const { node, moveTo } = dragNode();
         const event = mouseEvent(node);
         moveTo(toScreen(SQUARE[2]!));
@@ -475,6 +549,37 @@ describe("PdfAnnotationLayer behavior", () => {
         expect(captured.updateMeasurement).toHaveBeenCalledWith(expect.objectContaining({ points: [
           { x: 50, y: 50 }, { x: 200, y: 50 }, { x: 200, y: 160 }, { x: 50, y: 160 },
         ] }));
+      } finally { raf.mockRestore(); }
+    });
+
+    it("keeps the isolated rectangle preview aligned while a side is dragged", () => {
+      captured.isolatedPreview = true;
+      let frame: FrameRequestCallback | undefined;
+      const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frame = callback; return 1; });
+      try {
+        captured.previewSideHandles = [4, 5, 6, 7].map((target) => ({
+          draggable: vi.fn(),
+          getAttr: (name: string) => (name === "editTarget" ? target : undefined),
+          position: vi.fn(),
+        }));
+        renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"] });
+        const handle = sideHandles().find((side) => side.editTarget === 7)!;
+        const { node, moveTo } = dragNode();
+        const event = mouseEvent(node);
+        moveTo(toScreen({ x: 50, y: 85 }));
+        fire(handle, "onMouseDown", event);
+        moveTo({ x: 60, y: 999 });
+        fire(handle, "onDragStart", event);
+        expect(captured.previewPoints).toEqual([30, 50, 150, 50, 150, 120, 30, 120]);
+        moveTo({ x: 40, y: 0 });
+        fire(handle, "onDragMove", event);
+        act(() => frame!(0));
+        expect(captured.previewPoints).toEqual([20, 50, 150, 50, 150, 120, 20, 120]);
+        // Los tiradores de lado de la vista previa siguen a los lados.
+        expect(captured.previewSideHandles.map((side) => side.position.mock.lastCall?.[0])).toEqual([
+          { x: 85, y: 50 }, { x: 150, y: 85 }, { x: 85, y: 120 }, { x: 20, y: 85 },
+        ]);
+        expect(captured.previewSideHandles.every((side) => side.draggable.mock.calls[0]?.[0] === false)).toBe(true);
       } finally { raf.mockRestore(); }
     });
 

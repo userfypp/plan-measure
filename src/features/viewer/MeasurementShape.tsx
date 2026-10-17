@@ -31,7 +31,10 @@ import type {
   ViewTransform,
 } from "../../types/domain";
 import { measurementPathSpecs } from "../../utils/geometry";
-import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
+import {
+  applyMeasurementVertexEdit,
+  measurementEditTargetPoint,
+} from "../../utils/quickShapesCore";
 import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
 import {
@@ -56,6 +59,7 @@ import {
 } from "./measurementDrag";
 import {
   beginMeasurementVertexDrag,
+  boxSideHandles,
   cancelPreparedMeasurementVertexDrag,
   cancelMeasurementVertexDrag,
   clearReadyMeasurementVertexDrag,
@@ -233,6 +237,7 @@ export const MeasurementShape = memo(function MeasurementShape({
     text: KonvaTextNode | undefined;
     labelDimensions: LabelDimensions | null;
     handles: KonvaCircleNode[];
+    sideHandles: KonvaCircleNode[];
   } | null>(null);
   const pinnedDragNodeRef = useRef<{
     node: KonvaNode;
@@ -359,6 +364,29 @@ export const MeasurementShape = memo(function MeasurementShape({
     measurement.type === "count" &&
     (measurement.points.length === 1 || (groupMeasurements?.length ?? 0) > 1);
   const manipulating = dragPoints !== null || vertexDragOwned;
+  const vertexHandlesShown = shouldRenderMeasurementVertexHandles(
+    selected,
+    vertexDragOwned,
+    editable,
+  );
+  const sideHandles = useMemo(
+    () =>
+      vertexHandlesShown
+        ? boxSideHandles(
+            measurement.type,
+            visibleMeasurement.points,
+            zoom,
+            interactionTargetScreenPx,
+          )
+        : [],
+    [
+      interactionTargetScreenPx,
+      measurement.type,
+      vertexHandlesShown,
+      visibleMeasurement.points,
+      zoom,
+    ],
+  );
 
   function startDragPreview(node: KonvaNode, renderInitial: () => void): boolean {
     const source = measurementGroupRef.current;
@@ -388,8 +416,10 @@ export const MeasurementShape = memo(function MeasurementShape({
       }
       const label = clone.findOne<KonvaLabelNode>(".measurement-preview-label");
       const handles = clone.find<KonvaCircleNode>(".measurement-preview-handle");
+      const sideHandles = clone.find<KonvaCircleNode>(".measurement-preview-side-handle");
       line.draggable(false);
       handles.forEach((handle) => handle.draggable(false));
+      sideHandles.forEach((handle) => handle.draggable(false));
       if (measurementPathSpecs[measurement.type].closed && selected) {
         line.fill(
           cloudColor
@@ -406,6 +436,7 @@ export const MeasurementShape = memo(function MeasurementShape({
         text: label?.findOne<KonvaTextNode>("Text"),
         labelDimensions: null,
         handles,
+        sideHandles,
       };
       try {
         renderInitial();
@@ -445,6 +476,14 @@ export const MeasurementShape = memo(function MeasurementShape({
     }
     preview.line.points(pointsToFlat(points));
     points.forEach((point, index) => preview.handles[index]?.position(point));
+    preview.sideHandles.forEach((handle) => {
+      const point = measurementEditTargetPoint(
+        measurement.type,
+        points,
+        handle.getAttr("editTarget"),
+      );
+      if (point) handle.position(point);
+    });
     // The same text as the resting label, so the name and classification stay while dragging.
     const text =
       preview.label && preview.text
@@ -781,7 +820,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   }
 
   function resetStaleVertexTarget(index: number, event: KonvaEventObject<MouseEvent>) {
-    const persistedPoint = measurement.points[index];
+    const persistedPoint = measurementEditTargetPoint(measurement.type, measurement.points, index);
     if (persistedPoint) event.target.position(persistedPoint);
     if (event.target.isDragging()) event.target.stopDrag();
   }
@@ -1024,6 +1063,106 @@ export const MeasurementShape = memo(function MeasurementShape({
     [measurement.type],
   );
 
+  function handleVertexClick(event: KonvaEventObject<MouseEvent>) {
+    if (
+      measurement.type === "count" ||
+      event.evt.shiftKey ||
+      event.evt.ctrlKey ||
+      event.evt.metaKey
+    )
+      select(event);
+  }
+
+  function handleVertexMouseDown(event: KonvaEventObject<MouseEvent>, index: number) {
+    if (!editable || (measurement.type === "count" && !selected)) return;
+    if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) {
+      event.cancelBubble = true;
+      return;
+    }
+    if (prepareVertexGesture(event.target, index, event.evt.button)) {
+      event.cancelBubble = true;
+    }
+  }
+
+  function handleVertexTouchStart(event: KonvaEventObject<TouchEvent>, index: number) {
+    if (!editable || (measurement.type === "count" && !selected)) return;
+    // Touch has no mouse button, but Konva treats touchstart as a
+    // legitimate draggable start. Preserve the pre-#38 behavior by
+    // giving it the same owned preparation as a primary mouse drag.
+    if (prepareVertexGesture(event.target, index, 0)) {
+      event.cancelBubble = true;
+    }
+  }
+
+  function handleVertexDragStart(event: KonvaEventObject<MouseEvent>, index: number) {
+    event.cancelBubble = true;
+    const preparation = vertexDragPreparationRef.current;
+    vertexDragPreparationRef.current = null;
+    if (!matchesPreparedMeasurementVertexDrag(preparation, event.target, index)) {
+      event.target.stopDrag();
+      return;
+    }
+    cancelPendingPreview();
+    finalDragPointsRef.current = null;
+    dragPointsRef.current = null;
+    const startPoint = pointFromVertexDragEvent(event, preparation.transform, preparation.bounds);
+    const started = beginMeasurementVertexDrag(
+      vertexDragStateRef.current,
+      preparation,
+      startPoint,
+      vertexDragEffects(),
+    );
+    if (!started) {
+      onVertexDragCancellationChange(measurement.id, preparation.owner, null);
+      setVertexDragOwned(false);
+      resetStaleVertexTarget(index, event);
+      return;
+    }
+    startDragPreview(event.target, () => {
+      renderDragPreview(
+        applyMeasurementVertexEdit(measurement.type, preparation.sourcePoints, index, startPoint),
+      );
+    });
+  }
+
+  function handleVertexDragMove(event: KonvaEventObject<MouseEvent>, index: number) {
+    event.cancelBubble = true;
+    const drag = getActiveMeasurementVertexDrag(vertexDragStateRef.current, event.target, index);
+    if (!drag) {
+      resetStaleVertexTarget(index, event);
+      return;
+    }
+    const nextPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
+    queuePreview({
+      kind: "vertex",
+      owner: drag.owner,
+      node: event.target,
+      index,
+      point: nextPoint,
+    });
+  }
+
+  function handleVertexDragEnd(event: KonvaEventObject<MouseEvent>, index: number) {
+    event.cancelBubble = true;
+    const drag = getActiveMeasurementVertexDrag(vertexDragStateRef.current, event.target, index);
+    if (!drag) {
+      resetStaleVertexTarget(index, event);
+      return;
+    }
+    cancelPendingPreview();
+    const finalPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
+    const result = finishMeasurementVertexDrag(
+      vertexDragStateRef.current,
+      event.target,
+      index,
+      finalPoint,
+      vertexDragEffects(),
+    );
+    onVertexDragCancellationChange(measurement.id, drag.owner, null);
+    setVertexDragOwned(false);
+    finalDragPointsRef.current = result.outcome === "accepted" ? result.points : null;
+  }
+
   return (
     <Group ref={measurementGroupRef}>
       <Line
@@ -1110,8 +1249,29 @@ export const MeasurementShape = memo(function MeasurementShape({
           />
         </Label>
       )}
-      {(measurement.type === "count" ||
-        shouldRenderMeasurementVertexHandles(selected, vertexDragOwned, editable)) &&
+      {/* Side handles go first so the corners stay on top. */}
+      {sideHandles.map(({ index, point }) => (
+        <Circle
+          key={`side-${index}`}
+          name="measurement-preview-side-handle"
+          editTarget={index}
+          x={point.x}
+          y={point.y}
+          radius={handleRadiusScreenPx / zoom}
+          fill={visualRoles.handleFill}
+          stroke={visualRoles.handleStroke}
+          strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
+          hitStrokeWidth={circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom}
+          draggable={editable}
+          onClick={handleVertexClick}
+          onMouseDown={(event) => handleVertexMouseDown(event, index)}
+          onTouchStart={(event) => handleVertexTouchStart(event, index)}
+          onDragStart={(event) => handleVertexDragStart(event, index)}
+          onDragMove={(event) => handleVertexDragMove(event, index)}
+          onDragEnd={(event) => handleVertexDragEnd(event, index)}
+        />
+      ))}
+      {(measurement.type === "count" || vertexHandlesShown) &&
         visibleMeasurement.points.map((point, index) => (
           <Circle
             key={index}
@@ -1135,136 +1295,26 @@ export const MeasurementShape = memo(function MeasurementShape({
             dragDistance={
               countUsesWholeDrag ? MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX : undefined
             }
-            onClick={(event) => {
-              if (
-                measurement.type === "count" ||
-                event.evt.shiftKey ||
-                event.evt.ctrlKey ||
-                event.evt.metaKey
-              )
-                select(event);
-            }}
+            onClick={handleVertexClick}
             onMouseDown={(event) => {
-              if (countUsesWholeDrag) {
-                prepareWholeMouseDrag(event, index);
-                return;
-              }
-              if (!editable || (measurement.type === "count" && !selected)) return;
-              if (event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey) {
-                event.cancelBubble = true;
-                return;
-              }
-              if (prepareVertexGesture(event.target, index, event.evt.button)) {
-                event.cancelBubble = true;
-              }
+              if (countUsesWholeDrag) prepareWholeMouseDrag(event, index);
+              else handleVertexMouseDown(event, index);
             }}
             onTouchStart={(event) => {
-              if (countUsesWholeDrag) {
-                prepareWholeTouchDrag(event, index);
-                return;
-              }
-              if (!editable || (measurement.type === "count" && !selected)) return;
-              // Touch has no mouse button, but Konva treats touchstart as a
-              // legitimate draggable start. Preserve the pre-#38 behavior by
-              // giving it the same owned preparation as a primary mouse drag.
-              if (prepareVertexGesture(event.target, index, 0)) {
-                event.cancelBubble = true;
-              }
+              if (countUsesWholeDrag) prepareWholeTouchDrag(event, index);
+              else handleVertexTouchStart(event, index);
             }}
             onDragStart={(event) => {
-              if (countUsesWholeDrag) {
-                handleWholeDragStart(event);
-                return;
-              }
-              event.cancelBubble = true;
-              const preparation = vertexDragPreparationRef.current;
-              vertexDragPreparationRef.current = null;
-              if (!matchesPreparedMeasurementVertexDrag(preparation, event.target, index)) {
-                event.target.stopDrag();
-                return;
-              }
-              cancelPendingPreview();
-              finalDragPointsRef.current = null;
-              dragPointsRef.current = null;
-              const startPoint = pointFromVertexDragEvent(
-                event,
-                preparation.transform,
-                preparation.bounds,
-              );
-              const started = beginMeasurementVertexDrag(
-                vertexDragStateRef.current,
-                preparation,
-                startPoint,
-                vertexDragEffects(),
-              );
-              if (!started) {
-                onVertexDragCancellationChange(measurement.id, preparation.owner, null);
-                setVertexDragOwned(false);
-                resetStaleVertexTarget(index, event);
-                return;
-              }
-              startDragPreview(event.target, () => {
-                renderDragPreview(
-                  applyMeasurementVertexEdit(
-                    measurement.type,
-                    preparation.sourcePoints,
-                    index,
-                    startPoint,
-                  ),
-                );
-              });
+              if (countUsesWholeDrag) handleWholeDragStart(event);
+              else handleVertexDragStart(event, index);
             }}
             onDragMove={(event) => {
-              if (countUsesWholeDrag) {
-                handleWholeDragMove(event);
-                return;
-              }
-              event.cancelBubble = true;
-              const drag = getActiveMeasurementVertexDrag(
-                vertexDragStateRef.current,
-                event.target,
-                index,
-              );
-              if (!drag) {
-                resetStaleVertexTarget(index, event);
-                return;
-              }
-              const nextPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
-              queuePreview({
-                kind: "vertex",
-                owner: drag.owner,
-                node: event.target,
-                index,
-                point: nextPoint,
-              });
+              if (countUsesWholeDrag) handleWholeDragMove(event);
+              else handleVertexDragMove(event, index);
             }}
             onDragEnd={(event) => {
-              if (countUsesWholeDrag) {
-                handleWholeDragEnd(event);
-                return;
-              }
-              event.cancelBubble = true;
-              const drag = getActiveMeasurementVertexDrag(
-                vertexDragStateRef.current,
-                event.target,
-                index,
-              );
-              if (!drag) {
-                resetStaleVertexTarget(index, event);
-                return;
-              }
-              cancelPendingPreview();
-              const finalPoint = pointFromVertexDragEvent(event, drag.transform, drag.bounds);
-              const result = finishMeasurementVertexDrag(
-                vertexDragStateRef.current,
-                event.target,
-                index,
-                finalPoint,
-                vertexDragEffects(),
-              );
-              onVertexDragCancellationChange(measurement.id, drag.owner, null);
-              setVertexDragOwned(false);
-              finalDragPointsRef.current = result.outcome === "accepted" ? result.points : null;
+              if (countUsesWholeDrag) handleWholeDragEnd(event);
+              else handleVertexDragEnd(event, index);
             }}
           />
         ))}

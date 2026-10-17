@@ -132,3 +132,32 @@ it("provides explicit reference endpoints without offering whole-measurement mov
   chooseSelectOption(select, "End point");
   expect(onTargetChange).toHaveBeenCalledExactlyOnceWith(1);
 });
+
+it("offers each corner and each side of a rectangle", () => {
+  render(true, {
+    ...measurement,
+    id: "box",
+    name: "Rectangle 1",
+    type: "rectangle",
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 5 },
+      { x: 0, y: 5 },
+    ],
+  });
+  const select = container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+  expect(selectOptionLabels(select)).toEqual([
+    "Whole measurement",
+    "Corner 1 of 4",
+    "Corner 2 of 4",
+    "Corner 3 of 4",
+    "Corner 4 of 4",
+    "Top side",
+    "Right side",
+    "Bottom side",
+    "Left side",
+  ]);
+  chooseSelectOption(select, "Bottom side");
+  expect(onTargetChange).toHaveBeenCalledExactlyOnceWith(6);
+});

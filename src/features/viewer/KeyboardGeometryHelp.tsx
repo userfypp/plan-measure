@@ -1,6 +1,8 @@
 import { useId, useState, type Ref } from "react";
 import { Button, Select } from "../../components/ui";
 import type { Measurement } from "../../types/domain";
+import { measurementEditTargetCount } from "../../utils/quickShapesCore";
+import { measurementEditTargetLabel } from "./keyboardGeometry";
 import styles from "./PdfViewer.module.css";
 
 export function KeyboardGeometryHelp({
@@ -79,10 +81,22 @@ export function KeyboardGeometryHelp({
                         ]
                       : [
                           { value: "-1", label: "Whole measurement" },
-                          ...measurement!.points.map((_, index) => ({
-                            value: String(index),
-                            label: `Vertex ${index + 1} of ${measurement!.points.length}`,
-                          })),
+                          ...Array.from(
+                            {
+                              length: measurementEditTargetCount(
+                                measurement!.type,
+                                measurement!.points,
+                              ),
+                            },
+                            (_, index) => ({
+                              value: String(index),
+                              label: measurementEditTargetLabel(
+                                measurement!.type,
+                                measurement!.points,
+                                index,
+                              ),
+                            }),
+                          ),
                         ]
                   }
                   onChange={(value) => {
@@ -121,8 +135,8 @@ export function KeyboardGeometryHelp({
               </p>
             )}
             <p className={styles.keyboardHint}>
-              To edit: select a measurement, press <kbd>E</kbd>, then choose a vertex or the whole
-              measurement.
+              To edit: select a measurement, press <kbd>E</kbd>, then choose a vertex, a side of a
+              rectangle or ellipse, or the whole measurement.
             </p>
           </>
         )}

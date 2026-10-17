@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { PathMeasurement, LogicalPageBounds, Measurement, Point } from "../../types/domain";
 import {
   keyboardEditPreview,
+  keyboardEditTargetPoint,
   keyboardHitMeasurement,
+  measurementEditTargetLabel,
   moveKeyboardCursor,
 } from "./keyboardGeometry";
 import type { SnapTarget } from "./snapping";
@@ -272,5 +274,62 @@ describe("keyboard edit preview", () => {
         targets: [target("other", { x: 40, y: 10 })],
       })[0]?.points[1],
     ).toEqual({ x: 40, y: 10 });
+  });
+});
+
+describe("keyboard box side editing", () => {
+  const box = [
+    { x: 10, y: 20 },
+    { x: 50, y: 20 },
+    { x: 50, y: 60 },
+    { x: 10, y: 60 },
+  ];
+
+  it("names corners and sides of a box and vertices of other shapes", () => {
+    expect(
+      Array.from({ length: 8 }, (_, index) => measurementEditTargetLabel("rectangle", box, index)),
+    ).toEqual([
+      "Corner 1 of 4",
+      "Corner 2 of 4",
+      "Corner 3 of 4",
+      "Corner 4 of 4",
+      "Top side",
+      "Right side",
+      "Bottom side",
+      "Left side",
+    ]);
+    expect(measurementEditTargetLabel("polygon", box, 1)).toBe("Vertex 2 of 4");
+    expect(measurementEditTargetLabel("line", box.slice(0, 2), 0)).toBe("Vertex 1 of 2");
+  });
+
+  it("names sides by where they are after a box was drawn or dragged inside out", () => {
+    // Dibujado desde la esquina inferior derecha: el lado 0 es el de abajo.
+    const flipped = [box[2]!, box[3]!, box[0]!, box[1]!];
+    expect(
+      [4, 5, 6, 7].map((index) => measurementEditTargetLabel("ellipse", flipped, index)),
+    ).toEqual(["Bottom side", "Left side", "Top side", "Right side"]);
+  });
+
+  it("puts the cursor in the middle of a side and on vertex 1 for the whole measurement", () => {
+    const rectangle = measurement("r", box, "rectangle");
+    expect(keyboardEditTargetPoint(rectangle, 5)).toEqual({ x: 50, y: 40 });
+    expect(keyboardEditTargetPoint(rectangle, 2)).toEqual({ x: 50, y: 60 });
+    expect(keyboardEditTargetPoint(rectangle, -1)).toEqual({ x: 10, y: 20 });
+  });
+
+  it("moves only the chosen side and clamps it to the page", () => {
+    const rectangle = measurement("r", box, "rectangle");
+    expect(
+      preview([rectangle], { vertex: 7, origin: { x: 10, y: 40 }, rawPoint: { x: -15, y: 3 } })[0]
+        ?.points,
+    ).toEqual([{ x: 0, y: 20 }, box[1], box[2], { x: 0, y: 60 }]);
+    expect(
+      preview([rectangle], {
+        vertex: 6,
+        origin: { x: 30, y: 60 },
+        rawPoint: { x: 31, y: 75 },
+        orthogonal: true,
+      })[0]?.points,
+    ).toEqual([box[0], box[1], { x: 50, y: 75 }, { x: 10, y: 75 }]);
   });
 });

@@ -79,13 +79,65 @@ export function moveBoxVertex(points: readonly Point[], index: number, target: P
   return next;
 }
 
+/**
+ * Box shapes (rectangle, ellipse) expose their sides as edit targets after their four corners:
+ * target `BOX_SIDE_TARGET_OFFSET + side` is the side from corner `side` to corner `side + 1`.
+ */
+export const BOX_SIDE_TARGET_OFFSET = 4;
+
+function isBoxType(type: MeasurementType): boolean {
+  return type === "rectangle" || type === "ellipse";
+}
+
+/** Moves one side of a box ring across its length; the opposite side stays where it is. */
+export function moveBoxSide(points: readonly Point[], side: number, target: Point): Point[] {
+  const next = points.map((point) => ({ ...point }));
+  if (points.length !== 4 || side < 0 || side > 3) return next;
+  const start = points[side]!;
+  const end = points[(side + 1) % 4]!;
+  const horizontal = start.y === end.y;
+  for (const index of [side, (side + 1) % 4]) {
+    if (horizontal) next[index]!.y = target.y;
+    else next[index]!.x = target.x;
+  }
+  return next;
+}
+
+/** Number of edit targets (vertices, plus the four sides of a box) a measurement offers. */
+export function measurementEditTargetCount(
+  type: MeasurementType,
+  points: readonly Point[],
+): number {
+  return isBoxType(type) && points.length === 4 ? 8 : points.length;
+}
+
+/** Where the handle of an edit target sits: its vertex, or the middle of a box side. */
+export function measurementEditTargetPoint(
+  type: MeasurementType,
+  points: readonly Point[],
+  index: number,
+): Point | undefined {
+  if (index < BOX_SIDE_TARGET_OFFSET || !isBoxType(type) || points.length !== 4) {
+    return points[index];
+  }
+  const side = index - BOX_SIDE_TARGET_OFFSET;
+  if (side > 3) return undefined;
+  const start = points[side]!;
+  const end = points[(side + 1) % 4]!;
+  return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+}
+
 export function applyMeasurementVertexEdit(
   type: MeasurementType,
   points: readonly Point[],
   index: number,
   point: Point,
 ): Point[] {
-  if (type === "rectangle" || type === "ellipse") return moveBoxVertex(points, index, point);
+  if (isBoxType(type)) {
+    return index >= BOX_SIDE_TARGET_OFFSET
+      ? moveBoxSide(points, index - BOX_SIDE_TARGET_OFFSET, point)
+      : moveBoxVertex(points, index, point);
+  }
   return points.map((existing, existingIndex) =>
     existingIndex === index ? { ...point } : existing,
   );

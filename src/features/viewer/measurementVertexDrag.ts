@@ -1,5 +1,10 @@
 import type { LogicalPageBounds, MeasurementType, Point, ViewTransform } from "../../types/domain";
-import { applyMeasurementVertexEdit } from "../../utils/quickShapesCore";
+import {
+  applyMeasurementVertexEdit,
+  BOX_SIDE_TARGET_OFFSET,
+  measurementEditTargetCount,
+  measurementEditTargetPoint,
+} from "../../utils/quickShapesCore";
 import { viewTransformChanged } from "./measurementDrag";
 
 export interface MeasurementVertexDragNode {
@@ -16,7 +21,10 @@ export interface MeasurementVertexDragSnapshot {
   sourcePoints: Point[];
   transform: ViewTransform;
   bounds: LogicalPageBounds;
-  /** Box shapes (rectangle, ellipse) move the adjacent corners with the dragged one. */
+  /**
+   * Box shapes (rectangle, ellipse) move the adjacent corners with the dragged one; their side
+   * handles follow the corners (see `BOX_SIDE_TARGET_OFFSET`).
+   */
   measurementType?: MeasurementType;
 }
 
@@ -128,6 +136,16 @@ function pointsWithVertex(
   );
 }
 
+/** Where the dragged handle sits on `points`: its vertex, or the middle of a box side. */
+function handlePoint(
+  drag: MeasurementVertexDragSnapshot,
+  points: readonly Point[],
+): Point | undefined {
+  return drag.measurementType
+    ? measurementEditTargetPoint(drag.measurementType, points, drag.vertexIndex)
+    : points[drag.vertexIndex];
+}
+
 export function beginMeasurementVertexDrag(
   state: MeasurementVertexDragState,
   snapshot: MeasurementVertexDragSnapshot,
@@ -141,9 +159,15 @@ export function beginMeasurementVertexDrag(
     transform: { ...snapshot.transform },
     bounds: { ...snapshot.bounds },
   };
-  snapshot.node.position(startPoint);
+  const points = pointsWithVertex(
+    state.active.sourcePoints,
+    snapshot.vertexIndex,
+    startPoint,
+    snapshot.measurementType,
+  );
+  snapshot.node.position(handlePoint(state.active, points) ?? startPoint);
   effects.setEditing(true);
-  effects.preview(pointsWithVertex(state.active.sourcePoints, snapshot.vertexIndex, startPoint, snapshot.measurementType));
+  effects.preview(points);
   return true;
 }
 
@@ -165,8 +189,9 @@ export function updateMeasurementVertexDrag(
 ): boolean {
   const drag = getActiveMeasurementVertexDrag(state, node, vertexIndex);
   if (!drag) return false;
-  node.position(point);
-  effects.preview(pointsWithVertex(drag.sourcePoints, vertexIndex, point, drag.measurementType));
+  const points = pointsWithVertex(drag.sourcePoints, vertexIndex, point, drag.measurementType);
+  node.position(handlePoint(drag, points) ?? point);
+  effects.preview(points);
   return true;
 }
 
@@ -179,7 +204,7 @@ export function cancelMeasurementVertexDrag(
 
   // Invalidate ownership before stopDrag() so any synchronous Konva dragend is stale.
   state.active = null;
-  const sourcePoint = drag.sourcePoints[drag.vertexIndex];
+  const sourcePoint = handlePoint(drag, drag.sourcePoints);
   if (sourcePoint) drag.node.position(sourcePoint);
   if (drag.node.isDragging()) drag.node.stopDrag();
   effects.preview(null);
@@ -200,11 +225,11 @@ export function finishMeasurementVertexDrag(
   // Consume ownership before commit so a duplicate/stale dragend cannot commit twice.
   state.active = null;
   const points = pointsWithVertex(drag.sourcePoints, vertexIndex, finalPoint, drag.measurementType);
-  node.position(finalPoint);
+  node.position(handlePoint(drag, points) ?? finalPoint);
   effects.preview(points);
   const accepted = effects.commit(points);
   if (!accepted) {
-    const sourcePoint = drag.sourcePoints[vertexIndex];
+    const sourcePoint = handlePoint(drag, drag.sourcePoints);
     if (sourcePoint) node.position(sourcePoint);
     effects.preview(null);
   }
@@ -237,4 +262,35 @@ export function cancelMeasurementVertexDragIfUnsafe(
   const drag = state.active;
   if (!drag || !shouldCancelMeasurementVertexDrag(drag, selected, transform, bounds)) return false;
   return cancelMeasurementVertexDrag(state, effects);
+}
+
+export interface BoxSideHandle {
+  /** Edit target of the side (see `BOX_SIDE_TARGET_OFFSET`). */
+  index: number;
+  point: Point;
+}
+
+/**
+ * Side handles of a box shape: one in the middle of each side that is long enough on screen for
+ * its hit area to clear the corners' hit areas. Other shapes have none.
+ */
+export function boxSideHandles(
+  type: MeasurementType,
+  points: readonly Point[],
+  zoom: number,
+  interactionTargetScreenPx: number,
+): BoxSideHandle[] {
+  const handles: BoxSideHandle[] = [];
+  const count = measurementEditTargetCount(type, points);
+  for (let index = BOX_SIDE_TARGET_OFFSET; index < count; index += 1) {
+    const side = index - BOX_SIDE_TARGET_OFFSET;
+    const start = points[side]!;
+    const end = points[(side + 1) % points.length]!;
+    if (Math.hypot(end.x - start.x, end.y - start.y) * zoom < interactionTargetScreenPx * 2) {
+      continue;
+    }
+    const point = measurementEditTargetPoint(type, points, index);
+    if (point) handles.push({ index, point });
+  }
+  return handles;
 }
