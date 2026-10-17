@@ -4,6 +4,54 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.11.0](https://github.com/userfypp/plan-measure/compare/v2.10.0...v2.11.0) (2026-10-17)
+
+
+### Added
+
+* close the current project from the app bar to return to the start screen; a project that could not be saved asks before it is discarded ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* collapse a measurement group by clicking anywhere on its header ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* delete scales from the Scales panel ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* draw revision clouds without a scale and measure them only on request ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* edit one side of a rectangle or ellipse at a time ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* fade plans, menus, popovers, tooltips and the Pages panel in instead of flashing placeholders ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* filter measurements by this page, page, type, the active scale of the page on screen, classification (including unclassified), visibility and selection, with a count for each value ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* pick the color of measurement labels, which now stay readable over the plan ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* redesign the start screen ([#314](https://github.com/userfypp/plan-measure/issues/314)) ([a65f8c6](https://github.com/userfypp/plan-measure/commit/a65f8c6ce00e65879398bab0e29dc7a4b92185fb))
+* replace the sample project with the Orchard House drawing set ([#312](https://github.com/userfypp/plan-measure/issues/312)) ([35def3e](https://github.com/userfypp/plan-measure/commit/35def3ee46cf2c7d41f1230544ce17e8adbe3321))
+
+
+### Fixed
+
+* ask for both X and Y distances before naming a new scale ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* calibrate the sample project's scales to their exact ratios ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* confirm before opening a saved project over a memory-only one ([#308](https://github.com/userfypp/plan-measure/issues/308)) ([0a78a81](https://github.com/userfypp/plan-measure/commit/0a78a816dcf33090f2710433ac9214d83828c473)), closes [#260](https://github.com/userfypp/plan-measure/issues/260)
+* freeze the clock in the scale check export boundary test ([#313](https://github.com/userfypp/plan-measure/issues/313)) ([ea87c4e](https://github.com/userfypp/plan-measure/commit/ea87c4ec1a9cf72ee5c98f7c28d18f223fe41619))
+* keep measurement drags from being cancelled before they end ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* keep neighbouring labels in place when a measurement is selected or confirmed ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* keep the keyboard cursor across tool changes and focus the plan after creating a scale ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* keep viewer dialogs above the keyboard help card and portrait page previews whole in the Pages panel ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* lock rectangle, ellipse and cloud in the tool rail until the page has a scale ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* open a PDF in memory after continuing without recovery ([#309](https://github.com/userfypp/plan-measure/issues/309)) ([46cfa73](https://github.com/userfypp/plan-measure/commit/46cfa73058977faed8bb154bf5259f27029c0ec6)), closes [#261](https://github.com/userfypp/plan-measure/issues/261)
+* preview measurement labels with every number setting ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* select a measurement when clicking the empty space beside its eye ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* stack the start screen panels and tighten the Scales panel and measurement list alignment ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+
+
+### Improved
+
+* download less on startup by replacing SheetJS with a built-in XLSX writer and bundling only the canvas code the viewer uses ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* draw, select, drag and pan faster with large measurement sets by skipping unchanged measurements, labels and layer redraws ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* open plans without a loading state by preloading the viewer and PDF.js from the start screen ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* open the project library, settings, the Pages panel and other panels without placeholders ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+
+
+### Documentation
+
+* add a logo header to the README ([#311](https://github.com/userfypp/plan-measure/issues/311)) ([0ae0f7c](https://github.com/userfypp/plan-measure/commit/0ae0f7c6fdad55bf368d3d4c3dc856beefab8df3))
+* document the canvas and panel performance rules and a checklist for new features ([8a7163f](https://github.com/userfypp/plan-measure/commit/8a7163f18cf67edf3fa949d5f46d97f9dbb9c5e0))
+* refresh the README screenshot and remove unused screenshots ([#290](https://github.com/userfypp/plan-measure/issues/290)) ([194f2f5](https://github.com/userfypp/plan-measure/commit/194f2f51a6c0f862128703bb7a4b979e4d506395))
+
 ## [2.10.0](https://github.com/userfypp/plan-measure/compare/v2.9.1...v2.10.0) (2026-10-12)
 
 
