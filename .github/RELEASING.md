@@ -27,7 +27,7 @@ node .github/scripts/preview-release-notes.mjs --with-pull-requests
 
 CI gates publication on validation and Pages deployment. The publisher checks version files and the matching merged release PR, creates a tag at the validated SHA, verifies a draft release, publishes it, and reconciles `autorelease` labels. Retries also handle already-published releases.
 
-Main pipelines queue without canceling pending releases. The Pages guard prevents older runs from replacing a newer deployment. Release Please and publication share a serialization group. To refresh the next draft release PR manually, run **Actions → Release Please** on `main`.
+Main pipelines queue without canceling pending releases. The Pages guard prevents older runs from replacing a newer deployment. Release Please and publication share a serialization group. To refresh the next draft release PR manually, run **Actions → Release Please** on `main`. Its **version** input resolves the next version from the `main` manifest: a chosen bump runs the Release Please CLI (`release-please@17.6.0`, the version the action bundles) with `--release-as`, because the action ignores `release-as` in manifest mode. The choice is stored as a `release: patch|minor|major` label on the open release PR, and CI runs reuse it. If no release PR exists yet (no releasable commits), nothing is saved and the run warns. Conflicting labels stop the run.
 
 ## Recovery
 

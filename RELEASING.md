@@ -19,6 +19,8 @@ Ordinary changes to `main` also deploy to Pages. Pushing a tag does not deploy t
 | Compatible features (`feat:`)                       | Minor   |
 | Breaking changes (`!`)                              | Major   |
 
+To choose the bump yourself, open **Actions → Release Please → Run workflow** on `main` and pick **patch**, **minor**, or **major**. The draft release PR is rebuilt with that version, and its `release: <bump>` label keeps the choice on later updates until the release ships. Pick **auto** to return to the table above; the default, **keep**, leaves the current choice.
+
 Use Conventional Commit PR titles and the first **Summary** bullet for release notes; see [Contributing](CONTRIBUTING.md). Maintenance types are hidden from notes; `ci:` alone does not create a release.
 
 ## Failed releases

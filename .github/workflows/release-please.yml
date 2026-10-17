@@ -6,6 +6,14 @@ on:
       RELEASE_PLEASE_TOKEN:
         required: true
   workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          Next release version. keep reuses the choice saved on the open release PR, auto follows
+          Conventional Commits, and patch, minor or major force that bump until the release ships.
+        type: choice
+        default: keep
+        options: [keep, auto, patch, minor, major]
 
 permissions:
   contents: read
@@ -31,7 +39,27 @@ jobs:
             exit 1
           fi
 
+      - name: Check out release scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+
+      # CI runs pass no input, which keeps the version saved on the release PR.
+      - name: Resolve the next version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          RELEASE_BUMP: ${{ inputs.version }}
+        run: node .github/scripts/release-bump.mjs resolve
+
       - name: Create or update draft Release PR
+        if: ${{ steps.version.outputs.release_as == '' }}
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -39,3 +67,24 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-github-release: true
+
+      # The action ignores release-as in manifest mode, so a chosen version uses the CLI it bundles.
+      - name: Create or update draft Release PR with the chosen version
+        if: ${{ steps.version.outputs.release_as != '' }}
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          RELEASE_AS: ${{ steps.version.outputs.release_as }}
+        run: >-
+          npx --yes release-please@17.6.0 release-pr
+          --token "$RELEASE_TOKEN"
+          --repo-url "$GITHUB_REPOSITORY"
+          --target-branch main
+          --config-file release-please-config.json
+          --manifest-file .release-please-manifest.json
+          --release-as "$RELEASE_AS"
+
+      - name: Save the version choice on the Release PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          RELEASE_BUMP: ${{ inputs.version }}
+        run: node .github/scripts/release-bump.mjs save
