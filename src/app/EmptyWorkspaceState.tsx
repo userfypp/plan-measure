@@ -22,27 +22,25 @@ export function EmptyWorkspaceState({
   onShowAllProjects,
 }: EmptyWorkspaceStateProps) {
   const { dateFormat } = useAppPreferences();
-  const hasProjects = projects.length > 0;
   return (
-    <section
-      className={`${styles.start} ${hasProjects ? styles.withProjects : ""}`}
-      aria-labelledby="start-title"
-    >
+    <section className={styles.start} aria-labelledby="start-title">
       <div className={styles.open}>
-        <h1 id="start-title" className={styles.title}>
-          Open a plan to start measuring
-        </h1>
+        <div className={styles.openText}>
+          <h1 id="start-title" className={styles.title}>
+            Open a plan to start measuring
+          </h1>
+          <p className={styles.note}>Drop a PDF anywhere. Files stay in this browser.</p>
+        </div>
         <div className={styles.actions}>
-          <Button onClick={onOpenPdf} disabled={disabled}>
+          <Button size="compact" onClick={onOpenPdf} disabled={disabled}>
             Open PDF
           </Button>
-          <Button variant="ghost" onClick={onOpenSample} disabled={disabled}>
+          <Button variant="ghost" size="compact" onClick={onOpenSample} disabled={disabled}>
             Try a sample
           </Button>
         </div>
-        <p className={styles.note}>Drop a PDF anywhere. Files stay in this browser.</p>
       </div>
-      {hasProjects && (
+      {projects.length > 0 && (
         <section className={styles.projects} aria-labelledby="start-projects-title">
           <header className={styles.projectsHeader}>
             <h2 id="start-projects-title" className={styles.projectsTitle}>

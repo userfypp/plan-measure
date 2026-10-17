@@ -1,43 +1,40 @@
+/* One column of cards that share the app's panel geometry: 16px padding, heading-size titles. */
 .start {
-  width: min(400px, 100%);
+  width: min(440px, 100%);
   margin: auto;
   display: grid;
-}
-
-.start.withProjects {
-  width: auto;
-  grid-template-columns: repeat(2, minmax(0, 400px));
-  column-gap: var(--space-24);
-  align-items: center;
+  gap: var(--space-16);
 }
 
 .open {
   composes: overlaySurface from global;
   min-width: 0;
   display: grid;
-  justify-items: start;
-  padding: var(--space-24);
-  text-align: start;
+  gap: var(--space-16);
+  padding: var(--space-16);
+}
+
+.openText {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .title {
   margin: 0;
   color: var(--color-text-primary);
-  font-size: var(--font-size-title);
+  font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-result);
-  text-wrap: balance;
+  line-height: var(--line-height-base);
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-8);
-  margin-top: var(--space-16);
 }
 
 .note {
-  margin: var(--space-16) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
@@ -54,7 +51,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding: var(--space-16) var(--space-16) var(--space-8) var(--space-24);
+  padding: var(--space-12) var(--space-16);
 }
 
 .projectsTitle {
@@ -67,7 +64,7 @@
 
 .list {
   display: grid;
-  gap: 2px;
+  gap: var(--space-8);
   margin: 0;
   padding: 0 var(--space-16) var(--space-16);
   list-style: none;
@@ -81,11 +78,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-12);
-  padding: var(--space-8);
-  border: 0;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-12);
+  border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  background: transparent;
+  background: var(--color-surface-panel);
   color: inherit;
   font: inherit;
   text-align: start;
@@ -129,7 +126,6 @@
 .chevron {
   width: 7px;
   height: 7px;
-  margin-right: var(--space-4);
   border: solid var(--color-text-secondary);
   border-width: 1.5px 1.5px 0 0;
   transform: rotate(45deg);
@@ -153,13 +149,5 @@
 @media (prefers-reduced-motion: reduce) {
   .projects {
     animation: none;
-  }
-}
-
-@media (max-width: 880px) {
-  .start.withProjects {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: var(--space-24);
-    width: min(400px, 100%);
   }
 }
