@@ -384,6 +384,7 @@ export function sessionReducer(
             : "The selected scale is no longer available.",
         };
       }
+      if (calibration.name === name) return { ...state, error: null };
       return {
         ...state,
         session: updatePageState(state.session, action.pageNumber, (currentPage) => ({
@@ -972,6 +973,7 @@ export function sessionReducer(
       ) {
         return { ...state, error: "Classification dimension names must be unique and non-empty." };
       }
+      if (dimension.name === name) return { ...state, error: null };
       return {
         ...state,
         session: {
@@ -1050,6 +1052,7 @@ export function sessionReducer(
       ) {
         return { ...state, error: "Classification value names must be unique and non-empty." };
       }
+      if (value.name === name) return { ...state, error: null };
       return {
         ...state,
         session: {
