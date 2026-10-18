@@ -26,6 +26,17 @@ export interface BoxGuideDimensions {
   height: string;
 }
 
+/** A scaled side that overflows cannot be shown, like a measurement that cannot be calculated. */
+function scaledDimensionText(
+  millimetres: number,
+  displayUnit: MeasurementDisplayUnit,
+  decimalPlaces: MeasurementDecimalPlaces,
+): string {
+  return Number.isFinite(millimetres)
+    ? formatLinearValue(millimetres, displayUnit, decimalPlaces)
+    : "Repair required";
+}
+
 /** Live width/height texts: calibrated units when a scale exists, otherwise page pixels. */
 export function boxGuideDimensionTexts(
   width: number,
@@ -36,8 +47,8 @@ export function boxGuideDimensionTexts(
 ): BoxGuideDimensions {
   if (calibration) {
     return {
-      width: formatLinearValue(width * calibrationScaleX(calibration), displayUnit, decimalPlaces),
-      height: formatLinearValue(height * calibrationScaleY(calibration), displayUnit, decimalPlaces),
+      width: scaledDimensionText(width * calibrationScaleX(calibration), displayUnit, decimalPlaces),
+      height: scaledDimensionText(height * calibrationScaleY(calibration), displayUnit, decimalPlaces),
     };
   }
   return { width: `${Math.round(width)} px`, height: `${Math.round(height)} px` };
