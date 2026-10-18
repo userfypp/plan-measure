@@ -87,6 +87,11 @@ function gridCellRange(
   const columns = maxX - minX + 1;
   const rows = maxY - minY + 1;
   if (
+    // Beyond the safe integers `cell += 1` no longer advances, so the loops would never end.
+    !Number.isSafeInteger(minX) ||
+    !Number.isSafeInteger(maxX) ||
+    !Number.isSafeInteger(minY) ||
+    !Number.isSafeInteger(maxY) ||
     !Number.isFinite(columns) ||
     !Number.isFinite(rows) ||
     columns <= 0 ||

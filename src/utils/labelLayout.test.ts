@@ -319,6 +319,16 @@ describe("label collision avoidance", () => {
     ).toContain(huge);
   });
 
+  it("falls back safely when grid cells exceed the safe integers", () => {
+    const index = createLabelCollisionIndex();
+    const far = { x: 5e19, y: 5e19, width: 20, height: 10 };
+    index.insert(far);
+
+    expect(potentialCollisions(index, { x: far.x, y: far.y, width: 20, height: 10 }, 4)).toContain(
+      far,
+    );
+  });
+
   it("keeps degenerate early entries queryable before a usable grid size exists", () => {
     const index = createLabelCollisionIndex();
     const flat = { x: 10, y: 10, width: 20, height: 0 };
