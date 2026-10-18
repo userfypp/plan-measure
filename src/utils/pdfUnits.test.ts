@@ -32,6 +32,15 @@ describe("PDF scale units", () => {
     expect(cleanScaleRatioDenominator(Number("283.46456692913387"))).toBeNull();
   });
 
+  it("keeps the significant digits of very small ratios", () => {
+    expect(cleanScaleRatioDenominator(1.23456e-15)).toBe(1.23456e-15);
+    expect(practicalScaleRatioDenominator(1.23456e-15)).toBe(1.23456e-15);
+    const roundTrip = scaleRatioDenominatorFromMillimetresPerPageUnit(
+      millimetresPerPageUnitForScaleRatio(1.23456e-15),
+    );
+    expect(practicalScaleRatioDenominator(roundTrip)).toBe(1.23456e-15);
+  });
+
   it("limits arbitrary ratio prefills to practical numeric precision without two-decimal rounding", () => {
     expect(practicalScaleRatioDenominator(Number("65.34499999999999"))).toBe(65.345);
     expect(practicalScaleRatioDenominator(Number("283.46456692913387"))).toBe(

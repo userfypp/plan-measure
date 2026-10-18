@@ -21,8 +21,7 @@ export function scaleRatioDenominatorFromMillimetresPerPageUnit(
 
 export function cleanScaleRatioDenominator(value: number): number | null {
   if (!Number.isFinite(value)) return null;
-  const tolerance =
-    Number.EPSILON * Math.max(1, Math.abs(value)) * RATIO_ROUNDING_TOLERANCE_ULPS;
+  const tolerance = Number.EPSILON * Math.abs(value) * RATIO_ROUNDING_TOLERANCE_ULPS;
   for (
     let significantDigits = 1;
     significantDigits <= MAX_RATIO_SIGNIFICANT_DIGITS;
