@@ -227,7 +227,7 @@ function exactDyadicToNumber(value: ExactDyadic): number {
   return negative ? -magnitude : magnitude;
 }
 
-function exactPolygonDoubledArea(points: Point[]): number {
+function exactPolygonArea(points: Point[]): number {
   const origin = points[0]!;
   let exactDoubledArea: ExactDyadic = { coefficient: 0n, exponent: 0 };
   for (let index = 1; index < points.length - 1; index += 1) {
@@ -236,7 +236,11 @@ function exactPolygonDoubledArea(points: Point[]): number {
       exactOrientationDeterminant(origin, points[index]!, points[index + 1]!),
     );
   }
-  return exactDyadicToNumber(exactDoubledArea);
+  // Halving the exact value avoids overflowing on a doubled area whose half is representable.
+  return exactDyadicToNumber({
+    coefficient: exactDoubledArea.coefficient,
+    exponent: exactDoubledArea.exponent - 1,
+  });
 }
 
 function isPointOnSegment(point: Point, start: Point, end: Point): boolean {
@@ -767,7 +771,7 @@ export function polygonAreaPageUnitsSquared(points: Point[]): number {
     const next = points[index + 1]!;
     const determinant = robustOrientationDeterminant(origin, point, next);
     if (typeof determinant !== "number") {
-      return Math.abs(exactPolygonDoubledArea(points)) / 2;
+      return Math.abs(exactPolygonArea(points));
     }
     doubledArea += determinant;
     absoluteDeterminantSum += Math.abs(determinant);
@@ -782,8 +786,11 @@ export function polygonAreaPageUnitsSquared(points: Point[]): number {
     accumulatedRoundoff < 1
       ? (accumulatedRoundoff / (1 - accumulatedRoundoff)) * absoluteDeterminantSum
       : Number.POSITIVE_INFINITY;
-  if (Math.abs(doubledArea) <= determinantErrorBoundSum + accumulationErrorBound) {
-    return Math.abs(exactPolygonDoubledArea(points)) / 2;
+  if (
+    !Number.isFinite(doubledArea) ||
+    Math.abs(doubledArea) <= determinantErrorBoundSum + accumulationErrorBound
+  ) {
+    return Math.abs(exactPolygonArea(points));
   }
   return Math.abs(doubledArea) / 2;
 }

@@ -488,6 +488,23 @@ describe("geometry", () => {
     expect(polygonAreaPageUnitsSquared(nearOrigin)).toBe(0.5);
   });
 
+  it("keeps a finite area whose doubled value overflows", () => {
+    const rectangle = [
+      { x: 0, y: 0 },
+      { x: 1e154, y: 0 },
+      { x: 1e154, y: 1e154 },
+      { x: 0, y: 1e154 },
+    ];
+    const triangle = [
+      { x: 0, y: 0 },
+      { x: 1e154 * 1.5, y: 0 },
+      { x: 0, y: 1e154 * 1.5 },
+    ];
+
+    expect(polygonAreaPageUnitsSquared(rectangle)).toBe(1e154 * 1e154);
+    expect(polygonAreaPageUnitsSquared(triangle) / 1.125e308).toBeCloseTo(1, 12);
+  });
+
   it("keeps a 0.5 square area stable at large page coordinates through measurement results", () => {
     const nearOrigin = [
       { x: 0, y: 0 },
