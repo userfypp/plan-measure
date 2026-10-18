@@ -556,10 +556,7 @@ export function calibrationPointTolerance(a: Point, b: Point): number {
 }
 
 export function areEffectivelyIdentical(a: Point, b: Point): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const tolerance = calibrationPointTolerance(a, b);
-  return dx * dx + dy * dy <= tolerance * tolerance;
+  return areCalibrationPointsEffectivelyIdentical(a, b);
 }
 
 function areCalibrationPointsEffectivelyIdentical(a: Point, b: Point): boolean {

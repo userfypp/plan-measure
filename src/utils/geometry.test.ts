@@ -928,6 +928,15 @@ describe("geometry", () => {
     expect(polygonResultsMm({ points }, calibration).areaMm2).toBe(units * Number.MIN_VALUE);
   });
 
+  it("does not treat distant points as identical when their squared distance overflows", () => {
+    const far = [
+      { x: 0, y: 0 },
+      { x: 1e200, y: 1e200 },
+    ];
+    expect(areEffectivelyIdentical(far[0]!, far[1]!)).toBe(false);
+    expect(hasValidMeasurementPoints("line", far)).toBe(true);
+  });
+
   it("keeps a subnormal polygon area when opposing X/Y scales cancel", () => {
     const calibration: PageCalibration = {
       ...xy,

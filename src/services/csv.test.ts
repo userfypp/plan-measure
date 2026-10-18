@@ -368,6 +368,16 @@ describe("CSV export", () => {
     );
   });
 
+  it("does not export a Line whose endpoints coincide", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[0]!.points = [
+      { x: 3, y: 3 },
+      { x: 3, y: 3 },
+    ];
+
+    expect(() => buildCsv(session)).toThrow("Repair invalid Line measurements");
+  });
+
   it("does not export a self-intersecting Polygon area", () => {
     const session = measuredSession();
     session.pages[1]!.measurements[1]!.points = [

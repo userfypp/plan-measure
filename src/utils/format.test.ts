@@ -120,6 +120,22 @@ describe("measurement formatting", () => {
     ).toBe("Repair required");
   });
 
+  it("shows repair required for a Line whose endpoints coincide", () => {
+    expect(
+      formatMeasurement(
+        {
+          type: "line",
+          points: [
+            { x: 3, y: 3 },
+            { x: 3, y: 3 },
+          ],
+        },
+        calibration,
+        "m",
+      ),
+    ).toBe("Repair required");
+  });
+
   it("shows repair required instead of an infinite measurement result", () => {
     expect(
       formatMeasurement(
