@@ -174,21 +174,39 @@ export function pdfRasterLayout(
   const cssWidth = page.width * transform.zoom;
   const cssHeight = page.height * transform.zoom;
   const desiredScale = transform.zoom * Math.max(1, devicePixelRatio);
-  const areaScaleLimit = Math.sqrt(maxPixels / Math.max(1, page.width * page.height));
+  const area = page.width * page.height;
+  // The product overflows for extreme pages, so take the square roots separately.
+  const areaScaleLimit = Number.isFinite(area)
+    ? Math.sqrt(maxPixels / Math.max(1, area))
+    : Math.sqrt(maxPixels / page.width) / Math.sqrt(page.height);
   const dimensionScaleLimit = Math.min(
     maxDimension / Math.max(1, page.width),
     maxDimension / Math.max(1, page.height),
   );
-  const rasterScale = Math.max(
-    Number.EPSILON,
-    Math.min(desiredScale, areaScaleLimit, dimensionScaleLimit),
+  let rasterScale = Math.min(
+    Math.max(Number.EPSILON, desiredScale),
+    areaScaleLimit,
+    dimensionScaleLimit,
   );
+  let backingWidth = Math.max(1, Math.ceil(page.width * rasterScale));
+  let backingHeight = Math.max(1, Math.ceil(page.height * rasterScale));
+  if (backingWidth * backingHeight > maxPixels) {
+    // Rounding both sides up can overshoot the budget. Shrink the scale so that
+    // (width + 1) × (height + 1), which bounds the rounded size, fits.
+    const width = page.width * rasterScale;
+    const height = page.height * rasterScale;
+    const sum = width + height;
+    const spare = maxPixels - 1;
+    rasterScale *= (2 * spare) / (sum + Math.sqrt(sum * sum + 4 * width * height * spare));
+    backingWidth = Math.max(1, Math.ceil(page.width * rasterScale));
+    backingHeight = Math.max(1, Math.ceil(page.height * rasterScale));
+  }
 
   return {
     cssWidth,
     cssHeight,
-    backingWidth: Math.max(1, Math.ceil(page.width * rasterScale)),
-    backingHeight: Math.max(1, Math.ceil(page.height * rasterScale)),
+    backingWidth,
+    backingHeight,
     left: transform.panX,
     top: transform.panY,
     rasterScale,

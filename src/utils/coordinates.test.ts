@@ -166,6 +166,50 @@ describe("page and screen coordinates", () => {
     expect(layout.backingWidth).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
     expect(layout.backingHeight).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
   });
+
+  it("keeps a 48 × 36 inch page at actual size within the pixel budget once rounded up", () => {
+    const layout = pdfRasterLayout({ width: 3456, height: 2592 }, { zoom: 1, panX: 0, panY: 0 }, 2);
+    expect(layout.backingWidth * layout.backingHeight).toBeLessThanOrEqual(MAX_PDF_RASTER_PIXELS);
+    expect(layout.backingWidth * layout.backingHeight).toBeGreaterThan(
+      MAX_PDF_RASTER_PIXELS * 0.999,
+    );
+  });
+
+  it.each(Object.keys(PDF_RASTER_QUALITY_LIMITS) as (keyof typeof PDF_RASTER_QUALITY_LIMITS)[])(
+    "never rounds a %s raster past its pixel budget",
+    (quality) => {
+      const { maxPixels, maxDimension, maxDpr } = PDF_RASTER_QUALITY_LIMITS[quality];
+      for (const width of [595.276, 1234.567, 3456, 7919.3]) {
+        for (const height of [841.89, 2592, 4001.7]) {
+          for (const zoom of [1, 2.5, 8]) {
+            for (const dpr of [1, 1.5, 2, 3]) {
+              const layout = pdfRasterLayout(
+                { width, height },
+                { zoom, panX: 0, panY: 0 },
+                Math.min(dpr, maxDpr),
+                maxPixels,
+                maxDimension,
+              );
+              expect(layout.backingWidth * layout.backingHeight).toBeLessThanOrEqual(maxPixels);
+            }
+          }
+        }
+      }
+    },
+  );
+
+  it.each([
+    { width: 1e20, height: 1e20 },
+    { width: 1e20, height: 1e5 },
+    { width: 1e200, height: 1e200 },
+    { width: 1e308, height: 1e308 },
+  ])("keeps the raster cap for an extreme $width × $height page", (page) => {
+    const layout = pdfRasterLayout(page, { zoom: 1, panX: 0, panY: 0 }, 2);
+    expect(layout.rasterScale).toBeGreaterThan(0);
+    expect(layout.backingWidth * layout.backingHeight).toBeLessThanOrEqual(MAX_PDF_RASTER_PIXELS);
+    expect(layout.backingWidth).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
+    expect(layout.backingHeight).toBeLessThanOrEqual(MAX_PDF_RASTER_DIMENSION);
+  });
 });
 
 describe("render quality limits", () => {
