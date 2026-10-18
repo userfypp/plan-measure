@@ -6,10 +6,10 @@ Direction, not a promise: no dates, and priorities may change. The source of tru
 
 Open findings from the code audits, grouped by area. Most are open to contributors.
 
-- **History:** [#262](https://github.com/userfypp/plan-measure/issues/262) unchanged names clear Redo, [#263](https://github.com/userfypp/plan-measure/issues/263) multi-page visibility requires several Undo steps.
-- **Interaction:** [#264](https://github.com/userfypp/plan-measure/issues/264) Cloud snapping, [#265](https://github.com/userfypp/plan-measure/issues/265) premature IME submission, [#272](https://github.com/userfypp/plan-measure/issues/272) right-click selection.
-- **Numerical edge cases:** [#266](https://github.com/userfypp/plan-measure/issues/266) ratio changes, [#267](https://github.com/userfypp/plan-measure/issues/267) ellipse underflow, [#268](https://github.com/userfypp/plan-measure/issues/268) polygon overflow, [#269](https://github.com/userfypp/plan-measure/issues/269) unit conversion to zero, [#273](https://github.com/userfypp/plan-measure/issues/273) scale copying, [#274](https://github.com/userfypp/plan-measure/issues/274) reversed Cloud scallops.
-- **Resources and loading:** [#270](https://github.com/userfypp/plan-measure/issues/270) raster limits, [#271](https://github.com/userfypp/plan-measure/issues/271) annotated export stalls, [#250](https://github.com/userfypp/plan-measure/issues/250) cached module failures, [#251](https://github.com/userfypp/plan-measure/issues/251) Pages pause and memory budgets.
+- **Interaction:** [#264](https://github.com/userfypp/plan-measure/issues/264) Cloud snapping, [#272](https://github.com/userfypp/plan-measure/issues/272) right-click selection, [#294](https://github.com/userfypp/plan-measure/issues/294) Finish on double-click, [#297](https://github.com/userfypp/plan-measure/issues/297) handle size and hit area, [#305](https://github.com/userfypp/plan-measure/issues/305) selection cleared when a pan leaves the viewer.
+- **View:** [#295](https://github.com/userfypp/plan-measure/issues/295) drag previews without label prefixes, [#296](https://github.com/userfypp/plan-measure/issues/296) page grid while panning, [#300](https://github.com/userfypp/plan-measure/issues/300) maximum zoom changes.
+- **Data and settings:** [#299](https://github.com/userfypp/plan-measure/issues/299) Undo history depth, [#302](https://github.com/userfypp/plan-measure/issues/302) imported group collapse, [#303](https://github.com/userfypp/plan-measure/issues/303) recovered invalid Lines exported as zero.
+- **Resources and loading:** [#250](https://github.com/userfypp/plan-measure/issues/250) cached module failures, [#251](https://github.com/userfypp/plan-measure/issues/251) Pages pause and memory budgets.
 
 ## Contributor work
 
@@ -20,6 +20,7 @@ Open findings from the code audits, grouped by area. Most are open to contributo
 ## Next (P2)
 
 - [#235](https://github.com/userfypp/plan-measure/issues/235) Text, callout and arrow markups, then [#236](https://github.com/userfypp/plan-measure/issues/236) highlights and stamps (builds on #235; needs a schema migration)
+- Takeoff: [#320](https://github.com/userfypp/plan-measure/issues/320) derived quantities per classification, then [#321](https://github.com/userfypp/plan-measure/issues/321) unit prices and costs (both need a schema migration), and [#322](https://github.com/userfypp/plan-measure/issues/322) counting symbols in one pass
 - [#229](https://github.com/userfypp/plan-measure/issues/229) Persistent undo history
 - [#230](https://github.com/userfypp/plan-measure/issues/230) Customizable keyboard shortcuts
 - [#234](https://github.com/userfypp/plan-measure/issues/234) Small-screen and touch layout (layout only; full touch drawing comes later)
@@ -27,6 +28,8 @@ Open findings from the code audits, grouped by area. Most are open to contributo
 ## Later (P3)
 
 - [#231](https://github.com/userfypp/plan-measure/issues/231) UI translations, Spanish first
+- [#289](https://github.com/userfypp/plan-measure/issues/289) Movable measurement labels
+- [#323](https://github.com/userfypp/plan-measure/issues/323) Compare two versions of a plan
 - [#216](https://github.com/userfypp/plan-measure/issues/216) Visual walkthrough page
 - [#257](https://github.com/userfypp/plan-measure/issues/257) Installable PWA, tested on Windows in CI
 
