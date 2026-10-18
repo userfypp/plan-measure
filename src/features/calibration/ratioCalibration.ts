@@ -16,6 +16,13 @@ import {
 } from "../../utils/pdfUnits";
 import { toMillimetres } from "../../utils/units";
 
+/** Halves a reference span until its distance at this scale is finite, so the scale is kept exactly. */
+function finiteReferenceSpan(scaleMmPerPageUnit: number, span: number): number {
+  let fitted = span;
+  while (scaleMmPerPageUnit * fitted > Number.MAX_VALUE) fitted /= 2;
+  return fitted;
+}
+
 export type RatioCalibrationInput =
   | Omit<UniformPageCalibration, "id" | "name">
   | Omit<XyPageCalibration, "id" | "name">;
@@ -48,8 +55,8 @@ export function fitCalibrationReferencesToPage(
 
   const insetX = bounds.width * 0.1;
   const insetY = bounds.height * 0.1;
-  const width = Math.min(CANONICAL_REFERENCE_PAGE_UNITS, bounds.width * 0.8);
-  const height = Math.min(CANONICAL_REFERENCE_PAGE_UNITS, bounds.height * 0.8);
+  const maxWidth = Math.min(CANONICAL_REFERENCE_PAGE_UNITS, bounds.width * 0.8);
+  const maxHeight = Math.min(CANONICAL_REFERENCE_PAGE_UNITS, bounds.height * 0.8);
   if (calibration.mode === "uniform") {
     const millimetresPerPageUnit =
       calibration.referenceDistanceMm /
@@ -57,6 +64,7 @@ export function fitCalibrationReferencesToPage(
         calibration.end.x - calibration.start.x,
         calibration.end.y - calibration.start.y,
       );
+    const width = finiteReferenceSpan(millimetresPerPageUnit, maxWidth);
     return {
       ...calibration,
       start: { x: insetX, y: insetY },
@@ -65,29 +73,31 @@ export function fitCalibrationReferencesToPage(
     };
   }
 
+  const xMillimetresPerPageUnit =
+    calibration.xReference.referenceDistanceMm /
+    Math.hypot(
+      calibration.xReference.end.x - calibration.xReference.start.x,
+      calibration.xReference.end.y - calibration.xReference.start.y,
+    );
+  const yMillimetresPerPageUnit =
+    calibration.yReference.referenceDistanceMm /
+    Math.hypot(
+      calibration.yReference.end.x - calibration.yReference.start.x,
+      calibration.yReference.end.y - calibration.yReference.start.y,
+    );
+  const width = finiteReferenceSpan(xMillimetresPerPageUnit, maxWidth);
+  const height = finiteReferenceSpan(yMillimetresPerPageUnit, maxHeight);
   return {
     ...calibration,
     xReference: {
       start: { x: insetX, y: insetY },
       end: { x: insetX + width, y: insetY },
-      referenceDistanceMm:
-        (calibration.xReference.referenceDistanceMm /
-          Math.hypot(
-            calibration.xReference.end.x - calibration.xReference.start.x,
-            calibration.xReference.end.y - calibration.xReference.start.y,
-          )) *
-        width,
+      referenceDistanceMm: xMillimetresPerPageUnit * width,
     },
     yReference: {
       start: { x: insetX, y: insetY },
       end: { x: insetX, y: insetY + height },
-      referenceDistanceMm:
-        (calibration.yReference.referenceDistanceMm /
-          Math.hypot(
-            calibration.yReference.end.x - calibration.yReference.start.x,
-            calibration.yReference.end.y - calibration.yReference.start.y,
-          )) *
-        height,
+      referenceDistanceMm: yMillimetresPerPageUnit * height,
     },
   };
 }
@@ -205,26 +215,31 @@ export function copyCalibrationToPage(
 export function copyCalibrationToPage(calibration: PageCalibration): RatioCalibrationInput;
 export function copyCalibrationToPage(calibration: PageCalibration): RatioCalibrationInput {
   if (calibration.mode === "uniform") {
+    const scale = millimetresPerPageUnit(calibration);
+    const span = finiteReferenceSpan(scale, CANONICAL_REFERENCE_PAGE_UNITS);
     return {
       mode: "uniform",
       start: { x: 0, y: 0 },
-      end: { x: CANONICAL_REFERENCE_PAGE_UNITS, y: 0 },
-      referenceDistanceMm:
-        millimetresPerPageUnit(calibration) * CANONICAL_REFERENCE_PAGE_UNITS,
+      end: { x: span, y: 0 },
+      referenceDistanceMm: scale * span,
     };
   }
 
+  const scaleX = calibrationScaleX(calibration);
+  const scaleY = calibrationScaleY(calibration);
+  const spanX = finiteReferenceSpan(scaleX, CANONICAL_REFERENCE_PAGE_UNITS);
+  const spanY = finiteReferenceSpan(scaleY, CANONICAL_REFERENCE_PAGE_UNITS);
   return {
     mode: "xy",
     xReference: {
       start: { x: 0, y: 0 },
-      end: { x: CANONICAL_REFERENCE_PAGE_UNITS, y: 0 },
-      referenceDistanceMm: calibrationScaleX(calibration) * CANONICAL_REFERENCE_PAGE_UNITS,
+      end: { x: spanX, y: 0 },
+      referenceDistanceMm: scaleX * spanX,
     },
     yReference: {
       start: { x: 0, y: 0 },
-      end: { x: 0, y: CANONICAL_REFERENCE_PAGE_UNITS },
-      referenceDistanceMm: calibrationScaleY(calibration) * CANONICAL_REFERENCE_PAGE_UNITS,
+      end: { x: 0, y: spanY },
+      referenceDistanceMm: scaleY * spanY,
     },
   };
 }

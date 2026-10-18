@@ -73,6 +73,42 @@ describe("ratio calibration", () => {
     expect(calibrationScaleY(copiedPageCalibration)).toBe(calibrationScaleY(calibration));
   });
 
+  it.each([
+    [
+      "Uniform",
+      {
+        id: "uniform-extreme",
+        name: "Extreme",
+        mode: "uniform" as const,
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1e308,
+      },
+    ],
+    [
+      "XY",
+      {
+        id: "xy-extreme",
+        name: "Extreme XY",
+        mode: "xy" as const,
+        xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: 1e308 },
+        yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: 1e308 },
+      },
+    ],
+  ])("copies an extreme %s scale factor to a page without overflowing", (_mode, calibration) => {
+    const copied = { ...copyCalibrationToPage(calibration), id: "copy", name: "Copy" };
+    const fitted = {
+      ...fitCalibrationReferencesToPage(copied, { width: 595, height: 842 }),
+      id: "fitted",
+      name: "Fitted",
+    };
+
+    for (const result of [copied, fitted]) {
+      expect(calibrationScaleX(result) / 1e308).toBeCloseTo(1, 12);
+      expect(calibrationScaleY(result) / 1e308).toBeCloseTo(1, 12);
+    }
+  });
+
   it.each([1, 20, 50, 60, 62.5, 62.5125, 100, 100.125])(
     "creates canonical Uniform calibration for 1:%s",
     (denominator) => {
