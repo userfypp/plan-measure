@@ -4,6 +4,37 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.11.1](https://github.com/userfypp/plan-measure/compare/v2.11.0...v2.11.1) (2026-10-18)
+
+
+### Fixed
+
+* accept a polygon area whose doubled value overflows ([#328](https://github.com/userfypp/plan-measure/issues/328)) ([4215e04](https://github.com/userfypp/plan-measure/commit/4215e04fd0b1377f23744ae9db3b5208a840e4ae)), closes [#268](https://github.com/userfypp/plan-measure/issues/268)
+* avoid a label layout stall at extreme coordinates ([#340](https://github.com/userfypp/plan-measure/issues/340)) ([3cedb0d](https://github.com/userfypp/plan-measure/commit/3cedb0d31459081f721deb47a8f66c2a0bab5614)), closes [#271](https://github.com/userfypp/plan-measure/issues/271)
+* cap the width of long scale names in menus and on the plan ([#319](https://github.com/userfypp/plan-measure/issues/319)) ([8a22341](https://github.com/userfypp/plan-measure/commit/8a22341e5c9ceafd63ab26342a014b6bc917fb54))
+* copy a scale with an extreme factor to another page ([#330](https://github.com/userfypp/plan-measure/issues/330)) ([97b80de](https://github.com/userfypp/plan-measure/commit/97b80de6fa445ebaeee4a42b48d4e63821b22449)), closes [#273](https://github.com/userfypp/plan-measure/issues/273)
+* flag a measurement that converts to zero in the display or export unit ([#329](https://github.com/userfypp/plan-measure/issues/329)) ([ca335d1](https://github.com/userfypp/plan-measure/commit/ca335d1c40b3c0cc8caf243995f05de78f5bb99d)), closes [#269](https://github.com/userfypp/plan-measure/issues/269)
+* include appearance, keyboard authoring and confirmations in the settings file ([#342](https://github.com/userfypp/plan-measure/issues/342)) ([65ec680](https://github.com/userfypp/plan-measure/commit/65ec680ffc97660a8e73f9536026af04fc82f259)), closes [#301](https://github.com/userfypp/plan-measure/issues/301)
+* keep a polygon area that opposing X/Y scales would underflow ([#331](https://github.com/userfypp/plan-measure/issues/331)) ([decc806](https://github.com/userfypp/plan-measure/commit/decc806efdd5cac32b5b2529d298cd71af861a9c)), closes [#307](https://github.com/userfypp/plan-measure/issues/307)
+* keep Cloud scallops outward at large coordinates ([#334](https://github.com/userfypp/plan-measure/issues/334)) ([e599538](https://github.com/userfypp/plan-measure/commit/e599538a7736e640f6e45f78b37b62a0ac52e324)), closes [#274](https://github.com/userfypp/plan-measure/issues/274)
+* keep device preferences when a settings file has an invalid preferences list ([#337](https://github.com/userfypp/plan-measure/issues/337)) ([6a56c38](https://github.com/userfypp/plan-measure/commit/6a56c382958aa5a174d88716ed1c23c8683c306e)), closes [#298](https://github.com/userfypp/plan-measure/issues/298)
+* keep PDF rasters within the pixel budget ([#336](https://github.com/userfypp/plan-measure/issues/336)) ([db959b5](https://github.com/userfypp/plan-measure/commit/db959b5f7a01357e5551896d29b9e0d26ec9c85e)), closes [#306](https://github.com/userfypp/plan-measure/issues/306) [#270](https://github.com/userfypp/plan-measure/issues/270)
+* keep Redo when a scale, dimension or value is saved with its same name ([#325](https://github.com/userfypp/plan-measure/issues/325)) ([c318123](https://github.com/userfypp/plan-measure/commit/c318123ced468451ae3f9f1babd52af67a6e4fa3)), closes [#262](https://github.com/userfypp/plan-measure/issues/262)
+* keep text editors open while Enter confirms an IME composition ([#339](https://github.com/userfypp/plan-measure/issues/339)) ([8a6abac](https://github.com/userfypp/plan-measure/commit/8a6abac5a857a90052078158bf1bdacc1bcad268)), closes [#265](https://github.com/userfypp/plan-measure/issues/265)
+* keep the area of an ellipse when its radius times a scale underflows ([#327](https://github.com/userfypp/plan-measure/issues/327)) ([e850b7f](https://github.com/userfypp/plan-measure/commit/e850b7fb9a51e7145a6c82e8f011ead9b3e2f515)), closes [#267](https://github.com/userfypp/plan-measure/issues/267)
+* keep the digits of very small scale ratios when saving a scale unchanged ([#326](https://github.com/userfypp/plan-measure/issues/326)) ([f62b483](https://github.com/userfypp/plan-measure/commit/f62b48368e4fbf3d0a6936d7c4d8f7a37b620712)), closes [#266](https://github.com/userfypp/plan-measure/issues/266)
+* refresh canvas labels when the number separators change ([#338](https://github.com/userfypp/plan-measure/issues/338)) ([73a6200](https://github.com/userfypp/plan-measure/commit/73a6200bbe9fda35987f6dee59668ed93df5e3ac)), closes [#293](https://github.com/userfypp/plan-measure/issues/293)
+* show Repair required in a box preview whose side overflows ([#332](https://github.com/userfypp/plan-measure/issues/332)) ([06f135f](https://github.com/userfypp/plan-measure/commit/06f135fdd5c9c6ff38e637dc43d9bd2974de068e)), closes [#304](https://github.com/userfypp/plan-measure/issues/304)
+* stop option names from activating their dropdown or switch ([#316](https://github.com/userfypp/plan-measure/issues/316)) ([1715f62](https://github.com/userfypp/plan-measure/commit/1715f62ca3b109cf892c75ee6d4ddce84208fdf7))
+* stop Undo and Redo from leaving a missing label dimension in the… ([#324](https://github.com/userfypp/plan-measure/issues/324)) ([23f5726](https://github.com/userfypp/plan-measure/commit/23f5726a67eed32811df873117fa845870c9d5c1)), closes [#292](https://github.com/userfypp/plan-measure/issues/292)
+* undo a group visibility change across pages in one step ([#341](https://github.com/userfypp/plan-measure/issues/341)) ([1cfe85f](https://github.com/userfypp/plan-measure/commit/1cfe85f838d973569bf61d06bba737a42f14f4b7)), closes [#263](https://github.com/userfypp/plan-measure/issues/263)
+
+
+### Documentation
+
+* refresh the roadmap with the open bugs and the planned Takeoff work ([#343](https://github.com/userfypp/plan-measure/issues/343)) ([886a922](https://github.com/userfypp/plan-measure/commit/886a922e91ce754d1c26308684915a89601f95f8))
+* tighten the README, merge the release docs and enlarge the logo ([#318](https://github.com/userfypp/plan-measure/issues/318)) ([7c78913](https://github.com/userfypp/plan-measure/commit/7c789137e4b746bac245c96bb906eb7b07063c1b))
+
 ## [2.11.0](https://github.com/userfypp/plan-measure/compare/v2.10.0...v2.11.0) (2026-10-17)
 
 
