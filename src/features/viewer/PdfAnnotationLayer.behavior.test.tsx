@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PathMeasurement, PathMeasurementType, PageState, Point, Tool } from "../../types/domain";
 import { PdfAnnotationLayer } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 
 type Props = Record<string, unknown>;
 type Handler = (event: unknown) => void;
@@ -328,6 +329,17 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(captured.texts.map((text) => text.text)).toEqual(["20.00 m"]);
       renderLayer({ page: pageWith("polygon", [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }]) });
       expect(captured.texts.map((text) => text.text)).toEqual(["P 40.00 m · A 100.00 m²"]);
+    });
+
+    it("reformats a label when the number separators change", () => {
+      renderLayer({ page: pageWith("line", [{ x: 50, y: 50 }, { x: 250, y: 50 }]) });
+      expect(captured.texts.at(-1)?.text).toBe("10.00 m");
+      try {
+        act(() => setAppPreference("decimalSeparator", "comma"));
+        expect(captured.texts.at(-1)?.text).toBe("10,00 m");
+      } finally {
+        act(() => resetAppPreferences());
+      }
     });
   });
 

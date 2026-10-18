@@ -203,7 +203,7 @@ export const MeasurementShape = memo(function MeasurementShape({
   plannedOccupiedLabelRect,
   labelCollisionIndex,
 }: MeasurementShapeProps) {
-  useNumberFormatKey(); // re-render when separators change
+  const numberFormatKey = useNumberFormatKey(); // re-render when separators change
   const {
     lineThickness,
     labelSize,
@@ -306,6 +306,7 @@ export const MeasurementShape = memo(function MeasurementShape({
         labelContent,
         classificationLabel,
       ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the text depends on the separator preferences
     [
       areaDisplay,
       calibration,
@@ -313,6 +314,7 @@ export const MeasurementShape = memo(function MeasurementShape({
       displayUnit,
       labelContent,
       measurementDecimalPlaces,
+      numberFormatKey,
       visibleMeasurement,
     ],
   );
