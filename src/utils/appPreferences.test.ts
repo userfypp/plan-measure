@@ -390,6 +390,7 @@ describe("settings file", () => {
     JSON.stringify({ version: 2, preferences: { lineThickness: "thick" } }),
     JSON.stringify({ version: 1 }),
     JSON.stringify({ version: 1, preferences: "x" }),
+    JSON.stringify({ version: 1, preferences: [] }),
   ])("never throws and changes nothing for an unusable file (%s)", (text) => {
     setAppPreference("labelSize", "large");
     const before = getAppPreferences();

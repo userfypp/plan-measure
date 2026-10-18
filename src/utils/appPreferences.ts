@@ -328,7 +328,13 @@ export function importAppPreferencesJson(text: string): boolean {
     if (!parsed || typeof parsed !== "object") return false;
     const file = parsed as { version?: unknown; preferences?: unknown };
     if (file.version !== PREFERENCES_FILE_VERSION) return false;
-    if (!file.preferences || typeof file.preferences !== "object") return false;
+    if (
+      !file.preferences ||
+      typeof file.preferences !== "object" ||
+      Array.isArray(file.preferences)
+    ) {
+      return false;
+    }
     commit(sanitize(file.preferences));
     return true;
   } catch {
