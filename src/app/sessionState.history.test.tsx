@@ -50,6 +50,7 @@ function HistoryHarness() {
       }}>Load geometry batch</button>
       <button onClick={() => state.pasteMeasurements(state.session!.pages[1]!.measurements.map((measurement) => ({ pageNumber: 1, sourcePageNumber: 1, id: `copy-${measurement.id}`, measurement })))}>Paste batch</button>
       <button onClick={() => state.updateMeasurements(state.session!.pages[1]!.measurements.map((measurement) => ({ pageNumber: 1, id: measurement.id, points: measurement.points.map((point) => ({ x: point.x + 10, y: point.y + 10 })) })))}>Move batch</button>
+      <button onClick={() => state.updateSettings({ labelClassificationDimensionId: "trade" })}>Label by Trade</button>
       <button onClick={state.undo}>Undo</button>
       <button onClick={state.redo}>Redo</button>
       <button onClick={() => state.addClassificationDimension("status", "Status")}>Branch</button>
@@ -266,6 +267,23 @@ describe("session undo and redo history", () => {
     click("Undo");
     click("Branch");
     expect(state()).toBe("true:false:1");
+  });
+
+  it("clears the label dimension when Undo restores a catalog without it", () => {
+    const labelDimension = () =>
+      JSON.parse(document.querySelector("[data-testid='session']")!.textContent!).settings
+        .labelClassificationDimensionId;
+    click("Add");
+    click("Label by Trade");
+    expect(labelDimension()).toBe("trade");
+
+    click("Undo");
+    expect(document.querySelector("[data-testid='history-state']")!.textContent).toBe("false:true:0");
+    expect(labelDimension()).toBeNull();
+
+    click("Redo");
+    expect(document.querySelector("[data-testid='history-state']")!.textContent).toBe("true:false:1");
+    expect(labelDimension()).toBeNull();
   });
 });
 

@@ -1297,6 +1297,22 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 type MeasurementCommands = Pick<SessionContextValue, "updateMeasurement" | "updateMeasurements">;
 const MeasurementCommandsContext = createContext<MeasurementCommands | null>(null);
 
+/** Undo and Redo keep the current settings, so they must not point at a dimension the restored catalog lacks. */
+function restoreSnapshot(snapshot: CurrentSession, current: CurrentSession): CurrentSession {
+  const labelDimensionId = current.settings.labelClassificationDimensionId;
+  const labelDimensionExists = snapshot.classificationCatalog.dimensions.some(
+    (dimension) => dimension.id === labelDimensionId,
+  );
+  return {
+    ...snapshot,
+    currentPage: current.currentPage,
+    settings:
+      labelDimensionId === null || labelDimensionExists
+        ? current.settings
+        : { ...current.settings, labelClassificationDimensionId: null },
+  };
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { setError } = useAppState();
   const [session, setSession] = useState<CurrentSession | null>(null);
@@ -1339,11 +1355,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const current = sessionRef.current;
     if (!previous || !current) return;
     redoStackRef.current = [...redoStackRef.current, current];
-    const restored = {
-      ...previous,
-      currentPage: current.currentPage,
-      settings: current.settings,
-    };
+    const restored = restoreSnapshot(previous, current);
     sessionRef.current = restored;
     setSession(restored);
     setError(null);
@@ -1354,11 +1366,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const current = sessionRef.current;
     if (!next || !current) return;
     undoStackRef.current = [...undoStackRef.current, current].slice(-getAppPreferences().undoDepth);
-    const restored = {
-      ...next,
-      currentPage: current.currentPage,
-      settings: current.settings,
-    };
+    const restored = restoreSnapshot(next, current);
     sessionRef.current = restored;
     setSession(restored);
     setError(null);
