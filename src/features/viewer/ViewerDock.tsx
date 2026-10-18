@@ -316,7 +316,7 @@ export function ViewerDock({
                   if (pageLabelError) setPageLabelError(null);
                 }}
                 onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
+                  if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
                   event.preventDefault();
                   event.currentTarget.form?.requestSubmit();
                 }}

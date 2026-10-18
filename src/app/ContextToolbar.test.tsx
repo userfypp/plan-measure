@@ -489,6 +489,26 @@ describe("ContextToolbar V2", () => {
     expect(document.activeElement).toBe(renameTrigger("Line 1"));
   });
 
+  it("keeps the rename editor open when Enter confirms an IME composition", () => {
+    const rename = vi.fn();
+    renderToolbar(
+      props({ selectedMeasurementName: "Line 1", onRenameSelectedMeasurement: rename }),
+    );
+    act(() => workspace!.selectMeasurement("line-1"));
+
+    act(() => renameTrigger("Line 1").click());
+    const input = renameInput("Line 1");
+    setInputValue(input, "にほん");
+    act(() =>
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true }),
+      ),
+    );
+
+    expect(rename).not.toHaveBeenCalled();
+    expect(container?.querySelector("input")).toBe(input);
+  });
+
   it("supports pointer confirmation through the inline Save action", () => {
     const rename = vi.fn();
     renderToolbar(

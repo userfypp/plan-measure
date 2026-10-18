@@ -296,6 +296,7 @@ function MeasurementNameEditor({
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
+            if (event.nativeEvent.isComposing) return;
             event.preventDefault();
             commitRename();
           } else if (event.key === "Escape") {

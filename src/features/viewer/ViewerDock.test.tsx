@@ -483,6 +483,22 @@ describe("ViewerDock", () => {
     expect(document.querySelector('[role="dialog"][aria-label="Page label"]')).toBeNull();
   });
 
+  it("keeps the editor open when Enter confirms an IME composition", () => {
+    const props = createProps({ sourcePageLabel: null, effectivePageLabel: "" });
+    renderDock(props);
+    act(() => pageLabelTrigger().click());
+    const input = pageLabelInput();
+    setInputValue(input, "にほん");
+    act(() =>
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true }),
+      ),
+    );
+
+    expect(props.onSetPageLabelOverride).not.toHaveBeenCalled();
+    expect(pageLabelDialog()).toBeTruthy();
+  });
+
   it("discards draft on Escape and Cancel and restores focus", () => {
     const props = createProps();
     renderDock(props);
