@@ -515,13 +515,9 @@ export function ViewerDock({
           </div>
           <div className={styles.settingBlock}>
             <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
-              <label
-                id={displayUnitLabelId}
-                className={styles.settingLabel}
-                htmlFor={displayUnitId}
-              >
+              <span id={displayUnitLabelId} className={styles.settingLabel}>
                 Display unit
-              </label>
+              </span>
               <Select
                 id={displayUnitId}
                 className={styles.unitSelect}
@@ -533,13 +529,9 @@ export function ViewerDock({
               />
             </div>
             <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
-              <label
-                id={areaDisplayLabelId}
-                className={styles.settingLabel}
-                htmlFor={areaDisplayId}
-              >
+              <span id={areaDisplayLabelId} className={styles.settingLabel}>
                 Polygon area
-              </label>
+              </span>
               <Select
                 id={areaDisplayId}
                 className={styles.unitSelect}
@@ -551,13 +543,9 @@ export function ViewerDock({
               />
             </div>
             <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
-              <label
-                id={lineThicknessLabelId}
-                className={styles.settingLabel}
-                htmlFor={lineThicknessId}
-              >
+              <span id={lineThicknessLabelId} className={styles.settingLabel}>
                 Line thickness
-              </label>
+              </span>
               <Select
                 id={lineThicknessId}
                 className={styles.unitSelect}
@@ -569,9 +557,9 @@ export function ViewerDock({
               />
             </div>
             <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
-              <label id={labelSizeLabelId} className={styles.settingLabel} htmlFor={labelSizeId}>
+              <span id={labelSizeLabelId} className={styles.settingLabel}>
                 Label size
-              </label>
+              </span>
               <Select
                 id={labelSizeId}
                 className={styles.unitSelect}
@@ -621,14 +609,16 @@ function ViewToggle({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  const switchId = useId();
+  const labelId = useId();
   return (
     <div className={styles.toggle}>
-      <label className={styles.toggleText} htmlFor={switchId}>
-        <span className={styles.settingLabel}>{label}</span>
+      <div className={styles.toggleText}>
+        <span id={labelId} className={styles.settingLabel}>
+          {label}
+        </span>
         <small>{description}</small>
-      </label>
-      <Switch id={switchId} checked={checked} onChange={onChange} />
+      </div>
+      <Switch aria-labelledby={labelId} checked={checked} onChange={onChange} />
     </div>
   );
 }

@@ -65,7 +65,7 @@ export function KeyboardGeometryHelp({
         {editing || referenceEditing ? (
           <>
             {measurement || referenceEditing ? (
-              <label className={styles.keyboardTarget} htmlFor={targetId}>
+              <div className={styles.keyboardTarget}>
                 <span className={styles.keyboardMeasurementName} title={measurement?.name}>
                   {referenceEditing ? "Edit reference point" : `Edit ${measurement!.name}`}
                 </span>
@@ -104,7 +104,7 @@ export function KeyboardGeometryHelp({
                     onReturnToViewer();
                   }}
                 />
-              </label>
+              </div>
             ) : (
               <p>Moving all selected measurements together.</p>
             )}

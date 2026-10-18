@@ -110,7 +110,7 @@ export function ClassificationAssignment({
           );
         }
         return (
-          <label className={styles.field} key={dimension.id} htmlFor={fieldId}>
+          <div className={styles.field} key={dimension.id}>
             <span>
               {dimension.name}
               {dimension.archived ? " (archived)" : ""}
@@ -130,7 +130,7 @@ export function ClassificationAssignment({
               ]}
               onChange={(valueId) => onAssign(measurementId, dimension.id, valueId || null)}
             />
-          </label>
+          </div>
         );
       })}
       {catalog.dimensions.length === 0 && (

@@ -226,13 +226,11 @@ describe("ExportDialog", () => {
     expect(dialog().getAttribute("aria-labelledby")).toBeTruthy();
     expect(dialog().textContent).toContain("Export");
     expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["csv"]);
-    expect(dialog().querySelector(`label[for="${select("export-format").id}"]`)?.textContent).toBe(
-      "Format",
-    );
+    expect(select("export-format").getAttribute("aria-label")).toBe("Format");
+    expect(dialog().querySelector(`label[for="${select("export-format").id}"]`)).toBeNull();
     expect(selectedLabel("csv-data")).toContain(SELECT_LABELS["csv-data"].options["measurements"]);
-    expect(dialog().querySelector(`label[for="${select("csv-data").id}"]`)?.textContent).toBe(
-      "Data",
-    );
+    expect(select("csv-data").getAttribute("aria-label")).toBe("Data");
+    expect(dialog().querySelector(`label[for="${select("csv-data").id}"]`)).toBeNull();
     expect(dialog().querySelector("details")).toBeNull();
     expect(dialog().querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
       "Measurements",

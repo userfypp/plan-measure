@@ -213,7 +213,7 @@ export function CalibrationDialog({
               }}
             />
           )}
-          <label className={styles.unitField}>
+          <div className={styles.unitField}>
             <span>Unit</span>
             <Select<CalibrationInputUnit>
               label="Calibration unit"
@@ -221,7 +221,7 @@ export function CalibrationDialog({
               options={UNIT_OPTIONS}
               onChange={changeUnit}
             />
-          </label>
+          </div>
         </div>
         {unit === "ft-in" && (
           <fieldset
@@ -274,7 +274,7 @@ export function CalibrationDialog({
                   in
                 </span>
               </div>
-              <label className={styles.fractionField}>
+              <div className={styles.fractionField}>
                 <span>Fractional inches</span>
                 <Select
                   id="calibration-fraction"
@@ -290,7 +290,7 @@ export function CalibrationDialog({
                     setError(null);
                   }}
                 />
-              </label>
+              </div>
             </div>
           </fieldset>
         )}

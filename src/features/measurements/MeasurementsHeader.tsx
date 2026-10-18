@@ -35,7 +35,7 @@ export function MeasurementsHeader({
         {Array.from(
           { length: Math.min(groupByDimensionIds.length + 1, dimensions.length) },
           (_, index) => (
-            <label className={styles.level} key={index}>
+            <div className={styles.level} key={index}>
               <span>{index === 0 ? "Group by" : "Then by"}</span>
               <Select
                 label={index === 0 ? "Group by" : "Then by"}
@@ -55,7 +55,7 @@ export function MeasurementsHeader({
                 ]}
                 onChange={(dimensionId) => changeDimension(index, dimensionId)}
               />
-            </label>
+            </div>
           ),
         )}
       </div>

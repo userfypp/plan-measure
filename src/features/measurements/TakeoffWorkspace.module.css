@@ -171,7 +171,7 @@
   border-top: var(--border-width) solid var(--color-divider);
 }
 
-.breakdownControls > label,
+.breakdownLabel,
 .dimension > span {
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);

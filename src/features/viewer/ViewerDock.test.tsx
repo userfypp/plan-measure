@@ -662,11 +662,12 @@ describe("ViewerDock", () => {
       document.querySelectorAll<HTMLInputElement>('[role="switch"]'),
     )[0];
     if (!labelsSwitch) throw new Error("Labels switch was not rendered.");
-    const labelsText = Array.from(labelsSwitch.labels ?? []).find((label) =>
-      label.textContent?.includes("Labels"),
-    );
-    if (!labelsText) throw new Error("Labels text label was not rendered.");
-    act(() => labelsText.click());
+    const labelsName = document.getElementById(labelsSwitch.getAttribute("aria-labelledby") ?? "");
+    expect(labelsName?.textContent).toBe("Labels");
+    vi.mocked(props.onSettingsChange).mockClear();
+    act(() => labelsName!.click());
+    expect(props.onSettingsChange).not.toHaveBeenCalled();
+    act(() => labelsSwitch.click());
     expect(props.onSettingsChange).toHaveBeenCalledWith({ showLabels: false });
   });
 

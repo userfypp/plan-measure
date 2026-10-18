@@ -60,7 +60,7 @@ dialog.dialog[open] {
   line-height: var(--line-height-base);
 }
 
-.field label {
+.fieldLabel {
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);

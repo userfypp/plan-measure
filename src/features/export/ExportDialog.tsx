@@ -293,7 +293,7 @@ export function ExportDialog({
           <div className={styles.controlsContent}>
             <div className={styles.exportFields}>
               <div className={styles.field}>
-                <label htmlFor={formatId}>Format</label>
+                <span className={styles.fieldLabel}>Format</span>
                 <Select<ExportFormat>
                   id={formatId}
                   label="Format"
@@ -319,7 +319,7 @@ export function ExportDialog({
               </div>
               {(format === "csv" || isWorkbook) && (
                 <div className={styles.field}>
-                  <label htmlFor={datasetId}>Data</label>
+                  <span className={styles.fieldLabel}>Data</span>
                   <Select<CsvDataset>
                     id={datasetId}
                     label="Data"

@@ -178,7 +178,7 @@ export function MeasurementFilterFields({
     <>
       <div className={styles.fields}>
         {fields.map((field) => (
-          <label className={styles.field} key={field.key}>
+          <div className={styles.field} key={field.key}>
             <span>{field.label}</span>
             <Select
               label={field.label}
@@ -186,7 +186,7 @@ export function MeasurementFilterFields({
               options={field.options}
               onChange={(value) => onChange({ ...filters, [field.key]: value })}
             />
-          </label>
+          </div>
         ))}
       </div>
       {activeFilterCount > 0 && (

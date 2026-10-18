@@ -231,7 +231,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
       </section>
 
       <section className={styles.breakdownControls} aria-label="Breakdown controls">
-        <label htmlFor="takeoff-breakdown">Breakdown</label>
+        <span className={styles.breakdownLabel}>Breakdown</span>
         <Select<Breakdown>
           id="takeoff-breakdown"
           label="Breakdown"
@@ -249,7 +249,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
           }}
         />
         {breakdown === "classification" && (
-          <label className={styles.dimension}>
+          <div className={styles.dimension}>
             <span>Dimension</span>
             <Select
               label="Dimension"
@@ -264,7 +264,7 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
                 setExpandedSources(null);
               }}
             />
-          </label>
+          </div>
         )}
       </section>
 
