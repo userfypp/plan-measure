@@ -51,6 +51,10 @@ function HistoryHarness() {
       <button onClick={() => state.pasteMeasurements(state.session!.pages[1]!.measurements.map((measurement) => ({ pageNumber: 1, sourcePageNumber: 1, id: `copy-${measurement.id}`, measurement })))}>Paste batch</button>
       <button onClick={() => state.updateMeasurements(state.session!.pages[1]!.measurements.map((measurement) => ({ pageNumber: 1, id: measurement.id, points: measurement.points.map((point) => ({ x: point.x + 10, y: point.y + 10 })) })))}>Move batch</button>
       <button onClick={() => state.updateSettings({ labelClassificationDimensionId: "trade" })}>Label by Trade</button>
+      <button onClick={() => state.addClassificationValue("trade", "electrical", "Electrical")}>Add value</button>
+      <button onClick={() => state.renameClassificationDimension("trade", " Trade ")}>Rename dimension unchanged</button>
+      <button onClick={() => state.renameClassificationValue("trade", "electrical", "Electrical")}>Rename value unchanged</button>
+      <button onClick={() => state.renameCalibration({ pageNumber: 1, calibrationId: "scale", name: "Scale" })}>Rename scale unchanged</button>
       <button onClick={state.undo}>Undo</button>
       <button onClick={state.redo}>Redo</button>
       <button onClick={() => state.addClassificationDimension("status", "Status")}>Branch</button>
@@ -285,6 +289,19 @@ describe("session undo and redo history", () => {
     expect(document.querySelector("[data-testid='history-state']")!.textContent).toBe("true:false:1");
     expect(labelDimension()).toBeNull();
   });
+});
+
+it.each([
+  ["scale", ["Load geometry batch", "Move batch", "Move batch"], "Rename scale unchanged"],
+  ["classification dimension", ["Add", "Branch"], "Rename dimension unchanged"],
+  ["classification value", ["Add", "Add value", "Branch"], "Rename value unchanged"],
+])("keeps Redo and adds no Undo step when a %s is saved with the same name", (_, setup, rename) => {
+  setup.forEach(click);
+  click("Undo");
+  const before = document.querySelector('[data-testid="history-state"]')!.textContent;
+  expect(before?.startsWith("true:true:")).toBe(true);
+  click(rename);
+  expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe(before);
 });
 
 function HistoryHarnessWithSession() {
