@@ -103,6 +103,8 @@ function renderPanel(
   currentSession: CurrentSession,
   activePage: PageState,
   onSelectMeasurement = () => undefined,
+  onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void = () =>
+    undefined,
 ) {
   state.session = currentSession;
   container = document.createElement("div");
@@ -118,7 +120,7 @@ function renderPanel(
         selectedMeasurementId={state.selectedMeasurementId}
         onSelectMeasurement={onSelectMeasurement}
         onSetMeasurementVisibility={() => undefined}
-        onSetMeasurementsVisibility={() => undefined}
+        onSetMeasurementsVisibility={onSetMeasurementsVisibility}
       />,
     );
   });
@@ -281,6 +283,42 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     currentSession.classificationCatalog = { dimensions: [] };
     render();
     expect(container.textContent).toContain("No classification dimensions.");
+  });
+
+  it("sets the visibility of a group spanning several pages in a single call", () => {
+    const firstPage = page([measurement({ classificationValueIds: ["electrical"] })]);
+    const secondPage = {
+      ...page([
+        measurement({ id: "line-2", name: "Second", classificationValueIds: ["electrical"] }),
+      ]),
+      pageNumber: 2,
+    };
+    const onSetMeasurementsVisibility = vi.fn();
+    renderPanel(
+      session({ 1: firstPage, 2: secondPage }),
+      firstPage,
+      undefined,
+      onSetMeasurementsVisibility,
+    );
+
+    act(() =>
+      container!.querySelector<HTMLButtonElement>('[aria-label="Group measurements"]')!.click(),
+    );
+    chooseSelectOption(
+      document.querySelector<HTMLButtonElement>(
+        '[role="dialog"][aria-label="Measurement grouping"] button[aria-haspopup="menu"]',
+      )!,
+      "Trade",
+    );
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label^="Hide all measurements in Trade · Electrical"]',
+        )!
+        .click(),
+    );
+
+    expect(onSetMeasurementsVisibility.mock.calls).toEqual([[["line-1", "line-2"], false]]);
   });
 
   it("lets users choose and reorder classification dimensions for nested measurement groups", () => {

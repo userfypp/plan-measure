@@ -66,11 +66,7 @@ export interface MeasurementPanelProps {
   selectedMeasurementIds?: readonly string[];
   onSelectMeasurement: (pageNumber: number, measurementId: string, additive?: boolean) => void;
   onSetMeasurementVisibility: (pageNumber: number, measurementId: string, visible: boolean) => void;
-  onSetMeasurementsVisibility: (
-    pageNumber: number,
-    measurementIds: string[],
-    visible: boolean,
-  ) => void;
+  onSetMeasurementsVisibility: (measurementIds: string[], visible: boolean) => void;
 }
 
 export const MeasurementPanel = memo(function MeasurementPanel({
@@ -340,17 +336,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
         }}
         groups={groups}
         groupByDimensionId={groupByDimensionIds[0] ?? null}
-        onSetMeasurementsVisibility={(measurementIds, visible) =>
-          Object.entries(
-            measurementIds.reduce<Record<number, string[]>>((byPage, measurementId) => {
-              const pageNumber = measurementsById.get(measurementId)?.pageNumber;
-              if (pageNumber !== undefined) (byPage[pageNumber] ??= []).push(measurementId);
-              return byPage;
-            }, {}),
-          ).forEach(([pageNumber, ids]) =>
-            onSetMeasurementsVisibility(Number(pageNumber), ids, visible),
-          )
-        }
+        onSetMeasurementsVisibility={onSetMeasurementsVisibility}
       />
     </aside>
   );

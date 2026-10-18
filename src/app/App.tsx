@@ -154,7 +154,6 @@ function PlanMeasureApp() {
     setMeasurementNote,
     setMeasurementColor,
     setMeasurementVisibility,
-    setMeasurementsVisibility,
     deleteMeasurement,
     editMeasurements,
     addClassificationDimension,
@@ -554,6 +553,13 @@ function PlanMeasureApp() {
     editMeasurements,
     clearSelection,
   ]);
+
+  const setGroupVisibility = useCallback(
+    (measurementIds: string[], visible: boolean) => {
+      editMeasurements({ measurementIds, operation: { type: "visibility", visible } });
+    },
+    [editMeasurements],
+  );
 
   const selectMeasurementFromPanel = useCallback(
     (pageNumber: number, measurementId: string, additive = false) => {
@@ -1130,7 +1136,7 @@ function PlanMeasureApp() {
                     selectedMeasurementIds={selectedMeasurementIds}
                     onSelectMeasurement={selectMeasurementFromPanel}
                     onSetMeasurementVisibility={setMeasurementVisibility}
-                    onSetMeasurementsVisibility={setMeasurementsVisibility}
+                    onSetMeasurementsVisibility={setGroupVisibility}
                   />
                 }
                 takeoff={
