@@ -143,6 +143,24 @@ describe("ellipse results", () => {
     expect(result.areaMm2).toBeCloseTo(Math.PI * 50, 10);
     expect(result.perimeterMm).toBeCloseTo(48.4422411, 4);
   });
+
+  it("keeps a representable area when a radius times its scale underflows", () => {
+    const xy = {
+      id: "xy",
+      name: "XY",
+      mode: "xy" as const,
+      xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: 1e-310 },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: 1e150 },
+    };
+    const sliver: Point[] = [
+      { x: 0, y: 0 },
+      { x: 1e-14, y: 0 },
+      { x: 1e-14, y: 1 },
+      { x: 0, y: 1 },
+    ];
+    // rx = 5e-15 and ry = 0.5, so the area is pi * 2.5e-15 * 1e-310 * 1e150.
+    expect(ellipseResultsMm(sliver, xy).areaMm2 / (Math.PI * 2.5e-175)).toBeCloseTo(1, 3);
+  });
 });
 
 describe("cloud geometry", () => {

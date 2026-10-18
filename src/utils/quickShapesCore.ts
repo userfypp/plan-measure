@@ -143,6 +143,8 @@ export function applyMeasurementVertexEdit(
   );
 }
 
+const SMALLEST_NORMAL_NUMBER = 2 ** -1022;
+
 const ellipseParamsCache = new WeakMap<readonly Point[], EllipseParams>();
 
 export function ellipseParams(points: readonly Point[]): EllipseParams {
@@ -168,6 +170,16 @@ export function ellipseParams(points: readonly Point[]): EllipseParams {
   return params;
 }
 
+/** Multiplies in an order that keeps the running product near 1, so no intermediate underflows or overflows. */
+function productKeepingRange(factors: readonly number[]): number {
+  const sorted = [...factors].sort((left, right) => Math.abs(left) - Math.abs(right));
+  let low = 0;
+  let high = sorted.length - 1;
+  let product = 1;
+  while (low <= high) product *= Math.abs(product) >= 1 ? sorted[low++]! : sorted[high--]!;
+  return product;
+}
+
 export function ellipseResultsMm(
   points: readonly Point[],
   calibration: Calibration | PageCalibration,
@@ -175,7 +187,17 @@ export function ellipseResultsMm(
   const { rx, ry } = ellipseParams(points);
   const a = rx * calibrationScaleX(calibration);
   const b = ry * calibrationScaleY(calibration);
-  const areaMm2 = Math.PI * a * b;
+  let areaMm2 = Math.PI * a * b;
+  if (!(areaMm2 >= SMALLEST_NORMAL_NUMBER)) {
+    // A radius times its scale can underflow although the area itself is representable.
+    areaMm2 = productKeepingRange([
+      Math.PI,
+      rx,
+      ry,
+      calibrationScaleX(calibration),
+      calibrationScaleY(calibration),
+    ]);
+  }
   const sum = a + b;
   const h = sum === 0 ? 0 : ((a - b) / sum) ** 2;
   const perimeterMm = Math.PI * sum * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
