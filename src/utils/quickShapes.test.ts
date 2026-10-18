@@ -193,6 +193,24 @@ describe("cloud geometry", () => {
     );
   });
 
+  it.each([1e8, 1e9])("bulges outwards for a small clockwise ring at %s", (offset) => {
+    const ring = [
+      { x: offset, y: offset },
+      { x: offset, y: offset + 1 },
+      { x: offset + 1, y: offset + 1 },
+      { x: offset + 1, y: offset },
+    ];
+    const centroid = { x: offset + 0.5, y: offset + 0.5 };
+    const arcs = cloudArcs(ring);
+    expect(arcs.length).toBeGreaterThan(0);
+    for (const arc of arcs) {
+      const mid = { x: (arc.start.x + arc.end.x) / 2, y: (arc.start.y + arc.end.y) / 2 };
+      expect(Math.hypot(arc.center.x - centroid.x, arc.center.y - centroid.y)).toBeLessThan(
+        Math.hypot(mid.x - centroid.x, mid.y - centroid.y),
+      );
+    }
+  });
+
   it.each([1e12, Number.MAX_VALUE])(
     "uses the control polygon for oversized clouds (%s)",
     (size) => {

@@ -58,10 +58,12 @@ export function cloudArcs(points: readonly Point[]): CloudArc[] {
   const count = points.length;
   let signedArea = 0;
   let perimeter = 0;
+  // Measuring from the first vertex keeps the winding exact far from the origin.
+  const origin = points[0]!;
   for (let index = 0; index < count; index += 1) {
     const p = points[index]!;
     const q = points[(index + 1) % count]!;
-    signedArea += p.x * q.y - q.x * p.y;
+    signedArea += (p.x - origin.x) * (q.y - origin.y) - (q.x - origin.x) * (p.y - origin.y);
     perimeter += Math.hypot(q.x - p.x, q.y - p.y);
   }
   const orientation = signedArea < 0 ? -1 : 1;
