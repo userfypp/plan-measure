@@ -33,9 +33,9 @@ Open findings from the code audits, grouped by area. Most are open to contributo
 ## Principles
 
 - Plans stay in the browser: no uploads, no accounts.
-- Performance budgets and golden tests are contracts; see [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+- Performance budgets and golden tests are contracts; see [PERFORMANCE.md](PERFORMANCE.md).
 - Project files stay backward compatible; schema changes ship with a migration.
 
 ## Get involved
 
-Pick an issue labeled [`good first issue`](https://github.com/userfypp/plan-measure/labels/good%20first%20issue) or [`help wanted`](https://github.com/userfypp/plan-measure/labels/help%20wanted), and read [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Propose new ideas in [Discussions](https://github.com/userfypp/plan-measure/discussions) or open a issue asking for whatever you want and I will answer the fast I can.
+Pick an issue labeled [`good first issue`](https://github.com/userfypp/plan-measure/labels/good%20first%20issue) or [`help wanted`](https://github.com/userfypp/plan-measure/labels/help%20wanted), and read [CONTRIBUTING.md](../CONTRIBUTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md). Propose new ideas in [Discussions](https://github.com/userfypp/plan-measure/discussions) or open a issue asking for whatever you want and I will answer the fast I can.
