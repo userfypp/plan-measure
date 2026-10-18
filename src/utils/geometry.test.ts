@@ -928,6 +928,20 @@ describe("geometry", () => {
     expect(polygonResultsMm({ points }, calibration).areaMm2).toBe(units * Number.MIN_VALUE);
   });
 
+  it("keeps a subnormal polygon area when opposing X/Y scales cancel", () => {
+    const calibration: PageCalibration = {
+      ...xy,
+      xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: 2 ** -10 },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: 2 ** 10 },
+    };
+    const points = [
+      { x: 0, y: 0 },
+      { x: 1, y: Number.MIN_VALUE },
+      { x: 2, y: 0 },
+    ];
+    expect(polygonResultsMm({ points }, calibration).areaMm2).toBe(Number.MIN_VALUE);
+  });
+
   it("reorders X/Y area scaling when the established multiplication order overflows", () => {
     const offsettingXy: PageCalibration = {
       ...xy,

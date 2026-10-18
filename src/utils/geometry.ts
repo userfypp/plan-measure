@@ -811,6 +811,14 @@ export function polygonResultsMm(
     // A subnormal intermediate can lose precision even when the final area is representable.
     const reorderedArea = pageArea * scaleY * scaleX;
     if (Number.isFinite(reorderedArea) && reorderedArea > 0) areaMm2 = reorderedArea;
+  } else if (pageArea > 0 && areaMm2 < 2 ** -1022) {
+    // Opposing scales can underflow an intermediate although the area is representable.
+    areaMm2 = exactDyadicToNumber(
+      multiplyExactDyadics(
+        multiplyExactDyadics(exactDyadic(pageArea), exactDyadic(scaleX)),
+        exactDyadic(scaleY),
+      ),
+    );
   }
   if (!Number.isFinite(areaMm2)) {
     const origin = points[0];
