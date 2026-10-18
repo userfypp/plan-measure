@@ -29,8 +29,11 @@ import {
 } from "../utils/appPreferences";
 import { DEFAULT_MEASUREMENT_DECIMAL_PLACES } from "../utils/format";
 import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
-import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
-import { useTheme, type ThemePreference } from "./themeState";
+import {
+  sanitizeRecoveredPlanStartupWorkspace,
+  type RecoveredPlanStartupWorkspace,
+} from "./recoveredPlanStartupPreference";
+import { sanitizeThemePreference, useTheme, type ThemePreference } from "./themeState";
 import styles from "./SettingsDialog.module.css";
 
 type SectionId =
@@ -720,10 +723,55 @@ export function SettingsDialog({
     setImportStatus("");
   }
 
+  function exportSettingsFile() {
+    downloadExportFile(
+      exportAppPreferencesJson({
+        appearance: preference,
+        keyboardAuthoring: keyboardAuthoringEnabled,
+        confirmMeasurementDeletion,
+        confirmValueDeletion,
+        confirmDimensionDeletion,
+        confirmScaleDeletion,
+        recoveredPlanStartupWorkspace,
+      }),
+      "plan-measure-settings.json",
+      "application/json;charset=utf-8",
+    );
+  }
+
+  /** Restores the settings stored outside `AppPreferences`; missing or invalid fields stay as they are. */
+  function applyImportedExtras(extras: unknown) {
+    if (!extras || typeof extras !== "object" || Array.isArray(extras)) return;
+    const values = extras as Record<string, unknown>;
+    const applyBoolean = (value: unknown, apply?: (enabled: boolean) => void) => {
+      if (typeof value === "boolean") apply?.(value);
+    };
+    if (
+      typeof values.appearance === "string" &&
+      sanitizeThemePreference(values.appearance) === values.appearance
+    ) {
+      setPreference(values.appearance as ThemePreference);
+    }
+    applyBoolean(values.keyboardAuthoring, onKeyboardAuthoringEnabledChange);
+    applyBoolean(values.confirmMeasurementDeletion, onConfirmMeasurementDeletionChange);
+    applyBoolean(values.confirmValueDeletion, onConfirmValueDeletionChange);
+    applyBoolean(values.confirmDimensionDeletion, onConfirmDimensionDeletionChange);
+    applyBoolean(values.confirmScaleDeletion, onConfirmScaleDeletionChange);
+    if (
+      typeof values.recoveredPlanStartupWorkspace === "string" &&
+      sanitizeRecoveredPlanStartupWorkspace(values.recoveredPlanStartupWorkspace) ===
+        values.recoveredPlanStartupWorkspace
+    ) {
+      onRecoveredPlanStartupWorkspaceChange?.(
+        values.recoveredPlanStartupWorkspace as RecoveredPlanStartupWorkspace,
+      );
+    }
+  }
+
   async function importSettingsFile(file: File) {
     const text = await file.text().catch(() => null);
     setImportStatus(
-      text !== null && importAppPreferencesJson(text)
+      text !== null && importAppPreferencesJson(text, applyImportedExtras)
         ? "Settings imported"
         : "Couldn't import: not a valid settings file",
     );
@@ -1280,17 +1328,7 @@ export function SettingsDialog({
                   <Row label="Settings file">
                     {({ labelId }) => (
                       <div className={styles.resetActions} role="group" aria-labelledby={labelId}>
-                        <Button
-                          size="compact"
-                          variant="secondary"
-                          onClick={() =>
-                            downloadExportFile(
-                              exportAppPreferencesJson(),
-                              "plan-measure-settings.json",
-                              "application/json;charset=utf-8",
-                            )
-                          }
-                        >
+                        <Button size="compact" variant="secondary" onClick={exportSettingsFile}>
                           Export settings
                         </Button>
                         <Button

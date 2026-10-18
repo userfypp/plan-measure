@@ -312,21 +312,31 @@ export function resetAppPreferences(): void {
 
 export const PREFERENCES_FILE_VERSION = 1;
 
-/** Versioned JSON of every device preference, for moving settings between browsers. */
-export function exportAppPreferencesJson(): string {
-  return JSON.stringify({ version: PREFERENCES_FILE_VERSION, preferences: current }, null, 2);
+/**
+ * Versioned JSON of every device preference, for moving settings between browsers.
+ * `extras` carries the device settings stored outside `AppPreferences`.
+ */
+export function exportAppPreferencesJson(extras?: Record<string, unknown>): string {
+  return JSON.stringify(
+    { version: PREFERENCES_FILE_VERSION, preferences: current, ...(extras && { extras }) },
+    null,
+    2,
+  );
 }
 
 /**
  * Applies a settings file. Unknown or invalid keys are ignored (the default is
  * used instead); a file that is not a version 1 settings file changes nothing.
- * Never throws.
+ * `applyExtras` receives the file's optional `extras` block. Never throws.
  */
-export function importAppPreferencesJson(text: string): boolean {
+export function importAppPreferencesJson(
+  text: string,
+  applyExtras?: (extras: unknown) => void,
+): boolean {
   try {
     const parsed: unknown = JSON.parse(text);
     if (!parsed || typeof parsed !== "object") return false;
-    const file = parsed as { version?: unknown; preferences?: unknown };
+    const file = parsed as { version?: unknown; preferences?: unknown; extras?: unknown };
     if (file.version !== PREFERENCES_FILE_VERSION) return false;
     if (
       !file.preferences ||
@@ -336,6 +346,7 @@ export function importAppPreferencesJson(text: string): boolean {
       return false;
     }
     commit(sanitize(file.preferences));
+    applyExtras?.(file.extras);
     return true;
   } catch {
     return false;

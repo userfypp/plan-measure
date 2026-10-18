@@ -1083,6 +1083,91 @@ describe("SettingsDialog", () => {
     });
   });
 
+  it("exports and restores the settings stored outside the preferences", async () => {
+    const handlers = {
+      onKeyboardAuthoringEnabledChange: vi.fn(),
+      onConfirmMeasurementDeletionChange: vi.fn(),
+      onConfirmValueDeletionChange: vi.fn(),
+      onConfirmDimensionDeletionChange: vi.fn(),
+      onConfirmScaleDeletionChange: vi.fn(),
+      onRecoveredPlanStartupWorkspaceChange: vi.fn(),
+    };
+    renderSettings({
+      theme: "dark",
+      keyboardAuthoringEnabled: true,
+      confirmMeasurementDeletion: false,
+      confirmValueDeletion: false,
+      confirmDimensionDeletion: true,
+      confirmScaleDeletion: false,
+      recoveredPlanStartupWorkspace: "takeoff",
+      ...handlers,
+    });
+    await openSettings();
+    openTab("Advanced");
+    const createObjectURL = vi.fn(() => "blob:settings");
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const button = (label: string) =>
+      Array.from(dialog().querySelectorAll("button")).find((b) => b.textContent === label)!;
+    act(() => button("Export settings").click());
+    const exportedBlob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
+    expect(JSON.parse(await exportedBlob.text()).extras).toEqual({
+      appearance: "dark",
+      keyboardAuthoring: true,
+      confirmMeasurementDeletion: false,
+      confirmValueDeletion: false,
+      confirmDimensionDeletion: true,
+      confirmScaleDeletion: false,
+      recoveredPlanStartupWorkspace: "takeoff",
+    });
+
+    const input = dialog().querySelector<HTMLInputElement>('input[type="file"]')!;
+    const importFile = async (contents: string) => {
+      const file = new File([contents], "settings.json", { type: "application/json" });
+      Object.defineProperty(file, "text", { value: () => Promise.resolve(contents) });
+      Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      await act(async () => {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    };
+    await importFile(JSON.stringify({ version: 1, preferences: {} }));
+    for (const handler of Object.values(handlers)) expect(handler).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+
+    await importFile(
+      JSON.stringify({
+        version: 1,
+        preferences: {},
+        extras: {
+          appearance: "light",
+          keyboardAuthoring: false,
+          confirmMeasurementDeletion: true,
+          confirmValueDeletion: "yes",
+          confirmScaleDeletion: true,
+          recoveredPlanStartupWorkspace: "classifications",
+        },
+      }),
+    );
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
+    expect(handlers.onKeyboardAuthoringEnabledChange).toHaveBeenCalledWith(false);
+    expect(handlers.onConfirmMeasurementDeletionChange).toHaveBeenCalledWith(true);
+    expect(handlers.onConfirmScaleDeletionChange).toHaveBeenCalledWith(true);
+    expect(handlers.onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledWith("classifications");
+    expect(handlers.onConfirmValueDeletionChange).not.toHaveBeenCalled();
+    expect(handlers.onConfirmDimensionDeletionChange).not.toHaveBeenCalled();
+
+    await importFile(
+      JSON.stringify({
+        version: 1,
+        preferences: {},
+        extras: { appearance: "sepia", recoveredPlanStartupWorkspace: "elsewhere" },
+      }),
+    );
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
+    expect(handlers.onRecoveredPlanStartupWorkspaceChange).toHaveBeenCalledTimes(1);
+  });
+
   it("shows read-only storage usage with a fallback when the API is missing", async () => {
     Object.defineProperty(navigator, "storage", {
       configurable: true,
