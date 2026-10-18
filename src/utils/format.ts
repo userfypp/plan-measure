@@ -168,6 +168,27 @@ export function formatAreaValue(
   return `${formatDisplayNumber(fromSquareMillimetres(squareMillimetres, linearUnit), decimalPlaces)} ${linearUnit}²`;
 }
 
+/** A positive result whose conversion to the display unit underflows to zero cannot be shown. */
+function underflowsInDisplayUnit(
+  result: ReturnType<typeof measurementResultsMm>,
+  displayUnit: MeasurementDisplayUnit,
+  areaDisplay: AreaDisplay,
+): boolean {
+  const linearUnit = resolveLinearUnit(displayUnit);
+  const underflows = (value: number | null, convert: (value: number) => number) =>
+    value !== null && value !== 0 && convert(value) === 0;
+  return (
+    (displayUnit !== "ft-in" &&
+      (underflows(result.lengthMm, (value) => fromMillimetres(value, linearUnit)) ||
+        underflows(result.perimeterMm, (value) => fromMillimetres(value, linearUnit)))) ||
+    underflows(result.areaMm2, (value) =>
+      areaDisplay === "ac"
+        ? fromSquareMillimetresToAcres(value)
+        : fromSquareMillimetres(value, linearUnit),
+    )
+  );
+}
+
 export function formatMeasurement(
   measurement: Pick<Measurement, "type" | "points">,
   calibration: PageCalibration | null,
@@ -193,6 +214,7 @@ export function formatMeasurement(
     if (error instanceof RangeError) return "Repair required";
     throw error;
   }
+  if (underflowsInDisplayUnit(result, displayUnit, areaDisplay)) return "Repair required";
   if (!measurementPathSpecs[measurement.type].closed && result.lengthMm !== null) {
     return formatLinearValue(result.lengthMm, displayUnit, decimalPlaces);
   }

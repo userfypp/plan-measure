@@ -38,6 +38,11 @@ function hasMeasures(result: ReturnType<typeof measurementResultsMm>): boolean {
   return result.lengthMm !== null || result.perimeterMm !== null || result.areaMm2 !== null;
 }
 
+/** A positive result converted to the export unit must not underflow to zero; NaN fails the export. */
+function exportedConversion(sourceMm: number, converted: number): number {
+  return converted === 0 && sourceMm !== 0 ? Number.NaN : converted;
+}
+
 interface CsvRowContext {
   pdfName: string;
   pageNumber: number;
@@ -238,7 +243,12 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     defaultEnabled: true,
     required: false,
     extract: (context) =>
-      context.result.lengthMm === null ? null : fromMillimetres(context.result.lengthMm, context.unit),
+      context.result.lengthMm === null
+        ? null
+        : exportedConversion(
+            context.result.lengthMm,
+            fromMillimetres(context.result.lengthMm, context.unit),
+          ),
   },
   {
     id: "perimeter",
@@ -251,7 +261,10 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     extract: (context) =>
       context.result.perimeterMm === null
         ? null
-        : fromMillimetres(context.result.perimeterMm, context.unit),
+        : exportedConversion(
+            context.result.perimeterMm,
+            fromMillimetres(context.result.perimeterMm, context.unit),
+          ),
   },
   {
     id: "area",
@@ -264,9 +277,12 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     extract: (context) =>
       context.result.areaMm2 === null
         ? null
-        : context.areaDisplay === "ac"
-          ? fromSquareMillimetresToAcres(context.result.areaMm2)
-          : fromSquareMillimetres(context.result.areaMm2, context.unit),
+        : exportedConversion(
+            context.result.areaMm2,
+            context.areaDisplay === "ac"
+              ? fromSquareMillimetresToAcres(context.result.areaMm2)
+              : fromSquareMillimetres(context.result.areaMm2, context.unit),
+          ),
   },
   {
     id: "count",

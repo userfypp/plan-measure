@@ -1327,6 +1327,23 @@ describe("CSV export", () => {
     );
   });
 
+  it("rejects a measurement that converts to zero in the export unit", () => {
+    const session = measuredSession();
+    const scale = session.pages[1]!.calibrations[0]!;
+    if (scale.mode === "uniform") {
+      scale.end = { x: 1, y: 0 };
+      scale.referenceDistanceMm = 5e-324;
+    }
+    session.pages[1]!.measurements[0]!.points = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+    ];
+
+    expect(() => buildCsv(session)).toThrowError(
+      new RangeError("Measurement line-id must produce finite export values."),
+    );
+  });
+
   describe("classification assignment export", () => {
     it("exports one normalized row per assignment in page, measurement, and catalog-dimension order", () => {
       const session = classifiedMeasuredSession();

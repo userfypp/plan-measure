@@ -136,6 +136,20 @@ describe("measurement formatting", () => {
     ).toBe("Repair required");
   });
 
+  it("shows repair required when a positive result converts to zero in the display unit", () => {
+    const tiny = { ...calibration, referenceDistanceMm: 5e-324 };
+    const tinyLine: LineMeasurement = {
+      ...line,
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+    };
+
+    expect(formatMeasurement(tinyLine, tiny, "m")).toBe("Repair required");
+    expect(formatMeasurement(tinyLine, tiny, "mm")).not.toBe("Repair required");
+  });
+
   it.each([
     [0, '0"'],
     [4, '4"'],
