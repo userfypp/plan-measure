@@ -40,6 +40,7 @@ import { MeasurementShape } from "./MeasurementShape";
 import {
   averagePoint,
   CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
+  CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX,
   createForwardingLabelCollisionIndex,
   createLabelLayoutPlanner,
   createMeasurementLabelDataCache,
@@ -388,6 +389,7 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
               labelText,
               CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
               transform.zoom,
+              CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX,
             );
             const layoutKey = `calibration:${calibration.id}:${reference.key}`;
             const plannedPlacement = plannedLabelLayout.placements.get(layoutKey);
@@ -443,6 +445,9 @@ export const PdfAnnotationLayer = memo(function PdfAnnotationLayer({
                     {...labelTextPaint(labelColors, labelBackgroundOpacity, transform.zoom)}
                     fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
                     fontSize={CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX / transform.zoom}
+                    width={labelDimensions.width}
+                    wrap="none"
+                    ellipsis
                     padding={LABEL_PADDING_SCREEN_PX / transform.zoom}
                   />
                 </Label>

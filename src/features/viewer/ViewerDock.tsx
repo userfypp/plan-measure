@@ -179,7 +179,7 @@ export function ViewerDock({
       onSelect: () => onScaleChange(calibration.id),
       label: (
         <span className={styles.scaleMenuLabel}>
-          <strong>{calibration.name}</strong>
+          <strong title={calibration.name}>{calibration.name}</strong>
           <small>{metadata.detailLabel}</small>
         </span>
       ),

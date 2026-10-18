@@ -81,6 +81,7 @@ export const CANVAS_VISUAL_METRICS = Object.freeze({
   labelPaddingScreenPx: 4,
   measurementLabelFontSizeScreenPx: 12,
   calibrationLabelFontSizeScreenPx: 11,
+  calibrationLabelMaxWidthScreenPx: 160,
   labelCornerRadiusScreenPx: 3,
   cloudStrokeScreenPx: 2.75,
   cloudSelectedStrokeScreenPx: 3.25,

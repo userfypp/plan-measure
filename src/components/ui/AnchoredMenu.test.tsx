@@ -122,6 +122,12 @@ describe("AnchoredMenu", () => {
     expect(buttons()[1]?.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("names a plain-text item in its tooltip so a truncated label stays readable", () => {
+    openMenu();
+
+    expect(buttons()[0]?.getAttribute("title")).toBe("Measurements");
+  });
+
   it("supports checkbox menu semantics without changing selection markers", () => {
     act(() => {
       root!.render(

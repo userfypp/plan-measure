@@ -224,6 +224,7 @@
   --geometry-viewer-scale-max-width-sm: 88px;
   --geometry-viewer-scale-max-width-xs: 72px;
   --geometry-viewer-menu-label-min-width: 180px;
+  --geometry-menu-max-width: 320px;
   --geometry-viewer-popover-width: 320px;
   --geometry-viewer-popover-width-compact: 280px;
   --geometry-keyboard-feedback-width: 420px;

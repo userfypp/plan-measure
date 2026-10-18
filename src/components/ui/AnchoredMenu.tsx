@@ -257,6 +257,7 @@ export function AnchoredMenu({
               tabIndex={index === tabbableIndex ? 0 : -1}
               data-popover-autofocus={index === initialFocusIndex ? "true" : undefined}
               className={styles.item}
+              title={typeof item.label === "string" ? item.label : undefined}
               onFocus={() => setFocusIndex(index)}
               onClick={() => selectItem(index)}
             >

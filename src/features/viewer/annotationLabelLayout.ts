@@ -26,6 +26,8 @@ export const MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX =
   CANVAS_VISUAL_METRICS.measurementLabelFontSizeScreenPx;
 export const CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX =
   CANVAS_VISUAL_METRICS.calibrationLabelFontSizeScreenPx;
+export const CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX =
+  CANVAS_VISUAL_METRICS.calibrationLabelMaxWidthScreenPx;
 
 export interface MeasurementLabelData {
   anchor: Point;
@@ -66,14 +68,23 @@ export function averagePoint(points: Point[]): Point {
   };
 }
 
-export function measureLabelText(text: string, fontSizeScreenPx: number, zoom: number): LabelDimensions {
+/** A label wider than `maxWidthScreenPx` is measured at that width; its text is drawn ellipsized. */
+export function measureLabelText(
+  text: string,
+  fontSizeScreenPx: number,
+  zoom: number,
+  maxWidthScreenPx?: number,
+): LabelDimensions {
   const textNode = new KonvaTextNode({
     text,
     fontFamily: CANVAS_VISUAL_METRICS.fontFamily,
     fontSize: fontSizeScreenPx / zoom,
     padding: LABEL_PADDING_SCREEN_PX / zoom,
   });
-  return { width: textNode.width(), height: textNode.height() };
+  const height = textNode.height();
+  const width = textNode.width();
+  const maxWidth = maxWidthScreenPx === undefined ? width : maxWidthScreenPx / zoom;
+  return { width: Math.min(width, maxWidth), height };
 }
 
 /** Shared by final and live labels: inside-geometry placement, else overlap-avoiding at the anchor. */
@@ -261,7 +272,12 @@ export function planLabelLayout(
         reserve(
           `calibration:${calibration.id}:${reference.key}`,
           { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
-          measureLabelText(labelText, CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX, zoom),
+          measureLabelText(
+            labelText,
+            CALIBRATION_LABEL_FONT_SIZE_SCREEN_PX,
+            zoom,
+            CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX,
+          ),
         );
       }
     }

@@ -197,6 +197,7 @@ describe("ViewerDock", () => {
     expect(items[0]?.getAttribute("aria-checked")).toBe("true");
     expect(items[0]?.getAttribute("aria-current")).toBe("true");
     expect(items[1]?.textContent).toContain("Survey correction");
+    expect(items[1]?.querySelector("strong")?.getAttribute("title")).toBe("Survey correction");
     expect(items[1]?.textContent).toContain("X 1:100 · Y 1:98 · X/Y");
 
     act(() => items[1]?.click());

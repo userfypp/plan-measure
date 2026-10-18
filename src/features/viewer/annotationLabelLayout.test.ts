@@ -2,7 +2,9 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Measurement, PageCalibration, PageState, Point } from "../../types/domain";
 import {
+  CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX,
   createLabelLayoutPlanner,
+  measureLabelText,
   planLabelLayout,
   type LabelLayoutInput,
   type LabelLayoutPlan,
@@ -80,6 +82,23 @@ function plan(measurements: Measurement[]) {
 const horizontal = line("horizontal", { x: 100, y: 500 }, { x: 900, y: 500 });
 const vertical = line("vertical", { x: 500, y: 100 }, { x: 500, y: 900 });
 const diagonal = line("diagonal", { x: 200, y: 200 }, { x: 800, y: 800 });
+
+describe("measureLabelText", () => {
+  it("caps a label at the given screen width, whatever the zoom", () => {
+    const longName = "A very long scale name ".repeat(20);
+    for (const zoom of [0.5, 1, 4]) {
+      const capped = measureLabelText(longName, 11, zoom, CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX);
+      expect(capped.width * zoom).toBeCloseTo(CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX);
+      expect(capped.height).toBe(measureLabelText("Short", 11, zoom).height);
+    }
+  });
+
+  it("leaves a label narrower than the cap at its natural width", () => {
+    expect(measureLabelText("Short", 11, 1, CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX)).toEqual(
+      measureLabelText("Short", 11, 1),
+    );
+  });
+});
 
 describe("planLabelLayout", () => {
   it("places labels in page order, so earlier labels keep their spot", () => {
