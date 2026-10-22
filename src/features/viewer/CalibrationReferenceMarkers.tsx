@@ -54,6 +54,7 @@ export function CalibrationReferenceMarkers({
   onDragCancellationChange,
 }: CalibrationReferenceMarkersProps) {
   const { handleSize } = useAppPreferences();
+  const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
   const frameRef = useRef<number | null>(null);
   const pendingPointsRef = useRef<[Point, Point] | null>(null);
   const dragPointsRef = useRef<[Point, Point]>(points);
@@ -171,14 +172,14 @@ export function CalibrationReferenceMarkers({
         key={`${calibrationId}-${index}`}
         x={point.x}
         y={point.y}
-        radius={scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]) / zoom}
+        radius={handleRadiusScreenPx / zoom}
         fill={handleFill}
         stroke={stroke}
         strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
         draggable={spatialEditable}
         hitStrokeWidth={
           spatialEditable
-            ? circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom
+            ? circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx, handleRadiusScreenPx) / zoom
             : 0
         }
         onDragStart={

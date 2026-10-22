@@ -14,6 +14,7 @@ import * as labelLayout from "../../utils/labelLayout";
 import { isAxisAlignedRectStrictlyInsidePolygon } from "../../utils/geometry";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 
 type CapturedProps = Record<string, unknown>;
 
@@ -957,6 +958,38 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
 
     expect(captured.texts[0]?.text).toBe("Ground floor");
   });
+
+  it.each(["small", "large"] as const)(
+    "keeps the 32 px hit area of measurement and reference handles with %s handles",
+    (handleSize) => {
+      setAppPreference("handleSize", handleSize);
+      try {
+        renderLayer({ selectedMeasurementId: "polygon-1" });
+        const measurementHandles = captured.circles.splice(0);
+        renderLayer({
+          page: xyPage(),
+          showCalibration: true,
+          calibrationReferenceEdit: {
+            calibrationId: "xy-1",
+            reference: "x",
+            points: [
+              { x: 40, y: 40 },
+              { x: 240, y: 40 },
+            ],
+            valid: true,
+          },
+        });
+        const handles = [...measurementHandles, ...captured.circles.slice(0, 2)];
+        expect(handles).toHaveLength(6);
+        for (const handle of handles) {
+          expect(handle.radius).toBe(handleSize === "small" ? 1.125 : 2.25);
+          expect((handle.radius as number) * 2 + (handle.hitStrokeWidth as number)).toBe(16);
+        }
+      } finally {
+        resetAppPreferences();
+      }
+    },
+  );
 
   it("uses selection semantics for active reference editing while preserving reference endpoints", () => {
     const page = xyPage();
