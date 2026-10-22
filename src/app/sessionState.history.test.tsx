@@ -3,6 +3,7 @@
 import { act, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { AppProvider } from "./state";
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
 
@@ -85,6 +86,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetAppPreferences();
   act(() => root?.unmount());
   container?.remove();
   root = null;
@@ -328,4 +330,28 @@ it.each(["Hide selected", "Delete selected"])("undoes and redoes %s across pages
   expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe("false:true:0");
   click("Redo");
   expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(after);
+});
+
+it("trims the existing Undo and Redo history as soon as the limit is lowered", () => {
+  const historyState = () => document.querySelector('[data-testid="history-state"]')!.textContent;
+  const countSteps = (label: "Undo" | "Redo", flag: 0 | 1) => {
+    let steps = 0;
+    while (historyState()!.split(":")[flag] === "true") {
+      click(label);
+      steps += 1;
+    }
+    return steps;
+  };
+  click("Load geometry batch");
+  for (let edit = 0; edit < 60; edit += 1) click("Move batch");
+
+  act(() => setAppPreference("undoDepth", 50));
+  expect(countSteps("Undo", 0)).toBe(50);
+
+  act(() => setAppPreference("undoDepth", 100));
+  for (let edit = 0; edit < 60; edit += 1) click("Move batch");
+  expect(countSteps("Undo", 0)).toBe(60);
+  act(() => setAppPreference("undoDepth", 50));
+  expect(historyState()!.startsWith("false:true:")).toBe(true);
+  expect(countSteps("Redo", 1)).toBe(50);
 });

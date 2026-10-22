@@ -2,12 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { getAppPreferences } from "../utils/appPreferences";
+import { getAppPreferences, subscribeAppPreferences } from "../utils/appPreferences";
 import { useAppState } from "./state";
 import type {
   CalibrationReferenceKey,
@@ -1329,6 +1330,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       canRedo: redoStackRef.current.length > 0,
     });
   }, []);
+  // A lower Undo history limit applies to the existing stacks right away, keeping the most recent steps.
+  useEffect(() => subscribeAppPreferences(() => {
+    const { undoDepth } = getAppPreferences();
+    if (undoStackRef.current.length <= undoDepth && redoStackRef.current.length <= undoDepth) return;
+    undoStackRef.current = undoStackRef.current.slice(-undoDepth);
+    redoStackRef.current = redoStackRef.current.slice(-undoDepth);
+    updateHistoryState();
+  }), [updateHistoryState]);
   const applyAction = useCallback(
     (action: SessionAction): SessionCommandResult => {
       const result = sessionReducer({ session: sessionRef.current, error: null }, action);
