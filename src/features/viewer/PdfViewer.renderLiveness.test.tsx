@@ -2172,6 +2172,44 @@ describe("PdfViewer render liveness", () => {
     expect(workspaceProbe?.draft).toBeNull();
   });
 
+  it("keeps the selection when a Space pan leaves the viewer and its button is released back over it", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    await mountViewer(runtime.document);
+    await act(async () => workspaceProbe!.selectMeasurement("line"));
+
+    const stageHandler = (name: string) => {
+      const handler = konvaCapture.stages.at(-1)?.[name] as ((event?: unknown) => void) | undefined;
+      if (!handler) throw new Error(`Stage ${name} handler was not captured.`);
+      return handler;
+    };
+    const stageEvent = (x: number, y: number) => {
+      const stage = { getPointerPosition: () => ({ x, y }), getStage: () => stage, name: () => "" };
+      return { target: stage, evt: { button: 0, preventDefault: vi.fn() } };
+    };
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]");
+    if (!viewer) throw new Error("Viewer focus surface was not mounted.");
+    viewer.focus();
+
+    await act(async () => {
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    });
+    await act(async () => stageHandler("onMouseDown")(stageEvent(100, 100)));
+    await act(async () => stageHandler("onMouseMove")(stageEvent(130, 120)));
+    await act(async () => stageHandler("onMouseLeave")());
+    // Time passes outside the viewer before the pointer returns.
+    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 0)));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keyup", { key: " " })));
+    await act(async () => stageHandler("onMouseUp")());
+    await act(async () => stageHandler("onClick")(stageEvent(110, 110)));
+    expect(workspaceProbe!.selectedMeasurementId).toBe("line");
+
+    // The next click on the empty page clears the selection as usual.
+    await act(async () => stageHandler("onMouseDown")(stageEvent(110, 110)));
+    await act(async () => stageHandler("onMouseUp")());
+    await act(async () => stageHandler("onClick")(stageEvent(110, 110)));
+    expect(workspaceProbe!.selectedMeasurementId).toBeNull();
+  });
+
   it("cancels an in-progress Line when Escape reaches the window after canvas drawing", async () => {
     const pdfPage = createPdfPage();
     const runtime = createPdfDocument({ 1: pdfPage.page });
