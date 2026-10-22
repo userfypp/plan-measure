@@ -418,7 +418,18 @@ function pushEllipseTargets(
       point,
     });
   });
-  const outline = measurementOutlinePoints("ellipse", measurement.points);
+  pushOutlineTargets(targets, measurement, measurementIndex, anchors.length, bounds);
+}
+
+/** Segments of the visible curved outline of an Ellipse or Cloud. */
+function pushOutlineTargets(
+  targets: SnapTarget[],
+  measurement: Measurement,
+  measurementIndex: number,
+  firstPrimitiveIndex: number,
+  bounds?: LogicalPageBounds,
+): void {
+  const outline = measurementOutlinePoints(measurement.type, measurement.points);
   for (let index = 0; index < outline.length; index += 1) {
     const start = outline[index]!;
     const end = outline[(index + 1) % outline.length]!;
@@ -429,8 +440,8 @@ function pushEllipseTargets(
       kind: "segment",
       measurementId: measurement.id,
       measurementIndex,
-      // Offset past the anchor vertex indices so incident-vertex suppression never matches.
-      primitiveIndex: anchors.length + index,
+      // Offset past the vertex indices so incident-vertex suppression never matches.
+      primitiveIndex: firstPrimitiveIndex + index,
       start: visibleSegment.start,
       end: visibleSegment.end,
       endVertexIndex: -1,
@@ -506,6 +517,13 @@ function measurementSnapTargets(
   });
 
   if (measurement.type === "count") return targets;
+  if (measurement.type === "cloud") {
+    // Snap to the visible scalloped outline, not the control polygon.
+    if (measurement.points.every(finitePoint)) {
+      pushOutlineTargets(targets, measurement, measurementIndex, measurement.points.length, bounds);
+    }
+    return targets;
+  }
 
   const segmentCount = measurementPathSpecs[measurement.type].closed
     ? measurement.points.length
