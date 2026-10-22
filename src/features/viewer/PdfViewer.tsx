@@ -1295,6 +1295,8 @@ export function PdfViewer({
   }
 
   function handleMouseDown(event: KonvaEventObject<MouseEvent>) {
+    // A new press ends any click suppression left by a pan that ended outside the viewer.
+    suppressPanClickRef.current = false;
     if (!startsViewerPan(activeTool, spacePan, event.evt.button)) return;
     cancelActiveWholeMeasurementDrag();
     cancelActiveVertexDrag();
@@ -1386,7 +1388,13 @@ export function PdfViewer({
 
   function handleMouseLeave() {
     clearSnapFeedback();
+    const leavingPan = panDragRef.current !== null;
     finishPan();
+    // The button may be released after returning to the viewer; that click still ends the pan.
+    if (leavingPan && suppressPanClickTimerRef.current !== null) {
+      window.clearTimeout(suppressPanClickTimerRef.current);
+      suppressPanClickTimerRef.current = null;
+    }
   }
 
   function handleStageClick(event: KonvaEventObject<MouseEvent>) {
@@ -1413,11 +1421,10 @@ export function PdfViewer({
     if (
       finishOnDoubleClick &&
       event.evt.detail >= 2 &&
-      workspaceDraft?.type === "path" &&
-      workspaceDraft.points.length > 0 &&
-      measurementPathSpecs[workspaceDraft.measurementType].authoring !== "box"
+      getDrawingKeyboardAction("Enter", activeTool, workspaceDraft) === "complete-path"
     ) {
       // The first click of a double click already placed the last vertex; this one only finishes.
+      // A draft that cannot finish yet (such as a Line) takes this click as its next point.
       completeCurrentDraft();
       return;
     }

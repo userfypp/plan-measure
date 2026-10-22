@@ -20,6 +20,7 @@ import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import { loadPdf } from "../../services/pdf";
 import type { PageState, Point, Tool, ViewTransform } from "../../types/domain";
 import { pageToScreen, pdfRasterLayout, screenToPage } from "../../utils/coordinates";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import { PdfViewer } from "./PdfViewer";
 import { createScaleCheckStore, type ScaleCheckStore } from "../calibration/scaleCheckState";
 import { ScaleCheckPanel } from "../calibration/ScaleCheckPanel";
@@ -2170,6 +2171,105 @@ describe("PdfViewer render liveness", () => {
     expect(workspaceProbe?.selectedMeasurementId).toBe(line?.id);
     expect(workspaceProbe?.activeTool).toBe("line");
     expect(workspaceProbe?.draft).toBeNull();
+  });
+
+  it("keeps the selection when a Space pan leaves the viewer and its button is released back over it", async () => {
+    const runtime = createPdfDocument({ 1: createPdfPage().page });
+    await mountViewer(runtime.document);
+    await act(async () => workspaceProbe!.selectMeasurement("line"));
+
+    const stageHandler = (name: string) => {
+      const handler = konvaCapture.stages.at(-1)?.[name] as ((event?: unknown) => void) | undefined;
+      if (!handler) throw new Error(`Stage ${name} handler was not captured.`);
+      return handler;
+    };
+    const stageEvent = (x: number, y: number) => {
+      const stage = { getPointerPosition: () => ({ x, y }), getStage: () => stage, name: () => "" };
+      return { target: stage, evt: { button: 0, preventDefault: vi.fn() } };
+    };
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]");
+    if (!viewer) throw new Error("Viewer focus surface was not mounted.");
+    viewer.focus();
+
+    await act(async () => {
+      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    });
+    await act(async () => stageHandler("onMouseDown")(stageEvent(100, 100)));
+    await act(async () => stageHandler("onMouseMove")(stageEvent(130, 120)));
+    await act(async () => stageHandler("onMouseLeave")());
+    // Time passes outside the viewer before the pointer returns.
+    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 0)));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keyup", { key: " " })));
+    await act(async () => stageHandler("onMouseUp")());
+    await act(async () => stageHandler("onClick")(stageEvent(110, 110)));
+    expect(workspaceProbe!.selectedMeasurementId).toBe("line");
+
+    // The next click on the empty page clears the selection as usual.
+    await act(async () => stageHandler("onMouseDown")(stageEvent(110, 110)));
+    await act(async () => stageHandler("onMouseUp")());
+    await act(async () => stageHandler("onClick")(stageEvent(110, 110)));
+    expect(workspaceProbe!.selectedMeasurementId).toBeNull();
+  });
+
+  it("completes a short Line and still finishes a Polyline when Finish on double-click is on", async () => {
+    setAppPreference("finishOnDoubleClick", true);
+    try {
+      const runtime = createPdfDocument({ 1: createPdfPage().page });
+      const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+      session.pages[1] = {
+        ...session.pages[1]!,
+        calibrations: [
+          {
+            id: "scale-1",
+            name: "Scale 1",
+            mode: "uniform",
+            start: { x: 0, y: 0 },
+            end: { x: 10, y: 0 },
+            referenceDistanceMm: 1000,
+          },
+        ],
+        activeCalibrationId: "scale-1",
+        nextCalibrationNumber: 2,
+      };
+      await mountViewer(runtime.document, { page: session.pages[1] });
+      await act(async () => sessionProbe!.loadSession(session));
+
+      const clickPagePoint = async (point: Point, detail: number) => {
+        const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
+        const transform = konvaCapture.annotationLayers.at(-1)?.transform as ViewTransform;
+        if (!onClick || !transform) throw new Error("Drawing stage was not ready.");
+        await act(async () =>
+          onClick({
+            target: {
+              getStage: () => ({ getPointerPosition: () => pageToScreen(point, transform) }),
+            },
+            evt: { button: 0, detail },
+          }),
+        );
+      };
+      const measurements = () => sessionProbe!.session!.pages[1]!.measurements;
+
+      // Two nearby clicks that the browser reports as a double click.
+      await act(async () => workspaceProbe!.chooseTool("line"));
+      await clickPagePoint({ x: 20, y: 20 }, 1);
+      await clickPagePoint({ x: 24, y: 20 }, 2);
+      expect(measurements()).toHaveLength(1);
+      expect(measurements()[0]).toMatchObject({ type: "line" });
+      expect(measurements()[0]!.points[1]!.x).toBeCloseTo(24, 12);
+      expect(workspaceProbe!.draft).toBeNull();
+
+      // The second click of a double click on a Polyline only finishes it.
+      await act(async () => workspaceProbe!.chooseTool("polyline"));
+      await clickPagePoint({ x: 20, y: 60 }, 1);
+      await clickPagePoint({ x: 80, y: 60 }, 1);
+      await clickPagePoint({ x: 81, y: 60 }, 2);
+      expect(measurements()).toHaveLength(2);
+      expect(measurements()[1]).toMatchObject({ type: "polyline" });
+      expect(measurements()[1]!.points).toHaveLength(2);
+      expect(workspaceProbe!.draft).toBeNull();
+    } finally {
+      resetAppPreferences();
+    }
   });
 
   it("cancels an in-progress Line when Escape reaches the window after canvas drawing", async () => {
