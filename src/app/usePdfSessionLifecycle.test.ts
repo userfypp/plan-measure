@@ -4,7 +4,7 @@ import "fake-indexeddb/auto";
 import { openDB } from "idb";
 import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
 import { isSessionPersistable } from "./autosave";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
@@ -644,6 +644,98 @@ describe("workspace initialization", () => {
     expect(lifecycle!.autosaveUnavailable).toBe(true);
     expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("unavailable");
     expect(lifecycleErrors).not.toContain("The new PDF could not be saved. The current project remains open.");
+  });
+
+  async function seedTwoProjects() {
+    const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
+    let revision = await replaceSavedSession(
+      projectA,
+      new Blob(["pdf-a"], { type: "application/pdf" }),
+      null,
+      "project-a",
+    );
+    revision = await replaceSavedSession(
+      projectB,
+      new Blob(["pdf-b"], { type: "application/pdf" }),
+      revision,
+      "project-b",
+      projectA,
+    );
+    await activateSavedProject("project-a", revision);
+  }
+
+  it.each([
+    ["reading the selected project", "loadSavedProject"],
+    ["activating it and saving the current one", "activateSavedProject"],
+  ] as const)(
+    "keeps the current project open and saved when %s fails",
+    async (_, failingStep) => {
+      setAppPreference("autosaveDelayMs", 300);
+      onTestFinished(() => resetAppPreferences());
+      await seedTwoProjects();
+      await renderLifecycleHarness();
+      await act(async () => {
+        await lifecycle!.continueRecovery();
+      });
+      const edited = { ...harnessSession!, settings: { ...harnessSession!.settings, showLabels: false } };
+      act(() => setHarnessSession!(edited));
+      const statusBefore = lifecycle!.saveStatusStore.getSnapshot().state;
+      const failure = new DOMException("Full", "QuotaExceededError");
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(persistenceService, failingStep).mockRejectedValueOnce(failure);
+
+      await act(async () => {
+        await lifecycle!.openProject("project-b");
+      });
+
+      expect(harnessSession).toBe(edited);
+      expect(lifecycle!.activePdf).not.toBeNull();
+      expect(lifecycleErrors).toContain(
+        "This project could not be opened. Its saved copy has been kept on this device.",
+      );
+      expect(console.error).toHaveBeenCalledWith("Saved PDF recovery failed.", failure);
+      expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe(statusBefore);
+      expect((await loadSavedSession())?.projectId).toBe("project-a");
+      expect((await loadSavedProject("project-b")).session.pdf.name).toBe("B-202.pdf");
+      expect(lifecycle!.hasUnsavedMemoryProject()).toBe(false);
+
+      // Autosave resumes for the project that stayed open.
+      const next = { ...edited, settings: { ...edited.settings, showMeasurements: false } };
+      act(() => setHarnessSession!(next));
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 450));
+      });
+      expect((await loadSavedProject("project-a")).session).toEqual(next);
+    },
+  );
+
+  it("keeps the protected saved project active when another is opened after continuing without recovery", async () => {
+    await seedTwoProjects();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "loadSavedSession").mockRejectedValueOnce(
+      new DOMException("Storage unavailable", "SecurityError"),
+    );
+    await renderLifecycleHarness();
+    expect(lifecycle!.recoveryIssue).not.toBeNull();
+    act(() => lifecycle!.continueWithoutRecovery());
+
+    await act(async () => {
+      await lifecycle!.openProject("project-b");
+    });
+
+    // Without a known revision the stored projects cannot be switched safely.
+    expect(harnessSession).toBeNull();
+    expect(lifecycle!.activePdf).toBeNull();
+    expect(lifecycleErrors).toContain(
+      "This project could not be opened. Its saved copy has been kept on this device.",
+    );
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("inactive");
+    expect((await loadSavedSession())?.projectId).toBe("project-a");
+    expect((await listSavedProjects()).map((project) => project.name).sort()).toEqual([
+      "A-101.pdf",
+      "B-202.pdf",
+    ]);
   });
 
   it("keeps the current project open if saving a new PDF fails", async () => {
