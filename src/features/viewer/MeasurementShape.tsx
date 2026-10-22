@@ -1263,7 +1263,7 @@ export const MeasurementShape = memo(function MeasurementShape({
           fill={visualRoles.handleFill}
           stroke={visualRoles.handleStroke}
           strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
-          hitStrokeWidth={circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom}
+          hitStrokeWidth={circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx, handleRadiusScreenPx) / zoom}
           draggable={editable}
           onClick={handleVertexClick}
           onMouseDown={(event) => handleVertexMouseDown(event, index)}
@@ -1288,7 +1288,12 @@ export const MeasurementShape = memo(function MeasurementShape({
             fill={visualRoles.handleFill}
             stroke={measurement.type === "count" ? stroke : visualRoles.handleStroke}
             strokeWidth={CANVAS_VISUAL_METRICS.handleStrokeScreenPx / zoom}
-            hitStrokeWidth={circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx) / zoom}
+            hitStrokeWidth={
+              circularHandleHitStrokeWidthScreenPx(
+                interactionTargetScreenPx,
+                measurement.type === "count" ? undefined : handleRadiusScreenPx,
+              ) / zoom
+            }
             draggable={
               measurement.type === "count"
                 ? selected && (countUsesWholeDrag ? wholeMeasurementDraggable : editable)

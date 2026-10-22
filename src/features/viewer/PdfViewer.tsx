@@ -1421,11 +1421,10 @@ export function PdfViewer({
     if (
       finishOnDoubleClick &&
       event.evt.detail >= 2 &&
-      workspaceDraft?.type === "path" &&
-      workspaceDraft.points.length > 0 &&
-      measurementPathSpecs[workspaceDraft.measurementType].authoring !== "box"
+      getDrawingKeyboardAction("Enter", activeTool, workspaceDraft) === "complete-path"
     ) {
       // The first click of a double click already placed the last vertex; this one only finishes.
+      // A draft that cannot finish yet (such as a Line) takes this click as its next point.
       completeCurrentDraft();
       return;
     }
