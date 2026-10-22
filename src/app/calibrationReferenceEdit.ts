@@ -34,7 +34,3 @@ export function updateCalibrationReferenceEdit(
 ): CalibrationReferenceEdit {
   return { ...edit, points: copyPoints(points) };
 }
-
-export function cancelCalibrationReferenceEdit(): null {
-  return null;
-}

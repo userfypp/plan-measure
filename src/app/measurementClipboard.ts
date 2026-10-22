@@ -7,49 +7,26 @@ import { hasValidMeasurementPoints, measurementTypeRequiresScale } from "../util
 
 export const MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX = 12;
 
-interface PasteMeasurementClipboardOptions {
-  clipboard: MeasurementClipboard;
-  pageNumber: number;
-  destinationBounds?: LogicalPageBounds | null;
-  destinationZoom?: number | null;
-  pasteMeasurement: (command: PasteMeasurementCommand) => boolean;
-  selectMeasurement: (measurementId: string) => void;
-  createId?: () => string;
-}
-
-interface DuplicateMeasurementOptions {
-  measurement: Measurement;
-  pageNumber: number;
-  destinationBounds?: LogicalPageBounds | null;
-  destinationZoom?: number | null;
-  pasteMeasurement: (command: PasteMeasurementCommand) => boolean;
-  selectMeasurement: (measurementId: string) => void;
-  createId?: () => string;
-}
-
-export function offsetMeasurementForSamePageDuplicate(
-  measurement: Measurement,
+/** Page offset that keeps a same-page duplicate visibly apart: down-right, else up-left, else none. */
+export function samePageDuplicateOffset(
+  measurements: readonly Measurement[],
   bounds: LogicalPageBounds | null,
   zoom: number | null,
-  offsetScreenPx = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX,
-): Measurement {
-  if (!bounds || !zoom || !Number.isFinite(zoom) || zoom <= 0 || offsetScreenPx <= 0) {
-    return measurement;
-  }
-
-  const offsetPageUnits = offsetScreenPx / zoom;
-  for (const direction of [1, -1] as const) {
-    const delta = direction * offsetPageUnits;
-    const points = measurement.points.map((point) => ({
-      x: point.x + delta,
-      y: point.y + delta,
-    }));
-    if (points.every((point) => isPointInPage(point, bounds))) {
-      return { ...measurement, points };
+): number {
+  if (!bounds || !zoom || !Number.isFinite(zoom) || zoom <= 0) return 0;
+  const offset = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / zoom;
+  for (const candidate of [offset, -offset]) {
+    if (
+      measurements.every((measurement) =>
+        measurement.points.every((point) =>
+          isPointInPage({ x: point.x + candidate, y: point.y + candidate }, bounds),
+        ),
+      )
+    ) {
+      return candidate;
     }
   }
-
-  return measurement;
+  return 0;
 }
 
 export function measurementClipboardFitsPage(
@@ -127,55 +104,6 @@ export function registerMeasurementClipboardInvalidation({
   };
 }
 
-export function pasteMeasurementClipboard({
-  clipboard,
-  pageNumber,
-  destinationBounds = null,
-  destinationZoom = null,
-  pasteMeasurement,
-  selectMeasurement,
-  createId = () => crypto.randomUUID(),
-}: PasteMeasurementClipboardOptions): string | null {
-  const id = createId();
-  const measurement =
-    clipboard.sourcePageNumber === pageNumber
-      ? offsetMeasurementForSamePageDuplicate(
-          clipboard.measurement,
-          destinationBounds,
-          destinationZoom,
-        )
-      : clipboard.measurement;
-  const accepted = pasteMeasurement({
-    pageNumber,
-    id,
-    sourcePageNumber: clipboard.sourcePageNumber,
-    measurement,
-  });
-  if (!accepted) return null;
-  selectMeasurement(id);
-  return id;
-}
-
-export function duplicateMeasurement({
-  measurement,
-  pageNumber,
-  destinationBounds = null,
-  destinationZoom = null,
-  pasteMeasurement,
-  selectMeasurement,
-  createId,
-}: DuplicateMeasurementOptions): string | null {
-  return pasteMeasurementClipboard({
-    clipboard: { sourcePageNumber: pageNumber, measurement },
-    pageNumber,
-    destinationBounds,
-    destinationZoom,
-    pasteMeasurement,
-    selectMeasurement,
-    createId,
-  });
-}
-
 interface PasteMeasurementsClipboardOptions {
   clipboard: MeasurementClipboard;
   pageNumber: number;
@@ -198,28 +126,10 @@ export function pasteMeasurementsClipboard({
 }: PasteMeasurementsClipboardOptions): string[] | null {
   const sources = clipboard.measurements ?? [clipboard.measurement];
   if (sources.length === 0) return null;
-  let delta = 0;
-  if (
-    clipboard.sourcePageNumber === pageNumber &&
-    destinationBounds &&
-    destinationZoom &&
-    Number.isFinite(destinationZoom) &&
-    destinationZoom > 0
-  ) {
-    const offset = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / destinationZoom;
-    for (const candidate of [offset, -offset]) {
-      if (
-        sources.every((measurement) =>
-          measurement.points.every((point) =>
-            isPointInPage({ x: point.x + candidate, y: point.y + candidate }, destinationBounds),
-          ),
-        )
-      ) {
-        delta = candidate;
-        break;
-      }
-    }
-  }
+  const delta =
+    clipboard.sourcePageNumber === pageNumber
+      ? samePageDuplicateOffset(sources, destinationBounds, destinationZoom)
+      : 0;
   const commands = sources.map((measurement) => ({
     pageNumber,
     sourcePageNumber: clipboard.sourcePageNumber,

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_APP_PREFERENCES } from "./appPreferences";
 import {
   canvasLayout,
   clampPointToPage,
@@ -13,9 +14,7 @@ import {
   pageToScreen,
   PDF_RASTER_QUALITY_LIMITS,
   pdfRasterLayout,
-  rotatedPageBounds,
   screenToPage,
-  VIEWER_MAX_ZOOM,
   VIEWER_MIN_ZOOM,
   zoomViewAtPoint,
 } from "./coordinates";
@@ -54,11 +53,6 @@ describe("page and screen coordinates", () => {
     { rotation: 180, width: 600, height: 800 },
     { rotation: 270, width: 800, height: 600 },
   ])("uses the PDF.js viewport bounds for intrinsic $rotation° rotation", (viewport) => {
-    expect(rotatedPageBounds(600, 800, viewport.rotation)).toMatchObject({
-      width: viewport.width,
-      height: viewport.height,
-      rotation: viewport.rotation,
-    });
     const page = logicalPageBoundsFromViewport(viewport);
     expect(page).toEqual(viewport);
 
@@ -116,7 +110,7 @@ describe("page and screen coordinates", () => {
   it("clamps manual zoom to the supported 10–800% range", () => {
     expect(clampViewerZoom(0.01)).toBe(VIEWER_MIN_ZOOM);
     expect(clampViewerZoom(4)).toBe(4);
-    expect(clampViewerZoom(20)).toBe(VIEWER_MAX_ZOOM);
+    expect(clampViewerZoom(20)).toBe(DEFAULT_APP_PREFERENCES.maxZoom);
 
     const initial = { zoom: 4, panX: -100, panY: 60 };
     const anchor = { x: 320, y: 240 };

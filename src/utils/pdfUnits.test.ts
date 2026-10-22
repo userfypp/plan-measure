@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   cleanScaleRatioDenominator,
-  MILLIMETRES_PER_PDF_POINT,
   millimetresPerPageUnitForScaleRatio,
   practicalScaleRatioDenominator,
   scaleRatioDenominatorFromMillimetresPerPageUnit,
@@ -10,7 +9,6 @@ import { scaleByRatio } from "./units";
 
 describe("PDF scale units", () => {
   it("uses the exact 127/360 millimetre relationship for one PDF page unit", () => {
-    expect(MILLIMETRES_PER_PDF_POINT).toBe(127 / 360);
     expect(millimetresPerPageUnitForScaleRatio(1)).toBe(scaleByRatio(1, 127, 360));
   });
 

@@ -25,9 +25,6 @@ import { shouldRenderMeasurement } from "../measurements/measurementViewModels";
 
 import { getAppPreferences, SENSITIVITY_PX } from "../../utils/appPreferences";
 
-export const SNAP_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
-export const POLYGON_CLOSE_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
-
 function snapTolerancePx(): number {
   return SENSITIVITY_PX[getAppPreferences().snapSensitivity];
 }

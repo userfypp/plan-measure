@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { PageCalibration } from "../types/domain";
 import {
   beginCalibrationReferenceEdit,
-  cancelCalibrationReferenceEdit,
   updateCalibrationReferenceEdit,
 } from "./calibrationReferenceEdit";
 
@@ -35,7 +34,6 @@ describe("calibration reference edit draft", () => {
     ]);
     expect(moved.points).toEqual([{ x: 20, y: 20 }, { x: 110, y: 20 }]);
     expect(uniform.start).toEqual({ x: 10, y: 20 });
-    expect(cancelCalibrationReferenceEdit()).toBeNull();
   });
 
   it("edits X or Y independently and rejects an incompatible reference key", () => {

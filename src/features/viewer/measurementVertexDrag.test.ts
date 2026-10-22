@@ -13,7 +13,6 @@ import {
   canStartMeasurementVertexDrag,
   cancelPreparedMeasurementVertexDrag,
   cancelMeasurementVertexDrag,
-  cancelMeasurementVertexDragIfUnsafe,
   createMeasurementVertexDragCancellationRegistry,
   createMeasurementVertexDragState,
   finishMeasurementVertexDrag,
@@ -21,7 +20,6 @@ import {
   prepareMeasurementVertexDrag,
   shouldRenderMeasurementVertexHandles,
   shouldCancelMeasurementVertexDrag,
-  updateMeasurementVertexDrag,
   type MeasurementVertexDragEffects,
   type MeasurementVertexDragNode,
 } from "./measurementVertexDrag";
@@ -100,7 +98,6 @@ describe("measurement vertex drag lifecycle", () => {
     const { commit, previews, editing, effects } = dragEffects();
     const { state } = beginLineDrag(node, effects);
 
-    expect(updateMeasurementVertexDrag(state, node, 1, { x: 100, y: 110 }, effects)).toBe(true);
     const result = finishMeasurementVertexDrag(state, node, 1, { x: 120, y: 130 }, effects);
 
     expect(result).toEqual({
@@ -254,15 +251,7 @@ describe("measurement vertex drag lifecycle", () => {
     ).toBe(true);
     expect(shouldCancelMeasurementVertexDrag(snapshot, false, transform, bounds)).toBe(true);
 
-    expect(
-      cancelMeasurementVertexDragIfUnsafe(
-        state,
-        true,
-        { ...transform, zoom: 1.25 },
-        bounds,
-        effects,
-      ),
-    ).toBe(true);
+    expect(cancelMeasurementVertexDrag(state, effects)).toBe(true);
     expect(finishMeasurementVertexDrag(state, node, 1, { x: 400, y: 400 }, effects)).toEqual({
       outcome: "cancelled",
       points: null,
@@ -662,7 +651,6 @@ describe("measurement vertex drag lifecycle", () => {
       sourcePoints[1]!,
       effects,
     );
-    updateMeasurementVertexDrag(state, node, 1, { x: 2, y: 1 }, effects);
 
     cancelMeasurementVertexDrag(state, effects);
 
@@ -740,13 +728,9 @@ describe("box side drag", () => {
 
   it("keeps the handle in the middle of the moved side and commits only that side", () => {
     const node = new FakeDragNode();
-    const { commit, previews, effects } = dragEffects();
+    const { commit, effects } = dragEffects();
     const state = beginSideDrag(node, effects);
     expect(node.point).toEqual({ x: 70, y: 70 });
-
-    updateMeasurementVertexDrag(state, node, 6, { x: 10, y: 90 }, effects);
-    expect(node.point).toEqual({ x: 70, y: 90 });
-    expect(previews.at(-1)).toEqual([box[0], box[1], { x: 120, y: 90 }, { x: 20, y: 90 }]);
 
     const result = finishMeasurementVertexDrag(state, node, 6, { x: 300, y: 100 }, effects);
     expect(result).toEqual({
@@ -767,7 +751,6 @@ describe("box side drag", () => {
     const cancelledNode = new FakeDragNode();
     const cancelled = dragEffects();
     const cancelledState = beginSideDrag(cancelledNode, cancelled.effects);
-    updateMeasurementVertexDrag(cancelledState, cancelledNode, 6, { x: 70, y: 200 }, cancelled.effects);
     cancelMeasurementVertexDrag(cancelledState, cancelled.effects);
     expect(cancelledNode.point).toEqual({ x: 70, y: 70 });
     expect(cancelled.commit).not.toHaveBeenCalled();
