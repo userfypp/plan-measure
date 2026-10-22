@@ -87,6 +87,10 @@ describe("canvas preference helpers", () => {
     expect(scaledHandleRadiusScreenPx(1)).toBe(CANVAS_VISUAL_METRICS.handleRadiusScreenPx);
     expect(scaledHandleRadiusScreenPx(1.5)).toBe(4.5);
     expect(circularHandleHitStrokeWidthScreenPx(32)).toBe(26);
+    for (const scale of [0.75, 1, 1.5]) {
+      const radius = scaledHandleRadiusScreenPx(scale);
+      expect(radius * 2 + circularHandleHitStrokeWidthScreenPx(32, radius)).toBe(32);
+    }
   });
 
   it("keeps label text unchanged with a background and outlines it without one", () => {

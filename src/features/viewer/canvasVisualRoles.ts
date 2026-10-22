@@ -137,9 +137,15 @@ export function useCanvasInteractionTargetScreenPx(): number {
   return canvasInteractionTargetScreenPx(coarsePointer);
 }
 
-/** Hit area is derived from the base radius, so the Handle size preference never changes it. */
-export function circularHandleHitStrokeWidthScreenPx(targetSizeScreenPx: number): number {
-  return Math.max(0, targetSizeScreenPx - CANVAS_VISUAL_METRICS.handleRadiusScreenPx * 2);
+/**
+ * Hit stroke that makes a circle of `radiusScreenPx` span the interaction target, so the
+ * Handle size preference changes only the visible radius, never the hit area.
+ */
+export function circularHandleHitStrokeWidthScreenPx(
+  targetSizeScreenPx: number,
+  radiusScreenPx: number = CANVAS_VISUAL_METRICS.handleRadiusScreenPx,
+): number {
+  return Math.max(0, targetSizeScreenPx - radiusScreenPx * 2);
 }
 
 /** Visible handle radius in screen px for a Handle size multiplier. */
