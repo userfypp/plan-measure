@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { retryableImport } from "./retryableImport";
+import { MODULE_RELOAD_REQUIRED, retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
 import { preloadWhenIdle } from "./idlePreload";
 import { loadViewerModule } from "./viewerModule";
@@ -279,8 +279,9 @@ function PlanMeasureApp() {
         setExportDialog(() => component);
         setExportDialogOpen(true);
       },
-      () => {
-        setError("Could not load export. Check your connection and click Export to try again.");
+      (error) => {
+        setError(`Could not load export. ${error instanceof Error && error.message === MODULE_RELOAD_REQUIRED
+          ? "Reload the page" : "Check your connection and click Export"} to try again.`);
       },
     );
   }, [ExportDialog, setError]);

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { retryableImport } from "./retryableImport";
+import { MODULE_RELOAD_REQUIRED, retryableImport } from "./retryableImport";
 
 afterEach(() => document.head.querySelectorAll('link[href*="module-retry"]').forEach((link) => link.remove()));
 
@@ -33,4 +33,25 @@ it("never imports an external URL provided by an error message", async () => {
   await expect(retry()).rejects.toThrow("Failed to fetch");
   await expect(retry()).resolves.toEqual({ ready: true });
   expect(load).toHaveBeenCalledTimes(2);
+});
+
+it("asks for a reload when a retried module loads but one of its dependencies stays failed", async () => {
+  const address = new URL(`${import.meta.env.BASE_URL}assets/export.js`, window.location.href).href;
+  const load = vi.fn().mockRejectedValue(new Error(`Failed to fetch dynamically imported module: ${address}`));
+  const fetchModule = vi.fn().mockResolvedValue(new Response("export {};", { status: 200 }));
+  vi.stubGlobal("fetch", fetchModule);
+  try {
+    const retry = retryableImport(load);
+    await expect(retry()).rejects.toThrow("Failed to fetch");
+    await expect(retry()).rejects.toThrow(MODULE_RELOAD_REQUIRED);
+    expect(fetchModule).toHaveBeenCalledWith(`${address}?module-retry=1`, { cache: "no-store" });
+
+    // While the module itself is still unreachable, the connection is the likely cause.
+    fetchModule.mockRejectedValue(new TypeError("Failed to fetch"));
+    const offline = retry();
+    await expect(offline).rejects.not.toThrow(MODULE_RELOAD_REQUIRED);
+    expect(load).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

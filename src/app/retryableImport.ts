@@ -1,3 +1,9 @@
+/**
+ * A module whose own file loads but still fails has a failed dependency, which the browser
+ * keeps for the life of the page; only a reload can load it again.
+ */
+export const MODULE_RELOAD_REQUIRED = "Reload the page to load this module.";
+
 /** A failed module request remains cached in some browsers; retry its same-origin URL. */
 export function retryableImport<T>(load: () => Promise<T>): () => Promise<T> {
   let failedUrl: URL | null = null;
@@ -25,7 +31,12 @@ export function retryableImport<T>(load: () => Promise<T>): () => Promise<T> {
       if (!failedUrl) return await load();
       const url = new URL(failedUrl.href);
       url.searchParams.set("module-retry", String(++attempt));
-      return await import(/* @vite-ignore */ url.href) as T;
+      try {
+        return await import(/* @vite-ignore */ url.href) as T;
+      } catch (error) {
+        const loads = await fetch(url.href, { cache: "no-store" }).then((response) => response.ok, () => false);
+        throw loads ? new Error(MODULE_RELOAD_REQUIRED, { cause: error }) : error;
+      }
     } catch (error) {
       if (error instanceof Error) {
         const css = error.message.startsWith("Unable to preload CSS for ");
