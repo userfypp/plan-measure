@@ -2,14 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { Measurement } from "../types/domain";
 import {
   canDuplicateMeasurement,
-  duplicateMeasurement,
   isMeasurementClipboardActionBlocked,
   MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX,
   measurementClipboardFitsPage,
-  offsetMeasurementForSamePageDuplicate,
-  pasteMeasurementClipboard,
   pasteMeasurementsClipboard,
   registerMeasurementClipboardInvalidation,
+  samePageDuplicateOffset,
 } from "./measurementClipboard";
 import type { PasteMeasurementCommand } from "./sessionState";
 
@@ -25,6 +23,23 @@ const measurement: Measurement = {
   classificationValueIds: ["trade-value"],
   visible: true,
 };
+
+/** Pastes a single-measurement clipboard through the production path, one command per copy. */
+function pasteMeasurementClipboard({
+  pasteMeasurement,
+  selectMeasurement,
+  ...options
+}: Omit<Parameters<typeof pasteMeasurementsClipboard>[0], "pasteMeasurements" | "selectMeasurements"> & {
+  pasteMeasurement: (command: PasteMeasurementCommand) => boolean;
+  selectMeasurement: (measurementId: string) => void;
+}): string | null {
+  const ids = pasteMeasurementsClipboard({
+    ...options,
+    pasteMeasurements: (commands) => commands.every((command) => pasteMeasurement(command)),
+    selectMeasurements: (selected) => selected.forEach((id) => selectMeasurement(id)),
+  });
+  return ids?.[0] ?? null;
+}
 
 describe("measurement clipboard orchestration", () => {
   it.each([
@@ -203,12 +218,8 @@ describe("measurement clipboard orchestration", () => {
         { x: 95, y: 90 },
       ],
     };
-    const upLeft = offsetMeasurementForSamePageDuplicate(nearBottomRight, bounds, 1);
-    expect(upLeft.points).toEqual(
-      nearBottomRight.points.map((point) => ({
-        x: point.x - MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX,
-        y: point.y - MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX,
-      })),
+    expect(samePageDuplicateOffset([nearBottomRight], bounds, 1)).toBe(
+      -MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX,
     );
 
     const spanningPage: Measurement = {
@@ -218,7 +229,7 @@ describe("measurement clipboard orchestration", () => {
         { x: 100, y: 100 },
       ],
     };
-    expect(offsetMeasurementForSamePageDuplicate(spanningPage, bounds, 1)).toBe(spanningPage);
+    expect(samePageDuplicateOffset([spanningPage], bounds, 1)).toBe(0);
   });
 
   it("keeps the visual offset constant across zoom levels and accepts exact page boundaries", () => {
@@ -231,8 +242,7 @@ describe("measurement clipboard orchestration", () => {
           { x: 60, y: 60 },
         ],
       };
-      const shifted = offsetMeasurementForSamePageDuplicate(source, bounds, zoom);
-      const pageDelta = shifted.points[0]!.x - source.points[0]!.x;
+      const pageDelta = samePageDuplicateOffset([source], bounds, zoom);
       expect(pageDelta * zoom).toBe(MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX);
     }
 
@@ -243,10 +253,9 @@ describe("measurement clipboard orchestration", () => {
         { x: 88, y: 88 },
       ],
     };
-    expect(offsetMeasurementForSamePageDuplicate(boundarySource, bounds, 1).points[1]).toEqual({
-      x: 100,
-      y: 100,
-    });
+    const boundaryDelta = samePageDuplicateOffset([boundarySource], bounds, 1);
+    expect(boundarySource.points[1]!.x + boundaryDelta).toBe(100);
+    expect(boundarySource.points[1]!.y + boundaryDelta).toBe(100);
   });
 
   it("invokes the existing paste path, selects the new measurement, and cascades repeated Duplicate", () => {
@@ -259,8 +268,8 @@ describe("measurement clipboard orchestration", () => {
     const bounds = { width: 100, height: 100, rotation: 0 } as const;
     const sourceBefore = structuredClone(measurement);
 
-    duplicateMeasurement({
-      measurement,
+    pasteMeasurementClipboard({
+      clipboard: { sourcePageNumber: 1, measurement },
       pageNumber: 1,
       destinationBounds: bounds,
       destinationZoom: 1,
@@ -276,8 +285,8 @@ describe("measurement clipboard orchestration", () => {
     });
     expect(selectMeasurement).toHaveBeenCalledWith("copy-1");
     const firstCopy: Measurement = { ...firstCommand.measurement, id: firstCommand.id };
-    duplicateMeasurement({
-      measurement: firstCopy,
+    pasteMeasurementClipboard({
+      clipboard: { sourcePageNumber: 1, measurement: firstCopy },
       pageNumber: 1,
       destinationBounds: bounds,
       destinationZoom: 1,

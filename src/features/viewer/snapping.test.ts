@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
+import { resetAppPreferences, SENSITIVITY_PX, setAppPreference } from "../../utils/appPreferences";
 import type { PathMeasurement, LogicalPageBounds, Point, ViewTransform } from "../../types/domain";
 import { pageToScreen } from "../../utils/coordinates";
 import { constrainOrthogonal } from "../../utils/geometry";
+import { cloudArcs } from "../../utils/quickShapesOutline";
 import { buildDraftPreviewPoints } from "./draftPreview";
 import {
-  POLYGON_CLOSE_TOLERANCE_SCREEN_PX,
-  SNAP_TOLERANCE_SCREEN_PX,
   clipSegmentToPage,
   extractSnapTargets,
   isSnapPointPlacementActive,
@@ -18,6 +17,9 @@ import {
   type SnapTarget,
 } from "./snapping";
 
+// The Snap and polygon-close sensitivities default to "normal".
+const SNAP_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
+const POLYGON_CLOSE_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
 const bounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
 
 function measurement(
@@ -97,6 +99,42 @@ describe("snap target extraction", () => {
         .filter((target) => target.kind === "segment")
         .map((target) => target.primitiveIndex),
     ).toEqual([0, 1]);
+  });
+
+  it("snaps a Cloud to its visible scalloped outline instead of its control polygon", () => {
+    const points = [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+      { x: 200, y: 200 },
+      { x: 100, y: 200 },
+    ];
+    const targets = extractSnapTargets([measurement("cloud", "cloud", points)], true);
+    const zoom = 4;
+    const arc = cloudArcs(points)[0]!;
+    const chordMiddle = { x: (arc.start.x + arc.end.x) / 2, y: (arc.start.y + arc.end.y) / 2 };
+    const length = Math.hypot(chordMiddle.x - arc.center.x, chordMiddle.y - arc.center.y);
+    const outward = {
+      x: (chordMiddle.x - arc.center.x) / length,
+      y: (chordMiddle.y - arc.center.y) / length,
+    };
+    const apex = {
+      x: arc.center.x + outward.x * arc.radius,
+      y: arc.center.y + outward.y * arc.radius,
+    };
+    // The bulge is wider than the 10 px tolerance at this zoom.
+    expect((arc.radius - length) * zoom).toBeGreaterThan(SNAP_TOLERANCE_SCREEN_PX);
+
+    const nearArc = resolveSnapCandidate(
+      { x: apex.x + outward.x, y: apex.y + outward.y },
+      zoom,
+      targets,
+    );
+    expect(nearArc?.target.kind).toBe("segment");
+    expect(Math.hypot(nearArc!.point.x - apex.x, nearArc!.point.y - apex.y)).toBeLessThan(0.5);
+    expect(resolveSnapCandidate(chordMiddle, zoom, targets)).toBeNull();
+
+    const nearVertex = resolveSnapCandidate({ x: 101, y: 101 }, 1, targets);
+    expect(nearVertex).toMatchObject({ point: { x: 100, y: 100 }, target: { kind: "vertex" } });
   });
 
   it("snaps an Ellipse to its centre, quadrants and true contour instead of the bbox corners", () => {

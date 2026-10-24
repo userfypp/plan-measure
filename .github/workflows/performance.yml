@@ -2,6 +2,8 @@ name: Performance
 
 on:
   pull_request:
+    # labeled/unlabeled re-run the size check when the "size: approved" label changes; edited covers a new base.
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
   push:
     branches: [main]
   workflow_dispatch:
@@ -11,21 +13,43 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: performance-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   size:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # A pull request checks out its merge commit; depth 2 brings its first parent, the base.
+          fetch-depth: 2
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - id: build
+        run: npm run build
       - run: npm run perf:size
+      - name: Compare with the base
+        # Also after a ceiling failure, so the report shows what grew.
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.build.outcome == 'success' }}
+        env:
+          # Quoted: the label's ": " would otherwise end the YAML scalar.
+          APPROVED: "${{ contains(github.event.pull_request.labels.*.name, 'size: approved') }}"
+        run: |
+          parents="$(git rev-list --parents -n 1 HEAD)"
+          if [ "$(wc -w <<<"$parents")" -ne 3 ]; then
+            echo "Expected the pull request merge commit; got: $parents" >&2
+            exit 1
+          fi
+          approval=()
+          if [ "$APPROVED" = "true" ]; then approval=(--approved); fi
+          npm run perf:size:diff -- --base HEAD^1 "${approval[@]}"
       - run: npm run perf:selftest
 
   e2e:

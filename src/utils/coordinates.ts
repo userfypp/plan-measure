@@ -20,8 +20,6 @@ export interface PdfRasterLayout extends CanvasLayout {
 }
 
 export const VIEWER_MIN_ZOOM = 0.1;
-export const VIEWER_MAX_ZOOM = 8;
-export const VIEWER_ZOOM_STEP = 1.25;
 export const MAX_PDF_RASTER_PIXELS = 16 * 1024 * 1024;
 export const MAX_PDF_RASTER_DIMENSION = 8192;
 
@@ -60,20 +58,6 @@ export function normalizeRotation(rotation: number): 0 | 90 | 180 | 270 {
   const normalized = ((rotation % 360) + 360) % 360;
   if (normalized === 90 || normalized === 180 || normalized === 270) return normalized;
   return 0;
-}
-
-export function rotatedPageBounds(
-  unrotatedWidth: number,
-  unrotatedHeight: number,
-  rotation: number,
-): LogicalPageBounds {
-  const normalized = normalizeRotation(rotation);
-  const swapsAxes = normalized === 90 || normalized === 270;
-  return {
-    width: swapsAxes ? unrotatedHeight : unrotatedWidth,
-    height: swapsAxes ? unrotatedWidth : unrotatedHeight,
-    rotation: normalized,
-  };
 }
 
 export function pageToScreen(point: Point, transform: ViewTransform): Point {

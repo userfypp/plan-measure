@@ -1,17 +1,69 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
-export const sizeLimits = { mainBytes: 480_000, mainGzipBytes: 140_000, startupBytes: 511_660, viewerBytes: 833_000 };
+// Los números del presupuesto viven en size-budget.json: la CI los compara con los de la base, así que
+// bajarlos no requiere aprobación y subirlos o quitarlos sí. Todos son bytes decimales.
+const budget = JSON.parse(fs.readFileSync(new URL('./size-budget.json', import.meta.url), 'utf8'));
+// Techos absolutos: todo build debe caber. Cada uno es el tamaño medido más `ceilingHeadroom.target`
+// márgenes; subirlo requiere aprobación y bajarlo es obligatorio cuando el build queda más de
+// `ceilingHeadroom.maximum` márgenes por debajo.
+export const sizeLimits = budget.sizeLimits;
+// Crecimiento que un pull request puede añadir a cada métrica sin aprobación. En el historial de main
+// lo superan todas las funcionalidades (desde 541 B gzip) y casi ninguna corrección (20 de 22, hasta 91 B gzip).
+export const sizeGrowthAllowance = budget.sizeGrowthAllowance;
+// Holgura de los techos sobre el build, en múltiplos de `sizeGrowthAllowance`.
+export const ceilingHeadroom = budget.ceilingHeadroom;
+// La añade el mantenedor a un pull request tras revisar un aumento justificado; nunca un agente.
+export const SIZE_APPROVAL_LABEL = 'size: approved';
 export const forbiddenStartup = /(?:pdfjs|pdf(?:[.-]|\.worker)|pdf-lib|annotatedPdf|xlsx|pdfjs-dist|pdfLib|(?:^|\/)es-[^/]+\.js(?:[?#]|$))/i;
 export function checkStartup(requests, workers = []) {
   for (const request of requests) assert.ok(!forbiddenStartup.test(request), `Carga inicial diferida infringida: ${request}`);
   assert.equal(workers.length, 0, `Worker durante arranque: ${workers.join(', ')}`);
 }
-export function checkSize(metrics, limits = sizeLimits) {
+/** Techo que corresponde a un tamaño medido: el tamaño más `ceilingHeadroom.target` márgenes. */
+export function sizeCeiling(metric, value, allowance = sizeGrowthAllowance) {
+  return value + ceilingHeadroom.target * allowance[metric];
+}
+export function checkSize(metrics, limits = sizeLimits, allowance = sizeGrowthAllowance) {
   for (const key of Object.keys(limits)) {
     assert.ok(Number.isFinite(metrics[key]), `Falta tamaño ${key}`);
-    assert.ok(metrics[key] <= limits[key], `${key}: ${metrics[key]} > ${limits[key]}`);
+    assert.ok(Number.isInteger(allowance[key]) && allowance[key] > 0, `Falta margen por PR para ${key}`);
+    assert.ok(metrics[key] <= limits[key],
+      `${key}: ${metrics[key]} > ${limits[key]}. Divide el código; si el aumento está justificado, sube el techo a ${sizeCeiling(key, metrics[key], allowance)} con la etiqueta "${SIZE_APPROVAL_LABEL}"`);
+    // Trinquete: un ahorro grande baja el techo para que ese margen no se gaste sin decidirlo.
+    assert.ok(limits[key] <= metrics[key] + ceilingHeadroom.maximum * allowance[key],
+      `${key}: el techo ${limits[key]} deja más de ${ceilingHeadroom.maximum} márgenes sobre ${metrics[key]}; bájalo a ${sizeCeiling(key, metrics[key], allowance)}`);
   }
   checkStartup(metrics.startupFiles);
+}
+/**
+ * Compara el presupuesto y el build de la base con los de un pull request. Devuelve las filas del
+ * informe y lo que requiere la etiqueta de aprobación: crecimiento por encima del margen y cualquier
+ * relajación del presupuesto (un techo, margen u holgura que sube o desaparece, o la lista de
+ * dependencias prohibidas en el arranque que cambia).
+ */
+export function compareSizeBudgets(base, head) {
+  const rows = Object.keys(head.budgets.sizeLimits).map(metric => ({
+    metric, base: base.metrics[metric], head: head.metrics[metric], delta: head.metrics[metric] - base.metrics[metric],
+    allowance: head.budgets.sizeGrowthAllowance[metric], limit: head.budgets.sizeLimits[metric],
+  }));
+  const needsApproval = [];
+  for (const row of rows) {
+    assert.ok(Number.isFinite(row.base) && Number.isFinite(row.head), `Falta tamaño ${row.metric}`);
+    assert.ok(Number.isInteger(row.allowance) && row.allowance > 0, `Falta margen por PR para ${row.metric}`);
+    if (row.delta > row.allowance) needsApproval.push(`${row.metric} crece ${row.delta} B (margen por PR: ${row.allowance} B)`);
+  }
+  for (const group of ['sizeLimits', 'sizeGrowthAllowance', 'ceilingHeadroom']) {
+    for (const [key, previous] of Object.entries(base.budgets[group] ?? {})) {
+      const next = head.budgets[group]?.[key];
+      if (next === undefined) needsApproval.push(`${group}.${key} desaparece`);
+      else if (next > previous) needsApproval.push(`${group}.${key} sube de ${previous} a ${next}`);
+    }
+  }
+  if (base.budgets.forbiddenStartup !== undefined && String(base.budgets.forbiddenStartup) !== String(head.budgets.forbiddenStartup)) {
+    needsApproval.push('forbiddenStartup cambia');
+  }
+  return { rows, needsApproval };
 }
 export function median(values) {
   assert.ok(values.length > 0 && values.every(Number.isFinite), 'Muestras inválidas');

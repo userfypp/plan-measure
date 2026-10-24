@@ -180,21 +180,6 @@ export function getActiveMeasurementVertexDrag(
   return drag && drag.node === node && drag.vertexIndex === vertexIndex ? drag : null;
 }
 
-export function updateMeasurementVertexDrag(
-  state: MeasurementVertexDragState,
-  node: MeasurementVertexDragNode,
-  vertexIndex: number,
-  point: Point,
-  effects: Pick<MeasurementVertexDragEffects, "preview">,
-): boolean {
-  const drag = getActiveMeasurementVertexDrag(state, node, vertexIndex);
-  if (!drag) return false;
-  const points = pointsWithVertex(drag.sourcePoints, vertexIndex, point, drag.measurementType);
-  node.position(handlePoint(drag, points) ?? point);
-  effects.preview(points);
-  return true;
-}
-
 export function cancelMeasurementVertexDrag(
   state: MeasurementVertexDragState,
   effects: Pick<MeasurementVertexDragEffects, "preview" | "setEditing">,
@@ -250,18 +235,6 @@ export function shouldCancelMeasurementVertexDrag(
     snapshot.bounds.height !== bounds.height ||
     snapshot.bounds.rotation !== bounds.rotation
   );
-}
-
-export function cancelMeasurementVertexDragIfUnsafe(
-  state: MeasurementVertexDragState,
-  selected: boolean,
-  transform: ViewTransform,
-  bounds: LogicalPageBounds,
-  effects: Pick<MeasurementVertexDragEffects, "preview" | "setEditing">,
-): boolean {
-  const drag = state.active;
-  if (!drag || !shouldCancelMeasurementVertexDrag(drag, selected, transform, bounds)) return false;
-  return cancelMeasurementVertexDrag(state, effects);
 }
 
 export interface BoxSideHandle {

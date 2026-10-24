@@ -49,38 +49,12 @@ export function fromMillimetres(value: number, unit: LinearUnit): number {
   return scaleByRatio(value, ratio.denominator, ratio.numeratorMm);
 }
 
-export function convertLinear(value: number, from: LinearUnit, to: LinearUnit): number {
-  const source = UNIT_RATIOS[from];
-  const target = UNIT_RATIOS[to];
-  return scaleByRatio(
-    value,
-    source.numeratorMm * target.denominator,
-    source.denominator * target.numeratorMm,
-  );
-}
-
 export function fromSquareMillimetres(value: number, unit: LinearUnit): number {
   const ratio = UNIT_RATIOS[unit];
   return scaleByRatio(
     value,
     ratio.denominator * ratio.denominator,
     ratio.numeratorMm * ratio.numeratorMm,
-  );
-}
-
-export function convertArea(value: number, from: LinearUnit, to: LinearUnit): number {
-  const source = UNIT_RATIOS[from];
-  const target = UNIT_RATIOS[to];
-  return scaleByRatio(
-    value,
-    source.numeratorMm *
-      source.numeratorMm *
-      target.denominator *
-      target.denominator,
-    source.denominator *
-      source.denominator *
-      target.numeratorMm *
-      target.numeratorMm,
   );
 }
 

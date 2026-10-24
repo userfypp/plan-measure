@@ -7,8 +7,6 @@ const PDF_POINT_MM_DENOMINATOR = 360;
 const MAX_RATIO_SIGNIFICANT_DIGITS = 15;
 const RATIO_ROUNDING_TOLERANCE_ULPS = 1.5;
 
-export const MILLIMETRES_PER_PDF_POINT = PDF_POINT_MM_NUMERATOR / PDF_POINT_MM_DENOMINATOR;
-
 export function scaleRatioDenominatorFromMillimetresPerPageUnit(
   millimetresPerPageUnit: number,
 ): number {

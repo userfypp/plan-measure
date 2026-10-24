@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { checkSize, sizeLimits } from './budgets.mjs';
+import { checkSize, sizeGrowthAllowance, sizeLimits } from './budgets.mjs';
 
 const repo = process.env.PLAN_MEASURE_REPO || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function measureSize(dist) {
@@ -43,5 +43,5 @@ export function measureSize(dist) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const metrics = measureSize(path.join(repo, 'dist'));
   checkSize(metrics);
-  console.log(JSON.stringify({ metrics, limits: sizeLimits }, null, 2));
+  console.log(JSON.stringify({ metrics, limits: sizeLimits, growthAllowance: sizeGrowthAllowance }, null, 2));
 }

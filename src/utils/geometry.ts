@@ -541,11 +541,6 @@ export function constrainOrthogonal(anchor: Point, candidate: Point): Point {
     : { x: anchor.x, y: candidate.y };
 }
 
-export function isOrthogonalSegment(start: Point, end: Point): boolean {
-  const tolerance = calibrationPointTolerance(start, end);
-  return Math.abs(end.x - start.x) <= tolerance || Math.abs(end.y - start.y) <= tolerance;
-}
-
 export function distance(a: Point, b: Point): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
@@ -749,14 +744,6 @@ export function pathLengthMm(
     const nextTotal = total + length;
     if (!Number.isFinite(nextTotal)) throw new RangeError("Measurement result must be finite.");
     return nextTotal;
-  }, 0);
-}
-
-export function polygonPerimeterPageUnits(points: Point[]): number {
-  if (points.length < 2) return 0;
-  return points.reduce((total, point, index) => {
-    const next = points[(index + 1) % points.length];
-    return next ? total + distance(point, next) : total;
   }, 0);
 }
 

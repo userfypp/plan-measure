@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PathMeasurement, PathMeasurementType, PageCalibration, Point } from "../../types/domain";
-import { fitToScreen, isPointInPage, pageToScreen, rotatedPageBounds } from "../../utils/coordinates";
+import type { LogicalPageBounds } from "../../types/domain";
+import { fitToScreen, isPointInPage, pageToScreen } from "../../utils/coordinates";
 import { measurementResultsMm } from "../../utils/geometry";
 import {
   canDragWholeMeasurement,
@@ -11,7 +12,6 @@ import {
   MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX,
   measurementEditingEnabled,
   pageDeltaFromScreenDrag,
-  previewWholeMeasurementDrag,
   registerWholeMeasurementDragEnvironmentCancellation,
   registerWholeMeasurementDragPointerReleaseCleanup,
   shouldCancelWholeMeasurementDrag,
@@ -45,6 +45,12 @@ function measurement(type: PathMeasurementType, points: Point[]): PathMeasuremen
     classificationValueIds: ["trade-electrical"],
     visible: false,
   };
+}
+
+/** Logical bounds of a 600×800 page as PDF.js reports them for each intrinsic rotation. */
+function rotatedPageBounds(rotation: 0 | 90 | 180 | 270): LogicalPageBounds {
+  const swapsAxes = rotation === 90 || rotation === 270;
+  return { width: swapsAxes ? 800 : 600, height: swapsAxes ? 600 : 800, rotation };
 }
 
 describe("whole-measurement drag", () => {
@@ -160,13 +166,6 @@ describe("whole-measurement drag", () => {
     const preview = vi.fn();
     const commit = vi.fn(() => true);
     const effects = { preview, commit };
-
-    expect(
-      previewWholeMeasurementDrag({ delta: { x: 10, y: -4 }, points: movedPoints }, effects),
-    ).toBe(true);
-    expect(preview).toHaveBeenCalledTimes(1);
-    expect(commit).not.toHaveBeenCalled();
-    preview.mockClear();
 
     expect(
       finishWholeMeasurementDrag(
@@ -545,7 +544,7 @@ describe("whole-measurement drag", () => {
   it.each([0, 90, 180, 270] as const)(
     "uses the rotation-aware logical page bounds at %s degrees",
     (rotation) => {
-      const bounds = rotatedPageBounds(600, 800, rotation);
+      const bounds = rotatedPageBounds(rotation);
       const points = [
         { x: 40, y: 50 },
         { x: Math.min(220, bounds.width - 40), y: 50 },
@@ -584,7 +583,7 @@ describe("whole-measurement drag", () => {
     { width: 1280, height: 720 },
     { width: 1920, height: 1200 },
   ])("remains page-space correct for a fitted $width×$height viewport", (viewer) => {
-    const bounds = rotatedPageBounds(600, 800, 90);
+    const bounds = rotatedPageBounds(90);
     const transform = fitToScreen(bounds, viewer);
     const start = { x: 100, y: 80 };
     const end = { x: 145, y: 112 };
