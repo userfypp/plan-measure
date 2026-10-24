@@ -1181,6 +1181,9 @@ export function sessionReducer(
   }
 }
 
+// The list also fixes the property order, so equal geometry always serializes the same way.
+const CALIBRATION_GEOMETRY_KEYS = ["mode", "start", "end", "xReference", "yReference", "x", "y", "referenceDistanceMm"];
+
 function updateRecalibration(
   state: SessionCommandResult,
   command: RecalibrateCalibrationCommand,
@@ -1199,6 +1202,13 @@ function updateRecalibration(
       ...state,
       error: "Scale requires two distinct points and a valid distance greater than zero.",
     };
+  }
+  // Saving the current geometry, such as an unchanged ratio, must not add an Undo step.
+  if (
+    JSON.stringify(existing, CALIBRATION_GEOMETRY_KEYS) ===
+    JSON.stringify(calibration, CALIBRATION_GEOMETRY_KEYS)
+  ) {
+    return { ...state, error: null };
   }
   return {
     ...state,

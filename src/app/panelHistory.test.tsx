@@ -6,7 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { chooseSelectOption } from "../components/ui/selectTestUtils";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
-import { ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
+import { preloadCustomRatioDialog, ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
 import { MeasurementPanel, preloadMeasurementFilters } from "../features/measurements/MeasurementPanel";
 import type { CurrentSession, PageState, PathMeasurement } from "../types/domain";
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
@@ -171,12 +171,26 @@ function renameClassification(trigger: string, name: string) {
 }
 
 beforeAll(async () => {
-  await preloadMeasurementFilters();
+  await Promise.all([preloadMeasurementFilters(), preloadCustomRatioDialog()]);
 });
 
 beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: () => undefined });
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.open = true;
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      if (!this.open) return;
+      this.open = false;
+      this.dispatchEvent(new Event("close"));
+    },
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -210,13 +224,22 @@ describe("Undo and Redo through the real panels", () => {
     expect(text("history")).toBe("false:true");
   });
 
-  it("keeps Redo when a scale is saved with its current name", () => {
+  it("keeps Redo when a scale is saved with its current name or ratio", async () => {
     prepareRedo();
     click(buttonByLabel("Expand scale Scale 50, active"));
     click(buttonByLabel("Rename scale Scale 50"));
     const nameInput = document.querySelector<HTMLInputElement>('input[aria-label="Scale name"]')!;
     setInputValue(nameInput, " Scale 50 ");
     click(buttonByText(nameInput.closest("form")!, "Save"));
+    expect(text("history")).toBe("false:true");
+
+    click(buttonByLabel("Set ratio for scale Scale 50"));
+    const ratio = document.querySelector<HTMLInputElement>("#custom-ratio-uniform")!;
+    expect(ratio.value).toBe("50");
+    click(buttonByText(document.querySelector("dialog")!, "Save scale"));
+    await act(async () => {
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
     expect(text("history")).toBe("false:true");
   });
 

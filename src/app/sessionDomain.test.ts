@@ -303,6 +303,29 @@ describe("session domain reducer", () => {
     expect(state.session!.pages[1]!.measurements[0]!.calibrationId).toBe("custom-60");
   });
 
+  it.each([
+    createPageCalibrationFromRatio({ mode: "uniform", denominator: 50 }),
+    createPageCalibrationFromRatio({ mode: "xy", xDenominator: 50, yDenominator: 100 }),
+  ])("keeps the session unchanged when a scale is recalibrated with its current $mode geometry", (calibration) => {
+    const loaded = sessionReducer(loadedState(), {
+      type: "ADD_CALIBRATION",
+      pageNumber: 1,
+      id: "scale",
+      name: "Scale",
+      calibration,
+    });
+
+    const saved = sessionReducer(loaded, {
+      type: "RECALIBRATE_CALIBRATION",
+      pageNumber: 1,
+      calibrationId: "scale",
+      calibration: structuredClone(calibration),
+    });
+
+    expect(saved.session).toBe(loaded.session);
+    expect(saved.error).toBeNull();
+  });
+
   it("creates a second calibration without changing the first and makes it active", () => {
     let state = addScale(loadedState(), "scale-1", "Main plan");
     state = addScale(state, "scale-2", "Detail A", 5000);
