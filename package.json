@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "perf:size": "node perf/size.mjs",
+    "perf:size:diff": "node perf/size-diff.mjs",
     "perf:e2e": "node perf/run.mjs",
     "perf:e2e:strict": "node perf/run.mjs --strict",
     "perf:update-baseline": "node perf/run.mjs --update-baseline",

@@ -33,6 +33,7 @@ Use `npm run format` only when formatting is part of the change.
 - Link the relevant issue with `Closes #123` when fully resolved.
 - Update the relevant documentation when behavior or setup changes.
 - Changes to startup, the viewer, the canvas or the panels follow [Adding features without losing performance](docs/PERFORMANCE.md#adding-features-without-losing-performance). A failing test in `src/performance/` is a regression to fix, not an expectation to update.
+- Keep the JavaScript size budget: a pull request may grow each size metric only by a small allowance, and more growth or a higher ceiling needs the maintainer's `size: approved` label after review. Never add that label yourself. See [JavaScript size](docs/PERFORMANCE.md#2-javascript-size).
 
 ## AI-assisted contributions
 
