@@ -9,7 +9,6 @@ import {
   measurementResultsMm,
   millimetresPerPageUnit,
   polygonAreaPageUnitsSquared,
-  polygonPerimeterPageUnits,
   polygonResultsMm,
   calibrationScaleX,
   calibrationScaleY,
@@ -19,7 +18,6 @@ import {
   isPredominantlyHorizontal,
   isPredominantlyVertical,
   isAlignedXyReference,
-  isOrthogonalSegment,
   isValidPageCalibration,
   pathLengthMm,
 } from "./geometry";
@@ -48,8 +46,6 @@ describe("path geometry", () => {
   it("constrains a candidate point to the dominant orthogonal axis", () => {
     expect(constrainOrthogonal({ x: 10, y: 20 }, { x: 30, y: 24 })).toEqual({ x: 30, y: 20 });
     expect(constrainOrthogonal({ x: 10, y: 20 }, { x: 13, y: 40 })).toEqual({ x: 10, y: 40 });
-    expect(isOrthogonalSegment({ x: 0, y: 0 }, { x: 0, y: 9 })).toBe(true);
-    expect(isOrthogonalSegment({ x: 0, y: 0 }, { x: 3, y: 9 })).toBe(false);
   });
 
   it.each([
@@ -457,7 +453,7 @@ describe("geometry", () => {
       { x: 4, y: 3 },
       { x: 0, y: 3 },
     ];
-    expect(polygonPerimeterPageUnits(rectangle)).toBe(14);
+    expect(polygonResultsMm({ points: rectangle }, calibration).perimeterMm).toBe(1400);
     expect(polygonAreaPageUnitsSquared(rectangle)).toBe(12);
   });
 
@@ -703,9 +699,7 @@ describe("geometry", () => {
         { x: 0, y: 4 },
       ],
     };
-    expect(polygonResultsMm(rectangle, xy).perimeterMm).not.toBe(
-      polygonPerimeterPageUnits(rectangle.points) * 15,
-    );
+    expect(polygonResultsMm(rectangle, xy).perimeterMm).not.toBe(14 * 15);
   });
 
   it("uses visual X/Y references after rotation, swapping scales only for 90/270 degrees", () => {

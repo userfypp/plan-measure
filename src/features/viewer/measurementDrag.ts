@@ -141,15 +141,6 @@ export interface WholeMeasurementDragEffects {
   commit: (points: Point[]) => boolean;
 }
 
-export function previewWholeMeasurementDrag(
-  result: WholeMeasurementDragResult | null,
-  effects: WholeMeasurementDragEffects,
-): boolean {
-  if (!result) return false;
-  effects.preview(result.points);
-  return true;
-}
-
 export type WholeMeasurementDragEndResult = "cancelled" | "unchanged" | "accepted" | "rejected";
 
 export function finishWholeMeasurementDrag(

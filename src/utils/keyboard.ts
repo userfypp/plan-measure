@@ -23,14 +23,6 @@ export function hasKeyboardShortcutModifier(event: KeyboardShortcutEvent): boole
   return event.metaKey || event.ctrlKey || event.altKey;
 }
 
-export function shouldIgnoreKeyboardShortcut(event: KeyboardShortcutEvent): boolean {
-  return (
-    event.defaultPrevented ||
-    hasKeyboardShortcutModifier(event) ||
-    shouldIgnoreGlobalKeyboardShortcut(event.target)
-  );
-}
-
 export function shouldIgnoreMeasurementClipboardShortcutTarget(
   target: EventTarget | null,
 ): boolean {
@@ -136,11 +128,6 @@ export type ViewerKeyboardAction =
 
 function findShortcut(key: string): ViewerShortcut | null {
   return viewerShortcuts.find((shortcut) => shortcut.key === key.toLowerCase()) ?? null;
-}
-
-export function getToolShortcut(key: string): ToolShortcut | null {
-  const action = findShortcut(key)?.action;
-  return action && typeof action !== "string" ? action.tool : null;
 }
 
 export function getToolShortcutLabel(tool: ToolShortcut): string | null {

@@ -4,12 +4,11 @@ import {
   getDrawingKeyboardAction,
   getMeasurementKeyboardAction,
   getShortcutLabel,
-  getToolShortcut,
   getToolShortcutLabel,
   getViewerKeyboardAction,
-  shouldIgnoreKeyboardShortcut,
   shouldIgnoreGlobalKeyboardShortcut,
   shouldIgnoreMeasurementClipboardShortcutTarget,
+  shouldIgnoreViewerKeyboardShortcut,
   viewerShortcuts,
   type KeyboardShortcutEvent,
 } from "./keyboard";
@@ -379,7 +378,11 @@ describe("tool keyboard shortcuts", () => {
     ["H", "hand"],
     ["v", "select"],
   ] as const)("maps %s to %s", (key, tool) => {
-    expect(getToolShortcut(key)).toBe(tool);
+    const canvas = new FakeHTMLElement("canvas") as unknown as EventTarget;
+    expect(getViewerKeyboardAction(keyboardEvent(key, canvas), "select", null)).toEqual({
+      type: "choose-tool",
+      tool,
+    });
   });
 
   it("derives visible shortcut labels from the shared tool registry", () => {
@@ -410,8 +413,9 @@ describe("tool keyboard shortcuts", () => {
   });
 
   it("does not claim drawing completion or cancellation keys", () => {
-    expect(getToolShortcut("Enter")).toBeNull();
-    expect(getToolShortcut("Escape")).toBeNull();
+    const canvas = new FakeHTMLElement("canvas") as unknown as EventTarget;
+    expect(getViewerKeyboardAction(keyboardEvent("Enter", canvas), "select", null)).toBeNull();
+    expect(getViewerKeyboardAction(keyboardEvent("Escape", canvas), "select", null)).toBeNull();
   });
 });
 
@@ -490,7 +494,7 @@ describe("viewer keyboard policy", () => {
         const event = keyboardEvent(key, new FakeHTMLElement("canvas") as unknown as EventTarget, {
           [modifier]: true,
         });
-        expect(shouldIgnoreKeyboardShortcut(event)).toBe(true);
+        expect(shouldIgnoreViewerKeyboardShortcut(event)).toBe(true);
         expect(getViewerKeyboardAction(event, "select", null)).toBeNull();
       }
     },

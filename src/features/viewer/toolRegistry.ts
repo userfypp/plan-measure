@@ -169,7 +169,3 @@ export function getToolAvailabilityState(
     disabledReason: capability?.disabledReason ?? definition.description,
   };
 }
-
-export function getToolDefinition(tool: Tool): ToolDefinition {
-  return toolRegistry.find((definition) => definition.id === tool) ?? toolRegistry[0]!;
-}

@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
+import type { Tool } from "../../types/domain";
 import { getToolShortcutLabel, type ToolShortcut } from "../../utils/keyboard";
 import {
   getToolAvailabilityState,
-  getToolDefinition,
   getToolRailVerticalNeighbor,
   toolRailRegistry,
   toolRegistry,
 } from "./toolRegistry";
+
+function getToolDefinition(tool: Tool) {
+  return toolRegistry.find((definition) => definition.id === tool)!;
+}
 
 describe("viewer tool registry", () => {
   it("keeps the frequent-tool rail ordered and separate from calibration", () => {

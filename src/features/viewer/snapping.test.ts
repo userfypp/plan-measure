@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
+import { resetAppPreferences, SENSITIVITY_PX, setAppPreference } from "../../utils/appPreferences";
 import type { PathMeasurement, LogicalPageBounds, Point, ViewTransform } from "../../types/domain";
 import { pageToScreen } from "../../utils/coordinates";
 import { constrainOrthogonal } from "../../utils/geometry";
 import { cloudArcs } from "../../utils/quickShapesOutline";
 import { buildDraftPreviewPoints } from "./draftPreview";
 import {
-  POLYGON_CLOSE_TOLERANCE_SCREEN_PX,
-  SNAP_TOLERANCE_SCREEN_PX,
   clipSegmentToPage,
   extractSnapTargets,
   isSnapPointPlacementActive,
@@ -19,6 +17,9 @@ import {
   type SnapTarget,
 } from "./snapping";
 
+// The Snap and polygon-close sensitivities default to "normal".
+const SNAP_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
+const POLYGON_CLOSE_TOLERANCE_SCREEN_PX = SENSITIVITY_PX.normal;
 const bounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
 
 function measurement(

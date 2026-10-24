@@ -1,7 +1,6 @@
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import type { LogicalPageBounds, PageState, ViewTransform } from "../../types/domain";
 
-export const PDF_RENDER_DEBOUNCE_MS = 90;
 export const MAX_PAN_CACHE_PIXELS = 4 * 1024 * 1024;
 export const MAX_PAN_CACHE_DIMENSION = 4096;
 
