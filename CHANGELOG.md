@@ -4,6 +4,19 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.11.2](https://github.com/userfypp/plan-measure/compare/v2.11.1...v2.11.2) (2026-10-24)
+
+
+### Fixed
+
+* ask for a reload when a cached module dependency failure blocks Retry ([#361](https://github.com/userfypp/plan-measure/issues/361)) ([cd06bd1](https://github.com/userfypp/plan-measure/commit/cd06bd11ae471b36ebbc3989ff13f8d32581b5b4)), closes [#250](https://github.com/userfypp/plan-measure/issues/250)
+* complete short Lines when Finish on double-click is on ([#349](https://github.com/userfypp/plan-measure/issues/349)) ([b50373a](https://github.com/userfypp/plan-measure/commit/b50373aebacad2083c4f7b4b71c1eea006783f20)), closes [#294](https://github.com/userfypp/plan-measure/issues/294)
+* keep Redo when a scale is saved with its current ratio ([#360](https://github.com/userfypp/plan-measure/issues/360)) ([a8fdaf4](https://github.com/userfypp/plan-measure/commit/a8fdaf4ae0d9215a3707e0bd94ae2a4966890d9a)), closes [#276](https://github.com/userfypp/plan-measure/issues/276)
+* keep the handle hit area independent of Handle size ([#348](https://github.com/userfypp/plan-measure/issues/348)) ([61e72f2](https://github.com/userfypp/plan-measure/commit/61e72f27c7fb9afb1e2fcd837b37f06db3910bf8)), closes [#297](https://github.com/userfypp/plan-measure/issues/297)
+* keep the selection when a pan leaves the viewer ([#350](https://github.com/userfypp/plan-measure/issues/350)) ([ae345bd](https://github.com/userfypp/plan-measure/commit/ae345bd16e4d20cadaf9f3eb1547d26f2c5e6d56)), closes [#305](https://github.com/userfypp/plan-measure/issues/305)
+* snap to the visible outline of a Cloud ([#351](https://github.com/userfypp/plan-measure/issues/351)) ([68c4137](https://github.com/userfypp/plan-measure/commit/68c41376cfb2167a6045d29d1a5c17b967c8280f)), closes [#264](https://github.com/userfypp/plan-measure/issues/264)
+* trim the existing undo history when its limit is lowered ([#346](https://github.com/userfypp/plan-measure/issues/346)) ([498b298](https://github.com/userfypp/plan-measure/commit/498b298d61dca6baf1614d37110bfc6258ee0f16)), closes [#299](https://github.com/userfypp/plan-measure/issues/299)
+
 ## [2.11.1](https://github.com/userfypp/plan-measure/compare/v2.11.0...v2.11.1) (2026-10-18)
 
 
