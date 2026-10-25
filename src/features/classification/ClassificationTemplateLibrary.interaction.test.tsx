@@ -49,8 +49,6 @@ function name(value: string) {
   });
 }
 function save(value = "Residential") {
-  const disclosure = container.querySelector("form")!.closest("details")!;
-  if (!disclosure.open) act(() => disclosure.querySelector("summary")!.click());
   name(value);
   click("Save template");
 }
@@ -72,23 +70,43 @@ afterEach(() => {
 });
 
 describe("template library interactions", () => {
-  it("keeps saving and template details collapsed until requested", () => {
+  it("keeps template details collapsed until requested and the save form always visible", () => {
     writeClassificationTemplates([
       { id: "a", name: "Residential", dimensions: [{ name: "Trade", values: ["Electrical"] }] },
     ]);
     render();
     const template = container.querySelector("ul details") as HTMLDetailsElement;
-    const saving = container.querySelector("form")!.closest("details")!;
+    const form = container.querySelector("form")!;
     expect(template.open).toBe(false);
-    expect(saving.open).toBe(false);
+    expect(form.closest("details")).toBeNull();
+    expect(form.querySelector("input")!.disabled).toBe(false);
     expect(template.querySelector("summary svg")?.getAttribute("aria-hidden")).toBe("true");
     act(() => template.querySelector("summary")!.click());
     expect(template.open).toBe(true);
     act(() => template.querySelector("summary")!.click());
     expect(template.open).toBe(false);
-    act(() => saving.querySelector("summary")!.click());
-    expect(saving.open).toBe(true);
   });
+
+  it("confirms an application next to its button and clears it on the next change", () => {
+    writeClassificationTemplates([
+      { id: "a", name: "Residential", dimensions: [{ name: "Trade", values: ["Electrical"] }] },
+    ]);
+    render();
+    expect(container.textContent).not.toContain("Applied");
+    click("Apply template Residential");
+    expect(container.querySelector("ul details")!.textContent).toContain("Applied");
+    save("Commercial");
+    expect(container.querySelector("ul details")!.textContent).not.toContain("Applied");
+  });
+
+  it("reports a duplicate name under the save field", () => {
+    render();
+    save();
+    save("residential");
+    const alert = container.querySelector("form [role='alert']");
+    expect(alert!.textContent).toContain("unique");
+  });
+
   it("refreshes a stale library before saving so another window's templates are preserved", () => {
     render();
     const other = {

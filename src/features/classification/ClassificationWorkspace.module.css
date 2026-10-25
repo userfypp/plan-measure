@@ -44,8 +44,8 @@
 }
 
 .library {
-  composes: scrollSurface from global;
-  overflow-y: auto;
+  composes: body from "./ClassificationManager.module.css";
+  container-type: inline-size;
 }
 
 .note {
@@ -58,7 +58,7 @@
 
 .feedback {
   margin: 0;
-  padding: var(--space-8) var(--space-16);
+  padding: var(--space-8) var(--space-4);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
   overflow-wrap: anywhere;
@@ -75,17 +75,32 @@
 .emptyState {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-16);
+  padding: var(--space-16) var(--space-4);
 }
 
 .templates {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  composes: list from "./ClassificationManager.module.css";
 }
 
 .template {
-  border-bottom: var(--border-width) solid var(--color-divider);
+  padding: var(--space-4) 0;
+}
+
+.template + .template {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.disclosure {
+  border-radius: var(--radius-control);
+  transition: var(--transition-interactive);
+}
+
+.disclosure:has(> summary:hover) {
+  background: var(--color-control-hover-surface);
+}
+
+.disclosure:has(> summary:active) {
+  background: var(--color-control-active-surface);
 }
 
 .disclosure > summary {
@@ -93,23 +108,15 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-16);
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
   color: var(--color-text-primary);
   list-style: none;
   cursor: pointer;
-  transition: var(--transition-interactive);
 }
 
 .disclosure > summary::-webkit-details-marker {
   display: none;
-}
-
-.disclosure > summary:hover {
-  background: var(--color-control-hover-surface);
-}
-
-.disclosure > summary:active {
-  background: var(--color-control-active-surface);
 }
 
 .disclosure > summary:focus-visible {
@@ -117,26 +124,17 @@
   outline-offset: calc(-1 * var(--focus-offset));
 }
 
-.templateSummary {
-  min-height: var(--geometry-scale-row-height);
-}
-
 .identity {
   min-width: 0;
   display: grid;
-  gap: var(--space-4);
 }
 
-.identity strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-  font-weight: var(--font-weight-semibold);
+.templateTitle {
+  composes: itemTitle from "./ClassificationManager.module.css";
 }
 
 summary .chevron {
+  flex: 0 0 auto;
   transform: rotate(-90deg);
   transition: var(--transition-transform);
 }
@@ -147,27 +145,29 @@ summary .chevron {
 
 .templateBody {
   display: grid;
-  gap: var(--space-12);
-  padding: var(--space-4) var(--space-16) var(--space-16);
+  gap: var(--space-16);
+  padding: var(--space-4) var(--space-4) var(--space-8);
 }
 
 .preview {
   display: grid;
-  gap: var(--space-8);
+  gap: var(--space-12);
   margin: 0;
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
   overflow-wrap: anywhere;
 }
 
 .preview dt {
   color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   font-weight: var(--font-weight-medium);
 }
 
 .preview dd {
-  margin: var(--space-4) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }
 
 .templateActions {
@@ -177,23 +177,53 @@ summary .chevron {
   gap: var(--space-8);
 }
 
-.templateActions > p {
+.deleteAction {
+  margin-inline-start: auto;
+}
+
+.applied {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.applied svg {
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: var(--icon-stroke-width);
+}
+
+.confirm {
+  justify-content: flex-end;
+}
+
+.confirm > p {
   flex-basis: 100%;
 }
 
-.disclosure > .saveSummary {
-  min-height: var(--control-height-compact);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-  font-weight: var(--font-weight-medium);
-}
-
 .saveForm {
-  display: grid;
-  gap: var(--space-8);
-  padding: var(--space-8) var(--space-16) var(--space-16);
+  composes: create from "./ClassificationManager.module.css";
 }
 
-.saveForm > button {
-  justify-self: start;
+.saveForm > span {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  white-space: nowrap;
+}
+
+@container (max-width: 224px) {
+  .saveForm > span {
+    grid-column: 1;
+    grid-row: 4;
+    justify-self: start;
+  }
 }
