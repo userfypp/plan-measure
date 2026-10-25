@@ -1,0 +1,123 @@
+/* A list of disclosures: the items sit in the panel gutter, split by hairlines. */
+.list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding: var(--space-4) 0;
+}
+
+.item + .item {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.root {
+  border-radius: var(--radius-control);
+  transition: var(--transition-interactive);
+}
+
+.root[data-selected] {
+  background-color: var(--color-selection-surface);
+}
+
+.root:has(> .header:hover) {
+  background-color: var(--color-control-hover-surface);
+}
+
+.root:has(> .header .toggle:active) {
+  background-color: var(--color-control-active-surface);
+}
+
+.root[data-selected]:has(> .header:hover),
+.root[data-selected]:has(> .header .toggle:active) {
+  background-color: var(--color-selection-surface);
+}
+
+/* On a highlighted surface the header buttons need the stronger border; the body buttons rest without one. */
+.root[data-selected] .header button:not(.toggle),
+.root:has(> .header:hover) .header button:not(.toggle) {
+  border-color: var(--color-control-hover-border);
+}
+
+.root .body :where(button) {
+  border-color: transparent;
+}
+
+.header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-8);
+  padding-inline-end: var(--space-12);
+}
+
+.toggle {
+  composes: focusRing from global;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--target-current);
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline-offset: calc(-1 * var(--focus-offset));
+}
+
+.chevron {
+  transform: rotate(-90deg);
+}
+
+.toggle[aria-expanded="true"] .chevron {
+  transform: rotate(0deg);
+}
+
+.titles {
+  display: grid;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-16);
+  padding: var(--space-4) var(--space-12) var(--space-12);
+}

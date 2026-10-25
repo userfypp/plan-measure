@@ -5,7 +5,7 @@
 }
 
 .content {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   composes: overlaySurface overlayEnter from global;
   position: fixed;
   z-index: var(--z-popover);

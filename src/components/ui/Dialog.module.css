@@ -79,7 +79,7 @@
 }
 
 .body {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   max-height: calc(100dvh - var(--dialog-body-chrome));
   padding: var(--space-16);
   overflow-y: auto;

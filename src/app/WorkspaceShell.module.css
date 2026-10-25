@@ -33,6 +33,7 @@
 }
 
 .emptyState {
+  composes: scrollSurface overlayScroll from global;
   position: relative;
   min-width: 0;
   min-height: 0;

@@ -74,6 +74,7 @@ dialog.dialog {
 }
 
 .panel {
+  composes: scrollSurface overlayScroll from global;
   min-width: 0;
   height: var(--geometry-settings-panel-height);
   max-height: calc(100dvh - var(--dialog-body-chrome) - var(--space-24));

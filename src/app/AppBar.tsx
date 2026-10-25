@@ -1,5 +1,11 @@
 import { useRef } from "react";
-import { AnchoredMenu, Button, IconButton, type AnchoredMenuItem } from "../components/ui";
+import {
+  AnchoredMenu,
+  Button,
+  CloseIcon,
+  IconButton,
+  type AnchoredMenuItem,
+} from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -85,14 +91,6 @@ function RedoIcon() {
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M12.5 5 16 8.5 12.5 12" />
       <path d="M16 8.5H9a4.5 4.5 0 0 0 0 9h3" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
     </svg>
   );
 }

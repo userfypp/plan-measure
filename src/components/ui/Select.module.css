@@ -9,7 +9,7 @@
   gap: var(--space-4);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: 0 var(--space-4) 0 var(--space-8);
+  padding: 0 var(--space-8) 0 var(--space-12);
   background-color: var(--color-surface-field);
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
@@ -52,7 +52,7 @@
 }
 
 .list {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   /* Room for ten rows at the current target size, so short lists never scroll. */
   max-height: calc(var(--target-current) * 10 + var(--space-8));
   overflow-y: auto;

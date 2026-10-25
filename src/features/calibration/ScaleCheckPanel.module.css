@@ -63,7 +63,7 @@
 }
 
 .checkResult {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   width: var(--geometry-viewer-popover-width);
   max-height: 100%;
   display: grid;

@@ -19,14 +19,16 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-16);
+  padding: var(--space-8) var(--geometry-panel-gutter);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 
 .header h2 {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  padding-inline: var(--space-4);
   font-size: var(--font-size-heading);
   line-height: var(--line-height-heading);
   font-weight: var(--font-weight-semibold);
@@ -39,13 +41,8 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.header > button {
-  padding-inline: var(--space-8);
-}
-
 .library {
   composes: body from "./ClassificationManager.module.css";
-  container-type: inline-size;
 }
 
 .note {
@@ -79,74 +76,11 @@
 }
 
 .templates {
-  composes: list from "./ClassificationManager.module.css";
+  composes: list from "../../components/ui/Disclosure.module.css";
 }
 
 .template {
-  padding: var(--space-4) 0;
-}
-
-.template + .template {
-  border-top: var(--border-width) solid var(--color-divider);
-}
-
-.disclosure {
-  border-radius: var(--radius-control);
-  transition: var(--transition-interactive);
-}
-
-.disclosure:has(> summary:hover) {
-  background: var(--color-control-hover-surface);
-}
-
-.disclosure:has(> summary:active) {
-  background: var(--color-control-active-surface);
-}
-
-.disclosure > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
-  padding: var(--space-4);
-  border-radius: var(--radius-control);
-  color: var(--color-text-primary);
-  list-style: none;
-  cursor: pointer;
-}
-
-.disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-
-.disclosure > summary:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: calc(-1 * var(--focus-offset));
-}
-
-.identity {
-  min-width: 0;
-  display: grid;
-}
-
-.templateTitle {
-  composes: itemTitle from "./ClassificationManager.module.css";
-}
-
-summary .chevron {
-  flex: 0 0 auto;
-  transform: rotate(-90deg);
-  transition: var(--transition-transform);
-}
-
-.disclosure[open] > summary .chevron {
-  transform: rotate(0deg);
-}
-
-.templateBody {
-  display: grid;
-  gap: var(--space-16);
-  padding: var(--space-4) var(--space-4) var(--space-8);
+  composes: item from "../../components/ui/Disclosure.module.css";
 }
 
 .preview {
@@ -174,56 +108,10 @@ summary .chevron {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-8);
-}
-
-.deleteAction {
-  margin-inline-start: auto;
-}
-
-.applied {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-}
-
-.applied svg {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: var(--icon-stroke-width);
-}
-
-.confirm {
   justify-content: flex-end;
+  gap: var(--space-8);
 }
 
 .confirm > p {
   flex-basis: 100%;
-}
-
-.saveForm {
-  composes: create from "./ClassificationManager.module.css";
-}
-
-.saveForm > span {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-  white-space: nowrap;
-}
-
-@container (max-width: 224px) {
-  .saveForm > span {
-    grid-column: 1;
-    grid-row: 4;
-    justify-self: start;
-  }
 }

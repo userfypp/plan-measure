@@ -1,6 +1,14 @@
 import { memo, useId, useMemo, useState } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
-import { Badge, Button, ChevronDownIcon, Select } from "../../components/ui";
+import {
+  Badge,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  IconButton,
+  Select,
+} from "../../components/ui";
 import type {
   AreaDisplay,
   ClassificationCatalog,
@@ -49,14 +57,9 @@ function Quantity({
   if (quantity.kind === "absent") return null;
   const value = quantity.kind === "value" ? format(quantity.value) : "Not calculable";
   return (
-    <div className={styles.quantity} data-quantity={label.toLowerCase()}>
+    <div className={styles.quantity}>
       <dt>{label}</dt>
-      <dd
-        data-unavailable={quantity.kind === "unavailable" || undefined}
-        data-wide={value.length > 10 || undefined}
-      >
-        {value}
-      </dd>
+      <dd data-unavailable={quantity.kind === "unavailable" || undefined}>{value}</dd>
     </div>
   );
 }
@@ -212,16 +215,14 @@ export const TakeoffWorkspace = memo(function TakeoffWorkspace(props: TakeoffWor
               excluded because {overall.excludedCount === 1 ? "it cannot" : "they cannot"} be
               calculated.
             </p>
-            <button
-              type="button"
-              className={styles.inspectButton}
+            <IconButton
+              icon={<EyeIcon />}
               aria-label="Inspect excluded measurements"
+              tooltip="Inspect"
               aria-expanded={expandedSources === "excluded"}
               aria-controls={`${sourceListId}-excluded`}
               onClick={() => toggleSources("excluded")}
-            >
-              Inspect
-            </button>
+            />
           </div>
         )}
         {sourceList("excluded", overall.excludedMeasurements)}
@@ -408,7 +409,7 @@ function SourceMeasurements({
                   )}
                 </span>
                 <span className={styles.sourceArrow} aria-hidden="true">
-                  ›
+                  <ChevronRightIcon />
                 </span>
               </button>
             </li>
@@ -416,29 +417,25 @@ function SourceMeasurements({
       </ul>
       {sources.length > pageSize && (
         <nav className={styles.sourcePagination} aria-label="Source measurement pages">
-          <Button
-            variant="secondary"
-            size="compact"
+          <IconButton
+            icon={<ChevronLeftIcon />}
             aria-label="Previous source measurements"
+            tooltip="Previous"
             aria-controls={id}
             disabled={currentPage === 0}
             onClick={() => setPage(currentPage - 1)}
-          >
-            Previous
-          </Button>
+          />
           <span role="status">
             {start + 1}–{Math.min(start + pageSize, sources.length)} of {sources.length}
           </span>
-          <Button
-            variant="secondary"
-            size="compact"
+          <IconButton
+            icon={<ChevronRightIcon />}
             aria-label="Next source measurements"
+            tooltip="Next"
             aria-controls={id}
             disabled={currentPage === lastPage}
             onClick={() => setPage(currentPage + 1)}
-          >
-            Next
-          </Button>
+          />
         </nav>
       )}
     </>

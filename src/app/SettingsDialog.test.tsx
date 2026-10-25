@@ -9,6 +9,7 @@ import { SettingsButton } from "./SettingsButton";
 import type { LabelPreviewMeasurement, ProjectViewSettings } from "./SettingsDialog";
 import {
   APP_PREFERENCES_STORAGE_KEY,
+  getAppPreferences,
   reloadAppPreferencesFromStorage,
 } from "../utils/appPreferences";
 import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
@@ -730,6 +731,18 @@ describe("SettingsDialog", () => {
     expect(tooltips.checked).toBe(true);
     act(() => tooltips.click());
     expect(document.documentElement.getAttribute("data-tooltips")).toBe("off");
+  });
+
+  it("chooses the tooltip delay and disables it while tooltips are off", async () => {
+    renderSettings();
+    await openSettings();
+    openTab("Accessibility");
+
+    expect(getAppPreferences().tooltipDelay).toBe("normal");
+    choose("Tooltip delay", "Slow");
+    expect(getAppPreferences().tooltipDelay).toBe("slow");
+    act(() => switchControl("Show tooltips").click());
+    expect(selectByLabel("Tooltip delay").disabled).toBe(true);
   });
 
   it("sets the focus ring attribute only when it is not the default", async () => {

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button } from "../../components/ui";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeftIcon, IconButton, TemplatesIcon } from "../../components/ui";
 import { ClassificationTemplateLibrary } from "./ClassificationTemplateLibrary";
 import type { ClassificationTemplateDimension } from "./classificationTemplates";
 import type { ClassificationCatalog } from "../../types/domain";
@@ -38,14 +38,39 @@ export function ClassificationWorkspace({
   disabled = false,
 }: ClassificationWorkspaceProps) {
   const [showTemplates, setShowTemplates] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const toggledRef = useRef(false);
+  // The pressed button unmounts as the view flips: hand the focus to its counterpart.
+  useEffect(() => {
+    if (!toggledRef.current) return;
+    toggledRef.current = false;
+    headerRef.current?.querySelector("button")?.focus();
+  }, [showTemplates]);
+  const toggleTemplates = (next: boolean) => {
+    toggledRef.current = true;
+    setShowTemplates(next);
+  };
   return (
     <div className={styles.workspace}>
       {onApplyTemplate && (
-        <header className={styles.header}>
+        <header ref={headerRef} className={styles.header}>
+          {showTemplates && (
+            <IconButton
+              icon={<ArrowLeftIcon />}
+              aria-label="Back to project"
+              tooltip="Back to project"
+              onClick={() => toggleTemplates(false)}
+            />
+          )}
           <h2>{showTemplates ? "Templates" : "Project catalog"}</h2>
-          <Button size="compact" variant="ghost" onClick={() => setShowTemplates(!showTemplates)}>
-            {showTemplates ? "Back to project" : "Templates"}
-          </Button>
+          {!showTemplates && (
+            <IconButton
+              icon={<TemplatesIcon />}
+              aria-label="Templates"
+              tooltip="Templates"
+              onClick={() => toggleTemplates(true)}
+            />
+          )}
         </header>
       )}
       {showTemplates && onApplyTemplate ? (

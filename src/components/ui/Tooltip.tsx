@@ -5,11 +5,17 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactElement,
   type RefObject,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  TOOLTIP_DELAY_MS,
+  getAppPreferences,
+  subscribeAppPreferences,
+} from "../../utils/appPreferences";
 import styles from "./Tooltip.module.css";
 
 export type TooltipPosition = "top" | "right" | "bottom" | "left";
@@ -18,6 +24,7 @@ export interface TooltipProps {
   content: ReactNode;
   children: ReactElement;
   position?: TooltipPosition;
+  /** Milliseconds before showing; defaults to the "Tooltip delay" preference. */
   delay?: number;
   describeTrigger?: boolean;
   /** Element the tooltip is placed against instead of the trigger (e.g. a whole wrapped label). */
@@ -42,7 +49,7 @@ export function Tooltip({
   content,
   children,
   position = "top",
-  delay = 300,
+  delay,
   describeTrigger = true,
   anchorRef,
   suppressed = false,
@@ -62,7 +69,14 @@ export function Tooltip({
   const rootRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useId();
-  const normalizedDelay = Number.isFinite(delay) ? Math.max(0, delay) : 0;
+  const readTooltipDelay = () => getAppPreferences().tooltipDelay;
+  const tooltipDelay = useSyncExternalStore(
+    subscribeAppPreferences,
+    readTooltipDelay,
+    readTooltipDelay,
+  );
+  const requestedDelay = delay ?? TOOLTIP_DELAY_MS[tooltipDelay];
+  const normalizedDelay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : 0;
 
   useEffect(() => {
     return () => {

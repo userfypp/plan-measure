@@ -10,6 +10,7 @@
 }
 
 .statusRow {
+  composes: scrollSurface overlayScroll from global;
   position: absolute;
   z-index: var(--z-status);
   top: var(--space-12);

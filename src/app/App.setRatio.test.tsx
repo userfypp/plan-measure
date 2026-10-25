@@ -309,6 +309,15 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return button;
 }
 
+// The disclosure toggle is the button titled with the scale name.
+function scaleToggle(name: string): HTMLButtonElement {
+  const toggle = Array.from(
+    container?.querySelectorAll<HTMLButtonElement>("button[aria-expanded]") ?? [],
+  ).find((candidate) => candidate.querySelector("span[title]")?.getAttribute("title") === name);
+  if (!toggle) throw new Error(`Scale toggle ${name} was not rendered.`);
+  return toggle;
+}
+
 function buttonByText(text: string): HTMLButtonElement {
   const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
     (candidate) => candidate.textContent?.trim() === text,
@@ -352,7 +361,7 @@ function twoPageSession(): CurrentSession {
 }
 
 function openSetRatio(scaleName: string) {
-  act(() => buttonByLabel(`Expand scale ${scaleName}, active`).click());
+  act(() => scaleToggle(scaleName).click());
   act(() => buttonByLabel(`Set ratio for scale ${scaleName}`).click());
 }
 
@@ -540,7 +549,7 @@ describe("App Set ratio impact confirmation", () => {
       (calibration) => calibration.id === "other-scale",
     )!;
 
-    act(() => buttonByLabel("Expand scale Ground floor").click());
+    act(() => scaleToggle("Ground floor").click());
     act(() => buttonByLabel("Set ratio for scale Ground floor").click());
     saveUniformRatio(60);
 
@@ -580,10 +589,10 @@ describe("App scale deletion", () => {
     await renderApp(initial);
     const scaleIds = () => currentSession().pages[1]!.calibrations.map(({ id }) => id);
 
-    act(() => buttonByLabel("Expand scale Ground floor").click());
+    act(() => scaleToggle("Ground floor").click());
     expect(buttonByLabel("Delete scale Ground floor").getAttribute("aria-disabled")).toBe("true");
 
-    act(() => buttonByLabel("Expand scale Other scale, active").click());
+    act(() => scaleToggle("Other scale").click());
     act(() => buttonByLabel("Delete scale Other scale").click());
     expect(document.querySelector("dialog")?.textContent).toContain("Delete scale “Other scale”?");
     act(() => dialogButtonByText("Cancel").click());
@@ -602,7 +611,7 @@ describe("App scale deletion", () => {
 
     act(() => lifecycleHarness.loadSession?.(initial));
     // The restored scale's details stay open: they were the last ones inspected.
-    expect(buttonByLabel("Collapse scale Other scale, active")).toBeTruthy();
+    expect(scaleToggle("Other scale").getAttribute("aria-expanded")).toBe("true");
     act(() => buttonByLabel("Delete scale Other scale").click());
     expect(document.querySelector("dialog")).toBeNull();
     expect(scaleIds()).toEqual(["target-scale"]);
@@ -763,7 +772,7 @@ describe("App scale check", () => {
     lifecycleHarness.autosave.mockClear();
     const name = initial.pages[1]!.calibrations[0]!.name;
     if (initial.pages[1]!.activeCalibrationId !== initial.pages[1]!.calibrations[0]!.id)
-      act(() => buttonByLabel(`Expand scale ${name}`).click());
+      act(() => scaleToggle(name).click());
     await act(async () => {
       buttonByLabel(`Check scale ${name}`).click();
       await import("../features/calibration/ScaleCheckPanel");

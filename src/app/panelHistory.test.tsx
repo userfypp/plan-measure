@@ -127,6 +127,15 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return button;
 }
 
+// The disclosure toggle is the button titled with the scale name.
+function scaleToggle(name: string): HTMLButtonElement {
+  const toggle = Array.from(document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")).find(
+    (candidate) => candidate.querySelector("span[title]")?.getAttribute("title") === name,
+  );
+  if (!toggle) throw new Error(`Scale toggle ${name} was not rendered.`);
+  return toggle;
+}
+
 function buttonByText(scope: ParentNode, label: string): HTMLButtonElement {
   const button = Array.from(scope.querySelectorAll<HTMLButtonElement>("button")).find(
     (candidate) => candidate.textContent?.trim() === label,
@@ -167,7 +176,7 @@ function renameClassification(trigger: string, name: string) {
   selectMenuItem(trigger, "Rename");
   const form = document.querySelector<HTMLFormElement>('form[aria-label="Rename classification"]')!;
   setInputValue(form.querySelector("input")!, name);
-  click(buttonByText(form, "Save"));
+  click(form.querySelector<HTMLButtonElement>('button[aria-label="Save"]')!);
 }
 
 beforeAll(async () => {
@@ -226,11 +235,11 @@ describe("Undo and Redo through the real panels", () => {
 
   it("keeps Redo when a scale is saved with its current name or ratio", async () => {
     prepareRedo();
-    click(buttonByLabel("Expand scale Scale 50, active"));
+    click(scaleToggle("Scale 50"));
     click(buttonByLabel("Rename scale Scale 50"));
     const nameInput = document.querySelector<HTMLInputElement>('input[aria-label="Scale name"]')!;
     setInputValue(nameInput, " Scale 50 ");
-    click(buttonByText(nameInput.closest("form")!, "Save"));
+    click(buttonByLabel("Save"));
     expect(text("history")).toBe("false:true");
 
     click(buttonByLabel("Set ratio for scale Scale 50"));

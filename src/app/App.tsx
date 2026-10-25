@@ -1267,9 +1267,6 @@ function PlanMeasureApp() {
                         closeMeasurementDetails();
                         focusMeasurementRow(selectedMeasurement.id);
                       }}
-                      onRename={(name) =>
-                        renameMeasurement(currentPage.pageNumber, selectedMeasurement.id, name)
-                      }
                       onSaveNote={(note) =>
                         setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
                       }

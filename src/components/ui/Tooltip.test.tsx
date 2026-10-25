@@ -3,6 +3,7 @@
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import { Tooltip, type TooltipPosition } from "./Tooltip";
 
 let root: Root;
@@ -76,6 +77,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  resetAppPreferences();
   disconnect.mockClear();
 });
 
@@ -176,6 +178,42 @@ describe("Tooltip viewport placement", () => {
     expect(container.querySelector("button")!.getAttribute("aria-describedby")).toBe(
       "existing-description",
     );
+  });
+});
+
+describe("Tooltip delay preference", () => {
+  function renderDefaultDelay() {
+    act(() =>
+      root.render(
+        <Tooltip content="Hide measurement">
+          <button>Hide</button>
+        </Tooltip>,
+      ),
+    );
+  }
+
+  it.each([
+    ["instant", 0],
+    ["fast", 150],
+    ["normal", 300],
+    ["slow", 600],
+  ] as const)("waits %s (%i ms) when the caller sets no delay", (preference, ms) => {
+    setAppPreference("tooltipDelay", preference);
+    renderDefaultDelay();
+    showTooltip();
+    if (ms > 0) {
+      act(() => vi.advanceTimersByTime(ms - 1));
+      expect(tooltip()).toBeNull();
+      act(() => vi.advanceTimersByTime(1));
+    }
+    expect(tooltip()).not.toBeNull();
+  });
+
+  it("keeps an explicit delay regardless of the preference", () => {
+    setAppPreference("tooltipDelay", "slow");
+    renderTooltip("top", "Hide measurement", 0);
+    showTooltip();
+    expect(tooltip()).not.toBeNull();
   });
 });
 

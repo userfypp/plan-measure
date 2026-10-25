@@ -43,6 +43,24 @@
   border-color: var(--color-control-active-border);
 }
 
+.primary {
+  color: var(--color-surface-panel);
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.primary:hover:not(:disabled):not([data-disabled="true"]) {
+  color: var(--color-surface-panel);
+  background-color: var(--color-accent-hover-semantic);
+  border-color: var(--color-accent-hover-semantic);
+}
+
+.primary:active:not(:disabled):not([data-disabled="true"]) {
+  color: var(--color-surface-panel);
+  background-color: var(--color-accent-active-semantic);
+  border-color: var(--color-accent-active-semantic);
+}
+
 .danger {
   color: var(--color-danger-semantic);
 }

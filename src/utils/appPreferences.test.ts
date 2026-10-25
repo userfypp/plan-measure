@@ -161,6 +161,17 @@ describe("appPreferences", () => {
     expect(document.documentElement.dataset.tooltips).toBeUndefined();
   });
 
+  it("falls back to the default tooltip delay for an unknown value", () => {
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ tooltipDelay: "sluggish" }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().tooltipDelay).toBe("normal");
+    setAppPreference("tooltipDelay", "fast");
+    expect(getAppPreferences().tooltipDelay).toBe("fast");
+  });
+
   it("mirrors the focus ring onto the document element only when not default", () => {
     expect(DEFAULT_APP_PREFERENCES.focusRing).toBe("normal");
     expect(document.documentElement.dataset.focusRing).toBeUndefined();

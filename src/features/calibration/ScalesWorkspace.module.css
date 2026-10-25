@@ -8,251 +8,111 @@
   background: var(--color-surface-panel);
 }
 
-.list {
-  composes: scrollSurface from global;
+.body {
+  composes: scrollSurface overlayScroll from global;
   min-width: 0;
   min-height: 0;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   overflow-y: auto;
-  padding: 0;
+  padding: 0 var(--geometry-panel-gutter) var(--space-8);
 }
 
-.scaleRow {
-  position: relative;
+.list {
+  composes: list from "../../components/ui/Disclosure.module.css";
+}
+
+.scale {
+  composes: item from "../../components/ui/Disclosure.module.css";
+}
+
+.details {
   min-width: 0;
-  border-bottom: var(--border-width) solid var(--color-divider);
-  background: var(--color-surface-panel);
-}
-
-.active {
-  background: var(--color-selection-surface);
-}
-
-.active .scaleSummary {
-  background: transparent;
-}
-
-/* Same height and insets as a measurement row: name and metadata, then the icon actions. */
-.scaleSummary {
-  width: 100%;
-  min-height: var(--geometry-measurement-row-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--target-current) var(--target-current);
-  grid-template-rows: auto auto;
-  align-content: center;
-  align-items: center;
-  column-gap: var(--space-4);
-  padding: var(--space-4) var(--space-8) var(--space-4) var(--space-16);
-  background: transparent;
-  color: var(--color-text-primary);
-  text-align: left;
-}
-
-.scaleIdentity {
-  display: contents;
-}
-
-.scaleIdentity strong,
-.scaleIdentity > span {
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.scaleIdentity strong {
-  grid-column: 1;
-  grid-row: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-base);
-}
-
-.scaleIdentity > span {
-  grid-column: 1;
-  grid-row: 2;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-  font-variant-numeric: var(--font-variant-numeric-quantities);
-}
-
-.scaleMetadata {
-  display: flex;
-  align-items: center;
   gap: var(--space-8);
-  line-height: var(--line-height-secondary);
 }
 
-.scaleMetadata > span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.disclosureButton {
-  grid-column: 3;
-  grid-row: 1 / 3;
-  width: var(--target-current);
-  min-width: var(--target-current);
-  height: var(--target-current);
-  min-height: var(--target-current);
-  padding: 0;
-  color: var(--color-text-secondary);
-}
-
-.copyScaleControl {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  display: flex;
-}
-
-.copyScaleButton {
-  width: var(--target-current);
-  min-width: var(--target-current);
-  height: var(--target-current);
-  min-height: var(--target-current);
-  padding: 0;
-  color: var(--color-text-secondary);
-}
-
-.copyScaleButton svg {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  stroke-width: var(--icon-stroke-width);
-}
-
-.disclosureButton[aria-expanded="true"] {
-  border-color: var(--color-accent);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.disclosureButton[aria-expanded="true"]:hover:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.disclosureButton[aria-expanded="true"]:active:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-}
-
-.disclosureButton svg {
-  stroke: currentColor;
-  transform: rotate(-90deg);
-  transition: var(--transition-transform);
-}
-
-.disclosureButton[aria-expanded="true"] svg {
-  transform: rotate(0deg);
-}
-
-.scaleDetails {
-  display: grid;
-  gap: var(--space-12);
-  margin-inline: var(--space-16) var(--space-8);
-  padding: var(--space-8) 0 var(--space-12);
-  border-top: var(--border-width) solid var(--color-divider);
-  background: transparent;
-}
-
-.scaleDetails[hidden] {
-  display: none;
-}
-
-.detailRows {
+/* One grid for all rows: the label column is as wide as its longest label, so values start together. */
+.rows {
   min-width: 0;
   display: grid;
-  gap: var(--space-4);
+  grid-template-columns: max-content minmax(0, 1fr) auto;
+  column-gap: var(--space-12);
 }
 
-.detailRow {
+/* Label, value and action share one grid, so every value starts on the same edge. */
+.row {
   min-width: 0;
   min-height: var(--control-height-compact);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: var(--space-8);
-  color: var(--color-text-primary);
+}
+
+.label {
+  color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
 }
 
-.detailValue {
+.value {
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-regular);
   line-height: var(--line-height-base);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.renameForm {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-8);
-}
-
-.renameActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-4);
-}
-
-.detailRow button {
-  padding-inline: var(--space-8);
-}
-
-.recalibrateFooter {
+/* Rename and recalibrate on the left, the destructive action alone on the right. */
+.footer {
   display: flex;
   gap: var(--space-8);
   min-width: 0;
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
-.recalibrateControl {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: 100%;
+.deleteScale {
+  margin-inline-start: auto;
 }
 
-.deleteScaleControl {
-  flex: none;
-}
-
-.recalibrateControl > span,
-.recalibrateControl > span > span:first-child {
-  width: 100%;
-}
-
-.recalibrateButton {
-  width: 100%;
-}
-
-/* The trigger's own inset puts "+ Add scale" on the same edge as the scale names. */
+/* The add-row closes the list, like the add-row of a field: a hairline, then the trigger. */
 .addScale {
-  flex: 0 0 auto;
-  padding: var(--space-8) var(--space-8) 0;
+  padding: var(--space-8) 0;
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
 .addScaleTrigger {
   composes: focusRing from global;
   width: 100%;
   min-height: var(--control-height-compact);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
+  padding: 0 calc(var(--space-4) - var(--border-width));
   background: transparent;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
   text-align: left;
   transition: var(--transition-interactive);
+}
+
+.addScaleTrigger svg {
+  flex: 0 0 auto;
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: var(--icon-stroke-width);
 }
 
 .addScaleTrigger:hover:not([aria-disabled="true"]) {
@@ -298,7 +158,7 @@
 
 .addScaleMenu [data-menu-section-label="true"] {
   margin-top: var(--space-8);
-  padding: var(--space-4) var(--space-8) 0;
+  padding: var(--space-8) var(--space-8) 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
@@ -326,56 +186,20 @@
 .empty,
 .note {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-}
-
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.empty {
-  padding: var(--space-16) var(--space-16) 0;
-}
-
-.note {
-  flex: 0 0 auto;
-  padding: var(--space-8) var(--space-16) var(--space-12);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .disclosureButton svg {
-    transition: none;
-  }
-}
-
-/* The button keeps its full target but takes only a text line, so it does not push the name up. */
-.checkScaleControl {
-  display: flex;
-  flex: 0 0 auto;
-  margin-block: calc((var(--line-height-secondary) - var(--control-height-compact)) / 2);
-}
-
-.checkScaleControl .checkScaleButton {
   padding-inline: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
 }
 
-.checkScaleControl .checkScaleButton:hover:not(:disabled):not([data-disabled="true"]),
-.checkScaleControl .checkScaleButton:active:not(:disabled):not([data-disabled="true"]) {
-  color: var(--color-text-primary);
-  background-color: transparent;
-  border-color: transparent;
+.empty {
+  padding-block: var(--space-16) var(--space-8);
+}
+
+.note {
+  padding-block: 0 var(--space-4);
+}
+
+.visuallyHidden {
+  composes: visuallyHidden from global;
 }

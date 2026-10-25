@@ -1,5 +1,6 @@
 .details {
   min-width: 0;
+  height: 100%;
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -8,58 +9,32 @@
 }
 
 .scrollArea {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-16);
+  gap: var(--space-8);
   overflow-y: auto;
-  scrollbar-gutter: stable;
-  padding: var(--space-8) max(0px, calc(var(--space-16) - var(--scrollbar-size, 0px)))
-    var(--space-16) var(--space-16);
+  padding: var(--space-8) var(--geometry-panel-gutter) var(--space-16);
 }
 
-.back {
-  align-self: flex-start;
-  margin-inline-start: calc(var(--space-8) * -1);
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-medium);
-}
-
-.backContent {
-  display: inline-flex;
+/* Back button and name share one line, vertically centred; the name takes the rest of the width. */
+.header {
+  min-width: 0;
+  display: flex;
   align-items: center;
   gap: var(--space-8);
 }
 
-.backContent svg {
-  width: var(--geometry-icon-size-small);
-  height: var(--geometry-icon-size-small);
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: var(--icon-stroke-width);
-}
-
-.identity {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
 .name {
   min-width: 0;
+  flex: 1;
   margin: 0;
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-identity);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-identity);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -70,36 +45,30 @@
   min-width: 0;
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-12) var(--space-16);
+  padding: var(--space-12) calc(var(--space-12) - var(--border-width));
+  border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  background: var(--color-selection-surface);
-}
-
-.summary strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-base);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: var(--color-surface-field);
 }
 
 .result {
   display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
   gap: var(--space-4);
   color: var(--color-text-primary);
-  font-size: var(--font-size-result);
+  font-size: var(--font-size-quantity);
   font-variant-numeric: var(--font-variant-numeric-quantities);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-result);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-quantity);
 }
 
 .section {
   min-width: 0;
   display: grid;
   gap: 0;
+  /* Adds to the 8 flex gap: sections sit 16 apart, cards stack at 8. */
+  margin-top: var(--space-8);
 }
 
 .section > h3,
@@ -113,13 +82,17 @@
   text-transform: uppercase;
 }
 
+.section > h3 {
+  padding-inline: var(--space-4);
+}
+
 .properties {
   min-width: 0;
   margin: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-12) var(--space-16);
-  padding: var(--space-12) var(--space-16);
+  padding: var(--space-12) calc(var(--space-12) - var(--border-width));
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
 }
@@ -169,39 +142,16 @@
   white-space: nowrap;
 }
 
-.identity .renameAction {
-  /* Square IconButton at the compact height, hugging the name. */
-  width: var(--control-height-compact);
-  height: var(--control-height-compact);
-  flex: none;
-  border-color: transparent;
-  color: var(--color-text-secondary);
-}
-
-.identity .renameAction:hover {
-  color: var(--color-text-primary);
-}
-
-.renameForm {
-  display: grid;
-  gap: var(--space-8);
-}
-
-.renameActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-8);
-}
-
 .itemsHeader {
   display: flex;
   min-height: var(--control-height-regular);
   align-items: center;
   justify-content: space-between;
+  padding-inline: var(--space-4);
 }
 
 .itemsList {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   max-height: min(var(--geometry-measurement-list-max-height), 50dvh);
   overflow: auto;
   margin: 0;
@@ -215,6 +165,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
+  padding-inline: var(--space-4);
   border-bottom: var(--border-width) solid var(--color-divider);
   color: var(--color-text-secondary);
 }
@@ -228,7 +179,7 @@
 .itemMove {
   composes: focusRing from global;
   min-height: var(--control-height-compact);
-  padding: 0 var(--space-8);
+  padding: 0 var(--space-12);
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
@@ -256,17 +207,7 @@
 }
 
 .itemRemove {
-  width: var(--control-height-compact);
-  height: var(--control-height-compact);
   border-color: transparent;
-}
-
-.itemRemoveIcon {
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: var(--icon-stroke-width);
 }
 
 .noteForm {
@@ -285,6 +226,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
+  padding-inline: var(--space-4);
   font-size: var(--font-size-base);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   line-height: var(--line-height-base);

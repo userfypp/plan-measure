@@ -45,10 +45,20 @@ function topPopoverLayer(): PopoverLayer | undefined {
   return popoverLayers.at(-1);
 }
 
+/** The scroller an overlay scrollbar thumb belongs to: the element before its run of thumbs. */
+function scrollerOfThumb(target: Node): Element | null {
+  if (!(target instanceof Element) || !target.classList.contains("overlayScrollThumb")) return null;
+  let sibling = target.previousElementSibling;
+  while (sibling?.classList.contains("overlayScrollThumb")) sibling = sibling.previousElementSibling;
+  return sibling;
+}
+
 function handlePopoverPointerDown(event: PointerEvent) {
   const layer = topPopoverLayer();
   const target = event.target;
   if (!layer || !(target instanceof Node) || layer.contains(target)) return;
+  const scroller = scrollerOfThumb(target);
+  if (scroller && layer.contains(scroller)) return;
   layer.dismiss("outside");
 }
 

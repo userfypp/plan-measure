@@ -77,7 +77,6 @@ function createProps(overrides: Partial<MeasurementDetailsProps> = {}): Measurem
     catalog,
     returnModule: "classifications",
     onBack: vi.fn(),
-    onRename: vi.fn(),
     onSaveNote: vi.fn(),
     onAssignClassification: vi.fn(),
     onDelete: vi.fn(),
@@ -89,11 +88,9 @@ function renderDetails(props: MeasurementDetailsProps) {
   act(() => root!.render(<MeasurementDetails key={props.measurement.id} {...props} />));
 }
 
-function buttonByText(text: string): HTMLButtonElement {
-  const button = Array.from(container?.querySelectorAll<HTMLButtonElement>("button") ?? []).find(
-    (candidate) => candidate.textContent?.trim() === text,
-  );
-  if (!button) throw new Error(`Button ${text} was not rendered.`);
+function buttonByLabel(label: string): HTMLButtonElement {
+  const button = container?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  if (!button) throw new Error(`Button ${label} was not rendered.`);
   return button;
 }
 
@@ -129,8 +126,8 @@ describe("MeasurementDetails", () => {
     const props = createProps({ measurement: count, page: { ...page, measurements: [count, target] }, onRemoveCountItem: vi.fn(), onMoveCountItem: vi.fn() });
     renderDetails(props);
     expect(container!.querySelectorAll("[data-count-item-remove]")).toHaveLength(50);
-    expect(buttonByText("Previous items").disabled).toBe(true);
-    act(() => buttonByText("Next items").click());
+    expect(buttonByLabel("Previous items").disabled).toBe(true);
+    act(() => buttonByLabel("Next items").click());
     expect(container!.querySelector('[aria-label="Delete item 51"]')).not.toBeNull();
     expect(container!.querySelector('[aria-label="Delete item 1"]')).toBeNull();
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Move item 51 to another count"]')!.click());
@@ -142,7 +139,7 @@ describe("MeasurementDetails", () => {
     expect(props.onRemoveCountItem).toHaveBeenCalledWith(50);
     renderDetails({ ...props, measurement: { ...count, name: "Renamed" } });
     expect(container!.querySelector('[aria-label="Delete item 51"]')).not.toBeNull();
-    act(() => buttonByText("Previous items").click());
+    act(() => buttonByLabel("Previous items").click());
     expect(container!.querySelector('[aria-label="Delete item 1"]')).not.toBeNull();
   });
 
@@ -154,7 +151,7 @@ describe("MeasurementDetails", () => {
         points: Array.from({ length: 51 }, (_, index) => ({ x: index, y: 0 })) };
       const props = createProps({ measurement: count, onRemoveCountItem: vi.fn() });
       renderDetails(props);
-      act(() => buttonByText("Next items").click());
+      act(() => buttonByLabel("Next items").click());
       act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Delete item 51"]')!.click());
       renderDetails({ ...props, measurement: { ...count, points: count.points.slice(0, 50) } });
       act(() => frame!(0));
@@ -193,7 +190,7 @@ describe("MeasurementDetails", () => {
       measurement: count, page: { ...page, measurements: [count, target, firstMeasurement] },
       onAddCountItems, onMoveCountItem, onRemoveCountItem: vi.fn(),
     }));
-    act(() => buttonByText("Add items").click());
+    act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).toHaveBeenCalledOnce();
     act(() => container!.querySelector<HTMLButtonElement>('[aria-label="Move item 2 to another count"]')!.click());
     const menu = document.querySelector('[role="menu"][aria-label="Move item 2 to count"]')!;
@@ -215,7 +212,7 @@ describe("MeasurementDetails", () => {
       addCountItemsDisabledReason: "Show this count before adding items",
     }));
     expect(container!.querySelector<HTMLButtonElement>('[aria-label="Move item 1 to another count"]')!.disabled).toBe(true);
-    act(() => buttonByText("Add items").click());
+    act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).not.toHaveBeenCalled();
     renderDetails(createProps({
       measurement: count, onRemoveCountItem: vi.fn(), assignmentDisabled: true,
@@ -228,8 +225,7 @@ describe("MeasurementDetails", () => {
     expect(container!.textContent).toContain("1 item");
     expect(container!.textContent).not.toContain("Scale unavailable");
     expect(container!.textContent).not.toContain("Unavailable");
-    expect(container!.querySelector('[aria-label^="Rename "]')).not.toBeNull();
-    expect(buttonByText("Save note")).toBeTruthy();
+    expect(buttonByLabel("Save note")).toBeTruthy();
   });
 
   it("removes an individual Count item and uses deletion for the last item", () => {
@@ -266,8 +262,9 @@ describe("MeasurementDetails", () => {
     expect(classificationTrigger().textContent).toContain("Electrical");
     expect(classificationTrigger().getAttribute("aria-expanded")).toBe("false");
     expect(container?.querySelector('section[aria-label="Classification assignment"] select')).toBeNull();
-    const backButton = buttonByText("Back to classifications");
+    const backButton = buttonByLabel("Back to classifications");
     expect(backButton.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    expect(backButton.hasAttribute("data-measurement-details-back")).toBe(true);
   });
 
   it("updates an existing measurement value when display precision changes", () => {
@@ -366,7 +363,7 @@ describe("MeasurementDetails", () => {
     const props = createProps();
     renderDetails(props);
 
-    act(() => buttonByText("Back to classifications").click());
+    act(() => buttonByLabel("Back to classifications").click());
     const assignment = classificationTrigger();
     act(() => assignment.click());
     const unclassified = Array.from(
@@ -403,26 +400,6 @@ describe("MeasurementDetails", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("renames through the canonical command and trims the submitted name", () => {
-    const props = createProps();
-    renderDetails(props);
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label^="Rename "]')!.click());
-    const input = container?.querySelector<HTMLInputElement>("input");
-    if (!input) throw new Error("Rename input was not rendered.");
-
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      setter?.call(input, "  Main hallway  ");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    const form = input.closest("form");
-    if (!form) throw new Error("Rename form was not rendered.");
-    act(() => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
-
-    expect(props.onRename).toHaveBeenCalledWith("Main hallway");
-    expect(container?.querySelector("input")).toBeNull();
-  });
-
   it("refreshes the note after undo and redo without discarding drafts on unrelated updates", () => {
     const props = createProps({ measurement: { ...firstMeasurement, note: "Saved" } });
     renderDetails(props);
@@ -435,7 +412,7 @@ describe("MeasurementDetails", () => {
     expect(textarea.value).toBe("Draft");
     renderDetails({ ...props, measurement: firstMeasurement });
     expect(textarea.value).toBe("");
-    expect(buttonByText("Save note").disabled).toBe(true);
+    expect(buttonByLabel("Save note").disabled).toBe(true);
     renderDetails(props);
     expect(textarea.value).toBe("Saved");
   });
@@ -452,26 +429,23 @@ describe("MeasurementDetails", () => {
     expect(textarea.getAttribute("aria-label")).toBe("Note");
     expect(container?.textContent).not.toContain("Note or description");
     expect(textarea.form?.id).toBe("measurement-note-form");
-    expect(buttonByText("Save note").getAttribute("form")).toBe("measurement-note-form");
+    expect(buttonByLabel("Save note").getAttribute("form")).toBe("measurement-note-form");
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
       setter?.call(textarea, "Check the ceiling height.");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    act(() => buttonByText("Save note").click());
+    act(() => buttonByLabel("Save note").click());
 
     expect(props.onSaveNote).toHaveBeenCalledWith("Check the ceiling height.");
   });
 
-  it("resets local rename UI when canonical selection changes while Details stays open", () => {
+  it("shows the new measurement when canonical selection changes while Details stays open", () => {
     const props = createProps();
     renderDetails(props);
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label^="Rename "]')!.click());
-    expect(container?.querySelector("input")).not.toBeNull();
 
     renderDetails(createProps({ ...props, measurement: secondMeasurement }));
 
-    expect(container?.querySelector("input")).toBeNull();
     expect(container?.textContent).toContain("Lobby");
     expect(container?.getAttribute("aria-label")).toBeNull();
     expect(container?.querySelector('section[aria-label="Details for Lobby"]')).not.toBeNull();

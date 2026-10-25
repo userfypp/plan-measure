@@ -1,0 +1,13 @@
+.form {
+  min-width: 0;
+}
+
+.row {
+  padding: var(--space-8) 0;
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+/* The label is text, so it sits on the 12px text edge while the field and its actions sit at 8. */
+.row label {
+  padding-inline: var(--space-4);
+}

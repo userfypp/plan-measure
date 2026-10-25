@@ -4,6 +4,20 @@
   gap: var(--space-4);
 }
 
+.row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.trailing {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-8);
+}
+
 .label {
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);

@@ -7,8 +7,32 @@ export { ConfirmationDialog } from "./ConfirmationDialog";
 export type { ConfirmationDialogProps, ConfirmationIntent } from "./ConfirmationDialog";
 export { Dialog } from "./Dialog";
 export type { DialogProps, DialogSize } from "./Dialog";
+export { Disclosure } from "./Disclosure";
+export type { DisclosureProps } from "./Disclosure";
 export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
+export {
+  ArrowLeftIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+  CopyIcon,
+  EditPointsIcon,
+  EyeIcon,
+  ImportIcon,
+  PencilIcon,
+  PlusIcon,
+  RatioIcon,
+  RefreshIcon,
+  RestoreIcon,
+  ScaleCheckIcon,
+  SaveIcon,
+  TemplatesIcon,
+  TrashIcon,
+} from "./icons";
+export { InlineField } from "./InlineField";
+export type { InlineFieldProps } from "./InlineField";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { Select } from "./Select";

@@ -16,7 +16,7 @@
   min-height: var(--target-coarse);
   display: flex;
   align-items: center;
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-4) var(--geometry-panel-gutter);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 
@@ -24,48 +24,39 @@
   min-width: 0;
   min-height: var(--target-current);
   flex: 1 1 auto;
-  border: var(--border-width) solid transparent;
+  /* A panel title that opens the module menu: no box at rest; the hover box sits at the panel gutter. */
+  border: 0;
   border-radius: var(--radius-control);
   padding: 0 var(--space-8);
   background: transparent;
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-identity);
   font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-identity);
   transition: var(--transition-interactive);
 }
 
 .switcher:hover {
-  border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
 }
 
-.switcher:active {
-  border-color: var(--color-control-active-border);
+.switcher:active,
+.switcher[aria-expanded="true"] {
   background: var(--color-control-active-surface);
 }
 
-.switcher[aria-expanded="true"] {
-  border-color: var(--color-control-active-border);
-  background: var(--color-surface-field);
-}
-
-.switcher[aria-expanded="true"]:hover {
-  border-color: var(--color-control-active-border);
-  background: var(--color-surface-field);
-}
-
-.switcher[aria-expanded="true"]:active {
-  border-color: var(--color-control-active-border);
-  background: var(--color-surface-field);
+.switcher[aria-expanded="true"] svg {
+  transform: rotate(180deg);
 }
 
 .switcherContent {
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size);
+  grid-template-columns: minmax(0, max-content) var(--geometry-icon-size);
+  justify-content: start;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--space-4);
   text-align: left;
 }
 

@@ -48,6 +48,8 @@ function buttonByLabel(label: string): HTMLButtonElement {
 }
 
 function inputByLabel(label: string): HTMLInputElement {
+  const named = container?.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+  if (named) return named;
   const labelElement = Array.from(container?.querySelectorAll<HTMLLabelElement>("label") ?? []).find(
     (candidate) => candidate.textContent === label,
   );
@@ -66,11 +68,11 @@ function setInputValue(input: HTMLInputElement, value: string) {
   });
 }
 
-function buttonIn(element: HTMLElement, text: string): HTMLButtonElement {
+function buttonIn(element: HTMLElement, label: string): HTMLButtonElement {
   const button = Array.from(element.querySelectorAll<HTMLButtonElement>("button")).find(
-    (candidate) => candidate.textContent?.trim() === text,
+    (candidate) => candidate.getAttribute("aria-label") === label,
   );
-  if (!button) throw new Error(`Button ${text} was not rendered.`);
+  if (!button) throw new Error(`Button ${label} was not rendered.`);
   return button;
 }
 
@@ -175,14 +177,14 @@ describe("ClassificationManager interactions", () => {
     setInputValue(dimensionInput, "Status");
     const dimensionForm = dimensionInput.closest("form");
     if (!dimensionForm) throw new Error("Create dimension form was not rendered.");
-    act(() => buttonIn(dimensionForm, "Add").click());
+    act(() => buttonIn(dimensionForm, "Add dimension").click());
     expect(props.onCreateDimension).toHaveBeenCalledWith("Status");
 
     const valueInput = inputByLabel("New value for Trade");
     setInputValue(valueInput, "Plumbing");
     const valueForm = valueInput.closest("form");
     if (!valueForm) throw new Error("Create value form was not rendered.");
-    act(() => buttonIn(valueForm, "Add").click());
+    act(() => buttonIn(valueForm, "Add value to Trade").click());
     expect(props.onCreateValue).toHaveBeenCalledWith("trade", "Plumbing");
   });
 });

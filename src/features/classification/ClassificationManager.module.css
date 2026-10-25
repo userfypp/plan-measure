@@ -4,22 +4,19 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  container-type: inline-size;
   overflow: hidden;
   background: var(--color-surface-panel);
 }
 
 .body {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
-  scrollbar-gutter: stable;
-  padding: 0 max(0px, calc(var(--space-12) - var(--scrollbar-size, 0px))) var(--space-8)
-    var(--space-12);
+  padding: 0 var(--geometry-panel-gutter) var(--space-8);
 }
 
 .list {
@@ -35,7 +32,7 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-4);
+  padding: var(--space-8) 0;
   background: transparent;
 }
 
@@ -54,6 +51,7 @@
 .itemTitle {
   min-width: 0;
   margin: 0;
+  padding-inline: var(--space-4);
   color: var(--color-text-primary);
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
@@ -75,11 +73,6 @@
   align-items: center;
   gap: var(--space-8);
   flex-wrap: wrap;
-}
-
-.restoreAction {
-  min-height: var(--control-height-compact);
-  padding-inline: var(--space-8);
 }
 
 .dimensionMenuTrigger {
@@ -139,6 +132,14 @@
   max-width: 100%;
 }
 
+.valueItemEditing {
+  flex: 1 1 100%;
+}
+
+.valueItemEditing > form {
+  flex: 1 1 auto;
+}
+
 .valueList .valueChipTrigger {
   width: auto;
   height: var(--control-height-compact);
@@ -148,7 +149,7 @@
   align-items: center;
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
+  padding: 0 var(--space-8) 0 var(--space-12);
   color: var(--color-text-primary);
   background: var(--color-surface-field);
   font-family: var(--font-family-sans);
@@ -207,146 +208,4 @@
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
   overflow-wrap: anywhere;
-}
-
-.inlineForm,
-.create,
-.renameForm,
-.valueRenameForm {
-  min-width: 0;
-}
-
-.inlineLabel {
-  composes: visuallyHidden from global;
-}
-
-.inlineForm {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: var(--space-8);
-  row-gap: var(--space-8);
-}
-
-.inlineForm > :first-child,
-.create > :first-child {
-  display: contents;
-}
-
-.create > :first-child > label {
-  grid-column: 1;
-  grid-row: 1;
-  min-width: 0;
-}
-
-.inlineForm > :first-child > input {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.create > :first-child > input {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.inlineForm > :first-child > p {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.create > :first-child > p {
-  grid-column: 1;
-  grid-row: 3;
-}
-
-.inlineForm > button {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: center;
-  white-space: nowrap;
-}
-
-.create > button {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-  white-space: nowrap;
-}
-
-.renameForm,
-.valueRenameForm {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-8);
-}
-
-.itemHeader > .renameForm {
-  grid-column: 1 / -1;
-}
-
-.valueRenameForm {
-  flex: 1 1 100%;
-}
-
-.renameForm > :first-child,
-.valueRenameForm > :first-child {
-  display: contents;
-}
-
-.renameForm > :first-child > input,
-.valueRenameForm > :first-child > input {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.renameForm > :first-child > p,
-.valueRenameForm > :first-child > p {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.renameActions {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-8);
-}
-
-.create {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: var(--space-8);
-  row-gap: var(--space-8);
-  padding: var(--space-8) var(--space-4);
-  border-top: var(--border-width) solid var(--color-divider);
-}
-
-@container (max-width: 224px) {
-  .inlineForm,
-  .create,
-  .renameForm,
-  .valueRenameForm {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .inlineForm > button {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: start;
-  }
-
-  .create > button {
-    grid-column: 1;
-    grid-row: 4;
-    justify-self: start;
-  }
-
-  .renameActions {
-    grid-column: 1;
-    grid-row: 3;
-  }
 }

@@ -1,6 +1,21 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
-import { AnchoredMenu, Button, ChevronDownIcon, Input } from "../../components/ui";
+import {
+  AnchoredMenu,
+  CloseIcon,
+  CopyIcon,
+  Disclosure,
+  EditPointsIcon,
+  IconButton,
+  InlineField,
+  PencilIcon,
+  PlusIcon,
+  RatioIcon,
+  RefreshIcon,
+  SaveIcon,
+  ScaleCheckIcon,
+  TrashIcon,
+} from "../../components/ui";
 import type {
   CalibrationReferenceKey,
   MeasurementDisplayUnit,
@@ -98,12 +113,41 @@ function CustomRatioOptionLabel() {
   );
 }
 
-function CopyIcon() {
+function ReferenceRow({
+  label,
+  hiddenLabel,
+  value,
+  actionLabel,
+  disabled,
+  disabledReason,
+  onEdit,
+}: {
+  label: string;
+  hiddenLabel: string;
+  value: string;
+  actionLabel: string;
+  disabled: boolean;
+  disabledReason?: string;
+  onEdit: () => void;
+}) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-      <rect x="7" y="6" width="9" height="11" rx="1.5" />
-      <path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" />
-    </svg>
+    <div className={styles.row}>
+      <span className={styles.label} aria-hidden="true">
+        {label}
+      </span>
+      <span className={styles.value} title={value}>
+        <span className={styles.visuallyHidden}>{hiddenLabel}</span>
+        {value}
+      </span>
+      <IconButton
+        icon={<EditPointsIcon />}
+        aria-label={actionLabel}
+        tooltip="Edit points"
+        disabled={disabled}
+        disabledReason={disabledReason}
+        onClick={onEdit}
+      />
+    </div>
   );
 }
 
@@ -128,7 +172,7 @@ export function ScalesWorkspace({
   const [renameState, setRenameState] = useState<RenameState | null>(null);
   const [customRatioDialogOpen, setCustomRatioDialogOpen] = useState(false);
   const [setRatioScaleId, setSetRatioScaleId] = useState<string | null>(null);
-  const renameTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
+  const footerRefs = useRef(new Map<string, HTMLElement>());
   const returnFocusScaleIdRef = useRef<string | null>(null);
   const addScaleContainerRef = useRef<HTMLDivElement>(null);
   const returnFocusToAddScaleRef = useRef(false);
@@ -149,7 +193,10 @@ export function ScalesWorkspace({
     const scaleId = returnFocusScaleIdRef.current;
     if (!scaleId) return;
     returnFocusScaleIdRef.current = null;
-    renameTriggerRefs.current.get(scaleId)?.focus({ preventScroll: true });
+    footerRefs.current
+      .get(scaleId)
+      ?.querySelector<HTMLButtonElement>('button[aria-label^="Rename scale"]')
+      ?.focus({ preventScroll: true });
   }, [renameState]);
 
   useLayoutEffect(() => {
@@ -229,43 +276,39 @@ export function ScalesWorkspace({
 
   return (
     <section className={styles.workspace} aria-label="Scales on current page">
-      <div className={styles.list} role="list" aria-label="Page scales">
+      <div className={styles.body}>
         {page.calibrations.length === 0 && (
           <p className={styles.empty}>Add a scale to begin measuring.</p>
         )}
-        {page.calibrations.map((calibration) => {
-          const metadata = scaleDisplayMetadata(calibration);
-          const active = calibration.id === page.activeCalibrationId;
-          const inspected = inspectedScaleId === calibration.id;
-          const detailId = `scale-details-${calibration.id}`;
-          const measurementCount = page.measurements.filter(
-            (measurement) => measurement.calibrationId === calibration.id,
-          ).length;
-          return (
-            <article
-              key={calibration.id}
-              className={[
-                styles.scaleRow,
-                active ? styles.active : "",
-                inspected ? styles.inspected : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              role="listitem"
-            >
-              <div className={styles.scaleSummary}>
-                <span className={styles.scaleIdentity}>
-                  <strong title={calibration.name}>{calibration.name}</strong>
-                  <span className={styles.scaleMetadata}>
-                    <span title={metadata.detailLabel}>{metadata.detailLabel}</span>
-                    {(active || inspected) && onCheckScale && (
-                      <span className={styles.checkScaleControl}>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          className={styles.checkScaleButton}
+        <ul className={styles.list} aria-label="Page scales">
+          {page.calibrations.map((calibration) => {
+            const metadata = scaleDisplayMetadata(calibration);
+            const active = calibration.id === page.activeCalibrationId;
+            const inspected = inspectedScaleId === calibration.id;
+            const renaming = renameState?.calibrationId === calibration.id;
+            const measurementCount = page.measurements.filter(
+              (measurement) => measurement.calibrationId === calibration.id,
+            ).length;
+            return (
+              <li key={calibration.id} className={styles.scale}>
+                <Disclosure
+                  title={calibration.name}
+                  subtitle={
+                    <>
+                      {metadata.detailLabel}
+                      {active && <span className={styles.visuallyHidden}>, active</span>}
+                    </>
+                  }
+                  selected={active}
+                  open={inspected}
+                  onOpenChange={() => toggleScale(calibration.id, inspected)}
+                  actions={
+                    <>
+                      {onCheckScale && (
+                        <IconButton
+                          icon={<ScaleCheckIcon />}
                           aria-label={`Check scale ${calibration.name}`}
-                          title={`Check scale ${calibration.name}`}
+                          tooltip="Check scale"
                           disabled={spatialActionsDisabled}
                           disabledReason={
                             spatialActionsDisabled ? spatialDisabledReason : undefined
@@ -273,52 +316,22 @@ export function ScalesWorkspace({
                           onClick={() =>
                             workspace.requestPrecisionAuthoring(() => onCheckScale(calibration))
                           }
-                        >
-                          Check
-                        </Button>
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <span className={styles.copyScaleControl}>
-                  <Button
-                    variant="ghost"
-                    size="compact"
-                    className={styles.copyScaleButton}
-                    aria-label={`Copy scale ${calibration.name}`}
-                    title={`Copy scale ${calibration.name}`}
-                    disabled={actionsDisabled}
-                    disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
-                    onClick={() => onCopyScale(calibration)}
-                  >
-                    <CopyIcon />
-                  </Button>
-                </span>
-                <Button
-                  variant="ghost"
-                  size="compact"
-                  className={styles.disclosureButton}
-                  aria-label={`${inspected ? "Collapse" : "Expand"} scale ${calibration.name}${active ? ", active" : ""}`}
-                  aria-expanded={inspected}
-                  aria-controls={detailId}
-                  title={`${inspected ? "Collapse" : "Expand"} ${calibration.name}`}
-                  onClick={() => toggleScale(calibration.id, inspected)}
+                        />
+                      )}
+                      <IconButton
+                        icon={<CopyIcon />}
+                        aria-label={`Copy scale ${calibration.name}`}
+                        tooltip="Copy scale"
+                        disabled={actionsDisabled}
+                        disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                        onClick={() => onCopyScale(calibration)}
+                      />
+                    </>
+                  }
                 >
-                  <ChevronDownIcon />
-                </Button>
-              </div>
-              <div id={detailId} className={styles.scaleDetails} hidden={!inspected}>
-                <div
-                  className={styles.detailRows}
-                  role="group"
-                  aria-label={`Scale details for ${calibration.name}`}
-                >
-                  {renameState?.calibrationId === calibration.id ? (
-                    <form
-                      className={styles.renameForm}
-                      onSubmit={(event) => submitRename(event, calibration)}
-                    >
-                      <Input
+                  <div className={styles.details}>
+                    {renaming && (
+                      <InlineField
                         aria-label="Scale name"
                         value={renameState.draftName}
                         error={renameState.error}
@@ -341,284 +354,254 @@ export function ScalesWorkspace({
                             cancelRename(calibration.id);
                           }
                         }}
+                        onSubmit={(event) => submitRename(event, calibration)}
+                        actions={
+                          <>
+                            <IconButton
+                              icon={<CloseIcon />}
+                              aria-label="Cancel"
+                              tooltip="Cancel"
+                              onClick={() => cancelRename(calibration.id)}
+                            />
+                            <IconButton
+                              type="submit"
+                              tone="primary"
+                              icon={<SaveIcon />}
+                              aria-label="Save"
+                              tooltip="Save"
+                              disabled={actionsDisabled}
+                              disabledReason={
+                                actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined
+                              }
+                            />
+                          </>
+                        }
                       />
-                      <div className={styles.renameActions}>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          onClick={() => cancelRename(calibration.id)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          variant="secondary"
-                          size="compact"
+                    )}
+
+                    <div
+                      className={styles.rows}
+                      role="group"
+                      aria-label={`Scale details for ${calibration.name}`}
+                    >
+                      <div className={styles.row}>
+                        <span className={styles.label} aria-hidden="true">
+                          Ratio
+                        </span>
+                        <span className={styles.value} title={metadata.ratioLabel}>
+                          <span className={styles.visuallyHidden}>Effective ratio: </span>
+                          {metadata.ratioLabel}
+                        </span>
+                        <IconButton
+                          icon={<RatioIcon />}
+                          aria-label={`Set ratio for scale ${calibration.name}`}
+                          tooltip="Set ratio"
                           disabled={actionsDisabled}
                           disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
-                        >
-                          Save
-                        </Button>
+                          onClick={() => setSetRatioScaleId(calibration.id)}
+                        />
                       </div>
-                    </form>
-                  ) : (
-                    <div className={styles.detailRow}>
-                      <strong className={styles.detailValue} title={calibration.name}>
-                        {calibration.name}
-                      </strong>
-                      <Button
-                        ref={(node) => {
-                          if (node) renameTriggerRefs.current.set(calibration.id, node);
-                          else renameTriggerRefs.current.delete(calibration.id);
-                        }}
-                        variant="ghost"
-                        size="compact"
-                        aria-label={`Rename scale ${calibration.name}`}
-                        disabled={actionsDisabled}
-                        disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
-                        onClick={() =>
-                          setRenameState({
-                            calibrationId: calibration.id,
-                            draftName: calibration.name,
-                            error: null,
-                          })
-                        }
-                      >
-                        Rename
-                      </Button>
+
+                      {calibration.mode === "uniform" ? (
+                        <ReferenceRow
+                          label="Reference"
+                          hiddenLabel="Uniform reference: "
+                          value={formatReferenceDistance(
+                            calibration.referenceDistanceMm,
+                            displayUnit,
+                          )}
+                          actionLabel="Edit uniform reference points"
+                          disabled={spatialActionsDisabled}
+                          disabledReason={
+                            spatialActionsDisabled ? spatialDisabledReason : undefined
+                          }
+                          onEdit={() =>
+                            workspace.requestPrecisionAuthoring(() =>
+                              onEditReference(calibration, "uniform"),
+                            )
+                          }
+                        />
+                      ) : (
+                        <>
+                          <ReferenceRow
+                            label="X"
+                            hiddenLabel="X reference: "
+                            value={formatReferenceDistance(
+                              calibration.xReference.referenceDistanceMm,
+                              displayUnit,
+                            )}
+                            actionLabel="Edit X reference points"
+                            disabled={spatialActionsDisabled}
+                            disabledReason={
+                              spatialActionsDisabled ? spatialDisabledReason : undefined
+                            }
+                            onEdit={() =>
+                              workspace.requestPrecisionAuthoring(() =>
+                                onEditReference(calibration, "x"),
+                              )
+                            }
+                          />
+                          <ReferenceRow
+                            label="Y"
+                            hiddenLabel="Y reference: "
+                            value={formatReferenceDistance(
+                              calibration.yReference.referenceDistanceMm,
+                              displayUnit,
+                            )}
+                            actionLabel="Edit Y reference points"
+                            disabled={spatialActionsDisabled}
+                            disabledReason={
+                              spatialActionsDisabled ? spatialDisabledReason : undefined
+                            }
+                            onEdit={() =>
+                              workspace.requestPrecisionAuthoring(() =>
+                                onEditReference(calibration, "y"),
+                              )
+                            }
+                          />
+                        </>
+                      )}
                     </div>
-                  )}
 
-                  <div className={styles.detailRow}>
-                    <strong className={styles.detailValue} title={metadata.ratioLabel}>
-                      <span className={styles.visuallyHidden}>Effective ratio: </span>
-                      {metadata.ratioLabel}
-                    </strong>
-                    <Button
-                      variant="ghost"
-                      size="compact"
-                      aria-label={`Set ratio for scale ${calibration.name}`}
-                      disabled={actionsDisabled}
-                      disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
-                      onClick={() => setSetRatioScaleId(calibration.id)}
+                    <div
+                      className={styles.footer}
+                      ref={(node) => {
+                        if (node) footerRefs.current.set(calibration.id, node);
+                        else footerRefs.current.delete(calibration.id);
+                      }}
                     >
-                      Set ratio
-                    </Button>
-                  </div>
-
-                  {calibration.mode === "uniform" ? (
-                    <div className={styles.detailRow}>
-                      <strong
-                        className={styles.detailValue}
-                        title={formatReferenceDistance(
-                          calibration.referenceDistanceMm,
-                          displayUnit,
-                        )}
-                      >
-                        <span className={styles.visuallyHidden}>Uniform reference: </span>
-                        {formatReferenceDistance(calibration.referenceDistanceMm, displayUnit)}
-                      </strong>
-                      <Button
-                        variant="ghost"
-                        size="compact"
-                        aria-label="Edit uniform reference points"
+                      {!renaming && (
+                        <IconButton
+                          icon={<PencilIcon />}
+                          aria-label={`Rename scale ${calibration.name}`}
+                          tooltip="Rename"
+                          disabled={actionsDisabled}
+                          disabledReason={actionsDisabled ? WORKFLOW_DISABLED_REASON : undefined}
+                          onClick={() =>
+                            setRenameState({
+                              calibrationId: calibration.id,
+                              draftName: calibration.name,
+                              error: null,
+                            })
+                          }
+                        />
+                      )}
+                      <IconButton
+                        icon={<RefreshIcon />}
+                        aria-label="Recalibrate scale"
+                        tooltip="Recalibrate scale"
                         disabled={spatialActionsDisabled}
                         disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
                         onClick={() =>
-                          workspace.requestPrecisionAuthoring(() =>
-                            onEditReference(calibration, "uniform"),
-                          )
+                          workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
                         }
-                      >
-                        Edit points
-                      </Button>
+                      />
+                      {onDeleteScale && (
+                        <IconButton
+                          className={styles.deleteScale}
+                          tone="danger"
+                          icon={<TrashIcon />}
+                          aria-label={`Delete scale ${calibration.name}`}
+                          tooltip="Delete"
+                          disabled={actionsDisabled || measurementCount > 0}
+                          disabledReason={
+                            actionsDisabled
+                              ? WORKFLOW_DISABLED_REASON
+                              : measurementCount > 0
+                                ? scaleInUseReason(measurementCount)
+                                : undefined
+                          }
+                          onClick={() => {
+                            deletingScaleIdRef.current = calibration.id;
+                            onDeleteScale(calibration);
+                          }}
+                        />
+                      )}
                     </div>
-                  ) : (
-                    <>
-                      <div className={styles.detailRow}>
-                        <strong
-                          className={styles.detailValue}
-                          title={`X ${formatReferenceDistance(
-                            calibration.xReference.referenceDistanceMm,
-                            displayUnit,
-                          )}`}
-                        >
-                          <span className={styles.visuallyHidden}>X reference: </span>
-                          <span aria-hidden="true">X </span>
-                          {formatReferenceDistance(
-                            calibration.xReference.referenceDistanceMm,
-                            displayUnit,
-                          )}
-                        </strong>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          aria-label="Edit X reference points"
-                          disabled={spatialActionsDisabled}
-                          disabledReason={
-                            spatialActionsDisabled ? spatialDisabledReason : undefined
-                          }
-                          onClick={() =>
-                            workspace.requestPrecisionAuthoring(() =>
-                              onEditReference(calibration, "x"),
-                            )
-                          }
-                        >
-                          Edit points
-                        </Button>
-                      </div>
-                      <div className={styles.detailRow}>
-                        <strong
-                          className={styles.detailValue}
-                          title={`Y ${formatReferenceDistance(
-                            calibration.yReference.referenceDistanceMm,
-                            displayUnit,
-                          )}`}
-                        >
-                          <span className={styles.visuallyHidden}>Y reference: </span>
-                          <span aria-hidden="true">Y </span>
-                          {formatReferenceDistance(
-                            calibration.yReference.referenceDistanceMm,
-                            displayUnit,
-                          )}
-                        </strong>
-                        <Button
-                          variant="ghost"
-                          size="compact"
-                          aria-label="Edit Y reference points"
-                          disabled={spatialActionsDisabled}
-                          disabledReason={
-                            spatialActionsDisabled ? spatialDisabledReason : undefined
-                          }
-                          onClick={() =>
-                            workspace.requestPrecisionAuthoring(() =>
-                              onEditReference(calibration, "y"),
-                            )
-                          }
-                        >
-                          Edit points
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className={styles.recalibrateFooter}>
-                  <div className={styles.recalibrateControl} data-recalibrate-control>
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      className={styles.recalibrateButton}
-                      disabled={spatialActionsDisabled}
-                      disabledReason={spatialActionsDisabled ? spatialDisabledReason : undefined}
-                      onClick={() =>
-                        workspace.requestPrecisionAuthoring(() => onRecalibrate(calibration.id))
-                      }
-                    >
-                      Recalibrate scale
-                    </Button>
                   </div>
-                  {onDeleteScale && (
-                    <span className={styles.deleteScaleControl}>
-                      <Button
-                        variant="dangerSecondary"
-                        size="compact"
-                        aria-label={`Delete scale ${calibration.name}`}
-                        disabled={actionsDisabled || measurementCount > 0}
-                        disabledReason={
-                          actionsDisabled
-                            ? WORKFLOW_DISABLED_REASON
-                            : measurementCount > 0
-                              ? scaleInUseReason(measurementCount)
-                              : undefined
-                        }
-                        onClick={() => {
-                          deletingScaleIdRef.current = calibration.id;
-                          onDeleteScale(calibration);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </article>
-          );
-        })}
+                </Disclosure>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div ref={addScaleContainerRef} className={styles.addScale}>
+          <AnchoredMenu
+            trigger={
+              <>
+                <PlusIcon />
+                <span>Add scale</span>
+              </>
+            }
+            triggerProps={{
+              className: styles.addScaleTrigger,
+              "aria-label": "Add scale",
+              "aria-describedby": actionsDisabled ? disabledReasonId : undefined,
+              "aria-disabled": actionsDisabled || undefined,
+              title: actionsDisabled ? spatialDisabledReason : undefined,
+              onClick: (event) => {
+                if (actionsDisabled) event.preventDefault();
+              },
+            }}
+            className={styles.addScaleMenu}
+            label="Add scale"
+            items={[
+              {
+                id: "uniform",
+                label: (
+                  <>
+                    <ScaleOptionLabel mode="uniform" />
+                    {precisionActionsDisabled && (
+                      <span className={styles.visuallyHidden}>{precisionDisabledReason}</span>
+                    )}
+                  </>
+                ),
+                disabled: precisionActionsDisabled,
+                onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("uniform")),
+              },
+              {
+                id: "xy",
+                label: (
+                  <>
+                    <ScaleOptionLabel mode="xy" />
+                    {precisionActionsDisabled && (
+                      <span className={styles.visuallyHidden}>{precisionDisabledReason}</span>
+                    )}
+                  </>
+                ),
+                disabled: precisionActionsDisabled,
+                onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("xy")),
+              },
+              {
+                id: "custom-ratio",
+                label: <CustomRatioOptionLabel />,
+                onSelect: () => setCustomRatioDialogOpen(true),
+              },
+              ...STANDARD_SCALE_PRESET_RATIOS.map((ratio, index) => ({
+                id: `preset-${ratio}`,
+                sectionLabel: index === 0 ? "Standard ratios" : undefined,
+                label: <PresetScaleOptionLabel ratio={ratio} />,
+                onSelect: () => onAddPresetScale(ratio),
+              })),
+            ]}
+            placement="bottom-start"
+          />
+        </div>
+
+        {spatialActionsDisabled && (
+          <p id={disabledReasonId} className={styles.visuallyHidden}>
+            {spatialDisabledReason}
+          </p>
+        )}
+
+        {page.calibrations.length > 0 && (
+          <p className={styles.note}>
+            {page.calibrations.length > 1
+              ? "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements."
+              : "Changing the active scale does not relink measurements."}
+          </p>
+        )}
       </div>
-
-      <div ref={addScaleContainerRef} className={styles.addScale}>
-        <AnchoredMenu
-          trigger={<span>+ Add scale</span>}
-          triggerProps={{
-            className: styles.addScaleTrigger,
-            "aria-label": "Add scale",
-            "aria-describedby": actionsDisabled ? disabledReasonId : undefined,
-            "aria-disabled": actionsDisabled || undefined,
-            title: actionsDisabled ? spatialDisabledReason : undefined,
-            onClick: (event) => {
-              if (actionsDisabled) event.preventDefault();
-            },
-          }}
-          className={styles.addScaleMenu}
-          label="Add scale"
-          items={[
-            {
-              id: "uniform",
-              label: (
-                <>
-                  <ScaleOptionLabel mode="uniform" />
-                  {precisionActionsDisabled && (
-                    <span className={styles.visuallyHidden}>{precisionDisabledReason}</span>
-                  )}
-                </>
-              ),
-              disabled: precisionActionsDisabled,
-              onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("uniform")),
-            },
-            {
-              id: "xy",
-              label: (
-                <>
-                  <ScaleOptionLabel mode="xy" />
-                  {precisionActionsDisabled && (
-                    <span className={styles.visuallyHidden}>{precisionDisabledReason}</span>
-                  )}
-                </>
-              ),
-              disabled: precisionActionsDisabled,
-              onSelect: () => workspace.requestPrecisionAuthoring(() => onAddScale("xy")),
-            },
-            {
-              id: "custom-ratio",
-              label: <CustomRatioOptionLabel />,
-              onSelect: () => setCustomRatioDialogOpen(true),
-            },
-            ...STANDARD_SCALE_PRESET_RATIOS.map((ratio, index) => ({
-              id: `preset-${ratio}`,
-              sectionLabel: index === 0 ? "Standard ratios" : undefined,
-              label: <PresetScaleOptionLabel ratio={ratio} />,
-              onSelect: () => onAddPresetScale(ratio),
-            })),
-          ]}
-          placement="bottom-start"
-        />
-      </div>
-
-      {spatialActionsDisabled && (
-        <p id={disabledReasonId} className={styles.visuallyHidden}>
-          {spatialDisabledReason}
-        </p>
-      )}
-
-      {page.calibrations.length > 0 && (
-        <p className={styles.note}>
-          {page.calibrations.length > 1
-            ? "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements."
-            : "Changing the active scale does not relink measurements."}
-        </p>
-      )}
 
       <Suspense fallback={null}>
         {customRatioDialogOpen && (

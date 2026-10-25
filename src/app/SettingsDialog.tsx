@@ -247,6 +247,13 @@ const FOCUS_RING_OPTIONS = [
   { value: "thick", label: "Thick" },
 ] as const;
 
+const TOOLTIP_DELAY_OPTIONS = [
+  { value: "instant", label: "Instant" },
+  { value: "fast", label: "Fast" },
+  { value: "normal", label: "Normal" },
+  { value: "slow", label: "Slow" },
+] as const;
+
 const TEXT_SIZE_OPTIONS = [
   { value: "100", label: "100%" },
   { value: "110", label: "110%" },
@@ -928,6 +935,13 @@ export function SettingsDialog({
                     label="Show tooltips"
                     checked={preferences.tooltips}
                     onChange={set("tooltips")}
+                  />
+                  <SelectRow
+                    label="Tooltip delay"
+                    value={preferences.tooltipDelay}
+                    options={TOOLTIP_DELAY_OPTIONS}
+                    onChange={set("tooltipDelay")}
+                    disabled={!preferences.tooltips}
                   />
                   <SelectRow
                     label="Focus ring"

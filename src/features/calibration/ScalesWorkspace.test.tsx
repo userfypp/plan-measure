@@ -16,7 +16,6 @@ import {
   ScalesWorkspace,
   type ScalesWorkspaceProps,
 } from "./ScalesWorkspace";
-import styles from "./ScalesWorkspace.module.css";
 
 const scalesCss = readFileSync("src/features/calibration/ScalesWorkspace.module.css", "utf8");
 
@@ -163,12 +162,35 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return button;
 }
 
+// The disclosure toggle is the button whose title is the scale name; its accessible name also
+// carries the ratio line.
+function scaleToggle(name: string): HTMLButtonElement {
+  const toggle = Array.from(
+    container?.querySelectorAll<HTMLButtonElement>("button[aria-expanded]") ?? [],
+  ).find((candidate) => candidate.querySelector("span[title]")?.getAttribute("title") === name);
+  if (!toggle) throw new Error(`Scale toggle ${name} was not rendered.`);
+  return toggle;
+}
+
+function scaleDetails(toggle: HTMLButtonElement): HTMLElement {
+  const details = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+  if (!details) throw new Error("Expanded scale details were not rendered.");
+  return details;
+}
+
+// Text buttons are found by their text, icon buttons by their accessible name.
 function buttonWithin(element: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(element.querySelectorAll<HTMLButtonElement>("button")).find(
-    (candidate) => candidate.textContent?.trim() === text,
+    (candidate) =>
+      candidate.textContent?.trim() === text || candidate.getAttribute("aria-label") === text,
   );
   if (!button) throw new Error(`Button ${text} was not rendered in the requested scale details.`);
   return button;
+}
+
+function expectIconOnly(button: HTMLButtonElement) {
+  expect(button.querySelector("svg")).not.toBeNull();
+  expect(button.textContent?.trim()).toBe("");
 }
 
 function setInputValue(input: HTMLInputElement, value: string) {
@@ -229,8 +251,9 @@ describe("ScalesWorkspace", () => {
     const props = createProps();
     renderScales(props);
     const copy = buttonByLabel("Copy scale Ground floor");
-    const disclosure = buttonByLabel("Expand scale Ground floor, active");
-    expect(copy.compareDocumentPosition(disclosure) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const disclosure = scaleToggle("Ground floor");
+    expect(disclosure.compareDocumentPosition(copy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(disclosure.contains(copy)).toBe(false);
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     act(() => copy.click());
     expect(props.onCopyScale).toHaveBeenCalledWith(uniform);
@@ -240,9 +263,9 @@ describe("ScalesWorkspace", () => {
     const onDeleteScale = vi.fn();
     renderScales(createProps({ onDeleteScale }));
 
-    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    act(() => scaleToggle("Ground floor").click());
     const used = buttonByLabel("Delete scale Ground floor");
-    expect(used.textContent).toBe("Delete");
+    expectIconOnly(used);
     expect(used.getAttribute("aria-disabled")).toBe("true");
     const reason = document.getElementById(used.getAttribute("aria-describedby") ?? "");
     expect(reason?.textContent).toBe(
@@ -251,7 +274,7 @@ describe("ScalesWorkspace", () => {
     act(() => used.click());
     expect(onDeleteScale).not.toHaveBeenCalled();
 
-    act(() => buttonByLabel("Expand scale Survey correction").click());
+    act(() => scaleToggle("Survey correction").click());
     const unused = buttonByLabel("Delete scale Survey correction");
     expect(unused.getAttribute("aria-disabled")).not.toBe("true");
     act(() => unused.click());
@@ -260,7 +283,7 @@ describe("ScalesWorkspace", () => {
 
   it("blocks deleting scales during a scale workflow and offers no Delete without a handler", () => {
     renderScales(createProps({ onDeleteScale: vi.fn(), actionsDisabled: true }));
-    act(() => buttonByLabel("Expand scale Survey correction").click());
+    act(() => scaleToggle("Survey correction").click());
     const blocked = buttonByLabel("Delete scale Survey correction");
     expect(blocked.getAttribute("aria-disabled")).toBe("true");
     expect(
@@ -274,7 +297,7 @@ describe("ScalesWorkspace", () => {
   it("moves focus to Add scale when a scale deleted from its Delete button takes focus with it", async () => {
     const props = createProps({ onDeleteScale: vi.fn() });
     renderScales(props);
-    act(() => buttonByLabel("Expand scale Survey correction").click());
+    act(() => scaleToggle("Survey correction").click());
     const remove = buttonByLabel("Delete scale Survey correction");
     remove.focus();
     act(() => remove.click());
@@ -291,7 +314,7 @@ describe("ScalesWorkspace", () => {
     try {
       const props = createProps({ onDeleteScale: vi.fn() });
       renderScales(props);
-      act(() => buttonByLabel("Expand scale Survey correction").click());
+      act(() => scaleToggle("Survey correction").click());
       act(() => buttonByLabel("Delete scale Survey correction").click());
       fallback.focus();
       renderScales({ ...props, page: { ...page, calibrations: [uniform] } });
@@ -312,16 +335,16 @@ describe("ScalesWorkspace", () => {
   it("lists page scales, marks active status structurally, and keeps administration separate from switching", () => {
     renderScales(createProps());
 
-    const active = buttonByLabel("Expand scale Ground floor, active");
-    const inactive = buttonByLabel("Expand scale Survey correction");
-    const activeRow = active.closest<HTMLElement>('[role="listitem"]');
-    const inactiveRow = inactive.closest<HTMLElement>('[role="listitem"]');
-    const activeClass = styles.active;
+    const active = scaleToggle("Ground floor");
+    const inactive = scaleToggle("Survey correction");
+    const activeRow = active.closest<HTMLElement>("li");
+    const inactiveRow = inactive.closest<HTMLElement>("li");
     if (!activeRow) throw new Error("Active scale row was not rendered.");
     if (!inactiveRow) throw new Error("Inactive scale row was not rendered.");
-    if (!activeClass) throw new Error("Active scale styling was not defined.");
-    expect(activeRow.classList.contains(activeClass)).toBe(true);
-    expect(inactiveRow.classList.contains(activeClass)).toBe(false);
+    expect(activeRow.querySelector("[data-selected]")).not.toBeNull();
+    expect(inactiveRow.querySelector("[data-selected]")).toBeNull();
+    expect(active.textContent).toContain(", active");
+    expect(inactive.textContent).not.toContain("active");
     expect(activeRow.textContent).not.toContain("Active");
     expect(activeRow.textContent).not.toContain("✓");
     expect(activeRow.textContent).not.toContain("···");
@@ -336,7 +359,7 @@ describe("ScalesWorkspace", () => {
       "Before drawing, switch the active scale from the Viewer Dock. Changing it does not relink measurements.",
     );
     expect(scalesCss).toMatch(
-      /\.disclosureButton\s*\{[^}]*width:\s*var\(--target-current\);[^}]*min-width:\s*var\(--target-current\);[^}]*height:\s*var\(--target-current\);[^}]*min-height:\s*var\(--target-current\);/s,
+      /\.scale\s*\{[^}]*composes:\s*item from "\.\.\/\.\.\/components\/ui\/Disclosure\.module\.css";/s,
     );
   });
 
@@ -363,7 +386,7 @@ describe("ScalesWorkspace", () => {
         },
       }),
     );
-    expect(buttonByLabel("Expand scale Ground floor, active")).toBeTruthy();
+    expect(scaleToggle("Ground floor")).toBeTruthy();
     expect(container?.textContent).toContain("Changing the active scale does not relink measurements.");
     expect(container?.textContent).not.toContain("Viewer Dock");
   });
@@ -379,15 +402,13 @@ describe("ScalesWorkspace", () => {
       }),
     );
 
-    const disclosure = buttonByLabel(`Expand scale ${longName}, active`);
-    const identity = container?.querySelector<HTMLElement>("article strong");
+    const disclosure = scaleToggle(longName);
+    const identity = disclosure.querySelector<HTMLElement>("span[title]");
     expect(identity?.textContent).toBe(longName);
     expect(identity?.title).toBe(longName);
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     act(() => disclosure.click());
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
-    const detailName = container?.querySelector<HTMLElement>("strong[title]");
-    expect(detailName?.title).toBe(longName);
     act(() => buttonByLabel(`Rename scale ${longName}`).click());
     const input = container?.querySelector<HTMLInputElement>('input[aria-label="Scale name"]');
     expect(input?.value).toBe(longName);
@@ -396,53 +417,39 @@ describe("ScalesWorkspace", () => {
   it("expands compact X/Y administration with ratio, paired reference actions, and a recalibration footer", () => {
     const props = createProps();
     renderScales(props);
-    const inspect = buttonByLabel("Expand scale Survey correction");
-    const detailsId = inspect.getAttribute("aria-controls");
-    if (!detailsId) throw new Error("Scale disclosure did not expose aria-controls.");
-    expect(document.getElementById(detailsId)?.hasAttribute("hidden")).toBe(true);
+    const inspect = scaleToggle("Survey correction");
+    expect(inspect.hasAttribute("aria-controls")).toBe(false);
+    expect(container?.querySelector('[aria-label="Scale details for Survey correction"]')).toBeNull();
 
     act(() => inspect.click());
-    const details = document.getElementById(detailsId);
-    if (!details) throw new Error("Expanded X/Y details were not rendered.");
-    expect(details.hasAttribute("hidden")).toBe(false);
-    expect(details.textContent).toContain("Survey correctionRename");
-    expect(details.textContent).toContain(`${scaleDisplayMetadata(xy).ratioLabel}Set ratio`);
-    expect(details.textContent).toContain("X reference: X 2.50 mEdit points");
-    expect(details.textContent).toContain("Y reference: Y 3.00 mEdit points");
-    expect(Array.from(details.children).some((element) => element.textContent === "Identity")).toBe(false);
-    expect(Array.from(details.children).some((element) => element.textContent === "Calibration")).toBe(false);
+    const details = scaleDetails(inspect);
+    expectIconOnly(buttonByLabel("Rename scale Survey correction"));
+    expect(details.textContent).toContain(scaleDisplayMetadata(xy).ratioLabel);
+    expectIconOnly(details.querySelector<HTMLButtonElement>('button[aria-label^="Set ratio for scale "]')!);
+    expect(details.textContent).toContain("X reference: 2.50 m");
+    expect(details.textContent).toContain("Y reference: 3.00 m");
     expect(details.textContent).not.toContain("Scale name");
-    const referenceContext = Array.from(details.querySelectorAll<HTMLElement>("span")).filter(
-      (element) => element.textContent?.toLowerCase().includes("reference"),
-    );
-    expect(referenceContext.length).toBeGreaterThan(0);
-    expect(referenceContext.every((element) => element.className.includes("visuallyHidden"))).toBe(
-      true,
-    );
+    const hiddenLabels = Array.from(details.querySelectorAll<HTMLElement>("span"))
+      .filter((element) => element.className.includes("visuallyHidden"))
+      .map((element) => element.textContent);
+    expect(hiddenLabels).toEqual(["Effective ratio: ", "X reference: ", "Y reference: "]);
     expect(scalesCss).not.toMatch(
       /\.(detailSection|sectionLabel|identityField|fieldLabel|referenceInfo|referenceLabel|referenceRow|identityValueRow)\b/,
     );
-    expect(buttonWithin(details, "Set ratio").className).toContain("ghost");
     const recalibrate = buttonWithin(details, "Recalibrate scale");
-    const recalibrateControl = recalibrate.closest<HTMLElement>("[data-recalibrate-control]");
-    expect(recalibrate.className).toContain("secondary");
-    expect(recalibrateControl).not.toBeNull();
-    expect(recalibrateControl?.firstElementChild).toBe(recalibrate);
+    expectIconOnly(recalibrate);
     const editX = details.querySelector<HTMLButtonElement>('button[aria-label="Edit X reference points"]');
     const editY = details.querySelector<HTMLButtonElement>('button[aria-label="Edit Y reference points"]');
     if (!editX || !editY) throw new Error("X/Y reference actions were not rendered.");
-    expect(editX.textContent?.trim()).toBe("Edit points");
-    expect(editY.textContent?.trim()).toBe("Edit points");
-    expect(scalesCss).toMatch(/\.detailRows\s*\{[^}]*gap:\s*var\(--space-4\);/s);
+    expectIconOnly(editX);
+    expectIconOnly(editY);
     expect(scalesCss).toMatch(
-      /\.detailRow\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+      /\.rows\s*\{[^}]*grid-template-columns:\s*max-content minmax\(0, 1fr\) auto;/s,
     );
-    expect(scalesCss).toMatch(/\.renameForm\s*\{[^}]*display:\s*grid;/s);
-    expect(scalesCss).not.toMatch(/\.recalibrateFooter\s*\{[^}]*display:\s*grid;/s);
-    expect(scalesCss).toMatch(/\.recalibrateControl\s*\{[^}]*width:\s*100%;/s);
-    expect(scalesCss).toContain(".recalibrateControl > span,");
-    expect(scalesCss).toMatch(/\.recalibrateControl > span > span:first-child\s*\{[^}]*width:\s*100%;/s);
-    expect(scalesCss).toMatch(/\.recalibrateButton\s*\{[^}]*width:\s*100%;/s);
+    expect(scalesCss).toMatch(/\.row\s*\{[^}]*grid-template-columns:\s*subgrid;/s);
+    expect(scalesCss).not.toMatch(
+      /\.(renameForm|renameActions|recalibrateControl|recalibrateButton|deleteScaleControl|detailRows?)\b/,
+    );
 
     act(() => editX.click());
     act(() => editY.click());
@@ -454,16 +461,16 @@ describe("ScalesWorkspace", () => {
 
     renderScales({ ...props, actionsDisabled: true });
     const blockedRecalibrate = buttonWithin(details, "Recalibrate scale");
-    const blockedControl = blockedRecalibrate.closest<HTMLElement>("[data-recalibrate-control]");
     expect(blockedRecalibrate.getAttribute("aria-disabled")).toBe("true");
-    expect(blockedControl).toBe(recalibrateControl);
-    expect(blockedControl?.firstElementChild).not.toBe(blockedRecalibrate);
-    expect(blockedControl?.contains(blockedRecalibrate)).toBe(true);
+    expectIconOnly(blockedRecalibrate);
+    expect(
+      document.getElementById(blockedRecalibrate.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe("Finish or cancel the current scale workflow first.");
   });
 
   it("formats calibration references using the current imperial Viewer display mode", () => {
     renderScales(createProps({ displayUnit: "in" }));
-    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    act(() => scaleToggle("Ground floor").click());
     expect(container?.querySelector('[title="39.37 in"]')).not.toBeNull();
 
     renderScales(createProps({ displayUnit: "ft" }));
@@ -485,7 +492,7 @@ describe("ScalesWorkspace", () => {
     const props = createProps();
     renderScales(props);
     const add = buttonByLabel("Add scale");
-    const scaleList = container?.querySelector('[role="list"][aria-label="Page scales"]');
+    const scaleList = container?.querySelector('ul[aria-label="Page scales"]');
     expect(scaleList?.nextElementSibling?.contains(add)).toBe(true);
 
     act(() => add.click());
@@ -507,7 +514,7 @@ describe("ScalesWorkspace", () => {
       /\.addScaleMenu\[role="menu"\]\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*min\(var\(--geometry-scale-add-menu-max-width\),\s*calc\(100vw\s*-\s*var\(--space-16\)\)\);/s,
     );
     expect(scalesCss).toMatch(
-      /\.addScaleMenu \[data-menu-section-label="true"\]\s*\{[^}]*padding:\s*var\(--space-4\) var\(--space-8\) 0;/s,
+      /\.addScaleMenu \[data-menu-section-label="true"\]\s*\{[^}]*padding:\s*var\(--space-8\) var\(--space-8\) 0;/s,
     );
     act(() => items[4]?.click());
     expect(props.onAddPresetScale).toHaveBeenCalledWith(50);
@@ -605,8 +612,9 @@ describe("ScalesWorkspace", () => {
       },
     });
     renderScales(props);
-    act(() => buttonByLabel("Expand scale Scale 3, active").click());
-    const details = document.getElementById("scale-details-uniform-50")!;
+    const toggle = scaleToggle("Scale 3");
+    act(() => toggle.click());
+    const details = scaleDetails(toggle);
     const setRatio = buttonByLabel("Set ratio for scale Scale 3");
     expect(buttonWithin(details, "Recalibrate scale")).toBeTruthy();
     expect(details.querySelector('button[aria-label="Edit uniform reference points"]')).toBeTruthy();
@@ -655,7 +663,7 @@ describe("ScalesWorkspace", () => {
       },
     });
     renderScales(props);
-    act(() => buttonByLabel("Expand scale Point calibrated, active").click());
+    act(() => scaleToggle("Point calibrated").click());
     act(() => buttonByLabel("Set ratio for scale Point calibrated").click());
 
     const ratio = document.querySelector<HTMLInputElement>("#custom-ratio-uniform")!;
@@ -683,7 +691,7 @@ describe("ScalesWorkspace", () => {
       },
     });
     renderScales(props);
-    act(() => buttonByLabel("Expand scale Survey correction, active").click());
+    act(() => scaleToggle("Survey correction").click());
     act(() => buttonByLabel("Set ratio for scale Survey correction").click());
 
     const x = document.querySelector<HTMLInputElement>("#custom-ratio-x")!;
@@ -705,21 +713,19 @@ describe("ScalesWorkspace", () => {
   it("keeps Uniform reference editing explicit and paired with its value", () => {
     const props = createProps();
     renderScales(props);
-    const inspect = buttonByLabel("Expand scale Ground floor, active");
-    const detailsId = inspect.getAttribute("aria-controls");
-    if (!detailsId) throw new Error("Uniform scale disclosure did not expose aria-controls.");
+    const inspect = scaleToggle("Ground floor");
     act(() => inspect.click());
-    const details = document.getElementById(detailsId);
-    if (!details) throw new Error("Expanded Uniform details were not rendered.");
+    const details = scaleDetails(inspect);
 
-    expect(details.textContent).toContain("Uniform reference: 1.00 mEdit points");
-    expect(details.textContent).toContain(`${scaleDisplayMetadata(uniform).ratioLabel}Set ratio`);
-    expect(buttonWithin(details, "Recalibrate scale").className).toContain("secondary");
+    expect(details.textContent).toContain("Uniform reference: 1.00 m");
+    expect(details.textContent).toContain(scaleDisplayMetadata(uniform).ratioLabel);
+    expectIconOnly(details.querySelector<HTMLButtonElement>('button[aria-label^="Set ratio for scale "]')!);
+    expectIconOnly(buttonWithin(details, "Recalibrate scale"));
     const edit = details.querySelector<HTMLButtonElement>(
       'button[aria-label="Edit uniform reference points"]',
     );
     if (!edit) throw new Error("Uniform reference action was not rendered.");
-    expect(edit.textContent?.trim()).toBe("Edit points");
+    expectIconOnly(edit);
     act(() => edit.click());
     expect(props.onEditReference).toHaveBeenCalledWith(uniform, "uniform");
   });
@@ -727,7 +733,7 @@ describe("ScalesWorkspace", () => {
   it("renames inline with focus, trimming, Enter/Save, no-op, validation, and focus restoration", () => {
     const props = createProps();
     renderScales(props);
-    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    act(() => scaleToggle("Ground floor").click());
     let rename = buttonByLabel("Rename scale Ground floor");
 
     act(() => rename.click());
@@ -791,7 +797,7 @@ describe("ScalesWorkspace", () => {
   it("supports Cancel and discards drafts when the scale collapses or another scale expands", () => {
     const props = createProps();
     renderScales(props);
-    const uniformDisclosure = buttonByLabel("Expand scale Ground floor, active");
+    const uniformDisclosure = scaleToggle("Ground floor");
     act(() => uniformDisclosure.click());
     let rename = buttonByLabel("Rename scale Ground floor");
     act(() => rename.click());
@@ -813,7 +819,7 @@ describe("ScalesWorkspace", () => {
     act(() => buttonByLabel("Rename scale Ground floor").click());
     const switchInput = scaleNameInput();
     setInputValue(switchInput, "Discard on switch");
-    act(() => buttonByLabel("Expand scale Survey correction").click());
+    act(() => scaleToggle("Survey correction").click());
     expect(container?.querySelector('input[aria-label="Scale name"]')).toBeNull();
     expect(props.onRenameScale).not.toHaveBeenCalled();
   });
@@ -823,12 +829,10 @@ describe("ScalesWorkspace", () => {
     const props = createProps();
     renderScalesWithUnavailablePrecision(props, reason);
 
-    const inspect = buttonByLabel("Expand scale Ground floor, active");
+    const inspect = scaleToggle("Ground floor");
     expect(inspect.disabled).toBe(false);
     act(() => inspect.click());
-    const detailsId = inspect.getAttribute("aria-controls");
-    const details = detailsId ? document.getElementById(detailsId) : null;
-    if (!details) throw new Error("Scale details were not rendered.");
+    const details = scaleDetails(inspect);
     const recalibrate = buttonWithin(details, "Recalibrate scale");
     const edit = details.querySelector<HTMLButtonElement>(
       'button[aria-label="Edit uniform reference points"]',
@@ -865,7 +869,7 @@ describe("ScalesWorkspace", () => {
 
   it("disables rename only for the calibration workflow lock, using the shared reason", () => {
     renderScales(createProps({ actionsDisabled: true }));
-    act(() => buttonByLabel("Expand scale Ground floor, active").click());
+    act(() => scaleToggle("Ground floor").click());
     const rename = buttonByLabel("Rename scale Ground floor");
     expect(rename.disabled).toBe(false);
     expect(rename.getAttribute("aria-disabled")).toBe("true");
@@ -900,10 +904,9 @@ describe("ScalesWorkspace", () => {
     items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
     act(() => items[1]?.click());
 
-    const uniformInspect = buttonByLabel("Expand scale Ground floor, active");
+    const uniformInspect = scaleToggle("Ground floor");
     act(() => uniformInspect.click());
-    const uniformDetails = document.getElementById(uniformInspect.getAttribute("aria-controls")!);
-    if (!uniformDetails) throw new Error("Uniform details were not rendered.");
+    const uniformDetails = scaleDetails(uniformInspect);
     const rename = buttonByLabel("Rename scale Ground floor");
     act(() => rename.click());
     act(() => buttonWithin(uniformDetails, "Cancel").click());
@@ -914,10 +917,9 @@ describe("ScalesWorkspace", () => {
     if (!editUniform) throw new Error("Uniform edit action was not rendered.");
     act(() => editUniform.click());
 
-    const xyInspect = buttonByLabel("Expand scale Survey correction");
+    const xyInspect = scaleToggle("Survey correction");
     act(() => xyInspect.click());
-    const xyDetails = document.getElementById(xyInspect.getAttribute("aria-controls")!);
-    if (!xyDetails) throw new Error("X/Y details were not rendered.");
+    const xyDetails = scaleDetails(xyInspect);
     const editX = xyDetails.querySelector<HTMLButtonElement>('button[aria-label="Edit X reference points"]');
     const editY = xyDetails.querySelector<HTMLButtonElement>('button[aria-label="Edit Y reference points"]');
     if (!editX || !editY) throw new Error("X/Y edit actions were not rendered.");

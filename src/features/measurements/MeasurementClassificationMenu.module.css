@@ -22,7 +22,7 @@
 
 .popover,
 .valueMenu {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   width: min(var(--geometry-measurement-popover-width), calc(100vw - var(--space-24)));
   min-width: 0;
   overflow-x: hidden;

@@ -69,7 +69,7 @@
 }
 
 .keyboardFeedback {
-  composes: overlaySurface from global;
+  composes: overlaySurface scrollSurface overlayScroll from global;
   position: absolute;
   z-index: var(--z-feedback);
   top: var(--space-12);

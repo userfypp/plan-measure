@@ -32,10 +32,12 @@ export type Contrast = "normal" | "more";
 export type RenderQuality = "balanced" | "sharp" | "fast";
 export type RasterCache = "small" | "normal" | "large";
 export type HitTolerance = "tight" | "normal" | "wide";
+export type TooltipDelay = "instant" | "fast" | "normal" | "slow";
 
 export interface AppPreferences {
   motion: MotionPreference;
   tooltips: boolean;
+  tooltipDelay: TooltipDelay;
   thousandsSeparator: ThousandsSeparator;
   decimalSeparator: DecimalSeparator;
   defaultDisplayUnit: MeasurementDisplayUnit;
@@ -81,6 +83,7 @@ export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   motion: "system",
   tooltips: true,
+  tooltipDelay: "normal",
   thousandsSeparator: "none",
   decimalSeparator: "point",
   defaultDisplayUnit: "m",
@@ -132,6 +135,7 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
   {
     motion: oneOf("system", "reduce"),
     tooltips: isBoolean,
+    tooltipDelay: oneOf("instant", "fast", "normal", "slow"),
     thousandsSeparator: oneOf("none", "space", "comma", "point"),
     decimalSeparator: oneOf("point", "comma"),
     defaultDisplayUnit: oneOf<MeasurementDisplayUnit>("mm", "cm", "m", "in", "ft", "ft-in"),
@@ -193,6 +197,13 @@ export const LABEL_BACKGROUND_OPACITY: Record<LabelBackground, number> = {
   solid: 1,
   translucent: 0.75,
   none: 0,
+};
+/** Milliseconds before a tooltip appears (normal matches the previous fixed 300). */
+export const TOOLTIP_DELAY_MS: Record<TooltipDelay, number> = {
+  instant: 0,
+  fast: 150,
+  normal: 300,
+  slow: 600,
 };
 /** Zoom factor per +/- step (normal matches the previous fixed 1.25). */
 export const ZOOM_STEP_FACTOR: Record<ZoomStep, number> = { fine: 1.1, normal: 1.25, coarse: 1.5 };

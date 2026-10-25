@@ -70,14 +70,6 @@ function renderToolbar(
   });
 }
 
-function buttonByText(text: string): HTMLButtonElement {
-  const match = Array.from(container?.querySelectorAll<HTMLButtonElement>("button") ?? []).find(
-    (candidate) => candidate.textContent?.trim() === text,
-  );
-  if (!match) throw new Error(`Button ${text} was not rendered.`);
-  return match;
-}
-
 function buttonByLabel(label: string): HTMLButtonElement {
   const match = container?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
   if (!match) throw new Error(`Button ${label} was not rendered.`);
@@ -171,10 +163,11 @@ describe("ContextToolbar V2", () => {
     expect(container!.textContent).toContain("Click to start a count");
     expect(container!.querySelector('button[aria-label^="Snap"]')).toBeNull();
     expect(container!.querySelector('button[aria-label^="Ortho"]')).toBeNull();
-    expect(toolbarButtons().map((button) => button.textContent?.trim())).toEqual([
-      "New count",
-      "Done",
-    ]);
+    expect(
+      toolbarButtons().map(
+        (button) => button.getAttribute("aria-label") ?? button.textContent?.trim(),
+      ),
+    ).toEqual(["New count", "Done"]);
   });
 
   it("starts another count explicitly and finishes adding items", () => {
@@ -199,9 +192,9 @@ describe("ContextToolbar V2", () => {
     act(() => workspace!.chooseTool("count"));
     expect(container!.textContent).toContain("Click to add items");
     expect(buttonByLabel("Rename selected measurement Plug")).toBeTruthy();
-    act(() => buttonByText("New count").click());
+    act(() => buttonByLabel("New count").click());
     expect(clear).toHaveBeenCalledOnce();
-    act(() => buttonByText("Done").click());
+    act(() => buttonByLabel("Done").click());
     expect(workspace!.activeTool).toBe("select");
   });
 
@@ -218,7 +211,7 @@ describe("ContextToolbar V2", () => {
     expect(container?.querySelector('[aria-label="Line drawing controls"]')).not.toBeNull();
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("false");
     expect(buttonByLabel("Ortho").getAttribute("aria-pressed")).toBe("false");
-    expect(container?.textContent).not.toContain("Finish");
+    expect(container?.querySelector('button[aria-label="Finish"]')).toBeNull();
     expect(buttonByLabel("Discard points").getAttribute("aria-disabled")).toBe("true");
 
     act(() =>
@@ -228,7 +221,7 @@ describe("ContextToolbar V2", () => {
         points: [{ x: 1, y: 1 }],
       }),
     );
-    expect(container?.textContent).not.toContain("Finish");
+    expect(container?.querySelector('button[aria-label="Finish"]')).toBeNull();
     expect(buttonByLabel("Discard points").getAttribute("aria-disabled")).toBeNull();
   });
 
@@ -303,9 +296,9 @@ describe("ContextToolbar V2", () => {
       }),
     );
 
-    expect(buttonByText("Finish").disabled).toBe(false);
-    expect(buttonByText("Finish").getAttribute("aria-disabled")).toBe("true");
-    expect(buttonByText("Finish").getAttribute("aria-describedby")).not.toBeNull();
+    expect(buttonByLabel("Finish").disabled).toBe(false);
+    expect(buttonByLabel("Finish").getAttribute("aria-disabled")).toBe("true");
+    expect(buttonByLabel("Finish").getAttribute("aria-describedby")).not.toBeNull();
     act(() => buttonByLabel("Snap").click());
     act(() => buttonByLabel("Ortho").click());
     expect(buttonByLabel("Snap").getAttribute("aria-pressed")).toBe("true");
@@ -321,9 +314,9 @@ describe("ContextToolbar V2", () => {
         ],
       }),
     );
-    expect(buttonByText("Finish").disabled).toBe(false);
-    expect(buttonByText("Finish").getAttribute("aria-describedby")).toBeNull();
-    act(() => buttonByText("Finish").click());
+    expect(buttonByLabel("Finish").disabled).toBe(false);
+    expect(buttonByLabel("Finish").getAttribute("aria-describedby")).toBeNull();
+    act(() => buttonByLabel("Finish").click());
     expect(finish).toHaveBeenCalledOnce();
 
     act(() => buttonByLabel("Discard points").click());
@@ -345,7 +338,7 @@ describe("ContextToolbar V2", () => {
 
     const snap = buttonByLabel("Snap");
     const ortho = buttonByLabel("Ortho");
-    const finish = buttonByText("Finish");
+    const finish = buttonByLabel("Finish");
     const discard = buttonByLabel("Discard points");
     expect(finish.disabled).toBe(false);
     expect(finish.getAttribute("aria-disabled")).toBe("true");
@@ -403,7 +396,7 @@ describe("ContextToolbar V2", () => {
           ],
         }),
       );
-      const finishButton = buttonByText("Finish");
+      const finishButton = buttonByLabel("Finish");
       act(() => {
         finishButton.focus();
         finishButton.click();
@@ -518,7 +511,7 @@ describe("ContextToolbar V2", () => {
 
     act(() => renameTrigger("Line 1").click());
     setInputValue(renameInput("Line 1"), "Pointer name");
-    act(() => buttonByText("Save").click());
+    act(() => buttonByLabel("Save").click());
 
     expect(rename).toHaveBeenCalledWith("Pointer name");
     expect(container?.querySelector("input")).toBeNull();
@@ -584,7 +577,7 @@ describe("ContextToolbar V2", () => {
   it("shows Polygon Finish only after a real draft and enables it at the canonical minimum", () => {
     renderToolbar();
     act(() => workspace!.chooseTool("polygon"));
-    expect(container?.textContent).not.toContain("Finish");
+    expect(container?.querySelector('button[aria-label="Finish"]')).toBeNull();
 
     act(() =>
       workspace!.startDraft({
@@ -597,7 +590,7 @@ describe("ContextToolbar V2", () => {
         ],
       }),
     );
-    expect(buttonByText("Finish").disabled).toBe(false);
+    expect(buttonByLabel("Finish").disabled).toBe(false);
     expect(container?.querySelector('[data-drawing-tool="polygon"]')).not.toBeNull();
   });
 
@@ -674,7 +667,7 @@ describe("ContextToolbar V2", () => {
     act(() => workspace!.startCalibration(beginCalibrationFlow(1, null, "uniform")));
     expect(contextKind()).toBe("calibration");
     expect(container?.textContent).toContain("Calibrating scale · Select two points");
-    act(() => buttonByText("Cancel").click());
+    act(() => buttonByLabel("Cancel").click());
     expect(cancel).toHaveBeenCalledOnce();
 
     act(() => workspace!.cancelCalibration());
@@ -729,10 +722,10 @@ describe("ContextToolbar V2", () => {
 
     expect(contextKind()).toBe("reference-edit");
     expect(container?.textContent).toContain("Editing X reference");
-    expect(buttonByText("Save").disabled).toBe(false);
-    expect(buttonByText("Save").getAttribute("aria-disabled")).toBe("true");
-    expect(buttonByText("Save").getAttribute("aria-describedby")).not.toBeNull();
-    act(() => buttonByText("Cancel").click());
+    expect(buttonByLabel("Save").disabled).toBe(false);
+    expect(buttonByLabel("Save").getAttribute("aria-disabled")).toBe("true");
+    expect(buttonByLabel("Save").getAttribute("aria-describedby")).not.toBeNull();
+    act(() => buttonByLabel("Cancel").click());
     expect(cancel).toHaveBeenCalledOnce();
 
     act(() => workspace!.cancelReferenceEdit());

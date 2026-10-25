@@ -1,14 +1,12 @@
 .workspace {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   height: 100%;
   overflow: auto;
-  scrollbar-gutter: stable;
-  padding: var(--space-12) max(0px, calc(var(--space-16) - var(--scrollbar-size, 0px)))
-    var(--space-12) var(--space-16);
+  padding: var(--space-8) var(--geometry-panel-gutter);
   background: var(--color-surface-panel);
 }
 
@@ -25,6 +23,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-8);
+  padding-inline: var(--space-4);
 }
 
 .sectionHeading h2 {
@@ -37,7 +36,7 @@
 
 .scope {
   margin: auto 0 0;
-  padding-top: var(--space-16);
+  padding: var(--space-16) var(--space-4) 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
@@ -57,23 +56,14 @@
 
 .summaryQuantities .quantity {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-12);
+  padding: var(--space-8) calc(var(--space-12) - var(--border-width));
 }
 
 .summaryQuantities .quantity + .quantity {
   border-top: var(--border-width) solid var(--color-divider);
-}
-
-.summaryQuantities .quantity:has(dd[data-wide]) {
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-}
-
-.summaryQuantities .quantity[data-quantity="area"] {
-  background: var(--color-selection-surface);
 }
 
 .summaryQuantities dt {
@@ -95,10 +85,6 @@
   text-align: right;
 }
 
-.summaryQuantities .quantity[data-quantity="area"] dd {
-  color: var(--color-accent);
-}
-
 .summaryQuantities .quantity dd[data-unavailable] {
   color: var(--color-status-warning);
   font-size: var(--font-size-base);
@@ -109,11 +95,12 @@
   display: grid;
   gap: var(--space-4);
   margin: var(--space-8) 0 0;
+  padding-inline: var(--space-4);
 }
 
 .quantities .quantity {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
   font-size: var(--font-size-base);
@@ -142,6 +129,7 @@
 .message,
 .breakdownHint {
   margin: var(--space-8) 0 0;
+  padding-inline: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
@@ -152,7 +140,7 @@
   align-items: center;
   gap: var(--space-8);
   margin: var(--space-8) 0 0;
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-4);
   border-left: var(--geometry-measurement-notice-bar-width) solid var(--color-status-warning);
   border-radius: var(--radius-control);
   background: var(--color-status-warning-surface);
@@ -163,7 +151,10 @@
 
 .breakdownControls {
   display: grid;
-  grid-template-columns: var(--geometry-measurement-label-width) minmax(0, 1fr);
+  grid-template-columns: calc(var(--geometry-measurement-label-width) + var(--space-4)) minmax(
+      0,
+      1fr
+    );
   align-items: center;
   gap: var(--space-8);
   margin-top: var(--space-16);
@@ -173,6 +164,7 @@
 
 .breakdownLabel,
 .dimension > span {
+  padding-inline-start: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
@@ -182,7 +174,10 @@
 .dimension {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--geometry-measurement-label-width) minmax(0, 1fr);
+  grid-template-columns: calc(var(--geometry-measurement-label-width) + var(--space-4)) minmax(
+      0,
+      1fr
+    );
   align-items: center;
   gap: var(--space-8);
 }
@@ -193,6 +188,7 @@
 
 .resultsMeta {
   margin: 0 0 var(--space-4);
+  padding-inline: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
@@ -212,6 +208,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: var(--space-4) var(--space-8);
+  padding-inline: var(--space-4);
 }
 
 .group h3 {
@@ -236,7 +233,7 @@
   column-gap: var(--space-12);
   row-gap: var(--space-4);
   margin-top: var(--space-8);
-  padding: var(--space-12);
+  padding: var(--space-12) var(--space-4);
   border: var(--border-width) dashed var(--color-divider);
   border-radius: var(--radius-control);
 }
@@ -263,6 +260,7 @@
 
 .emptyState .message {
   margin: 0;
+  padding-inline: 0;
 }
 
 .sourceToggle {
@@ -270,7 +268,7 @@
   align-items: center;
   gap: var(--space-4);
   min-height: var(--control-height-compact);
-  padding: 0;
+  padding: 0 var(--space-4);
   border: 0;
   background: transparent;
   color: var(--color-text-secondary);
@@ -281,26 +279,22 @@
   transition: var(--transition-interactive);
 }
 
-.sourceToggle:hover:not(:disabled),
-.inspectButton:hover:not(:disabled) {
+.sourceToggle:hover:not(:disabled) {
   color: var(--color-accent-hover-semantic);
   background: transparent;
 }
 
-.sourceToggle:active:not(:disabled),
-.inspectButton:active:not(:disabled) {
+.sourceToggle:active:not(:disabled) {
   color: var(--color-accent-active-semantic);
   background: transparent;
 }
 
-.sourceToggle:disabled,
-.inspectButton:disabled {
+.sourceToggle:disabled {
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
 .sourceToggle:focus-visible,
-.inspectButton:focus-visible,
 .sourceMeasurement:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
@@ -317,18 +311,8 @@
   margin: 0;
   flex: 1;
 }
-.inspectButton {
-  padding: 0;
-  min-height: var(--control-height-compact);
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: inherit;
-  flex-shrink: 0;
-}
-
 .sourceList {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   list-style: none;
   margin: var(--space-8) 0 0;
   padding: 0;
@@ -348,7 +332,7 @@
   align-items: center;
   width: 100%;
   min-height: var(--target-current);
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-4) calc(var(--space-12) - var(--border-width));
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -395,7 +379,19 @@
   line-height: var(--line-height-secondary);
 }
 .sourceArrow {
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   color: var(--color-text-secondary);
+}
+.sourceArrow svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .sourceMeasurement:focus-visible {

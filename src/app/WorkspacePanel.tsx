@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { AnchoredMenu, ChevronDownIcon, IconButton } from "../components/ui";
+import { AnchoredMenu, ChevronDownIcon, CloseIcon, IconButton } from "../components/ui";
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import styles from "./WorkspacePanel.module.css";
@@ -13,14 +13,6 @@ const MODULES: Array<{ id: WorkspaceModule; label: string }> = [
 
 export function workspaceModuleLabel(module: WorkspaceModule): string {
   return MODULES.find((candidate) => candidate.id === module)?.label ?? module;
-}
-
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m5 5 10 10M15 5 5 15" />
-    </svg>
-  );
 }
 
 export interface WorkspacePanelProps {

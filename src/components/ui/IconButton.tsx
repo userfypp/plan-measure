@@ -11,7 +11,7 @@ export interface IconButtonProps extends Omit<
   tooltip?: ReactNode;
   tooltipPosition?: TooltipPosition;
   pressed?: boolean;
-  tone?: "neutral" | "danger";
+  tone?: "neutral" | "primary" | "danger";
   disabledReason?: string;
 }
 

@@ -8,3 +8,39 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
+
+/*
+ * A scroller whose native scrollbar is replaced by an overlay thumb (see `installOverlayScrollbars`),
+ * so the scrollbar takes no width. Compose it next to `scrollSurface`.
+ */
+.overlayScroll {
+  scrollbar-width: none;
+}
+
+/*
+ * The thumb: a translucent bar over the scroller's edge, inserted after it. The transparent border
+ * keeps the bar inset from the edge and widens the hit area without making it look thicker. Position
+ * and size are set inline; the attribute selectors outrank `parent > *` layout rules.
+ */
+.overlayScrollThumb {
+  z-index: var(--z-raised);
+  border-radius: var(--radius-control);
+  background-color: var(--color-scrollbar-thumb-overlay);
+  background-clip: padding-box;
+  transition: var(--transition-interactive);
+}
+
+.overlayScrollThumb[data-axis="y"] {
+  width: var(--space-8);
+  border-inline-start: var(--space-4) solid transparent;
+}
+
+.overlayScrollThumb[data-axis="x"] {
+  height: var(--space-8);
+  border-block-start: var(--space-4) solid transparent;
+}
+
+.overlayScrollThumb:hover,
+.overlayScrollThumb[data-dragging] {
+  background-color: var(--color-scrollbar-thumb);
+}

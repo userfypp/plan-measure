@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Button, Input } from "../../components/ui";
+import { Button, CloseIcon, IconButton, Input } from "../../components/ui";
 import {
   filterPages,
   PAGE_OVERSCAN,
@@ -38,13 +38,6 @@ interface PageBrowserProps {
 }
 // Keep even an unusually tall viewport's visible rows and margin inside both cache limits.
 const MAX_LIST_HEIGHT = (MAX_THUMBNAIL_WINDOW - PAGE_OVERSCAN * 2 - 1) * PAGE_ROW_HEIGHT;
-function CloseIcon() {
-  return (
-    <svg className={styles.closeIcon} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m5 5 10 10M15 5 5 15" />
-    </svg>
-  );
-}
 function Thumbnail({ number, source }: { number: number; source?: HTMLCanvasElement }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useLayoutEffect(() => {
@@ -245,52 +238,47 @@ export function PageBrowser({
         <div className={styles.heading}>
           <h2>Pages</h2>
         </div>
-        <Button
-          variant="ghost"
-          size="compact"
-          className={styles.iconButton}
+        <IconButton
+          icon={<CloseIcon />}
           aria-label="Close pages"
+          tooltip="Close pages"
+          tooltipPosition="bottom"
           onClick={onClose}
-        >
-          <CloseIcon />
-        </Button>
+        />
       </header>
       <div className={styles.controls}>
-        <div className={styles.search}>
-          <Input
-            ref={searchRef}
-            className={styles.searchInput}
-            type="search"
-            aria-label="Search labels"
-            placeholder="Search labels"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              if (listRef.current) listRef.current.scrollTop = 0;
-              setGeometry((current) => ({ ...current, top: 0 }));
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.nativeEvent.isComposing && pages.length === 1) {
-                event.preventDefault();
-                navigate(pages[0]!);
-              }
-            }}
-          />
-          {search && (
-            <Button
-              variant="ghost"
-              size="compact"
-              className={`${styles.iconButton} ${styles.clearSearch}`}
+        <Input
+          ref={searchRef}
+          className={styles.searchInput}
+          type="search"
+          aria-label="Search labels"
+          placeholder="Search labels"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            if (listRef.current) listRef.current.scrollTop = 0;
+            setGeometry((current) => ({ ...current, top: 0 }));
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.nativeEvent.isComposing && pages.length === 1) {
+              event.preventDefault();
+              navigate(pages[0]!);
+            }
+          }}
+          // Always mounted: toggling `trailing` would remount the input and drop its focus.
+          trailing={
+            <IconButton
+              icon={<CloseIcon />}
               aria-label="Clear search"
+              tooltip="Clear search"
+              disabled={!search}
               onClick={() => {
                 setSearch("");
                 searchRef.current?.focus();
               }}
-            >
-              <CloseIcon />
-            </Button>
-          )}
-        </div>
+            />
+          }
+        />
         <form
           className={styles.goTo}
           noValidate

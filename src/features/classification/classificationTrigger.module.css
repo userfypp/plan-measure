@@ -4,7 +4,7 @@
   composes: focusRing disabledSurface from global;
   min-width: 0;
   height: var(--control-height-compact);
-  padding: 0 var(--space-8);
+  padding: 0 var(--space-8) 0 var(--space-12);
   border: var(--border-width) solid var(--color-divider);
   border-radius: var(--radius-control);
   background: var(--color-surface-field);

@@ -1,6 +1,19 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { PageCalibration, SessionSettings } from "../../types/domain";
-import { AnchoredMenu, Button, ChevronDownIcon, IconButton, Input, Popover, Select, Switch } from "../../components/ui";
+import {
+  AnchoredMenu,
+  Button,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  IconButton,
+  Input,
+  PlusIcon,
+  Popover,
+  Select,
+  Switch,
+} from "../../components/ui";
 import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
@@ -73,22 +86,6 @@ export interface ViewerDockProps {
   onSettingsChange: (settings: Partial<ViewerSettings>) => void;
 }
 
-function ChevronLeftIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m12 5-5 5 5 5" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m8 5 5 5-5 5" />
-    </svg>
-  );
-}
-
 function MinusIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -97,27 +94,10 @@ function MinusIcon() {
   );
 }
 
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M5 10h10M10 5v10" />
-    </svg>
-  );
-}
-
 function FitIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M7 4H4v3M13 4h3v3M7 16H4v-3M13 16h3v-3" />
-    </svg>
-  );
-}
-
-function EyeIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z" />
-      <circle cx="10" cy="10" r="2.2" />
     </svg>
   );
 }

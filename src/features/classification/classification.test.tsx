@@ -12,6 +12,12 @@ const managerCss = readFileSync(
   "utf8",
 );
 
+const inlineFieldCss = readFileSync(
+  new URL("../../components/ui/InlineField.module.css", import.meta.url),
+  "utf8",
+);
+const inputCss = readFileSync(new URL("../../components/ui/Input.module.css", import.meta.url), "utf8");
+
 const catalog: ClassificationCatalog = {
   dimensions: [
     {
@@ -90,10 +96,10 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(/\.itemTitle\s*\{[^}]*font-size:\s*var\(--font-size-heading\)/s);
     expect(managerCss).toMatch(/\.itemHeader\s*\{[^}]*align-items:\s*center;/s);
     expect(managerCss).toMatch(
-      /\.body\s*\{[^}]*padding:\s*0 max\(0px, calc\(var\(--space-12\) - var\(--scrollbar-size, 0px\)\)\) var\(--space-8\)\s*var\(--space-12\);/s,
+      /\.body\s*\{[^}]*padding:\s*0 var\(--geometry-panel-gutter\) var\(--space-8\);/s,
     );
     expect(managerCss).toMatch(
-      /\.item\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);/s,
+      /\.item\s*\{[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) 0;/s,
     );
     expect(managerCss).not.toMatch(/\.valueSection\s*\{[^}]*padding-inline-start:/s);
     expect(managerCss).toMatch(/\.valueList\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
@@ -108,10 +114,9 @@ describe("classification surfaces", () => {
     );
     expect(managerCss).toMatch(/\.body\s*\{[^}]*gap:\s*0;/s);
     expect(managerCss).not.toContain("@container (max-width: 640px)");
-    expect(managerCss).toContain("@container (max-width: 224px)");
-    expect(managerCss).not.toMatch(/\.inlineForm\s*\{[^}]*border-left:/s);
-    expect(managerCss).toMatch(
-      /\.create\s*\{[^}]*column-gap:\s*var\(--space-8\);[^}]*row-gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\) var\(--space-4\);[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
+    expect(managerCss).not.toContain("@container");
+    expect(inlineFieldCss).toMatch(
+      /\.row\s*\{[^}]*padding:\s*var\(--space-8\) 0;[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\)/s,
     );
   });
 
@@ -122,16 +127,12 @@ describe("classification surfaces", () => {
     expect(managerCss).toMatch(
       /\.dimensionMenuTrigger\s*\{[^}]*width:\s*var\(--control-height-compact\);[^}]*height:\s*var\(--control-height-compact\);/s,
     );
-    expect(managerCss).toMatch(
-      /\.inlineForm\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;[^}]*column-gap:\s*var\(--space-8\);[^}]*row-gap:\s*var\(--space-8\);/s,
+    expect(inputCss).toMatch(
+      /\.row\s*\{[^}]*display:\s*flex;[^}]*min-width:\s*0;[^}]*gap:\s*var\(--space-8\);/s,
     );
+    expect(inputCss).toMatch(/\.trailing\s*\{[^}]*flex:\s*0 0 auto;[^}]*gap:\s*var\(--space-8\);/s);
     expect(managerCss).not.toContain(".compactInput");
-    expect(managerCss).toMatch(
-      /\.inlineLabel\s*\{[^}]*composes:\s*visuallyHidden from global;/s,
-    );
-    expect(managerCss).toMatch(
-      /\.create\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
-    );
+    expect(managerCss).not.toMatch(/\.(inlineForm|inlineLabel|create|renameForm)\b/);
     expect(managerCss).not.toContain("@container (max-width: 320px)");
   });
 
@@ -337,7 +338,7 @@ describe("classification surfaces", () => {
     const longValue = largeCatalog.dimensions[0]!.values[0]!.name;
     expect(markup).toContain(`title="${longDimension}"`);
     expect(markup).toContain(`aria-label="Actions for dimension ${longDimension}"`);
-    expect(markup).toContain(`title="New value for ${longDimension}"`);
+    expect(markup).toContain(`aria-label="New value for ${longDimension}"`);
     expect(markup).toContain(`title="${longValue}"`);
     expect(markup).toContain(`aria-label="Actions for value ${longValue}"`);
   });

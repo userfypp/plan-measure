@@ -45,6 +45,8 @@ export type InputProps = InputElementProps &
   AccessibleNameProps & {
     error?: ReactNode;
     description?: ReactNode;
+    /** Icon buttons that act on the field, shown beside the control. */
+    trailing?: ReactNode;
   };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
@@ -53,6 +55,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     label,
     error,
     description,
+    trailing,
     disabled = false,
     className,
     "aria-describedby": ariaDescribedBy,
@@ -84,6 +87,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     throw new Error("Input requires a label, aria-label, or aria-labelledby.");
   }
 
+  const control = (
+    <input
+      ref={ref}
+      {...inputProps}
+      id={inputId}
+      className={[styles.control, className].filter(Boolean).join(" ")}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
+      aria-invalid={hasError || inputProps["aria-invalid"] || undefined}
+      aria-describedby={describedBy || undefined}
+    />
+  );
+
   return (
     <div className={styles.field}>
       {label != null && (
@@ -91,17 +108,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {label}
         </label>
       )}
-      <input
-        ref={ref}
-        {...inputProps}
-        id={inputId}
-        className={[styles.control, className].filter(Boolean).join(" ")}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        aria-invalid={hasError || inputProps["aria-invalid"] || undefined}
-        aria-describedby={describedBy || undefined}
-      />
+      {trailing ? (
+        <div className={styles.row}>
+          {control}
+          <div className={styles.trailing}>{trailing}</div>
+        </div>
+      ) : (
+        control
+      )}
       {hasDescription && (
         <p className={styles.description} id={descriptionId}>
           {description}

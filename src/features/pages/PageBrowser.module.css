@@ -25,7 +25,7 @@
   justify-content: space-between;
   min-height: var(--target-coarse);
   flex: 0 0 auto;
-  padding: var(--space-4) var(--space-12);
+  padding: var(--space-4) var(--geometry-panel-gutter);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 .header h2 {
@@ -39,54 +39,26 @@
   align-items: baseline;
   gap: var(--space-8);
   min-width: 0;
+  /* The title sits on the 12px content edge: gutter + inner space. */
+  padding-inline: var(--space-4);
   white-space: nowrap;
 }
-.header span,
 .meta {
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
-.closeIcon {
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-width: var(--icon-stroke-width);
-}
-.panel .iconButton {
-  width: var(--target-current);
-  min-width: var(--target-current);
-  height: var(--target-current);
-  min-height: var(--target-current);
-  flex: 0 0 var(--target-current);
-  padding: 0;
-}
 .controls {
   display: grid;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-12);
+  /* Fields sit on the 12px content edge: gutter + inner space. */
+  padding: var(--space-8) calc(var(--geometry-panel-gutter) + var(--space-4));
 }
 .goTo {
   display: flex;
   align-items: center;
   gap: var(--space-4);
   min-width: 0;
-}
-.search {
-  position: relative;
-  display: grid;
-  min-width: 0;
-}
-.searchInput {
-  padding-right: calc(var(--target-current) + var(--space-8));
-}
-.clearSearch {
-  position: absolute;
-  right: var(--space-4);
-  top: 50%;
-  transform: translateY(-50%);
 }
 .searchInput::-webkit-search-cancel-button {
   appearance: none;
@@ -137,7 +109,7 @@
   line-height: var(--line-height-secondary);
 }
 .list {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -147,8 +119,8 @@
 }
 .row {
   position: absolute;
-  left: var(--space-8);
-  right: var(--space-8);
+  left: var(--geometry-panel-gutter);
+  right: var(--geometry-panel-gutter);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -156,7 +128,7 @@
   gap: var(--space-4);
   border: var(--geometry-selection-indicator-width) solid transparent;
   border-radius: var(--radius-control);
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-4);
   cursor: pointer;
 }
 .row:hover {
@@ -240,19 +212,9 @@
       calc(100% - var(--geometry-context-toolbar-left))
     );
   }
-  .panel button {
+  .previewNotice button {
     min-width: var(--control-height-regular);
     min-height: var(--control-height-regular);
-  }
-  .panel .iconButton {
-    width: var(--control-height-regular);
-    min-width: var(--control-height-regular);
-    height: var(--control-height-regular);
-    min-height: var(--control-height-regular);
-    flex-basis: var(--control-height-regular);
-  }
-  .searchInput {
-    padding-right: calc(var(--control-height-regular) + var(--space-8));
   }
   .list {
     margin-bottom: var(
@@ -276,7 +238,7 @@
   align-items: center;
   gap: var(--space-16);
   overflow: hidden;
-  padding: var(--space-8);
+  padding: var(--space-8) var(--geometry-panel-gutter);
 }
 .skeletonThumbnail {
   width: var(--geometry-page-thumbnail-width);

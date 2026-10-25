@@ -1,4 +1,5 @@
 .toolbar {
+  composes: scrollSurface overlayScroll from global;
   --selection-control-size: var(--control-height-compact);
   position: absolute;
   z-index: var(--z-controls);
@@ -112,19 +113,11 @@
 
 .renameForm {
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
 }
 
 .renameForm .renameInput {
   width: var(--geometry-context-rename-width);
   min-width: var(--geometry-context-rename-min-width);
-}
-
-.renameAction {
-  min-height: var(--control-height-compact);
-  flex: 0 0 auto;
 }
 
 .divider {
@@ -133,37 +126,6 @@
   flex: 0 0 auto;
   margin: 0 var(--space-4);
   background: var(--color-divider);
-}
-
-.action {
-  min-height: var(--control-height-compact);
-  flex: 0 0 auto;
-}
-
-.finishAction {
-  border-color: transparent;
-  background: var(--color-selection-surface);
-  color: var(--color-accent);
-  font-weight: var(--font-weight-medium);
-}
-
-.finishAction:hover:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.finishAction:active:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-}
-
-.finishAction[data-disabled="true"],
-.finishAction[data-disabled="true"]:hover,
-.finishAction[data-disabled="true"]:active {
-  border-color: var(--color-divider);
-  background: var(--color-surface-panel);
-  color: var(--color-text-disabled);
-  font-weight: var(--font-weight-medium);
 }
 
 .visuallyHidden {
@@ -272,6 +234,12 @@
   background: var(--color-selection-surface);
 }
 
+/* The accent Save keeps its IconButton look but follows the toolbar's control size. */
+.toolbar .selectionControlSize {
+  width: var(--selection-control-size);
+  height: var(--selection-control-size);
+}
+
 .selectionIcon {
   width: var(--geometry-icon-size);
   height: var(--geometry-icon-size);
@@ -280,16 +248,6 @@
   stroke-width: var(--icon-stroke-width);
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.toolbar[data-context-kind="selection"] .action {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-}
-
-.toolbar[data-context-kind="selection"] .action:not(:hover):not(:active):not([aria-expanded="true"]):not(:disabled) {
-  border-color: transparent;
-  background: transparent;
 }
 
 @media (any-pointer: coarse), (max-width: 800px) {

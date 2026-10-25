@@ -180,7 +180,9 @@ describe("page browser", () => {
     expect(list()).toBeNull();
     expect(container.querySelector('[role="status"]')?.textContent).toBe("0 pages match");
     await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Clear search"]')!.click(),
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent === "Clear search")!
+        .click(),
     );
     expect(list()).not.toBeNull();
     expect(input("Search labels").value).toBe("");

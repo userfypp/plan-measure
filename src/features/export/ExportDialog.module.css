@@ -145,7 +145,7 @@ dialog.dialog[open] {
 }
 
 .panel {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   flex: 0 1 auto;
   min-height: 0;
   height: auto;
@@ -473,7 +473,7 @@ dialog.dialog[open] {
 }
 
 .summaryChoices {
-  composes: scrollSurface from global;
+  composes: scrollSurface overlayScroll from global;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4) var(--space-12);

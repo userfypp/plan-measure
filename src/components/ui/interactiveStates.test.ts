@@ -13,10 +13,7 @@ const inputCss = readFileSync(new URL("./Input.module.css", import.meta.url), "u
 const textareaCss = readFileSync(new URL("./Textarea.module.css", import.meta.url), "utf8");
 const switchCss = readFileSync(new URL("./Switch.module.css", import.meta.url), "utf8");
 const menuCss = readFileSync(new URL("./AnchoredMenu.module.css", import.meta.url), "utf8");
-const scalesCss = readFileSync(
-  new URL("../../features/calibration/ScalesWorkspace.module.css", import.meta.url),
-  "utf8",
-);
+const disclosureCss = readFileSync(new URL("./Disclosure.module.css", import.meta.url), "utf8");
 const measurementRowCss = readFileSync(
   new URL("../../features/measurements/MeasurementRow.module.css", import.meta.url),
   "utf8",
@@ -92,6 +89,18 @@ describe("shared interactive-state contract", () => {
     );
   });
 
+  it("gives the primary IconButton the same accent states as the primary Button", () => {
+    expect(iconButtonCss).toMatch(
+      /\.primary\s*\{[^}]*background-color:\s*var\(--color-accent\);[^}]*border-color:\s*var\(--color-accent\);/s,
+    );
+    expect(iconButtonCss).toMatch(
+      /\.primary:hover[^}]*background-color:\s*var\(--color-accent-hover-semantic\);[^}]*border-color:\s*var\(--color-accent-hover-semantic\);/s,
+    );
+    expect(iconButtonCss).toMatch(
+      /\.primary:active[^}]*background-color:\s*var\(--color-accent-active-semantic\);[^}]*border-color:\s*var\(--color-accent-active-semantic\);/s,
+    );
+  });
+
   it("does not suppress the shared IconButton border on measurement visibility controls", () => {
     expect(measurementRowCss).toMatch(
       /\.actions \.visibilityButton\s*\{[^}]*border-color:\s*transparent;/s,
@@ -108,11 +117,11 @@ describe("shared interactive-state contract", () => {
     );
     expect(menuCss).toMatch(/\.item\[aria-disabled="true"\][^}]*cursor:\s*not-allowed;/s);
     expect(menuCss).not.toContain("!important");
-    expect(scalesCss).toMatch(
-      /\.disclosureButton\[aria-expanded="true"\]:hover[^}]*background:\s*var\(--color-selection-surface\);/s,
+    expect(disclosureCss).toMatch(
+      /\.root\[data-selected\]:has\(> \.header:hover\),\s*\.root\[data-selected\]:has\(> \.header \.toggle:active\)\s*\{[^}]*background-color:\s*var\(--color-selection-surface\);/s,
     );
-    expect(scalesCss).toMatch(
-      /\.disclosureButton\[aria-expanded="true"\]:active[^}]*background:\s*var\(--color-selection-surface\);/s,
+    expect(disclosureCss).toMatch(
+      /\.toggle\s*\{[^}]*min-height:\s*var\(--target-current\);/s,
     );
   });
 

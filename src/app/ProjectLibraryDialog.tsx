@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Badge, Button, Dialog, IconButton } from "../components/ui";
+import { Badge, Button, Dialog, IconButton, TrashIcon } from "../components/ui";
 import type { SavedProjectSummary } from "../services/persistence";
 import { useAppPreferences } from "../utils/appPreferences";
 import { formatSavedDate } from "../utils/dateFormat";
@@ -41,11 +41,6 @@ const openIcon = (
 const exportIcon = (
   <Icon>
     <path d="M10 3.5v9M6.5 9.5l3.5 3.5 3.5-3.5M4 16h12" />
-  </Icon>
-);
-const discardIcon = (
-  <Icon>
-    <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
   </Icon>
 );
 
@@ -173,7 +168,7 @@ export function ProjectLibraryDialog({
                         onClick={() => onExportProject(project.id)}
                       />
                       <IconButton
-                        icon={discardIcon}
+                        icon={<TrashIcon />}
                         tone="danger"
                         disabled={opening}
                         tooltip="Discard"

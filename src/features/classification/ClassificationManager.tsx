@@ -1,5 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { AnchoredMenu, Badge, Button, Input } from "../../components/ui";
+import {
+  AnchoredMenu,
+  Badge,
+  CloseIcon,
+  IconButton,
+  InlineField,
+  PlusIcon,
+  RestoreIcon,
+  SaveIcon,
+} from "../../components/ui";
 import type { ClassificationCatalog } from "../../types/domain";
 import { classificationNameKey } from "../../utils/classificationNames";
 import styles from "./ClassificationManager.module.css";
@@ -175,35 +184,41 @@ export function ClassificationManager({
     setNameError(null);
   }
 
-  function renderRenameForm(className: string | undefined) {
+  function renderRenameForm() {
     if (!editing) return null;
     return (
-      <form
-        className={className}
+      <InlineField
+        formLabel="Rename classification"
+        aria-label={`Rename ${editing.type}`}
+        placeholder="New name"
+        value={editName}
+        error={nameError}
+        disabled={disabled}
+        autoFocus
+        onChange={(event) => setEditName(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") cancelEditing();
+        }}
         onSubmit={submitRename}
-        aria-label="Rename classification"
-      >
-        <Input
-          label={<span className={styles.inlineLabel}>Rename {editing.type}</span>}
-          placeholder="New name"
-          value={editName}
-          error={nameError}
-          disabled={disabled}
-          autoFocus
-          onChange={(event) => setEditName(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") cancelEditing();
-          }}
-        />
-        <div className={styles.renameActions}>
-          <Button variant="ghost" size="compact" onClick={cancelEditing}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="secondary" size="compact" disabled={disabled}>
-            Save
-          </Button>
-        </div>
-      </form>
+        actions={
+          <>
+            <IconButton
+              icon={<CloseIcon />}
+              aria-label="Cancel"
+              tooltip="Cancel"
+              onClick={cancelEditing}
+            />
+            <IconButton
+              type="submit"
+              tone="primary"
+              icon={<SaveIcon />}
+              aria-label="Save"
+              tooltip="Save"
+              disabled={disabled}
+            />
+          </>
+        }
+      />
     );
   }
 
@@ -217,43 +232,23 @@ export function ClassificationManager({
                 editing?.type === "dimension" && editing.dimensionId === dimension.id;
               return (
                 <li key={dimension.id} className={styles.item}>
-                  <div className={styles.itemHeader}>
-                    {editingDimension ? (
-                      renderRenameForm(styles.renameForm)
-                    ) : (
-                      <>
-                        <h3 className={styles.itemTitle} title={dimension.name}>
-                          {dimension.name}
-                        </h3>
-                        {dimension.archived ? (
-                          <div className={styles.actions}>
-                            <Badge variant="neutral">Archived</Badge>
-                            <Button
-                              variant="secondary"
-                              size="compact"
-                              className={styles.restoreAction}
-                              disabled={disabled}
-                              aria-label={`Restore dimension ${dimension.name}`}
-                              onClick={() => onRestoreDimension(dimension.id)}
-                            >
-                              Restore
-                            </Button>
-                            <AnchoredMenu
-                              trigger={<MoreActionsIcon />}
-                              triggerProps={{
-                                className: styles.dimensionMenuTrigger,
-                                "aria-label": `Actions for dimension ${dimension.name}`,
-                                disabled,
-                              }}
-                              label={`Actions for dimension ${dimension.name}`}
-                              items={[{
-                                id: "delete",
-                                label: "Delete",
-                                onSelect: () => onDeleteDimension(dimension.id),
-                              }]}
-                            />
-                          </div>
-                        ) : (
+                  {editingDimension ? (
+                    renderRenameForm()
+                  ) : (
+                    <div className={styles.itemHeader}>
+                      <h3 className={styles.itemTitle} title={dimension.name}>
+                        {dimension.name}
+                      </h3>
+                      {dimension.archived ? (
+                        <div className={styles.actions}>
+                          <Badge variant="neutral">Archived</Badge>
+                          <IconButton
+                            icon={<RestoreIcon />}
+                            tooltip="Restore"
+                            disabled={disabled}
+                            aria-label={`Restore dimension ${dimension.name}`}
+                            onClick={() => onRestoreDimension(dimension.id)}
+                          />
                           <AnchoredMenu
                             trigger={<MoreActionsIcon />}
                             triggerProps={{
@@ -264,30 +259,47 @@ export function ClassificationManager({
                             label={`Actions for dimension ${dimension.name}`}
                             items={[
                               {
-                                id: "rename",
-                                label: "Rename",
-                                onSelect: () =>
-                                  startEditing(
-                                    { type: "dimension", dimensionId: dimension.id },
-                                    dimension.name,
-                                  ),
-                              },
-                              {
-                                id: "archive",
-                                label: "Archive (assignments preserved)",
-                                onSelect: () => archiveDimension(dimension.id),
-                              },
-                              {
                                 id: "delete",
                                 label: "Delete",
                                 onSelect: () => onDeleteDimension(dimension.id),
                               },
                             ]}
                           />
-                        )}
-                      </>
-                    )}
-                  </div>
+                        </div>
+                      ) : (
+                        <AnchoredMenu
+                          trigger={<MoreActionsIcon />}
+                          triggerProps={{
+                            className: styles.dimensionMenuTrigger,
+                            "aria-label": `Actions for dimension ${dimension.name}`,
+                            disabled,
+                          }}
+                          label={`Actions for dimension ${dimension.name}`}
+                          items={[
+                            {
+                              id: "rename",
+                              label: "Rename",
+                              onSelect: () =>
+                                startEditing(
+                                  { type: "dimension", dimensionId: dimension.id },
+                                  dimension.name,
+                                ),
+                            },
+                            {
+                              id: "archive",
+                              label: "Archive (assignments preserved)",
+                              onSelect: () => archiveDimension(dimension.id),
+                            },
+                            {
+                              id: "delete",
+                              label: "Delete",
+                              onSelect: () => onDeleteDimension(dimension.id),
+                            },
+                          ]}
+                        />
+                      )}
+                    </div>
+                  )}
                   <div className={styles.valueSection}>
                     <ul className={styles.valueList} aria-label={`${dimension.name} values`}>
                       {dimension.values.map((value) => {
@@ -296,9 +308,14 @@ export function ClassificationManager({
                           editing.dimensionId === dimension.id &&
                           editing.valueId === value.id;
                         return (
-                          <li key={value.id} className={styles.valueItem}>
+                          <li
+                            key={value.id}
+                            className={[styles.valueItem, editingValue ? styles.valueItemEditing : ""]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
                             {editingValue ? (
-                              renderRenameForm(styles.valueRenameForm)
+                              renderRenameForm()
                             ) : (
                               <AnchoredMenu
                                 trigger={
@@ -368,41 +385,30 @@ export function ClassificationManager({
                         Assignments are preserved. Restore to edit or assign.
                       </p>
                     ) : (
-                      <form
-                        className={styles.inlineForm}
+                      <InlineField
+                        aria-label={`New value for ${dimension.name}`}
+                        placeholder="New value…"
+                        value={valueNames[dimension.id] ?? ""}
+                        error={valueErrors[dimension.id]}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          setValueNames((current) => ({
+                            ...current,
+                            [dimension.id]: event.target.value,
+                          }));
+                          setValueErrors((current) => ({ ...current, [dimension.id]: null }));
+                        }}
                         onSubmit={(event) => submitValue(event, dimension.id)}
-                      >
-                        <Input
-                          label={
-                            <span
-                              className={styles.inlineLabel}
-                              title={`New value for ${dimension.name}`}
-                            >
-                              New value for {dimension.name}
-                            </span>
-                          }
-                          placeholder="New value…"
-                          value={valueNames[dimension.id] ?? ""}
-                          error={valueErrors[dimension.id]}
-                          disabled={disabled}
-                          onChange={(event) => {
-                            setValueNames((current) => ({
-                              ...current,
-                              [dimension.id]: event.target.value,
-                            }));
-                            setValueErrors((current) => ({ ...current, [dimension.id]: null }));
-                          }}
-                        />
-                        <Button
-                          type="submit"
-                          variant="secondary"
-                          size="compact"
-                          aria-label={`Add value to ${dimension.name}`}
-                          disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
-                        >
-                          Add
-                        </Button>
-                      </form>
+                        actions={
+                          <IconButton
+                            type="submit"
+                            icon={<PlusIcon />}
+                            aria-label={`Add value to ${dimension.name}`}
+                            tooltip="Add value"
+                            disabled={disabled || !(valueNames[dimension.id] ?? "").trim()}
+                          />
+                        }
+                      />
                     )}
                   </div>
                 </li>
@@ -410,28 +416,28 @@ export function ClassificationManager({
             })}
           </ul>
         )}
-        <form className={styles.create} onSubmit={submitDimension}>
-          <Input
-            label="New dimension"
-            placeholder="Dimension name"
-            value={dimensionName}
-            error={createError}
-            disabled={disabled}
-            onChange={(event) => {
-              setDimensionName(event.target.value);
-              setCreateError(null);
-            }}
-          />
-          <Button
-            type="submit"
-            variant="secondary"
-            size="compact"
-            aria-label="Add dimension"
-            disabled={disabled || !dimensionName.trim()}
-          >
-            Add
-          </Button>
-        </form>
+        <InlineField
+          variant="row"
+          label="New dimension"
+          placeholder="Dimension name"
+          value={dimensionName}
+          error={createError}
+          disabled={disabled}
+          onChange={(event) => {
+            setDimensionName(event.target.value);
+            setCreateError(null);
+          }}
+          onSubmit={submitDimension}
+          actions={
+            <IconButton
+              type="submit"
+              icon={<PlusIcon />}
+              aria-label="Add dimension"
+              tooltip="Add dimension"
+              disabled={disabled || !dimensionName.trim()}
+            />
+          }
+        />
       </div>
     </section>
   );

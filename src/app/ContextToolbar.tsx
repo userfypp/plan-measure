@@ -1,5 +1,13 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Button, IconButton, Input } from "../components/ui";
+import {
+  CheckIcon,
+  CloseIcon,
+  IconButton,
+  Input,
+  PlusIcon,
+  SaveIcon,
+  TrashIcon,
+} from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
@@ -65,14 +73,6 @@ function DetailsIcon() {
     <SelectionSvg>
       <circle cx="10" cy="10" r="7.25" />
       <path d="M10 9.25v4.25M10 6.75h.01" />
-    </SelectionSvg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <SelectionSvg>
-      <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
     </SelectionSvg>
   );
 }
@@ -305,25 +305,35 @@ function MeasurementNameEditor({
             cancelEditing();
           }
         }}
+        trailing={
+          <>
+            <IconButton
+              className={styles.selectionControlSize}
+              type="submit"
+              icon={<SaveIcon />}
+              aria-label="Save"
+              tooltip="Save"
+              tooltipPosition="bottom"
+              tone="primary"
+              tabIndex={-1}
+            />
+            <IconButton
+              className={styles.selectionIconButton}
+              icon={<CloseIcon />}
+              aria-label="Cancel"
+              tooltip="Cancel"
+              tooltipPosition="bottom"
+              tabIndex={-1}
+              onClick={cancelEditing}
+            />
+          </>
+        }
       />
       {nameError && (
         <span id={errorId} className={styles.visuallyHidden} role="alert">
           {nameError}
         </span>
       )}
-      <Button type="submit" className={styles.renameAction} size="compact" tabIndex={-1}>
-        Save
-      </Button>
-      <Button
-        type="button"
-        className={styles.renameAction}
-        variant="ghost"
-        size="compact"
-        tabIndex={-1}
-        onClick={cancelEditing}
-      >
-        Cancel
-      </Button>
     </form>
   );
 }
@@ -378,25 +388,27 @@ export function ContextToolbar({
             : " · Place a valid reference before saving"}
         </span>
         <Divider />
-        <Button
-          className={styles.action}
-          size="compact"
+        <IconButton
+          className={styles.selectionControlSize}
+          icon={<SaveIcon />}
+          aria-label="Save"
+          tooltip="Save"
+          tooltipPosition="bottom"
+          tone="primary"
           disabled={!referenceEditValid}
           disabledReason={
             !referenceEditValid ? "Place a valid reference before saving." : undefined
           }
           onClick={onSaveReferenceEdit}
-        >
-          Save
-        </Button>
-        <Button
-          className={styles.action}
-          variant="ghost"
-          size="compact"
+        />
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<CloseIcon />}
+          aria-label="Cancel"
+          tooltip="Cancel"
+          tooltipPosition="bottom"
           onClick={onCancelReferenceEdit}
-        >
-          Cancel
-        </Button>
+        />
       </ToolbarComposite>
     );
   }
@@ -414,14 +426,14 @@ export function ContextToolbar({
           {calibrationLabel}
         </span>
         <Divider />
-        <Button
-          className={styles.action}
-          variant="ghost"
-          size="compact"
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<CloseIcon />}
+          aria-label="Cancel"
+          tooltip="Cancel"
+          tooltipPosition="bottom"
           onClick={onCancelCalibration}
-        >
-          Cancel
-        </Button>
+        />
       </ToolbarComposite>
     );
   }
@@ -459,23 +471,23 @@ export function ContextToolbar({
           />
         )}
         <Divider />
-        <Button
-          className={styles.action}
-          variant="ghost"
-          size="compact"
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<PlusIcon />}
+          aria-label="New count"
+          tooltip="New count"
+          tooltipPosition="bottom"
           disabled={!count}
           onClick={onClearMeasurementSelection}
-        >
-          New count
-        </Button>
-        <Button
-          className={styles.action}
-          variant="ghost"
-          size="compact"
+        />
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<CheckIcon />}
+          aria-label="Done"
+          tooltip="Done"
+          tooltipPosition="bottom"
           onClick={onExitDrawingTool}
-        >
-          Done
-        </Button>
+        />
       </ToolbarComposite>
     );
   }
@@ -523,10 +535,13 @@ export function ContextToolbar({
         {showFinish && (
           <>
             <Divider />
-            <Button
-              className={`${styles.action} ${styles.finishAction}`}
-              variant="ghost"
-              size="compact"
+            <IconButton
+              className={styles.selectionControlSize}
+              icon={<CheckIcon />}
+              aria-label="Finish"
+              tooltip="Finish"
+              tooltipPosition="bottom"
+              tone="primary"
               disabled={!canFinish}
               disabledReason={
                 !canFinish
@@ -547,9 +562,7 @@ export function ContextToolbar({
                     ?.focus({ preventScroll: true });
                 });
               }}
-            >
-              Finish
-            </Button>
+            />
           </>
         )}
         <Divider />
@@ -635,7 +648,7 @@ export function ContextToolbar({
         aria-label="Delete"
         tooltip="Delete"
         tooltipPosition="bottom"
-        icon={<DeleteIcon />}
+        icon={<TrashIcon />}
         onClick={onDeleteSelectedMeasurement}
       />
       {selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements && (
@@ -667,11 +680,7 @@ export function ContextToolbar({
           aria-label="Clear selection"
           tooltip="Clear selection"
           tooltipPosition="bottom"
-          icon={
-            <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
-              <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
-            </svg>
-          }
+          icon={<CloseIcon />}
           onClick={onClearMeasurementSelection}
         />
       )}

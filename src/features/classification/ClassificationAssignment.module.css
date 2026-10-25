@@ -56,6 +56,11 @@
   text-align: left;
 }
 
+/* The label is text outside a surface: it sits on the panel content edge, like the section headings. */
+.compact .field > span {
+  padding-inline: var(--space-4);
+}
+
 .valueTrigger {
   composes: trigger from "./classificationTrigger.module.css";
   width: 100%;
