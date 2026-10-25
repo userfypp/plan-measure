@@ -432,12 +432,12 @@ function PlanMeasureApp() {
     // Fetch the small on-demand panels once a plan is open so their first open is instant.
     if (!planOpen || import.meta.env.MODE === "test") return;
     return preloadWhenIdle([
+      preloadMeasurementFilters,
       preloadPageBrowser,
       TakeoffWorkspace.preload,
       ClassificationWorkspace.preload,
       CalibrationDialog.preload,
       preloadCustomRatioDialog,
-      preloadMeasurementFilters,
       loadExportDialog,
     ]);
   }, [planOpen]);

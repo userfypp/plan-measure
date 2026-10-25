@@ -33,7 +33,8 @@ const MeasurementFilterFields = recoverableLazy(
   ),
   "Filters",
 );
-export const preloadMeasurementFilters = MeasurementFilterFields.preload;
+export const preloadMeasurementFilters = () =>
+  MeasurementFilterFields.preload().catch(() => undefined);
 
 function FilterIcon() {
   return (
@@ -244,6 +245,8 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             "aria-label": activeFilterCount
               ? `Filters, ${activeFilterCount} active`
               : "Filters",
+            onPointerEnter: preloadMeasurementFilters,
+            onFocus: preloadMeasurementFilters,
           }}
           tooltip={activeFilterCount ? `Filters · ${activeFilterCount} active` : "Filters"}
           tooltipPosition="bottom"
