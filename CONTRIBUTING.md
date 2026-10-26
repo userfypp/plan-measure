@@ -35,6 +35,18 @@ Use `npm run format` only when formatting is part of the change.
 - Changes to startup, the viewer, the canvas or the panels follow [Adding features without losing performance](docs/PERFORMANCE.md#adding-features-without-losing-performance). A failing test in `src/performance/` is a regression to fix, not an expectation to update.
 - Keep the JavaScript size budget: a pull request may grow each size metric only by a small allowance, and more growth or a higher ceiling needs the maintainer's `size: approved` label after review. Never add that label yourself. See [JavaScript size](docs/PERFORMANCE.md#2-javascript-size).
 
+## Credits
+
+Being listed in [CREDITS.md](CREDITS.md) is optional.
+
+- Add one row in your first mergeable pull request, or in a separate pull request titled `chore: add credits for @handle` (`chore` creates no release; `docs` does).
+- Row format: `| [@handle](https://github.com/handle) | Short contribution, up to about 80 characters | Optional link |`.
+- Keep rows sorted by handle, after the maintainer.
+- The link is optional: one `https://` URL to a personal site, GitHub or a social profile. No advertising or affiliate links.
+- Use only information that is already public; never an email address.
+- If you contributed without code (bug reports, reviews, ideas, translations), ask in the issue and a maintainer will add you with your consent.
+- Maintainers may reword or remove entries that break these rules or the [Code of conduct](CODE_OF_CONDUCT.md).
+
 ## AI-assisted contributions
 
 AI-assisted pull requests are welcome under the same rules as any other: you are responsible for the change. Understand and test what you submit and keep it focused. Reviews judge the result (tests, scope, clarity), not the tool; unreviewed bulk output will be closed.
