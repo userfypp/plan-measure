@@ -9,6 +9,7 @@ import {
   buildClassificationAssignmentsCsv,
   buildCsv,
   buildCsvInBatches,
+  buildMeasurementTable,
   createCsvExportSettingsPreset,
   downloadClassificationAssignmentsCsv,
   downloadCsv,
@@ -378,6 +379,17 @@ describe("CSV export", () => {
     ];
 
     expect(() => buildCsv(session)).toThrow("Repair invalid Polygon measurements");
+  });
+
+  it("refuses a recovered Line whose endpoints coincide instead of exporting zero", () => {
+    const session = measuredSession();
+    session.pages[1]!.measurements[0]!.points = [
+      { x: 4, y: 4 },
+      { x: 4, y: 4 },
+    ];
+
+    expect(() => buildCsv(session)).toThrow("Repair invalid Line measurements");
+    expect(() => buildMeasurementTable(session)).toThrow("Repair invalid Line measurements");
   });
 
   it("exports all columns with the established order and calibration metadata", () => {

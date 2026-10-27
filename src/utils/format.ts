@@ -201,10 +201,7 @@ export function formatMeasurement(
   }
   // An unmeasured cloud (setting off or no scale) has no value to show.
   if (measurement.type === "cloud" && !calibration) return "";
-  if (
-    measurementPathSpecs[measurement.type].closed &&
-    !hasValidMeasurementPoints(measurement.type, measurement.points)
-  ) {
+  if (!hasValidMeasurementPoints(measurement.type, measurement.points)) {
     return "Repair required";
   }
   let result: ReturnType<typeof measurementResultsMm>;

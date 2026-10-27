@@ -554,13 +554,6 @@ export function areEffectivelyIdentical(a: Point, b: Point): boolean {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const tolerance = calibrationPointTolerance(a, b);
-  return dx * dx + dy * dy <= tolerance * tolerance;
-}
-
-function areCalibrationPointsEffectivelyIdentical(a: Point, b: Point): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const tolerance = calibrationPointTolerance(a, b);
   const squaredDistance = dx * dx + dy * dy;
   const squaredTolerance = tolerance * tolerance;
   return Number.isFinite(squaredDistance) && Number.isFinite(squaredTolerance)
@@ -601,7 +594,7 @@ function hasValidCalibrationInputs(calibration: Calibration): boolean {
   return (
     Number.isFinite(calibration.referenceDistanceMm) &&
     calibration.referenceDistanceMm > 0 &&
-    !areCalibrationPointsEffectivelyIdentical(calibration.start, calibration.end)
+    !areEffectivelyIdentical(calibration.start, calibration.end)
   );
 }
 

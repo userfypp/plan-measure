@@ -778,10 +778,7 @@ function* measurementRows(
     const page = session.pages[pageNumber];
     if (!page) continue;
     for (const measurement of page.measurements) {
-      if (
-        (measurementPathSpecs[measurement.type].closed || measurement.type === "count") &&
-        !hasValidMeasurementPoints(measurement.type, measurement.points)
-      ) {
+      if (!hasValidMeasurementPoints(measurement.type, measurement.points)) {
         throw new Error(`Repair invalid ${measurementPathSpecs[measurement.type].label} measurements before exporting CSV.`);
       }
       const context = createCsvRowContext(

@@ -153,6 +153,32 @@ describe("annotated PDF export", () => {
     expect(plans[0]?.label?.placement.y).toBeGreaterThanOrEqual(0);
   });
 
+  it("labels a recovered Line whose endpoints coincide as needing repair", () => {
+    const session = sessionFixture();
+    const page = session.pages[1]!;
+    const coincident: PageState = {
+      ...page,
+      measurements: [
+        {
+          ...page.measurements[0]!,
+          points: [
+            { x: 20, y: 20 },
+            { x: 20, y: 20 },
+          ],
+        },
+      ],
+    };
+    const plans = planAnnotatedPdfMeasurements(
+      coincident,
+      { width: 200, height: 120, rotation: 0 },
+      session.settings,
+      (text) => ({ width: text.length * 6 + 8, height: 20 }),
+    );
+
+    expect(plans).toHaveLength(1);
+    expect(plans[0]?.label?.text).toBe("Repair required");
+  });
+
   it("keeps visible geometry while omitting labels that are hidden or lack a scale", () => {
     const session = sessionFixture();
     const page = session.pages[1]!;

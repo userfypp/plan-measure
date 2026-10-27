@@ -806,6 +806,15 @@ describe("geometry", () => {
     expect(areEffectivelyIdentical({ x: 0, y: 0 }, { x: 0.000001, y: 0 })).toBe(false);
   });
 
+  it("keeps distant points distinct when their squared distance overflows", () => {
+    const far = [
+      { x: -1e200, y: -1e200 },
+      { x: 1e200, y: 1e200 },
+    ];
+    expect(areEffectivelyIdentical(far[0]!, far[1]!)).toBe(false);
+    expect(hasValidMeasurementPoints("line", far)).toBe(true);
+  });
+
   it("rejects invalid canonical calibration distances", () => {
     expect(isValidCalibration(calibration)).toBe(true);
     expect(isValidCalibration({ ...calibration, referenceDistanceMm: 0 })).toBe(false);
