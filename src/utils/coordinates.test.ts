@@ -11,6 +11,7 @@ import {
   logicalPageBoundsFromViewport,
   MAX_PDF_RASTER_DIMENSION,
   MAX_PDF_RASTER_PIXELS,
+  normalizeRotation,
   pageToScreen,
   PDF_RASTER_QUALITY_LIMITS,
   pdfRasterLayout,
@@ -280,5 +281,161 @@ describe("effectiveRasterPixels", () => {
     expect(effectiveRasterPixels(sharp)).toBe(sharp);
     vi.stubGlobal("navigator", undefined);
     expect(effectiveRasterPixels(sharp)).toBe(sharp);
+  });
+});
+
+describe("normalizeRotation", () => {
+  it.each([
+    [0, 0],
+    [90, 90],
+    [180, 180],
+    [270, 270],
+    [360, 0],
+    [450, 90],
+    [720, 0],
+    [-90, 270],
+    [-180, 180],
+    [-270, 90],
+    [-450, 270],
+  ])("turns %i degrees into %i", (rotation, expected) => {
+    expect(normalizeRotation(rotation)).toBe(expected);
+  });
+
+  it.each([45, 89.9, 90.5, 135, NaN, Infinity, -Infinity])(
+    "treats %s, which is not a quarter turn, as no rotation",
+    (rotation) => {
+      expect(normalizeRotation(rotation)).toBe(0);
+    },
+  );
+});
+
+describe("logicalPageBoundsFromViewport", () => {
+  it("keeps the viewport's own width and height, which already include its rotation", () => {
+    // A portrait 600 x 800 page rotated a quarter turn is shown as 800 x 600.
+    expect(logicalPageBoundsFromViewport({ width: 800, height: 600, rotation: 90 })).toEqual({
+      width: 800,
+      height: 600,
+      rotation: 90,
+    });
+    expect(logicalPageBoundsFromViewport({ width: 600, height: 800, rotation: 0 })).toEqual({
+      width: 600,
+      height: 800,
+      rotation: 0,
+    });
+  });
+
+  it("normalizes the rotation without touching the size", () => {
+    expect(logicalPageBoundsFromViewport({ width: 3, height: 7, rotation: -90 })).toEqual({
+      width: 3,
+      height: 7,
+      rotation: 270,
+    });
+    expect(logicalPageBoundsFromViewport({ width: 3, height: 7, rotation: 450 })).toEqual({
+      width: 3,
+      height: 7,
+      rotation: 90,
+    });
+  });
+});
+
+describe("isPointInPage", () => {
+  const page = { width: 10, height: 5, rotation: 0 as const };
+
+  it.each([
+    ["the top-left corner", { x: 0, y: 0 }, true],
+    ["the bottom-right corner", { x: 10, y: 5 }, true],
+    ["the middle of the right edge", { x: 10, y: 2.5 }, true],
+    ["the middle of the bottom edge", { x: 5, y: 5 }, true],
+    ["just past the right edge", { x: 10.000001, y: 2 }, false],
+    ["just past the bottom edge", { x: 5, y: 5.000001 }, false],
+    ["just before the left edge", { x: -0.000001, y: 2 }, false],
+    ["just above the top edge", { x: 5, y: -0.000001 }, false],
+    [
+      "x between the height and the width, which a width/height swap would reject",
+      { x: 6, y: 5 },
+      true,
+    ],
+    ["y beyond the height", { x: 1, y: 6 }, false],
+    ["NaN", { x: Number.NaN, y: 1 }, false],
+    ["Infinity", { x: 1, y: Infinity }, false],
+  ])("%s", (_label, point, expected) => {
+    expect(isPointInPage(point, page)).toBe(expected);
+  });
+});
+
+describe("clampPointToPage", () => {
+  const page = { width: 10, height: 5 };
+
+  it("leaves a point inside the page alone and pulls others to the nearest edge", () => {
+    expect(clampPointToPage({ x: 3, y: 4 }, page)).toEqual({ x: 3, y: 4 });
+    expect(clampPointToPage({ x: -3, y: 9 }, page)).toEqual({ x: 0, y: 5 });
+    expect(clampPointToPage({ x: 11, y: -1 }, page)).toEqual({ x: 10, y: 0 });
+  });
+
+  it("clamps infinite coordinates to the page", () => {
+    expect(clampPointToPage({ x: Infinity, y: -Infinity }, page)).toEqual({ x: 10, y: 0 });
+  });
+});
+
+describe("zoom limits for unusual numbers", () => {
+  it("clamps infinite zoom to the limits and treats negative zoom as the minimum", () => {
+    expect(clampViewerZoom(Infinity)).toBe(DEFAULT_APP_PREFERENCES.maxZoom);
+    expect(clampViewerZoom(-Infinity)).toBe(VIEWER_MIN_ZOOM);
+    expect(clampViewerZoom(-3)).toBe(VIEWER_MIN_ZOOM);
+    expect(clampViewerZoom(0)).toBe(VIEWER_MIN_ZOOM);
+  });
+
+  it("falls back to actual size for NaN instead of corrupting the view", () => {
+    expect(clampViewerZoom(Number.NaN)).toBe(1);
+    const view = zoomViewAtPoint({ zoom: 2, panX: 10, panY: 20 }, { x: 50, y: 60 }, Number.NaN);
+    expect(Number.isFinite(view.zoom)).toBe(true);
+    expect(Number.isFinite(view.panX)).toBe(true);
+    expect(Number.isFinite(view.panY)).toBe(true);
+  });
+
+  it("keeps the point under the cursor fixed at the exact limits", () => {
+    const view = { zoom: 2, panX: -40, panY: 30 };
+    const anchor = { x: 200, y: 150 };
+    const before = screenToPage(anchor, view);
+    for (const requested of [VIEWER_MIN_ZOOM, DEFAULT_APP_PREFERENCES.maxZoom]) {
+      const zoomed = zoomViewAtPoint(view, anchor, requested);
+      expect(zoomed.zoom).toBe(requested);
+      const after = screenToPage(anchor, zoomed);
+      expect(after.x).toBeCloseTo(before.x, 10);
+      expect(after.y).toBeCloseTo(before.y, 10);
+    }
+  });
+});
+
+describe("fitToScreen edge cases", () => {
+  it("fits a wide page by width and a tall page by height, centring the other axis", () => {
+    const viewer = { width: 800, height: 600 };
+    // Available area is 752 x 552 with the default 24 px padding.
+    const wide = fitToScreen({ width: 1504, height: 100 }, viewer, 24, 0, 16);
+    expect(wide.zoom).toBe(0.5);
+    expect(wide.panX).toBe(24);
+    expect(wide.panY).toBe(275);
+    const tall = fitToScreen({ width: 100, height: 1104 }, viewer, 24, 0, 16);
+    expect(tall.zoom).toBe(0.5);
+    expect(tall.panX).toBe(375);
+    expect(tall.panY).toBe(24);
+  });
+
+  it("never exceeds the maximum zoom for a tiny page", () => {
+    expect(fitToScreen({ width: 1, height: 1 }, { width: 800, height: 600 }, 24, 0, 8).zoom).toBe(
+      8,
+    );
+  });
+
+  it("raises the zoom to the requested minimum even when the page does not fit", () => {
+    expect(
+      fitToScreen({ width: 10000, height: 10000 }, { width: 800, height: 600 }, 24, 0.25, 8).zoom,
+    ).toBe(0.25);
+  });
+
+  it("keeps a usable positive zoom in a viewer that has no room left", () => {
+    const view = fitToScreen({ width: 100, height: 100 }, { width: 10, height: 10 });
+    expect(view.zoom).toBeGreaterThan(0);
+    expect(Number.isFinite(view.panX)).toBe(true);
   });
 });
