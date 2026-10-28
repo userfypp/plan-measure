@@ -258,7 +258,7 @@ if (isMain(import.meta.url)) {
     const subject = execFileSync("git", ["log", "-1", "--format=%s"], { encoding: "utf8" }).trim();
     if (result.status === "skipped" && looksLikeReleaseCommit(subject))
       throw new Error(
-        `${result.reason} The commit "${subject}" looks like a release, so nothing was published; see "Release errors" in docs/RELEASING.md.`,
+        `${result.reason} The commit "${subject}" looks like a release, so nothing was published; see "Errors that need a person" in docs/RELEASING.md.`,
       );
     console.log(JSON.stringify(result));
   } catch (error) {
