@@ -11,6 +11,7 @@ import {
   createAnnotatedPdf,
   downloadAnnotatedPdf,
   planAnnotatedPdfMeasurements,
+  winAnsiLabelText,
 } from "./annotatedPdf";
 
 function pageFixture(): PageState {
@@ -54,7 +55,15 @@ function pageFixture(): PageState {
         ],
       },
     ],
-    nextMeasurementNumber: { line: 3, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 3,
+      polyline: 1,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -247,6 +256,45 @@ describe("annotated PDF export", () => {
     expect(plan(withCloud(cloud), true)).toMatch(/^P .+ · A .+m²$/);
   });
 
+  it("keeps only text the PDF's Helvetica can draw", async () => {
+    expect(winAnsiLabelText("Cloud 1 – café € ’")).toBe("Cloud 1 – café € ’");
+    expect(winAnsiLabelText("Żółć 雲")).toBe("Zó?c ?");
+    expect(winAnsiLabelText("a\tb\nc 😀")).toBe("a b c ?");
+    // Whatever survives must be measurable by pdf-lib; the check is exhaustive over the BMP.
+    const font = await (await PDFDocument.create()).embedFont("Helvetica");
+    for (let code = 0; code <= 0xffff; code += 1) {
+      if (code >= 0xd800 && code <= 0xdfff) continue;
+      const text = winAnsiLabelText(String.fromCharCode(code));
+      expect(() => font.widthOfTextAtSize(text, 10), `U+${code.toString(16)}`).not.toThrow();
+    }
+  });
+
+  it("exports an unmeasured cloud whose name is outside Latin-1", async () => {
+    const source = await sourcePdf();
+    const session = sessionFixture();
+    session.pages[1]!.measurements = [
+      {
+        id: "cloud-1",
+        name: "Żółć 雲",
+        type: "cloud",
+        calibrationId: null,
+        classificationValueIds: [],
+        visible: true,
+        points: [
+          { x: 10, y: 10 },
+          { x: 60, y: 10 },
+          { x: 10, y: 60 },
+        ],
+      },
+    ];
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+
+    await expect(createAnnotatedPdf(session, sourceDocument(source))).resolves.toBeInstanceOf(
+      Uint8Array,
+    );
+    expect(drawText.mock.calls[0]?.[0]).toBe("Zó?c ?");
+  });
+
   it("writes visible measurement geometry and labels while preserving original pages", async () => {
     const source = await sourcePdf(2);
     const session = sessionFixture(2);
@@ -314,7 +362,20 @@ describe("annotated PDF export", () => {
     const page = session.pages[1]!;
     page.calibrations = [];
     page.activeCalibrationId = null;
-    page.measurements = [{ id: "count", name: "Socket", type: "count", calibrationId: null, points: [{ x: 20, y: 30 }, { x: 60, y: 80 }], visible: true, classificationValueIds: [] }];
+    page.measurements = [
+      {
+        id: "count",
+        name: "Socket",
+        type: "count",
+        calibrationId: null,
+        points: [
+          { x: 20, y: 30 },
+          { x: 60, y: 80 },
+        ],
+        visible: true,
+        classificationValueIds: [],
+      },
+    ];
     const drawCircle = vi.spyOn(PDFPage.prototype, "drawCircle");
     const drawText = vi.spyOn(PDFPage.prototype, "drawText");
     await createAnnotatedPdf(session, sourceDocument(source));
@@ -400,7 +461,9 @@ describe("annotated PDF export", () => {
 
     // Only the rectangle uses per-edge lines; ellipse and cloud are a single path each.
     expect(drawLine).toHaveBeenCalledTimes(4);
-    const bordered = drawSvgPath.mock.calls.filter(([, options]) => options?.borderWidth !== undefined);
+    const bordered = drawSvgPath.mock.calls.filter(
+      ([, options]) => options?.borderWidth !== undefined,
+    );
     expect(bordered).toHaveLength(2);
     for (const [path, options] of bordered) {
       expect(path.startsWith("M ")).toBe(true);
@@ -428,7 +491,9 @@ describe("annotated PDF export", () => {
 
     await createAnnotatedPdf(session, sourceDocument(source));
 
-    const bordered = drawSvgPath.mock.calls.filter(([, options]) => options?.borderWidth !== undefined);
+    const bordered = drawSvgPath.mock.calls.filter(
+      ([, options]) => options?.borderWidth !== undefined,
+    );
     expect(bordered).toHaveLength(2);
     const [red, blue] = bordered.map(([, options]) => options!) as [
       NonNullable<(typeof bordered)[number][1]>,
@@ -436,13 +501,19 @@ describe("annotated PDF export", () => {
     ];
     expect(red.borderColor).toMatchObject({ red: 0xd9 / 255, green: 0x2d / 255, blue: 0x20 / 255 });
     expect(red.color).toMatchObject({ red: 0xd9 / 255, green: 0x2d / 255, blue: 0x20 / 255 });
-    expect(blue.borderColor).toMatchObject({ red: 0x24 / 255, green: 0x65 / 255, blue: 0xc7 / 255 });
+    expect(blue.borderColor).toMatchObject({
+      red: 0x24 / 255,
+      green: 0x65 / 255,
+      blue: 0xc7 / 255,
+    });
     expect(blue.color).toMatchObject({ red: 0x24 / 255, green: 0x65 / 255, blue: 0xc7 / 255 });
     expect(red.opacity).toBeCloseTo(0.08, 2);
     expect(red.borderWidth).toBeGreaterThan(1.5);
     expect(red.borderWidth).toBe(2.75);
     // The polygon keeps the default measurement look (no border on its fill path).
-    const polygonFill = drawSvgPath.mock.calls.find(([, options]) => options?.borderWidth === undefined);
+    const polygonFill = drawSvgPath.mock.calls.find(
+      ([, options]) => options?.borderWidth === undefined,
+    );
     expect(polygonFill?.[1]?.opacity).toBe(16 / 255);
   });
 

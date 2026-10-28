@@ -158,6 +158,35 @@ function roundedLabelBackgroundPath(
   ].join(" ");
 }
 
+const WIN_ANSI_EXTRAS = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+
+function isWinAnsi(char: string): boolean {
+  const code = char.codePointAt(0)!;
+  return (
+    (code >= 0x20 && code <= 0x7e) ||
+    (code >= 0xa1 && code <= 0xff) ||
+    code === 0xa0 ||
+    WIN_ANSI_EXTRAS.includes(char)
+  );
+}
+
+/**
+ * Helvetica only encodes WinAnsi, and pdf-lib throws on anything else, which would fail the whole
+ * export. Keep what it can draw, drop accents it cannot (Ż becomes Z) and mark the rest with "?".
+ */
+export function winAnsiLabelText(text: string): string {
+  let result = "";
+  for (const char of text) {
+    if (isWinAnsi(char)) result += char;
+    else if (/\s/u.test(char)) result += " ";
+    else {
+      const base = char.normalize("NFD").replace(/\p{M}/gu, "");
+      result += base && [...base].every(isWinAnsi) ? base : "?";
+    }
+  }
+  return result;
+}
+
 export function annotatedPdfFileName(pdfName: string): string {
   const baseName = pdfName.replace(/\.pdf$/i, "").replace(/[\\/]/g, "_");
   return `${baseName || "plan"}-annotated.pdf`;
@@ -190,7 +219,7 @@ export function planAnnotatedPdfMeasurements(
       const calibration = getMeasuringCalibration(page, measurement, settings.measureClouds);
       if (calibration || !measurementTypeRequiresScale(measurement.type)) {
         // An unmeasured cloud is markup: its label is its name.
-        const text =
+        const rawText =
           measurement.type === "cloud" && !calibration
             ? measurement.name
             : formatMeasurement(
@@ -200,6 +229,7 @@ export function planAnnotatedPdfMeasurements(
                 settings.measurementDecimalPlaces,
                 settings.areaDisplay,
               );
+        const text = winAnsiLabelText(rawText);
         const dimensions = measureLabel(text);
         const placement =
           placeLabelInsideMeasurementGeometry(
