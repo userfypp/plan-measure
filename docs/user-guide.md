@@ -19,17 +19,39 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 ## Measurements and totals
 
-- **Line**: length between two points. **Polyline**: length along a path. **Polygon**: perimeter and area.
-- **Rectangle**, **Ellipse** and **Cloud** are closed quick shapes with perimeter and area. Rectangle and Ellipse take two clicks: the first corner, then the opposite corner (the ellipse is inscribed in that box). Hold `Shift` while placing the second corner for a square or a circle; the toolbar shows a `Shift` hint (highlighted while the key is down), the preview shows the exact result and a zero-size box is not created. The Rectangle and Ellipse stay axis-aligned to the page; dragging a corner in Select moves its two neighbouring corners so the shape remains a rectangle or ellipse. Cloud is drawn like a polygon (click each vertex, then close on the first vertex or press `Enter`) and renders as a revision cloud with scallops bulging outwards. Extremely large cloud outlines are simplified to their control polygon to keep rendering responsive. A cloud's area and perimeter are those of its control polygon, not of the scalloped outline. Clouds are drawn in review red with a thicker stroke and a faint fill, also in the annotated PDF; select one and open **Details** to pick another color from a short palette (the color is saved with the project and included in the JSON export). A square or circle is exact in page space; with an X/Y calibration it measures as a rectangle or ellipse in real units.
-- **Count** creates a count without a scale: click once per item, then choose **Done**. **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or Details. Each count shares a name, note, and classifications; move its markers with Select. In **Details → Items**, use **Move to…** to transfer an item to another count on the same page, or the trash button to remove it. Lists over 50 items use **Previous items** and **Next items**. Moving the last item removes the empty source count; Undo restores the transfer and its source count.
-- **Snap** aligns points with visible measurement geometry; **Ortho** constrains segments horizontally or vertically.
-- **Select** lets you move measurements or drag individual vertices. **Details** contains notes and classification assignments; rename a selected measurement from the context bar.
-- Shift/Ctrl/Cmd-click adds or removes measurements from the selection. Bulk classification, visibility, and deletion support selections across pages. Moving, duplicating, and copying a group require a single-page selection; pasting onto another page uses its active scale for paths and requires all geometry to fit. Counts do not require a scale.
-- **Undo/Redo** covers measurement, scale, classification, and page-label edits. History resets on project opening or reload; navigation and display settings are excluded.
+### Drawing tools
 
-In **Classifications**, create dimensions such as Trade with values such as Electrical. Archive entries to keep assignments; delete them to remove assignments throughout the project. **Templates** saves a reusable catalog locally. Applying a template adds missing entries and reuses matching names without changing measurement assignments; restore matching archived entries first.
+| Tool          | Measures            | How to draw                                                         |
+| ------------- | ------------------- | ------------------------------------------------------------------- |
+| **Line**      | Length              | Click both ends.                                                    |
+| **Polyline**  | Length along a path | Click each point, then press `Enter`.                               |
+| **Polygon**   | Perimeter and area  | Click each vertex, then close on the first vertex or press `Enter`. |
+| **Rectangle** | Perimeter and area  | Click one corner, then the opposite corner.                         |
+| **Ellipse**   | Perimeter and area  | Same two clicks; the ellipse is inscribed in that box.              |
+| **Cloud**     | Perimeter and area  | Like a Polygon; it is drawn as a revision cloud.                    |
+| **Count**     | Number of items     | Click once per item, then choose **Done**. No scale needed.         |
 
-**Measurements** lists the current page, with a search box, a filter menu, and a grouping menu (icon buttons; hover for their names) to nest entries by classification dimensions; the eye button on each row or group hides or shows it. **Takeoff** totals all pages, including hidden measurements, with breakdowns by page, type, or classification. Lines and Polylines contribute length; Polygons contribute perimeter and area; Count markers contribute individual items. Uncalculable measurements are excluded with a notice. Open a measurement count to inspect its sources, then select a measurement to open its page and details. Use **Inspect** on an exclusion notice to see the affected measurements and reasons. Source lists over 50 measurements use **Previous** and **Next**.
+**Rectangle and Ellipse.** Hold `Shift` while placing the second corner for a square or a circle. The toolbar highlights the `Shift` hint while the key is down, the preview shows the exact result, and a box with no size is not created. Both stay aligned to the page: in Select, dragging a corner also moves its two neighbours so the shape stays a rectangle or ellipse. A square or circle is exact on the page; with an X/Y scale it measures as a rectangle or ellipse in real units.
+
+**Cloud.** It is drawn in review red with a thicker stroke and a faint fill, in the app and in the annotated PDF. To pick another color, select it, open **Details** and choose from the short palette; the color is saved with the project and included in the JSON export. Its area and perimeter are those of its control polygon, not of the scalloped outline, and very large outlines are simplified to that polygon to keep drawing responsive.
+
+**Count.** **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or in **Details**. A count shares one name, note and set of classifications, and you move its markers with Select. In **Details → Items**, **Move to…** transfers an item to another count on the same page and the trash button removes it. Lists over 50 items use **Previous items** and **Next items**. Moving the last item removes the empty source count, and Undo brings both back.
+
+### Editing and selecting
+
+- **Snap** aligns points with visible measurement geometry. **Ortho** keeps segments horizontal or vertical.
+- **Select** moves measurements or drags single vertices. **Details** holds the notes and classification assignments. Rename a selected measurement from the context bar.
+- `Shift`/`Ctrl`/`Cmd`-click adds or removes measurements from the selection. Bulk classification, visibility and deletion work across pages.
+- Moving, duplicating and copying a group need a selection on a single page. Pasting onto another page uses that page's active scale for paths, and all the geometry must fit.
+- **Undo/Redo** covers measurements, scales, classifications and page labels. History resets when you open a project or reload; navigation and display settings are not part of it.
+
+### Classifications, lists and Takeoff
+
+In **Classifications**, create dimensions such as Trade with values such as Electrical. Archive entries to keep their assignments; delete them to remove the assignments from the whole project. **Templates** saves a reusable catalog on this device. Applying a template adds the missing entries and reuses matching names without changing any assignment; restore matching archived entries first.
+
+**Measurements** lists the current page, with a search box, a filter menu and a grouping menu (icon buttons; hover for their names) that nests entries by classification. The eye button on a row or group hides or shows it.
+
+**Takeoff** totals all pages, hidden measurements included, with breakdowns by page, type or classification. Lines and Polylines add length, Polygons add perimeter and area, and Count markers add items. Measurements that cannot be calculated are left out with a notice; choose **Inspect** on it to see which ones and why. Open a measurement count to see its sources, then select one to jump to its page and details. Source lists over 50 measurements use **Previous** and **Next**.
 
 ## View and settings
 
