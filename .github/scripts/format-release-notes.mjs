@@ -13,10 +13,22 @@ const SECTIONS = [
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 export const isVersion = (value) => VERSION.test(value);
 
+const ISSUE_LINK = String.raw`\[#([1-9]\d*)\]\((https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/([1-9]\d*))\)`;
+const CLOSES_FOOTER = new RegExp(String.raw`,\s*closes\s+((?:${ISSUE_LINK}[,\s]*)+)$`, "i");
+
 function splitMetadata(value) {
   let text = value.trim();
   const references = [];
   let commit;
+  // Release Please puts a ", closes [#n](url) [#m](url)" footer after the commit link; read it first.
+  const closes = text.match(CLOSES_FOOTER);
+  if (closes) {
+    for (const [, label, url, repository, id] of closes[1].matchAll(new RegExp(ISSUE_LINK, "g"))) {
+      if (label !== id) continue;
+      references.push({ label: `#${id}`, url, repository, number: Number(id) });
+    }
+    text = text.slice(0, closes.index).trimEnd();
+  }
   for (;;) {
     const match = text.match(
       /\s*\(\[([^\]]+)\]\((https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/(issues|pull|commit)\/([\da-f]+))\)\)\s*$/i,
@@ -162,13 +174,16 @@ export function sentence(value, section) {
     enable: "Enabled",
   };
   text = text.replace(
-    /^(add|fix|improve|revert|export|synchronize|prevent|preserve|support|allow|update|remove|correct|enable)(?=\s)/i,
+    /^(add|fix|improve|revert|export|synchronize|prevent|preserve|support|allow|update|remove|correct|enable)(?=\s(?!(?:for|of)\b))/i,
     (word) => verbs[word.toLowerCase()],
   );
   // Preserve code identifiers and their case when they lead a sentence.
   if (/^[*_]*`/.test(text)) text = `${section === "Added" ? "Added" : "Updated"}: ${text}`;
   else
-    text = text.replace(/^(\P{L}*)(\p{L})/u, (_, prefix, letter) => prefix + letter.toUpperCase());
+    // Names such as iOS, pdf.js or 2x keep their own spelling.
+    text = text.replace(/^(\P{L}*)(\p{L})([\p{L}\p{N}._-]*)/u, (all, prefix, letter, rest) =>
+      /\d/.test(prefix) || /[\p{Lu}.]/u.test(rest) ? all : prefix + letter.toUpperCase() + rest,
+    );
   if (!/[.!?](?:["'”’*_]*)$/.test(text)) text += ".";
   return text;
 }

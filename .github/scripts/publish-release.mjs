@@ -7,6 +7,10 @@ import { isVersion, parseChangelog, renderNotes } from "./format-release-notes.m
 const RELEASE_BRANCH = "release-please--branches--main--components--plan-measure";
 const PENDING = "autorelease: pending";
 const TAGGED = "autorelease: tagged";
+const RELEASE_SUBJECT = /^chore(?:\(main\))?: release(?: plan-measure)? \d+\.\d+\.\d+ \(#\d+\)$/;
+
+// A skipped result is normal for ordinary commits, but never for a release commit.
+export const looksLikeReleaseCommit = (subject) => RELEASE_SUBJECT.test(subject);
 
 export async function releasePullRequest(api, repository, sha) {
   const candidates = [];
@@ -127,7 +131,9 @@ async function reconcileLabels(api, root, prNumber) {
   const state = stateOf(labels);
   // Add first, then remove: an interrupted repair always has a recoverable state.
   if (!state.tagged) await api(path, { method: "POST", body: { labels: [TAGGED] } });
-  if (state.pending) await api(`${path}/${encodeURIComponent(PENDING)}`, { method: "DELETE" });
+  // A 404 means the label is already gone; the final read below still enforces the end state.
+  if (state.pending)
+    await api(`${path}/${encodeURIComponent(PENDING)}`, { method: "DELETE", optional: true });
   const finalLabels = [];
   for await (const label of pages(api, path)) finalLabels.push(label);
   const finalState = stateOf(finalLabels);
@@ -248,7 +254,13 @@ if (isMain(import.meta.url)) {
         changelog: files[3],
       };
     };
-    console.log(JSON.stringify(await publishRelease(githubApi(), context, readMetadata)));
+    const result = await publishRelease(githubApi(), context, readMetadata);
+    const subject = execFileSync("git", ["log", "-1", "--format=%s"], { encoding: "utf8" }).trim();
+    if (result.status === "skipped" && looksLikeReleaseCommit(subject))
+      throw new Error(
+        `${result.reason} The commit "${subject}" looks like a release, so nothing was published; see "Release errors" in docs/RELEASING.md.`,
+      );
+    console.log(JSON.stringify(result));
   } catch (error) {
     console.error(`publish-release: ${error.message}`);
     process.exitCode = 1;

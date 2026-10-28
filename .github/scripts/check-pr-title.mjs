@@ -1,14 +1,26 @@
 import { readFile } from "node:fs/promises";
 import { isMain } from "./github-api.mjs";
 
+const TYPES = [
+  "feat",
+  "fix",
+  "perf",
+  "revert",
+  "docs",
+  "refactor",
+  "chore",
+  "ci",
+  "test",
+  "build",
+  "style",
+];
+
 export function checkTitle(title) {
   if (
-    !/^(feat|fix|perf|revert|docs|refactor|chore|ci|test|build|style)(\([^()\r\n]+\))?!?: \S[^\r\n]*$/.test(
-      title,
-    )
+    !new RegExp(`^(${TYPES.join("|")})(\\([^()\\s][^()\\r\\n]*\\))?!?: \\S[^\\r\\n]*$`).test(title)
   ) {
     throw new Error(
-      "Use a Conventional Commit PR title, e.g. feat: export measurements as annotated PDF.",
+      `Use a Conventional Commit PR title, e.g. "feat: export measurements as annotated PDF". Types: ${TYPES.join(", ")}. GitHub's default Revert title is not accepted; write "revert: ..." instead.`,
     );
   }
 }

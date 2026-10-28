@@ -37,7 +37,7 @@ jobs:
 
       - name: Install dependencies
         if: ${{ steps.plan.outputs.should-deploy == 'true' }}
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build
         if: ${{ steps.plan.outputs.should-deploy == 'true' }}

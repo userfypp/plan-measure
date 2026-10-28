@@ -84,6 +84,9 @@ updates:
 
     open-pull-requests-limit: 2
 
+    cooldown:
+      default-days: 7
+
     groups:
       github-actions-non-major:
         applies-to: version-updates
@@ -104,5 +107,36 @@ updates:
     open-pull-requests-limit: 1
 
     cooldown:
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+  # Manual-merge entries: no group starts with "automerge", so the auto-merge workflow ignores them.
+  - package-ecosystem: npm
+    directory: /perf
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:45"
+      timezone: Europe/Madrid
+
+    open-pull-requests-limit: 1
+
+    cooldown:
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+  - package-ecosystem: npm
+    directory: /.github/release-please-cli
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Madrid
+
+    open-pull-requests-limit: 1
+
+    cooldown:
+      semver-major-days: 14
       semver-minor-days: 7
       semver-patch-days: 3

@@ -91,4 +91,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --auto \
             --squash \
+            --body "" \
             --match-head-commit "$HEAD_SHA"

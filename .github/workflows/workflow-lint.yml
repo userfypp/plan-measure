@@ -6,12 +6,14 @@ on:
       - ".github/workflows/**"
       - ".github/zizmor.yml"
       - ".github/workflow-lint/**"
+      - ".github/release-please-cli/**"
   push:
     branches: [main]
     paths:
       - ".github/workflows/**"
       - ".github/zizmor.yml"
       - ".github/workflow-lint/**"
+      - ".github/release-please-cli/**"
 
 permissions:
   contents: read
@@ -56,3 +58,32 @@ jobs:
       # Offline keeps the result deterministic; the config lists the one accepted finding.
       - name: Run zizmor
         run: zizmor --offline --min-severity medium .github/workflows
+
+  # The Release Please CLI is installed from its lockfile only when a version is chosen by hand,
+  # so a broken lockfile would otherwise surface during a release.
+  release-cli:
+    name: release-please-cli
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install the pinned Release Please CLI
+        run: npm ci --ignore-scripts --prefix .github/release-please-cli
+
+      - name: Check the installed version matches the pin
+        run: |
+          set -euo pipefail
+          pinned="$(node -p "require('./.github/release-please-cli/package.json').dependencies['release-please']")"
+          installed="$(.github/release-please-cli/node_modules/.bin/release-please --version)"
+          [ "$pinned" = "$installed" ] || { echo "Pinned $pinned but installed $installed." >&2; exit 1; }

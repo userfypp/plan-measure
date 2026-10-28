@@ -7,6 +7,27 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores(["dist", "coverage"]),
   {
+    // Scripts that run in CI with repository tokens get the same baseline checks as the app.
+    files: [".github/scripts/**/*.mjs", "scripts/**/*.{js,mjs}"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: "module",
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        Buffer: "readonly",
+        URL: "readonly",
+        fetch: "readonly",
+        Response: "readonly",
+        AbortSignal: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        structuredClone: "readonly",
+      },
+    },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {

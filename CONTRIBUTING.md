@@ -22,7 +22,7 @@ npm run build
 git diff --check
 ```
 
-Use `npm run format` only when formatting is part of the change.
+Use `npm run format` only when formatting is part of the change. Also run `node --test .github/scripts/*.test-node.mjs` when changing `.github/scripts`, and `npm run build && npm run perf:size` when changing dependencies, startup or the viewer: the required `size` check fails when a size budget is exceeded.
 
 ## Pull requests
 

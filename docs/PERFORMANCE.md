@@ -75,7 +75,7 @@ The numbers live in `perf/size-budget.json` and work in three parts:
 3. **Ratchet**: when a build is more than six allowances
    (`ceilingHeadroom.maximum`) below a ceiling, `perf:size` fails until the
    ceiling is lowered to the new size plus four allowances, in the same pull
-   request. Savings of two allowances or more are kept; smaller ones need no edit.
+   request. Savings of more than two allowances are kept; smaller ones need no edit.
 
 Gzip moves by a few bytes when other chunks change their hashed names; the
 per-pull-request comparison and the headroom absorb that noise, so no check turns
@@ -214,6 +214,19 @@ PERF_SAMPLES=1 PERF_COUNT=1000 PERF_CPU=1 PERF_SKIP_PDF=1 npm run perf:e2e
 `PERF_*` filters produce a partial run and are announced as such. They cannot
 create a baseline. `PERF_BROWSER_CHANNEL=chrome` allows investigating an installed
 Chromium; recording a different browser requires declaring that difference.
+
+A full e2e run ends with the page browser benchmark (a generated 120-page PDF with
+page labels), compared with `perf/page-browser-baseline.json`. `PERF_SKIP_PDF=1`
+skips it. To run only that benchmark:
+
+```sh
+npm run perf:e2e -- --page-browser-only
+```
+
+`--record-page-browser-baseline` writes its baseline. It needs five samples at both
+CPU rates and refuses to overwrite an existing file, so a regression cannot be
+hidden by re-recording; to replace it deliberately, delete the file in the same
+pull request and explain why.
 
 ## Canvas rendering rules
 

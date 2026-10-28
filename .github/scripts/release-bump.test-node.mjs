@@ -120,6 +120,14 @@ test("saving a bump creates its label once and replaces any other saved bump", a
   assert.equal(created.length, 1);
 });
 
+test("saving a choice leaves other release labels alone", async () => {
+  const { api, state } = fixture({
+    labels: ["autorelease: pending", bumpLabel("minor"), "release: hold"],
+  });
+  await saveChoice(api, repository, "auto");
+  assert.deepEqual(state.labels, ["autorelease: pending", "release: hold"]);
+});
+
 test("auto clears the saved bump and keep changes nothing", async () => {
   const cleared = fixture({ labels: ["autorelease: pending", bumpLabel("major")] });
   assert.deepEqual(await saveChoice(cleared.api, repository, "auto"), { saved: true, pr: 7 });

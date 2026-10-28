@@ -19,7 +19,11 @@ const { entries } = releaseMetadata(
   { title: `chore(main): release ${manifest["."]}` },
 );
 const sources = args.includes("--with-pull-requests")
-  ? await collectSources(githubApi(), "userfypp/plan-measure", entries)
+  ? await collectSources(
+      githubApi(),
+      process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure",
+      entries,
+    )
   : new Map();
 const notes = renderNotes(entries, sources);
 console.log(notes);

@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { publishRelease, releaseMetadata, collectSources } from "./publish-release.mjs";
+import {
+  publishRelease,
+  releaseMetadata,
+  collectSources,
+  looksLikeReleaseCommit,
+} from "./publish-release.mjs";
 import { githubApi, pages, workflowContext } from "./github-api.mjs";
 import { planDeployment } from "./plan-pages-deployment.mjs";
 import { recoverRelease, recoveryContext } from "./recover-release.mjs";
@@ -546,8 +551,8 @@ test("publication grants PR-label write access in both caller and reusable workf
   );
   const caller = ci.split("  publish-release:\n")[1]?.split("  release-please:\n")[0];
   assert.ok(caller, "CI must call the publication workflow");
-  assert.match(caller, /permissions:\n(?:      [^\n]+\n)*      pull-requests: write\n/);
-  assert.match(publication, /permissions:\n(?:  [^\n]+\n)*  pull-requests: write\n/);
+  assert.match(caller, /permissions:\n(?: {6}[^\n]+\n)* {6}pull-requests: write\n/);
+  assert.match(publication, /permissions:\n(?: {2}[^\n]+\n)* {2}pull-requests: write\n/);
   assert.match(publication, /GH_TOKEN: \$\{\{ github\.token \}\}/);
 });
 
@@ -734,4 +739,120 @@ test("recovery workflow uses current code, original run input, and serialized pu
   assert.match(workflow, /RECOVERY_RUN_ID: \$\{\{ inputs.run_id \}\}/);
   assert.match(workflow, /needs: recover/);
   assert.match(workflow, /uses: .\/.github\/workflows\/release-please.yml/);
+});
+
+const stable = (patch = {}) => ({
+  id: 99,
+  tag_name: "v3.0.0",
+  target_commitish: sha,
+  draft: false,
+  prerelease: false,
+  name: "Plan Measure v3.0.0",
+  body: "notes",
+  ...patch,
+});
+
+test("ambiguous or inconsistent release state stops before any write", async () => {
+  for (const [expected, setup] of [
+    [
+      /Multiple releases/,
+      (state) => {
+        state.tagSha = sha;
+        state.release = stable();
+        state.pages = [stable(), stable({ id: 100 })];
+      },
+    ],
+    [
+      /published release exists without its tag/,
+      (state) => {
+        state.release = stable();
+      },
+    ],
+    [
+      /does not match the expected stable release/,
+      (state) => {
+        state.tagSha = sha;
+        state.release = stable({ name: "Renamed" });
+      },
+    ],
+    [
+      /does not match the expected stable release/,
+      (state) => {
+        state.tagSha = sha;
+        state.release = stable({ prerelease: true });
+      },
+    ],
+    [
+      /tagged but its published release is missing/,
+      (state) => {
+        state.labels = [{ name: tagged }];
+      },
+    ],
+    [
+      /does not belong to this exact stable release commit/,
+      (state) => {
+        state.release = stable({ draft: true, prerelease: true });
+      },
+    ],
+  ]) {
+    const { run, state, api } = fixture();
+    setup(state);
+    const original = api;
+    if (state.pages) {
+      // The fixture lists one release; widen it for the duplicate-tag case.
+      const list = `${root}/releases?per_page=100&page=1`;
+      const wrapped = async (path, options) =>
+        path === list ? clone(state.pages) : original(path, options);
+      await assert.rejects(
+        () => publishRelease(wrapped, context, async () => clone(metadata)),
+        expected,
+      );
+    } else await assert.rejects(run, expected);
+    assert.equal(state.mutations, 0, String(expected));
+  }
+});
+
+test("the pending label is removed tolerantly and the end state is still verified", async () => {
+  const { state, run } = fixture();
+  await run();
+  const removal = state.calls.find(({ method }) => method === "DELETE");
+  assert.equal(removal.optional, true);
+  assertPublished(state);
+});
+
+test("only a squash release commit is expected to publish", () => {
+  for (const subject of [
+    "chore(main): release 2.11.2 (#347)",
+    "chore: release 3.0.0 (#1)",
+    "chore(main): release plan-measure 3.0.0 (#12)",
+  ])
+    assert.ok(looksLikeReleaseCommit(subject), subject);
+  for (const subject of [
+    "fix: release notes keep their links (#5)",
+    "chore(deps): bump release-please to 17.6.0 (#9)",
+    "chore(main): release 3.0 (#1)",
+    "chore(main): release 3.0.0",
+    "docs: explain the release 3.0.0 process (#8)",
+  ])
+    assert.ok(!looksLikeReleaseCommit(subject), subject);
+});
+
+test("the release branch matches the Release Please component and CI orders the stages", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../../release-please-config.json", import.meta.url), "utf8"),
+  );
+  const component = config.packages["."].component;
+  const script = await readFile(new URL("./publish-release.mjs", import.meta.url), "utf8");
+  assert.ok(
+    script.includes(`release-please--branches--main--components--${component}"`),
+    "RELEASE_BRANCH must follow the configured component",
+  );
+  const ci = await readFile(new URL("../workflows/ci.yml", import.meta.url), "utf8");
+  assert.match(ci, /\n {2}pages:\n {4}needs: verify\n/);
+  assert.match(ci, /publish-release:\n(?:.*\n)*? {4}needs: \[verify, pages\]/);
+  const publication = await readFile(
+    new URL("../workflows/publish-release.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(publication, /group: release-please-main\n\s+cancel-in-progress: false/);
 });

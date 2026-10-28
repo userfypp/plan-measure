@@ -119,6 +119,11 @@ test("capitalization, formatting and punctuation preserve meaning", () => {
     ["improve rendering?", "Improved rendering?"],
     ["éxport works", "Éxport works."],
     ["Prevent overflow.", "Prevented overflow."],
+    ["support for rotated pages", "Support for rotated pages."],
+    ["update the dialog", "Updated the dialog."],
+    ["iOS Safari support", "iOS Safari support."],
+    ["pdf.js upgrade", "pdf.js upgrade."],
+    ["2x faster rendering", "2x faster rendering."],
   ];
   for (const [input, expected] of cases) assert.equal(sentence(input, "Fixed"), expected);
 });
@@ -219,6 +224,15 @@ test("all existing changelog versions render without invented validation claims"
   }
 });
 
+test("every released changelog entry parses into plain text with no leaked links", async () => {
+  const changelog = await readFile(new URL("../../CHANGELOG.md", import.meta.url), "utf8");
+  const versions = [...changelog.matchAll(/^## \[?(\d+\.\d+\.\d+)\]?/gm)].map(([, v]) => v);
+  assert.ok(versions.length > 5);
+  for (const version of versions)
+    for (const { text } of parseChangelog(changelog, version))
+      assert.doesNotMatch(text, /\]\(https?:|, closes/, `${version}: ${text}`);
+});
+
 test("Conventional Commit title validation accepts release and dependency PRs", () => {
   for (const title of [
     "feat: export PDF",
@@ -230,8 +244,17 @@ test("Conventional Commit title validation accepts release and dependency PRs", 
     "docs(readme): explain calibration",
   ])
     checkTitle(title);
-  for (const title of ["Fix PDF", "feat: ", "unknown: change", "fix: one\nfeat: two", "fix(): bad"])
+  for (const title of [
+    "Fix PDF",
+    "feat: ",
+    "unknown: change",
+    "fix: one\nfeat: two",
+    "fix(): bad",
+    "fix( ): bad",
+    'Revert "feat: export PDF"',
+  ])
     assert.throws(() => checkTitle(title));
+  assert.throws(() => checkTitle('Revert "feat: x"'), /revert: \.\.\./);
 });
 
 test("wrapped changelog entries retain references and multi-change commits keep specific descriptions", () => {
@@ -257,4 +280,48 @@ test("absent PR descriptions fall back without losing links or mutating parser o
   assert.match(notes, /Added export/);
   assert.match(notes, /\/pull\/156/);
   assert.deepEqual(entries, before);
+});
+
+test("a Release Please closes footer keeps the commit, PR and closed issues", () => {
+  const url = (kind, id) => `https://github.com/${repository}/${kind}/${id}`;
+  const line = (footer) =>
+    `trim the existing undo history when its limit is lowered ([#346](${url("issues", 346)})) ([${sha.slice(0, 7)}](${url("commit", sha)})), closes ${footer}`;
+  const [single] = parseChangelog(entry(line(`[#299](${url("issues", 299)})`), "Fixed"), "3.0.0");
+  assert.equal(single.text, "trim the existing undo history when its limit is lowered");
+  assert.equal(single.commit.sha, sha);
+  assert.deepEqual(
+    single.references.map(({ label }) => label),
+    ["#346", "#299"],
+  );
+  const [several] = parseChangelog(
+    entry(line(`[#299](${url("issues", 299)}), [#300](${url("issues", 300)})`), "Fixed"),
+    "3.0.0",
+  );
+  assert.deepEqual(
+    several.references.map(({ label }) => label),
+    ["#346", "#299", "#300"],
+  );
+  const sources = new Map([
+    [
+      sha,
+      {
+        repository,
+        number: 346,
+        body: "## Summary\n\n- Trim the undo history when the limit drops.",
+      },
+    ],
+  ]);
+  assert.equal(
+    renderNotes([single], sources),
+    `## Improvements and fixes\n\n- Trim the undo history when the limit drops. ([#346](${url("pull", 346)}), [#299](${url("issues", 299)}))\n`,
+  );
+});
+
+test("text that only resembles a closes footer stays in the entry", () => {
+  const [kept] = parseChangelog(
+    entry("handle the word closes [#5](https://example.com/5)"),
+    "3.0.0",
+  );
+  assert.equal(kept.text, "handle the word closes [#5](https://example.com/5)");
+  assert.deepEqual(kept.references, []);
 });

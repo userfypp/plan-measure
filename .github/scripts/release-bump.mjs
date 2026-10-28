@@ -103,8 +103,9 @@ export async function saveChoice(api, repository, choice) {
   const path = `/repos/${repository}/issues/${pr.number}/labels`;
   const wanted = BUMPS.includes(choice) ? bumpLabel(choice) : null;
   if (wanted) await ensureLabel(api, repository, choice);
+  const bumpLabels = new Set(BUMPS.map(bumpLabel));
   for (const label of pr.labels) {
-    if (label.name.startsWith(LABEL_PREFIX) && label.name !== wanted) {
+    if (bumpLabels.has(label.name) && label.name !== wanted) {
       await api(`${path}/${encodeURIComponent(label.name)}`, { method: "DELETE", optional: true });
     }
   }
