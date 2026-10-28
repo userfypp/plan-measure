@@ -160,6 +160,10 @@ describe("session undo and redo history", () => {
     ["missing page geometry", (state) => state.updateMeasurement({ pageNumber: 2, id: "a", points: [{ x: 10, y: 10 }, { x: 20, y: 10 }] })],
     ["missing page name", (state) => state.renameMeasurement(2, "a", "New")],
     ["missing page note", (state) => state.setMeasurementNote(2, "a", "New")],
+    ["visibility it already has", (state) => state.setMeasurementVisibility(1, "a", true)],
+    ["missing measurement visibility", (state) => state.setMeasurementVisibility(1, "missing", false)],
+    ["missing measurement deletion", (state) => state.deleteMeasurement(1, "missing")],
+    ["missing page deletion", (state) => state.deleteMeasurement(2, "a")],
   ];
 
   it.each(unchangedOperations)("preserves Undo and Redo after %s", (_, operation) => {

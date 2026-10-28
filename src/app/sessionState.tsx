@@ -719,9 +719,12 @@ export function sessionReducer(
     case "SET_MEASUREMENT_VISIBILITY": {
       if (!state.session) return state;
       const page = state.session.pages[action.pageNumber];
-      if (!page || !page.measurements.some((measurement) => measurement.id === action.id)) {
+      const target = page?.measurements.find((measurement) => measurement.id === action.id);
+      if (!page || !target) {
         return { ...state, error: "The selected measurement is no longer available." };
       }
+      // Keep the session reference so a repeated command adds no Undo step.
+      if (target.visible === action.visible) return { ...state, error: null };
       const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
         ...currentPage,
         measurements: currentPage.measurements.map((measurement) =>
@@ -821,6 +824,9 @@ export function sessionReducer(
     }
     case "DELETE_MEASUREMENT": {
       if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      if (!page?.measurements.some((measurement) => measurement.id === action.id))
+        return { ...state, error: null };
       const session = updatePageState(state.session, action.pageNumber, (page) => ({
         ...page,
         measurements: page.measurements.filter((measurement) => measurement.id !== action.id),
