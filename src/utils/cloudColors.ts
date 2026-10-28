@@ -26,9 +26,9 @@ export function resolveCloudColor(color: string | undefined): CloudColor {
   return isCloudColor(color) ? color : DEFAULT_CLOUD_COLOR;
 }
 
-/** Appends an alpha channel (0-1) to a `#rrggbb` color. */
+/** Appends a clamped alpha channel (0-1); NaN falls back to transparent. */
 export function withHexAlpha(color: string, alpha: number): string {
-  const byte = Math.round(Math.min(1, Math.max(0, alpha)) * 255);
+  const byte = Number.isNaN(alpha) ? 0 : Math.round(Math.min(1, Math.max(0, alpha)) * 255);
   return `${color}${byte.toString(16).padStart(2, "0")}`;
 }
 
