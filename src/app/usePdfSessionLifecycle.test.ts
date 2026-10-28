@@ -2192,3 +2192,99 @@ it("keeps external writes protected when a page-exit save supersedes this tab's 
   expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("conflict");
   expect(lifecycle!.canRetryAutosave).toBe(false);
 });
+
+describe("discarding a saved session that cannot be used", () => {
+  async function corruptActiveSession() {
+    const db = await openDB("plan-measure", 1);
+    const record = await db.get("sessions", "active-v2");
+    await db.put("sessions", { ...record, serialized: "{ not a session" });
+    db.close();
+  }
+
+  async function renderWithUnreadableSession() {
+    await seedRecoverySession();
+    await corruptActiveSession();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderLifecycleHarness();
+    expect(lifecycle!.recoveryIssue).not.toBeNull();
+    expect(lifecycle!.recovery).toBeNull();
+  }
+
+  it("removes the unreadable session, its project copy and the recovery prompt", async () => {
+    await renderWithUnreadableSession();
+    act(() => lifecycle!.showDiscardRecoveryConfirmation());
+    expect(lifecycle!.confirmDiscardRecovery).toBe(true);
+
+    await act(async () => {
+      await lifecycle!.discardRecovery();
+    });
+
+    expect(lifecycle!.recoveryIssue).toBeNull();
+    expect(lifecycle!.confirmDiscardRecovery).toBe(false);
+    expect(lifecycle!.activeProjectId).toBeNull();
+    expect(lifecycleErrors).toEqual([]);
+    expect(harnessSession).toBeNull();
+    expect(await loadSavedSession()).toBeNull();
+    expect(await listSavedProjects()).toEqual([]);
+  });
+
+  it("keeps the saved data and reports an error when the discard fails", async () => {
+    await renderWithUnreadableSession();
+    const failure = new DOMException("Disk error", "UnknownError");
+    vi.spyOn(persistenceService, "discardSavedSession").mockRejectedValueOnce(failure);
+
+    await act(async () => {
+      await lifecycle!.discardRecovery();
+    });
+
+    expect(console.error).toHaveBeenCalledWith("Could not discard the saved session.", failure);
+    expect(lifecycleErrors).toContain("The saved session could not be discarded.");
+    expect(lifecycle!.recoveryIssue).not.toBeNull();
+    await expect(loadSavedSession()).rejects.toThrow();
+
+    // A second attempt can still succeed.
+    await act(async () => {
+      await lifecycle!.discardRecovery();
+    });
+    expect(lifecycle!.recoveryIssue).toBeNull();
+    expect(await loadSavedSession()).toBeNull();
+  });
+
+  it("does not discard a session that another tab replaced after this tab read it", async () => {
+    await renderWithUnreadableSession();
+    const stale = await loadSavedSession().catch((error: unknown) => error);
+    expect(stale).toBeInstanceOf(persistenceService.PersistenceLoadError);
+    const unreadableRevision = (stale as persistenceService.PersistenceLoadError).revision;
+    const otherTab = createEmptySession({ name: "other-tab.pdf", size: 3, lastModified: 5 }, 1);
+    await replaceSavedSession(
+      otherTab,
+      new Blob(["pdf"], { type: "application/pdf" }),
+      unreadableRevision,
+    );
+
+    await act(async () => {
+      await lifecycle!.discardRecovery();
+    });
+
+    expect(lifecycleErrors).toContain("The saved session could not be discarded.");
+    expect((await loadSavedSession())!.session.pdf.name).toBe("other-tab.pdf");
+  });
+
+  it("explains the failure instead of discarding when the saved session's revision is unknown", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(persistenceService, "loadSavedSession").mockRejectedValueOnce(
+      new DOMException("Storage unavailable", "SecurityError"),
+    );
+    const discard = vi.spyOn(persistenceService, "discardSavedSession");
+    await renderLifecycleHarness();
+    expect(lifecycle!.recoveryIssue).not.toBeNull();
+
+    await act(async () => {
+      await lifecycle!.discardRecovery();
+    });
+
+    expect(discard).not.toHaveBeenCalled();
+    expect(lifecycleErrors).toContain("The saved session could not be discarded.");
+    expect(lifecycle!.recoveryIssue).not.toBeNull();
+  });
+});
