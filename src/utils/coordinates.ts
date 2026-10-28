@@ -85,6 +85,8 @@ export function clampPointToPage(
 }
 
 export function clampViewerZoom(zoom: number): number {
+  // NaN would otherwise survive Math.min/Math.max and leave the view without a usable transform.
+  if (Number.isNaN(zoom)) return 1;
   return Math.min(getAppPreferences().maxZoom, Math.max(VIEWER_MIN_ZOOM, zoom));
 }
 
