@@ -1,0 +1,5 @@
+rules:
+  dangerous-triggers:
+    ignore:
+      # Runs after CI, reads only metadata through the API and never checks out or runs pull request code.
+      - dependabot-automerge.yml

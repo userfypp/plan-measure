@@ -67,15 +67,15 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             perf/package-lock.json
-      - name: Aviso sobre variabilidad
-        run: echo '::warning::Los runners compartidos son ruidosos. Confirma cualquier fallo e2e en la misma máquina; nunca actualices la base automáticamente.'
+      - name: Warn about runner noise
+        run: echo '::warning::Shared runners are noisy. Confirm any e2e failure on the same machine, and never update the baseline automatically.'
       - run: npm ci
       - run: npm ci --prefix perf
       - run: ./perf/node_modules/.bin/playwright install --with-deps chromium
       - run: npm run build
-      - name: Benchmark en modo normal (cron y ejecución manual; sin actualizar base)
+      - name: Run the benchmark in normal mode (scheduled and manual runs; never updates the baseline)
         run: npm run perf:e2e
-      - name: Métricas para diagnóstico
+      - name: Print metrics for diagnosis
         if: always()
         run: |
           if [ -f perf/results/latest.json ]; then

@@ -1,0 +1,8 @@
+{
+  "name": "release-please-cli",
+  "private": true,
+  "description": "Pinned Release Please CLI used by .github/workflows/release-please.yml when a version is chosen by hand.",
+  "dependencies": {
+    "release-please": "17.6.0"
+  }
+}

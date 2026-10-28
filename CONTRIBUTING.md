@@ -28,6 +28,7 @@ Use `npm run format` only when formatting is part of the change.
 
 - Keep changes focused; exclude generated or unrelated edits.
 - Use a Conventional Commit title, such as `feat:`, `fix:`, or `docs:`; add `!` for a breaking change. The squash commit title drives releases.
+- The first pull request from a new contributor needs a maintainer to approve the checks before they run. This is a GitHub safety rule, not a judgement on your change.
 - Follow the PR template. Describe the change and its effect in the first **Summary** bullet; it supplies the release-note description.
 - Record validation and known limitations. Include screenshots when useful.
 - Link the relevant issue with `Closes #123` when fully resolved.

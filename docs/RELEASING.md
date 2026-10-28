@@ -51,7 +51,10 @@ Recovery uses current code and permissions. It never redeploys Pages or changes 
 ## Repository configuration
 
 - Allow only **Squash merging**. In **Settings → General → Pull Requests**, select **Pull request title and description** for the squash message (`PR_TITLE` / `PR_BODY`). Check the final title before merging.
-- Require `verify` and `dependency-review` on `main`, up-to-date branches, and the existing PR and CodeQL protections. Deployment and publication run on `main`, not PRs.
+- Protect `main` with a ruleset: squash merging only, linear history, up-to-date branches, resolved review threads, the `verify`, `dependency-review` and `size` checks, and CodeQL results. Add the repository admin role to its bypass list for pull requests only, as an emergency exit when a required check cannot run. Deployment and publication run on `main`, not PRs.
+- Protect release tags with a tag ruleset on `v*` that blocks deleting, moving and force-pushing, and leave creation open so the release workflows can tag.
+- Run CodeQL with the advanced setup in `.github/workflows/codeql.yml`. The default setup does not analyze pull requests from forks, which left every external pull request blocked by the code scanning rule.
+- In **Settings → Actions → General**, allow only GitHub-created actions plus the ones listed in the workflows, require actions to be pinned to a full commit SHA, keep the workflow token read-only by default, and require approval for first-time contributors' pull requests.
 - Set Pages to **GitHub Actions** and restrict the `github-pages` environment to `main`. Environment approval rules still apply.
 - Set `RELEASE_PLEASE_TOKEN` to a repository-scoped PAT or GitHub App token with **Contents**, **Pull requests**, and **Issues** read/write permissions. This lets bot PR updates trigger CI. Renew it before expiry; never commit it.
 
@@ -65,4 +68,4 @@ CI gates publication on validation and Pages deployment. The publisher checks ve
 
 Main pipelines queue without canceling pending releases. The Pages guard prevents older runs from replacing a newer deployment. Release Please and publication share a serialization group.
 
-The Release Please workflow's **version** input resolves the next version from the `main` manifest. A chosen bump runs the Release Please CLI (`release-please@17.6.0`, the version the action bundles) with `--release-as`, because the action ignores `release-as` in manifest mode. The choice is stored as a `release: patch|minor|major` label on the open release PR, and CI runs reuse it.
+The Release Please workflow's **version** input resolves the next version from the `main` manifest. A chosen bump runs the Release Please CLI with `--release-as`, because the action ignores `release-as` in manifest mode. The CLI is pinned in `.github/release-please-cli` (version `17.6.0`, the one the action bundles) and installed from its lockfile without lifecycle scripts, in a step that has no token. To change its version, edit that `package.json`, run `npm install --package-lock-only --ignore-scripts` in that folder, and keep it in step with the action. The choice is stored as a `release: patch|minor|major` label on the open release PR, and CI runs reuse it.

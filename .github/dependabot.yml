@@ -92,3 +92,17 @@ updates:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: pip
+    directory: /.github/workflow-lint
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:30"
+      timezone: Europe/Madrid
+
+    open-pull-requests-limit: 1
+
+    cooldown:
+      semver-minor-days: 7
+      semver-patch-days: 3

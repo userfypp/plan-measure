@@ -49,6 +49,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
+          package-manager-cache: false
 
       # CI runs pass no input, which keeps the version saved on the release PR.
       - name: Resolve the next version
@@ -69,13 +70,19 @@ jobs:
           skip-github-release: true
 
       # The action ignores release-as in manifest mode, so a chosen version uses the CLI it bundles.
+      # Installed from a lockfile without lifecycle scripts, in a step that has no token, so no
+      # dependency code runs next to RELEASE_PLEASE_TOKEN.
+      - name: Install the pinned Release Please CLI
+        if: ${{ steps.version.outputs.release_as != '' }}
+        run: npm ci --ignore-scripts --prefix .github/release-please-cli
+
       - name: Create or update draft Release PR with the chosen version
         if: ${{ steps.version.outputs.release_as != '' }}
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           RELEASE_AS: ${{ steps.version.outputs.release_as }}
         run: >-
-          npx --yes release-please@17.6.0 release-pr
+          .github/release-please-cli/node_modules/.bin/release-please release-pr
           --token "$RELEASE_TOKEN"
           --repo-url "$GITHUB_REPOSITORY"
           --target-branch main
