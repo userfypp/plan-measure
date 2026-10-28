@@ -10,33 +10,33 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-test('Los límites detectan principal, gzip, arranque y dependencias diferidas', () => {
+test('The limits catch main, gzip, startup and deferred dependencies', () => {
   const good = { ...sizeLimits, startupFiles: ['assets/index.js'] };
   checkSize(good);
   for (const metric of Object.keys(sizeLimits)) assert.throws(() => checkSize({ ...good, [metric]: good[metric] + 1 }));
   for (const file of ['pdfjs.js', 'pdf.worker.js', 'pdf-lib.js', 'pdf-ABCD.js', 'annotatedPdf-ABCD.js', 'es-ABCD.js', 'https://example.test/assets/es-BOjZJYv9.js', 'xlsx.js']) assert.throws(() => checkSize({ ...good, startupFiles: [file] }));
 });
-test('Cada techo tiene margen por PR y la holgura objetivo cabe bajo la máxima', () => {
+test('Each ceiling has a per-PR allowance and the target headroom fits under the maximum', () => {
   assert.deepEqual(Object.keys(sizeGrowthAllowance).sort(), Object.keys(sizeLimits).sort());
   for (const value of Object.values(sizeGrowthAllowance)) assert.ok(Number.isInteger(value) && value > 0);
   assert.ok(Number.isInteger(ceilingHeadroom.target) && ceilingHeadroom.target > 0);
   assert.ok(Number.isInteger(ceilingHeadroom.maximum) && ceilingHeadroom.maximum > ceilingHeadroom.target);
   for (const [metric, limit] of Object.entries(sizeLimits)) assert.ok(Number.isInteger(limit) && limit > 0, metric);
 });
-test('El trinquete exige bajar un techo que deja más holgura que la máxima', () => {
+test('The ratchet requires lowering a ceiling that leaves more headroom than the maximum', () => {
   const good = { ...sizeLimits, startupFiles: [] };
   for (const metric of Object.keys(sizeLimits)) {
     const lowest = sizeLimits[metric] - ceilingHeadroom.maximum * sizeGrowthAllowance[metric];
     checkSize({ ...good, [metric]: lowest });
     assert.throws(() => checkSize({ ...good, [metric]: lowest - 1 }),
-      new RegExp(`${metric}: .*bájalo a ${sizeCeiling(metric, lowest - 1)}$`));
+      new RegExp(`${metric}: .*lower it to ${sizeCeiling(metric, lowest - 1)}$`));
     assert.throws(() => checkSize({ ...good, [metric]: sizeLimits[metric] + 1 }),
-      new RegExp(`sube el techo a ${sizeCeiling(metric, sizeLimits[metric] + 1)} con la etiqueta "${SIZE_APPROVAL_LABEL}"`));
+      new RegExp(`raise the ceiling to ${sizeCeiling(metric, sizeLimits[metric] + 1)} with the "${SIZE_APPROVAL_LABEL}" label`));
   }
   assert.equal(sizeCeiling('mainGzipBytes', 1000), 1000 + ceilingHeadroom.target * sizeGrowthAllowance.mainGzipBytes);
-  assert.throws(() => checkSize(good, sizeLimits, { ...sizeGrowthAllowance, viewerBytes: 0 }), /margen por PR para viewerBytes/);
+  assert.throws(() => checkSize(good, sizeLimits, { ...sizeGrowthAllowance, viewerBytes: 0 }), /per-PR allowance for viewerBytes/);
 });
-test('La comparación con la base pide aprobación al crecer más que el margen o relajar el presupuesto', () => {
+test('The base comparison requires approval when growth exceeds the allowance or the budget is relaxed', () => {
   const budgets = { sizeLimits, sizeGrowthAllowance, ceilingHeadroom, forbiddenStartup };
   const base = { metrics: { ...sizeLimits }, budgets };
   const grown = metric => ({ metrics: { ...sizeLimits, [metric]: sizeLimits[metric] + sizeGrowthAllowance[metric] }, budgets });
@@ -44,7 +44,7 @@ test('La comparación con la base pide aprobación al crecer más que el margen 
     assert.deepEqual(compareSizeBudgets(base, grown(metric)).needsApproval, []);
     const over = grown(metric); over.metrics[metric] += 1;
     assert.deepEqual(compareSizeBudgets(base, over).needsApproval,
-      [`${metric} crece ${sizeGrowthAllowance[metric] + 1} B (margen por PR: ${sizeGrowthAllowance[metric]} B)`]);
+      [`${metric} grows ${sizeGrowthAllowance[metric] + 1} B (per-PR allowance: ${sizeGrowthAllowance[metric]} B)`]);
   }
   const shrunk = { metrics: Object.fromEntries(Object.entries(sizeLimits).map(([key, value]) => [key, value - 10_000])), budgets };
   const { rows, needsApproval } = compareSizeBudgets(base, shrunk);
@@ -52,48 +52,48 @@ test('La comparación con la base pide aprobación al crecer más que el margen 
   assert.deepEqual(rows.map(row => row.delta), Object.keys(sizeLimits).map(() => -10_000));
   const loosened = changes => compareSizeBudgets(base, { metrics: base.metrics, budgets: { ...budgets, ...changes } }).needsApproval;
   assert.deepEqual(loosened({ sizeLimits: { ...sizeLimits, mainBytes: sizeLimits.mainBytes + 1 } }),
-    [`sizeLimits.mainBytes sube de ${sizeLimits.mainBytes} a ${sizeLimits.mainBytes + 1}`]);
+    [`sizeLimits.mainBytes rises from ${sizeLimits.mainBytes} to ${sizeLimits.mainBytes + 1}`]);
   const { viewerBytes, ...withoutViewer } = sizeLimits;
   assert.deepEqual(compareSizeBudgets({ metrics: base.metrics, budgets }, { metrics: base.metrics, budgets: { ...budgets, sizeLimits: withoutViewer } }).needsApproval,
-    ['sizeLimits.viewerBytes desaparece']);
+    ['sizeLimits.viewerBytes is removed']);
   assert.ok(viewerBytes > 0);
   assert.deepEqual(loosened({ sizeGrowthAllowance: { ...sizeGrowthAllowance, mainGzipBytes: sizeGrowthAllowance.mainGzipBytes + 1 } }),
-    [`sizeGrowthAllowance.mainGzipBytes sube de ${sizeGrowthAllowance.mainGzipBytes} a ${sizeGrowthAllowance.mainGzipBytes + 1}`]);
+    [`sizeGrowthAllowance.mainGzipBytes rises from ${sizeGrowthAllowance.mainGzipBytes} to ${sizeGrowthAllowance.mainGzipBytes + 1}`]);
   assert.deepEqual(loosened({ ceilingHeadroom: { ...ceilingHeadroom, maximum: ceilingHeadroom.maximum + 1 } }),
-    [`ceilingHeadroom.maximum sube de ${ceilingHeadroom.maximum} a ${ceilingHeadroom.maximum + 1}`]);
-  assert.deepEqual(loosened({ forbiddenStartup: /pdfjs/i }), ['forbiddenStartup cambia']);
-  // Endurecer el presupuesto o añadir una métrica nueva no necesita aprobación.
+    [`ceilingHeadroom.maximum rises from ${ceilingHeadroom.maximum} to ${ceilingHeadroom.maximum + 1}`]);
+  assert.deepEqual(loosened({ forbiddenStartup: /pdfjs/i }), ['forbiddenStartup changes']);
+  // Tightening the budget or adding a new metric needs no approval.
   assert.deepEqual(loosened({ sizeLimits: Object.fromEntries(Object.entries(sizeLimits).map(([key, value]) => [key, value - 1])) }), []);
   assert.deepEqual(compareSizeBudgets({ metrics: base.metrics, budgets: { ...budgets, sizeLimits: withoutViewer } }, base).needsApproval, []);
-  // La primera base sin márgenes por PR solo aporta sus techos.
+  // The first base without per-PR allowances only contributes its ceilings.
   assert.deepEqual(compareSizeBudgets({ metrics: base.metrics, budgets: { sizeLimits, forbiddenStartup } }, base).needsApproval, []);
-  assert.throws(() => compareSizeBudgets(base, { metrics: base.metrics, budgets: { ...budgets, sizeGrowthAllowance: {} } }), /margen por PR/);
+  assert.throws(() => compareSizeBudgets(base, { metrics: base.metrics, budgets: { ...budgets, sizeGrowthAllowance: {} } }), /per-PR allowance/);
 });
-test('El informe muestra signos y distingue lo pendiente de lo aprobado', () => {
+test('The report shows signs and distinguishes pending from approved', () => {
   const rows = [{ metric: 'mainGzipBytes', base: 100, head: 400, delta: 300, allowance: 250, limit: 1000 },
     { metric: 'viewerBytes', base: 50, head: 40, delta: -10, allowance: 500, limit: 2000 }];
-  const pending = formatReport(rows, ['mainGzipBytes crece 300 B (margen por PR: 250 B)'], false);
+  const pending = formatReport(rows, ['mainGzipBytes grows 300 B (per-PR allowance: 250 B)'], false);
   assert.match(pending, /\| mainGzipBytes \| 100 \| 400 \| \+300 \| 250 \| 1000 \|/);
   assert.match(pending, /\| viewerBytes \| 50 \| 40 \| -10 \| 500 \| 2000 \|/);
-  assert.match(pending, new RegExp(`Requiere la etiqueta "${SIZE_APPROVAL_LABEL}":\n- mainGzipBytes crece 300 B`));
-  assert.match(formatReport(rows, ['x'], true), new RegExp(`Aprobado con la etiqueta "${SIZE_APPROVAL_LABEL}"`));
-  assert.doesNotMatch(formatReport(rows, [], false), /etiqueta/);
+  assert.match(pending, new RegExp(`Requires the "${SIZE_APPROVAL_LABEL}" label:\n- mainGzipBytes grows 300 B`));
+  assert.match(formatReport(rows, ['x'], true), new RegExp(`Approved with the "${SIZE_APPROVAL_LABEL}" label`));
+  assert.doesNotMatch(formatReport(rows, [], false), /label/);
 });
-test('La CI compara con la base del merge y lee la misma etiqueta que el presupuesto', () => {
+test('CI compares with the merge base and reads the same label as the budget', () => {
   const root = new URL('../', import.meta.url);
   const workflow = fs.readFileSync(new URL('.github/workflows/performance.yml', root), 'utf8');
   assert.match(workflow, /types: \[[^\]]*\blabeled\b[^\]]*\bunlabeled\b[^\]]*\]/);
   assert.match(workflow, /fetch-depth: 2/);
-  // Entre comillas: el ": " de la etiqueta cortaría el escalar YAML sin ellas.
+  // Quoted: without the quotes, the label's ": " would end the YAML scalar.
   assert.ok(workflow.includes(`APPROVED: "\${{ contains(github.event.pull_request.labels.*.name, '${SIZE_APPROVAL_LABEL}') }}"`));
   assert.match(workflow, /npm run perf:size:diff -- --base HEAD\^1/);
   const scripts = JSON.parse(fs.readFileSync(new URL('package.json', root), 'utf8')).scripts;
   assert.equal(scripts['perf:size:diff'], 'node perf/size-diff.mjs');
   for (const file of sizeMachinery) assert.ok(fs.existsSync(new URL(file, root)), file);
-  // Bajar un techo solo toca los números: no puede requerir la etiqueta.
+  // Lowering a ceiling only touches the numbers: it cannot require the label.
   assert.ok(!sizeMachinery.includes('perf/size-budget.json'));
 });
-test('El grafo de arranque sigue imports estáticos y excluye import()', () => {
+test('The startup graph follows static imports and excludes import()', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-size-'));
   try {
     fs.mkdirSync(path.join(tmp, 'assets'));
@@ -116,7 +116,7 @@ test('El grafo de arranque sigue imports estáticos y excluye import()', () => {
     assert.throws(() => checkSize(measureSize(tmp)));
   } finally { fs.rmSync(tmp, { recursive: true }); }
 });
-test('El visor cuenta su grafo estático que no está en el arranque', () => {
+test('The viewer counts its static graph that is not in startup', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-viewer-'));
   const write = (file, text) => fs.writeFileSync(path.join(tmp, file), text);
   try {
@@ -137,7 +137,7 @@ test('El visor cuenta su grafo estático que no está en el arranque', () => {
     assert.throws(() => measureSize(tmp), /PdfViewer/);
   } finally { fs.rmSync(tmp, { recursive: true }); }
 });
-test('La comparación falla con +31 % y muestras incompletas; FPS absolutos solo bloquean en estricto', () => {
+test('The comparison fails at +31 % and with incomplete samples; absolute FPS only blocks in strict mode', () => {
   const baseline = { schema: 1, samples: 5, scenarios: [{ name: 'M1000/4x/zoom', rawMedianFps: 40, metrics: { maxPauseMs: 100, elapsedMs: 1000, longTasks: 10, domNodes: 700, mountedShapes: 5000, heapBytes: 1000000, fps: 40 } }] };
   assert.deepEqual(compareResults(structuredClone(baseline), baseline), []);
   for (const metric of ['maxPauseMs', 'elapsedMs', 'longTasks', 'domNodes', 'mountedShapes', 'heapBytes']) {
@@ -147,10 +147,10 @@ test('La comparación falla con +31 % y muestras incompletas; FPS absolutos solo
   }
   const fps = structuredClone(baseline); fps.scenarios[0].metrics.fps = 31; fps.scenarios[0].rawMedianFps = 29;
   assert.deepEqual(compareResults(fps, baseline), []);
-  assert.ok(fpsWarnings(fps).some(warning => warning.includes('objetivo')));
+  assert.ok(fpsWarnings(fps).some(warning => warning.includes('target')));
   assert.deepEqual(compareResults(fps, baseline, { strict: true }), fpsWarnings(fps));
   const relativeFps = structuredClone(baseline); relativeFps.scenarios[0].metrics.fps *= 0.69;
-  assert.ok(compareResults(relativeFps, baseline).some(failure => failure.includes('caída')));
+  assert.ok(compareResults(relativeFps, baseline).some(failure => failure.includes('drop')));
   assert.throws(() => compareResults({ ...baseline, samples: 1 }, baseline));
   assert.throws(() => compareResults({ ...baseline, scenarios: [] }, baseline));
   const sampled = { ...baseline, rawSamples: Array.from({ length: 5 }, (_, sample) => ({ name: baseline.scenarios[0].name, sample })) };
@@ -162,7 +162,7 @@ test('La comparación falla con +31 % y muestras incompletas; FPS absolutos solo
   assert.equal(median([9, 2, 4, 1, 3]), 3);
 });
 
-test('El probe de arranque rechaza peticiones PDF y workers incluso blob:', () => {
+test('The startup probe rejects PDF requests and workers, even blob:', () => {
   checkStartup(['http://localhost/plan-measure/assets/index.js']);
   assert.throws(() => checkStartup(['http://localhost/plan-measure/assets/es-BOjZJYv9.js']));
   assert.throws(() => checkStartup([], ['blob:http://localhost/worker-pdf']));

@@ -14,8 +14,8 @@ export async function ready(page) {
     return canvas && canvas.width > 1 && canvas.height > 1 && getComputedStyle(canvas).visibility === 'visible' && window.perfAudit.draws.has(canvas);
   }, null, { timeout: 120000 });
 }
-// Como el harness histórico: seed solo en memoria si IndexedDB Blob falla.
-// No es un test de persistencia y no altera el formato de sesión.
+// Like the historical harness: seed in memory only if IndexedDB Blob fails.
+// This is not a persistence test and does not alter the session format.
 export async function runtime(page, mode, count) {
   return page.evaluate(({ mode, count, source }) => {
     const canvas = document.querySelector('canvas[aria-label^="PDF page"]');
@@ -30,7 +30,7 @@ export async function runtime(page, mode, count) {
         const prepare = eval('(' + source + ')'); value.loadSession(prepare(structuredClone(value.session), count)); return;
       }
     }
-    throw Error('No se encontró SessionProvider: revisar instrumentación');
+    throw Error('SessionProvider not found: check the instrumentation');
   }, { mode, count, source: prepareSession.toString() });
 }
 export async function seed(page, count) {
@@ -51,6 +51,7 @@ export async function seed(page, count) {
     await page.reload(); await page.getByRole('region', { name: 'Recent projects' }).getByRole('button').filter({ hasText: 'Current' }).click(); await ready(page);
   }
   await page.waitForTimeout(700);
+  // Stored in baseline.json: keep these values stable so a baseline stays comparable.
   return unavailable ? 'runtime (Blob IndexedDB no disponible)' : 'IndexedDB + reapertura';
 }
 export async function calibration(page) {
@@ -67,8 +68,8 @@ export async function calibration(page) {
 }
 export async function stats(page, cdp) {
   const result = await page.evaluate(() => {
-    // El renderer React de Konva tiene raíz independiente. StageWrap conserva
-    // FiberRoot en un ref; recorrer ambas raíces evita depender de nombres minificados.
+    // Konva's React renderer has an independent root. StageWrap keeps the
+    // FiberRoot in a ref; walking both roots avoids depending on minified names.
     const canvas = document.querySelector('canvas[aria-label^="PDF page"]');
     let root = canvas[Object.keys(canvas).find(key => key.startsWith('__reactFiber'))]; while (root.return) root = root.return;
     const fibers = [root.stateNode.current]; const ids = new Set(); const seen = new Set(); const visitedFibers = new Set();
@@ -123,15 +124,15 @@ export async function gesture(page, kind) {
     await page.waitForTimeout(16);
   }
   if (kind === 'pan') { const releaseStart = performance.now(); await page.mouse.up({ button: 'middle' }); releaseMs = performance.now() - releaseStart; }
-  if (!actions) throw Error('Gesto sin eventos');
+  if (!actions) throw Error('Gesture without events');
   if (kind === 'pan') {
     const after = await page.locator('canvas[aria-label^="PDF page"]').boundingBox();
-    if (Math.abs(box.x - after.x) < 1 && Math.abs(box.y - after.y) < 1) throw Error('Pan no adquirió gesto');
+    if (Math.abs(box.x - after.x) < 1 && Math.abs(box.y - after.y) < 1) throw Error('Pan did not acquire the gesture');
   } else {
     const after = await page.locator('[aria-label="Zoom controls"]').textContent();
-    // A veces 90 eventos se cancelan en pares: la transformación intermedia también debe observarse.
+    // Sometimes the 90 events cancel out in pairs: the intermediate transform must also be observed.
     const changed = await page.evaluate(() => new Set(window.perfAudit.zoomSamples).size > 1);
-    if (before === after && !changed) throw Error('Zoom no cambió');
+    if (before === after && !changed) throw Error('Zoom did not change');
   }
   return { acquireMs, releaseMs, actions };
 }
@@ -147,5 +148,5 @@ export async function drag(page) {
   }
   await page.mouse.up(); await page.waitForTimeout(250);
   const after = await runtime(page, 'read');
-  if (JSON.stringify(before.pages[1].measurements[0].points) === JSON.stringify(after.pages[1].measurements[0].points)) throw Error('Drag no cambió vértice');
+  if (JSON.stringify(before.pages[1].measurements[0].points) === JSON.stringify(after.pages[1].measurements[0].points)) throw Error('Drag did not change the vertex');
 }

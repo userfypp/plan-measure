@@ -8,12 +8,12 @@ const repo = process.env.PLAN_MEASURE_REPO || path.resolve(path.dirname(fileURLT
 export function measureSize(dist) {
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   const entries = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map(match => match[1]);
-  if (entries.length !== 1) throw Error('Se esperaba un único JS principal');
+  if (entries.length !== 1) throw Error('Expected a single main JS file');
   const preloads = [...html.matchAll(/<link\b[^>]*>/g)]
     .map(match => match[0]).filter(tag => /\brel="modulepreload"/.test(tag))
     .map(tag => tag.match(/\bhref="([^"]+)"/)?.[1]).filter(Boolean);
   const local = url => path.join(dist, url.replace(/^.*?\/assets\//, 'assets/'));
-  // Solo imports estáticos; import() es precisamente la carga diferida a proteger.
+  // Static imports only; import() is precisely the deferred loading to protect.
   function staticGraph(urls) {
     const files = new Set();
     function visit(url) {
@@ -29,9 +29,9 @@ export function measureSize(dist) {
     return files;
   }
   const startupFiles = staticGraph([...entries, ...preloads]);
-  // El visor se carga al abrir un plano: cuenta su chunk y lo que importa que no esté ya en el arranque.
+  // The viewer loads when a plan is opened: count its chunk and whatever it imports that is not already in startup.
   const viewers = fs.readdirSync(path.join(dist, 'assets')).filter(file => /^PdfViewer-[\w-]+\.js$/.test(file));
-  if (viewers.length !== 1) throw Error('Se esperaba un único chunk PdfViewer');
+  if (viewers.length !== 1) throw Error('Expected a single PdfViewer chunk');
   const viewerFiles = [...staticGraph(['/assets/' + viewers[0]])].filter(file => !startupFiles.has(file));
   const bytes = files => files.reduce((sum, file) => sum + fs.statSync(file).size, 0);
   const main = fs.readFileSync(local(entries[0]));

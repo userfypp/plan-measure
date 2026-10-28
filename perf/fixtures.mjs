@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
 
-// xorshift32, semilla estable. Ningún fixture binario se versiona.
+// xorshift32, stable seed. No binary fixture is committed.
 export function random(seed = 20261009) {
   let state = seed >>> 0;
   return () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; return (state >>> 0) / 4294967296; };
@@ -51,7 +51,7 @@ export function generateFixtures(directory, { large = true } = {}) {
   if (large && !fs.existsSync(scan)) {
     const width = 9933, height = 14043;
     const pixels = Buffer.allocUnsafe(width * height); const rng = random();
-    // 16 niveles + ASCII85/Flate reproduce el método del scan C histórico (~95 MiB).
+    // 16 levels + ASCII85/Flate reproduces the method of the historical scan C (~95 MiB).
     for (let i = 0; i < pixels.length; i++) pixels[i] = 240 + Math.floor(rng() * 16);
     for (let i = 0; i < 9000; i++) {
       const x = i * 137 % width, y = i * 271 % height;

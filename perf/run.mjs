@@ -21,17 +21,17 @@ const samples = Number(process.env.PERF_SAMPLES || 5);
 const counts = process.env.PERF_COUNT ? [Number(process.env.PERF_COUNT)] : [1000, 5000];
 const cpus = process.env.PERF_CPU ? [Number(process.env.PERF_CPU)] : [1, 4];
 const partial = samples !== 5 || counts.length !== 2 || cpus.length !== 2 || process.env.PERF_SKIP_PDF === '1';
-if (update && partial) throw Error('La línea base requiere matriz completa y cinco muestras; retira PERF_* de filtrado');
-if (!fs.existsSync(path.join(repo, 'dist/index.html'))) throw Error('Ejecuta npm run build antes del benchmark');
+if (update && partial) throw Error('The baseline requires the full matrix and five samples; remove the PERF_* filters');
+if (!fs.existsSync(path.join(repo, 'dist/index.html'))) throw Error('Run npm run build before the benchmark');
 const fixtures = generateFixtures(path.join(root, '.tmp'), { large: process.env.PERF_SKIP_PDF !== '1' });
 fs.mkdirSync(path.join(root, 'results'), { recursive: true });
 const baselineFile = path.join(root, 'baseline.json');
 const baseline = !update && fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baselineFile)) : null;
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const sourceCommit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' });
-if (sourceCommit.status !== 0) throw Error('No se pudo identificar el commit del checkout');
+if (sourceCommit.status !== 0) throw Error('Could not identify the checkout commit');
 const sourceDiff = spawnSync('git', ['diff', 'HEAD', '--', 'src', 'package.json', 'package-lock.json', 'vite.config.ts'], { cwd: repo, encoding: 'utf8' });
-if (sourceDiff.status !== 0) throw Error('No se pudo identificar el diff de la fuente');
+if (sourceDiff.status !== 0) throw Error('Could not identify the source diff');
 const buildMetrics = measureSize(path.join(repo, 'dist'));
 const environment = { sourceCommit: sourceCommit.stdout.trim(), sourceDirty: sourceDiff.stdout.length > 0,
   sourceDiffSha256: sha256(sourceDiff.stdout), node: process.version, platform: process.platform, arch: process.arch, osRelease: os.release(),
@@ -45,9 +45,9 @@ if (!process.env.PERF_URL) {
   let stderr = ''; server.stderr.on('data', data => { stderr += data; });
   try {
     for (let attempt = 0; attempt < 60; attempt++) {
-      if (server.exitCode !== null) throw Error('Preview terminó: ' + stderr);
-      try { if ((await fetch(url)).ok) break; } catch { /* servidor arrancando */ }
-      if (attempt === 59) throw Error('Preview no disponible');
+      if (server.exitCode !== null) throw Error('Preview exited: ' + stderr);
+      try { if ((await fetch(url)).ok) break; } catch { /* server starting */ }
+      if (attempt === 59) throw Error('Preview not available');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
   } catch (error) { server.kill(); throw error; }
@@ -71,7 +71,7 @@ async function context(cpu) {
 async function record(name, sample, c, action, { fps = false } = {}) {
   const { gestureTiming, ...metrics } = await measure(c.page, c.cdp, action);
   if (!fps) delete metrics.fps;
-  if (name.includes('/zoom') && metrics.mountedShapes === 0) throw Error('Instrumentación no encontró formas montadas');
+  if (name.includes('/zoom') && metrics.mountedShapes === 0) throw Error('Instrumentation found no mounted shapes');
   const row = { name, sample, calibrationMs: c.calibrationMs, metrics, gestureTiming, persistence: c.persistence };
   output.rawSamples.push(row);
   fs.writeFileSync(path.join(root, 'results/latest.json'), JSON.stringify(output, null, 2));
@@ -94,11 +94,11 @@ try {
         await c.page.getByRole('button', { name: 'Fit page', exact: true }).click(); await c.page.waitForTimeout(500);
         await record(name + '/drag', sample, c, () => drag(c.page), { fps: true });
         await record(name + '/firstCSV', sample, c, async () => {
-          // Incluye descarga inicial del chunk y apertura del diálogo; primera exportación real.
+          // Includes the initial chunk download and opening the dialog; the first real export.
           await c.page.getByRole('button', { name: 'Export', exact: true }).click();
           const pending = c.page.waitForEvent('download'); await c.page.getByRole('button', { name: 'Export CSV', exact: true }).click();
           const download = await pending; await download.saveAs(path.join(root, '.tmp', 'latest.csv'));
-          if (fs.statSync(path.join(root, '.tmp', 'latest.csv')).size === 0) throw Error('CSV vacío');
+          if (fs.statSync(path.join(root, '.tmp', 'latest.csv')).size === 0) throw Error('Empty CSV');
         });
         await record(name + '/closeCSV', sample, c, async () => {
           await c.page.keyboard.press('Escape');
@@ -140,21 +140,21 @@ try {
   }
   if (!partial) {
     output.targetWarnings = fpsWarnings(output);
-    if (output.targetWarnings.length) console.warn('AVISO: mínimos absolutos de zoom incumplidos' + (strict ? ' (modo estricto: fallo)' : ' (modo normal: no bloquean)') + ':\n' + output.targetWarnings.join('\n'));
+    if (output.targetWarnings.length) console.warn('WARNING: absolute zoom minimums not met' + (strict ? ' (strict mode: failure)' : ' (normal mode: non-blocking)') + ':\n' + output.targetWarnings.join('\n'));
     if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      `## Rendimiento e2e: modo ${strict ? 'estricto' : 'normal'}\n\n${output.targetWarnings.length ? '**Aviso: mínimos absolutos de zoom incumplidos.**\n\n' + output.targetWarnings.map(warning => '- ' + warning).join('\n') : 'Mínimos absolutos de zoom cumplidos.'}\n\n`);
+      `## E2E performance: ${strict ? 'strict' : 'normal'} mode\n\n${output.targetWarnings.length ? '**Warning: absolute zoom minimums not met.**\n\n' + output.targetWarnings.map(warning => '- ' + warning).join('\n') : 'Absolute zoom minimums met.'}\n\n`);
   }
   fs.writeFileSync(path.join(root, 'results/latest.json'), JSON.stringify(output, null, 2));
   if (update) {
-    // Registrar una base conserva los avisos; el modo estricto exige los mínimos.
+    // Recording a baseline keeps the warnings; strict mode enforces the minimums.
     fs.writeFileSync(baselineFile, JSON.stringify(output, null, 2) + '\n');
-    console.log('Línea base actualizada explícitamente. Revisa/commitea el diff; el modo estricto conserva los mínimos FPS.');
-  } else if (partial) console.log('Ejecución parcial diagnóstica: no compara ni actualiza línea base.');
+    console.log('Baseline updated explicitly. Review and commit the diff; strict mode keeps the FPS minimums.');
+  } else if (partial) console.log('Partial diagnostic run: does not compare or update the baseline.');
   else {
-    if (!baseline) throw Error('Falta perf/baseline.json: ejecuta perf:update-baseline explícitamente');
+    if (!baseline) throw Error('Missing perf/baseline.json: run perf:update-baseline explicitly');
     const failures = compareResults(output, baseline, { strict });
-    if (failures.length) throw Error('Presupuestos incumplidos:\n' + failures.join('\n'));
-    console.log('Todos los presupuestos e2e en verde.');
+    if (failures.length) throw Error('Budgets exceeded:\n' + failures.join('\n'));
+    console.log('All e2e budgets passed.');
   }
   }
   if (process.env.PERF_SKIP_PDF !== '1') await pageBrowserBenchmarks({ context, root, fixtures, samples, cpus, environment, browser: output.browser, recordBaseline: recordPageBrowserBaseline });
