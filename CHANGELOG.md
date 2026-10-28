@@ -4,6 +4,23 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.11.3](https://github.com/userfypp/plan-measure/compare/v2.11.2...v2.11.3) (2026-10-28)
+
+
+### Fixed
+
+* add no Undo step when a command changes nothing ([#408](https://github.com/userfypp/plan-measure/issues/408)) ([d4780d1](https://github.com/userfypp/plan-measure/commit/d4780d13e37d06887f98554edda8b1c25356b620)), closes [#374](https://github.com/userfypp/plan-measure/issues/374)
+* flag recovered Lines with coincident endpoints for repair in exports ([#372](https://github.com/userfypp/plan-measure/issues/372)) ([9a2bca7](https://github.com/userfypp/plan-measure/commit/9a2bca7b26959c74e61e548ed84a2b88bba558d1))
+* keep cloud alpha colors valid for NaN opacity ([#402](https://github.com/userfypp/plan-measure/issues/402)) ([54fb67f](https://github.com/userfypp/plan-measure/commit/54fb67f30e7fc90f65c0d2de6966f55e16dc45a8))
+* keep the annotated PDF export working for cloud names outside Latin-1 ([#407](https://github.com/userfypp/plan-measure/issues/407)) ([690971c](https://github.com/userfypp/plan-measure/commit/690971c505d7c56abff7264ee3f71d3cf0d99424)), closes [#373](https://github.com/userfypp/plan-measure/issues/373)
+
+
+### Documentation
+
+* add the test coverage issues and refresh the roadmap ([#401](https://github.com/userfypp/plan-measure/issues/401)) ([c4c49c5](https://github.com/userfypp/plan-measure/commit/c4c49c5ff63cd92bd57acc6e227281cb8abc6fc8))
+* make the user guide's measurement section easier to scan ([#409](https://github.com/userfypp/plan-measure/issues/409)) ([5b64df9](https://github.com/userfypp/plan-measure/commit/5b64df9a83d76c5717e3088886872228a073f5e2))
+* reorganize the roadmap in tables and add contributor credits ([#369](https://github.com/userfypp/plan-measure/issues/369)) ([1fb99fc](https://github.com/userfypp/plan-measure/commit/1fb99fc69edfa9bc11aad4d9880b1fafa344eaac))
+
 ## [2.11.2](https://github.com/userfypp/plan-measure/compare/v2.11.1...v2.11.2) (2026-10-26)
 
 
