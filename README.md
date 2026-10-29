@@ -37,7 +37,7 @@ See the [user guide](docs/user-guide.md) for scales, editing, exports, recovery,
 
 Projects autosave in this browser, with no cloud sync; clearing site data removes them. Use **Export backup** (save status) or **Projects → Export** to keep a `.planmeasure` backup with the PDF and editable data. JSON and spreadsheet exports are not backups.
 
-- PDFs up to 100 MB; password-protected PDFs cannot be opened.
+- PDFs up to 100 MiB (104.9 MB); password-protected PDFs cannot be opened.
 - Drawing needs at least 480 × 360 px of viewer space and a fine pointer, or keyboard authoring enabled in Settings.
 - X/Y calibration corrects axis scale differences, not skew or perspective.
 - Offline use depends on the browser cache; it is not yet an installable PWA.
