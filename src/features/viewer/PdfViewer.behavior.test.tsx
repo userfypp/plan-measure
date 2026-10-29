@@ -53,7 +53,7 @@ function Probes() {
   return null;
 }
 
-/** El visor real con la página tomada de la sesión y la navegación de página conectada. */
+/** The real viewer, with the page taken from the session and page navigation wired up. */
 function Harness({ document }: { document: PDFDocumentProxy }) {
   const { session } = useSessionState();
   const [pageNumber, setPageNumber] = useState(1);
@@ -618,7 +618,7 @@ describe("PdfViewer behavior", () => {
         stageHandler("onMouseDown")(konvaPointerEvent({ x: 400, y: 300 }, { button: 1 })),
       );
       await act(async () => stageHandler("onMouseMove")(konvaPointerEvent({ x: 380, y: 310 })));
-      // El navegador entrega el clic justo tras mouseup, antes del temporizador que lo deja de suprimir.
+      // The browser delivers the click right after mouseup, before the timer that stops suppressing it.
       await act(async () => {
         stageHandler("onMouseUp")(konvaPointerEvent({ x: 380, y: 310 }));
         stageHandler("onClick")(konvaPointerEvent({ x: 380, y: 310 }));
@@ -658,7 +658,7 @@ describe("PdfViewer behavior", () => {
       expect(container.querySelector('canvas[aria-label="PDF page 2"]')).not.toBeNull();
       expect(container.querySelector('canvas[aria-label="PDF page 1"]')).toBeNull();
       expect(pdf.getPage).toHaveBeenLastCalledWith(2);
-      // 400x400 en 1000x700 con 24 px de margen: limita la altura.
+      // 400x400 in 1000x700 with a 24 px margin: the height limits it.
       expect(transform().zoom).toBeCloseTo((VIEWER_HEIGHT - 48) / 400, 6);
       expect(viewZoomReports.at(-1)![0]).toBe(2);
       await act(async () => navigation!.onPageChange(1));

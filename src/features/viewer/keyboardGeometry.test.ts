@@ -307,7 +307,7 @@ describe("keyboard box side editing", () => {
   });
 
   it("names sides by where they are after a box was drawn or dragged inside out", () => {
-    // Dibujado desde la esquina inferior derecha: el lado 0 es el de abajo.
+    // Drawn from the bottom-right corner: side 0 is the bottom one.
     const flipped = [box[2]!, box[3]!, box[0]!, box[1]!];
     expect(
       [4, 5, 6, 7].map((index) => measurementEditTargetLabel("ellipse", flipped, index)),

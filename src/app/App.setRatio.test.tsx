@@ -499,7 +499,7 @@ afterEach(() => {
 });
 
 describe("App export diferido", () => {
-  it("abre el módulo resuelto y conserva cierre, reapertura y sesión", async () => {
+  it("opens the resolved module and keeps closing, reopening and the session", async () => {
     await renderApp(twoPageSession());
     const before = currentSession();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
