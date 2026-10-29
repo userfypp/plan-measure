@@ -49,7 +49,8 @@ function topPopoverLayer(): PopoverLayer | undefined {
 function scrollerOfThumb(target: Node): Element | null {
   if (!(target instanceof Element) || !target.classList.contains("overlayScrollThumb")) return null;
   let sibling = target.previousElementSibling;
-  while (sibling?.classList.contains("overlayScrollThumb")) sibling = sibling.previousElementSibling;
+  while (sibling?.classList.contains("overlayScrollThumb"))
+    sibling = sibling.previousElementSibling;
   return sibling;
 }
 
@@ -257,7 +258,9 @@ export function Popover({
         ? Math.max(content.width, anchor.width)
         : content.width;
       const preferredLeft =
-        placement === "bottom-end" || placement === "top-end" ? anchor.right - contentWidth : anchor.left;
+        placement === "bottom-end" || placement === "top-end"
+          ? anchor.right - contentWidth
+          : anchor.left;
       const left = clamp(
         preferredLeft,
         VIEWPORT_MARGIN_PX,
@@ -301,8 +304,8 @@ export function Popover({
       contains: (target) =>
         Boolean(
           anchorRef.current?.contains(target) ||
-            contentRef.current?.contains(target) ||
-            isLabelOfAnchor(target, anchorRef.current),
+          contentRef.current?.contains(target) ||
+          isLabelOfAnchor(target, anchorRef.current),
         ),
       isTriggerLabel: (target) => isLabelOfAnchor(target, anchorRef.current),
       containsFocus: (target) =>
@@ -322,7 +325,7 @@ export function Popover({
     const requested = content.querySelector<HTMLElement>('[data-popover-autofocus="true"]');
     const first = requested ?? content.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
     focusPopoverContentElement(first);
-  // portalHost: with defaultOpen inside a dialog the content remounts once the host is known.
+    // portalHost: with defaultOpen inside a dialog the content remounts once the host is known.
   }, [initialFocus, isOpen, portalHost]);
 
   function handleContentKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {

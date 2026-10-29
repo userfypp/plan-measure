@@ -92,23 +92,38 @@ function potentialCollisions(
 }
 
 describe("consulta booleana de colisiones", () => {
-  it("coincide con la visita ordenada incluso con overflow, referencias ignoradas y solapes densos", () => {
+  it("matches the ordered visit even with overflow, ignored references and dense overlaps", () => {
     let seed = 20261010;
-    const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
     const index = createLabelCollisionIndex();
     const rects = Array.from({ length: 1000 }, (_, i) => ({
-      x: random() * 1000 - 50, y: random() * 1000 - 50,
-      width: i % 50 === 0 ? 10000 : random() * 100, height: 20,
+      x: random() * 1000 - 50,
+      y: random() * 1000 - 50,
+      width: i % 50 === 0 ? 10000 : random() * 100,
+      height: 20,
     }));
     rects.forEach((rect) => index.insert(rect));
     for (let i = 0; i < 1000; i++) {
-      const candidate = { x: random() * 1200, y: random() * 1200, width: random() * 120, height: 20 };
+      const candidate = {
+        x: random() * 1200,
+        y: random() * 1200,
+        width: random() * 120,
+        height: 20,
+      };
       const ignore = rects[i];
       const gap = i % 5;
-      const legacy = index.somePotentialCollision(candidate, gap, (rect) => rect !== ignore && !(
-        candidate.x + candidate.width + gap <= rect.x || rect.x + rect.width + gap <= candidate.x ||
-        candidate.y + candidate.height + gap <= rect.y || rect.y + rect.height + gap <= candidate.y
-      ));
+      const legacy = index.somePotentialCollision(
+        candidate,
+        gap,
+        (rect) =>
+          rect !== ignore &&
+          !(
+            candidate.x + candidate.width + gap <= rect.x ||
+            rect.x + rect.width + gap <= candidate.x ||
+            candidate.y + candidate.height + gap <= rect.y ||
+            rect.y + rect.height + gap <= candidate.y
+          ),
+      );
       expect(index.hasCollision!(candidate, gap, ignore)).toBe(legacy);
     }
   });
@@ -201,16 +216,14 @@ describe("label collision avoidance", () => {
 
   it("moves a second label to a deterministic non-overlapping position", () => {
     const first = placeLabelAvoidingOverlaps({ x: 50, y: 40 }, label, page, 1, []);
-    const second = placeLabelAvoidingOverlaps(
-      { x: 51, y: 40 },
-      label,
-      page,
-      1,
-      [{ ...first, ...label }],
-    );
+    const second = placeLabelAvoidingOverlaps({ x: 51, y: 40 }, label, page, 1, [
+      { ...first, ...label },
+    ]);
 
     expect(second).not.toEqual(first);
-    expect(second.y + label.height + 4 <= first.y || first.y + label.height + 4 <= second.y).toBe(true);
+    expect(second.y + label.height + 4 <= first.y || first.y + label.height + 4 <= second.y).toBe(
+      true,
+    );
   });
 
   it("keeps displaced labels within page bounds", () => {
@@ -231,13 +244,7 @@ describe("label collision avoidance", () => {
     const index = createLabelCollisionIndex();
     index.insert(occupied);
 
-    const baseline = placeLabelAvoidingOverlaps(
-      { x: 30, y: 40 },
-      label,
-      page,
-      1,
-      [occupied],
-    );
+    const baseline = placeLabelAvoidingOverlaps({ x: 30, y: 40 }, label, page, 1, [occupied]);
     const indexed = placeLabelAvoidingOverlaps({ x: 30, y: 40 }, label, page, 1, index);
 
     expect(baseline).toEqual({ x: 20, y: 35 });
@@ -314,9 +321,9 @@ describe("label collision avoidance", () => {
     const huge = { x: 0, y: 0, width: 1_000_000, height: 10 };
     index.insert(huge);
 
-    expect(
-      potentialCollisions(index, { x: 900_000, y: 0, width: 20, height: 10 }, 4),
-    ).toContain(huge);
+    expect(potentialCollisions(index, { x: 900_000, y: 0, width: 20, height: 10 }, 4)).toContain(
+      huge,
+    );
   });
 
   it("falls back safely when grid cells exceed the safe integers", () => {

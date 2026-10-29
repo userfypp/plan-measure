@@ -96,9 +96,7 @@ describe("measurement formatting", () => {
 
   it("applies the selected precision to metre lengths, perimeter, and area", () => {
     expect(formatMeasurement(line, calibration, "m", 6)).toBe("0.004000 m");
-    expect(formatMeasurement(polygon, calibration, "m", 3)).toBe(
-      "P 0.008 m · A 0.000004 m²",
-    );
+    expect(formatMeasurement(polygon, calibration, "m", 3)).toBe("P 0.008 m · A 0.000004 m²");
     expect(formatMeasurement(polygon, calibration, "mm", 0)).toBe("P 8 mm · A 4 mm²");
   });
 
@@ -171,7 +169,7 @@ describe("measurement formatting", () => {
     [4, '4"'],
     [4.5, '4 1/2"'],
     [12, "1'"],
-    [148.5, '12\' 4 1/2"'],
+    [148.5, "12' 4 1/2\""],
     [0.5, '1/2"'],
   ] as const)("formats %s inches canonically", (inches, expected) => {
     expect(formatArchitecturalLength(toMillimetres(inches, "in"))).toBe(expected);
@@ -182,9 +180,7 @@ describe("measurement formatting", () => {
     expect(formatArchitecturalLength(toMillimetres(0.375, "in"))).toBe('3/8"');
     expect(formatArchitecturalLength(toMillimetres(0.25, "in"))).toBe('1/4"');
     expect(formatArchitecturalLength(toMillimetres(11 + 31 / 32, "in"))).toBe("1'");
-    expect(formatArchitecturalLength(toMillimetres(12 * 12 + 11 + 31 / 32, "in"))).toBe(
-      "13'",
-    );
+    expect(formatArchitecturalLength(toMillimetres(12 * 12 + 11 + 31 / 32, "in"))).toBe("13'");
     expect(formatArchitecturalLength(toMillimetres(1 / 64, "in"))).toBe('< 1/16"');
   });
 
@@ -201,9 +197,7 @@ describe("measurement formatting", () => {
     expect(formatMeasurement(line, imperialCalibration, "ft", 2)).toBe("4.00 ft");
     expect(formatMeasurement(line, imperialCalibration, "in", 2)).toBe("48.00 in");
     expect(formatMeasurement(line, imperialCalibration, "ft-in", 2)).toBe("4'");
-    expect(formatMeasurement(polygon, imperialCalibration, "ft-in", 2)).toBe(
-      "P 8' · A 4.00 ft²",
-    );
+    expect(formatMeasurement(polygon, imperialCalibration, "ft-in", 2)).toBe("P 8' · A 4.00 ft²");
   });
 
   it("formats polygon area in acres without changing linear presentation", () => {

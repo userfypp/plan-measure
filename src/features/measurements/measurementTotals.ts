@@ -133,7 +133,7 @@ function calculateMeasurement(
         length: null,
         perimeter: null,
         area: null,
-      count: null,
+        count: null,
         excluded: true,
         exclusionReason: "nonfinite-result",
       };
@@ -152,7 +152,7 @@ function calculateMeasurement(
         length: null,
         perimeter: null,
         area: null,
-      count: null,
+        count: null,
         excluded: true,
         exclusionReason: isValidPageCalibration(calibration) ? "nonfinite-result" : "invalid-scale",
       };

@@ -30,8 +30,9 @@ export const MeasurementRow = memo(function MeasurementRow({
   virtualKey,
 }: MeasurementRowProps) {
   const detailsId = `measurement-details-${viewModel.id}`;
-  const quantityLines =
-    measurementPathSpecs[viewModel.type].closed ? viewModel.valueLabel.split(" · ") : [viewModel.valueLabel];
+  const quantityLines = measurementPathSpecs[viewModel.type].closed
+    ? viewModel.valueLabel.split(" · ")
+    : [viewModel.valueLabel];
   // Counts and clouds without a measuring scale have none to show.
   const scaleSummary =
     !measurementTypeRequiresScale(viewModel.type) && !viewModel.hasCalibration
@@ -66,14 +67,20 @@ export const MeasurementRow = memo(function MeasurementRow({
         aria-pressed={viewModel.selected}
         aria-describedby={detailsId}
         title={metadata}
-        onClick={(event) => onSelectMeasurement(viewModel.id, event.shiftKey || event.ctrlKey || event.metaKey)}
+        onClick={(event) =>
+          onSelectMeasurement(viewModel.id, event.shiftKey || event.ctrlKey || event.metaKey)
+        }
       >
         <span className={styles.glyph} aria-hidden="true">
           <ToolIcon name={viewModel.type} />
         </span>
         <span className={styles.summary} id={detailsId}>
           <span className={styles.name}>{viewModel.name}</span>
-          <span className={[styles.value, quantityLines.length > 1 ? styles.valueStack : ""].filter(Boolean).join(" ")}>
+          <span
+            className={[styles.value, quantityLines.length > 1 ? styles.valueStack : ""]
+              .filter(Boolean)
+              .join(" ")}
+          >
             {quantityLines.map((line) => (
               <span key={line}>{line}</span>
             ))}

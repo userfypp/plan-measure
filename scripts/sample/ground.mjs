@@ -18,13 +18,27 @@ const drawDoor = (d, { hole, hinge, open, closed, w }) => {
   const [x1, y1, x2, y2] = hole;
   d.rect(A(x1), B(y1), (x2 - x1) * K, (y2 - y1) * K, { fill: C.PAPER });
   const horiz = x2 - x1 > y2 - y1;
-  const jamb = horiz ? [[x1, y1, x1, y2], [x2, y1, x2, y2]] : [[x1, y1, x2, y1], [x1, y2, x2, y2]];
+  const jamb = horiz
+    ? [
+        [x1, y1, x1, y2],
+        [x2, y1, x2, y2],
+      ]
+    : [
+        [x1, y1, x2, y1],
+        [x1, y2, x2, y2],
+      ];
   for (const [a, b, c, e] of jamb) d.ln(A(a), B(b), A(c), B(e), { w: LW.thin });
   const tip = [hinge[0] + open[0] * w, hinge[1] + open[1] * w];
   const end = [hinge[0] + closed[0] * w, hinge[1] + closed[1] * w];
   d.ln(A(hinge[0]), B(hinge[1]), A(tip[0]), B(tip[1]), { w: LW.main });
   const sweep = open[0] * closed[1] - open[1] * closed[0] > 0 ? 1 : 0;
-  d.path([["M", A(tip[0]), B(tip[1])], ["A", w * K, sweep, A(end[0]), B(end[1])]], { stroke: C.INK, w: LW.thin });
+  d.path(
+    [
+      ["M", A(tip[0]), B(tip[1])],
+      ["A", w * K, sweep, A(end[0]), B(end[1])],
+    ],
+    { stroke: C.INK, w: LW.thin },
+  );
 };
 
 const drawWindow = (d, { side, a, b, type }) => {
@@ -60,7 +74,12 @@ const furniture = (d) => {
     const t = (i * 2 * Math.PI) / T.chairs;
     const c = [T.c[0] + T.chairR * Math.cos(t), T.c[1] + T.chairR * Math.sin(t)];
     const hs = T.chair / 2;
-    const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [
+    const pts = [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+    ].map(([u, v]) => [
       A(c[0] + hs * (u * Math.cos(t) - v * Math.sin(t))),
       B(c[1] + hs * (u * Math.sin(t) + v * Math.cos(t))),
     ]);
@@ -68,10 +87,22 @@ const furniture = (d) => {
   }
   rm(...G.island);
   // L counter without the edges that lie on the walls (keeps window E clear).
-  d.polyline([[7.0, 0.9], [12.1, 0.9], [12.1, 3.6]].map(([x, y]) => [A(x), B(y)]), FUR);
+  d.polyline(
+    [
+      [7.0, 0.9],
+      [12.1, 0.9],
+      [12.1, 3.6],
+    ].map(([x, y]) => [A(x), B(y)]),
+    FUR,
+  );
   rm(8.0, 0.4, 9.0, 0.8, FUR_FINE);
   rm(10.0, 0.4, 10.7, 0.8, FUR_FINE);
-  for (const [hx, hy] of [[10.17, 0.52], [10.53, 0.52], [10.17, 0.68], [10.53, 0.68]])
+  for (const [hx, hy] of [
+    [10.17, 0.52],
+    [10.53, 0.52],
+    [10.17, 0.68],
+    [10.53, 0.68],
+  ])
     d.circle(A(hx), B(hy), 0.07 * K, FUR_FINE);
   rm(...G.bathtub);
   d.ellipse(A(8.55), B(7.6), 0.75 * K, 0.32 * K, FUR_FINE);
@@ -89,10 +120,24 @@ const furniture = (d) => {
   ln(11.1, 6.8, 12.5, 6.8);
 };
 
-const LABELS = { "Living / Dining": [3.6, 1.9], Kitchen: [8.1, 1.9], Corridor: [8.0, 4.2], "Bedroom 1": [4.55, 6.8], Bath: [8.55, 6.35], "Bedroom 2": [10.4, 6.9] };
+const LABELS = {
+  "Living / Dining": [3.6, 1.9],
+  Kitchen: [8.1, 1.9],
+  Corridor: [8.0, 4.2],
+  "Bedroom 1": [4.55, 6.8],
+  Bath: [8.55, 6.35],
+  "Bedroom 2": [10.4, 6.9],
+};
 
 export const drawGround = (d) => {
-  d.sheet({ size: "A3", no: "A-101", page: 4, total: 6, name: "Ground floor plan", scales: ["1:50"] });
+  d.sheet({
+    size: "A3",
+    no: "A-101",
+    page: 4,
+    total: 6,
+    name: "Ground floor plan",
+    scales: ["1:50"],
+  });
   d.title("GROUND FLOOR PLAN  1:50", 32, 25);
   for (const [x1, y1, x2, y2] of G.walls)
     d.rect(A(x1), B(y1), (x2 - x1) * K, (y2 - y1) * K, { fill: C.WALL });
@@ -132,7 +177,12 @@ export const drawGround = (d) => {
   });
   const ty = 40 + 6 * rows.length;
   d.txt("Total", cols.room, ty + 4.1, { size: 7, f: "b", col: C.INK });
-  d.txt(rows.reduce((a, r) => a + r.area, 0).toFixed(2), cols.area, ty + 4.1, { size: 7, f: "b", col: C.INK, align: "r" });
+  d.txt(rows.reduce((a, r) => a + r.area, 0).toFixed(2), cols.area, ty + 4.1, {
+    size: 7,
+    f: "b",
+    col: C.INK,
+    align: "r",
+  });
   d.ln(305, ty + 6, 400, ty + 6, { w: LW.obj });
   d.title("NOTES", 305, 96);
   d.txt("All dimensions in metres.", 305, 103, { size: 7, col: C.INK });
