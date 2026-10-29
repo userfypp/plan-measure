@@ -58,7 +58,11 @@ jobs:
         run: npm run format:check
 
       - name: Test
-        run: npm run test
+        run: npm run test:coverage
+
+      # Reported only: no coverage threshold fails CI.
+      - name: Report coverage
+        run: node .github/scripts/coverage-summary.mjs
 
       - name: Build
         run: npm run build

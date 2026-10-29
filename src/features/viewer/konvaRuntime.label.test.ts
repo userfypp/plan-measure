@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import Konva from "konva";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // jsdom has no 2D context: measure each glyph as 0.6 em of the context font size.
-beforeAll(() => {
+beforeEach(() => {
   const context = {
     font: "10px sans-serif",
     fillStyle: "",
