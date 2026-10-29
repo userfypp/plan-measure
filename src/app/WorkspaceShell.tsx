@@ -11,11 +11,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import type { LogicalPageBounds } from "../types/domain";
 import { ViewerShell } from "./ViewerShell";
-import {
-  responsiveModeForWidth,
-  workspaceGeometry,
-  type ResponsiveMode,
-} from "./responsiveLayout";
+import { responsiveModeForWidth, workspaceGeometry, type ResponsiveMode } from "./responsiveLayout";
 import { WorkspaceDrawerProvider } from "./WorkspaceDrawerContext";
 import styles from "./WorkspaceShell.module.css";
 
@@ -105,10 +101,10 @@ export function WorkspaceShell({
   const capabilityWithoutDrawer = capabilitySnapshot?.withoutDrawer ?? null;
   const canRecoverAuthoringByClosingWorkspace = Boolean(
     isNarrow &&
-      workspaceDrawerOpen &&
-      currentCapability?.measured &&
-      !currentCapability.available &&
-      capabilityWithoutDrawer?.available,
+    workspaceDrawerOpen &&
+    currentCapability?.measured &&
+    !currentCapability.available &&
+    capabilityWithoutDrawer?.available,
   );
   const precisionActionAvailable = Boolean(
     currentCapability?.available || canRecoverAuthoringByClosingWorkspace,
@@ -157,10 +153,7 @@ export function WorkspaceShell({
   }, [authoringIntentScopeKey]);
 
   const handleAuthoringCapabilityChange = useCallback(
-    (
-      current: AuthoringCapability,
-      withoutRightObstruction: AuthoringCapability,
-    ) => {
+    (current: AuthoringCapability, withoutRightObstruction: AuthoringCapability) => {
       setCapabilitySnapshot((previous) =>
         previous?.current === current && previous.withoutDrawer === withoutRightObstruction
           ? previous
@@ -236,7 +229,10 @@ export function WorkspaceShell({
     const handleOutsidePointer = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (workspacePanelRef.current?.contains(target) || workspaceTriggerRef.current?.contains(target)) {
+      if (
+        workspacePanelRef.current?.contains(target) ||
+        workspaceTriggerRef.current?.contains(target)
+      ) {
         return;
       }
       if (target instanceof Element && target.closest('[role="menu"], [role="dialog"]')) return;

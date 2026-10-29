@@ -4,7 +4,11 @@ import { beginCalibrationFlow, selectCalibrationReference } from "./calibrationF
 import { beginCalibrationReferenceEdit } from "./calibrationReferenceEdit";
 import { appReducer, initialAppState } from "./state";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
-import { createInitialWorkspaceState, initialWorkspaceState, workspaceReducer } from "./workspaceState";
+import {
+  createInitialWorkspaceState,
+  initialWorkspaceState,
+  workspaceReducer,
+} from "./workspaceState";
 
 const uniformCalibration = {
   id: "uniform",
@@ -478,27 +482,38 @@ describe("workspace selection state", () => {
     expect(scales.workspaceModule).toBe("scales");
   });
 
-  it.each(["hand", "calibrate", "count", "line", "polyline", "polygon", "rectangle", "ellipse", "cloud"] as const)(
-    "clears the selection and Details when switching from Select to %s",
-    (tool) => {
-      const selected = workspaceReducer(initialWorkspaceState, {
-        type: "SELECT_MEASUREMENT",
-        id: "line-1",
-      });
-      const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
-      const next = workspaceReducer(details, { type: "CHOOSE_TOOL", tool });
-      expect(next.activeTool).toBe(tool);
-      expect(next.selectedMeasurementId).toBeNull();
-      expect(next.selectedMeasurementIds).toEqual([]);
-      expect(next.measurementDetailsOpen).toBe(false);
-      expect(next.workspaceModule).toBe("scales");
-    },
-  );
+  it.each([
+    "hand",
+    "calibrate",
+    "count",
+    "line",
+    "polyline",
+    "polygon",
+    "rectangle",
+    "ellipse",
+    "cloud",
+  ] as const)("clears the selection and Details when switching from Select to %s", (tool) => {
+    const selected = workspaceReducer(initialWorkspaceState, {
+      type: "SELECT_MEASUREMENT",
+      id: "line-1",
+    });
+    const details = workspaceReducer(selected, { type: "OPEN_MEASUREMENT_DETAILS" });
+    const next = workspaceReducer(details, { type: "CHOOSE_TOOL", tool });
+    expect(next.activeTool).toBe(tool);
+    expect(next.selectedMeasurementId).toBeNull();
+    expect(next.selectedMeasurementIds).toEqual([]);
+    expect(next.measurementDetailsOpen).toBe(false);
+    expect(next.workspaceModule).toBe("scales");
+  });
 
   it("clears a multi-selection when re-choosing the already active non-select tool", () => {
     const tool = workspaceReducer(initialWorkspaceState, { type: "CHOOSE_TOOL", tool: "hand" });
     const selected = workspaceReducer(tool, { type: "SELECT_MEASUREMENT", id: "a" });
-    const multi = workspaceReducer(selected, { type: "SELECT_MEASUREMENT", id: "b", additive: true });
+    const multi = workspaceReducer(selected, {
+      type: "SELECT_MEASUREMENT",
+      id: "b",
+      additive: true,
+    });
     expect(multi.selectedMeasurementIds).toEqual(["a", "b"]);
     const next = workspaceReducer(multi, { type: "CHOOSE_TOOL", tool: "hand" });
     expect(next.selectedMeasurementIds).toEqual([]);
@@ -553,10 +568,10 @@ describe("workspace selection state", () => {
   });
 
   it("keeps selection in WorkspaceState while AppState clears its visible error", () => {
-    const appWithError = appReducer(
-      initialAppState,
-      { type: "SET_ERROR", message: "A visible error" },
-    );
+    const appWithError = appReducer(initialAppState, {
+      type: "SET_ERROR",
+      message: "A visible error",
+    });
     const selectedWorkspace = workspaceReducer(initialWorkspaceState, {
       type: "SELECT_MEASUREMENT",
       id: "line-1",
@@ -682,12 +697,22 @@ describe("workspace draft state", () => {
 
 describe("multiple measurement selection", () => {
   it("toggles additive selections and restores single-selection behavior", () => {
-    const first = workspaceReducer(initialWorkspaceState, { type: "SELECT_MEASUREMENT", id: "one" });
-    const multi = workspaceReducer({ ...first, measurementDetailsOpen: true }, { type: "SELECT_MEASUREMENT", id: "two", additive: true });
+    const first = workspaceReducer(initialWorkspaceState, {
+      type: "SELECT_MEASUREMENT",
+      id: "one",
+    });
+    const multi = workspaceReducer(
+      { ...first, measurementDetailsOpen: true },
+      { type: "SELECT_MEASUREMENT", id: "two", additive: true },
+    );
     expect(multi.selectedMeasurementIds).toEqual(["one", "two"]);
     expect(multi.selectedMeasurementId).toBeNull();
     expect(multi.measurementDetailsOpen).toBe(false);
-    const toggled = workspaceReducer(multi, { type: "SELECT_MEASUREMENT", id: "one", additive: true });
+    const toggled = workspaceReducer(multi, {
+      type: "SELECT_MEASUREMENT",
+      id: "one",
+      additive: true,
+    });
     expect(toggled.selectedMeasurementIds).toEqual(["two"]);
     expect(toggled.selectedMeasurementId).toBe("two");
     const replaced = workspaceReducer(multi, { type: "SELECT_MEASUREMENT", id: "two" });
@@ -699,9 +724,17 @@ describe("multiple measurement selection", () => {
   });
 
   it("reconciles measurements removed by undo without discarding surviving selections", () => {
-    const state = workspaceReducer(workspaceReducer(initialWorkspaceState, { type: "SELECT_MEASUREMENT", id: "one" }), { type: "SELECT_MEASUREMENT", id: "two", additive: true });
-    expect(workspaceReducer(state, { type: "RECONCILE_SELECTION", availableIds: ["one", "two"] })).toBe(state);
-    const remaining = workspaceReducer(state, { type: "RECONCILE_SELECTION", availableIds: ["two"] });
+    const state = workspaceReducer(
+      workspaceReducer(initialWorkspaceState, { type: "SELECT_MEASUREMENT", id: "one" }),
+      { type: "SELECT_MEASUREMENT", id: "two", additive: true },
+    );
+    expect(
+      workspaceReducer(state, { type: "RECONCILE_SELECTION", availableIds: ["one", "two"] }),
+    ).toBe(state);
+    const remaining = workspaceReducer(state, {
+      type: "RECONCILE_SELECTION",
+      availableIds: ["two"],
+    });
     expect(remaining.selectedMeasurementIds).toEqual(["two"]);
     expect(remaining.selectedMeasurementId).toBe("two");
   });
@@ -710,16 +743,35 @@ describe("multiple measurement selection", () => {
 describe("group clipboard and selection", () => {
   it("selects all copied IDs together and snapshots every source independently", () => {
     const measurements = ["one", "two"].map((id) => ({
-      id, name: id, type: "line" as const, calibrationId: "scale",
-      points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], classificationValueIds: ["value"], visible: true,
+      id,
+      name: id,
+      type: "line" as const,
+      calibrationId: "scale",
+      points: [
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+      ],
+      classificationValueIds: ["value"],
+      visible: true,
     }));
-    const copied = workspaceReducer(initialWorkspaceState, { type: "COPY_MEASUREMENTS", pageNumber: 1, measurements });
+    const copied = workspaceReducer(initialWorkspaceState, {
+      type: "COPY_MEASUREMENTS",
+      pageNumber: 1,
+      measurements,
+    });
     measurements[1]!.points[0]!.x = 999;
     measurements[0]!.classificationValueIds.push("changed");
     expect(copied.measurementClipboard!.measurements![1]!.points[0]!.x).toBe(1);
-    expect(copied.measurementClipboard!.measurements![0]!.classificationValueIds).toEqual(["value"]);
-    expect(workspaceReducer(copied, { type: "PAGE_CHANGED" }).measurementClipboard).toBe(copied.measurementClipboard);
-    const selected = workspaceReducer({ ...copied, measurementDetailsOpen: true }, { type: "SELECT_MEASUREMENTS", ids: ["copy-1", "copy-2", "copy-1"] });
+    expect(copied.measurementClipboard!.measurements![0]!.classificationValueIds).toEqual([
+      "value",
+    ]);
+    expect(workspaceReducer(copied, { type: "PAGE_CHANGED" }).measurementClipboard).toBe(
+      copied.measurementClipboard,
+    );
+    const selected = workspaceReducer(
+      { ...copied, measurementDetailsOpen: true },
+      { type: "SELECT_MEASUREMENTS", ids: ["copy-1", "copy-2", "copy-1"] },
+    );
     expect(selected.selectedMeasurementIds).toEqual(["copy-1", "copy-2"]);
     expect(selected.selectedMeasurementId).toBeNull();
     expect(selected.measurementDetailsOpen).toBe(false);

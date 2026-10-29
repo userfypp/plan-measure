@@ -41,8 +41,7 @@ export function canActivatePdf<T>(
   requiresPendingConfirmation: boolean,
 ): boolean {
   return (
-    lifecycle.isCurrent(loadGeneration) &&
-    (!requiresPendingConfirmation || pending === candidate)
+    lifecycle.isCurrent(loadGeneration) && (!requiresPendingConfirmation || pending === candidate)
   );
 }
 

@@ -103,7 +103,10 @@ function buildTargetIndex(targets: readonly SnapTarget[]): TargetIndex | null {
   for (const box of boxes) {
     maxCoordinate = Math.max(
       maxCoordinate,
-      Math.abs(box.minX), Math.abs(box.minY), Math.abs(box.maxX), Math.abs(box.maxY),
+      Math.abs(box.minX),
+      Math.abs(box.minY),
+      Math.abs(box.maxX),
+      Math.abs(box.maxY),
     );
   }
   if (!Number.isFinite(maxCoordinate) || maxCoordinate > MAX_INDEXED_COORDINATE) return null;
@@ -121,12 +124,14 @@ function buildTargetIndex(targets: readonly SnapTarget[]): TargetIndex | null {
     if (indices.length <= 16) return { ...box, indices };
     const axis = box.maxX - box.minX >= box.maxY - box.minY ? "x" : "y";
     indices.sort((a, b) => {
-      const centerA = axis === "x"
-        ? boxes[a]!.minX / 2 + boxes[a]!.maxX / 2
-        : boxes[a]!.minY / 2 + boxes[a]!.maxY / 2;
-      const centerB = axis === "x"
-        ? boxes[b]!.minX / 2 + boxes[b]!.maxX / 2
-        : boxes[b]!.minY / 2 + boxes[b]!.maxY / 2;
+      const centerA =
+        axis === "x"
+          ? boxes[a]!.minX / 2 + boxes[a]!.maxX / 2
+          : boxes[a]!.minY / 2 + boxes[a]!.maxY / 2;
+      const centerB =
+        axis === "x"
+          ? boxes[b]!.minX / 2 + boxes[b]!.maxX / 2
+          : boxes[b]!.minY / 2 + boxes[b]!.maxY / 2;
       return centerA - centerB || a - b;
     });
     const middle = Math.floor(indices.length / 2);
@@ -141,8 +146,7 @@ function buildTargetIndex(targets: readonly SnapTarget[]): TargetIndex | null {
 }
 
 function intersects(a: TargetBounds, b: TargetBounds): boolean {
-  return a.minX <= b.maxX && a.maxX >= b.minX &&
-    a.minY <= b.maxY && a.maxY >= b.minY;
+  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
 }
 
 function queryTargetIndex(
@@ -193,8 +197,8 @@ function candidateTargetIndices(
   // candidate near the pointer also has a bounding box intersecting this area.
   // The extra room covers screen/page rounding and projected segment points;
   // extreme ranges use the linear path instead of risking a false rejection.
-  const radius = snapTolerancePx() / zoom +
-    1024 * Number.EPSILON * queryScale / Math.min(zoom, 1);
+  const radius =
+    snapTolerancePx() / zoom + (1024 * Number.EPSILON * queryScale) / Math.min(zoom, 1);
   if (!Number.isFinite(radius)) return null;
   const area = {
     minX: rawPoint.x - radius,
@@ -239,7 +243,10 @@ function differenceOfProducts(a: number, b: number, c: number, d: number): numbe
     const rightHigh = rightSplit - (rightSplit - right);
     const rightLow = right - rightHigh;
     return (
-      ((leftHigh * rightHigh - product) + leftHigh * rightLow + leftLow * rightHigh) +
+      leftHigh * rightHigh -
+      product +
+      leftHigh * rightLow +
+      leftLow * rightHigh +
       leftLow * rightLow
     );
   };
@@ -247,7 +254,10 @@ function differenceOfProducts(a: number, b: number, c: number, d: number): numbe
   const first = a * b;
   const second = c * d;
   const difference = first - second;
-  return difference + ((first - difference) - second + productError(a, b, first) - productError(c, d, second));
+  return (
+    difference +
+    (first - difference - second + productError(a, b, first) - productError(c, d, second))
+  );
 }
 
 export function clipSegmentToPage(
@@ -317,9 +327,7 @@ export function clipSegmentToPage(
   const canUseCompensatedLine =
     Number.isFinite(rawDx) &&
     Number.isFinite(rawDy) &&
-    [rawDx, rawDy, start.x, start.y].every(
-      (value) => Math.abs(value) <= MAX_SPLIT_OPERAND,
-    ) &&
+    [rawDx, rawDy, start.x, start.y].every((value) => Math.abs(value) <= MAX_SPLIT_OPERAND) &&
     Number.isFinite(rawDy * start.x) &&
     Number.isFinite(rawDx * start.y);
   if (canUseCompensatedLine) {
@@ -340,8 +348,7 @@ export function clipSegmentToPage(
     const clippedPoint = clampPointToPage(point, bounds);
     if (
       candidates.some(
-        (candidate) =>
-          candidate.point.x === clippedPoint.x && candidate.point.y === clippedPoint.y,
+        (candidate) => candidate.point.x === clippedPoint.x && candidate.point.y === clippedPoint.y,
       )
     ) {
       return;
@@ -550,8 +557,7 @@ export function nearestPointOnSegment(rawPoint: Point, start: Point, end: Point)
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
   if (lengthSquared === 0) return { ...start };
-  const projection =
-    ((rawPoint.x - start.x) * dx + (rawPoint.y - start.y) * dy) / lengthSquared;
+  const projection = ((rawPoint.x - start.x) * dx + (rawPoint.y - start.y) * dy) / lengthSquared;
   if (projection <= 0) return { ...start };
   if (projection >= 1) return { ...end };
   return { x: start.x + dx * projection, y: start.y + dy * projection };
@@ -665,8 +671,7 @@ function withinInclusivePageTolerance(
   // perturbed by screen/page division and subtraction. Its allowance is the
   // representational scale of the two values being compared, not a shared
   // proximity rule; nearest-candidate ordering and ties never use it.
-  const roundingAllowance =
-    Number.EPSILON * (Math.abs(distancePage) + Math.abs(limitPage));
+  const roundingAllowance = Number.EPSILON * (Math.abs(distancePage) + Math.abs(limitPage));
   return distancePage - limitPage <= roundingAllowance;
 }
 
@@ -761,13 +766,7 @@ export function resolveSnapCandidate(
   bounds?: LogicalPageBounds,
   excludedPoint?: Point,
 ): SnapMatch | null {
-  return resolveSnapCandidateWithScreenDistance(
-    rawPoint,
-    zoom,
-    targets,
-    bounds,
-    excludedPoint,
-  );
+  return resolveSnapCandidateWithScreenDistance(rawPoint, zoom, targets, bounds, excludedPoint);
 }
 
 function resolveSnapCandidateWithScreenDistance(
@@ -801,14 +800,7 @@ export function resolveSnapWithOrtho(
   bounds?: LogicalPageBounds,
   excludedPoint?: Point,
 ): SnapMatch | null {
-  return resolveSnapWithOrthoScreenDistance(
-    anchor,
-    rawPoint,
-    zoom,
-    targets,
-    bounds,
-    excludedPoint,
-  );
+  return resolveSnapWithOrthoScreenDistance(anchor, rawPoint, zoom, targets, bounds, excludedPoint);
 }
 
 function resolveSnapWithOrthoScreenDistance(
@@ -876,14 +868,16 @@ function polygonCloseWillOccur(
 ): boolean {
   const spec = measurementPathSpecs[measurementType];
   const first = confirmedPoints[0];
-  if (!spec.closed || spec.authoring === "box" || confirmedPoints.length < spec.minVertices || !first)
+  if (
+    !spec.closed ||
+    spec.authoring === "box" ||
+    confirmedPoints.length < spec.minVertices ||
+    !first
+  )
     return false;
   const screenDelta = screenDeltaFromPagePoint(first, { rawPointerScreen, transform });
   const distanceScreen = Math.hypot(screenDelta.dx, screenDelta.dy);
-  const alternateDistanceScreen = Math.hypot(
-    screenDelta.alternateDx,
-    screenDelta.alternateDy,
-  );
+  const alternateDistanceScreen = Math.hypot(screenDelta.alternateDx, screenDelta.alternateDy);
   return (
     distanceScreen <= polygonCloseTolerancePx() ||
     alternateDistanceScreen <= polygonCloseTolerancePx() ||
@@ -931,7 +925,8 @@ export function resolveDrawingPoint({
     transform,
   );
   const isBox = measurementPathSpecs[measurementType].authoring === "box";
-  const normalPoint = anchor && orthogonal && !isBox ? constrainOrthogonal(anchor, rawPoint) : rawPoint;
+  const normalPoint =
+    anchor && orthogonal && !isBox ? constrainOrthogonal(anchor, rawPoint) : rawPoint;
   if (closesPolygon) {
     return { point: confirmedPoints[0]!, snapMatch: null, closesPolygon: true };
   }
@@ -951,14 +946,10 @@ export function resolveDrawingPoint({
           anchor,
           { rawPointerScreen, transform },
         )
-      : resolveSnapCandidateWithScreenDistance(
-          rawPoint,
-          transform.zoom,
-          targets,
-          bounds,
-          anchor,
-          { rawPointerScreen, transform },
-        );
+      : resolveSnapCandidateWithScreenDistance(rawPoint, transform.zoom, targets, bounds, anchor, {
+          rawPointerScreen,
+          transform,
+        });
   return {
     point: snapMatch?.point ?? normalPoint,
     snapMatch,

@@ -44,12 +44,7 @@ export function ViewerDockContainer({
     removePageLabelOverride,
     updateSettings,
   } = useSessionState();
-  const {
-    draft,
-    calibrationFlow,
-    calibrationReferenceEdit,
-    scaleClipboard,
-  } = useWorkspaceState();
+  const { draft, calibrationFlow, calibrationReferenceEdit, scaleClipboard } = useWorkspaceState();
   const currentPage = session?.pages[session.currentPage] ?? null;
 
   if (!session || !currentPage) return null;

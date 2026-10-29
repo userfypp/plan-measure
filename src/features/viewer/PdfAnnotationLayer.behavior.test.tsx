@@ -3,7 +3,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PathMeasurement, PathMeasurementType, PageState, Point, Tool } from "../../types/domain";
+import type {
+  PathMeasurement,
+  PathMeasurementType,
+  PageState,
+  Point,
+  Tool,
+} from "../../types/domain";
 import { PdfAnnotationLayer } from "./PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
 import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
@@ -14,7 +20,11 @@ type Handler = (event: unknown) => void;
 const captured = vi.hoisted(() => ({
   isolatedPreview: false,
   previewPoints: [] as number[],
-  previewSideHandles: [] as { draggable: ReturnType<typeof vi.fn>; getAttr: (name: string) => unknown; position: ReturnType<typeof vi.fn> }[],
+  previewSideHandles: [] as {
+    draggable: ReturnType<typeof vi.fn>;
+    getAttr: (name: string) => unknown;
+    position: ReturnType<typeof vi.fn>;
+  }[],
   lines: [] as Props[],
   circles: [] as Props[],
   texts: [] as Props[],
@@ -28,17 +38,25 @@ vi.mock("react-konva", () => ({
     return null;
   },
   Group: ({ children, ref }: { children?: React.ReactNode; ref?: { current: unknown } }) => {
-    if (ref && captured.isolatedPreview) ref.current = {
-      getStage: () => ({ add: vi.fn() }),
-      visible: vi.fn(),
-      clone: () => ({
-        find: (selector: string) => selector === ".measurement-preview-side-handle" ? captured.previewSideHandles : [],
-        findOne: (selector: string) => selector === ".measurement-preview-line" ? {
-          draggable: vi.fn(), fill: vi.fn(),
-          points: (points: number[]) => { captured.previewPoints = points; },
-        } : undefined,
-      }),
-    };
+    if (ref && captured.isolatedPreview)
+      ref.current = {
+        getStage: () => ({ add: vi.fn() }),
+        visible: vi.fn(),
+        clone: () => ({
+          find: (selector: string) =>
+            selector === ".measurement-preview-side-handle" ? captured.previewSideHandles : [],
+          findOne: (selector: string) =>
+            selector === ".measurement-preview-line"
+              ? {
+                  draggable: vi.fn(),
+                  fill: vi.fn(),
+                  points: (points: number[]) => {
+                    captured.previewPoints = points;
+                  },
+                }
+              : undefined,
+        }),
+      };
     return children ?? null;
   },
   Label: (props: Props & { children?: React.ReactNode }) => props.children ?? null,
@@ -53,14 +71,27 @@ vi.mock("react-konva", () => ({
   },
 }));
 
-vi.mock("konva/lib/Layer", () => ({ Layer: class { add() {} destroy() {} draw() {} } }));
-vi.mock("konva/lib/Group", () => ({ Group: class { add() {} } }));
+vi.mock("konva/lib/Layer", () => ({
+  Layer: class {
+    add() {}
+    destroy() {}
+    draw() {}
+  },
+}));
+vi.mock("konva/lib/Group", () => ({
+  Group: class {
+    add() {}
+  },
+}));
 
 vi.mock("konva/lib/shapes/Text", () => ({
   Text: class MockKonvaText {
     constructor(readonly props: { text?: string; fontSize?: number; padding?: number }) {}
     width() {
-      return (this.props.text?.length ?? 0) * (this.props.fontSize ?? 12) * 0.6 + (this.props.padding ?? 0) * 2;
+      return (
+        (this.props.text?.length ?? 0) * (this.props.fontSize ?? 12) * 0.6 +
+        (this.props.padding ?? 0) * 2
+      );
     }
     height() {
       return (this.props.fontSize ?? 12) + (this.props.padding ?? 0) * 2;
@@ -78,25 +109,53 @@ vi.mock("../../app/sessionState", () => ({
 const noop = () => undefined;
 const roles = resolveCanvasVisualRoles("light");
 const BOUNDS = { width: 600, height: 800, rotation: 0 as const };
-// Zoom 2 sin desplazamiento: pantalla = 2 * página.
+// Zoom 2 without panning: screen = 2 * page.
 const TRANSFORM = { zoom: 2, panX: 0, panY: 0 };
 const toScreen = (point: Point): Point => ({ x: point.x * 2, y: point.y * 2 });
 
-const SQUARE: Point[] = [{ x: 50, y: 50 }, { x: 150, y: 50 }, { x: 150, y: 120 }, { x: 50, y: 120 }];
+const SQUARE: Point[] = [
+  { x: 50, y: 50 },
+  { x: 150, y: 50 },
+  { x: 150, y: 120 },
+  { x: 50, y: 120 },
+];
 
-/** Página con una escala uniforme de 50 mm por unidad de página y una medición. */
+/** A page with a uniform 50 mm per page unit scale and one measurement. */
 function pageWith(type: PathMeasurementType, points: Point[], visible = true): PageState {
   return {
     pageNumber: 1,
     calibrations: [
-      { id: "scale-1", name: "Scale", mode: "uniform", start: { x: 20, y: 20 }, end: { x: 220, y: 20 }, referenceDistanceMm: 10000 },
+      {
+        id: "scale-1",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 20, y: 20 },
+        end: { x: 220, y: 20 },
+        referenceDistanceMm: 10000,
+      },
     ],
     activeCalibrationId: "scale-1",
     nextCalibrationNumber: 2,
     measurements: [
-      { id: "m-1", name: "Item", type, calibrationId: "scale-1", classificationValueIds: [], visible, points },
+      {
+        id: "m-1",
+        name: "Item",
+        type,
+        calibrationId: "scale-1",
+        classificationValueIds: [],
+        visible,
+        points,
+      },
     ],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 1,
+      polyline: 1,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -118,7 +177,9 @@ describe("PdfAnnotationLayer behavior", () => {
   let root: Root;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     captured.isolatedPreview = false;
     captured.previewPoints = [];
     captured.previewSideHandles = [];
@@ -186,10 +247,10 @@ describe("PdfAnnotationLayer behavior", () => {
     });
   }
 
-  /** Línea de la medición (excluye la línea de calibración, que no se pinta con showCalibration=false). */
+  /** The measurement's line (not the calibration line, which showCalibration=false hides). */
   const shape = () => captured.lines.find((line) => line.name === "measurement-preview-line")!;
 
-  /** Nodo Konva simulado cuyo puntero se controla desde el test. */
+  /** A fake Konva node whose pointer the test controls. */
   function dragNode() {
     const pointer = { x: 0, y: 0 };
     const node = {
@@ -207,18 +268,21 @@ describe("PdfAnnotationLayer behavior", () => {
     return { node, moveTo: (screen: Point) => Object.assign(pointer, screen) };
   }
 
-  const fire = (props: Props, name: string, event: unknown) => act(() => (props[name] as Handler)(event));
+  const fire = (props: Props, name: string, event: unknown) =>
+    act(() => (props[name] as Handler)(event));
   const mouseEvent = (target: unknown, button = 0, modifiers: Record<string, boolean> = {}) => ({
     target,
     evt: { button, ...modifiers },
     cancelBubble: false,
   });
 
-  /** Tiradores de vértice (las esquinas de un rectángulo), sin los de lado. */
-  const cornerHandles = () => captured.circles.filter((circle) => circle.name === "measurement-preview-handle");
-  const sideHandles = () => captured.circles.filter((circle) => circle.name === "measurement-preview-side-handle");
+  /** Vertex handles (a rectangle's corners), without the side handles. */
+  const cornerHandles = () =>
+    captured.circles.filter((circle) => circle.name === "measurement-preview-handle");
+  const sideHandles = () =>
+    captured.circles.filter((circle) => circle.name === "measurement-preview-side-handle");
 
-  /** Arrastra el tirador `handle` desde su posición hasta `to` (coordenadas de pantalla). */
+  /** Drags `handle` from where it is to `to` (screen coordinates). */
   function dragHandle(handle: Props, to: Point, { button = 0 } = {}) {
     const { node, moveTo } = dragNode();
     const event = mouseEvent(node, button);
@@ -229,7 +293,7 @@ describe("PdfAnnotationLayer behavior", () => {
     return { handle, node, event, end: () => fire(handle, "onDragEnd", event) };
   }
 
-  /** Arrastra el vértice `index` desde su posición hasta `to` (coordenadas de pantalla). */
+  /** Drags vertex `index` from where it is to `to` (screen coordinates). */
   const dragVertex = (index: number, to: Point, options?: { button?: number }) =>
     dragHandle(cornerHandles()[index]!, to, options);
 
@@ -240,7 +304,11 @@ describe("PdfAnnotationLayer behavior", () => {
       fire(shape(), "onClick", mouseEvent({}));
       fire(shape(), "onClick", mouseEvent({}, 0, { shiftKey: true }));
       fire(shape(), "onClick", mouseEvent({}, 0, { ctrlKey: true }));
-      expect(onSelectMeasurement.mock.calls).toEqual([["m-1", undefined], ["m-1", true], ["m-1", true]]);
+      expect(onSelectMeasurement.mock.calls).toEqual([
+        ["m-1", undefined],
+        ["m-1", true],
+        ["m-1", true],
+      ]);
     });
 
     it.each([1, 2])("ignores a click with mouse button %i, with or without modifiers", (button) => {
@@ -254,12 +322,15 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(event.cancelBubble).toBe(false);
     });
 
-    it.each<Tool>(["line", "polygon", "count", "hand", "calibrate"])("does not select while the %s tool is active", (activeTool) => {
-      const onSelectMeasurement = vi.fn();
-      renderLayer({ activeTool, onSelectMeasurement });
-      fire(shape(), "onClick", mouseEvent({}));
-      expect(onSelectMeasurement).not.toHaveBeenCalled();
-    });
+    it.each<Tool>(["line", "polygon", "count", "hand", "calibrate"])(
+      "does not select while the %s tool is active",
+      (activeTool) => {
+        const onSelectMeasurement = vi.fn();
+        renderLayer({ activeTool, onSelectMeasurement });
+        fire(shape(), "onClick", mouseEvent({}));
+        expect(onSelectMeasurement).not.toHaveBeenCalled();
+      },
+    );
 
     it("does not select, edit or drag while measurement editing is blocked", () => {
       const onSelectMeasurement = vi.fn();
@@ -325,7 +396,11 @@ describe("PdfAnnotationLayer behavior", () => {
   describe("visibility and labels", () => {
     it("does not draw hidden measurements nor any measurement when measurements are hidden", () => {
       renderLayer({ page: pageWith("polygon", SQUARE, false) });
-      expect(captured.lines.find((line) => line.visible !== false && line.name === "measurement-preview-line")).toBeUndefined();
+      expect(
+        captured.lines.find(
+          (line) => line.visible !== false && line.name === "measurement-preview-line",
+        ),
+      ).toBeUndefined();
       expect(captured.texts).toHaveLength(0);
       renderLayer({ showMeasurements: false });
       expect(captured.lines).toHaveLength(0);
@@ -333,17 +408,39 @@ describe("PdfAnnotationLayer behavior", () => {
     });
 
     it("labels each type with its scaled result and refreshes it when the points change", () => {
-      // 50 mm por unidad de página.
-      renderLayer({ page: pageWith("line", [{ x: 50, y: 50 }, { x: 250, y: 50 }]) });
+      // 50 mm per page unit.
+      renderLayer({
+        page: pageWith("line", [
+          { x: 50, y: 50 },
+          { x: 250, y: 50 },
+        ]),
+      });
       expect(captured.texts.map((text) => text.text)).toEqual(["10.00 m"]);
-      renderLayer({ page: pageWith("line", [{ x: 50, y: 50 }, { x: 450, y: 50 }]) });
+      renderLayer({
+        page: pageWith("line", [
+          { x: 50, y: 50 },
+          { x: 450, y: 50 },
+        ]),
+      });
       expect(captured.texts.map((text) => text.text)).toEqual(["20.00 m"]);
-      renderLayer({ page: pageWith("polygon", [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }]) });
+      renderLayer({
+        page: pageWith("polygon", [
+          { x: 0, y: 0 },
+          { x: 200, y: 0 },
+          { x: 200, y: 200 },
+          { x: 0, y: 200 },
+        ]),
+      });
       expect(captured.texts.map((text) => text.text)).toEqual(["P 40.00 m · A 100.00 m²"]);
     });
 
     it("reformats a label when the number separators change", () => {
-      renderLayer({ page: pageWith("line", [{ x: 50, y: 50 }, { x: 250, y: 50 }]) });
+      renderLayer({
+        page: pageWith("line", [
+          { x: 50, y: 50 },
+          { x: 250, y: 50 },
+        ]),
+      });
       expect(captured.texts.at(-1)?.text).toBe("10.00 m");
       try {
         act(() => setAppPreference("decimalSeparator", "comma"));
@@ -361,42 +458,56 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
         pageNumber: 1,
         id: "m-1",
-        points: [
-          SQUARE[0],
-          { x: 180, y: 50 },
-          { x: 180, y: 150 },
-          { x: 50, y: 150 },
-        ],
+        points: [SQUARE[0], { x: 180, y: 50 }, { x: 180, y: 150 }, { x: 50, y: 150 }],
       });
     });
 
-    it.each(["rectangle", "ellipse"] as const)("offers a handle in the middle of each %s side, beneath the corners", (type) => {
-      renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
-      expect(sideHandles().map(({ editTarget, x, y }) => ({ editTarget, x, y }))).toEqual([
-        { editTarget: 4, x: 100, y: 50 },
-        { editTarget: 5, x: 150, y: 85 },
-        { editTarget: 6, x: 100, y: 120 },
-        { editTarget: 7, x: 50, y: 85 },
-      ]);
-      expect(captured.circles.slice(0, 4)).toEqual(sideHandles());
-      expect(cornerHandles().map(({ x, y }) => ({ x, y }))).toEqual(SQUARE);
-      expect(sideHandles().every((handle) => handle.radius === cornerHandles()[0]!.radius && handle.draggable === true)).toBe(true);
-    });
+    it.each(["rectangle", "ellipse"] as const)(
+      "offers a handle in the middle of each %s side, beneath the corners",
+      (type) => {
+        renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
+        expect(sideHandles().map(({ editTarget, x, y }) => ({ editTarget, x, y }))).toEqual([
+          { editTarget: 4, x: 100, y: 50 },
+          { editTarget: 5, x: 150, y: 85 },
+          { editTarget: 6, x: 100, y: 120 },
+          { editTarget: 7, x: 50, y: 85 },
+        ]);
+        expect(captured.circles.slice(0, 4)).toEqual(sideHandles());
+        expect(cornerHandles().map(({ x, y }) => ({ x, y }))).toEqual(SQUARE);
+        expect(
+          sideHandles().every(
+            (handle) => handle.radius === cornerHandles()[0]!.radius && handle.draggable === true,
+          ),
+        ).toBe(true);
+      },
+    );
 
     it("offers side handles only on boxes, while selected and editable", () => {
       renderLayer({ page: pageWith("polygon", SQUARE), selected: ["m-1"] });
       expect(sideHandles()).toHaveLength(0);
       renderLayer({ page: pageWith("rectangle", SQUARE) });
       expect(sideHandles()).toHaveLength(0);
-      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"], measurementEditingBlocked: true });
+      renderLayer({
+        page: pageWith("rectangle", SQUARE),
+        selected: ["m-1"],
+        measurementEditingBlocked: true,
+      });
       expect(sideHandles()).toHaveLength(0);
     });
 
     it("hides the handles of sides too short on screen to grab apart from the corners", () => {
-      // 100 × 70 de página; el mínimo es el doble del objetivo táctil (2 × 32 px).
-      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"], transform: { zoom: 0.8, panX: 0, panY: 0 } });
+      // 100 × 70 page units; the minimum is twice the touch target (2 × 32 px).
+      renderLayer({
+        page: pageWith("rectangle", SQUARE),
+        selected: ["m-1"],
+        transform: { zoom: 0.8, panX: 0, panY: 0 },
+      });
       expect(sideHandles().map((handle) => handle.editTarget)).toEqual([4, 6]);
-      renderLayer({ page: pageWith("rectangle", SQUARE), selected: ["m-1"], transform: { zoom: 0.5, panX: 0, panY: 0 } });
+      renderLayer({
+        page: pageWith("rectangle", SQUARE),
+        selected: ["m-1"],
+        transform: { zoom: 0.5, panX: 0, panY: 0 },
+      });
       expect(sideHandles()).toHaveLength(0);
       expect(cornerHandles()).toHaveLength(4);
     });
@@ -470,7 +581,11 @@ describe("PdfAnnotationLayer behavior", () => {
     });
 
     describe("revision cloud style", () => {
-      const TRIANGLE: Point[] = [{ x: 50, y: 50 }, { x: 150, y: 50 }, { x: 100, y: 130 }];
+      const TRIANGLE: Point[] = [
+        { x: 50, y: 50 },
+        { x: 150, y: 50 },
+        { x: 100, y: 130 },
+      ];
       function cloudPage(color?: string): PageState {
         const page = pageWith("cloud", TRIANGLE);
         if (color) (page.measurements[0] as PathMeasurement).color = color;
@@ -524,61 +639,91 @@ describe("PdfAnnotationLayer behavior", () => {
   });
 
   describe("vertex drag", () => {
-    it.each([false, true])("cancels stale gestures after undo, including a prepared gesture (%s)", (prepared) => {
-      const page = pageWith("polygon", SQUARE);
-      renderLayer({ page, selected: ["m-1"] });
-      const handle = captured.circles[2]!;
-      const { node, moveTo } = dragNode();
-      const event = mouseEvent(node);
-      moveTo(toScreen(SQUARE[2]!));
-      fire(handle, "onMouseDown", event);
-      if (!prepared) fire(handle, "onDragStart", event);
-      renderLayer({ page: pageWith("polygon", SQUARE.map((point) => ({ x: point.x - 10, y: point.y - 10 }))), selected: ["m-1"] });
-      moveTo({ x: 360, y: 300 });
-      fire(handle, "onDragStart", event);
-      fire(handle, "onDragMove", event);
-      fire(handle, "onDragEnd", event);
-      expect(captured.updateMeasurement).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+      "cancels stale gestures after undo, including a prepared gesture (%s)",
+      (prepared) => {
+        const page = pageWith("polygon", SQUARE);
+        renderLayer({ page, selected: ["m-1"] });
+        const handle = captured.circles[2]!;
+        const { node, moveTo } = dragNode();
+        const event = mouseEvent(node);
+        moveTo(toScreen(SQUARE[2]!));
+        fire(handle, "onMouseDown", event);
+        if (!prepared) fire(handle, "onDragStart", event);
+        renderLayer({
+          page: pageWith(
+            "polygon",
+            SQUARE.map((point) => ({ x: point.x - 10, y: point.y - 10 })),
+          ),
+          selected: ["m-1"],
+        });
+        moveTo({ x: 360, y: 300 });
+        fire(handle, "onDragStart", event);
+        fire(handle, "onDragMove", event);
+        fire(handle, "onDragEnd", event);
+        expect(captured.updateMeasurement).not.toHaveBeenCalled();
+      },
+    );
 
     it("preserves an active drag when unrelated measurement metadata changes", () => {
       const page = pageWith("polygon", SQUARE);
       renderLayer({ page, selected: ["m-1"] });
       const drag = dragVertex(2, { x: 360, y: 300 });
-      renderLayer({ page: { ...page, measurements: [{ ...page.measurements[0]!, note: "Updated" }] }, selected: ["m-1"] });
+      renderLayer({
+        page: { ...page, measurements: [{ ...page.measurements[0]!, note: "Updated" }] },
+        selected: ["m-1"],
+      });
       drag.end();
       expect(captured.updateMeasurement).toHaveBeenCalledOnce();
     });
 
-    it.each(["rectangle", "ellipse"] as const)("keeps the isolated %s preview aligned at drag start and move", (type) => {
-      captured.isolatedPreview = true;
-      let frame: FrameRequestCallback | undefined;
-      const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frame = callback; return 1; });
-      try {
-        renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
-        const handle = cornerHandles()[2]!;
-        const { node, moveTo } = dragNode();
-        const event = mouseEvent(node);
-        moveTo(toScreen(SQUARE[2]!));
-        fire(handle, "onMouseDown", event);
-        moveTo({ x: 360, y: 300 });
-        fire(handle, "onDragStart", event);
-        expect(captured.previewPoints).toEqual([50, 50, 180, 50, 180, 150, 50, 150]);
-        moveTo({ x: 400, y: 320 });
-        fire(handle, "onDragMove", event);
-        act(() => frame!(0));
-        expect(captured.previewPoints).toEqual([50, 50, 200, 50, 200, 160, 50, 160]);
-        fire(handle, "onDragEnd", event);
-        expect(captured.updateMeasurement).toHaveBeenCalledWith(expect.objectContaining({ points: [
-          { x: 50, y: 50 }, { x: 200, y: 50 }, { x: 200, y: 160 }, { x: 50, y: 160 },
-        ] }));
-      } finally { raf.mockRestore(); }
-    });
+    it.each(["rectangle", "ellipse"] as const)(
+      "keeps the isolated %s preview aligned at drag start and move",
+      (type) => {
+        captured.isolatedPreview = true;
+        let frame: FrameRequestCallback | undefined;
+        const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+          frame = callback;
+          return 1;
+        });
+        try {
+          renderLayer({ page: pageWith(type, SQUARE), selected: ["m-1"] });
+          const handle = cornerHandles()[2]!;
+          const { node, moveTo } = dragNode();
+          const event = mouseEvent(node);
+          moveTo(toScreen(SQUARE[2]!));
+          fire(handle, "onMouseDown", event);
+          moveTo({ x: 360, y: 300 });
+          fire(handle, "onDragStart", event);
+          expect(captured.previewPoints).toEqual([50, 50, 180, 50, 180, 150, 50, 150]);
+          moveTo({ x: 400, y: 320 });
+          fire(handle, "onDragMove", event);
+          act(() => frame!(0));
+          expect(captured.previewPoints).toEqual([50, 50, 200, 50, 200, 160, 50, 160]);
+          fire(handle, "onDragEnd", event);
+          expect(captured.updateMeasurement).toHaveBeenCalledWith(
+            expect.objectContaining({
+              points: [
+                { x: 50, y: 50 },
+                { x: 200, y: 50 },
+                { x: 200, y: 160 },
+                { x: 50, y: 160 },
+              ],
+            }),
+          );
+        } finally {
+          raf.mockRestore();
+        }
+      },
+    );
 
     it("keeps the isolated rectangle preview aligned while a side is dragged", () => {
       captured.isolatedPreview = true;
       let frame: FrameRequestCallback | undefined;
-      const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frame = callback; return 1; });
+      const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+        frame = callback;
+        return 1;
+      });
       try {
         captured.previewSideHandles = [4, 5, 6, 7].map((target) => ({
           draggable: vi.fn(),
@@ -598,12 +743,21 @@ describe("PdfAnnotationLayer behavior", () => {
         fire(handle, "onDragMove", event);
         act(() => frame!(0));
         expect(captured.previewPoints).toEqual([20, 50, 150, 50, 150, 120, 20, 120]);
-        // Los tiradores de lado de la vista previa siguen a los lados.
-        expect(captured.previewSideHandles.map((side) => side.position.mock.lastCall?.[0])).toEqual([
-          { x: 85, y: 50 }, { x: 150, y: 85 }, { x: 85, y: 120 }, { x: 20, y: 85 },
-        ]);
-        expect(captured.previewSideHandles.every((side) => side.draggable.mock.calls[0]?.[0] === false)).toBe(true);
-      } finally { raf.mockRestore(); }
+        // The preview's side handles follow the sides.
+        expect(captured.previewSideHandles.map((side) => side.position.mock.lastCall?.[0])).toEqual(
+          [
+            { x: 85, y: 50 },
+            { x: 150, y: 85 },
+            { x: 85, y: 120 },
+            { x: 20, y: 85 },
+          ],
+        );
+        expect(
+          captured.previewSideHandles.every((side) => side.draggable.mock.calls[0]?.[0] === false),
+        ).toBe(true);
+      } finally {
+        raf.mockRestore();
+      }
     });
 
     it("commits only the dragged vertex, converted from screen to page coordinates", () => {
@@ -630,10 +784,18 @@ describe("PdfAnnotationLayer behavior", () => {
     it("reports editing activity and a cancel handle for the duration of the drag", () => {
       const onMeasurementEditActiveChange = vi.fn();
       const onVertexDragCancellationChange = vi.fn();
-      renderLayer({ selected: ["m-1"], onMeasurementEditActiveChange, onVertexDragCancellationChange });
+      renderLayer({
+        selected: ["m-1"],
+        onMeasurementEditActiveChange,
+        onVertexDragCancellationChange,
+      });
       const drag = dragVertex(1, { x: 400, y: 200 });
       expect(onMeasurementEditActiveChange).toHaveBeenCalledWith("m-1", true);
-      expect(onVertexDragCancellationChange.mock.calls.at(-1)).toEqual(["m-1", expect.any(Object), expect.any(Function)]);
+      expect(onVertexDragCancellationChange.mock.calls.at(-1)).toEqual([
+        "m-1",
+        expect.any(Object),
+        expect.any(Function),
+      ]);
       drag.end();
       expect(onMeasurementEditActiveChange).toHaveBeenLastCalledWith("m-1", false);
       expect(onVertexDragCancellationChange.mock.calls.at(-1)![2]).toBeNull();
@@ -643,7 +805,9 @@ describe("PdfAnnotationLayer behavior", () => {
       const onVertexDragCancellationChange = vi.fn();
       renderLayer({ selected: ["m-1"], onVertexDragCancellationChange });
       const drag = dragVertex(2, { x: 360, y: 300 });
-      const cancel = onVertexDragCancellationChange.mock.calls.filter(([, , fn]) => typeof fn === "function").at(-1)![2] as () => void;
+      const cancel = onVertexDragCancellationChange.mock.calls
+        .filter(([, , fn]) => typeof fn === "function")
+        .at(-1)![2] as () => void;
       act(cancel);
       drag.end();
       expect(captured.updateMeasurement).not.toHaveBeenCalled();
@@ -667,7 +831,10 @@ describe("PdfAnnotationLayer behavior", () => {
   });
 
   describe("whole measurement drag", () => {
-    const LINE: Point[] = [{ x: 50, y: 50 }, { x: 150, y: 50 }];
+    const LINE: Point[] = [
+      { x: 50, y: 50 },
+      { x: 150, y: 50 },
+    ];
 
     function dragWhole(from: Point, to: Point, button = 0, line = shape()) {
       const target = dragNode();
@@ -694,23 +861,56 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
         pageNumber: 1,
         id: "m-1",
-        points: [{ x: 70, y: 60 }, { x: 170, y: 60 }],
+        points: [
+          { x: 70, y: 60 },
+          { x: 170, y: 60 },
+        ],
       });
     });
 
     it("moves the whole selection, including a measurement just added to it, and nothing else", () => {
       const page = pageWith("line", LINE);
-      const lineAt = (id: string, y: number) => ({ ...page.measurements[0]!, id, points: [{ x: 50, y }, { x: 150, y }] });
+      const lineAt = (id: string, y: number) => ({
+        ...page.measurements[0]!,
+        id,
+        points: [
+          { x: 50, y },
+          { x: 150, y },
+        ],
+      });
       page.measurements.push(lineAt("m-2", 200), lineAt("m-3", 300), lineAt("m-4", 400));
       renderLayer({ page, selected: ["m-1", "m-2"] });
       renderLayer({ page, selected: ["m-1", "m-2", "m-3"] });
-      const added = captured.lines.find((line) => line.name === "measurement-preview-line" && (line.points as number[])[1] === 300)!;
+      const added = captured.lines.find(
+        (line) => line.name === "measurement-preview-line" && (line.points as number[])[1] === 300,
+      )!;
       dragWhole({ x: 200, y: 600 }, { x: 240, y: 620 }, 0, added).end();
       expect(captured.updateMeasurement).not.toHaveBeenCalled();
       expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
-        { pageNumber: 1, id: "m-1", points: [{ x: 70, y: 60 }, { x: 170, y: 60 }] },
-        { pageNumber: 1, id: "m-2", points: [{ x: 70, y: 210 }, { x: 170, y: 210 }] },
-        { pageNumber: 1, id: "m-3", points: [{ x: 70, y: 310 }, { x: 170, y: 310 }] },
+        {
+          pageNumber: 1,
+          id: "m-1",
+          points: [
+            { x: 70, y: 60 },
+            { x: 170, y: 60 },
+          ],
+        },
+        {
+          pageNumber: 1,
+          id: "m-2",
+          points: [
+            { x: 70, y: 210 },
+            { x: 170, y: 210 },
+          ],
+        },
+        {
+          pageNumber: 1,
+          id: "m-3",
+          points: [
+            { x: 70, y: 310 },
+            { x: 170, y: 310 },
+          ],
+        },
       ]);
     });
 
@@ -720,15 +920,24 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
         pageNumber: 1,
         id: "m-1",
-        points: [{ x: 500, y: 50 }, { x: 600, y: 50 }],
+        points: [
+          { x: 500, y: 50 },
+          { x: 600, y: 50 },
+        ],
       });
     });
 
     it("commits nothing when the drag is cancelled or the pointer returns to the start", () => {
       const onWholeMeasurementDragCancellationChange = vi.fn();
-      renderLayer({ page: pageWith("line", LINE), selected: ["m-1"], onWholeMeasurementDragCancellationChange });
+      renderLayer({
+        page: pageWith("line", LINE),
+        selected: ["m-1"],
+        onWholeMeasurementDragCancellationChange,
+      });
       const drag = dragWhole({ x: 200, y: 100 }, { x: 260, y: 140 });
-      const cancel = onWholeMeasurementDragCancellationChange.mock.calls.filter(([, fn]) => typeof fn === "function").at(-1)![1] as () => void;
+      const cancel = onWholeMeasurementDragCancellationChange.mock.calls
+        .filter(([, fn]) => typeof fn === "function")
+        .at(-1)![1] as () => void;
       act(cancel);
       drag.end();
       expect(captured.updateMeasurement).not.toHaveBeenCalled();
