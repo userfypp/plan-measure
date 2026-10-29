@@ -117,7 +117,10 @@ describe("CustomRatioDialog", () => {
     });
 
     onConfirm.mockClear();
-    setInputValue(document.querySelector<HTMLInputElement>("#custom-ratio-name")!, " Detail ratio ");
+    setInputValue(
+      document.querySelector<HTMLInputElement>("#custom-ratio-name")!,
+      " Detail ratio ",
+    );
     setInputValue(ratio, "60");
     act(() => button("Save scale").click());
     expect(onConfirm).toHaveBeenCalledWith({
@@ -140,7 +143,11 @@ describe("CustomRatioDialog", () => {
 
     expect(onConfirm).toHaveBeenCalledWith({
       name: "Scale 2",
-      calibration: createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: 30 }),
+      calibration: createPageCalibrationFromRatio({
+        mode: "xy",
+        xDenominator: 70,
+        yDenominator: 30,
+      }),
     });
   });
 
@@ -193,9 +200,9 @@ describe("CustomRatioDialog", () => {
     const uniform = document.querySelector<HTMLInputElement>("#custom-ratio-uniform")!;
     expect(uniform.getAttribute("aria-invalid")).toBe("true");
     expect(uniform.getAttribute("aria-describedby")).toBeTruthy();
-    expect(document.getElementById(uniform.getAttribute("aria-describedby")!)?.textContent).toContain(
-      "Enter a ratio denominator.",
-    );
+    expect(
+      document.getElementById(uniform.getAttribute("aria-describedby")!)?.textContent,
+    ).toContain("Enter a ratio denominator.");
 
     setInputValue(uniform, "0");
     act(() => button("Save scale").click());

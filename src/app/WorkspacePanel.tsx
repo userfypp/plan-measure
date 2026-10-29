@@ -24,13 +24,7 @@ export interface WorkspacePanelProps {
 }
 
 const WorkspaceModulePane = memo(
-  function WorkspaceModulePane({
-    active,
-    children,
-  }: {
-    active: boolean;
-    children: ReactNode;
-  }) {
+  function WorkspaceModulePane({ active, children }: { active: boolean; children: ReactNode }) {
     return (
       <div className={styles.modulePane} hidden={!active}>
         {children}
@@ -50,11 +44,7 @@ export function WorkspacePanel({
   details,
 }: WorkspacePanelProps) {
   const drawer = useWorkspaceDrawerPresentation();
-  const {
-    workspaceModule,
-    measurementDetailsOpen,
-    setWorkspaceModule,
-  } = useWorkspaceState();
+  const { workspaceModule, measurementDetailsOpen, setWorkspaceModule } = useWorkspaceState();
   const activeLabel = workspaceModuleLabel(workspaceModule);
 
   return (
@@ -93,9 +83,7 @@ export function WorkspacePanel({
         )}
       </header>
       <div className={styles.body}>
-        <WorkspaceModulePane
-          active={!measurementDetailsOpen && workspaceModule === "measurements"}
-        >
+        <WorkspaceModulePane active={!measurementDetailsOpen && workspaceModule === "measurements"}>
           {measurements}
         </WorkspaceModulePane>
         <WorkspaceModulePane active={!measurementDetailsOpen && workspaceModule === "takeoff"}>

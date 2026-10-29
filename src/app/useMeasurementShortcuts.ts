@@ -133,7 +133,9 @@ export function useMeasurementShortcuts({
         return;
       }
       if (!selectedMeasurementId) return;
-      const measurement = page.measurements.find((candidate) => candidate.id === selectedMeasurementId);
+      const measurement = page.measurements.find(
+        (candidate) => candidate.id === selectedMeasurementId,
+      );
       if (!measurement) return;
       event.preventDefault();
       requestMeasurementDelete({

@@ -35,9 +35,19 @@ function DeleteRequest() {
 
 function ClassificationDeleteRequest({ target }: { target: "dimension" | "value" }) {
   const { requestDeleteClassification } = useOverlayState();
-  return <button onClick={() => requestDeleteClassification(target === "dimension"
-    ? { target, dimensionId: "trade", name: "Trade" }
-    : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" })}>Request classification delete</button>;
+  return (
+    <button
+      onClick={() =>
+        requestDeleteClassification(
+          target === "dimension"
+            ? { target, dimensionId: "trade", name: "Trade" }
+            : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" },
+        )
+      }
+    >
+      Request classification delete
+    </button>
+  );
 }
 
 const deleteScalePayload = { pageNumber: 1, calibrationId: "xy", calibrationName: "Survey" };
@@ -239,10 +249,14 @@ describe("OverlayHost classification deletion", () => {
   it.each(["dimension", "value"] as const)("confirms or cancels deleting a %s", (target) => {
     const confirm = vi.fn();
     const cancel = vi.fn();
-    act(() => root!.render(<OverlayProvider>
-      <ClassificationDeleteRequest target={target} />
-      <OverlayHost onConfirmationConfirm={confirm} onConfirmationCancel={cancel} />
-    </OverlayProvider>));
+    act(() =>
+      root!.render(
+        <OverlayProvider>
+          <ClassificationDeleteRequest target={target} />
+          <OverlayHost onConfirmationConfirm={confirm} onConfirmationCancel={cancel} />
+        </OverlayProvider>,
+      ),
+    );
     act(() => buttonByText("Request classification delete").click());
     const dialog = document.querySelector("dialog")!;
     expect(dialog.textContent).toContain(`Delete ${target}`);
@@ -259,13 +273,22 @@ describe("OverlayHost classification deletion", () => {
     expect(cancel).toHaveBeenCalledOnce();
     expect(document.querySelector("dialog")).toBeNull();
     act(() => buttonByText("Request classification delete").click());
-    const reopenedCheckbox = document.querySelector<HTMLInputElement>('dialog input[type="checkbox"]')!;
+    const reopenedCheckbox = document.querySelector<HTMLInputElement>(
+      'dialog input[type="checkbox"]',
+    )!;
     expect(reopenedCheckbox.checked).toBe(false);
     act(() => reopenedCheckbox.click());
     act(() => buttonByText("Delete").click());
-    expect(confirm).toHaveBeenCalledWith({ type: "deleteClassification", payload: target === "dimension"
-      ? { target, dimensionId: "trade", name: "Trade" }
-      : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" } }, { dontAskAgain: true });
+    expect(confirm).toHaveBeenCalledWith(
+      {
+        type: "deleteClassification",
+        payload:
+          target === "dimension"
+            ? { target, dimensionId: "trade", name: "Trade" }
+            : { target, dimensionId: "trade", valueId: "electrical", name: "Electrical" },
+      },
+      { dontAskAgain: true },
+    );
     expect(document.querySelector("dialog")).toBeNull();
   });
 });
@@ -274,9 +297,24 @@ it("explains and confirms discarding a project that exists only in memory", () =
   const confirm = vi.fn();
   function Request() {
     const { requestReplacePdf } = useOverlayState();
-    return <button onClick={() => requestReplacePdf({ pdfId: "new", fileName: "B.pdf", discardUnsavedProject: true })}>Request new PDF</button>;
+    return (
+      <button
+        onClick={() =>
+          requestReplacePdf({ pdfId: "new", fileName: "B.pdf", discardUnsavedProject: true })
+        }
+      >
+        Request new PDF
+      </button>
+    );
   }
-  act(() => root!.render(<OverlayProvider><Request /><OverlayHost onDialogConfirm={confirm} /></OverlayProvider>));
+  act(() =>
+    root!.render(
+      <OverlayProvider>
+        <Request />
+        <OverlayHost onDialogConfirm={confirm} />
+      </OverlayProvider>,
+    ),
+  );
   act(() => buttonByText("Request new PDF").click());
   expect(document.querySelector("dialog")?.textContent).toContain("Discard unsaved project?");
   expect(document.querySelector("dialog")?.textContent).toContain("exists only in memory");
@@ -285,5 +323,8 @@ it("explains and confirms discarding a project that exists only in memory", () =
   expect(confirm).not.toHaveBeenCalled();
   act(() => buttonByText("Request new PDF").click());
   act(() => buttonByText("Discard and open").click());
-  expect(confirm).toHaveBeenCalledWith({ type: "replacePdf", payload: { pdfId: "new", fileName: "B.pdf", discardUnsavedProject: true } });
+  expect(confirm).toHaveBeenCalledWith({
+    type: "replacePdf",
+    payload: { pdfId: "new", fileName: "B.pdf", discardUnsavedProject: true },
+  });
 });

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { PageCalibration, Point, UniformPageCalibration } from "../../types/domain";
-import { constrainMeasurementTranslation, translateMeasurementPoints } from "../viewer/measurementDrag";
+import {
+  constrainMeasurementTranslation,
+  translateMeasurementPoints,
+} from "../viewer/measurementDrag";
 import { calibrationScaleX, calibrationScaleY, millimetresPerPageUnit } from "../../utils/geometry";
 import { fromMillimetres, fromSquareMillimetres, toMillimetres } from "../../utils/units";
 import {
@@ -15,7 +18,19 @@ const MIN_NORMAL = 2 ** -1022;
 // from near the smallest normal value to near the largest finite calibration.
 const SMALLEST_RATIO = 2.3e-308;
 const LARGEST_RATIO = 7e306;
-const DENOMINATORS = [SMALLEST_RATIO, 1e-300, 1e-6, 0.5, 1, 20, 62.5125, 1234.5678, 1e15, 1e100, LARGEST_RATIO];
+const DENOMINATORS = [
+  SMALLEST_RATIO,
+  1e-300,
+  1e-6,
+  0.5,
+  1,
+  20,
+  62.5125,
+  1234.5678,
+  1e15,
+  1e100,
+  LARGEST_RATIO,
+];
 
 function named(calibration: Omit<PageCalibration, "id" | "name">): PageCalibration {
   return { id: "scale", name: "Scale", ...calibration } as PageCalibration;
@@ -23,16 +38,22 @@ function named(calibration: Omit<PageCalibration, "id" | "name">): PageCalibrati
 
 describe("numerical conservation", () => {
   it("accepts every tested ratio denominator", () => {
-    for (const denominator of DENOMINATORS) expect(isValidScaleRatioDenominator(denominator)).toBe(true);
+    for (const denominator of DENOMINATORS)
+      expect(isValidScaleRatioDenominator(denominator)).toBe(true);
   });
 
-  it.each(DENOMINATORS)("saves an unchanged uniform 1:%s ratio as the same calibration", (denominator) => {
-    const calibration = createPageCalibrationFromRatio({ mode: "uniform", denominator });
-    const spec = scaleRatioSpecFromCalibration(named(calibration));
+  it.each(DENOMINATORS)(
+    "saves an unchanged uniform 1:%s ratio as the same calibration",
+    (denominator) => {
+      const calibration = createPageCalibrationFromRatio({ mode: "uniform", denominator });
+      const spec = scaleRatioSpecFromCalibration(named(calibration));
 
-    expect(spec).toEqual({ mode: "uniform", denominator });
-    expect(createPageCalibrationFromRatio(spec as { mode: "uniform"; denominator: number })).toEqual(calibration);
-  });
+      expect(spec).toEqual({ mode: "uniform", denominator });
+      expect(
+        createPageCalibrationFromRatio(spec as { mode: "uniform"; denominator: number }),
+      ).toEqual(calibration);
+    },
+  );
 
   it("saves an unchanged X/Y ratio as the same calibration at both extremes", () => {
     const calibration = createPageCalibrationFromRatio({
@@ -44,25 +65,32 @@ describe("numerical conservation", () => {
 
     expect(spec).toEqual({ mode: "xy", xDenominator: SMALLEST_RATIO, yDenominator: LARGEST_RATIO });
     expect(
-      createPageCalibrationFromRatio(spec as { mode: "xy"; xDenominator: number; yDenominator: number }),
+      createPageCalibrationFromRatio(
+        spec as { mode: "xy"; xDenominator: number; yDenominator: number },
+      ),
     ).toEqual(calibration);
   });
 
-  it.each(DENOMINATORS)("copies a 1:%s scale to another page without changing its factor", (denominator) => {
-    const uniform: UniformPageCalibration = {
-      id: "uniform",
-      name: "Uniform",
-      ...createPageCalibrationFromRatio({ mode: "uniform", denominator }),
-    };
-    expect(millimetresPerPageUnit(copyCalibrationToPage(uniform))).toBe(millimetresPerPageUnit(uniform));
+  it.each(DENOMINATORS)(
+    "copies a 1:%s scale to another page without changing its factor",
+    (denominator) => {
+      const uniform: UniformPageCalibration = {
+        id: "uniform",
+        name: "Uniform",
+        ...createPageCalibrationFromRatio({ mode: "uniform", denominator }),
+      };
+      expect(millimetresPerPageUnit(copyCalibrationToPage(uniform))).toBe(
+        millimetresPerPageUnit(uniform),
+      );
 
-    const xy = named(
-      createPageCalibrationFromRatio({ mode: "xy", xDenominator: denominator, yDenominator: 50 }),
-    );
-    const copy = named(copyCalibrationToPage(xy));
-    expect(calibrationScaleX(copy)).toBe(calibrationScaleX(xy));
-    expect(calibrationScaleY(copy)).toBe(calibrationScaleY(xy));
-  });
+      const xy = named(
+        createPageCalibrationFromRatio({ mode: "xy", xDenominator: denominator, yDenominator: 50 }),
+      );
+      const copy = named(copyCalibrationToPage(xy));
+      expect(calibrationScaleX(copy)).toBe(calibrationScaleX(xy));
+      expect(calibrationScaleY(copy)).toBe(calibrationScaleY(xy));
+    },
+  );
 
   it("copies a scale drawn from arbitrary points without changing its factor", () => {
     const drawn: UniformPageCalibration = {
@@ -73,7 +101,9 @@ describe("numerical conservation", () => {
       end: { x: 13.5, y: 4 },
       referenceDistanceMm: 1234.5,
     };
-    expect(millimetresPerPageUnit(copyCalibrationToPage(drawn))).toBe(millimetresPerPageUnit(drawn));
+    expect(millimetresPerPageUnit(copyCalibrationToPage(drawn))).toBe(
+      millimetresPerPageUnit(drawn),
+    );
   });
 
   it.each([
@@ -104,7 +134,11 @@ describe("numerical conservation", () => {
       { x: 10, y: 20 },
       { x: 30, y: 40 },
     ];
-    const delta = constrainMeasurementTranslation(points, { x: 2.5, y: -7.25 }, { width: 100, height: 100, rotation: 0 });
+    const delta = constrainMeasurementTranslation(
+      points,
+      { x: 2.5, y: -7.25 },
+      { width: 100, height: 100, rotation: 0 },
+    );
     expect(delta).toEqual({ x: 2.5, y: -7.25 });
     expect(translateMeasurementPoints(points, delta)).toEqual([
       { x: 12.5, y: 12.75 },

@@ -260,12 +260,7 @@ export function ExportDialog({
             ) : null}
           </div>
           <div className={styles.footerButtons}>
-            <Button
-              size="compact"
-              variant="ghost"
-              disabled={exportInProgress}
-              onClick={onClose}
-            >
+            <Button size="compact" variant="ghost" disabled={exportInProgress} onClick={onClose}>
               Cancel
             </Button>
             <Button
@@ -652,11 +647,7 @@ function ColumnOption({
       >
         {descriptor.label}
       </span>
-      {descriptor.required && (
-        <Badge variant="neutral">
-          Required
-        </Badge>
-      )}
+      {descriptor.required && <Badge variant="neutral">Required</Badge>}
     </label>
   );
 }

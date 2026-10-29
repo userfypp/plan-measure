@@ -310,7 +310,10 @@ export function ClassificationManager({
                         return (
                           <li
                             key={value.id}
-                            className={[styles.valueItem, editingValue ? styles.valueItemEditing : ""]
+                            className={[
+                              styles.valueItem,
+                              editingValue ? styles.valueItemEditing : "",
+                            ]
                               .filter(Boolean)
                               .join(" ")}
                           >
@@ -339,35 +342,36 @@ export function ClassificationManager({
                                 }}
                                 label={`Actions for ${value.archived ? "archived " : ""}value ${value.name}`}
                                 items={[
-                                  ...(dimension.archived ? [] : value.archived
-                                    ? [
-                                        {
-                                          id: "restore",
-                                          label: "Restore",
-                                          onSelect: () => onRestoreValue(dimension.id, value.id),
-                                        },
-                                      ]
-                                    : [
-                                        {
-                                          id: "rename",
-                                          label: "Rename",
-                                          onSelect: () =>
-                                            startEditing(
-                                              {
-                                                type: "value",
-                                                dimensionId: dimension.id,
-                                                valueId: value.id,
-                                              },
-                                              value.name,
-                                            ),
-                                        },
-                                        {
-                                          id: "archive",
-                                          label: "Archive (assignments preserved)",
-                                          onSelect: () => archiveValue(dimension.id, value.id),
-                                        },
-                                      ]
-                                  ),
+                                  ...(dimension.archived
+                                    ? []
+                                    : value.archived
+                                      ? [
+                                          {
+                                            id: "restore",
+                                            label: "Restore",
+                                            onSelect: () => onRestoreValue(dimension.id, value.id),
+                                          },
+                                        ]
+                                      : [
+                                          {
+                                            id: "rename",
+                                            label: "Rename",
+                                            onSelect: () =>
+                                              startEditing(
+                                                {
+                                                  type: "value",
+                                                  dimensionId: dimension.id,
+                                                  valueId: value.id,
+                                                },
+                                                value.name,
+                                              ),
+                                          },
+                                          {
+                                            id: "archive",
+                                            label: "Archive (assignments preserved)",
+                                            onSelect: () => archiveValue(dimension.id, value.id),
+                                          },
+                                        ]),
                                   {
                                     id: "delete",
                                     label: "Delete",

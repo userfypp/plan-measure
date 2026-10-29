@@ -90,8 +90,9 @@ function press(key: string) {
 }
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-    true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -165,7 +166,9 @@ describe("ToolRail V2", () => {
     expect(button("select").getAttribute("aria-disabled")).toBe("true");
     expect(button("select").tabIndex).toBe(0);
     expect(button("hand").tabIndex).toBe(-1);
-    expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toEqual([button("select")]);
+    expect(toolButtons().filter((candidate) => candidate.tabIndex === 0)).toEqual([
+      button("select"),
+    ]);
   });
 
   it("uses one Narrow launcher and exposes the same nine tools on demand", () => {
@@ -298,9 +301,11 @@ describe("ToolRail V2", () => {
       );
     });
 
-    expect(container?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]')?.getAttribute("aria-expanded")).toBe(
-      "false",
-    );
+    expect(
+      container
+        ?.querySelector<HTMLButtonElement>('button[aria-label="Tools"]')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(toolButtons()).toHaveLength(0);
   });
 });

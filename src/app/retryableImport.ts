@@ -32,21 +32,29 @@ export function retryableImport<T>(load: () => Promise<T>): () => Promise<T> {
       const url = new URL(failedUrl.href);
       url.searchParams.set("module-retry", String(++attempt));
       try {
-        return await import(/* @vite-ignore */ url.href) as T;
+        return (await import(/* @vite-ignore */ url.href)) as T;
       } catch (error) {
-        const loads = await fetch(url.href, { cache: "no-store" }).then((response) => response.ok, () => false);
+        const loads = await fetch(url.href, { cache: "no-store" }).then(
+          (response) => response.ok,
+          () => false,
+        );
         throw loads ? new Error(MODULE_RELOAD_REQUIRED, { cause: error }) : error;
       }
     } catch (error) {
       if (error instanceof Error) {
         const css = error.message.startsWith("Unable to preload CSS for ");
-        const address = css ? error.message.slice("Unable to preload CSS for ".length)
-          : error.message.includes("dynamically imported module") ? error.message.match(/https?:\/\/\S+/)?.[0] : undefined;
+        const address = css
+          ? error.message.slice("Unable to preload CSS for ".length)
+          : error.message.includes("dynamically imported module")
+            ? error.message.match(/https?:\/\/\S+/)?.[0]
+            : undefined;
         if (address) {
           const url = new URL(address, window.location.href);
           const base = new URL(import.meta.env.BASE_URL, window.location.href).pathname;
-          if (url.origin === window.location.origin &&
-            (url.pathname.startsWith(`${base}src/`) || url.pathname.startsWith(`${base}assets/`))) {
+          if (
+            url.origin === window.location.origin &&
+            (url.pathname.startsWith(`${base}src/`) || url.pathname.startsWith(`${base}assets/`))
+          ) {
             if (css) failedStyle = url;
             else failedUrl = url;
           }
@@ -56,7 +64,9 @@ export function retryableImport<T>(load: () => Promise<T>): () => Promise<T> {
     }
   }
   return () => {
-    pending ??= run().finally(() => { pending = null; });
+    pending ??= run().finally(() => {
+      pending = null;
+    });
     return pending;
   };
 }
