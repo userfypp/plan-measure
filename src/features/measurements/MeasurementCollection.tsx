@@ -272,7 +272,7 @@ export function MeasurementCollection({
       onFocusCapture={handleFocusCapture}
       onKeyDown={handleKeyDown}
     >
-      <div className={styles.list} role="list" aria-label="Measurements on current page">
+      <div className={styles.list} role="list" aria-label="Measurements">
         {measurements.map((measurement) => (
           <MeasurementRow
             key={measurement.id}
@@ -587,7 +587,7 @@ function VirtualCollectionContents({
       {renderGroups(groups)}
     </div>
   ) : (
-    <div className={styles.list} role="list" aria-label="Measurements on current page">
+    <div className={styles.list} role="list" aria-label="Measurements">
       {renderRows(
         measurements.map((measurement) => measurement.id),
         0,
