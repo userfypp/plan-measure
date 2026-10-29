@@ -6,7 +6,7 @@ Search existing issues, then use the bug or feature request template. Keep each 
 
 ## Development
 
-Requires Node.js 24 and npm:
+Requires Node.js 24, pinned in `.nvmrc` (`nvm use` picks it up), and npm:
 
 ```bash
 npm ci
