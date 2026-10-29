@@ -5,7 +5,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { KeyboardGeometryHelp } from "./KeyboardGeometryHelp";
 import type { Measurement } from "../../types/domain";
-// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
 import { readFileSync } from "node:fs";
 
 let root: Root;
@@ -69,7 +68,7 @@ it("paints both viewer cursors above the help without intercepting its controls"
   // jsdom does not resolve var(), so inline the z-index tokens the stylesheet references.
   stylesheet.textContent = readFileSync("src/features/viewer/PdfViewer.module.css", "utf8").replace(
     /var\((--z-[a-z-]+)\)/g,
-    (_match: string, name: string) => new RegExp(`${name}: (\\d+);`).exec(tokens)![1],
+    (_match: string, name: string) => new RegExp(`${name}: (\\d+);`).exec(tokens)![1]!,
   );
   document.head.append(stylesheet);
   try {

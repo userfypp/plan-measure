@@ -1,6 +1,5 @@
 /* @vitest-environment jsdom */
 
-// @ts-expect-error Vitest executes this test in Node; app TypeScript intentionally omits Node types.
 import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

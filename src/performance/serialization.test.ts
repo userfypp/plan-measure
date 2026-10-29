@@ -1,5 +1,4 @@
 import "fake-indexeddb/auto";
-// @ts-expect-error Los tipos Node no forman parte de la aplicación.
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave } from "../app/autosave";

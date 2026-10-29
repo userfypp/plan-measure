@@ -1,6 +1,5 @@
 /* @vitest-environment jsdom */
 
-// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
 import { readFileSync } from "node:fs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { EncryptedPDFError, PDFDocument, PDFPage, degrees } from "pdf-lib";
@@ -582,7 +581,7 @@ describe("annotated PDF export", () => {
     ) {
       downloadName = this.download;
     });
-    const timeout = vi.spyOn(window, "setTimeout").mockImplementation((handler: TimerHandler) => {
+    const timeout = vi.spyOn(window as Window, "setTimeout").mockImplementation((handler: TimerHandler) => {
       if (typeof handler === "function") handler();
       return 1;
     });
