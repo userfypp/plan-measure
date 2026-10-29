@@ -8,10 +8,13 @@ import {
 } from "react";
 import styles from "./recoverableLazy.module.css";
 
-class ModuleErrorBoundary extends Component<{
-  children: ReactNode;
-  name: string;
-}, { failed: boolean }> {
+class ModuleErrorBoundary extends Component<
+  {
+    children: ReactNode;
+    name: string;
+  },
+  { failed: boolean }
+> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -19,12 +22,13 @@ class ModuleErrorBoundary extends Component<{
   }
 
   render() {
-    if (this.state.failed) return (
-      <div role="alert" className={styles.error}>
-        <p className={styles.title}>Could not open {this.props.name}</p>
-        <p className={styles.message}>Reload the page to try again.</p>
-      </div>
-    );
+    if (this.state.failed)
+      return (
+        <div role="alert" className={styles.error}>
+          <p className={styles.title}>Could not open {this.props.name}</p>
+          <p className={styles.message}>Reload the page to try again.</p>
+        </div>
+      );
     return this.props.children;
   }
 }

@@ -6,10 +6,7 @@ import { millimetresPerPageUnitForScaleRatio } from "../../utils/pdfUnits";
 import { scaleByRatio } from "../../utils/units";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createPageCalibrationFromRatio } from "./ratioCalibration";
-import {
-  createStandardScalePreset,
-  STANDARD_SCALE_PRESET_RATIOS,
-} from "./standardScalePresets";
+import { createStandardScalePreset, STANDARD_SCALE_PRESET_RATIOS } from "./standardScalePresets";
 
 describe("standard scale presets", () => {
   it.each(STANDARD_SCALE_PRESET_RATIOS)(

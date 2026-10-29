@@ -6,7 +6,6 @@ export interface PageBoundsLike {
   height: number;
 }
 
-
 export interface EllipseParams {
   cx: number;
   cy: number;

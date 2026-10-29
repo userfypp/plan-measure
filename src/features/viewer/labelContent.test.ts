@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  LineMeasurement,
-  PathMeasurement,
-  UniformPageCalibration,
-} from "../../types/domain";
+import type { LineMeasurement, PathMeasurement, UniformPageCalibration } from "../../types/domain";
 import { formatMeasurement } from "../../utils/format";
 import { composeLabelText, measurementLabelText } from "./labelContent";
 

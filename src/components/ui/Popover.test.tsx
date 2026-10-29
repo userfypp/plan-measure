@@ -169,7 +169,12 @@ describe("Popover", () => {
 
     act(() => {
       inside.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }),
+        new KeyboardEvent("keydown", {
+          key: "Tab",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
       );
     });
 
@@ -223,7 +228,13 @@ describe("Popover", () => {
     act(() => {
       root!.render(
         <dialog open>
-          <Popover trigger="Inner trigger" defaultOpen initialFocus="first" role="menu" aria-label="Inner">
+          <Popover
+            trigger="Inner trigger"
+            defaultOpen
+            initialFocus="first"
+            role="menu"
+            aria-label="Inner"
+          >
             <button type="button">Inner action</button>
           </Popover>
         </dialog>,
@@ -238,7 +249,13 @@ describe("Popover", () => {
   it("closes an open popover when its trigger is pressed again", () => {
     act(() => {
       root!.render(
-        <Popover trigger="Toggle" role="dialog" aria-label="Toggled" initialFocus="first" dismissOnFocusLeave>
+        <Popover
+          trigger="Toggle"
+          role="dialog"
+          aria-label="Toggled"
+          initialFocus="first"
+          dismissOnFocusLeave
+        >
           <button type="button">Toggled action</button>
         </Popover>,
       );
@@ -289,7 +306,13 @@ describe("Popover", () => {
   it("keeps the popover closed when it closed between pointerdown and click on the trigger", () => {
     act(() => {
       root!.render(
-        <Popover trigger="Toggle" role="dialog" aria-label="Toggled" initialFocus="first" dismissOnFocusLeave>
+        <Popover
+          trigger="Toggle"
+          role="dialog"
+          aria-label="Toggled"
+          initialFocus="first"
+          dismissOnFocusLeave
+        >
           <button type="button">Toggled action</button>
         </Popover>,
       );
@@ -303,7 +326,9 @@ describe("Popover", () => {
     });
     // Intermediate close (focus moved away) before the click arrives.
     act(() => {
-      document.body.appendChild(Object.assign(document.createElement("button"), { id: "elsewhere" }));
+      document.body.appendChild(
+        Object.assign(document.createElement("button"), { id: "elsewhere" }),
+      );
       document.getElementById("elsewhere")!.focus();
     });
     expect(dialog("Toggled")).toBeNull();
@@ -319,18 +344,8 @@ describe("Popover", () => {
   it("keeps a nested child above its parent when both open in the same commit", () => {
     act(() => {
       root!.render(
-        <Popover
-          trigger="Parent trigger"
-          defaultOpen
-          role="dialog"
-          aria-label="Parent popover"
-        >
-          <Popover
-            trigger="Child trigger"
-            defaultOpen
-            role="dialog"
-            aria-label="Child popover"
-          >
+        <Popover trigger="Parent trigger" defaultOpen role="dialog" aria-label="Parent popover">
+          <Popover trigger="Child trigger" defaultOpen role="dialog" aria-label="Child popover">
             <button type="button">Child action</button>
           </Popover>
         </Popover>,
@@ -537,8 +552,17 @@ describe("Popover", () => {
       );
     });
     const button = container.querySelector("button")!;
-    button.getBoundingClientRect = () =>
-      ({ width: 180, height: 32, top: 0, left: 0, right: 180, bottom: 32, x: 0, y: 0, toJSON: () => ({}) });
+    button.getBoundingClientRect = () => ({
+      width: 180,
+      height: 32,
+      top: 0,
+      left: 0,
+      right: 180,
+      bottom: 32,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
     act(() => button.click());
     act(() => {
       window.dispatchEvent(new Event("resize"));
@@ -558,12 +582,31 @@ describe("Popover", () => {
       );
     });
     const button = container.querySelector("button")!;
-    button.getBoundingClientRect = () =>
-      ({ width: 80, height: 20, top: 700, left: 900, right: 980, bottom: 720, x: 900, y: 700, toJSON: () => ({}) });
+    button.getBoundingClientRect = () => ({
+      width: 80,
+      height: 20,
+      top: 700,
+      left: 900,
+      right: 980,
+      bottom: 720,
+      x: 900,
+      y: 700,
+      toJSON: () => ({}),
+    });
     const original = HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function () {
       return this.getAttribute("role") === "dialog"
-        ? ({ width: 300, height: 200, top: 0, left: 0, right: 300, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
+        ? ({
+            width: 300,
+            height: 200,
+            top: 0,
+            left: 0,
+            right: 300,
+            bottom: 200,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect)
         : original.call(this);
     };
     try {

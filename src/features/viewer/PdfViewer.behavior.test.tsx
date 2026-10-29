@@ -13,10 +13,7 @@ import { resetAppPreferences, setAppPreference } from "../../utils/appPreference
 import { pageToScreen, screenToPage } from "../../utils/coordinates";
 import { formatLinearValue } from "../../utils/format";
 import { PdfViewer } from "./PdfViewer";
-import {
-  AuthoringCapabilityProvider,
-  computeAuthoringCapability,
-} from "./AuthoringCapability";
+import { AuthoringCapabilityProvider, computeAuthoringCapability } from "./AuthoringCapability";
 import { ViewerNavigationProvider, type ViewerNavigationModel } from "./ViewerNavigation";
 import { ViewerInteractionCommandsProvider } from "./ViewerInteractionCommands";
 import { ViewerBottomExclusionProvider } from "./viewerLayout";
@@ -37,7 +34,9 @@ import {
 
 vi.mock("pdfjs-dist", () => ({ getDocument: vi.fn(), GlobalWorkerOptions: {} }));
 vi.mock("react-konva", async () => (await import("./viewerTestUtils")).createReactKonvaMock());
-vi.mock("./PdfAnnotationLayer", async () => (await import("./viewerTestUtils")).createAnnotationLayerMock());
+vi.mock("./PdfAnnotationLayer", async () =>
+  (await import("./viewerTestUtils")).createAnnotationLayerMock(),
+);
 
 const noop = () => undefined;
 let sessionProbe: ReturnType<typeof useSessionState> | null = null;
@@ -55,7 +54,7 @@ function Probes() {
   return null;
 }
 
-/** El visor real con la página tomada de la sesión y la navegación de página conectada. */
+/** The real viewer, with the page taken from the session and page navigation wired up. */
 function Harness({ document }: { document: PDFDocumentProxy }) {
   const { session } = useSessionState();
   const [pageNumber, setPageNumber] = useState(1);
@@ -87,7 +86,9 @@ describe("PdfViewer behavior", () => {
   let root: Root;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     resetKonvaCapture();
     viewZoomReports.length = 0;
     sessionProbe = null;
@@ -123,7 +124,11 @@ describe("PdfViewer behavior", () => {
                     })}
                   >
                     <ViewerBottomExclusionProvider bottomExclusion={0}>
-                      <ViewerNavigationProvider registerNavigation={(next) => { navigation = next; }}>
+                      <ViewerNavigationProvider
+                        registerNavigation={(next) => {
+                          navigation = next;
+                        }}
+                      >
                         <Probes />
                         <Harness document={pdf} />
                       </ViewerNavigationProvider>
@@ -143,12 +148,16 @@ describe("PdfViewer behavior", () => {
   const measurements = (pageNumber = 1) => sessionProbe!.session!.pages[pageNumber]!.measurements;
 
   async function click(point: Point) {
-    await act(async () => stageHandler("onClick")(konvaPointerEvent(pageToScreen(point, transform()))));
+    await act(async () =>
+      stageHandler("onClick")(konvaPointerEvent(pageToScreen(point, transform()))),
+    );
   }
 
   async function clickWithShift(point: Point) {
     await act(async () =>
-      stageHandler("onClick")(konvaPointerEvent(pageToScreen(point, transform()), { shiftKey: true })),
+      stageHandler("onClick")(
+        konvaPointerEvent(pageToScreen(point, transform()), { shiftKey: true }),
+      ),
     );
   }
 
@@ -156,7 +165,9 @@ describe("PdfViewer behavior", () => {
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => {
       viewer.focus();
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+      viewer.dispatchEvent(
+        new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }),
+      );
     });
   }
 
@@ -177,8 +188,15 @@ describe("PdfViewer behavior", () => {
       expect(workspaceProbe!.draft).toMatchObject({ type: "path", measurementType: "line" });
       await click({ x: 120, y: 30 });
       expect(measurements()).toHaveLength(1);
-      expect(measurements()[0]).toMatchObject({ type: "line", calibrationId: "scale-1", name: "Line 1" });
-      expectPoints(measurements()[0]!.points, [{ x: 20, y: 30 }, { x: 120, y: 30 }]);
+      expect(measurements()[0]).toMatchObject({
+        type: "line",
+        calibrationId: "scale-1",
+        name: "Line 1",
+      });
+      expectPoints(measurements()[0]!.points, [
+        { x: 20, y: 30 },
+        { x: 120, y: 30 },
+      ]);
       expect(workspaceProbe!.draft).toBeNull();
       expect(workspaceProbe!.selectedMeasurementId).toBe(measurements()[0]!.id);
     });
@@ -186,13 +204,26 @@ describe("PdfViewer behavior", () => {
     it("keeps a Polyline open across clicks and finishes it with Enter", async () => {
       await mount(createCalibratedSession());
       await act(async () => workspaceProbe!.chooseTool("polyline"));
-      for (const point of [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 120 }]) await click(point);
+      for (const point of [
+        { x: 20, y: 20 },
+        { x: 120, y: 20 },
+        { x: 120, y: 120 },
+      ])
+        await click(point);
       expect(measurements()).toHaveLength(0);
       expect(workspaceProbe!.draft?.points).toHaveLength(3);
       await key("Enter");
       expect(measurements()).toHaveLength(1);
-      expect(measurements()[0]).toMatchObject({ type: "polyline", calibrationId: "scale-1", name: "Polyline 1" });
-      expectPoints(measurements()[0]!.points, [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 120 }]);
+      expect(measurements()[0]).toMatchObject({
+        type: "polyline",
+        calibrationId: "scale-1",
+        name: "Polyline 1",
+      });
+      expectPoints(measurements()[0]!.points, [
+        { x: 20, y: 20 },
+        { x: 120, y: 20 },
+        { x: 120, y: 120 },
+      ]);
       expect(workspaceProbe!.draft).toBeNull();
       expect(workspaceProbe!.activeTool).toBe("polyline");
     });
@@ -200,12 +231,21 @@ describe("PdfViewer behavior", () => {
     it("closes a Polygon by clicking on its first vertex without duplicating it", async () => {
       await mount(createCalibratedSession());
       await act(async () => workspaceProbe!.chooseTool("polygon"));
-      for (const point of [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 120 }]) await click(point);
+      for (const point of [
+        { x: 20, y: 20 },
+        { x: 120, y: 20 },
+        { x: 120, y: 120 },
+      ])
+        await click(point);
       expect(measurements()).toHaveLength(0);
       await click({ x: 20, y: 20 });
       expect(measurements()).toHaveLength(1);
       expect(measurements()[0]).toMatchObject({ type: "polygon", name: "Polygon 1" });
-      expectPoints(measurements()[0]!.points, [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 120 }]);
+      expectPoints(measurements()[0]!.points, [
+        { x: 20, y: 20 },
+        { x: 120, y: 20 },
+        { x: 120, y: 120 },
+      ]);
       expect(workspaceProbe!.draft).toBeNull();
     });
 
@@ -255,14 +295,18 @@ describe("PdfViewer behavior", () => {
     describe("box drawing guides", () => {
       async function moveTo(point: Point, shiftKey = false) {
         await act(async () =>
-          stageHandler("onMouseMove")(konvaPointerEvent(pageToScreen(point, transform()), { shiftKey })),
+          stageHandler("onMouseMove")(
+            konvaPointerEvent(pageToScreen(point, transform()), { shiftKey }),
+          ),
         );
       }
       const last = (list: Record<string, unknown>[], name: string, count = 1) =>
         list.filter((props) => props.name === name).slice(-count);
       const expectFlat = (actual: unknown, expected: number[]) => {
         expect(actual).toHaveLength(expected.length);
-        expected.forEach((value, index) => expect((actual as number[])[index]).toBeCloseTo(value, 6));
+        expected.forEach((value, index) =>
+          expect((actual as number[])[index]).toBeCloseTo(value, 6),
+        );
       };
       const guideTexts = () => konvaCapture.texts.slice(-2).map((props) => props.text);
 
@@ -287,7 +331,9 @@ describe("PdfViewer behavior", () => {
         ];
         expectFlat(axes[0]!.points, [20, 55, 120, 55]);
         expectFlat(axes[1]!.points, [70, 30, 70, 80]);
-        expect(axes.every((axis) => (axis.opacity as number) < (bounds.opacity as number))).toBe(true);
+        expect(axes.every((axis) => (axis.opacity as number) < (bounds.opacity as number))).toBe(
+          true,
+        );
         const cross = last(konvaCapture.lines, "box-guide-center-cross", 2);
         expectFlat(cross[0]!.points, [70 - 4 / zoom, 55, 70 + 4 / zoom, 55]);
         expectFlat(cross[1]!.points, [70, 55 - 4 / zoom, 70, 55 + 4 / zoom]);
@@ -297,10 +343,23 @@ describe("PdfViewer behavior", () => {
           (handle.x as number) + (handle.width as number) / 2,
           (handle.y as number) + (handle.height as number) / 2,
         ]);
-        for (const [x, y] of [[20, 30], [120, 30], [120, 80], [20, 80], [70, 30], [120, 55], [70, 80], [20, 55]]) {
-          expect(centers.some(([cx, cy]) => Math.abs(cx! - x!) < 1e-9 && Math.abs(cy! - y!) < 1e-9)).toBe(true);
+        for (const [x, y] of [
+          [20, 30],
+          [120, 30],
+          [120, 80],
+          [20, 80],
+          [70, 30],
+          [120, 55],
+          [70, 80],
+          [20, 55],
+        ]) {
+          expect(
+            centers.some(([cx, cy]) => Math.abs(cx! - x!) < 1e-9 && Math.abs(cy! - y!) < 1e-9),
+          ).toBe(true);
         }
-        expect(handles.every((handle) => handle.width === handle.height && handle.listening === false)).toBe(true);
+        expect(
+          handles.every((handle) => handle.width === handle.height && handle.listening === false),
+        ).toBe(true);
         expect(handles[0]!.width as number).toBeCloseTo(7 / zoom, 10);
 
         const { displayUnit, measurementDecimalPlaces } = sessionProbe!.session!.settings;
@@ -315,7 +374,10 @@ describe("PdfViewer behavior", () => {
         await act(async () => workspaceProbe!.chooseTool("ellipse"));
         await click({ x: 20, y: 30 });
         await moveTo({ x: 120, y: 80 }, true);
-        expectFlat(last(konvaCapture.lines, "box-guide-bounds")[0]!.points, [20, 30, 120, 30, 120, 130, 20, 130]);
+        expectFlat(
+          last(konvaCapture.lines, "box-guide-bounds")[0]!.points,
+          [20, 30, 120, 30, 120, 130, 20, 130],
+        );
         expect(last(konvaCapture.rects, "box-guide-handle", 8)).toHaveLength(8);
         const { displayUnit, measurementDecimalPlaces } = sessionProbe!.session!.settings;
         const side = formatLinearValue(10000, displayUnit, measurementDecimalPlaces);
@@ -326,9 +388,14 @@ describe("PdfViewer behavior", () => {
         await mount(createCalibratedSession(1, { calibrated: false }));
         await act(async () => workspaceProbe!.chooseTool("rectangle"));
         await click({ x: 20, y: 30 });
-        const linesBefore = konvaCapture.lines.filter((line) => String(line.name ?? "").startsWith("box-guide")).length;
+        const linesBefore = konvaCapture.lines.filter((line) =>
+          String(line.name ?? "").startsWith("box-guide"),
+        ).length;
         await moveTo({ x: 120, y: 80 });
-        expect(konvaCapture.lines.filter((line) => String(line.name ?? "").startsWith("box-guide")).length).toBe(linesBefore);
+        expect(
+          konvaCapture.lines.filter((line) => String(line.name ?? "").startsWith("box-guide"))
+            .length,
+        ).toBe(linesBefore);
         expect(last(konvaCapture.rects, "box-guide-handle", 8)).toHaveLength(8);
         expect(guideTexts()).toEqual(["100 px", "50 px"]);
       });
@@ -338,11 +405,15 @@ describe("PdfViewer behavior", () => {
         await act(async () => workspaceProbe!.chooseTool("ellipse"));
         await click({ x: 20, y: 30 });
         await moveTo({ x: 20, y: 80 });
-        expect(konvaCapture.rects.filter((props) => props.name === "box-guide-handle")).toHaveLength(0);
+        expect(
+          konvaCapture.rects.filter((props) => props.name === "box-guide-handle"),
+        ).toHaveLength(0);
         await act(async () => workspaceProbe!.chooseTool("polygon"));
         await click({ x: 20, y: 30 });
         await moveTo({ x: 120, y: 80 });
-        expect(konvaCapture.rects.filter((props) => props.name === "box-guide-handle")).toHaveLength(0);
+        expect(
+          konvaCapture.rects.filter((props) => props.name === "box-guide-handle"),
+        ).toHaveLength(0);
       });
     });
 
@@ -358,12 +429,21 @@ describe("PdfViewer behavior", () => {
     it("builds a Cloud like a polygon and finishes it with Enter", async () => {
       await mount(createCalibratedSession());
       await act(async () => workspaceProbe!.chooseTool("cloud"));
-      for (const point of [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 120 }]) await click(point);
+      for (const point of [
+        { x: 20, y: 20 },
+        { x: 120, y: 20 },
+        { x: 120, y: 120 },
+      ])
+        await click(point);
       expect(measurements()).toHaveLength(0);
       await key("Enter");
       expect(measurements()).toHaveLength(1);
       expect(measurements()[0]).toMatchObject({ type: "cloud", name: "Cloud 1" });
-      expectPoints(measurements()[0]!.points, [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 120 }]);
+      expectPoints(measurements()[0]!.points, [
+        { x: 20, y: 20 },
+        { x: 120, y: 20 },
+        { x: 120, y: 120 },
+      ]);
     });
 
     it("creates separate Count measurements without a scale and keeps the tool armed", async () => {
@@ -372,7 +452,9 @@ describe("PdfViewer behavior", () => {
       await click({ x: 50, y: 60 });
       await act(async () => workspaceProbe!.clearSelection());
       await click({ x: 150, y: 160 });
-      expect(measurements().map(({ type, name, calibrationId }) => ({ type, name, calibrationId }))).toEqual([
+      expect(
+        measurements().map(({ type, name, calibrationId }) => ({ type, name, calibrationId })),
+      ).toEqual([
         { type: "count", name: "Count 1", calibrationId: null },
         { type: "count", name: "Count 2", calibrationId: null },
       ]);
@@ -380,19 +462,23 @@ describe("PdfViewer behavior", () => {
       expect(workspaceProbe!.activeTool).toBe("count");
     });
 
-    it.each(["line", "polyline", "polygon", "rectangle", "ellipse", "cloud"] as const)("cancels an in-progress %s with Escape and creates nothing", async (tool) => {
-      await mount(createCalibratedSession());
-      await act(async () => workspaceProbe!.chooseTool(tool));
-      await click({ x: 20, y: 20 });
-      if (tool === "polyline" || tool === "polygon" || tool === "cloud") await click({ x: 120, y: 20 });
-      expect(workspaceProbe!.draft).not.toBeNull();
-      await key("Escape");
-      expect(workspaceProbe!.draft).toBeNull();
-      expect(measurements()).toHaveLength(0);
-      expect(workspaceProbe!.activeTool).toBe(tool);
-      await key("Escape");
-      expect(workspaceProbe!.activeTool).toBe("select");
-    });
+    it.each(["line", "polyline", "polygon", "rectangle", "ellipse", "cloud"] as const)(
+      "cancels an in-progress %s with Escape and creates nothing",
+      async (tool) => {
+        await mount(createCalibratedSession());
+        await act(async () => workspaceProbe!.chooseTool(tool));
+        await click({ x: 20, y: 20 });
+        if (tool === "polyline" || tool === "polygon" || tool === "cloud")
+          await click({ x: 120, y: 20 });
+        expect(workspaceProbe!.draft).not.toBeNull();
+        await key("Escape");
+        expect(workspaceProbe!.draft).toBeNull();
+        expect(measurements()).toHaveLength(0);
+        expect(workspaceProbe!.activeTool).toBe(tool);
+        await key("Escape");
+        expect(workspaceProbe!.activeTool).toBe("select");
+      },
+    );
 
     it("ignores clicks outside the page and with a non-primary button", async () => {
       await mount(createCalibratedSession());
@@ -400,7 +486,9 @@ describe("PdfViewer behavior", () => {
       const outside = pageToScreen({ x: -50, y: -50 }, transform());
       await act(async () => stageHandler("onClick")(konvaPointerEvent(outside)));
       await act(async () =>
-        stageHandler("onClick")(konvaPointerEvent(pageToScreen({ x: 40, y: 40 }, transform()), { button: 2 })),
+        stageHandler("onClick")(
+          konvaPointerEvent(pageToScreen({ x: 40, y: 40 }, transform()), { button: 2 }),
+        ),
       );
       expect(workspaceProbe!.draft).toBeNull();
     });
@@ -414,7 +502,10 @@ describe("PdfViewer behavior", () => {
       expect(screenToPage(screen, transform())).toEqual({ x: 200, y: 300 });
       await click({ x: 200, y: 300 });
       await click({ x: 260, y: 300 });
-      expectPoints(measurements()[0]!.points, [{ x: 200, y: 300 }, { x: 260, y: 300 }]);
+      expectPoints(measurements()[0]!.points, [
+        { x: 200, y: 300 },
+        { x: 260, y: 300 },
+      ]);
     });
   });
 
@@ -432,10 +523,14 @@ describe("PdfViewer behavior", () => {
       const id = await mountWithLine();
       await act(async () => workspaceProbe!.clearSelection());
       expect(workspaceProbe!.selectedMeasurementId).toBeNull();
-      await act(async () => (lastAnnotationLayer().onSelectMeasurement as (id: string) => void)(id));
+      await act(async () =>
+        (lastAnnotationLayer().onSelectMeasurement as (id: string) => void)(id),
+      );
       expect(workspaceProbe!.selectedMeasurementId).toBe(id);
       expect(lastAnnotationLayer().selectedMeasurementId).toBe(id);
-      await act(async () => stageHandler("onClick")(konvaPointerEvent({ x: 5, y: 5 }, { onStage: true })));
+      await act(async () =>
+        stageHandler("onClick")(konvaPointerEvent({ x: 5, y: 5 }, { onStage: true })),
+      );
       expect(workspaceProbe!.selectedMeasurementId).toBeNull();
       expect(measurements()).toHaveLength(1);
     });
@@ -456,7 +551,10 @@ describe("PdfViewer behavior", () => {
       await click({ x: 120, y: 60 });
       const [first, second] = measurements().map((measurement) => measurement.id);
       await act(async () => workspaceProbe!.chooseTool("select"));
-      const select = lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void;
+      const select = lastAnnotationLayer().onSelectMeasurement as (
+        id: string,
+        additive?: boolean,
+      ) => void;
       await act(async () => select(first!));
       await act(async () => select(second!, true));
       expect(workspaceProbe!.selectedMeasurementIds).toEqual([first, second]);
@@ -491,7 +589,9 @@ describe("PdfViewer behavior", () => {
       await act(async () => frames.flush());
       expect(transform().zoom).toBeCloseTo(before.zoom * Math.exp(0.2), 6);
       const zoomed = transform().zoom;
-      await act(async () => stageHandler("onWheel")(konvaPointerEvent({ x: 500, y: 350 }, { deltaY: 300 })));
+      await act(async () =>
+        stageHandler("onWheel")(konvaPointerEvent({ x: 500, y: 350 }, { deltaY: 300 })),
+      );
       await act(async () => frames.flush());
       expect(transform().zoom).toBeCloseTo(zoomed * Math.exp(-0.3), 6);
     });
@@ -515,9 +615,11 @@ describe("PdfViewer behavior", () => {
       await mount(createCalibratedSession());
       await act(async () => workspaceProbe!.chooseTool("polyline"));
       const before = transform();
-      await act(async () => stageHandler("onMouseDown")(konvaPointerEvent({ x: 400, y: 300 }, { button: 1 })));
+      await act(async () =>
+        stageHandler("onMouseDown")(konvaPointerEvent({ x: 400, y: 300 }, { button: 1 })),
+      );
       await act(async () => stageHandler("onMouseMove")(konvaPointerEvent({ x: 380, y: 310 })));
-      // El navegador entrega el clic justo tras mouseup, antes del temporizador que lo deja de suprimir.
+      // The browser delivers the click right after mouseup, before the timer that stops suppressing it.
       await act(async () => {
         stageHandler("onMouseUp")(konvaPointerEvent({ x: 380, y: 310 }));
         stageHandler("onClick")(konvaPointerEvent({ x: 380, y: 310 }));
@@ -570,7 +672,10 @@ describe("PdfViewer behavior", () => {
 
   describe("page changes", () => {
     it("shows the requested page, resets to its fit view and reports the zoom for that page", async () => {
-      const pdf = createPdfDocument({ 1: createPdfPage(), 2: createPdfPage({ width: 400, height: 400 }) });
+      const pdf = createPdfDocument({
+        1: createPdfPage(),
+        2: createPdfPage({ width: 400, height: 400 }),
+      });
       await mount(createCalibratedSession(2), pdf);
       expect(navigation).toMatchObject({ pageNumber: 1, pageCount: 2 });
       const fitOne = transform();
@@ -581,7 +686,7 @@ describe("PdfViewer behavior", () => {
       expect(container.querySelector('canvas[aria-label="PDF page 2"]')).not.toBeNull();
       expect(container.querySelector('canvas[aria-label="PDF page 1"]')).toBeNull();
       expect(pdf.getPage).toHaveBeenLastCalledWith(2);
-      // 400x400 en 1000x700 con 24 px de margen: limita la altura.
+      // 400x400 in 1000x700 with a 24 px margin: the height limits it.
       expect(transform().zoom).toBeCloseTo((VIEWER_HEIGHT - 48) / 400, 6);
       expect(viewZoomReports.at(-1)![0]).toBe(2);
       await act(async () => navigation!.onPageChange(1));
