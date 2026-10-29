@@ -38,7 +38,9 @@ export function WorkspaceDrawerProvider({
   value: WorkspaceDrawerPresentation;
   children: ReactNode;
 }) {
-  return <WorkspaceDrawerContext.Provider value={value}>{children}</WorkspaceDrawerContext.Provider>;
+  return (
+    <WorkspaceDrawerContext.Provider value={value}>{children}</WorkspaceDrawerContext.Provider>
+  );
 }
 
 export function useWorkspaceDrawerPresentation(): WorkspaceDrawerPresentation {

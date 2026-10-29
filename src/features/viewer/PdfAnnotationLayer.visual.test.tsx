@@ -61,8 +61,10 @@ vi.mock("konva/lib/shapes/Text", () => ({
     }
 
     width() {
-      return (this.props.text?.length ?? 0) * (this.props.fontSize ?? 12) * 0.6 +
-        (this.props.padding ?? 0) * 2;
+      return (
+        (this.props.text?.length ?? 0) * (this.props.fontSize ?? 12) * 0.6 +
+        (this.props.padding ?? 0) * 2
+      );
     }
 
     height() {
@@ -72,7 +74,10 @@ vi.mock("konva/lib/shapes/Text", () => ({
 }));
 
 vi.mock("../../app/sessionState", () => ({
-  useMeasurementCommands: () => ({ updateMeasurement: captured.updateMeasurement, updateMeasurements: captured.updateMeasurements }),
+  useMeasurementCommands: () => ({
+    updateMeasurement: captured.updateMeasurement,
+    updateMeasurements: captured.updateMeasurements,
+  }),
 }));
 
 const noop = () => undefined;
@@ -109,7 +114,15 @@ function uniformPage(): PageState {
         ],
       },
     ],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 2, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 1,
+      polyline: 1,
+      polygon: 2,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -157,7 +170,15 @@ function xyPage(): PageState {
     activeCalibrationId: "xy-1",
     nextCalibrationNumber: 2,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 1,
+      polyline: 1,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -170,15 +191,28 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     };
     const page = uniformPage();
     page.measurements = Array.from({ length: 90 }, (_, index) => {
-      const x = random() * 570, y = random() * 770;
+      const x = random() * 570,
+        y = random() * 770;
       const type = (["line", "polyline", "polygon"] as const)[index % 3]!;
       const radius = 8 + random() * 45;
-      const points = type === "line" ? [{ x, y }, { x: x + radius, y: y + radius / 3 }]
-        : Array.from({ length: 12 }, (_, vertex) => ({
-          x: x + radius * Math.cos(vertex * Math.PI / 6),
-          y: y + radius * Math.sin(vertex * Math.PI / 6),
-        }));
-      return { ...page.measurements[0]!, id: `golden-${index}`, type, calibrationId: "scale-1", points, visible: index % 11 !== 0 };
+      const points =
+        type === "line"
+          ? [
+              { x, y },
+              { x: x + radius, y: y + radius / 3 },
+            ]
+          : Array.from({ length: 12 }, (_, vertex) => ({
+              x: x + radius * Math.cos((vertex * Math.PI) / 6),
+              y: y + radius * Math.sin((vertex * Math.PI) / 6),
+            }));
+      return {
+        ...page.measurements[0]!,
+        id: `golden-${index}`,
+        type,
+        calibrationId: "scale-1",
+        points,
+        visible: index % 11 !== 0,
+      };
     });
     const result = [];
     for (const zoom of [0.5, 1, 2, 4, 8]) {
@@ -186,11 +220,21 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
         for (const viewport of [undefined, { width: 320, height: 240 }]) {
           captured.labels.length = 0;
           captured.texts.length = 0;
-          renderLayer({ page, transform: { zoom, panX: -80, panY: -90 },
-            selectedMeasurementId, viewport, showCalibration: true });
-          result.push({ zoom, selectedMeasurementId, viewport,
+          renderLayer({
+            page,
+            transform: { zoom, panX: -80, panY: -90 },
+            selectedMeasurementId,
+            viewport,
+            showCalibration: true,
+          });
+          result.push({
+            zoom,
+            selectedMeasurementId,
+            viewport,
             labels: captured.labels.map(({ x, y }, index) => ({
-              x, y, text: captured.texts[index]?.text,
+              x,
+              y,
+              text: captured.texts[index]?.text,
               fontSize: captured.texts[index]?.fontSize,
             })),
           });
@@ -204,7 +248,17 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     const page = uniformPage();
     page.calibrations = [];
     page.activeCalibrationId = null;
-    page.measurements = [{ id: "count", name: "Socket", type: "count", calibrationId: null, points: [{ x: 30, y: 40 }], visible: true, classificationValueIds: [] }];
+    page.measurements = [
+      {
+        id: "count",
+        name: "Socket",
+        type: "count",
+        calibrationId: null,
+        points: [{ x: 30, y: 40 }],
+        visible: true,
+        classificationValueIds: [],
+      },
+    ];
     const select = vi.fn();
     renderLayer({ page, onSelectMeasurement: select });
     expect(captured.circles[0]).toMatchObject({ x: 30, y: 40, radius: 3, draggable: false });
@@ -224,59 +278,130 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     const page = uniformPage();
     page.calibrations = [];
     page.activeCalibrationId = null;
-    page.measurements = [{ id: "count", name: "Plug", type: "count", calibrationId: null, points: [{ x: 30, y: 40 }, { x: 100, y: 110 }], visible: true, classificationValueIds: [] }];
+    page.measurements = [
+      {
+        id: "count",
+        name: "Plug",
+        type: "count",
+        calibrationId: null,
+        points: [
+          { x: 30, y: 40 },
+          { x: 100, y: 110 },
+        ],
+        visible: true,
+        classificationValueIds: [],
+      },
+    ];
     renderLayer({ page, selectedMeasurementId: "count" });
     expect(captured.circles).toHaveLength(2);
     expect(captured.texts[0]!.text).toBe("2 items");
     const marker = captured.circles[1]!;
     let pointer = { x: 200, y: 220 };
-    const node = { getStage: () => ({ getPointerPosition: () => pointer }), position: vi.fn(), stopDrag: vi.fn(), isDragging: () => false };
+    const node = {
+      getStage: () => ({ getPointerPosition: () => pointer }),
+      position: vi.fn(),
+      stopDrag: vi.fn(),
+      isDragging: () => false,
+    };
     const event = { target: node, evt: { button: 0 }, cancelBubble: false };
     act(() => (marker.onMouseDown as (event: unknown) => void)(event));
     pointer = { x: 240, y: 260 };
     act(() => (marker.onDragStart as (event: unknown) => void)(event));
     act(() => (marker.onDragEnd as (event: unknown) => void)(event));
-    expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({ pageNumber: 1, id: "count", points: [{ x: 30, y: 40 }, { x: 120, y: 130 }] });
+    expect(captured.updateMeasurement).toHaveBeenCalledExactlyOnceWith({
+      pageNumber: 1,
+      id: "count",
+      points: [
+        { x: 30, y: 40 },
+        { x: 120, y: 130 },
+      ],
+    });
   });
 
-  it.each([false, true])("moves selected unscaled Count markers together (cancelled: %s)", (cancelled) => {
-    const page = uniformPage();
-    page.calibrations = [];
-    page.activeCalibrationId = null;
-    page.measurements = [
-      { id: "count-1", name: "Socket", type: "count", calibrationId: null, points: [{ x: 30, y: 40 }, { x: 100, y: 110 }], visible: true, classificationValueIds: [] },
-      { id: "count-2", name: "Socket", type: "count", calibrationId: null, points: [{ x: 60, y: 80 }], visible: true, classificationValueIds: [] },
-    ];
-    const register = vi.fn();
-    renderLayer({ page, selectedMeasurementIds: ["count-1", "count-2"], onWholeMeasurementDragCancellationChange: register });
-    const marker = captured.circles[1]!;
-    expect(marker.draggable).toBe(true);
-    let pointer = { x: 60, y: 80 };
-    const target = { getStage: () => ({ getPointerPosition: () => pointer }), position: vi.fn(), stopDrag: vi.fn(), isDragging: () => false };
-    const event = { target, evt: { button: 0 }, cancelBubble: false };
-    act(() => (marker.onMouseDown as (event: unknown) => void)(event));
-    pointer = { x: 100, y: 100 };
-    act(() => (marker.onDragStart as (event: unknown) => void)(event));
-    if (cancelled) {
-      const cancel = register.mock.calls.find((args) => typeof args[1] === "function")![1] as () => void;
-      act(cancel);
-    }
-    act(() => (marker.onDragEnd as (event: unknown) => void)(event));
-    expect(target.position).toHaveBeenCalledWith({ x: 100, y: 110 });
-    if (cancelled) expect(captured.updateMeasurements).not.toHaveBeenCalled();
-    else expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
-      { pageNumber: 1, id: "count-1", points: [{ x: 50, y: 50 }, { x: 120, y: 120 }] },
-      { pageNumber: 1, id: "count-2", points: [{ x: 80, y: 90 }] },
-    ]);
-  });
+  it.each([false, true])(
+    "moves selected unscaled Count markers together (cancelled: %s)",
+    (cancelled) => {
+      const page = uniformPage();
+      page.calibrations = [];
+      page.activeCalibrationId = null;
+      page.measurements = [
+        {
+          id: "count-1",
+          name: "Socket",
+          type: "count",
+          calibrationId: null,
+          points: [
+            { x: 30, y: 40 },
+            { x: 100, y: 110 },
+          ],
+          visible: true,
+          classificationValueIds: [],
+        },
+        {
+          id: "count-2",
+          name: "Socket",
+          type: "count",
+          calibrationId: null,
+          points: [{ x: 60, y: 80 }],
+          visible: true,
+          classificationValueIds: [],
+        },
+      ];
+      const register = vi.fn();
+      renderLayer({
+        page,
+        selectedMeasurementIds: ["count-1", "count-2"],
+        onWholeMeasurementDragCancellationChange: register,
+      });
+      const marker = captured.circles[1]!;
+      expect(marker.draggable).toBe(true);
+      let pointer = { x: 60, y: 80 };
+      const target = {
+        getStage: () => ({ getPointerPosition: () => pointer }),
+        position: vi.fn(),
+        stopDrag: vi.fn(),
+        isDragging: () => false,
+      };
+      const event = { target, evt: { button: 0 }, cancelBubble: false };
+      act(() => (marker.onMouseDown as (event: unknown) => void)(event));
+      pointer = { x: 100, y: 100 };
+      act(() => (marker.onDragStart as (event: unknown) => void)(event));
+      if (cancelled) {
+        const cancel = register.mock.calls.find(
+          (args) => typeof args[1] === "function",
+        )![1] as () => void;
+        act(cancel);
+      }
+      act(() => (marker.onDragEnd as (event: unknown) => void)(event));
+      expect(target.position).toHaveBeenCalledWith({ x: 100, y: 110 });
+      if (cancelled) expect(captured.updateMeasurements).not.toHaveBeenCalled();
+      else
+        expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
+          {
+            pageNumber: 1,
+            id: "count-1",
+            points: [
+              { x: 50, y: 50 },
+              { x: 120, y: 120 },
+            ],
+          },
+          { pageNumber: 1, id: "count-2", points: [{ x: 80, y: 90 }] },
+        ]);
+    },
+  );
 
   it("ejecuta el layout global una vez por zoom y ninguna por paso de pan con 5000 mediciones", () => {
     const page = uniformPage();
     const source = page.measurements[0]!;
     page.measurements = Array.from({ length: 5000 }, (_, index) => ({
-      ...source, id: `budget-${index}`, type: "line" as const, calibrationId: "scale-1",
-      points: [{ x: (index % 100) * 90, y: Math.floor(index / 100) * 90 },
-        { x: (index % 100) * 90 + 60, y: Math.floor(index / 100) * 90 }],
+      ...source,
+      id: `budget-${index}`,
+      type: "line" as const,
+      calibrationId: "scale-1",
+      points: [
+        { x: (index % 100) * 90, y: Math.floor(index / 100) * 90 },
+        { x: (index % 100) * 90 + 60, y: Math.floor(index / 100) * 90 },
+      ],
     }));
     const bounds = { width: 10000, height: 10000, rotation: 0 as const };
     const viewport = { width: 300, height: 300 };
@@ -285,23 +410,43 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       renderLayer({ page, bounds, viewport });
       expect(layout).toHaveBeenCalledTimes(1);
       for (let step = 1; step <= 5; step++) {
-        renderLayer({ page, bounds, viewport, transform: { zoom: 2, panX: step * -50, panY: -50 } });
+        renderLayer({
+          page,
+          bounds,
+          viewport,
+          transform: { zoom: 2, panX: step * -50, panY: -50 },
+        });
       }
       expect(layout).toHaveBeenCalledTimes(1);
       renderLayer({ page, bounds, viewport, transform: { zoom: 3, panX: -250, panY: -50 } });
       expect(layout).toHaveBeenCalledTimes(2);
-    } finally { layout.mockRestore(); }
+    } finally {
+      layout.mockRestore();
+    }
   });
 
   it("culls off-screen geometry but retains selected shapes and handles", () => {
     const page = uniformPage();
     const base = page.measurements[0]!;
-    page.measurements.push({ ...base, id: "offscreen", points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })) });
+    page.measurements.push({
+      ...base,
+      id: "offscreen",
+      points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })),
+    });
     renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false });
-    expect(captured.lines.filter((line) => line.name === "measurement-preview-line")).toHaveLength(1);
+    expect(captured.lines.filter((line) => line.name === "measurement-preview-line")).toHaveLength(
+      1,
+    );
     captured.lines.length = 0;
-    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, selectedMeasurementId: "offscreen" });
-    expect(captured.lines.filter((line) => line.name === "measurement-preview-line")).toHaveLength(2);
+    renderLayer({
+      page,
+      viewport: { width: 400, height: 300 },
+      showLabels: false,
+      selectedMeasurementId: "offscreen",
+    });
+    expect(captured.lines.filter((line) => line.name === "measurement-preview-line")).toHaveLength(
+      2,
+    );
   });
 
   it("keeps labels at the same placements when viewport culling is enabled", () => {
@@ -315,7 +460,10 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
 
   it("retains a visible label even when its geometry is outside the viewport", () => {
     const page = pageWithMeasurement("line");
-    page.measurements[0]!.points = [{ x: 220, y: 70 }, { x: 221, y: 70 }];
+    page.measurements[0]!.points = [
+      { x: 220, y: 70 },
+      { x: 221, y: 70 },
+    ];
     const calibration = page.calibrations[0]!;
     if (calibration.mode === "uniform") calibration.referenceDistanceMm = 1e18;
     renderLayer({ page, viewport: { width: 400, height: 300 } });
@@ -326,19 +474,42 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
   it("retains off-screen multiselection and active editing ownership", () => {
     const page = uniformPage();
     const base = page.measurements[0]!;
-    page.measurements.push({ ...base, id: "offscreen", points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })) });
-    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, selectedMeasurementIds: [base.id, "offscreen"] });
+    page.measurements.push({
+      ...base,
+      id: "offscreen",
+      points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })),
+    });
+    renderLayer({
+      page,
+      viewport: { width: 400, height: 300 },
+      showLabels: false,
+      selectedMeasurementIds: [base.id, "offscreen"],
+    });
     expect(captured.lines).toHaveLength(2);
     captured.lines.length = 0;
-    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, activeMeasurementEditId: "offscreen" });
+    renderLayer({
+      page,
+      viewport: { width: 400, height: 300 },
+      showLabels: false,
+      activeMeasurementEditId: "offscreen",
+    });
     expect(captured.lines).toHaveLength(2);
   });
 
   it("mounts the complete scene for pan caching and restores viewport culling afterwards", () => {
     const page = uniformPage();
     const base = page.measurements[0]!;
-    page.measurements.push({ ...base, id: "offscreen", points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })) });
-    renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false, isPanning: true });
+    page.measurements.push({
+      ...base,
+      id: "offscreen",
+      points: base.points.map((p) => ({ x: p.x + 400, y: p.y + 400 })),
+    });
+    renderLayer({
+      page,
+      viewport: { width: 400, height: 300 },
+      showLabels: false,
+      isPanning: true,
+    });
     expect(captured.lines).toHaveLength(2);
     captured.lines.length = 0;
     renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false });
@@ -347,10 +518,17 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
 
   it("reveals a previously culled shape after pan without changing its page geometry", () => {
     const page = uniformPage();
-    renderLayer({ page, viewport: { width: 100, height: 100 }, transform: { zoom: 2, panX: -800, panY: -800 }, showLabels: false });
+    renderLayer({
+      page,
+      viewport: { width: 100, height: 100 },
+      transform: { zoom: 2, panX: -800, panY: -800 },
+      showLabels: false,
+    });
     expect(captured.lines).toHaveLength(0);
     renderLayer({ page, viewport: { width: 400, height: 300 }, showLabels: false });
-    expect(captured.lines[0]!.points).toEqual(page.measurements[0]!.points.flatMap(({ x, y }) => [x, y]));
+    expect(captured.lines[0]!.points).toEqual(
+      page.measurements[0]!.points.flatMap(({ x, y }) => [x, y]),
+    );
   });
 
   let container: HTMLDivElement;
@@ -409,7 +587,11 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     selectedMeasurementId?: string | null;
     selectedMeasurementIds?: string[];
     onSelectMeasurement?: (id: string, additive?: boolean) => void;
-    onVertexDragCancellationChange?: (id: string, owner: object, cancel: (() => void) | null) => void;
+    onVertexDragCancellationChange?: (
+      id: string,
+      owner: object,
+      cancel: (() => void) | null,
+    ) => void;
     calibrationReferenceEdit?: CalibrationReferenceEditPreview | null;
     showCalibration?: boolean;
     showMeasurements?: boolean;
@@ -485,105 +667,217 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(captured.circles).toHaveLength(0);
   });
 
-  it.each([false, true])("moves the entire selection with one constrained delta (cancelled: %s)", (cancelled) => {
-    const page = pageWithMeasurement("line");
-    page.measurements.push({ ...page.measurements[0]!, id: "second", points: [{ x: 550, y: 100 }, { x: 590, y: 100 }] });
-    const register = vi.fn();
-    renderLayer({ page, selectedMeasurementIds: ["polygon-1", "second"], onWholeMeasurementDragCancellationChange: register });
-    const line = captured.lines[0]!;
-    let pointer = { x: 100, y: 100 };
-    const target = { getStage: () => ({ getPointerPosition: () => pointer }), position: vi.fn(), stopDrag: vi.fn() };
-    const event = { target, evt: { button: 0 }, cancelBubble: false };
-    act(() => (line.onMouseDown as (event: unknown) => void)(event));
-    pointer = { x: 300, y: 140 };
-    act(() => (line.onDragStart as (event: unknown) => void)(event));
-    const peer = captured.lines.filter((item) => item.name === "measurement-preview-line").at(-1)!;
-    expect(peer.points).toEqual([560, 120, 600, 120]);
-    if (cancelled) {
-      const cancel = register.mock.calls.find((args) => typeof args[1] === "function")![1] as () => void;
+  it.each([false, true])(
+    "moves the entire selection with one constrained delta (cancelled: %s)",
+    (cancelled) => {
+      const page = pageWithMeasurement("line");
+      page.measurements.push({
+        ...page.measurements[0]!,
+        id: "second",
+        points: [
+          { x: 550, y: 100 },
+          { x: 590, y: 100 },
+        ],
+      });
+      const register = vi.fn();
+      renderLayer({
+        page,
+        selectedMeasurementIds: ["polygon-1", "second"],
+        onWholeMeasurementDragCancellationChange: register,
+      });
+      const line = captured.lines[0]!;
+      let pointer = { x: 100, y: 100 };
+      const target = {
+        getStage: () => ({ getPointerPosition: () => pointer }),
+        position: vi.fn(),
+        stopDrag: vi.fn(),
+      };
+      const event = { target, evt: { button: 0 }, cancelBubble: false };
+      act(() => (line.onMouseDown as (event: unknown) => void)(event));
+      pointer = { x: 300, y: 140 };
+      act(() => (line.onDragStart as (event: unknown) => void)(event));
+      const peer = captured.lines
+        .filter((item) => item.name === "measurement-preview-line")
+        .at(-1)!;
+      expect(peer.points).toEqual([560, 120, 600, 120]);
+      if (cancelled) {
+        const cancel = register.mock.calls.find(
+          (args) => typeof args[1] === "function",
+        )![1] as () => void;
+        act(cancel);
+      }
+      act(() => (line.onDragEnd as (event: unknown) => void)(event));
+      if (cancelled) expect(captured.updateMeasurements).not.toHaveBeenCalled();
+      else
+        expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
+          {
+            pageNumber: 1,
+            id: "polygon-1",
+            points: [
+              { x: 60, y: 70 },
+              { x: 160, y: 70 },
+            ],
+          },
+          {
+            pageNumber: 1,
+            id: "second",
+            points: [
+              { x: 560, y: 120 },
+              { x: 600, y: 120 },
+            ],
+          },
+        ]);
+    },
+  );
+
+  it.each([
+    [1, false],
+    [1, true],
+    [2, false],
+    [2, true],
+  ] as const)(
+    "cancels a %s-measurement drag (prepared only: %s) before synchronous and late dragend",
+    (count, preparedOnly) => {
+      const page = pageWithMeasurement("line");
+      if (count === 2)
+        page.measurements.push({
+          ...page.measurements[0]!,
+          id: "second",
+          points: [
+            { x: 250, y: 100 },
+            { x: 290, y: 100 },
+          ],
+        });
+      const register = vi.fn();
+      renderLayer({
+        page,
+        selectedMeasurementIds: page.measurements.map((item) => item.id),
+        onWholeMeasurementDragCancellationChange: register,
+      });
+      let pointer = { x: 100, y: 100 };
+      let dragging = !preparedOnly;
+      const target = {
+        getStage: () => ({ getPointerPosition: () => pointer }),
+        position: vi.fn(),
+        isDragging: () => dragging,
+        stopDrag: vi.fn(() => {
+          dragging = false;
+          end(event);
+        }),
+      };
+      const event = { target, evt: { button: 0 }, cancelBubble: false };
+      const line = captured.lines[0]!;
+      // The Konva mock does not attach refs; attach the node as the real renderer does.
+      (line.ref as (node: typeof target) => void)(target);
+      const end = line.onDragEnd as (event: unknown) => void;
+      act(() => (line.onMouseDown as (event: unknown) => void)(event));
+      pointer = { x: 300, y: 140 };
+      if (!preparedOnly) act(() => (line.onDragStart as (event: unknown) => void)(event));
+      const cancel = register.mock.calls.find(
+        (args) => typeof args[1] === "function",
+      )![1] as () => void;
       act(cancel);
-    }
-    act(() => (line.onDragEnd as (event: unknown) => void)(event));
-    if (cancelled) expect(captured.updateMeasurements).not.toHaveBeenCalled();
-    else expect(captured.updateMeasurements).toHaveBeenCalledExactlyOnceWith([
-      { pageNumber: 1, id: "polygon-1", points: [{ x: 60, y: 70 }, { x: 160, y: 70 }] },
-      { pageNumber: 1, id: "second", points: [{ x: 560, y: 120 }, { x: 600, y: 120 }] },
-    ]);
-  });
+      expect(target.stopDrag).toHaveBeenCalledOnce();
+      act(() => end(event));
+      expect(captured.updateMeasurements).not.toHaveBeenCalled();
+      expect(captured.updateMeasurement).not.toHaveBeenCalled();
+      const fresh = captured.lines.filter((item) => typeof item.onMouseDown === "function").at(-1)!;
+      act(() => (fresh.onMouseDown as (event: unknown) => void)(event));
+      pointer = { x: 340, y: 180 };
+      act(() => (fresh.onDragStart as (event: unknown) => void)(event));
+      act(() => (fresh.onDragEnd as (event: unknown) => void)(event));
+      expect(
+        count === 1 ? captured.updateMeasurement : captured.updateMeasurements,
+      ).toHaveBeenCalledOnce();
+    },
+  );
 
-  it.each([[1, false], [1, true], [2, false], [2, true]] as const)("cancels a %s-measurement drag (prepared only: %s) before synchronous and late dragend", (count, preparedOnly) => {
-    const page = pageWithMeasurement("line");
-    if (count === 2) page.measurements.push({ ...page.measurements[0]!, id: "second", points: [{ x: 250, y: 100 }, { x: 290, y: 100 }] });
-    const register = vi.fn();
-    renderLayer({ page, selectedMeasurementIds: page.measurements.map((item) => item.id), onWholeMeasurementDragCancellationChange: register });
-    let pointer = { x: 100, y: 100 };
-    let dragging = !preparedOnly;
-    const target = {
-      getStage: () => ({ getPointerPosition: () => pointer }),
-      position: vi.fn(), isDragging: () => dragging,
-      stopDrag: vi.fn(() => { dragging = false; end(event); }),
-    };
-    const event = { target, evt: { button: 0 }, cancelBubble: false };
-    const line = captured.lines[0]!;
-    // The Konva mock does not attach refs; attach the node as the real renderer does.
-    (line.ref as (node: typeof target) => void)(target);
-    const end = line.onDragEnd as (event: unknown) => void;
-    act(() => (line.onMouseDown as (event: unknown) => void)(event));
-    pointer = { x: 300, y: 140 };
-    if (!preparedOnly) act(() => (line.onDragStart as (event: unknown) => void)(event));
-    const cancel = register.mock.calls.find((args) => typeof args[1] === "function")![1] as () => void;
-    act(cancel);
-    expect(target.stopDrag).toHaveBeenCalledOnce();
-    act(() => end(event));
-    expect(captured.updateMeasurements).not.toHaveBeenCalled();
-    expect(captured.updateMeasurement).not.toHaveBeenCalled();
-    const fresh = captured.lines.filter((item) => typeof item.onMouseDown === "function").at(-1)!;
-    act(() => (fresh.onMouseDown as (event: unknown) => void)(event));
-    pointer = { x: 340, y: 180 };
-    act(() => (fresh.onDragStart as (event: unknown) => void)(event));
-    act(() => (fresh.onDragEnd as (event: unknown) => void)(event));
-    expect(count === 1 ? captured.updateMeasurement : captured.updateMeasurements).toHaveBeenCalledOnce();
-  });
-
-  it.each(["source", "selection", "zoom"])("cancels a whole-selection drag when %s changes and ignores stale dragend", (change) => {
-    const page = pageWithMeasurement("line");
-    page.measurements.push({ ...page.measurements[0]!, id: "second", points: [{ x: 250, y: 100 }, { x: 290, y: 100 }] });
-    renderLayer({ page, selectedMeasurementIds: ["polygon-1", "second"] });
-    const line = captured.lines[0]!;
-    let pointer = { x: 100, y: 100 };
-    const target = { getStage: () => ({ getPointerPosition: () => pointer }), position: vi.fn(), stopDrag: vi.fn() };
-    const event = { target, evt: { button: 0 }, cancelBubble: false };
-    act(() => (line.onMouseDown as (event: unknown) => void)(event));
-    pointer = { x: 300, y: 140 };
-    act(() => (line.onDragStart as (event: unknown) => void)(event));
-    const next = change === "source" ? { ...page, measurements: [page.measurements[0]!, { ...page.measurements[1]!, points: [{ x: 250, y: 150 }, { x: 290, y: 150 }] }] } : page;
-    renderLayer({ page: next, selectedMeasurementIds: change === "selection" ? ["polygon-1"] : ["polygon-1", "second"], transform: { zoom: change === "zoom" ? 3 : 2, panX: 0, panY: 0 } });
-    act(() => (line.onDragEnd as (event: unknown) => void)(event));
-    expect(captured.updateMeasurements).not.toHaveBeenCalled();
-  });
+  it.each(["source", "selection", "zoom"])(
+    "cancels a whole-selection drag when %s changes and ignores stale dragend",
+    (change) => {
+      const page = pageWithMeasurement("line");
+      page.measurements.push({
+        ...page.measurements[0]!,
+        id: "second",
+        points: [
+          { x: 250, y: 100 },
+          { x: 290, y: 100 },
+        ],
+      });
+      renderLayer({ page, selectedMeasurementIds: ["polygon-1", "second"] });
+      const line = captured.lines[0]!;
+      let pointer = { x: 100, y: 100 };
+      const target = {
+        getStage: () => ({ getPointerPosition: () => pointer }),
+        position: vi.fn(),
+        stopDrag: vi.fn(),
+      };
+      const event = { target, evt: { button: 0 }, cancelBubble: false };
+      act(() => (line.onMouseDown as (event: unknown) => void)(event));
+      pointer = { x: 300, y: 140 };
+      act(() => (line.onDragStart as (event: unknown) => void)(event));
+      const next =
+        change === "source"
+          ? {
+              ...page,
+              measurements: [
+                page.measurements[0]!,
+                {
+                  ...page.measurements[1]!,
+                  points: [
+                    { x: 250, y: 150 },
+                    { x: 290, y: 150 },
+                  ],
+                },
+              ],
+            }
+          : page;
+      renderLayer({
+        page: next,
+        selectedMeasurementIds: change === "selection" ? ["polygon-1"] : ["polygon-1", "second"],
+        transform: { zoom: change === "zoom" ? 3 : 2, panX: 0, panY: 0 },
+      });
+      act(() => (line.onDragEnd as (event: unknown) => void)(event));
+      expect(captured.updateMeasurements).not.toHaveBeenCalled();
+    },
+  );
 
   it.each(["shiftKey", "ctrlKey", "metaKey"])("forwards %s from a canvas selection", (modifier) => {
     const onSelectMeasurement = vi.fn();
     renderLayer({ onSelectMeasurement });
     const select = captured.lines[0]!.onClick as (event: unknown) => void;
-    const event = { cancelBubble: false, evt: { shiftKey: false, ctrlKey: false, metaKey: false, [modifier]: true } };
+    const event = {
+      cancelBubble: false,
+      evt: { shiftKey: false, ctrlKey: false, metaKey: false, [modifier]: true },
+    };
     act(() => select(event));
     expect(event.cancelBubble).toBe(true);
     expect(onSelectMeasurement).toHaveBeenCalledWith("polygon-1", true);
   });
 
-  it.each(["shiftKey", "ctrlKey", "metaKey"])("toggles selection on a vertex with %s without preparing a geometry edit", (modifier) => {
-    const onSelectMeasurement = vi.fn();
-    const onVertexDragCancellationChange = vi.fn();
-    renderLayer({ selectedMeasurementId: "polygon-1", onSelectMeasurement, onVertexDragCancellationChange });
-    const handle = captured.circles[0]!;
-    const event = { cancelBubble: false, target: {}, evt: { button: 0, shiftKey: false, ctrlKey: false, metaKey: false, [modifier]: true } };
-    act(() => (handle.onMouseDown as (event: unknown) => void)(event));
-    expect(event.cancelBubble).toBe(true);
-    expect(onVertexDragCancellationChange).not.toHaveBeenCalled();
-    act(() => (handle.onClick as (event: unknown) => void)(event));
-    expect(onSelectMeasurement).toHaveBeenCalledWith("polygon-1", true);
-  });
+  it.each(["shiftKey", "ctrlKey", "metaKey"])(
+    "toggles selection on a vertex with %s without preparing a geometry edit",
+    (modifier) => {
+      const onSelectMeasurement = vi.fn();
+      const onVertexDragCancellationChange = vi.fn();
+      renderLayer({
+        selectedMeasurementId: "polygon-1",
+        onSelectMeasurement,
+        onVertexDragCancellationChange,
+      });
+      const handle = captured.circles[0]!;
+      const event = {
+        cancelBubble: false,
+        target: {},
+        evt: { button: 0, shiftKey: false, ctrlKey: false, metaKey: false, [modifier]: true },
+      };
+      act(() => (handle.onMouseDown as (event: unknown) => void)(event));
+      expect(event.cancelBubble).toBe(true);
+      expect(onVertexDragCancellationChange).not.toHaveBeenCalled();
+      act(() => (handle.onClick as (event: unknown) => void)(event));
+      expect(onSelectMeasurement).toHaveBeenCalledWith("polygon-1", true);
+    },
+  );
 
   it("uses one teal semantic style for unselected measurements without inventing type taxonomy", () => {
     renderLayer();
@@ -619,15 +913,9 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
       onWholeMeasurementDragCancellationChange,
     });
 
-    const measurementLine = captured.lines.find(
-      (line) => line.name === "measurement-preview-line",
-    );
-    const onTouchStart = measurementLine?.onTouchStart as
-      | ((event: unknown) => void)
-      | undefined;
-    const onDragStart = measurementLine?.onDragStart as
-      | ((event: unknown) => void)
-      | undefined;
+    const measurementLine = captured.lines.find((line) => line.name === "measurement-preview-line");
+    const onTouchStart = measurementLine?.onTouchStart as ((event: unknown) => void) | undefined;
+    const onDragStart = measurementLine?.onDragStart as ((event: unknown) => void) | undefined;
     if (!onTouchStart || !onDragStart) throw new Error("Touch drag handlers were not rendered.");
     const target = {
       getStage: () => ({ getPointerPosition: () => ({ x: 80, y: 80 }) }),

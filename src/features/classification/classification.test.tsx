@@ -15,7 +15,10 @@ const inlineFieldCss = readFileSync(
   new URL("../../components/ui/InlineField.module.css", import.meta.url),
   "utf8",
 );
-const inputCss = readFileSync(new URL("../../components/ui/Input.module.css", import.meta.url), "utf8");
+const inputCss = readFileSync(
+  new URL("../../components/ui/Input.module.css", import.meta.url),
+  "utf8",
+);
 
 const catalog: ClassificationCatalog = {
   dimensions: [

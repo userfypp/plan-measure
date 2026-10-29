@@ -10,8 +10,9 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-    true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
     configurable: true,
     value: vi.fn(),
@@ -82,7 +83,9 @@ describe("shared disabled control semantics", () => {
     expect(button.disabled).toBe(false);
     expect(button.getAttribute("aria-disabled")).toBe("true");
     const descriptionId = button.getAttribute("aria-describedby");
-    expect(document.getElementById(descriptionId!)?.textContent).toBe("A fine pointer is required.");
+    expect(document.getElementById(descriptionId!)?.textContent).toBe(
+      "A fine pointer is required.",
+    );
     act(() => {
       button.focus();
       button.click();

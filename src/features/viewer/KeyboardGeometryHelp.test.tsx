@@ -124,10 +124,7 @@ it("provides explicit reference endpoints without offering whole-measurement mov
     ),
   );
   const select = container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
-  expect(selectOptionLabels(select)).toEqual([
-    "Start point",
-    "End point",
-  ]);
+  expect(selectOptionLabels(select)).toEqual(["Start point", "End point"]);
   chooseSelectOption(select, "End point");
   expect(onTargetChange).toHaveBeenCalledExactlyOnceWith(1);
 });

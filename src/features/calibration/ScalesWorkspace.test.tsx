@@ -65,7 +65,15 @@ const page: PageState = {
   activeCalibrationId: uniform.id,
   nextCalibrationNumber: 3,
   measurements: [historicalMeasurement],
-  nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+  nextMeasurementNumber: {
+    line: 2,
+    polyline: 1,
+    polygon: 1,
+    rectangle: 1,
+    ellipse: 1,
+    cloud: 1,
+    count: 1,
+  },
 };
 
 function createProps(overrides: Partial<ScalesWorkspaceProps> = {}): ScalesWorkspaceProps {
@@ -251,7 +259,9 @@ describe("ScalesWorkspace", () => {
     renderScales(props);
     const copy = buttonByLabel("Copy scale Ground floor");
     const disclosure = scaleToggle("Ground floor");
-    expect(disclosure.compareDocumentPosition(copy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      disclosure.compareDocumentPosition(copy) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(disclosure.contains(copy)).toBe(false);
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     act(() => copy.click());
@@ -386,7 +396,9 @@ describe("ScalesWorkspace", () => {
       }),
     );
     expect(scaleToggle("Ground floor")).toBeTruthy();
-    expect(container?.textContent).toContain("Changing the active scale does not relink measurements.");
+    expect(container?.textContent).toContain(
+      "Changing the active scale does not relink measurements.",
+    );
     expect(container?.textContent).not.toContain("Viewer Dock");
   });
 
@@ -418,13 +430,17 @@ describe("ScalesWorkspace", () => {
     renderScales(props);
     const inspect = scaleToggle("Survey correction");
     expect(inspect.hasAttribute("aria-controls")).toBe(false);
-    expect(container?.querySelector('[aria-label="Scale details for Survey correction"]')).toBeNull();
+    expect(
+      container?.querySelector('[aria-label="Scale details for Survey correction"]'),
+    ).toBeNull();
 
     act(() => inspect.click());
     const details = scaleDetails(inspect);
     expectIconOnly(buttonByLabel("Rename scale Survey correction"));
     expect(details.textContent).toContain(scaleDisplayMetadata(xy).ratioLabel);
-    expectIconOnly(details.querySelector<HTMLButtonElement>('button[aria-label^="Set ratio for scale "]')!);
+    expectIconOnly(
+      details.querySelector<HTMLButtonElement>('button[aria-label^="Set ratio for scale "]')!,
+    );
     expect(details.textContent).toContain("X reference: 2.50 m");
     expect(details.textContent).toContain("Y reference: 3.00 m");
     expect(details.textContent).not.toContain("Scale name");
@@ -437,8 +453,12 @@ describe("ScalesWorkspace", () => {
     );
     const recalibrate = buttonWithin(details, "Recalibrate scale");
     expectIconOnly(recalibrate);
-    const editX = details.querySelector<HTMLButtonElement>('button[aria-label="Edit X reference points"]');
-    const editY = details.querySelector<HTMLButtonElement>('button[aria-label="Edit Y reference points"]');
+    const editX = details.querySelector<HTMLButtonElement>(
+      'button[aria-label="Edit X reference points"]',
+    );
+    const editY = details.querySelector<HTMLButtonElement>(
+      'button[aria-label="Edit Y reference points"]',
+    );
     if (!editX || !editY) throw new Error("X/Y reference actions were not rendered.");
     expectIconOnly(editX);
     expectIconOnly(editY);
@@ -463,7 +483,8 @@ describe("ScalesWorkspace", () => {
     expect(blockedRecalibrate.getAttribute("aria-disabled")).toBe("true");
     expectIconOnly(blockedRecalibrate);
     expect(
-      document.getElementById(blockedRecalibrate.getAttribute("aria-describedby") ?? "")?.textContent,
+      document.getElementById(blockedRecalibrate.getAttribute("aria-describedby") ?? "")
+        ?.textContent,
     ).toBe("Finish or cancel the current scale workflow first.");
   });
 
@@ -544,7 +565,9 @@ describe("ScalesWorkspace", () => {
       expect(document.activeElement).toBe(items[index]);
     }
 
-    expect(document.querySelector('[data-menu-section-label="true"]')).not.toBe(document.activeElement);
+    expect(document.querySelector('[data-menu-section-label="true"]')).not.toBe(
+      document.activeElement,
+    );
     expect(items.map((item) => item.tabIndex)).toEqual([-1, -1, -1, -1, -1, 0]);
   });
 
@@ -616,7 +639,9 @@ describe("ScalesWorkspace", () => {
     const details = scaleDetails(toggle);
     const setRatio = buttonByLabel("Set ratio for scale Scale 3");
     expect(buttonWithin(details, "Recalibrate scale")).toBeTruthy();
-    expect(details.querySelector('button[aria-label="Edit uniform reference points"]')).toBeTruthy();
+    expect(
+      details.querySelector('button[aria-label="Edit uniform reference points"]'),
+    ).toBeTruthy();
 
     act(() => {
       setRatio.focus();
@@ -651,8 +676,7 @@ describe("ScalesWorkspace", () => {
       mode: "uniform",
       start: { x: 13, y: 7 },
       end: { x: 53, y: 7 },
-      referenceDistanceMm:
-        pageDistance * scaleByRatio(denominator, 127, 360),
+      referenceDistanceMm: pageDistance * scaleByRatio(denominator, 127, 360),
     };
     const props = createProps({
       page: {
@@ -718,7 +742,9 @@ describe("ScalesWorkspace", () => {
 
     expect(details.textContent).toContain("Uniform reference: 1.00 m");
     expect(details.textContent).toContain(scaleDisplayMetadata(uniform).ratioLabel);
-    expectIconOnly(details.querySelector<HTMLButtonElement>('button[aria-label^="Set ratio for scale "]')!);
+    expectIconOnly(
+      details.querySelector<HTMLButtonElement>('button[aria-label^="Set ratio for scale "]')!,
+    );
     expectIconOnly(buttonWithin(details, "Recalibrate scale"));
     const edit = details.querySelector<HTMLButtonElement>(
       'button[aria-label="Edit uniform reference points"]',
@@ -848,9 +874,9 @@ describe("ScalesWorkspace", () => {
     expect(recalibrate.getAttribute("aria-disabled")).toBe("true");
     expect(edit.getAttribute("aria-disabled")).toBe("true");
     expect(add.disabled).toBe(false);
-    expect(document.getElementById(recalibrate.getAttribute("aria-describedby")!)?.textContent).toBe(
-      reason,
-    );
+    expect(
+      document.getElementById(recalibrate.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe(reason);
     act(() => add.click());
     const addItems = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
     expect(addItems).toHaveLength(6);
@@ -919,8 +945,12 @@ describe("ScalesWorkspace", () => {
     const xyInspect = scaleToggle("Survey correction");
     act(() => xyInspect.click());
     const xyDetails = scaleDetails(xyInspect);
-    const editX = xyDetails.querySelector<HTMLButtonElement>('button[aria-label="Edit X reference points"]');
-    const editY = xyDetails.querySelector<HTMLButtonElement>('button[aria-label="Edit Y reference points"]');
+    const editX = xyDetails.querySelector<HTMLButtonElement>(
+      'button[aria-label="Edit X reference points"]',
+    );
+    const editY = xyDetails.querySelector<HTMLButtonElement>(
+      'button[aria-label="Edit Y reference points"]',
+    );
     if (!editX || !editY) throw new Error("X/Y edit actions were not rendered.");
     act(() => editX.click());
     act(() => editY.click());

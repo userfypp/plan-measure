@@ -4,21 +4,21 @@ A short map to get oriented. Stack: React 19 + TypeScript + Vite, Konva (canvas)
 
 ## Modules (`src/`)
 
-| Path | Contents |
-|---|---|
-| `app/` | Shell, bars, panels, session/workspace state (`sessionState.tsx`, `workspaceState.tsx`), autosave and PDF lifecycle. |
-| `components/` | Generic UI components (`Modal`, `ui/`). |
-| `features/viewer/` | Konva canvas: PDF rendering, tools, snapping, geometry and dragging. |
-| `features/calibration/` | Scales (uniform, X/Y, ratio) and scale check. |
-| `features/measurements/` | List, details, grouping, totals and Takeoff. |
-| `features/classification/` | Classifications and templates. |
-| `features/pages/` | Page browser and thumbnails. |
-| `features/export/` | Export dialog and annotated PDF. |
-| `services/` | Persistence (IndexedDB), `.planmeasure` project file, CSV/XLSX/ODS/JSON exports, PDF validation. |
-| `utils/` | Pure functions: coordinates, calibration, units, geometry, formatting. |
-| `types/domain.ts` | Shared domain types. |
-| `performance/` | Performance tests (contracts: do not raise budgets). |
-| `styles/` | Global styles; components use CSS modules. |
+| Path                       | Contents                                                                                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `app/`                     | Shell, bars, panels, session/workspace state (`sessionState.tsx`, `workspaceState.tsx`), autosave and PDF lifecycle. |
+| `components/`              | Generic UI components (`Modal`, `ui/`).                                                                              |
+| `features/viewer/`         | Konva canvas: PDF rendering, tools, snapping, geometry and dragging.                                                 |
+| `features/calibration/`    | Scales (uniform, X/Y, ratio) and scale check.                                                                        |
+| `features/measurements/`   | List, details, grouping, totals and Takeoff.                                                                         |
+| `features/classification/` | Classifications and templates.                                                                                       |
+| `features/pages/`          | Page browser and thumbnails.                                                                                         |
+| `features/export/`         | Export dialog and annotated PDF.                                                                                     |
+| `services/`                | Persistence (IndexedDB), `.planmeasure` project file, CSV/XLSX/ODS/JSON exports, PDF validation.                     |
+| `utils/`                   | Pure functions: coordinates, calibration, units, geometry, formatting.                                               |
+| `types/domain.ts`          | Shared domain types.                                                                                                 |
+| `performance/`             | Performance tests (contracts: do not raise budgets).                                                                 |
+| `styles/`                  | Global styles; components use CSS modules.                                                                           |
 
 Tests live next to the code (`*.test.ts(x)`).
 

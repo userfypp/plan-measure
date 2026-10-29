@@ -10,8 +10,10 @@ export function useSoftwareCursor({ viewerRef }: { viewerRef: RefObject<HTMLDivE
   const updateSoftwareCursor = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const cursorElement = softwareCursorRef.current;
     if (!cursorElement) return;
-    if (event.pointerType === "touch" ||
-      (event.target instanceof Element && event.target.closest("[data-keyboard-controls]"))) {
+    if (
+      event.pointerType === "touch" ||
+      (event.target instanceof Element && event.target.closest("[data-keyboard-controls]"))
+    ) {
       softwarePointerRef.current = null;
       cursorElement.style.visibility = "hidden";
       return;
@@ -45,7 +47,12 @@ export function useSoftwareCursor({ viewerRef }: { viewerRef: RefObject<HTMLDivE
     if (!viewer || !cursorElement || !point) return;
     // A remembered position must still hit this viewer, not a dialog or toolbar.
     const hit = window.document.elementFromPoint(point.x, point.y);
-    if (!hit || !viewer.contains(hit) || hit.closest("[data-keyboard-controls]") || !viewer.matches(":hover")) {
+    if (
+      !hit ||
+      !viewer.contains(hit) ||
+      hit.closest("[data-keyboard-controls]") ||
+      !viewer.matches(":hover")
+    ) {
       hideSoftwareCursor();
       return;
     }

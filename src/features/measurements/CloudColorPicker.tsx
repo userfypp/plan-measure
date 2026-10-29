@@ -24,7 +24,9 @@ export function CloudColorPicker({ color, disabled = false, onChange }: CloudCol
     event.preventDefault();
     const index = CLOUD_COLOR_PALETTE.findIndex((entry) => entry.value === current);
     const next =
-      CLOUD_COLOR_PALETTE[(index + step + CLOUD_COLOR_PALETTE.length) % CLOUD_COLOR_PALETTE.length]!;
+      CLOUD_COLOR_PALETTE[
+        (index + step + CLOUD_COLOR_PALETTE.length) % CLOUD_COLOR_PALETTE.length
+      ]!;
     onChange(next.value);
     const swatches = event.currentTarget.querySelectorAll<HTMLButtonElement>("[role='radio']");
     swatches[CLOUD_COLOR_PALETTE.indexOf(next)]?.focus();

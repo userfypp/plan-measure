@@ -3,7 +3,12 @@ import { Button, Popover } from "../components/ui";
 import { SAVE_STATUS_TEXT, type SaveStatusStore } from "./saveStatus";
 import styles from "./SaveStatusIndicator.module.css";
 
-const ALERT_STATES: ReadonlySet<string> = new Set(["failed", "conflict", "repair-required", "unavailable"]);
+const ALERT_STATES: ReadonlySet<string> = new Set([
+  "failed",
+  "conflict",
+  "repair-required",
+  "unavailable",
+]);
 
 interface SaveStatusIndicatorProps {
   store: SaveStatusStore;
@@ -47,7 +52,8 @@ export function SaveStatusIndicator({
       <Popover
         trigger={label}
         triggerProps={{
-          className: `${styles.trigger} ${ALERT_STATES.has(state) && !holdSaving ? styles.alert : ""}`.trim(),
+          className:
+            `${styles.trigger} ${ALERT_STATES.has(state) && !holdSaving ? styles.alert : ""}`.trim(),
           "aria-label": `${label}. Save status and backups`,
           "aria-haspopup": "dialog",
         }}
