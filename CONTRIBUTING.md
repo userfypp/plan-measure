@@ -29,6 +29,8 @@ Two more checks, when they apply:
 - Changed `.github/scripts`? Run `node --test .github/scripts/*.test-node.mjs`.
 - Changed dependencies, startup or the viewer? Run `npm run build && npm run perf:size`. The required `size` check fails when a size budget is exceeded.
 
+`npm run test:coverage` runs the tests with coverage and writes an HTML report to `coverage/`. CI shows the totals in the job summary; there is no threshold.
+
 ## Pull requests
 
 - Keep changes focused; exclude generated or unrelated edits.

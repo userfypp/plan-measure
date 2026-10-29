@@ -12,6 +12,18 @@ export default defineConfig((env) =>
       restoreMocks: true,
       unstubGlobals: true,
       unstubEnvs: true,
+      // `npm run test:coverage`. Reported only; no threshold fails the run.
+      coverage: {
+        provider: "v8",
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*TestUtils.{ts,tsx}",
+          "src/performance/fixtures.ts",
+          "src/vite-env.d.ts",
+        ],
+        reporter: ["text-summary", "json-summary", "html"],
+      },
     },
   }),
 );

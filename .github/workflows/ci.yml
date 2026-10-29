@@ -55,7 +55,19 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm run test
+        run: npm run test:coverage
+
+      # Reported only: no coverage threshold fails CI.
+      - name: Report coverage
+        run: |
+          node -e '
+            const { total } = JSON.parse(require("fs").readFileSync("coverage/coverage-summary.json", "utf8"));
+            console.log("### Coverage\n\n| Metric | Covered |\n| --- | --- |");
+            for (const key of ["statements", "branches", "functions", "lines"]) {
+              const { pct, covered, total: all } = total[key];
+              console.log(`| ${key} | ${pct}% (${covered}/${all}) |`);
+            }
+          ' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
         run: npm run build
