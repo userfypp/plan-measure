@@ -12,6 +12,9 @@ export default defineConfig((env) =>
       restoreMocks: true,
       unstubGlobals: true,
       unstubEnvs: true,
+      // Coverage instrumentation slows the heaviest tests (5,000-row lists) from about 2 s to 4 s
+      // or more on CI runners, past the 5 s default.
+      testTimeout: 15_000,
       // `npm run test:coverage`. Reported only; no threshold fails the run.
       coverage: {
         provider: "v8",
