@@ -373,7 +373,11 @@ export function useCalibrationActions({
       setError("Finish or cancel the current scale workflow first.");
       return;
     }
-    const payload = { pageNumber, calibrationId: calibration.id, calibrationName: calibration.name };
+    const payload = {
+      pageNumber,
+      calibrationId: calibration.id,
+      calibrationName: calibration.name,
+    };
     if (confirmScaleDeletion) openDeleteScaleConfirmation(payload);
     else deleteCalibration(payload);
   }
@@ -396,7 +400,13 @@ export function useCalibrationActions({
     if (confirmation.type === "deleteMeasurement") {
       if (options?.dontAskAgain) setConfirmMeasurementDeletion(false);
       if (confirmation.payload.measurementIds) {
-        if (editMeasurements({ measurementIds: confirmation.payload.measurementIds, operation: { type: "delete" } })) clearSelection();
+        if (
+          editMeasurements({
+            measurementIds: confirmation.payload.measurementIds,
+            operation: { type: "delete" },
+          })
+        )
+          clearSelection();
       } else performMeasurementDelete(confirmation.payload);
       return;
     }

@@ -18,7 +18,12 @@ export function boxGuideBounds(points: readonly Point[]): BoxGuideBounds | null 
   if (points.length === 0) return null;
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
-  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
 }
 
 export interface BoxGuideDimensions {
@@ -47,8 +52,16 @@ export function boxGuideDimensionTexts(
 ): BoxGuideDimensions {
   if (calibration) {
     return {
-      width: scaledDimensionText(width * calibrationScaleX(calibration), displayUnit, decimalPlaces),
-      height: scaledDimensionText(height * calibrationScaleY(calibration), displayUnit, decimalPlaces),
+      width: scaledDimensionText(
+        width * calibrationScaleX(calibration),
+        displayUnit,
+        decimalPlaces,
+      ),
+      height: scaledDimensionText(
+        height * calibrationScaleY(calibration),
+        displayUnit,
+        decimalPlaces,
+      ),
     };
   }
   return { width: `${Math.round(width)} px`, height: `${Math.round(height)} px` };

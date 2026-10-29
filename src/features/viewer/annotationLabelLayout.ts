@@ -107,7 +107,14 @@ export function placeMeasurementLabel(
       occupied,
       LABEL_EDGE_MARGIN_SCREEN_PX,
     ) ??
-    placeLabelAvoidingOverlaps(anchor, dimensions, bounds, zoom, occupied, LABEL_EDGE_MARGIN_SCREEN_PX)
+    placeLabelAvoidingOverlaps(
+      anchor,
+      dimensions,
+      bounds,
+      zoom,
+      occupied,
+      LABEL_EDGE_MARGIN_SCREEN_PX,
+    )
   );
 }
 
@@ -200,7 +207,11 @@ export function planLabelLayout(
   function measurementDimensions(text: string) {
     let dimensions = dimensionsByText.get(text);
     if (!dimensions) {
-      dimensions = measureLabelText(text, MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * labelFontScale, zoom);
+      dimensions = measureLabelText(
+        text,
+        MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * labelFontScale,
+        zoom,
+      );
       dimensionsByText.set(text, dimensions);
     }
     return dimensions;
@@ -257,8 +268,7 @@ export function planLabelLayout(
               { key: "y", label: "Y", ...calibration.yReference },
             ];
       for (const reference of references) {
-        const referenceIsEditing =
-          editing && calibrationReferenceEdit?.reference === reference.key;
+        const referenceIsEditing = editing && calibrationReferenceEdit?.reference === reference.key;
         if (!showCalibration && !referenceIsEditing) continue;
         const start =
           referenceIsEditing && calibrationReferenceEdit

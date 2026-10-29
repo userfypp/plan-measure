@@ -58,13 +58,7 @@ function renderMenu() {
   document.body.append(container);
   root = createRoot(container);
   act(() => {
-    root!.render(
-      <AnchoredMenu
-        trigger="Workspace"
-        label="Workspace module"
-        items={menuItems()}
-      />,
-    );
+    root!.render(<AnchoredMenu trigger="Workspace" label="Workspace module" items={menuItems()} />);
   });
 }
 
@@ -281,9 +275,7 @@ describe("AnchoredMenu", () => {
 
   it("keeps autofocus and keyboard-focused items visible in a scrollable long menu", () => {
     act(() => {
-      root!.render(
-        <AnchoredMenu trigger="Long menu" label="Long menu" items={longMenuItems()} />,
-      );
+      root!.render(<AnchoredMenu trigger="Long menu" label="Long menu" items={longMenuItems()} />);
     });
     act(() => trigger().click());
     const menuButtons = buttons();

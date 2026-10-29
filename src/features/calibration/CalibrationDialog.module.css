@@ -10,7 +10,10 @@
 
 .inputRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(var(--geometry-calibration-field-min-width), max-content);
+  grid-template-columns: minmax(0, 1fr) minmax(
+      var(--geometry-calibration-field-min-width),
+      max-content
+    );
   gap: var(--space-12);
   align-items: end;
 }
@@ -21,9 +24,9 @@
 
 .unitOnlyRow .unitField {
   grid-template-columns: auto minmax(
-    var(--geometry-calibration-field-min-width),
-    var(--geometry-calibration-field-max-width)
-  );
+      var(--geometry-calibration-field-min-width),
+      var(--geometry-calibration-field-max-width)
+    );
   align-items: center;
   justify-content: space-between;
   gap: var(--space-12);
@@ -62,7 +65,10 @@
 
 .architecturalInputs {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(var(--geometry-calibration-fraction-min-width), 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(
+      var(--geometry-calibration-fraction-min-width),
+      0.9fr
+    );
   gap: var(--space-8);
   align-items: end;
 }

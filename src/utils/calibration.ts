@@ -24,8 +24,8 @@ export function isValidCalibrationReferenceEdit(
   const selected = getCalibrationReference(calibration, reference);
   return Boolean(
     selected &&
-      isValidPageCalibration(calibration) &&
-      (reference === "uniform" || isAlignedXyReference(selected.start, selected.end, reference)),
+    isValidPageCalibration(calibration) &&
+    (reference === "uniform" || isAlignedXyReference(selected.start, selected.end, reference)),
   );
 }
 

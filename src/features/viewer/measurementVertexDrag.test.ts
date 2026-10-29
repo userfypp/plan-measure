@@ -757,7 +757,7 @@ describe("box side drag", () => {
   });
 
   it("shows a side handle only when the side is twice the interaction target on screen", () => {
-    // Lados de 100 y 40 unidades de página.
+    // Sides of 100 and 40 page units.
     expect(boxSideHandles("rectangle", box, 1, 32)).toEqual([
       { index: 4, point: { x: 70, y: 30 } },
       { index: 6, point: { x: 70, y: 70 } },

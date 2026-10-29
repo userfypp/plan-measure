@@ -2,8 +2,18 @@ import { createContext, useCallback, useContext, useMemo, useReducer, type React
 import type { RatioCalibrationInput } from "../features/calibration/ratioCalibration";
 import type { CalibrationReferenceKey } from "../types/domain";
 
-export interface ReplacePdfPayload { pdfId: string; fileName?: string; recoveryProtected?: boolean; discardUnsavedProject?: boolean }
-export interface RecalibrationPayload { pageNumber: number; calibrationId: string; calibrationName: string; measurementCount: number }
+export interface ReplacePdfPayload {
+  pdfId: string;
+  fileName?: string;
+  recoveryProtected?: boolean;
+  discardUnsavedProject?: boolean;
+}
+export interface RecalibrationPayload {
+  pageNumber: number;
+  calibrationId: string;
+  calibrationName: string;
+  measurementCount: number;
+}
 export interface SetScaleRatioPayload {
   pageNumber: number;
   calibrationId: string;
@@ -11,12 +21,22 @@ export interface SetScaleRatioPayload {
   measurementCount: number;
   calibration: RatioCalibrationInput;
 }
-export interface CalibrationReferenceEditConfirmationPayload { pageNumber: number; calibrationId: string; reference: CalibrationReferenceKey; calibrationName: string; measurementCount: number }
+export interface CalibrationReferenceEditConfirmationPayload {
+  pageNumber: number;
+  calibrationId: string;
+  reference: CalibrationReferenceKey;
+  calibrationName: string;
+  measurementCount: number;
+}
 export type DeleteMeasurementPayload =
   | { pageNumber: number; measurementId: string; measurementName: string; measurementIds?: never }
   | { measurementIds: string[] };
 
-export interface DeleteScalePayload { pageNumber: number; calibrationId: string; calibrationName: string }
+export interface DeleteScalePayload {
+  pageNumber: number;
+  calibrationId: string;
+  calibrationName: string;
+}
 
 export type DeleteClassificationPayload =
   | { target: "dimension"; dimensionId: string; name: string }
@@ -35,7 +55,9 @@ export type ActiveOverlay =
   | { kind: "confirmation"; descriptor: OverlayConfirmation }
   | { kind: "dialog"; descriptor: OverlayDialog };
 
-export interface OverlayState { active: ActiveOverlay | null }
+export interface OverlayState {
+  active: ActiveOverlay | null;
+}
 export const initialOverlayState: OverlayState = { active: null };
 
 export type OverlayAction =
@@ -44,48 +66,94 @@ export type OverlayAction =
   | { type: "CLOSE_DIALOG"; dialog?: OverlayDialog }
   | { type: "REQUEST_RECALIBRATION"; payload: RecalibrationPayload }
   | { type: "REQUEST_SET_SCALE_RATIO"; payload: SetScaleRatioPayload }
-  | { type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT"; payload: CalibrationReferenceEditConfirmationPayload }
+  | {
+      type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT";
+      payload: CalibrationReferenceEditConfirmationPayload;
+    }
   | { type: "REQUEST_DELETE_MEASUREMENT"; payload: DeleteMeasurementPayload }
   | { type: "REQUEST_DELETE_SCALE"; payload: DeleteScalePayload }
   | { type: "CLOSE_CONFIRMATION"; confirmation?: OverlayConfirmation }
   | { type: "CLOSE_ALL_OVERLAYS" };
 
-function descriptorsMatch<T extends object>(current: T | undefined, expected: T | undefined): boolean {
+function descriptorsMatch<T extends object>(
+  current: T | undefined,
+  expected: T | undefined,
+): boolean {
   return !expected || Boolean(current && JSON.stringify(current) === JSON.stringify(expected));
 }
 
 export function overlayReducer(state: OverlayState, action: OverlayAction): OverlayState {
   switch (action.type) {
     case "REQUEST_REPLACE_PDF":
-      return { active: { kind: "dialog", descriptor: { type: "replacePdf", payload: action.payload } } };
+      return {
+        active: { kind: "dialog", descriptor: { type: "replacePdf", payload: action.payload } },
+      };
     case "CLOSE_DIALOG":
-      return state.active?.kind === "dialog" && descriptorsMatch(state.active.descriptor, action.dialog) ? initialOverlayState : state;
+      return state.active?.kind === "dialog" &&
+        descriptorsMatch(state.active.descriptor, action.dialog)
+        ? initialOverlayState
+        : state;
     case "REQUEST_RECALIBRATION":
       if (state.active?.kind === "dialog") return state;
-      return { active: { kind: "confirmation", descriptor: { type: "recalibrateScale", payload: action.payload } } };
+      return {
+        active: {
+          kind: "confirmation",
+          descriptor: { type: "recalibrateScale", payload: action.payload },
+        },
+      };
     case "REQUEST_SET_SCALE_RATIO":
       if (state.active?.kind === "dialog") return state;
-      return { active: { kind: "confirmation", descriptor: { type: "setScaleRatio", payload: action.payload } } };
+      return {
+        active: {
+          kind: "confirmation",
+          descriptor: { type: "setScaleRatio", payload: action.payload },
+        },
+      };
     case "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT":
       if (state.active?.kind === "dialog") return state;
-      return { active: { kind: "confirmation", descriptor: { type: "saveCalibrationReferenceEdit", payload: action.payload } } };
+      return {
+        active: {
+          kind: "confirmation",
+          descriptor: { type: "saveCalibrationReferenceEdit", payload: action.payload },
+        },
+      };
     case "REQUEST_DELETE_CLASSIFICATION":
       if (state.active?.kind === "dialog") return state;
-      return { active: { kind: "confirmation", descriptor: { type: "deleteClassification", payload: action.payload } } };
+      return {
+        active: {
+          kind: "confirmation",
+          descriptor: { type: "deleteClassification", payload: action.payload },
+        },
+      };
     case "REQUEST_DELETE_MEASUREMENT":
       if (state.active?.kind === "dialog") return state;
-      return { active: { kind: "confirmation", descriptor: { type: "deleteMeasurement", payload: action.payload } } };
+      return {
+        active: {
+          kind: "confirmation",
+          descriptor: { type: "deleteMeasurement", payload: action.payload },
+        },
+      };
     case "REQUEST_DELETE_SCALE":
       if (state.active?.kind === "dialog") return state;
-      return { active: { kind: "confirmation", descriptor: { type: "deleteScale", payload: action.payload } } };
+      return {
+        active: {
+          kind: "confirmation",
+          descriptor: { type: "deleteScale", payload: action.payload },
+        },
+      };
     case "CLOSE_CONFIRMATION":
-      return state.active?.kind === "confirmation" && descriptorsMatch(state.active.descriptor, action.confirmation) ? initialOverlayState : state;
+      return state.active?.kind === "confirmation" &&
+        descriptorsMatch(state.active.descriptor, action.confirmation)
+        ? initialOverlayState
+        : state;
     case "CLOSE_ALL_OVERLAYS":
       return initialOverlayState;
   }
 }
 
-export function getActiveOverlay(state: OverlayState): ActiveOverlay | null { return state.active; }
+export function getActiveOverlay(state: OverlayState): ActiveOverlay | null {
+  return state.active;
+}
 
 interface OverlayContextValue {
   state: OverlayState;
@@ -93,7 +161,9 @@ interface OverlayContextValue {
   closeDialog: (dialog?: OverlayDialog) => void;
   requestRecalibration: (payload: RecalibrationPayload) => void;
   requestSetScaleRatio: (payload: SetScaleRatioPayload) => void;
-  requestSaveCalibrationReferenceEdit: (payload: CalibrationReferenceEditConfirmationPayload) => void;
+  requestSaveCalibrationReferenceEdit: (
+    payload: CalibrationReferenceEditConfirmationPayload,
+  ) => void;
   requestDeleteClassification: (payload: DeleteClassificationPayload) => void;
   requestDeleteMeasurement: (payload: DeleteMeasurementPayload) => void;
   requestDeleteScale: (payload: DeleteScalePayload) => void;
@@ -127,7 +197,8 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     [],
   );
   const requestDeleteClassification = useCallback(
-    (payload: DeleteClassificationPayload) => dispatch({ type: "REQUEST_DELETE_CLASSIFICATION", payload }),
+    (payload: DeleteClassificationPayload) =>
+      dispatch({ type: "REQUEST_DELETE_CLASSIFICATION", payload }),
     [],
   );
   const requestDeleteMeasurement = useCallback(
@@ -140,39 +211,38 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     [],
   );
   const closeConfirmation = useCallback(
-    (confirmation?: OverlayConfirmation) =>
-      dispatch({ type: "CLOSE_CONFIRMATION", confirmation }),
+    (confirmation?: OverlayConfirmation) => dispatch({ type: "CLOSE_CONFIRMATION", confirmation }),
     [],
   );
-  const closeAllOverlays = useCallback(
-    () => dispatch({ type: "CLOSE_ALL_OVERLAYS" }),
-    [],
+  const closeAllOverlays = useCallback(() => dispatch({ type: "CLOSE_ALL_OVERLAYS" }), []);
+  const value = useMemo<OverlayContextValue>(
+    () => ({
+      state,
+      requestReplacePdf,
+      closeDialog,
+      requestRecalibration,
+      requestSetScaleRatio,
+      requestSaveCalibrationReferenceEdit,
+      requestDeleteClassification,
+      requestDeleteMeasurement,
+      requestDeleteScale,
+      closeConfirmation,
+      closeAllOverlays,
+    }),
+    [
+      closeAllOverlays,
+      closeConfirmation,
+      closeDialog,
+      requestDeleteClassification,
+      requestDeleteMeasurement,
+      requestDeleteScale,
+      requestRecalibration,
+      requestReplacePdf,
+      requestSetScaleRatio,
+      requestSaveCalibrationReferenceEdit,
+      state,
+    ],
   );
-  const value = useMemo<OverlayContextValue>(() => ({
-    state,
-    requestReplacePdf,
-    closeDialog,
-    requestRecalibration,
-    requestSetScaleRatio,
-    requestSaveCalibrationReferenceEdit,
-    requestDeleteClassification,
-    requestDeleteMeasurement,
-    requestDeleteScale,
-    closeConfirmation,
-    closeAllOverlays,
-  }), [
-    closeAllOverlays,
-    closeConfirmation,
-    closeDialog,
-    requestDeleteClassification,
-    requestDeleteMeasurement,
-    requestDeleteScale,
-    requestRecalibration,
-    requestReplacePdf,
-    requestSetScaleRatio,
-    requestSaveCalibrationReferenceEdit,
-    state,
-  ]);
   return <OverlayContext.Provider value={value}>{children}</OverlayContext.Provider>;
 }
 
