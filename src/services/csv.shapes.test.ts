@@ -45,7 +45,7 @@ const ELLIPSE_AREA_M2 = Math.PI * A * B; // 4.712388980384690
 const ELLIPSE_PERIMETER_M = Math.PI * (A + B) * (1 + (3 * H) / (10 + Math.sqrt(4 - 3 * H))); // 7.93271979462562
 
 function rows(csv: string) {
-  const [header, ...lines] = csv.replace(/^﻿/, "").trimEnd().split("\r\n");
+  const [header, ...lines] = csv.replace(/^\uFEFF/, "").trimEnd().split("\r\n");
   const columns = header!.split(",");
   return lines.map((line) => {
     const cells = line.split(",");
