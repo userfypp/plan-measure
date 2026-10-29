@@ -139,7 +139,10 @@ describe("SessionState", () => {
       pageNumber: 1,
       id: "line-1",
       measurementType: "line",
-      points: [{ x: 0, y: 0 }, { x: 10, y: 0 }],
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
     });
     state = sessionReducer(state, {
       type: "SET_MEASUREMENT_NOTE",
@@ -332,50 +335,53 @@ describe("SessionState", () => {
         { x: 14, y: 45 },
       ],
     ],
-  ] as const)("translates only %s points while preserving metadata and measured values", (type, points) => {
-    const current = session();
-    const calibration = {
-      id: "scale-1",
-      name: "Main plan",
-      mode: "uniform" as const,
-      start: { x: 0, y: 0 },
-      end: { x: 10, y: 0 },
-      referenceDistanceMm: 1000,
-    };
-    current.pages[1]!.calibrations = [calibration];
-    current.pages[1]!.activeCalibrationId = calibration.id;
-    current.classificationCatalog.dimensions = [
-      {
-        id: "trade",
-        name: "Trade",
-        archived: false,
-        values: [{ id: "electrical", name: "Electrical", archived: false }],
-      },
-    ];
-    const source: Measurement = {
-      id: `${type}-move`,
-      type: type as PathMeasurementType,
-      name: "Preserved name",
-      calibrationId: calibration.id,
-      points: points.map((point) => ({ ...point })),
-      classificationValueIds: ["electrical"],
-      visible: false,
-    };
-    current.pages[1]!.measurements = [source];
-    const countersBefore = structuredClone(current.pages[1]!.nextMeasurementNumber);
-    const beforeResults = measurementResultsMm(source, calibration);
-    const movedPoints = translateMeasurementPoints(source.points, { x: 17.5, y: 9.25 });
+  ] as const)(
+    "translates only %s points while preserving metadata and measured values",
+    (type, points) => {
+      const current = session();
+      const calibration = {
+        id: "scale-1",
+        name: "Main plan",
+        mode: "uniform" as const,
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      };
+      current.pages[1]!.calibrations = [calibration];
+      current.pages[1]!.activeCalibrationId = calibration.id;
+      current.classificationCatalog.dimensions = [
+        {
+          id: "trade",
+          name: "Trade",
+          archived: false,
+          values: [{ id: "electrical", name: "Electrical", archived: false }],
+        },
+      ];
+      const source: Measurement = {
+        id: `${type}-move`,
+        type: type as PathMeasurementType,
+        name: "Preserved name",
+        calibrationId: calibration.id,
+        points: points.map((point) => ({ ...point })),
+        classificationValueIds: ["electrical"],
+        visible: false,
+      };
+      current.pages[1]!.measurements = [source];
+      const countersBefore = structuredClone(current.pages[1]!.nextMeasurementNumber);
+      const beforeResults = measurementResultsMm(source, calibration);
+      const movedPoints = translateMeasurementPoints(source.points, { x: 17.5, y: 9.25 });
 
-    const result = sessionReducer(
-      { session: current, error: null },
-      { type: "UPDATE_MEASUREMENT", pageNumber: 1, id: source.id, points: movedPoints },
-    );
-    const moved = result.session?.pages[1]?.measurements[0];
+      const result = sessionReducer(
+        { session: current, error: null },
+        { type: "UPDATE_MEASUREMENT", pageNumber: 1, id: source.id, points: movedPoints },
+      );
+      const moved = result.session?.pages[1]?.measurements[0];
 
-    expect(moved).toEqual({ ...source, points: movedPoints });
-    expect(result.session?.pages[1]?.nextMeasurementNumber).toEqual(countersBefore);
-    expect(measurementResultsMm(moved!, calibration)).toEqual(beforeResults);
-  });
+      expect(moved).toEqual({ ...source, points: movedPoints });
+      expect(result.session?.pages[1]?.nextMeasurementNumber).toEqual(countersBefore);
+      expect(measurementResultsMm(moved!, calibration)).toEqual(beforeResults);
+    },
+  );
 
   it("does not let rigid translation bypass historical repair-required Polygon validity", () => {
     const current = session();

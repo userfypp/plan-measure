@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PathMeasurement, PathMeasurementType, PageCalibration, Point } from "../../types/domain";
+import type {
+  PathMeasurement,
+  PathMeasurementType,
+  PageCalibration,
+  Point,
+} from "../../types/domain";
 import type { LogicalPageBounds } from "../../types/domain";
 import { fitToScreen, isPointInPage, pageToScreen } from "../../utils/coordinates";
 import { measurementResultsMm } from "../../utils/geometry";
@@ -110,9 +115,9 @@ describe("whole-measurement drag", () => {
 
   it("keeps only the owning measurement editable until its edit ends", () => {
     const activeId = "measurement-a";
-    expect(
-      measurementEditingEnabled("select", true, false, false, false, activeId, activeId),
-    ).toBe(true);
+    expect(measurementEditingEnabled("select", true, false, false, false, activeId, activeId)).toBe(
+      true,
+    );
     expect(measurementEditingEnabled("hand", false, false, false, false, activeId, activeId)).toBe(
       true,
     );
@@ -168,25 +173,17 @@ describe("whole-measurement drag", () => {
     const effects = { preview, commit };
 
     expect(
-      finishWholeMeasurementDrag(
-        true,
-        { delta: { x: 10, y: -4 }, points: movedPoints },
-        effects,
-      ),
+      finishWholeMeasurementDrag(true, { delta: { x: 10, y: -4 }, points: movedPoints }, effects),
     ).toBe("cancelled");
     expect(finishWholeMeasurementDrag(false, null, effects)).toBe("unchanged");
-    expect(
-      finishWholeMeasurementDrag(false, { delta: { x: 0, y: 0 }, points }, effects),
-    ).toBe("unchanged");
+    expect(finishWholeMeasurementDrag(false, { delta: { x: 0, y: 0 }, points }, effects)).toBe(
+      "unchanged",
+    );
     expect(preview).not.toHaveBeenCalled();
     expect(commit).not.toHaveBeenCalled();
 
     expect(
-      finishWholeMeasurementDrag(
-        false,
-        { delta: { x: 10, y: -4 }, points: movedPoints },
-        effects,
-      ),
+      finishWholeMeasurementDrag(false, { delta: { x: 10, y: -4 }, points: movedPoints }, effects),
     ).toBe("accepted");
     expect(preview).toHaveBeenCalledTimes(1);
     expect(commit).toHaveBeenCalledTimes(1);
@@ -200,9 +197,14 @@ describe("whole-measurement drag", () => {
     };
 
     expect(
-      shouldCancelWholeMeasurementDrag(snapshot, true, { ...snapshot.transform }, {
-        ...snapshot.bounds,
-      }),
+      shouldCancelWholeMeasurementDrag(
+        snapshot,
+        true,
+        { ...snapshot.transform },
+        {
+          ...snapshot.bounds,
+        },
+      ),
     ).toBe(false);
     expect(
       shouldCancelWholeMeasurementDrag(snapshot, false, snapshot.transform, snapshot.bounds),
@@ -216,12 +218,12 @@ describe("whole-measurement drag", () => {
       ),
     ).toBe(true);
     expect(
-      shouldCancelWholeMeasurementDrag(
-        snapshot,
-        true,
-        snapshot.transform,
-        { ...snapshot.bounds, width: 800, height: 600, rotation: 90 },
-      ),
+      shouldCancelWholeMeasurementDrag(snapshot, true, snapshot.transform, {
+        ...snapshot.bounds,
+        width: 800,
+        height: 600,
+        rotation: 90,
+      }),
     ).toBe(true);
   });
 
@@ -392,11 +394,7 @@ describe("whole-measurement drag", () => {
 
     registry.set("first", () => {
       expect(
-        finishWholeMeasurementDrag(
-          true,
-          { delta: { x: 5, y: 5 }, points: movedPoints },
-          effects,
-        ),
+        finishWholeMeasurementDrag(true, { delta: { x: 5, y: 5 }, points: movedPoints }, effects),
       ).toBe("cancelled");
       registry.set("first", null);
     });
@@ -407,11 +405,7 @@ describe("whole-measurement drag", () => {
 
     registry.set("second", () => undefined);
     expect(
-      finishWholeMeasurementDrag(
-        false,
-        { delta: { x: 5, y: 5 }, points: movedPoints },
-        effects,
-      ),
+      finishWholeMeasurementDrag(false, { delta: { x: 5, y: 5 }, points: movedPoints }, effects),
     ).toBe("accepted");
     registry.set("second", null);
     expect(commit).toHaveBeenCalledTimes(1);
@@ -445,39 +439,45 @@ describe("whole-measurement drag", () => {
         { x: 18, y: 49 },
       ],
     ],
-  ] as const)("applies one identical delta to every %s vertex and preserves measured values", (type, points) => {
-    const source = measurement(type, points.map((point) => ({ ...point })));
-    const sourceBefore = structuredClone(source);
-    const delta = { x: 17.25, y: -6.5 };
-    const movedPoints = translateMeasurementPoints(source.points, delta);
+  ] as const)(
+    "applies one identical delta to every %s vertex and preserves measured values",
+    (type, points) => {
+      const source = measurement(
+        type,
+        points.map((point) => ({ ...point })),
+      );
+      const sourceBefore = structuredClone(source);
+      const delta = { x: 17.25, y: -6.5 };
+      const movedPoints = translateMeasurementPoints(source.points, delta);
 
-    movedPoints.forEach((point, index) => {
-      expect(point.x - source.points[index]!.x).toBe(delta.x);
-      expect(point.y - source.points[index]!.y).toBe(delta.y);
-    });
-    for (let index = 1; index < movedPoints.length; index += 1) {
-      expect({
-        x: movedPoints[index]!.x - movedPoints[index - 1]!.x,
-        y: movedPoints[index]!.y - movedPoints[index - 1]!.y,
-      }).toEqual({
-        x: source.points[index]!.x - source.points[index - 1]!.x,
-        y: source.points[index]!.y - source.points[index - 1]!.y,
+      movedPoints.forEach((point, index) => {
+        expect(point.x - source.points[index]!.x).toBe(delta.x);
+        expect(point.y - source.points[index]!.y).toBe(delta.y);
       });
-    }
+      for (let index = 1; index < movedPoints.length; index += 1) {
+        expect({
+          x: movedPoints[index]!.x - movedPoints[index - 1]!.x,
+          y: movedPoints[index]!.y - movedPoints[index - 1]!.y,
+        }).toEqual({
+          x: source.points[index]!.x - source.points[index - 1]!.x,
+          y: source.points[index]!.y - source.points[index - 1]!.y,
+        });
+      }
 
-    const beforeResults = measurementResultsMm(source, calibration);
-    const afterResults = measurementResultsMm({ ...source, points: movedPoints }, calibration);
-    if (type === "polygon") {
-      expect(afterResults.lengthMm).toBeNull();
-      expect(afterResults.perimeterMm).toBeCloseTo(beforeResults.perimeterMm!, 10);
-      expect(afterResults.areaMm2).toBeCloseTo(beforeResults.areaMm2!, 8);
-    } else {
-      expect(afterResults.lengthMm).toBeCloseTo(beforeResults.lengthMm!, 10);
-      expect(afterResults.perimeterMm).toBeNull();
-      expect(afterResults.areaMm2).toBeNull();
-    }
-    expect(source).toEqual(sourceBefore);
-  });
+      const beforeResults = measurementResultsMm(source, calibration);
+      const afterResults = measurementResultsMm({ ...source, points: movedPoints }, calibration);
+      if (type === "polygon") {
+        expect(afterResults.lengthMm).toBeNull();
+        expect(afterResults.perimeterMm).toBeCloseTo(beforeResults.perimeterMm!, 10);
+        expect(afterResults.areaMm2).toBeCloseTo(beforeResults.areaMm2!, 8);
+      } else {
+        expect(afterResults.lengthMm).toBeCloseTo(beforeResults.lengthMm!, 10);
+        expect(afterResults.perimeterMm).toBeNull();
+        expect(afterResults.areaMm2).toBeNull();
+      }
+      expect(source).toEqual(sourceBefore);
+    },
+  );
 
   it("constrains one shared translation delta at every page edge without deforming the shape", () => {
     const bounds = { width: 100, height: 80, rotation: 0 as const };
@@ -488,14 +488,38 @@ describe("whole-measurement drag", () => {
       { x: 10, y: 70 },
     ];
     const cases = [
-      [{ x: -100, y: 0 }, { x: -10, y: 0 }],
-      [{ x: 100, y: 0 }, { x: 10, y: 0 }],
-      [{ x: 0, y: -100 }, { x: 0, y: -20 }],
-      [{ x: 0, y: 100 }, { x: 0, y: 10 }],
-      [{ x: -100, y: -100 }, { x: -10, y: -20 }],
-      [{ x: 100, y: -100 }, { x: 10, y: -20 }],
-      [{ x: -100, y: 100 }, { x: -10, y: 10 }],
-      [{ x: 100, y: 100 }, { x: 10, y: 10 }],
+      [
+        { x: -100, y: 0 },
+        { x: -10, y: 0 },
+      ],
+      [
+        { x: 100, y: 0 },
+        { x: 10, y: 0 },
+      ],
+      [
+        { x: 0, y: -100 },
+        { x: 0, y: -20 },
+      ],
+      [
+        { x: 0, y: 100 },
+        { x: 0, y: 10 },
+      ],
+      [
+        { x: -100, y: -100 },
+        { x: -10, y: -20 },
+      ],
+      [
+        { x: 100, y: -100 },
+        { x: 10, y: -20 },
+      ],
+      [
+        { x: -100, y: 100 },
+        { x: -10, y: 10 },
+      ],
+      [
+        { x: 100, y: 100 },
+        { x: 10, y: 10 },
+      ],
     ] as const;
 
     for (const [proposed, expected] of cases) {

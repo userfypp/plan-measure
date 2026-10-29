@@ -25,8 +25,14 @@ describe("boxGuides", () => {
   });
 
   it("formats calibrated dimensions and falls back to pixels without a scale", () => {
-    expect(boxGuideDimensionTexts(100, 50, calibration, "m", 2)).toEqual({ width: "5.00 m", height: "2.50 m" });
-    expect(boxGuideDimensionTexts(100.4, 49.6, null, "m", 2)).toEqual({ width: "100 px", height: "50 px" });
+    expect(boxGuideDimensionTexts(100, 50, calibration, "m", 2)).toEqual({
+      width: "5.00 m",
+      height: "2.50 m",
+    });
+    expect(boxGuideDimensionTexts(100.4, 49.6, null, "m", 2)).toEqual({
+      width: "100 px",
+      height: "50 px",
+    });
   });
 
   it.each(["m", "ft-in"] as const)(

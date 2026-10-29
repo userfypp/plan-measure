@@ -115,7 +115,8 @@ const CalibrationDialog = recoverableLazy(
 const loadExportDialog = retryableImport(() => import("../features/export/ExportDialog"));
 
 type ExportDialogComponent = typeof import("../features/export/ExportDialog").ExportDialog;
-type CalibrationInputUnit = import("../features/calibration/CalibrationDialog").CalibrationInputUnit;
+type CalibrationInputUnit =
+  import("../features/calibration/CalibrationDialog").CalibrationInputUnit;
 
 export function App() {
   return (
@@ -280,8 +281,13 @@ function PlanMeasureApp() {
         setExportDialogOpen(true);
       },
       (error) => {
-        setError(`Could not load export. ${error instanceof Error && error.message === MODULE_RELOAD_REQUIRED
-          ? "Reload the page" : "Check your connection and click Export"} to try again.`);
+        setError(
+          `Could not load export. ${
+            error instanceof Error && error.message === MODULE_RELOAD_REQUIRED
+              ? "Reload the page"
+              : "Check your connection and click Export"
+          } to try again.`,
+        );
       },
     );
   }, [ExportDialog, setError]);

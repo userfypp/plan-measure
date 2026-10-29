@@ -3,7 +3,11 @@
 // non-configurable, so every later call throws and is caught (one exception per context per
 // render). vite.config.ts aliases "its-fine" to this module, which defines those accessors as
 // configurable first so its-fine's redefinition succeeds without throwing.
-import { useContextBridge as useItsFineContextBridge, useFiber, type ContextBridge } from "its-fine/dist/index.js";
+import {
+  useContextBridge as useItsFineContextBridge,
+  useFiber,
+  type ContextBridge,
+} from "its-fine/dist/index.js";
 
 export * from "its-fine/dist/index.js";
 
@@ -25,7 +29,11 @@ function prepareContext(context: object): void {
 }
 
 function isContext(type: unknown): type is object {
-  return typeof type === "object" && type !== null && (type as { $$typeof?: unknown }).$$typeof === REACT_CONTEXT;
+  return (
+    typeof type === "object" &&
+    type !== null &&
+    (type as { $$typeof?: unknown }).$$typeof === REACT_CONTEXT
+  );
 }
 
 export function useContextBridge(): ContextBridge {

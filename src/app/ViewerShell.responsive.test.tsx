@@ -76,14 +76,18 @@ describe("ViewerShell authoring geometry", () => {
   let pointer: ReturnType<typeof createFinePointerController>;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-      true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     width = 768;
     height = 600;
     pointer = createFinePointerController(true);
     ControlledResizeObserver.instances = [];
     vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
-    vi.stubGlobal("matchMedia", vi.fn(() => pointer.media));
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => pointer.media),
+    );
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callback(0);
       return 1;
@@ -109,7 +113,10 @@ describe("ViewerShell authoring geometry", () => {
   function render(rightObstruction = 0, keyboardAuthoringEnabled = false) {
     act(() => {
       root.render(
-        <ViewerShell rightObstruction={rightObstruction} keyboardAuthoringEnabled={keyboardAuthoringEnabled}>
+        <ViewerShell
+          rightObstruction={rightObstruction}
+          keyboardAuthoringEnabled={keyboardAuthoringEnabled}
+        >
           <div>Viewer content</div>
         </ViewerShell>,
       );

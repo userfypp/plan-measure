@@ -137,10 +137,7 @@ export function AppBar({
   const actionsFocus = useRovingFocusGroup(actionsRef, { orientation: "horizontal" });
 
   return (
-    <header
-      className={styles.appBar}
-      aria-label="Application bar"
-    >
+    <header className={styles.appBar} aria-label="Application bar">
       <div className={styles.identityGroup}>
         <div className={styles.brand}>Plan Measure</div>
         <span className={styles.identityDivider} aria-hidden="true" />
@@ -221,7 +218,11 @@ export function AppBar({
         <div className={styles.group}>
           <AnchoredMenu
             trigger={<FeedbackIcon />}
-            triggerProps={{ className: styles.iconTrigger, "aria-label": "Feedback", title: "Feedback" }}
+            triggerProps={{
+              className: styles.iconTrigger,
+              "aria-label": "Feedback",
+              title: "Feedback",
+            }}
             label="Feedback options"
             items={FEEDBACK_ITEMS}
             placement="bottom-end"

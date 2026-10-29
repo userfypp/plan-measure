@@ -58,9 +58,9 @@ describe("appDerivations", () => {
     expect(getAddCountItemsDisabledReason(null, false, "l", false, "b", false)).toBe(
       "Show this count before adding items",
     );
-    expect(getAddCountItemsDisabledReason(measurement("a", "c"), false, "l", false, "b", true)).toBe(
-      "Finish or cancel the current edit first",
-    );
+    expect(
+      getAddCountItemsDisabledReason(measurement("a", "c"), false, "l", false, "b", true),
+    ).toBe("Finish or cancel the current edit first");
     expect(
       getAddCountItemsDisabledReason(measurement("a", "c"), false, "l", false, "b", false),
     ).toBeUndefined();

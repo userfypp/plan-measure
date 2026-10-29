@@ -19,7 +19,11 @@ export interface OccupiedLabelRect extends LabelPlacement, LabelDimensions {}
 
 export interface LabelCollisionIndex {
   insert(rect: OccupiedLabelRect): void;
-  hasCollision?(candidate: OccupiedLabelRect, gap: number, ignore?: OccupiedLabelRect | null): boolean;
+  hasCollision?(
+    candidate: OccupiedLabelRect,
+    gap: number,
+    ignore?: OccupiedLabelRect | null,
+  ): boolean;
   somePotentialCollision(
     candidate: OccupiedLabelRect,
     gap: number,
@@ -150,7 +154,11 @@ class UniformLabelCollisionIndex implements LabelCollisionIndex {
     }
   }
 
-  hasCollision(candidate: OccupiedLabelRect, gap: number, ignore?: OccupiedLabelRect | null): boolean {
+  hasCollision(
+    candidate: OccupiedLabelRect,
+    gap: number,
+    ignore?: OccupiedLabelRect | null,
+  ): boolean {
     // Runs for every candidate placement of every label, so it avoids callbacks.
     const collides = (entries: ReadonlyArray<{ rect: OccupiedLabelRect }>) => {
       for (const entry of entries)
@@ -551,7 +559,11 @@ export function placeLabelInsideMeasurementGeometry(
       { x: point.x, y: point.y + verticalOffset },
     ]) {
       const candidate = centeredPlacementWithoutClamping(
-        anchor, dimensions, page, zoom, marginScreenPx,
+        anchor,
+        dimensions,
+        page,
+        zoom,
+        marginScreenPx,
       );
       if (!candidate) continue;
       fallback ??= candidate;
@@ -632,8 +644,10 @@ export function placeLabelAvoidingOverlaps(
   gapScreenPx = 4,
 ): LabelPlacement {
   const safeScale = safeZoom(zoom);
-  const verticalStep = finiteNonNegative(dimensions.height) + finiteNonNegative(gapScreenPx) / safeScale;
-  const horizontalStep = finiteNonNegative(dimensions.width) * 0.65 + finiteNonNegative(gapScreenPx) / safeScale;
+  const verticalStep =
+    finiteNonNegative(dimensions.height) + finiteNonNegative(gapScreenPx) / safeScale;
+  const horizontalStep =
+    finiteNonNegative(dimensions.width) * 0.65 + finiteNonNegative(gapScreenPx) / safeScale;
   const offsets: readonly Point[] = [
     { x: 0, y: 0 },
     { x: 0, y: -verticalStep },

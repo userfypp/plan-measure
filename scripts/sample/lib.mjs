@@ -167,7 +167,11 @@ export const createCtx = (pg, H, fonts) => {
     const n = Math.round((totalM * mmPerM) / step);
     const mSeg = step / mmPerM;
     for (let i = 0; i < n; i++)
-      rect(x, y - (i + 1) * step, 2.5, step, { fill: i % 2 ? C.PAPER : C.INK, stroke: C.INK, w: LW.obj });
+      rect(x, y - (i + 1) * step, 2.5, step, {
+        fill: i % 2 ? C.PAPER : C.INK,
+        stroke: C.INK,
+        w: LW.obj,
+      });
     for (let i = 0; i <= n; i++)
       txt(fmtNum(i * mSeg) + (i === n ? " m" : ""), x + 2.5 + 1.2, y - i * step + 0.7);
     txt(scale, capAlign === "r" ? x + 2.5 : x, y - n * step - 2.5, {
@@ -180,16 +184,30 @@ export const createCtx = (pg, H, fonts) => {
 
   const north = (cx, cy, r = 6) => {
     circle(cx, cy, r, { fill: C.PAPER, stroke: C.INK, w: LW.obj });
-    poly([[cx, cy - r * 0.8], [cx - r * 0.3, cy + r * 0.65], [cx, cy + r * 0.3]], {
-      fill: C.INK,
-      stroke: C.INK,
-      w: LW.thin,
-    });
-    poly([[cx, cy - r * 0.8], [cx + r * 0.3, cy + r * 0.65], [cx, cy + r * 0.3]], {
-      fill: C.PAPER,
-      stroke: C.INK,
-      w: LW.thin,
-    });
+    poly(
+      [
+        [cx, cy - r * 0.8],
+        [cx - r * 0.3, cy + r * 0.65],
+        [cx, cy + r * 0.3],
+      ],
+      {
+        fill: C.INK,
+        stroke: C.INK,
+        w: LW.thin,
+      },
+    );
+    poly(
+      [
+        [cx, cy - r * 0.8],
+        [cx + r * 0.3, cy + r * 0.65],
+        [cx, cy + r * 0.3],
+      ],
+      {
+        fill: C.PAPER,
+        stroke: C.INK,
+        w: LW.thin,
+      },
+    );
     txt("N", cx, cy - r - 1.5, { size: 8, f: "b", col: C.INK, align: "c" });
   };
 
@@ -255,5 +273,28 @@ export const createCtx = (pg, H, fonts) => {
     });
   };
 
-  return { pg, H, boxes, dataTable, X, Y, tw, ln, rect, circle, ellipse, path, poly, polyline, txt, title, hdim, vdim, hbar, vbar, north, sheet };
+  return {
+    pg,
+    H,
+    boxes,
+    dataTable,
+    X,
+    Y,
+    tw,
+    ln,
+    rect,
+    circle,
+    ellipse,
+    path,
+    poly,
+    polyline,
+    txt,
+    title,
+    hdim,
+    vdim,
+    hbar,
+    vbar,
+    north,
+    sheet,
+  };
 };
