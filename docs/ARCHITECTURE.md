@@ -41,4 +41,4 @@ See `utils/coordinates.ts` and `types/domain.ts`.
 
 ## Checks
 
-`npm run lint`, `npm test`, `npm run build` (see `CONTRIBUTING.md`).
+Run the checks listed in [CONTRIBUTING.md](../CONTRIBUTING.md#development) before opening a pull request.
