@@ -78,7 +78,7 @@ describe("App open, calibrate and measure flow", () => {
     await act(async () => {
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    // El visor y sus paneles se cargan con import() perezoso: se sondea dentro de act.
+    // The viewer and its panels load through a lazy import(), so poll inside act.
     await vi.waitFor(async () => {
       await act(async () => undefined);
       expect(container.querySelector("canvas")).not.toBeNull();
@@ -129,13 +129,13 @@ describe("App open, calibrate and measure flow", () => {
     });
   }
 
-  /** Calibra la página 1 con una referencia horizontal de 200 unidades de página = 10 m (50 mm por unidad). */
+  /** Calibrates page 1 with a horizontal reference of 200 page units = 10 m (50 mm per unit). */
   async function calibrate({ cancel = false } = {}) {
     await press("Add scale");
     await menuItem("Uniform");
     await clickPage(100, 100);
     await clickPage(300, 100);
-    // El diálogo se carga con import() perezoso.
+    // The dialog loads through a lazy import().
     await vi.waitFor(async () => {
       await act(async () => undefined);
       expect(document.querySelector("dialog")).not.toBeNull();
@@ -146,7 +146,7 @@ describe("App open, calibrate and measure flow", () => {
       dialog.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!,
       "Metres",
     );
-    // Cambiar la unidad reinicia la distancia, así que se escribe después.
+    // Changing the unit resets the distance, so type it afterwards.
     await setField(dialog.querySelector<HTMLInputElement>("#calibration-distance")!, "10");
     if (cancel) {
       await act(async () =>

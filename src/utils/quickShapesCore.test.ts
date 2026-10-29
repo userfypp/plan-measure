@@ -8,7 +8,7 @@ import {
   moveBoxSide,
 } from "./quickShapesCore";
 
-// boxFromCorners: los lados 0 y 2 son horizontales, el 1 y el 3 verticales.
+// boxFromCorners: sides 0 and 2 are horizontal, 1 and 3 vertical.
 const BOX: Point[] = [
   { x: 10, y: 20 },
   { x: 50, y: 20 },

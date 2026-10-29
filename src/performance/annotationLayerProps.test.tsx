@@ -21,10 +21,10 @@ import {
   type SessionLifecycleDouble,
 } from "../features/viewer/viewerTestUtils";
 
-// PdfAnnotationLayer es `memo`: cualquier prop con identidad nueva vuelve a renderizar la capa y
-// compara todas sus medidas (miles en un plano real). Este test recorre la aplicación real y fija
-// qué props puede cambiar cada interacción. Una prop nueva que cambie en cada render (callback en
-// línea, array u objeto recreado) rompe un paso que debía dejar la capa intacta.
+// PdfAnnotationLayer is `memo`: any prop with a new identity re-renders the layer and compares all
+// its measurements (thousands on a real plan). This test drives the real app and pins which props
+// each interaction may change. A new prop that changes on every render (an inline callback, or a
+// recreated array or object) breaks a step that should leave the layer alone.
 
 const lifecycle = vi.hoisted((): SessionLifecycleDouble => ({
   loading: false,
@@ -62,7 +62,7 @@ function measuredSession() {
 
 type Callback = (...args: never[]) => void;
 
-describe("estabilidad de props de la capa de anotaciones en App", () => {
+describe("annotation layer prop stability in App", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -131,7 +131,7 @@ describe("estabilidad de props de la capa de anotaciones en App", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
     });
 
-  it("cada interacción cambia solo las props que le corresponden y los callbacks no cambian nunca", async () => {
+  it("each interaction changes only its own props and callbacks never change", async () => {
     const frames = installManualAnimationFrames();
     await openPdf();
     await act(async () => frames.flush());
@@ -227,7 +227,7 @@ describe("estabilidad de props de la capa de anotaciones en App", () => {
         },
         [],
       ],
-      // La página saliente solo vuelve a renderizar para soltar su selección; la entrante se monta.
+      // The outgoing page re-renders only to drop its selection; the incoming one mounts.
       [
         "página siguiente",
         () => press("Next page"),
@@ -238,7 +238,7 @@ describe("estabilidad de props de la capa de anotaciones en App", () => {
 
     const observed: Array<[string, string[]]> = [];
     for (const [name, run] of steps) {
-      // Solo se compara con la página presentada al empezar el paso: otra página se monta de nuevo.
+      // Compare only with the page presented when the step starts: another page mounts afresh.
       const before = konvaCapture.annotationLayers.at(-1)!;
       const start = konvaCapture.annotationLayers.length;
       await run();
@@ -259,7 +259,7 @@ describe("estabilidad de props de la capa de anotaciones en App", () => {
     expect(observed).toEqual(steps.map(([name, , changes]) => [name, changes]));
     expect(pageNumber(layer())).toBe(1);
 
-    // Ningún render, de ninguna página, recibe otra identidad para un callback o un valor fijo.
+    // No render of any page gets a new identity for a callback or a fixed value.
     const captures = konvaCapture.annotationLayers;
     const fixed = Object.keys(captures[0]!).filter(
       (key) =>
