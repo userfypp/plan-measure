@@ -663,6 +663,22 @@ export function PdfViewer({
     [bounds, defaultZoom, fitMode, safeViewer.size, transform],
   );
 
+  // The page grid covers the visible area plus one viewport on each side, so a pan shows grid
+  // lines before the view settles and the transform updates.
+  const pageGridRange = useMemo(() => {
+    const { zoom, panX, panY } = viewTransform;
+    const width = viewerSize.width / zoom;
+    const height = viewerSize.height / zoom;
+    const left = -panX / zoom;
+    const top = -panY / zoom;
+    return {
+      left: left - width,
+      top: top - height,
+      right: left + 2 * width,
+      bottom: top + 2 * height,
+    };
+  }, [viewTransform, viewerSize]);
+
   useLayoutEffect(() => {
     const owner = mainRenderOwnerRef.current;
     setMainPdfPage(document, page.pageNumber);
@@ -2212,6 +2228,7 @@ export function PdfViewer({
                       zoom={viewTransform.zoom}
                       width={stage.data.bounds.width}
                       height={stage.data.bounds.height}
+                      range={pageGridRange}
                     />
                   )}
                   {scaleCheckStore && (

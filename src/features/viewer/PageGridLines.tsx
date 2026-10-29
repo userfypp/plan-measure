@@ -2,22 +2,24 @@ import { useMemo } from "react";
 import { Shape } from "react-konva";
 import type { PageGrid } from "../../utils/appPreferences";
 import { useCanvasVisualRoles } from "./canvasVisualRoles";
-import { pageGridLines } from "./pageGrid";
+import { pageGridLines, type PageGridRange } from "./pageGrid";
 
 interface PageGridLinesProps {
   grid: Exclude<PageGrid, "off">;
   zoom: number;
   width: number;
   height: number;
+  /** Page area to cover, in page units; defaults to the whole page. */
+  range?: PageGridRange;
 }
 
 /** Faint non-interactive grid over the page: one Shape, one path, only mounted while active. */
-export function PageGridLines({ grid, zoom, width, height }: PageGridLinesProps) {
+export function PageGridLines({ grid, zoom, width, height, range }: PageGridLinesProps) {
   const roles = useCanvasVisualRoles();
   const segments = useMemo(() => {
-    const { vertical, horizontal } = pageGridLines(grid, zoom, width, height);
+    const { vertical, horizontal } = pageGridLines(grid, zoom, width, height, range);
     return [...vertical, ...horizontal];
-  }, [grid, zoom, width, height]);
+  }, [grid, zoom, width, height, range]);
   if (segments.length === 0) return null;
   return (
     <Shape
