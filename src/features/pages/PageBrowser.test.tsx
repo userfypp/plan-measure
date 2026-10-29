@@ -22,7 +22,8 @@ const navigate = vi.fn(),
 const labels = Array.from({ length: 500 }, (_, index) =>
   index === 3 ? "iv" : index === 5 ? "Plan  A" : String(index + 1),
 );
-labels[399] = "Architectural drawings — Level four — Reflected ceiling layout with building services";
+labels[399] =
+  "Architectural drawings — Level four — Reflected ceiling layout with building services";
 function list() {
   return container.querySelector<HTMLDivElement>('[role="listbox"]')!;
 }

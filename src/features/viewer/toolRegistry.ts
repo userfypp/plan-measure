@@ -156,7 +156,9 @@ export function getToolRailVerticalNeighbor(
   const index = toolRailRegistry.findIndex((definition) => definition.id === toolId);
   if (index < 0 || toolRailRegistry.length === 0) return null;
   const step = direction === "up" ? -1 : 1;
-  return toolRailRegistry[(index + step + toolRailRegistry.length) % toolRailRegistry.length]?.id ?? null;
+  return (
+    toolRailRegistry[(index + step + toolRailRegistry.length) % toolRailRegistry.length]?.id ?? null
+  );
 }
 
 export function getToolAvailabilityState(

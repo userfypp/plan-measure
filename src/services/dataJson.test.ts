@@ -301,7 +301,14 @@ describe("public JSON data export", () => {
     const session = createEmptySession({ name: "c.pdf", size: 1, lastModified: 1 }, 1);
     const page = session.pages[1]!;
     page.calibrations = [
-      { id: "scale", name: "Scale", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: 1 },
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        referenceDistanceMm: 1,
+      },
     ];
     page.activeCalibrationId = "scale";
     const points = [

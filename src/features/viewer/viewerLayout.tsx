@@ -21,10 +21,7 @@ export function safeViewerLayout(
   const safeHeight = Math.max(0, viewerHeight - exclusion);
   return {
     size: { width: safeWidth, height: safeHeight },
-    center:
-      safeWidth > 0 && safeHeight > 0
-        ? { x: safeWidth / 2, y: safeHeight / 2 }
-        : null,
+    center: safeWidth > 0 && safeHeight > 0 ? { x: safeWidth / 2, y: safeHeight / 2 } : null,
   };
 }
 

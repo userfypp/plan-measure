@@ -17,6 +17,5 @@ export const SOFTWARE_CURSORS = {
 // See WebKit UIProcess/mac/WebViewImpl.mm, doneWithKeyEvent:
 // https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/mac/WebViewImpl.mm
 export function needsSoftwareCursor(): boolean {
-  return navigator.vendor === "Apple Computer, Inc." &&
-    navigator.userAgent.includes("Macintosh");
+  return navigator.vendor === "Apple Computer, Inc." && navigator.userAgent.includes("Macintosh");
 }

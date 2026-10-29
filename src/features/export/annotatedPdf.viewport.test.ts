@@ -39,7 +39,15 @@ function session(points: [Point, Point]): CurrentSession {
             points,
           },
         ],
-        nextMeasurementNumber: { line: 2, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+        nextMeasurementNumber: {
+          line: 2,
+          polyline: 1,
+          polygon: 1,
+          rectangle: 1,
+          ellipse: 1,
+          cloud: 1,
+          count: 1,
+        },
       },
     },
     pageLabelOverrides: {},
@@ -82,7 +90,13 @@ function drawnLine(drawLine: MockInstance<PDFPage["drawLine"]>) {
 function drawnLabel(drawText: MockInstance<PDFPage["drawText"]>) {
   expect(drawText).toHaveBeenCalledTimes(1);
   const [text, options] = drawText.mock.calls[0]!;
-  return { text, x: options!.x!, y: options!.y!, size: options!.size!, angle: options!.rotate?.angle ?? 0 };
+  return {
+    text,
+    x: options!.x!,
+    y: options!.y!,
+    size: options!.size!,
+    angle: options!.rotate?.angle ?? 0,
+  };
 }
 
 function expectPoint(actual: Point, expected: Point) {
@@ -97,33 +111,36 @@ describe("annotated PDF export through real PDF.js viewports", () => {
     [90, (p: Point) => ({ x: CROP.x + p.y, y: CROP.y + p.x })],
     [180, (p: Point) => ({ x: CROP.x + CROP.width - p.x, y: CROP.y + p.y })],
     [270, (p: Point) => ({ x: CROP.x + CROP.width - p.y, y: CROP.y + CROP.height - p.x })],
-  ])("places geometry and labels inside the CropBox of a page rotated %i°", async (rotation, toPdf) => {
-    const points: [Point, Point] = [
-      { x: 10, y: 20 },
-      { x: 110, y: 20 },
-    ];
-    const source = await realDocument((page) => {
-      page.setCropBox(CROP.x, CROP.y, CROP.width, CROP.height);
-      page.setRotation(degrees(rotation));
-    });
-    const drawLine = vi.spyOn(PDFPage.prototype, "drawLine");
-    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+  ])(
+    "places geometry and labels inside the CropBox of a page rotated %i°",
+    async (rotation, toPdf) => {
+      const points: [Point, Point] = [
+        { x: 10, y: 20 },
+        { x: 110, y: 20 },
+      ];
+      const source = await realDocument((page) => {
+        page.setCropBox(CROP.x, CROP.y, CROP.width, CROP.height);
+        page.setRotation(degrees(rotation));
+      });
+      const drawLine = vi.spyOn(PDFPage.prototype, "drawLine");
+      const drawText = vi.spyOn(PDFPage.prototype, "drawText");
 
-    await createAnnotatedPdf(session(points), source);
+      await createAnnotatedPdf(session(points), source);
 
-    const line = drawnLine(drawLine);
-    expectPoint(line.start, toPdf(points[0]));
-    expectPoint(line.end, toPdf(points[1]));
-    expect(line.thickness).toBeCloseTo(1.5, 9);
-    const label = drawnLabel(drawText);
-    expect(label.text).toBe("1.00 m");
-    expect(label.size).toBeCloseTo(12, 9);
-    expect(((label.angle % 360) + 360) % 360).toBe(rotation);
-    expect(label.x).toBeGreaterThanOrEqual(CROP.x);
-    expect(label.x).toBeLessThanOrEqual(CROP.x + CROP.width);
-    expect(label.y).toBeGreaterThanOrEqual(CROP.y);
-    expect(label.y).toBeLessThanOrEqual(CROP.y + CROP.height);
-  });
+      const line = drawnLine(drawLine);
+      expectPoint(line.start, toPdf(points[0]));
+      expectPoint(line.end, toPdf(points[1]));
+      expect(line.thickness).toBeCloseTo(1.5, 9);
+      const label = drawnLabel(drawText);
+      expect(label.text).toBe("1.00 m");
+      expect(label.size).toBeCloseTo(12, 9);
+      expect(((label.angle % 360) + 360) % 360).toBe(rotation);
+      expect(label.x).toBeGreaterThanOrEqual(CROP.x);
+      expect(label.x).toBeLessThanOrEqual(CROP.x + CROP.width);
+      expect(label.y).toBeGreaterThanOrEqual(CROP.y);
+      expect(label.y).toBeLessThanOrEqual(CROP.y + CROP.height);
+    },
+  );
 
   it("scales geometry, strokes and labels by the page UserUnit", async () => {
     const points: [Point, Point] = [
