@@ -57,7 +57,11 @@ function StatefulPanel() {
       <button type="button" aria-label="Workspace module: Measurements">
         Measurements
       </button>
-      <button type="button" aria-label="Increment local workspace state" onClick={() => setCount((n) => n + 1)}>
+      <button
+        type="button"
+        aria-label="Increment local workspace state"
+        onClick={() => setCount((n) => n + 1)}
+      >
         Count {count}
       </button>
     </div>
@@ -139,8 +143,9 @@ describe("WorkspaceShell responsive layout", () => {
   let pointer: ReturnType<typeof createFinePointerController>;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-      true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     shellWidth = 1200;
     viewerWidth = 912;
     viewerHeight = 700;
@@ -148,7 +153,10 @@ describe("WorkspaceShell responsive layout", () => {
     ControlledResizeObserver.instances = [];
     workspaceProbe = null;
     vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
-    vi.stubGlobal("matchMedia", vi.fn(() => pointer.media));
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => pointer.media),
+    );
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callback(0);
       return 1;
@@ -187,7 +195,9 @@ describe("WorkspaceShell responsive layout", () => {
     panel?: ReactNode;
     viewerOverlay?: ReactNode;
     viewer?: ReactNode;
-    onAuthoringCapabilityChange?: Parameters<typeof WorkspaceShell>[0]["onAuthoringCapabilityChange"];
+    onAuthoringCapabilityChange?: Parameters<
+      typeof WorkspaceShell
+    >[0]["onAuthoringCapabilityChange"];
     authoringIntentScopeKey?: string | number;
     keyboardAuthoringEnabled?: boolean;
   } = {}) {
@@ -215,7 +225,9 @@ describe("WorkspaceShell responsive layout", () => {
   }
 
   function workspaceObserver(): ControlledResizeObserver {
-    const observer = ControlledResizeObserver.instances.find((candidate) => candidate.target?.tagName === "MAIN");
+    const observer = ControlledResizeObserver.instances.find(
+      (candidate) => candidate.target?.tagName === "MAIN",
+    );
     if (!observer) throw new Error("Workspace ResizeObserver was not installed.");
     return observer;
   }
@@ -229,13 +241,17 @@ describe("WorkspaceShell responsive layout", () => {
   }
 
   function panelHost(): HTMLDivElement {
-    const host = container.querySelector<HTMLDivElement>('[data-layout-slot="workspace-panel-host"]');
+    const host = container.querySelector<HTMLDivElement>(
+      '[data-layout-slot="workspace-panel-host"]',
+    );
     if (!host) throw new Error("Workspace Panel host was not rendered.");
     return host;
   }
 
   function launcher(): HTMLButtonElement {
-    const button = container.querySelector<HTMLButtonElement>('button[aria-controls="workspace-drawer"]');
+    const button = container.querySelector<HTMLButtonElement>(
+      'button[aria-controls="workspace-drawer"]',
+    );
     if (!button) throw new Error("Workspace launcher was not rendered.");
     return button;
   }
@@ -308,9 +324,7 @@ describe("WorkspaceShell responsive layout", () => {
     expect(onWindowPointerMove).not.toHaveBeenCalled();
     expect(onWindowPointerUp).not.toHaveBeenCalled();
 
-    act(() =>
-      overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "+", bubbles: true })),
-    );
+    act(() => overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "+", bubbles: true })));
     expect(onWindowKeyDown).not.toHaveBeenCalled();
 
     window.removeEventListener("wheel", onWindowWheel);
@@ -322,7 +336,9 @@ describe("WorkspaceShell responsive layout", () => {
 
   it("turns the same mounted panel into a hidden Narrow drawer without losing local module state", () => {
     renderShell();
-    const increment = container.querySelector<HTMLButtonElement>('button[aria-label="Increment local workspace state"]')!;
+    const increment = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Increment local workspace state"]',
+    )!;
     act(() => increment.click());
     expect(increment.textContent).toBe("Count 1");
 
@@ -333,16 +349,18 @@ describe("WorkspaceShell responsive layout", () => {
     expect(container.querySelector("main")?.dataset.responsiveMode).toBe("narrow");
     expect(panelHost().hidden).toBe(true);
     expect(container.querySelectorAll('[data-layout-slot="workspace-panel-host"]')).toHaveLength(1);
-    expect(panelHost().querySelector('button[aria-label="Increment local workspace state"]')?.textContent).toBe(
-      "Count 1",
-    );
+    expect(
+      panelHost().querySelector('button[aria-label="Increment local workspace state"]')
+        ?.textContent,
+    ).toBe("Count 1");
 
     act(() => launcher().click());
     expect(panelHost().hidden).toBe(false);
     expect(panelHost().dataset.presentation).toBe("drawer");
-    expect(panelHost().querySelector('button[aria-label="Increment local workspace state"]')?.textContent).toBe(
-      "Count 1",
-    );
+    expect(
+      panelHost().querySelector('button[aria-label="Increment local workspace state"]')
+        ?.textContent,
+    ).toBe("Count 1");
   });
 
   it("exposes the drawer relationship, focuses Workspace on open, and returns focus on Escape", () => {
@@ -359,7 +377,9 @@ describe("WorkspaceShell responsive layout", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(trigger.hidden).toBe(true);
     expect(panelHost().hidden).toBe(false);
-    expect(document.activeElement?.getAttribute("aria-label")).toBe("Workspace module: Measurements");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Workspace module: Measurements",
+    );
 
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
     expect(panelHost().hidden).toBe(true);
@@ -537,8 +557,12 @@ describe("WorkspaceShell responsive layout", () => {
     });
     act(() => launcher().click());
 
-    expect(container.querySelector('[data-testid="current-capability"]')?.textContent).toBe("gated");
-    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe("available");
+    expect(container.querySelector('[data-testid="current-capability"]')?.textContent).toBe(
+      "gated",
+    );
+    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe(
+      "available",
+    );
     expect(container.querySelector('[data-testid="recoverable"]')?.textContent).toBe("true");
     const entry = container.querySelector<HTMLButtonElement>('[data-testid="authoring-entry"]')!;
     expect(entry.disabled).toBe(false);
@@ -589,14 +613,17 @@ describe("WorkspaceShell responsive layout", () => {
     const panel = <AuthoringPanel onStart={onStart} />;
     renderShell({ panel });
     act(() => launcher().click());
-    const entry = () => container.querySelector<HTMLButtonElement>('[data-testid="authoring-entry"]')!;
+    const entry = () =>
+      container.querySelector<HTMLButtonElement>('[data-testid="authoring-entry"]')!;
     expect(entry().disabled).toBe(true);
     expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe("gated");
     expect(container.querySelector('[data-testid="recoverable"]')?.textContent).toBe("false");
 
     renderShell({ panel, keyboardAuthoringEnabled: true });
     expect(entry().disabled).toBe(false);
-    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe("available");
+    expect(container.querySelector('[data-testid="closed-capability"]')?.textContent).toBe(
+      "available",
+    );
     expect(container.querySelector('[data-testid="recoverable"]')?.textContent).toBe("true");
 
     renderShell({ panel, keyboardAuthoringEnabled: false });

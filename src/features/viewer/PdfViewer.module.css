@@ -56,13 +56,17 @@
 }
 
 .keyboardCursor::before {
-  left: calc((var(--geometry-keyboard-cursor-size) - 3 * var(--geometry-keyboard-cursor-stroke)) / 2);
+  left: calc(
+    (var(--geometry-keyboard-cursor-size) - 3 * var(--geometry-keyboard-cursor-stroke)) / 2
+  );
   top: calc(-1 * var(--geometry-keyboard-cursor-reach));
   width: var(--geometry-keyboard-cursor-stroke);
   height: var(--geometry-keyboard-cursor-arm);
 }
 .keyboardCursor::after {
-  top: calc((var(--geometry-keyboard-cursor-size) - 3 * var(--geometry-keyboard-cursor-stroke)) / 2);
+  top: calc(
+    (var(--geometry-keyboard-cursor-size) - 3 * var(--geometry-keyboard-cursor-stroke)) / 2
+  );
   left: calc(-1 * var(--geometry-keyboard-cursor-reach));
   height: var(--geometry-keyboard-cursor-stroke);
   width: var(--geometry-keyboard-cursor-arm);
@@ -79,8 +83,8 @@
     calc(100% - var(--viewer-right-obstruction, 0px) - 2 * var(--space-40))
   );
   max-height: calc(
-    100% - var(--viewer-dock-bottom-exclusion, 0px) - var(--geometry-viewer-dock-height) - var(--space-8) -
-      var(--space-12)
+    100% - var(--viewer-dock-bottom-exclusion, 0px) - var(--geometry-viewer-dock-height) -
+      var(--space-8) - var(--space-12)
   );
   overflow: auto;
   display: grid;

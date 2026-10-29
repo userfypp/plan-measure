@@ -186,19 +186,25 @@ describe("ProjectLibraryDialog", () => {
   it("asks before opening a project over one that exists only in memory", () => {
     const callbacks = render({ discardsCurrentProject: true });
     const open = () =>
-      container!.querySelector<HTMLButtonElement>('button[aria-label="Open project Level 02.pdf"]')!;
+      container!.querySelector<HTMLButtonElement>(
+        'button[aria-label="Open project Level 02.pdf"]',
+      )!;
 
     act(() => open().click());
     expect(callbacks.onOpenProject).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("Discard unsaved project?");
 
-    const cancel = [...container!.querySelectorAll("button")].find((b) => b.textContent === "Cancel")!;
+    const cancel = [...container!.querySelectorAll("button")].find(
+      (b) => b.textContent === "Cancel",
+    )!;
     act(() => cancel.click());
     expect(callbacks.onOpenProject).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("Level 02.pdf");
 
     act(() => open().click());
-    const confirm = [...container!.querySelectorAll("button")].find((b) => b.textContent === "Discard and open")!;
+    const confirm = [...container!.querySelectorAll("button")].find(
+      (b) => b.textContent === "Discard and open",
+    )!;
     act(() => confirm.click());
     expect(callbacks.onOpenProject).toHaveBeenCalledWith("other", { discardUnsavedProject: true });
   });

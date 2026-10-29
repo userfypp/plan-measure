@@ -4,11 +4,7 @@ import type {
   UniformPageCalibration,
   XyPageCalibration,
 } from "../../types/domain";
-import {
-  calibrationScaleX,
-  calibrationScaleY,
-  millimetresPerPageUnit,
-} from "../../utils/geometry";
+import { calibrationScaleX, calibrationScaleY, millimetresPerPageUnit } from "../../utils/geometry";
 import {
   millimetresPerPageUnitForScaleRatio,
   practicalScaleRatioDenominator,
@@ -24,8 +20,7 @@ function finiteReferenceSpan(scaleMmPerPageUnit: number, span: number): number {
 }
 
 export type RatioCalibrationInput =
-  | Omit<UniformPageCalibration, "id" | "name">
-  | Omit<XyPageCalibration, "id" | "name">;
+  Omit<UniformPageCalibration, "id" | "name"> | Omit<XyPageCalibration, "id" | "name">;
 
 export function fitCalibrationReferencesToPage(
   calibration: Omit<UniformPageCalibration, "id" | "name">,
@@ -60,10 +55,7 @@ export function fitCalibrationReferencesToPage(
   if (calibration.mode === "uniform") {
     const millimetresPerPageUnit =
       calibration.referenceDistanceMm /
-      Math.hypot(
-        calibration.end.x - calibration.start.x,
-        calibration.end.y - calibration.start.y,
-      );
+      Math.hypot(calibration.end.x - calibration.start.x, calibration.end.y - calibration.start.y);
     const width = finiteReferenceSpan(millimetresPerPageUnit, maxWidth);
     return {
       ...calibration,
@@ -186,9 +178,7 @@ export function createPageCalibrationFromRatio(spec: ScaleRatioSpec): RatioCalib
 }
 
 function practicalRatioFromMillimetresPerPageUnit(value: number): number {
-  return practicalScaleRatioDenominator(
-    scaleRatioDenominatorFromMillimetresPerPageUnit(value),
-  );
+  return practicalScaleRatioDenominator(scaleRatioDenominatorFromMillimetresPerPageUnit(value));
 }
 
 export function scaleRatioSpecFromCalibration(calibration: PageCalibration): ScaleRatioSpec {

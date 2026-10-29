@@ -28,7 +28,9 @@ afterEach(() => {
 
 describe("ClassificationAssignment select", () => {
   it("limits an archived dimension to Unclassified and its current value, and assigns by id", () => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     Element.prototype.scrollIntoView = vi.fn();
     const container = document.createElement("div");
     document.body.append(container);
