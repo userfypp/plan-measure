@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "perf:size": "node perf/size.mjs",
     "perf:size:diff": "node perf/size-diff.mjs",
     "perf:e2e": "node perf/run.mjs",

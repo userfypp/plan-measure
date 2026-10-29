@@ -24,8 +24,22 @@ const SELECT_LABELS: Record<string, string> = {
   in: "Inches",
   ft: "Feet",
   "ft-in": "Feet & inches",
-  "0": "0", "1": "1/16", "2": "1/8", "3": "3/16", "4": "1/4", "5": "5/16", "6": "3/8", "7": "7/16",
-  "8": "1/2", "9": "9/16", "10": "5/8", "11": "11/16", "12": "3/4", "13": "13/16", "14": "7/8", "15": "15/16",
+  "0": "0",
+  "1": "1/16",
+  "2": "1/8",
+  "3": "3/16",
+  "4": "1/4",
+  "5": "5/16",
+  "6": "3/8",
+  "7": "7/16",
+  "8": "1/2",
+  "9": "9/16",
+  "10": "5/8",
+  "11": "11/16",
+  "12": "3/4",
+  "13": "13/16",
+  "14": "7/8",
+  "15": "15/16",
 };
 
 function setSelectValue(select: HTMLElement, value: string) {
@@ -49,7 +63,7 @@ function cancelButton(): HTMLButtonElement {
 }
 
 function submitFormDirectly() {
-  const form = document.querySelector<HTMLFormElement>('form');
+  const form = document.querySelector<HTMLFormElement>("form");
   if (!form) throw new Error("Calibration form was not rendered.");
   act(() => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
 }
@@ -178,14 +192,18 @@ describe("CalibrationDialog", () => {
     expect(dialog.textContent).toContain("Step 1 of 2 · Horizontal X reference");
     expect(dialog.textContent).not.toContain("This is the horizontal X reference.");
     expect(document.getElementById("calibration-name")).toBeNull();
-    expect(Array.from(dialog.querySelectorAll("button")).map((button) => button.textContent)).toContain(
-      "Next: Y reference",
-    );
+    expect(
+      Array.from(dialog.querySelectorAll("button")).map((button) => button.textContent),
+    ).toContain("Next: Y reference");
     expect(document.activeElement?.id).toBe("calibration-distance");
 
     setInputValue(document.getElementById("calibration-distance") as HTMLInputElement, "4");
     submitFormDirectly();
-    expect(onConfirm).toHaveBeenCalledWith({ name: "Scale 1", referenceDistanceMm: 4000, unit: "m" });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: "Scale 1",
+      referenceDistanceMm: 4000,
+      unit: "m",
+    });
   });
 
   it("names a new X/Y scale in its Y step, after the distance", () => {
@@ -194,14 +212,20 @@ describe("CalibrationDialog", () => {
       referenceLabel: "vertical Y",
       step: { current: 2, total: 2 },
     });
-    expect(document.querySelector("dialog")?.textContent).toContain("Step 2 of 2 · Vertical Y reference");
+    expect(document.querySelector("dialog")?.textContent).toContain(
+      "Step 2 of 2 · Vertical Y reference",
+    );
     const fields = Array.from(document.querySelectorAll("dialog input")).map((input) => input.id);
     expect(fields).toEqual(["calibration-distance", "calibration-name"]);
 
     setInputValue(document.getElementById("calibration-distance") as HTMLInputElement, "3");
     setInputValue(document.getElementById("calibration-name") as HTMLInputElement, "Survey");
     act(() => saveButton().click());
-    expect(onConfirm).toHaveBeenCalledWith({ name: "Survey", referenceDistanceMm: 3000, unit: "m" });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: "Survey",
+      referenceDistanceMm: 3000,
+      unit: "m",
+    });
   });
 
   it("opens on the unit it is given and focuses its first field", () => {
@@ -236,7 +260,9 @@ describe("CalibrationDialog", () => {
       ),
     );
 
-    const select = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]');
+    const select = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Calibration unit"]',
+    );
     expect(selectOptionLabels(select!)).toEqual([
       "Millimetres",
       "Centimetres",
@@ -262,7 +288,9 @@ describe("CalibrationDialog", () => {
         />,
       ),
     );
-    const select = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!;
+    const select = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Calibration unit"]',
+    )!;
     const distance = document.getElementById("calibration-distance") as HTMLInputElement;
     setSelectValue(select, unit);
     setInputValue(distance, input);
@@ -277,24 +305,45 @@ describe("CalibrationDialog", () => {
 
   it("uses structured Feet, Inches, and Fractional inches controls instead of architectural text", () => {
     renderDialog({ initialName: "Architectural scale" });
-    const select = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!;
+    const select = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Calibration unit"]',
+    )!;
     setSelectValue(select, "ft-in");
 
     expect(document.getElementById("calibration-distance")).toBeNull();
-    expect(document.querySelector<HTMLInputElement>('#calibration-feet')?.type).toBe("number");
-    expect(document.querySelector<HTMLInputElement>('#calibration-feet')?.min).toBe("0");
-    expect(document.querySelector<HTMLInputElement>('#calibration-feet')?.step).toBe("1");
-    expect(document.querySelector<HTMLInputElement>('#calibration-inches')?.min).toBe("0");
-    expect(document.querySelector<HTMLInputElement>('#calibration-inches')?.max).toBe("11");
-    expect(document.querySelector<HTMLInputElement>('#calibration-inches')?.step).toBe("1");
-    const fraction = document.querySelector<HTMLButtonElement>('#calibration-fraction')!;
+    expect(document.querySelector<HTMLInputElement>("#calibration-feet")?.type).toBe("number");
+    expect(document.querySelector<HTMLInputElement>("#calibration-feet")?.min).toBe("0");
+    expect(document.querySelector<HTMLInputElement>("#calibration-feet")?.step).toBe("1");
+    expect(document.querySelector<HTMLInputElement>("#calibration-inches")?.min).toBe("0");
+    expect(document.querySelector<HTMLInputElement>("#calibration-inches")?.max).toBe("11");
+    expect(document.querySelector<HTMLInputElement>("#calibration-inches")?.step).toBe("1");
+    const fraction = document.querySelector<HTMLButtonElement>("#calibration-fraction")!;
     expect(fraction.getAttribute("aria-label")).toBe("Fractional inches");
-    expect(selectOptionLabels(fraction)).toEqual(["0", "1/16", "1/8", "3/16", "1/4", "5/16", "3/8", "7/16", "1/2", "9/16", "5/8", "11/16", "3/4", "13/16", "7/8", "15/16"]);
+    expect(selectOptionLabels(fraction)).toEqual([
+      "0",
+      "1/16",
+      "1/8",
+      "3/16",
+      "1/4",
+      "5/16",
+      "3/8",
+      "7/16",
+      "1/2",
+      "9/16",
+      "5/8",
+      "11/16",
+      "3/4",
+      "13/16",
+      "7/8",
+      "15/16",
+    ]);
   });
 
   it("converts 12 ft 4 in 1/2 exactly through integer sixteenths", () => {
     const { onConfirm } = renderDialog({ initialName: "Architectural scale" });
-    const unit = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!;
+    const unit = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Calibration unit"]',
+    )!;
     setSelectValue(unit, "ft-in");
     setInputValue(document.getElementById("calibration-feet") as HTMLInputElement, "12");
     setInputValue(document.getElementById("calibration-inches") as HTMLInputElement, "4");
@@ -312,28 +361,30 @@ describe("CalibrationDialog", () => {
   it.each([undefined, "horizontal X", "vertical Y"] as const)(
     "uses the structured conversion for %s calibration",
     (referenceLabel) => {
-    const { onConfirm } = renderDialog({
-      initialName: "X/Y scale",
-      referenceLabel,
-      includeName: false,
-    });
-    expect(document.querySelector("dialog")?.textContent).toContain(
-      referenceLabel
-        ? "Enter the real-world distance along the reference's axis."
-        : "Enter the real-world distance between the two selected points.",
-    );
-    const select = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!;
-    setSelectValue(select, "ft-in");
-    setInputValue(document.getElementById("calibration-feet") as HTMLInputElement, "12");
-    setInputValue(document.getElementById("calibration-inches") as HTMLInputElement, "4");
-    setSelectValue(document.getElementById("calibration-fraction") as HTMLButtonElement, "8");
-    act(() => saveButton().click());
+      const { onConfirm } = renderDialog({
+        initialName: "X/Y scale",
+        referenceLabel,
+        includeName: false,
+      });
+      expect(document.querySelector("dialog")?.textContent).toContain(
+        referenceLabel
+          ? "Enter the real-world distance along the reference's axis."
+          : "Enter the real-world distance between the two selected points.",
+      );
+      const select = document.querySelector<HTMLButtonElement>(
+        'button[aria-label="Calibration unit"]',
+      )!;
+      setSelectValue(select, "ft-in");
+      setInputValue(document.getElementById("calibration-feet") as HTMLInputElement, "12");
+      setInputValue(document.getElementById("calibration-inches") as HTMLInputElement, "4");
+      setSelectValue(document.getElementById("calibration-fraction") as HTMLButtonElement, "8");
+      act(() => saveButton().click());
 
-    expect(onConfirm).toHaveBeenCalledWith({
-      name: "X/Y scale",
-      referenceDistanceMm: 3771.9,
-      unit: "ft-in",
-    });
+      expect(onConfirm).toHaveBeenCalledWith({
+        name: "X/Y scale",
+        referenceDistanceMm: 3771.9,
+        unit: "ft-in",
+      });
     },
   );
 
@@ -353,7 +404,10 @@ describe("CalibrationDialog", () => {
       );
       setInputValue(document.getElementById("calibration-feet") as HTMLInputElement, feet);
       setInputValue(document.getElementById("calibration-inches") as HTMLInputElement, inches);
-      setSelectValue(document.getElementById("calibration-fraction") as HTMLButtonElement, fraction);
+      setSelectValue(
+        document.getElementById("calibration-fraction") as HTMLButtonElement,
+        fraction,
+      );
       act(() => saveButton().click());
 
       expect(onConfirm).toHaveBeenCalledWith({
@@ -366,7 +420,9 @@ describe("CalibrationDialog", () => {
 
   it("rejects zero, inches 12, fractional feet, and exponential feet input at runtime", () => {
     const { onConfirm } = renderDialog();
-    const unit = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!;
+    const unit = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Calibration unit"]',
+    )!;
     setSelectValue(unit, "ft-in");
     const feet = document.getElementById("calibration-feet") as HTMLInputElement;
     const inches = document.getElementById("calibration-inches") as HTMLInputElement;
@@ -381,7 +437,9 @@ describe("CalibrationDialog", () => {
     expect(inches.validity.rangeOverflow).toBe(true);
     submitFormDirectly();
     expect(onConfirm).not.toHaveBeenCalled();
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain("whole inches from 0 to 11");
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      "whole inches from 0 to 11",
+    );
 
     setInputValue(inches, "0");
     setInputValue(feet, "1.5");
@@ -395,7 +453,9 @@ describe("CalibrationDialog", () => {
 
   it("resets hidden distance state and validation when changing input representation", () => {
     renderDialog();
-    const unit = document.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!;
+    const unit = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Calibration unit"]',
+    )!;
     setInputValue(document.getElementById("calibration-distance") as HTMLInputElement, "5.2");
     setSelectValue(unit, "ft-in");
     act(() => saveButton().click());
@@ -408,7 +468,9 @@ describe("CalibrationDialog", () => {
     setSelectValue(unit, "ft-in");
     expect((document.getElementById("calibration-feet") as HTMLInputElement).value).toBe("0");
     expect((document.getElementById("calibration-inches") as HTMLInputElement).value).toBe("0");
-    expect((document.getElementById("calibration-fraction") as HTMLButtonElement).textContent).toBe("0");
+    expect((document.getElementById("calibration-fraction") as HTMLButtonElement).textContent).toBe(
+      "0",
+    );
   });
 
   it("keeps scoped dialog semantics without claiming document-wide aria modality", () => {
@@ -427,7 +489,9 @@ describe("CalibrationDialog", () => {
 
     act(() => last.focus());
     act(() =>
-      last.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })),
+      last.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+      ),
     );
     expect(document.activeElement).toBe(first);
 

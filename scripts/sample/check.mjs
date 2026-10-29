@@ -63,16 +63,25 @@ const holes = G.ground.windows
 expect("south facade gross", gross, 39);
 expect("south openings", holes, 5.94);
 expect("south facade net", gross - holes, 33.06);
-for (const [id, v] of [["D1", 1.89], ["D2", 1.68], ["D3", 1.47]])
+for (const [id, v] of [
+  ["D1", 1.89],
+  ["D2", 1.68],
+  ["D3", 1.47],
+])
   expect(`${id} area`, DOOR_TYPES[id].w * DOOR_TYPES[id].h, v);
-for (const [id, v] of [["W1", 1.8], ["W2", 1.44], ["W3", 0.54]])
+for (const [id, v] of [
+  ["W1", 1.8],
+  ["W2", 1.44],
+  ["W3", 0.54],
+])
   expect(`${id} area`, WINDOW_TYPES[id].w * WINDOW_TYPES[id].h, v);
 
 // Trees must clear the pond and each other (and stay inside the parcel).
 const tr = S.trees;
 tr.pts.forEach(([x, y], i) => {
   const rx = (S.pond.rx + tr.d / 2) ** 2;
-  const nearPond = ((x - S.pond.c[0]) ** 2) / rx + ((y - S.pond.c[1]) ** 2) / ((S.pond.ry + tr.d / 2) ** 2) < 1;
+  const nearPond =
+    (x - S.pond.c[0]) ** 2 / rx + (y - S.pond.c[1]) ** 2 / (S.pond.ry + tr.d / 2) ** 2 < 1;
   if (nearPond) console.log(`FAIL tree ${i + 1} overlaps the pond`);
   tr.pts.slice(i + 1).forEach(([x2, y2], j) => {
     if (Math.hypot(x - x2, y - y2) < tr.d) console.log(`FAIL trees ${i + 1}/${i + j + 2} overlap`);
@@ -85,12 +94,15 @@ G.ground.doors.forEach((d, i) => {
   const len = Math.max(x2 - x1, y2 - y1);
   expect(`door ${i + 1} hole = leaf ${d.type}`, len, d.w);
 });
-G.ground.windows.forEach((w, i) => expect(`window ${i + 1} ${w.type} width`, w.b - w.a, WINDOW_TYPES[w.type].w));
+G.ground.windows.forEach((w, i) =>
+  expect(`window ${i + 1} ${w.type} width`, w.b - w.a, WINDOW_TYPES[w.type].w),
+);
 
 // Dimension axes versus wall centres.
 const centres = G.ground.walls.flatMap(([x1, y1, x2, y2]) => [(x1 + x2) / 2, (y1 + y2) / 2]);
 for (const v of [...G.ground.axesX, ...G.ground.axesY])
-  if (!centres.some((c) => Math.abs(c - v) < 1e-9)) console.log(`FAIL axis ${v} is not a wall centre`);
+  if (!centres.some((c) => Math.abs(c - v) < 1e-9))
+    console.log(`FAIL axis ${v} is not a wall centre`);
 
 // Text boxes: overlaps and frame bounds.
 const { pages } = await buildSamplePdf();

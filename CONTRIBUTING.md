@@ -17,12 +17,13 @@ Before opening a pull request:
 
 ```bash
 npm run lint
+npm run format:check
 npm test
 npm run build
 git diff --check
 ```
 
-Use `npm run format` only when formatting is part of the change.
+CI fails on unformatted files; `npm run format` fixes them.
 
 Two more checks, when they apply:
 

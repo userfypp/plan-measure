@@ -2,7 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { getAppPreferences } from "../utils/appPreferences";
 import { createSaveStatusStore } from "./saveStatus";
 import { requestPersistentStorageAfterSave } from "../services/storagePersistence";
-import { enqueueAutosave, isAutosaveReady, isSessionPersistable, shouldConfirmClose } from "./autosave";
+import {
+  enqueueAutosave,
+  isAutosaveReady,
+  isSessionPersistable,
+  shouldConfirmClose,
+} from "./autosave";
 import {
   canActivatePdf,
   PdfLoadLifecycle,
@@ -10,11 +15,7 @@ import {
   shouldConfirmPdfReplacement,
 } from "./pdfLoadLifecycle";
 import { createEmptySession } from "./sessionState";
-import type {
-  OverlayConfirmation,
-  OverlayDialog,
-  ReplacePdfPayload,
-} from "./overlayState";
+import type { OverlayConfirmation, OverlayDialog, ReplacePdfPayload } from "./overlayState";
 import type { CurrentSession } from "../types/domain";
 import {
   activateSavedProject,
@@ -147,20 +148,23 @@ export function usePdfSessionLifecycle({
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
   const [autosaveRetryable, setAutosaveRetryable] = useState(false);
 
-  const reportAutosaveFailure = useCallback((error: unknown) => {
-    const conflict = error instanceof PersistenceConflictError;
-    saveStatusStore.set(
-      conflict ? "conflict" : persistenceRevisionRef.current == null ? "unavailable" : "failed",
-    );
-    setAutosaveRetryable(!conflict && persistenceRevisionRef.current !== undefined);
-    setAutosaveWarning(
-      conflict
-        ? "Autosave stopped because another tab changed the saved project. Export your edits before reloading the saved projects. The other tab's changes have been kept."
-        : "Autosave unavailable. Retry or export before leaving.",
-    );
-    autosaveStatusRef.current = "unavailable";
-    setAutosaveStatus("unavailable");
-  }, [saveStatusStore]);
+  const reportAutosaveFailure = useCallback(
+    (error: unknown) => {
+      const conflict = error instanceof PersistenceConflictError;
+      saveStatusStore.set(
+        conflict ? "conflict" : persistenceRevisionRef.current == null ? "unavailable" : "failed",
+      );
+      setAutosaveRetryable(!conflict && persistenceRevisionRef.current !== undefined);
+      setAutosaveWarning(
+        conflict
+          ? "Autosave stopped because another tab changed the saved project. Export your edits before reloading the saved projects. The other tab's changes have been kept."
+          : "Autosave unavailable. Retry or export before leaving.",
+      );
+      autosaveStatusRef.current = "unavailable";
+      setAutosaveStatus("unavailable");
+    },
+    [saveStatusStore],
+  );
 
   useLayoutEffect(() => {
     if (!session) saveStatusStore.set("inactive");
@@ -343,7 +347,9 @@ export function usePdfSessionLifecycle({
       .catch((error: unknown) => {
         console.error("IndexedDB recovery failed.", error);
         if (cancelled) return;
-        void listSavedProjects().then(setSavedProjects).catch(() => undefined);
+        void listSavedProjects()
+          .then(setSavedProjects)
+          .catch(() => undefined);
         if (error instanceof PersistenceLoadError) {
           persistenceRevisionRef.current = error.revision;
         }
@@ -451,10 +457,7 @@ export function usePdfSessionLifecycle({
     const handleBeforeUnload = () => {
       if (generation !== persistenceGenerationRef.current) return;
       window.clearTimeout(timer);
-      if (
-        persistenceRevisionRef.current === null ||
-        persistenceRevisionRef.current === undefined
-      ) {
+      if (persistenceRevisionRef.current === null || persistenceRevisionRef.current === undefined) {
         return;
       }
       const exitSave = beginSessionMetadataSaveOnPageExit(
@@ -507,7 +510,15 @@ export function usePdfSessionLifecycle({
       removeBeforeUnload();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activePdf, autosaveStatus, pdfBlob, reportAutosaveFailure, session, saveStatusStore, confirmSavedSnapshot]);
+  }, [
+    activePdf,
+    autosaveStatus,
+    pdfBlob,
+    reportAutosaveFailure,
+    session,
+    saveStatusStore,
+    confirmSavedSnapshot,
+  ]);
 
   useEffect(() => {
     const handleConfirmClose = (event: BeforeUnloadEvent) => {
@@ -548,7 +559,10 @@ export function usePdfSessionLifecycle({
         await destroyPdf(candidate.loaded);
         return;
       }
-      if (candidate.discardUnsavedSession && candidate.discardUnsavedSession !== currentSessionRef.current) {
+      if (
+        candidate.discardUnsavedSession &&
+        candidate.discardUnsavedSession !== currentSessionRef.current
+      ) {
         publishPendingPdf(candidate, recoveryProtected);
         finishPdfLoad(candidate.loadGeneration);
         return;
@@ -599,22 +613,29 @@ export function usePdfSessionLifecycle({
             preparedPdfBlob,
             expectedRevision,
             candidate.projectId,
-            previousSession && isSessionPersistable(previousSession)
-              ? previousSession
-              : undefined,
+            previousSession && isSessionPersistable(previousSession) ? previousSession : undefined,
           );
           persistenceRevisionRef.current = revision;
           persistedSessionRef.current = candidate.session;
-          requestPersistentStorageAfterSave(candidate.session.pageCount > 0 && preparedPdfBlob.size > 0);
+          requestPersistentStorageAfterSave(
+            candidate.session.pageCount > 0 && preparedPdfBlob.size > 0,
+          );
           saved = true;
         } catch (error) {
           console.error("Could not save the new PDF session.", error);
           const openInMemory = error instanceof StorageUnreadableError;
-          const discardConfirmedMemoryProject = openInMemory || (requiresPendingConfirmation &&
-            candidate.discardUnsavedSession === previousSession &&
-            hasUnsavedMemoryProject() && !recovery && !recoveryWasProtected &&
-            !(error instanceof PersistenceConflictError));
-          if (!discardConfirmedMemoryProject && (previousSession || previousPdf || recovery || recoveryWasProtected)) {
+          const discardConfirmedMemoryProject =
+            openInMemory ||
+            (requiresPendingConfirmation &&
+              candidate.discardUnsavedSession === previousSession &&
+              hasUnsavedMemoryProject() &&
+              !recovery &&
+              !recoveryWasProtected &&
+              !(error instanceof PersistenceConflictError));
+          if (
+            !discardConfirmedMemoryProject &&
+            (previousSession || previousPdf || recovery || recoveryWasProtected)
+          ) {
             if (autosaveStatusRef.current !== "unavailable") {
               updateAutosaveStatus(previousAutosaveStatus);
             }
@@ -695,7 +716,8 @@ export function usePdfSessionLifecycle({
         loadGeneration,
       };
       if (
-        hasUnsavedMemoryProject() || shouldConfirmPdfReplacement({
+        hasUnsavedMemoryProject() ||
+        shouldConfirmPdfReplacement({
           pdfActivating: Boolean(activatingPdfRef.current),
           recoveryProtected,
         })
@@ -747,7 +769,8 @@ export function usePdfSessionLifecycle({
         loadGeneration,
       };
       if (
-        hasUnsavedMemoryProject() || shouldConfirmPdfReplacement({
+        hasUnsavedMemoryProject() ||
+        shouldConfirmPdfReplacement({
           pdfActivating: Boolean(activatingPdfRef.current),
           recoveryProtected,
         })
@@ -780,7 +803,9 @@ export function usePdfSessionLifecycle({
 
   function downloadProject(sessionToExport: CurrentSession, projectPdf: Blob) {
     if (!isSessionPersistable(sessionToExport)) {
-      throw new Error("Repair this project's measurements or classification names before exporting it.");
+      throw new Error(
+        "Repair this project's measurements or classification names before exporting it.",
+      );
     }
     const file = createProjectFile(sessionToExport, projectPdf);
     const url = URL.createObjectURL(file);
@@ -795,7 +820,11 @@ export function usePdfSessionLifecycle({
 
   async function exportProject(projectId?: string) {
     try {
-      if ((!projectId || projectId === activeProjectIdRef.current) && currentSessionRef.current && pdfBlob) {
+      if (
+        (!projectId || projectId === activeProjectIdRef.current) &&
+        currentSessionRef.current &&
+        pdfBlob
+      ) {
         downloadProject(currentSessionRef.current, pdfBlob);
       } else if (projectId) {
         const saved = await loadSavedProject(projectId);
@@ -883,7 +912,9 @@ export function usePdfSessionLifecycle({
           );
           activatedRevision = activated.revision;
           persistenceRevisionRef.current = activated.revision;
-          requestPersistentStorageAfterSave(savedProject.session.pageCount > 0 && preparedPdfBlob.size > 0);
+          requestPersistentStorageAfterSave(
+            savedProject.session.pageCount > 0 && preparedPdfBlob.size > 0,
+          );
         }
 
         if (!activatedRevision) throw new Error("The selected project has no active revision.");
@@ -1138,10 +1169,7 @@ export function usePdfSessionLifecycle({
           clearSession();
           resetWorkspace();
           closeAllOverlays();
-        } else if (
-          previousAutosaveStatus &&
-          autosaveStatusRef.current !== "unavailable"
-        ) {
+        } else if (previousAutosaveStatus && autosaveStatusRef.current !== "unavailable") {
           updateAutosaveStatus(previousAutosaveStatus);
         }
         try {

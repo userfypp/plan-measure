@@ -148,7 +148,12 @@ function isMeasurementV4(value: unknown): value is MeasurementV4 {
   )
     return false;
   const measurementType = value.type;
-  if (typeof measurementType !== "string" || !isMeasurementType(measurementType) || measurementType === "count") return false;
+  if (
+    typeof measurementType !== "string" ||
+    !isMeasurementType(measurementType) ||
+    measurementType === "count"
+  )
+    return false;
   if (!hasValidMeasurementIdentity(value)) return false;
   return hasValidMeasurementPoints(measurementType, value.points as Point[]);
 }
@@ -349,7 +354,10 @@ function assertValidSessionV4(
       !Number.isInteger(page.nextCalibrationNumber) ||
       (page.nextCalibrationNumber as number) < 1 ||
       !hasValidMeasurementCounters(page.nextMeasurementNumber) ||
-      (allowCounts && (!isObject(page.nextMeasurementNumber) || !Number.isInteger(page.nextMeasurementNumber.count) || (page.nextMeasurementNumber.count as number) < 1))
+      (allowCounts &&
+        (!isObject(page.nextMeasurementNumber) ||
+          !Number.isInteger(page.nextMeasurementNumber.count) ||
+          (page.nextMeasurementNumber.count as number) < 1))
     )
       throw new Error(`The saved state for page ${pageNumber} is invalid.`);
     const calibrationIds = new Set(
@@ -600,10 +608,7 @@ function assertValidSessionV10(
   ) {
     throw new Error("The saved display unit setting is invalid.");
   }
-  if (
-    typeof settings.areaDisplay !== "string" ||
-    !["auto", "ac"].includes(settings.areaDisplay)
-  ) {
+  if (typeof settings.areaDisplay !== "string" || !["auto", "ac"].includes(settings.areaDisplay)) {
     throw new Error("The saved polygon area display setting is invalid.");
   }
 }
@@ -677,7 +682,8 @@ function assertValidSessionV13(
     ) {
       throw new Error(`The saved state for page ${pageNumber} is invalid.`);
     }
-    const measurements = isObject(page) && Array.isArray(page.measurements) ? page.measurements : [];
+    const measurements =
+      isObject(page) && Array.isArray(page.measurements) ? page.measurements : [];
     for (const measurement of measurements) {
       // The optional color only exists on revision clouds and must belong to the palette.
       if (
@@ -781,10 +787,15 @@ function migrateSessionV11(session: SessionV11): SessionV12 {
   return {
     ...session,
     schemaVersion: 12,
-    pages: Object.fromEntries(Object.entries(session.pages).map(([key, page]) => [key, {
-      ...page,
-      nextMeasurementNumber: { ...page.nextMeasurementNumber, count: 1 },
-    }])),
+    pages: Object.fromEntries(
+      Object.entries(session.pages).map(([key, page]) => [
+        key,
+        {
+          ...page,
+          nextMeasurementNumber: { ...page.nextMeasurementNumber, count: 1 },
+        },
+      ]),
+    ),
   };
 }
 
@@ -1093,7 +1104,10 @@ export function readPreparedSessionSnapshot(
   session: CurrentSession,
   prepared: PreparedSessionSnapshot,
 ): string {
-  if (!preparedSnapshotSessions.has(prepared) || preparedSnapshotSessions.get(prepared) !== session) {
+  if (
+    !preparedSnapshotSessions.has(prepared) ||
+    preparedSnapshotSessions.get(prepared) !== session
+  ) {
     throw new Error("The prepared session snapshot does not match this session.");
   }
   return prepared.serialized;
@@ -1108,9 +1122,7 @@ export interface DecodedSession {
   incompatibleMeasurementIds: string[];
 }
 
-function historicalPolygonValidationProbe(
-  value: Record<string, unknown>,
-): Record<string, unknown> {
+function historicalPolygonValidationProbe(value: Record<string, unknown>): Record<string, unknown> {
   const probe = structuredClone(value);
   if (!isObject(probe.pages)) return probe;
   for (const page of Object.values(probe.pages)) {
@@ -1406,12 +1418,20 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
   }
   if (value.schemaVersion === 12) {
     assertLegacyMeasurementTypes(value);
-    const classificationRepairRequired = requiresClassificationNameRepair(value.classificationCatalog);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
     assertValidSessionV12(value, classificationRepairRequired);
-    return finalizeDecodedSession(canonicalizeSessionV12(value as unknown as SessionV12), false, classificationRepairRequired);
+    return finalizeDecodedSession(
+      canonicalizeSessionV12(value as unknown as SessionV12),
+      false,
+      classificationRepairRequired,
+    );
   }
   if (value.schemaVersion === 13) {
-    const classificationRepairRequired = requiresClassificationNameRepair(value.classificationCatalog);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
     assertValidSessionV13(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV13(value as unknown as SessionV13),
@@ -1420,7 +1440,9 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
   }
   if (value.schemaVersion === 14) {
-    const classificationRepairRequired = requiresClassificationNameRepair(value.classificationCatalog);
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
     assertValidSessionV14(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV14(value as unknown as SessionV14),
