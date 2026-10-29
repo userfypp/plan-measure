@@ -94,9 +94,17 @@ export function ScaleCheckPanel({ store }: { store: ScaleCheckStore }) {
         <div className={styles.resultHeader}>
           <div className={styles.resultIdentity}>
             <h3>Scale check</h3>
-            <p className={styles.scaleName} title={check.calibration.name}>{check.calibration.name}</p>
+            <p className={styles.scaleName} title={check.calibration.name}>
+              {check.calibration.name}
+            </p>
           </div>
-          <Button variant="ghost" size="compact" className={styles.dismissButton} onClick={cancel} autoFocus>
+          <Button
+            variant="ghost"
+            size="compact"
+            className={styles.dismissButton}
+            onClick={cancel}
+            autoFocus
+          >
             Dismiss
           </Button>
         </div>
@@ -117,7 +125,9 @@ export function ScaleCheckPanel({ store }: { store: ScaleCheckStore }) {
           </div>
           <div>
             <dt>Relative difference</dt>
-            <dd className={resultMm!.percentageDifference === null ? styles.unavailable : undefined}>
+            <dd
+              className={resultMm!.percentageDifference === null ? styles.unavailable : undefined}
+            >
               {result!.percentage}
             </dd>
           </div>
@@ -148,7 +158,11 @@ export function ScaleCheckPanel({ store }: { store: ScaleCheckStore }) {
           <div className={`${viewerStyles.viewerOverlay} ${styles.checkOverlay}`}>{content()}</div>
         </div>
       ) : check?.points && valid ? (
-        <div className={`${viewerStyles.viewerOverlay} ${styles.checkOverlay} ${styles.resultOverlay}`}>{content()}</div>
+        <div
+          className={`${viewerStyles.viewerOverlay} ${styles.checkOverlay} ${styles.resultOverlay}`}
+        >
+          {content()}
+        </div>
       ) : (
         content()
       )}

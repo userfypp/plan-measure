@@ -235,9 +235,9 @@ describe("path geometry", () => {
 
     expect(hasValidMeasurementPoints("polygon", points)).toBe(false);
     expect(hasValidMeasurementPoints("polygon", [...points].reverse())).toBe(false);
-    expect(hasValidMeasurementPoints("polygon", [...points.slice(16), ...points.slice(0, 16)])).toBe(
-      false,
-    );
+    expect(
+      hasValidMeasurementPoints("polygon", [...points.slice(16), ...points.slice(0, 16)]),
+    ).toBe(false);
   });
 
   it("accepts a densely subdivided rectangle in either winding and across the closing edge", () => {
@@ -921,15 +921,22 @@ describe("geometry", () => {
     [1e4, 0.75, 7500],
     [2, 2.5, 5],
     [2, 3.5, 7],
-  ])("keeps the established order when both intermediate areas are subnormal (%s, %s)", (scaleX, scaleY, units) => {
-    const calibration: PageCalibration = {
-      ...xy,
-      xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: scaleX },
-      yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: scaleY },
-    };
-    const points = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 2 * Number.MIN_VALUE }];
-    expect(polygonResultsMm({ points }, calibration).areaMm2).toBe(units * Number.MIN_VALUE);
-  });
+  ])(
+    "keeps the established order when both intermediate areas are subnormal (%s, %s)",
+    (scaleX, scaleY, units) => {
+      const calibration: PageCalibration = {
+        ...xy,
+        xReference: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, referenceDistanceMm: scaleX },
+        yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, referenceDistanceMm: scaleY },
+      };
+      const points = [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 2 * Number.MIN_VALUE },
+      ];
+      expect(polygonResultsMm({ points }, calibration).areaMm2).toBe(units * Number.MIN_VALUE);
+    },
+  );
 
   it("keeps a subnormal polygon area when opposing X/Y scales cancel", () => {
     const calibration: PageCalibration = {

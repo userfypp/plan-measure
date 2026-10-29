@@ -8,7 +8,12 @@ import {
 function capability(
   width: number,
   height: number,
-  options: { rightObstruction?: number; bottomExclusion?: number; finePointer?: boolean; keyboardAuthoringEnabled?: boolean } = {},
+  options: {
+    rightObstruction?: number;
+    bottomExclusion?: number;
+    finePointer?: boolean;
+    keyboardAuthoringEnabled?: boolean;
+  } = {},
 ) {
   return computeAuthoringCapability({
     viewerSize: { width, height },
@@ -29,9 +34,14 @@ describe("precision authoring capability", () => {
   });
 
   it("allows keyboard authoring without a fine pointer while retaining pointer capability", () => {
-    expect(capability(1200, 800, { finePointer: false, keyboardAuthoringEnabled: true }).available).toBe(true);
+    expect(
+      capability(1200, 800, { finePointer: false, keyboardAuthoringEnabled: true }).available,
+    ).toBe(true);
     expect(capability(1200, 800, { finePointer: false }).finePointer).toBe(false);
-    expect(capability(1200, 800, { finePointer: false, keyboardAuthoringEnabled: true }).unavailableReason).toBeNull();
+    expect(
+      capability(1200, 800, { finePointer: false, keyboardAuthoringEnabled: true })
+        .unavailableReason,
+    ).toBeNull();
     expect(capability(1200, 800, { finePointer: true }).available).toBe(true);
   });
 
@@ -39,8 +49,12 @@ describe("precision authoring capability", () => {
     const result = capability(1200, 800, { finePointer: false });
     expect(result.available).toBe(false);
     expect(result.unavailableReason).toContain("Keyboard drawing and editing enabled in Settings");
-    expect(capability(479, 800, { finePointer: false, keyboardAuthoringEnabled: true }).available).toBe(false);
-    expect(capability(1200, 359, { finePointer: false, keyboardAuthoringEnabled: true }).available).toBe(false);
+    expect(
+      capability(479, 800, { finePointer: false, keyboardAuthoringEnabled: true }).available,
+    ).toBe(false);
+    expect(
+      capability(1200, 359, { finePointer: false, keyboardAuthoringEnabled: true }).available,
+    ).toBe(false);
   });
 
   it("counts the Narrow drawer as obstruction without changing the physical Viewer rect", () => {

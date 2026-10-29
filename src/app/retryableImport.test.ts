@@ -2,10 +2,14 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { MODULE_RELOAD_REQUIRED, retryableImport } from "./retryableImport";
 
-afterEach(() => document.head.querySelectorAll('link[href*="module-retry"]').forEach((link) => link.remove()));
+afterEach(() =>
+  document.head.querySelectorAll('link[href*="module-retry"]').forEach((link) => link.remove()),
+);
 
 it("waits for missing CSS to load before retrying the module and keeps failures recoverable", async () => {
-  const load = vi.fn().mockRejectedValueOnce(new Error("Unable to preload CSS for /assets/dialog.css"))
+  const load = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Unable to preload CSS for /assets/dialog.css"))
     .mockResolvedValue({ ready: true });
   const retry = retryableImport(load);
   await expect(retry()).rejects.toThrow("Unable to preload CSS");
@@ -27,7 +31,13 @@ it("waits for missing CSS to load before retrying the module and keeps failures 
 });
 
 it("never imports an external URL provided by an error message", async () => {
-  const load = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch dynamically imported module: https://other.example/assets/module.js"))
+  const load = vi
+    .fn()
+    .mockRejectedValueOnce(
+      new Error(
+        "Failed to fetch dynamically imported module: https://other.example/assets/module.js",
+      ),
+    )
     .mockResolvedValue({ ready: true });
   const retry = retryableImport(load);
   await expect(retry()).rejects.toThrow("Failed to fetch");
@@ -37,7 +47,9 @@ it("never imports an external URL provided by an error message", async () => {
 
 it("asks for a reload when a retried module loads but one of its dependencies stays failed", async () => {
   const address = new URL(`${import.meta.env.BASE_URL}assets/export.js`, window.location.href).href;
-  const load = vi.fn().mockRejectedValue(new Error(`Failed to fetch dynamically imported module: ${address}`));
+  const load = vi
+    .fn()
+    .mockRejectedValue(new Error(`Failed to fetch dynamically imported module: ${address}`));
   const fetchModule = vi.fn().mockResolvedValue(new Response("export {};", { status: 200 }));
   vi.stubGlobal("fetch", fetchModule);
   try {

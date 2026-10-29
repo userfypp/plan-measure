@@ -25,7 +25,13 @@ export interface AxisAlignedRect {
 }
 
 export const measurementPathSpecs: Record<MeasurementType, MeasurementPathSpec> = {
-  count: { label: "Count", minVertices: 1, maxVertices: null, closed: false, authoring: "vertices" },
+  count: {
+    label: "Count",
+    minVertices: 1,
+    maxVertices: null,
+    closed: false,
+    authoring: "vertices",
+  },
   line: { label: "Line", minVertices: 2, maxVertices: 2, closed: false, authoring: "vertices" },
   polyline: {
     label: "Polyline",
@@ -73,9 +79,7 @@ export function hasValidMeasurementPoints(
   if (!hasValidPath) return false;
   if (type === "rectangle" || type === "ellipse") return isAxisAlignedBoxRing(points);
   if (type !== "polygon" && type !== "cloud") return true;
-  return (
-    !areEffectivelyIdentical(points[0]!, points.at(-1)!) && hasSimplePolygonRing(points)
-  );
+  return !areEffectivelyIdentical(points[0]!, points.at(-1)!) && hasSimplePolygonRing(points);
 }
 
 export function hasValidMeasurementPointSequence(
@@ -149,10 +153,7 @@ function exactOrientationDeterminant(a: Point, b: Point, c: Point): ExactDyadic 
   const abY = subtractExactDyadics(exactDyadic(b.y), exactDyadic(a.y));
   const acX = subtractExactDyadics(exactDyadic(c.x), exactDyadic(a.x));
   const acY = subtractExactDyadics(exactDyadic(c.y), exactDyadic(a.y));
-  return subtractExactDyadics(
-    multiplyExactDyadics(abX, acY),
-    multiplyExactDyadics(abY, acX),
-  );
+  return subtractExactDyadics(multiplyExactDyadics(abX, acY), multiplyExactDyadics(abY, acX));
 }
 
 function robustOrientationDeterminant(a: Point, b: Point, c: Point): number | ExactDyadic {
@@ -441,7 +442,10 @@ function hasSameCoordinates(coordinates: Float64Array, points: readonly Point[])
   if (coordinates.length !== points.length * 2) return false;
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index]!;
-    if (!Object.is(coordinates[index * 2], point.x) || !Object.is(coordinates[index * 2 + 1], point.y)) {
+    if (
+      !Object.is(coordinates[index * 2], point.x) ||
+      !Object.is(coordinates[index * 2 + 1], point.y)
+    ) {
       return false;
     }
   }
@@ -498,8 +502,7 @@ function computeHasSimplePolygonRing(points: readonly Point[]): boolean {
       common.minY <= edge.maxY;
     if (node.children && !allBoxesOverlap) {
       return (
-        intersectsLaterEdge(index, node.children[0]) ||
-        intersectsLaterEdge(index, node.children[1])
+        intersectsLaterEdge(index, node.children[0]) || intersectsLaterEdge(index, node.children[1])
       );
     }
     const start = points[index]!;
@@ -516,14 +519,7 @@ function computeHasSimplePolygonRing(points: readonly Point[]): boolean {
       ) {
         continue;
       }
-      if (
-        segmentsIntersect(
-          start,
-          end,
-          points[other]!,
-          points[(other + 1) % points.length]!,
-        )
-      ) {
+      if (segmentsIntersect(start, end, points[other]!, points[(other + 1) % points.length]!)) {
         return true;
       }
     }

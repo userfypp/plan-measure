@@ -391,7 +391,10 @@ it("persists and recovers a standard Uniform scale preset with unchanged measure
     pageNumber: 1,
     id: "line-1",
     measurementType: "line",
-    points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+    points: [
+      { x: 0, y: 0 },
+      { x: 72, y: 0 },
+    ],
   });
   expect(state.error).toBeNull();
 
@@ -445,7 +448,11 @@ it("persists and recovers a custom X/Y ratio without additional ratio metadata",
     ...initialSessionState,
     session: createEmptySession({ name: "custom-xy.pdf", size: 3, lastModified: 1 }, 1),
   };
-  const calibration = createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: 30 });
+  const calibration = createPageCalibrationFromRatio({
+    mode: "xy",
+    xDenominator: 70,
+    yDenominator: 30,
+  });
   state = sessionReducer(state, {
     type: "ADD_CALIBRATION",
     pageNumber: 1,
@@ -458,7 +465,10 @@ it("persists and recovers a custom X/Y ratio without additional ratio metadata",
     pageNumber: 1,
     id: "line-1",
     measurementType: "line",
-    points: [{ x: 0, y: 0 }, { x: 72, y: 72 }],
+    points: [
+      { x: 0, y: 0 },
+      { x: 72, y: 72 },
+    ],
   });
 
   await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
@@ -693,9 +703,7 @@ async function writeRawActiveSession(
     revision,
   });
   transaction.objectStore("pdfs").put({ key: "active-v2", blob: pdfBlob, revision });
-  transaction
-    .objectStore("sessions")
-    .put({ key: "persistence-v2", activeRevision: revision });
+  transaction.objectStore("sessions").put({ key: "persistence-v2", activeRevision: revision });
   await completeTransaction(transaction);
   database.close();
   return revision;
@@ -899,9 +907,15 @@ describe("session persistence", () => {
       expect(isSessionPersistable(state.session)).toBe(true);
 
       let savedRevision = recovered.revision;
-      await enqueueAutosave(Promise.resolve(), state.session, 1, () => true, async (snapshot) => {
-        savedRevision = await saveSessionMetadata(snapshot, savedRevision);
-      });
+      await enqueueAutosave(
+        Promise.resolve(),
+        state.session,
+        1,
+        () => true,
+        async (snapshot) => {
+          savedRevision = await saveSessionMetadata(snapshot, savedRevision);
+        },
+      );
       const restored = await loadSavedSession();
       expect(savedRevision).not.toBe(originalRevision);
       expect(restored?.compatibility).toBe("current");
@@ -978,9 +992,7 @@ describe("session persistence", () => {
       },
     );
 
-    expect(repaired.session?.pages[1]!.measurements[0]!.id).toBe(
-      "historical-crossing-polygon",
-    );
+    expect(repaired.session?.pages[1]!.measurements[0]!.id).toBe("historical-crossing-polygon");
     expect(isSessionPersistable(repaired.session!)).toBe(true);
     expect(() => serializeSession(repaired.session!)).not.toThrow();
   });
@@ -1041,18 +1053,23 @@ describe("session persistence", () => {
     [7, v7MeasuredSession],
     [8, v8MeasuredSession],
     [9, currentMeasuredSession],
-  ] as const)("rejects noncanonical V%d page keys before migration or canonicalization", (_version, create) => {
-    for (const pageKey of ["0", "-1", "1.5", "01", "+1", "1e0", " 1", "1 ", "NaN", "Infinity"]) {
-      const raw = JSON.parse(JSON.stringify(create())) as {
-        pages: Record<string, { pageNumber: number }>;
-      };
-      const canonicalPage = raw.pages["1"];
-      if (!canonicalPage) throw new Error("Expected a canonical page 1 entry.");
-      raw.pages[pageKey] = structuredClone(canonicalPage);
+  ] as const)(
+    "rejects noncanonical V%d page keys before migration or canonicalization",
+    (_version, create) => {
+      for (const pageKey of ["0", "-1", "1.5", "01", "+1", "1e0", " 1", "1 ", "NaN", "Infinity"]) {
+        const raw = JSON.parse(JSON.stringify(create())) as {
+          pages: Record<string, { pageNumber: number }>;
+        };
+        const canonicalPage = raw.pages["1"];
+        if (!canonicalPage) throw new Error("Expected a canonical page 1 entry.");
+        raw.pages[pageKey] = structuredClone(canonicalPage);
 
-      expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).toThrow("invalid page key");
-    }
-  });
+        expect(() => deserializeSessionForRecovery(JSON.stringify(raw))).toThrow(
+          "invalid page key",
+        );
+      }
+    },
+  );
 
   it("accepts a canonical persisted page key", () => {
     const raw = JSON.parse(JSON.stringify(legacySession(true))) as {
@@ -1151,7 +1168,9 @@ describe("session persistence", () => {
       ],
     };
 
-    const recovered = deserializeSessionForRecovery(JSON.stringify({ ...historical, schemaVersion: 11 }));
+    const recovered = deserializeSessionForRecovery(
+      JSON.stringify({ ...historical, schemaVersion: 11 }),
+    );
 
     expect(recovered.compatibility).toBe("historical-repair-required");
     expect(recovered.session.pageLabelOverrides).toEqual({ 2: "Detail-2" });
@@ -1408,7 +1427,9 @@ describe("session persistence", () => {
 
       expect(migrated.schemaVersion).toBe(15);
       expect(migrated.settings.labelClassificationDimensionId).toBeNull();
-      expect(migrated.classificationCatalog).toEqual(archivedCurrentSession().classificationCatalog);
+      expect(migrated.classificationCatalog).toEqual(
+        archivedCurrentSession().classificationCatalog,
+      );
     });
 
     it("overwrites a leaked label classification key when migrating V13", () => {
@@ -1878,9 +1899,9 @@ describe("session persistence", () => {
     expect(restored.pages[2]?.measurements[0]?.note).toBe("Verify ceiling height.");
 
     delete session.pages[2]!.measurements[0]!.note;
-    expect(deserializeSession(serializeSession(session)).pages[2]?.measurements[0]).not.toHaveProperty(
-      "note",
-    );
+    expect(
+      deserializeSession(serializeSession(session)).pages[2]?.measurements[0],
+    ).not.toHaveProperty("note");
   });
 
   it("rejects invalid V11 page-label override records instead of repairing them", () => {
@@ -2024,9 +2045,7 @@ describe("session persistence", () => {
     const v8 = v8MeasuredSession() as unknown as Record<string, unknown>;
     const v8Settings = v8.settings as Record<string, unknown>;
     expect(() =>
-      deserializeSession(
-        JSON.stringify({ ...v8, settings: { ...v8Settings, displayUnit: "in" } }),
-      ),
+      deserializeSession(JSON.stringify({ ...v8, settings: { ...v8Settings, displayUnit: "in" } })),
     ).toThrow("invalid");
 
     const v9 = v9MeasuredSession() as unknown as Record<string, unknown>;
@@ -2096,9 +2115,9 @@ describe("session persistence", () => {
   it.each([6, 7, 8])("round-trips %s measurement decimal places", (places) => {
     const session = currentMeasuredSession();
     session.settings.measurementDecimalPlaces = places as 6 | 7 | 8;
-    expect(
-      deserializeSession(serializeSession(session)).settings.measurementDecimalPlaces,
-    ).toBe(places);
+    expect(deserializeSession(serializeSession(session)).settings.measurementDecimalPlaces).toBe(
+      places,
+    );
   });
 
   it("requires a boolean archived flag on every V9 dimension", () => {
@@ -2443,9 +2462,15 @@ describe("session persistence", () => {
     });
     if (!state.session) throw new Error("Expected the renamed session to remain loaded.");
 
-    await enqueueAutosave(Promise.resolve(), state.session, 1, () => true, async (snapshot) => {
-      revision = await saveSessionMetadata(snapshot, revision);
-    });
+    await enqueueAutosave(
+      Promise.resolve(),
+      state.session,
+      1,
+      () => true,
+      async (snapshot) => {
+        revision = await saveSessionMetadata(snapshot, revision);
+      },
+    );
     const restored = await loadSavedSession();
 
     expect(restored?.compatibility).toBe("current");
@@ -2603,12 +2628,7 @@ describe("session persistence", () => {
     const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
     const projectAId = "project-a";
     const projectBId = "project-b";
-    let revision = await replaceSavedSession(
-      projectA,
-      new Blob(["pdf-a"]),
-      null,
-      projectAId,
-    );
+    let revision = await replaceSavedSession(projectA, new Blob(["pdf-a"]), null, projectAId);
     const editedProjectA = structuredClone(projectA);
     editedProjectA.settings.showLabels = false;
     revision = await saveSessionMetadata(editedProjectA, revision);
@@ -2637,9 +2657,9 @@ describe("session persistence", () => {
 
     const storedProjectB = await loadSavedProject(projectBId);
     expect(storedProjectB.session.settings.showMeasurements).toBe(false);
-    expect(await (await listSavedProjects()).find((project) => project.id === projectAId)?.isCurrent).toBe(
-      true,
-    );
+    expect(
+      await (await listSavedProjects()).find((project) => project.id === projectAId)?.isCurrent,
+    ).toBe(true);
 
     const activeProject = await loadSavedSession();
     if (!activeProject) throw new Error("Expected project A to be active.");
@@ -2650,7 +2670,10 @@ describe("session persistence", () => {
 
   it("discards the selected inactive project without disturbing the active project", async () => {
     const activeSession = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
-    const archivedSession = createEmptySession({ name: "Archive.pdf", size: 8, lastModified: 4 }, 2);
+    const archivedSession = createEmptySession(
+      { name: "Archive.pdf", size: 8, lastModified: 4 },
+      2,
+    );
     const activeId = "active-project";
     const archivedId = "archived-project";
     let revision = await replaceSavedSession(
@@ -2811,7 +2834,10 @@ describe("session persistence", () => {
 
   it("discards an active project and keeps the other projects saved", async () => {
     const activeSession = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
-    const archivedSession = createEmptySession({ name: "Archive.pdf", size: 8, lastModified: 4 }, 2);
+    const archivedSession = createEmptySession(
+      { name: "Archive.pdf", size: 8, lastModified: 4 },
+      2,
+    );
     const activeId = "active-project";
     const archivedId = "archived-project";
     let revision = await replaceSavedSession(
@@ -2892,9 +2918,11 @@ describe("session persistence", () => {
     const latest = structuredClone(first);
     latest.settings.showMeasurements = false;
 
-    const firstSave = saveSessionMetadata(first, revision, new Blob(["pdf"])).then((nextRevision) => {
-      revision = nextRevision;
-    });
+    const firstSave = saveSessionMetadata(first, revision, new Blob(["pdf"])).then(
+      (nextRevision) => {
+        revision = nextRevision;
+      },
+    );
     const exitSave = beginSessionMetadataSaveOnPageExit(latest, () => revision, new Blob(["pdf"]));
     expect(exitSave).not.toBeNull();
     await firstSave;
@@ -3454,7 +3482,9 @@ describe("prepared autosave snapshots", () => {
     const database = await openPersistenceDatabase();
     const transaction = database.transaction("sessions", "readonly");
     const done = completeTransaction(transaction);
-    const project = await requestResult(transaction.objectStore("sessions").get(`project:${projectId}`));
+    const project = await requestResult(
+      transaction.objectStore("sessions").get(`project:${projectId}`),
+    );
     await done;
     database.close();
     expect(project.serialized).toBe(serialized);
@@ -3519,7 +3549,9 @@ describe("prepared autosave snapshots", () => {
     const prepared = prepareSessionSnapshot(edited);
     await deleteProtectedPdf();
     const before = await readPersistenceRecords();
-    await expect(saveSessionMetadata(edited, revision, pdf, prepared)).rejects.toThrow("without its PDF");
+    await expect(saveSessionMetadata(edited, revision, pdf, prepared)).rejects.toThrow(
+      "without its PDF",
+    );
     expect(await readPersistenceRecords()).toEqual(before);
   });
 

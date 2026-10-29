@@ -1,10 +1,4 @@
-import {
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   Popover,
   focusPopoverContentElement,
@@ -75,7 +69,7 @@ export function AnchoredMenu({
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const isOpen = open ?? uncontrolledOpen;
   const items = useMemo(
-    () => typeof providedItems === "function" ? isOpen ? providedItems() : [] : providedItems,
+    () => (typeof providedItems === "function" ? (isOpen ? providedItems() : []) : providedItems),
     [providedItems, isOpen],
   );
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
@@ -176,11 +170,7 @@ export function AnchoredMenu({
       dismissOnFocusLeave
       role="menu"
       aria-label={label}
-      className={[
-        styles.menu,
-        selectionMenu ? styles.selectionMenu : "",
-        className,
-      ]
+      className={[styles.menu, selectionMenu ? styles.selectionMenu : "", className]
         .filter(Boolean)
         .join(" ")}
     >

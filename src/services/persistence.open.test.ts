@@ -29,7 +29,9 @@ describe("IndexedDB opening", () => {
         })),
       })),
     };
-    openDBMock.mockRejectedValueOnce(new Error("temporary open failure")).mockResolvedValueOnce(database);
+    openDBMock
+      .mockRejectedValueOnce(new Error("temporary open failure"))
+      .mockResolvedValueOnce(database);
 
     const { loadSavedSession } = await import("./persistence");
 
