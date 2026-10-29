@@ -7,7 +7,10 @@ import { chooseSelectOption } from "../components/ui/selectTestUtils";
 import { ClassificationWorkspace } from "../features/classification/ClassificationWorkspace";
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { preloadCustomRatioDialog, ScalesWorkspace } from "../features/calibration/ScalesWorkspace";
-import { MeasurementPanel, preloadMeasurementFilters } from "../features/measurements/MeasurementPanel";
+import {
+  MeasurementPanel,
+  preloadMeasurementFilters,
+} from "../features/measurements/MeasurementPanel";
 import type { CurrentSession, PageState, PathMeasurement } from "../types/domain";
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
 import { AppProvider } from "./state";
@@ -36,7 +39,11 @@ function projectSession(): CurrentSession {
   for (const pageNumber of [1, 2]) {
     const page: PageState = session.pages[pageNumber]!;
     page.calibrations = [
-      { id: "scale-50", name: "Scale 50", ...createPageCalibrationFromRatio({ mode: "uniform", denominator: 50 }) },
+      {
+        id: "scale-50",
+        name: "Scale 50",
+        ...createPageCalibrationFromRatio({ mode: "uniform", denominator: 50 }),
+      },
     ];
     page.activeCalibrationId = "scale-50";
     page.measurements = [line(`line-${pageNumber}`, `Run ${pageNumber}`)];
@@ -65,12 +72,16 @@ function Panels() {
     <>
       <output data-testid="history">{`${state.canUndo}:${state.canRedo}`}</output>
       <output data-testid="visible">
-        {[1, 2].map((pageNumber) => String(session.pages[pageNumber]!.measurements[0]!.visible)).join(",")}
+        {[1, 2]
+          .map((pageNumber) => String(session.pages[pageNumber]!.measurements[0]!.visible))
+          .join(",")}
       </output>
       <button type="button" onClick={() => state.addClassificationDimension("floor", "Floor")}>
         Make an edit
       </button>
-      <button type="button" onClick={state.undo}>Undo</button>
+      <button type="button" onClick={state.undo}>
+        Undo
+      </button>
       <MeasurementPanel
         page={page}
         pages={session.pages}
@@ -129,9 +140,9 @@ function buttonByLabel(label: string): HTMLButtonElement {
 
 // The disclosure toggle is the button titled with the scale name.
 function scaleToggle(name: string): HTMLButtonElement {
-  const toggle = Array.from(document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")).find(
-    (candidate) => candidate.querySelector("span[title]")?.getAttribute("title") === name,
-  );
+  const toggle = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"),
+  ).find((candidate) => candidate.querySelector("span[title]")?.getAttribute("title") === name);
   if (!toggle) throw new Error(`Scale toggle ${name} was not rendered.`);
   return toggle;
 }
@@ -184,8 +195,13 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: () => undefined });
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: () => undefined,
+  });
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value(this: HTMLDialogElement) {

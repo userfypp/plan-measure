@@ -250,12 +250,33 @@ describe("ratio calibration", () => {
     const width = 60 * pageUnitsPerMillimetre;
     const height = 40 * pageUnitsPerMillimetre;
 
-    expect(lineLengthMm([{ x: 0, y: 0 }, { x: width, y: 0 }], calibration)).toBeCloseTo(4200, 10);
-    expect(lineLengthMm([{ x: 0, y: 0 }, { x: 0, y: height }], calibration)).toBeCloseTo(1200, 10);
-    expect(lineLengthMm([{ x: 0, y: 0 }, { x: width, y: height }], calibration)).toBeCloseTo(
-      Math.hypot(4200, 1200),
-      10,
-    );
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: width, y: 0 },
+        ],
+        calibration,
+      ),
+    ).toBeCloseTo(4200, 10);
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: 0, y: height },
+        ],
+        calibration,
+      ),
+    ).toBeCloseTo(1200, 10);
+    expect(
+      lineLengthMm(
+        [
+          { x: 0, y: 0 },
+          { x: width, y: height },
+        ],
+        calibration,
+      ),
+    ).toBeCloseTo(Math.hypot(4200, 1200), 10);
 
     const polygon = polygonResultsMm(
       {
@@ -282,19 +303,28 @@ describe("ratio calibration", () => {
     ["underflow", Number.MIN_VALUE],
   ])("rejects %s denominator", (_case, denominator) => {
     expect(isValidScaleRatioDenominator(denominator)).toBe(false);
-    expect(() => createPageCalibrationFromRatio({ mode: "uniform", denominator })).toThrow(RangeError);
+    expect(() => createPageCalibrationFromRatio({ mode: "uniform", denominator })).toThrow(
+      RangeError,
+    );
   });
 
-  it.each([0.5, 1, 1.5, 60, 62.5, 100.125])("accepts finite positive decimal denominator %s", (denominator) => {
-    expect(isValidScaleRatioDenominator(denominator)).toBe(true);
-  });
+  it.each([0.5, 1, 1.5, 60, 62.5, 100.125])(
+    "accepts finite positive decimal denominator %s",
+    (denominator) => {
+      expect(isValidScaleRatioDenominator(denominator)).toBe(true);
+    },
+  );
 
   it("rejects either invalid X/Y denominator independently", () => {
     expect(() =>
       createPageCalibrationFromRatio({ mode: "xy", xDenominator: 0, yDenominator: 30 }),
     ).toThrow(RangeError);
     expect(() =>
-      createPageCalibrationFromRatio({ mode: "xy", xDenominator: 70, yDenominator: Number.MAX_VALUE }),
+      createPageCalibrationFromRatio({
+        mode: "xy",
+        xDenominator: 70,
+        yDenominator: Number.MAX_VALUE,
+      }),
     ).toThrow(RangeError);
     expect(() =>
       createPageCalibrationFromRatio({ mode: "xy", xDenominator: 0, yDenominator: 0 }),

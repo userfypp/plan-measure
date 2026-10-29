@@ -75,7 +75,8 @@ export function keyboardHitMeasurement(
   for (const measurement of [...measurements].reverse()) {
     if (!measurement.visible) continue;
     if (measurement.type === "count") {
-      if (measurement.points.some((marker) => distance(point, marker) * zoom <= 8)) return measurement;
+      if (measurement.points.some((marker) => distance(point, marker) * zoom <= 8))
+        return measurement;
       continue;
     }
     const closed = measurementPathSpecs[measurement.type].closed;

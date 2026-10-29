@@ -255,7 +255,10 @@ describe("session domain reducer", () => {
       pageNumber: 1,
       id: "line-custom",
       measurementType: "line",
-      points: [{ x: 0, y: 0 }, { x: 72, y: 0 }],
+      points: [
+        { x: 0, y: 0 },
+        { x: 72, y: 0 },
+      ],
     });
     expect(state.session!.pages[1]!.measurements[0]!.calibrationId).toBe("custom-60");
 
@@ -270,7 +273,10 @@ describe("session domain reducer", () => {
       pageNumber: 1,
       calibrationId: "custom-60",
       reference: "uniform",
-      points: [{ x: 5, y: 5 }, { x: 77, y: 5 }],
+      points: [
+        { x: 5, y: 5 },
+        { x: 77, y: 5 },
+      ],
     });
     expect(state.session!.pages[1]!.calibrations[0]).toMatchObject({
       id: "custom-60",
@@ -306,25 +312,28 @@ describe("session domain reducer", () => {
   it.each([
     createPageCalibrationFromRatio({ mode: "uniform", denominator: 50 }),
     createPageCalibrationFromRatio({ mode: "xy", xDenominator: 50, yDenominator: 100 }),
-  ])("keeps the session unchanged when a scale is recalibrated with its current $mode geometry", (calibration) => {
-    const loaded = sessionReducer(loadedState(), {
-      type: "ADD_CALIBRATION",
-      pageNumber: 1,
-      id: "scale",
-      name: "Scale",
-      calibration,
-    });
+  ])(
+    "keeps the session unchanged when a scale is recalibrated with its current $mode geometry",
+    (calibration) => {
+      const loaded = sessionReducer(loadedState(), {
+        type: "ADD_CALIBRATION",
+        pageNumber: 1,
+        id: "scale",
+        name: "Scale",
+        calibration,
+      });
 
-    const saved = sessionReducer(loaded, {
-      type: "RECALIBRATE_CALIBRATION",
-      pageNumber: 1,
-      calibrationId: "scale",
-      calibration: structuredClone(calibration),
-    });
+      const saved = sessionReducer(loaded, {
+        type: "RECALIBRATE_CALIBRATION",
+        pageNumber: 1,
+        calibrationId: "scale",
+        calibration: structuredClone(calibration),
+      });
 
-    expect(saved.session).toBe(loaded.session);
-    expect(saved.error).toBeNull();
-  });
+      expect(saved.session).toBe(loaded.session);
+      expect(saved.error).toBeNull();
+    },
+  );
 
   it("creates a second calibration without changing the first and makes it active", () => {
     let state = addScale(loadedState(), "scale-1", "Main plan");
@@ -648,35 +657,62 @@ describe("session domain reducer", () => {
       { x: 0, y: 10 },
     ];
     state = sessionReducer(state, {
-      type: "ADD_MEASUREMENT", pageNumber: 1, id: "cloud-1", measurementType: "cloud", points: ring,
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "cloud-1",
+      measurementType: "cloud",
+      points: ring,
     });
     state = sessionReducer(state, {
-      type: "ADD_MEASUREMENT", pageNumber: 1, id: "polygon-1", measurementType: "polygon", points: ring,
+      type: "ADD_MEASUREMENT",
+      pageNumber: 1,
+      id: "polygon-1",
+      measurementType: "polygon",
+      points: ring,
     });
-    const find = (id: string) => state.session!.pages[1]!.measurements.find((item) => item.id === id)!;
+    const find = (id: string) =>
+      state.session!.pages[1]!.measurements.find((item) => item.id === id)!;
     expect(find("cloud-1")).not.toHaveProperty("color");
 
     const colored = sessionReducer(state, {
-      type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id: "cloud-1", color: "#2e9e4f",
+      type: "SET_MEASUREMENT_COLOR",
+      pageNumber: 1,
+      id: "cloud-1",
+      color: "#2e9e4f",
     });
-    expect(colored.session!.pages[1]!.measurements.find((item) => item.id === "cloud-1")).toMatchObject({
+    expect(
+      colored.session!.pages[1]!.measurements.find((item) => item.id === "cloud-1"),
+    ).toMatchObject({
       color: "#2e9e4f",
     });
     const recovered = deserializeSessionForRecovery(serializeSession(colored.session!)).session;
     expect(recovered.pages[1]!.measurements[0]).toMatchObject({ color: "#2e9e4f" });
 
     // Unknown colors and non-cloud types leave the state untouched.
-    for (const [id, color] of [["cloud-1", "#123456"], ["polygon-1", "#2e9e4f"]] as const) {
-      expect(sessionReducer(colored, { type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id, color })).toBe(colored);
+    for (const [id, color] of [
+      ["cloud-1", "#123456"],
+      ["polygon-1", "#2e9e4f"],
+    ] as const) {
+      expect(
+        sessionReducer(colored, { type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id, color }),
+      ).toBe(colored);
     }
     // Choosing the current color again does not create a new session.
     const same = sessionReducer(colored, {
-      type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id: "cloud-1", color: "#2e9e4f",
+      type: "SET_MEASUREMENT_COLOR",
+      pageNumber: 1,
+      id: "cloud-1",
+      color: "#2e9e4f",
     });
     expect(same.session).toBe(colored.session);
     // The default red counts as the current color of an uncolored cloud.
     expect(
-      sessionReducer(state, { type: "SET_MEASUREMENT_COLOR", pageNumber: 1, id: "cloud-1", color: "#d92d20" }).session,
+      sessionReducer(state, {
+        type: "SET_MEASUREMENT_COLOR",
+        pageNumber: 1,
+        id: "cloud-1",
+        color: "#d92d20",
+      }).session,
     ).toBe(state.session);
   });
 
@@ -758,7 +794,10 @@ describe("session domain reducer", () => {
     const page = state.session!.pages[1]!;
     expect(page.calibrations[0]).toMatchObject({ id: "scale-1", name: "Scale 1" });
     expect(page.measurements[0]).toMatchObject({ calibrationId: "scale-1" });
-    expect(page.measurements[0]!.points).toEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }]);
+    expect(page.measurements[0]!.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ]);
     expect(lineLengthMm(page.measurements[0]!.points, page.calibrations[0]!)).toBe(before / 2);
   });
 
@@ -807,7 +846,10 @@ describe("session domain reducer", () => {
       const state = addXyScale(loadedState(), "xy", "X/Y");
       const existing = state.session!.pages[1]!.calibrations[0]!;
       if (existing.mode !== "xy") throw new Error("Expected X/Y scale.");
-      const points = [{ x: 0, y: 0 }, axis === "x" ? { x: 100, y: 50 } : { x: 50, y: 100 }] as const;
+      const points = [
+        { x: 0, y: 0 },
+        axis === "x" ? { x: 100, y: 50 } : { x: 50, y: 100 },
+      ] as const;
       const calibration = {
         ...existing,
         [axis === "x" ? "xReference" : "yReference"]: {
@@ -933,7 +975,9 @@ describe("session domain reducer", () => {
       "xy",
     ]);
     expect(lineLengthMm(after.measurements[0]!.points, after.calibrations[0]!)).toBe(uniformBefore);
-    expect(lineLengthMm(after.measurements[1]!.points, after.calibrations[1]!)).toBeLessThan(xyBefore);
+    expect(lineLengthMm(after.measurements[1]!.points, after.calibrations[1]!)).toBeLessThan(
+      xyBefore,
+    );
   });
 
   it("updates a valid Y reference while preserving the X reference", () => {

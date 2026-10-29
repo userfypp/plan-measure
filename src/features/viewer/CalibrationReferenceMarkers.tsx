@@ -179,7 +179,10 @@ export function CalibrationReferenceMarkers({
         draggable={spatialEditable}
         hitStrokeWidth={
           spatialEditable
-            ? circularHandleHitStrokeWidthScreenPx(interactionTargetScreenPx, handleRadiusScreenPx) / zoom
+            ? circularHandleHitStrokeWidthScreenPx(
+                interactionTargetScreenPx,
+                handleRadiusScreenPx,
+              ) / zoom
             : 0
         }
         onDragStart={

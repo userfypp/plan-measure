@@ -89,8 +89,7 @@ export function useRovingFocusGroup<T extends HTMLElement>(
     const isHomeOrEnd = event.key === "Home" || event.key === "End";
     if (
       suspendWhen?.(event.currentTarget) ||
-      (!isHomeOrEnd &&
-        !(orientation === "horizontal" ? isHorizontalArrow : isVerticalArrow))
+      (!isHomeOrEnd && !(orientation === "horizontal" ? isHorizontalArrow : isVerticalArrow))
     ) {
       return;
     }
@@ -110,8 +109,7 @@ export function useRovingFocusGroup<T extends HTMLElement>(
         items,
       );
     } else if (currentIndex >= 0) {
-      const direction: 1 | -1 =
-        event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+      const direction: 1 | -1 = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
       target = items[(currentIndex + direction + items.length) % items.length] ?? null;
     }
 

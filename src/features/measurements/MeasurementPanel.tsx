@@ -93,9 +93,10 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   const [openControls, setOpenControls] = useState<"filters" | "grouping" | null>(null);
   const catalog = session?.classificationCatalog ?? emptyClassificationCatalog;
   const groupByDimensionIds = useMemo(
-    () => selectedGroupByDimensionIds.filter((id) =>
-      catalog.dimensions.some((dimension) => dimension.id === id),
-    ),
+    () =>
+      selectedGroupByDimensionIds.filter((id) =>
+        catalog.dimensions.some((dimension) => dimension.id === id),
+      ),
     [catalog, selectedGroupByDimensionIds],
   );
   // A classification filter whose value was deleted is ignored until undo restores the value.
@@ -109,32 +110,38 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       : { ...selectedFilters, classification: "" };
   const [valueLabels] = useState<MeasurementValueLabelCache>(() => new WeakMap());
   const sourceMeasurementsById = useMemo(
-    () => new Map(Object.values(pages).flatMap((candidatePage) =>
-      candidatePage.measurements.map((measurement) => [measurement.id, measurement] as const),
-    )),
+    () =>
+      new Map(
+        Object.values(pages).flatMap((candidatePage) =>
+          candidatePage.measurements.map((measurement) => [measurement.id, measurement] as const),
+        ),
+      ),
     [pages],
   );
   const allMeasurements = useMemo(
-    () => Object.values(pages).flatMap((candidatePage) =>
-      candidatePage.measurements.map((measurement) => ({
-        ...createMeasurementViewModel(
-          candidatePage,
-          measurement,
-          displayUnit,
-          selectedMeasurementIds ? selectedMeasurementIds.includes(measurement.id) : measurement.id === selectedMeasurementId,
-          measurementDecimalPlaces,
-          areaDisplay,
-          valueLabels,
-          measureClouds,
-        ),
-        pageNumber: candidatePage.pageNumber,
-        pageLabel:
-          effectivePageLabel(candidatePage.pageNumber, pageLabelOverrides, sourcePageLabels) ||
-          `Page ${candidatePage.pageNumber}`,
-        classificationValueIds: measurement.classificationValueIds,
-        calibrationId: measurement.calibrationId,
-      })),
-    ),
+    () =>
+      Object.values(pages).flatMap((candidatePage) =>
+        candidatePage.measurements.map((measurement) => ({
+          ...createMeasurementViewModel(
+            candidatePage,
+            measurement,
+            displayUnit,
+            selectedMeasurementIds
+              ? selectedMeasurementIds.includes(measurement.id)
+              : measurement.id === selectedMeasurementId,
+            measurementDecimalPlaces,
+            areaDisplay,
+            valueLabels,
+            measureClouds,
+          ),
+          pageNumber: candidatePage.pageNumber,
+          pageLabel:
+            effectivePageLabel(candidatePage.pageNumber, pageLabelOverrides, sourcePageLabels) ||
+            `Page ${candidatePage.pageNumber}`,
+          classificationValueIds: measurement.classificationValueIds,
+          calibrationId: measurement.calibrationId,
+        })),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- separators are read by the formatters
     [
       areaDisplay,
@@ -158,22 +165,24 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   );
   const { page: pageFilter, type, scale, classification, visibility, selection } = filters;
   const measurements = useMemo(
-    () => allMeasurements.filter((measurement) =>
-      (!normalizedQuery || measurement.name.toLocaleLowerCase().includes(normalizedQuery)) &&
-      (!pageFilter ||
-        measurement.pageNumber ===
-          (pageFilter === CURRENT_PAGE_FILTER ? currentPageNumber : Number(pageFilter))) &&
-      (!type || measurement.type === type) &&
-      (!scale ||
-        measurementScaleFilterValue(measurement, currentPageNumber, activeCalibrationId) ===
-          scale) &&
-      (!classification ||
-        (classification === UNCLASSIFIED_FILTER
-          ? measurement.classificationValueIds.length === 0
-          : measurement.classificationValueIds.includes(classification))) &&
-      (!visibility || String(measurement.visible) === visibility) &&
-      (!selection || measurement.selected),
-    ),
+    () =>
+      allMeasurements.filter(
+        (measurement) =>
+          (!normalizedQuery || measurement.name.toLocaleLowerCase().includes(normalizedQuery)) &&
+          (!pageFilter ||
+            measurement.pageNumber ===
+              (pageFilter === CURRENT_PAGE_FILTER ? currentPageNumber : Number(pageFilter))) &&
+          (!type || measurement.type === type) &&
+          (!scale ||
+            measurementScaleFilterValue(measurement, currentPageNumber, activeCalibrationId) ===
+              scale) &&
+          (!classification ||
+            (classification === UNCLASSIFIED_FILTER
+              ? measurement.classificationValueIds.length === 0
+              : measurement.classificationValueIds.includes(classification))) &&
+          (!visibility || String(measurement.visible) === visibility) &&
+          (!selection || measurement.selected),
+      ),
     [
       activeCalibrationId,
       allMeasurements,
@@ -198,24 +207,23 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       catalog.dimensions.find((dimension) => dimension.id === dimensionId)?.name ??
       "Unknown classification",
   );
-  const groups = useMemo(() => groupByDimensionIds.length
-    ? createMeasurementGroups(
-        measurements.map((measurement) => ({
-          ...sourceMeasurementsById.get(measurement.id)!,
-          pageNumber: measurement.pageNumber,
-        })),
-        catalog,
-        groupByDimensionIds,
-      )
-    : undefined,
+  const groups = useMemo(
+    () =>
+      groupByDimensionIds.length
+        ? createMeasurementGroups(
+            measurements.map((measurement) => ({
+              ...sourceMeasurementsById.get(measurement.id)!,
+              pageNumber: measurement.pageNumber,
+            })),
+            catalog,
+            groupByDimensionIds,
+          )
+        : undefined,
     [catalog, groupByDimensionIds, measurements, sourceMeasurementsById],
   );
 
   return (
-    <aside
-      className={styles.panel}
-      aria-label="Measurements workspace"
-    >
+    <aside className={styles.panel} aria-label="Measurements workspace">
       <div className={styles.toolbar}>
         <label className={styles.search}>
           <span className={styles.visuallyHidden}>Search measurements by name</span>
@@ -242,9 +250,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
             className: [styles.toolbarButton, activeFilterCount > 0 ? styles.active : ""]
               .filter(Boolean)
               .join(" "),
-            "aria-label": activeFilterCount
-              ? `Filters, ${activeFilterCount} active`
-              : "Filters",
+            "aria-label": activeFilterCount ? `Filters, ${activeFilterCount} active` : "Filters",
             onPointerEnter: preloadMeasurementFilters,
             onFocus: preloadMeasurementFilters,
           }}
@@ -301,9 +307,7 @@ export const MeasurementPanel = memo(function MeasurementPanel({
                   ? `Group by ${groupByNames.join(", then ")}`
                   : "Group measurements",
             }}
-            tooltip={
-              groupByNames.length > 0 ? `Grouped by ${groupByNames.join(" › ")}` : "Group"
-            }
+            tooltip={groupByNames.length > 0 ? `Grouped by ${groupByNames.join(" › ")}` : "Group"}
             tooltipPosition="bottom"
             trigger={<GroupIcon />}
             role="dialog"

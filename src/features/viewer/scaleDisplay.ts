@@ -1,10 +1,6 @@
 import type { PageCalibration } from "../../types/domain";
 import { formatDisplayNumber } from "../../utils/format";
-import {
-  calibrationScaleX,
-  calibrationScaleY,
-  millimetresPerPageUnit,
-} from "../../utils/geometry";
+import { calibrationScaleX, calibrationScaleY, millimetresPerPageUnit } from "../../utils/geometry";
 import {
   cleanScaleRatioDenominator,
   scaleRatioDenominatorFromMillimetresPerPageUnit,
