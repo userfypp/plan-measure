@@ -243,6 +243,17 @@ describe("PdfAnnotationLayer behavior", () => {
       expect(onSelectMeasurement.mock.calls).toEqual([["m-1", undefined], ["m-1", true], ["m-1", true]]);
     });
 
+    it.each([1, 2])("ignores a click with mouse button %i, with or without modifiers", (button) => {
+      const onSelectMeasurement = vi.fn();
+      renderLayer({ selected: ["m-1"], onSelectMeasurement });
+      const event = mouseEvent({}, button);
+      fire(shape(), "onClick", event);
+      fire(shape(), "onClick", mouseEvent({}, button, { shiftKey: true }));
+      fire(cornerHandles()[0]!, "onClick", mouseEvent({}, button, { shiftKey: true }));
+      expect(onSelectMeasurement).not.toHaveBeenCalled();
+      expect(event.cancelBubble).toBe(false);
+    });
+
     it.each<Tool>(["line", "polygon", "count", "hand", "calibrate"])("does not select while the %s tool is active", (activeTool) => {
       const onSelectMeasurement = vi.fn();
       renderLayer({ activeTool, onSelectMeasurement });
