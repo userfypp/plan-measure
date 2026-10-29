@@ -25,6 +25,9 @@ export const drawCover = (d) => {
     [s.no, s.name, s.scale, s.size].forEach((v, i) =>
       d.txt(v, cols[i], y + 6, { size: 9, col: C.INK, f: i === 0 ? "b" : "r" }),
     );
-    d.ln(30, y + 9, 400, y + 9, { w: r === SHEETS.length - 1 ? LW.main : LW.fine, col: r === SHEETS.length - 1 ? C.INK : C.FINE });
+    d.ln(30, y + 9, 400, y + 9, {
+      w: r === SHEETS.length - 1 ? LW.main : LW.fine,
+      col: r === SHEETS.length - 1 ? C.INK : C.FINE,
+    });
   });
 };

@@ -292,7 +292,8 @@ const STATIC_CSV_COLUMNS: readonly CsvColumnDefinition[] = [
     type: "number",
     defaultEnabled: true,
     required: false,
-    extract: (context) => context.measurement.type === "count" ? context.measurement.points.length : null,
+    extract: (context) =>
+      context.measurement.type === "count" ? context.measurement.points.length : null,
   },
   {
     id: "unit",
@@ -526,9 +527,11 @@ function createClassificationColumns(
 function createCsvColumns(session: CurrentSession): CsvColumnDefinition[] {
   return [
     ...STATIC_CSV_COLUMNS.filter(
-      (column) => column.id !== "count" || Object.values(session.pages).some((page) =>
-        page.measurements.some((measurement) => measurement.type === "count"),
-      ),
+      (column) =>
+        column.id !== "count" ||
+        Object.values(session.pages).some((page) =>
+          page.measurements.some((measurement) => measurement.type === "count"),
+        ),
     ),
     ...session.classificationCatalog.dimensions.flatMap(createClassificationColumns),
   ];
@@ -669,7 +672,10 @@ function createCsvRowContext(
   }
   const scaleX = calibration ? calibrationScaleX(calibration) : null;
   const scaleY = calibration ? calibrationScaleY(calibration) : null;
-  if ((scaleX !== null && !Number.isFinite(scaleX)) || (scaleY !== null && !Number.isFinite(scaleY))) {
+  if (
+    (scaleX !== null && !Number.isFinite(scaleX)) ||
+    (scaleY !== null && !Number.isFinite(scaleY))
+  ) {
     throw new RangeError("Calibration must produce finite audit values.");
   }
   const calibrationReferenceMm =
@@ -682,8 +688,10 @@ function createCsvRowContext(
     practicalScaleRatioDenominator(scaleRatioDenominatorFromMillimetresPerPageUnit(scale));
   const calibrationRatioDenominator =
     calibration?.mode === "uniform" ? ratioDenominator(scaleX!) : null;
-  const calibrationRatioXDenominator = calibration?.mode === "xy" ? ratioDenominator(scaleX!) : null;
-  const calibrationRatioYDenominator = calibration?.mode === "xy" ? ratioDenominator(scaleY!) : null;
+  const calibrationRatioXDenominator =
+    calibration?.mode === "xy" ? ratioDenominator(scaleX!) : null;
+  const calibrationRatioYDenominator =
+    calibration?.mode === "xy" ? ratioDenominator(scaleY!) : null;
   const calibrationXReferenceMm =
     calibration?.mode === "xy" ? calibration.xReference.referenceDistanceMm : null;
   const calibrationXPageSpan =
@@ -779,7 +787,9 @@ function* measurementRows(
     if (!page) continue;
     for (const measurement of page.measurements) {
       if (!hasValidMeasurementPoints(measurement.type, measurement.points)) {
-        throw new Error(`Repair invalid ${measurementPathSpecs[measurement.type].label} measurements before exporting CSV.`);
+        throw new Error(
+          `Repair invalid ${measurementPathSpecs[measurement.type].label} measurements before exporting CSV.`,
+        );
       }
       const context = createCsvRowContext(
         pageNumber,
@@ -789,14 +799,12 @@ function* measurementRows(
         session,
       );
       yield columns.map((column) => {
-          const value = column.extract(context);
-          if (typeof value === "number" && !Number.isFinite(value)) {
-            throw new RangeError(
-              `Measurement ${measurement.id} must produce finite export values.`,
-            );
-          }
-          return value;
-        });
+        const value = column.extract(context);
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new RangeError(`Measurement ${measurement.id} must produce finite export values.`);
+        }
+        return value;
+      });
     }
   }
 }
@@ -853,10 +861,19 @@ export async function buildCsvInBatches(
   yieldToMainThread: () => Promise<void> = yieldCsvBatch,
 ): Promise<string> {
   const settings = csvSettings ?? session.settings.csvExport;
-  const columns = createCsvColumns(session).filter((column) => isCsvColumnEnabled(column, settings));
+  const columns = createCsvColumns(session).filter((column) =>
+    isCsvColumnEnabled(column, settings),
+  );
   const headers = columns.map((column) => column.header);
   const columnTypes = columns.map((column) => column.type);
-  const formattedColumns = new Set(["length", "perimeter", "area", "length_mm", "perimeter_mm", "area_mm2"]);
+  const formattedColumns = new Set([
+    "length",
+    "perimeter",
+    "area",
+    "length_mm",
+    "perimeter_mm",
+    "area_mm2",
+  ]);
   const prefix = serializeCsv(headers, columnTypes, [], formattedColumns);
   const parts = [prefix];
   let batch: ExportCell[][] = [];

@@ -74,7 +74,11 @@ export function ClassificationWorkspace({
         </header>
       )}
       {showTemplates && onApplyTemplate ? (
-        <ClassificationTemplateLibrary catalog={catalog} disabled={disabled} onApply={onApplyTemplate} />
+        <ClassificationTemplateLibrary
+          catalog={catalog}
+          disabled={disabled}
+          onApply={onApplyTemplate}
+        />
       ) : (
         <ClassificationManager
           catalog={catalog}

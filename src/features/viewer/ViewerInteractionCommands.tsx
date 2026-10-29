@@ -18,8 +18,9 @@ interface ViewerInteractionCommandContextValue {
   completeCurrentDraft: () => void;
 }
 
-const ViewerInteractionCommandContext =
-  createContext<ViewerInteractionCommandContextValue | null>(null);
+const ViewerInteractionCommandContext = createContext<ViewerInteractionCommandContextValue | null>(
+  null,
+);
 
 export function ViewerInteractionCommandsProvider({ children }: { children: ReactNode }) {
   const registeredRef = useRef<RegisteredCommands | null>(null);
@@ -55,7 +56,9 @@ export function useViewerInteractionCommands(): Pick<
 > {
   const context = useContext(ViewerInteractionCommandContext);
   if (!context) {
-    throw new Error("useViewerInteractionCommands must be used inside ViewerInteractionCommandsProvider.");
+    throw new Error(
+      "useViewerInteractionCommands must be used inside ViewerInteractionCommandsProvider.",
+    );
   }
   return { completeCurrentDraft: context.completeCurrentDraft };
 }
