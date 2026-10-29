@@ -7,8 +7,9 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores(["dist", "coverage"]),
   {
-    // Scripts that run in CI with repository tokens get the same baseline checks as the app.
-    files: [".github/scripts/**/*.mjs", "scripts/**/*.{js,mjs}"],
+    // Node scripts (CI and release automation, sample PDF and performance tooling) get the same
+    // baseline checks as the app.
+    files: [".github/scripts/**/*.mjs", "scripts/**/*.{js,mjs}", "perf/**/*.mjs"],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2023,
@@ -24,6 +25,22 @@ export default defineConfig([
         setTimeout: "readonly",
         clearTimeout: "readonly",
         structuredClone: "readonly",
+      },
+    },
+  },
+  {
+    // The benchmarks pass these functions to Playwright, which runs them in the page.
+    files: ["perf/browser.mjs", "perf/page-browser.mjs", "perf/run.mjs"],
+    languageOptions: {
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        performance: "readonly",
+        PerformanceObserver: "readonly",
+        requestAnimationFrame: "readonly",
+        getComputedStyle: "readonly",
+        indexedDB: "readonly",
+        CanvasRenderingContext2D: "readonly",
       },
     },
   },
