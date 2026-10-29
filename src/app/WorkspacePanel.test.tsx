@@ -46,10 +46,18 @@ function DetailsLifecycleHarness() {
   } = useWorkspaceState();
   return (
     <>
-      <button type="button" data-testid="select" onClick={() => selectMeasurement("line-1")}>Select</button>
-      <button type="button" data-testid="open-details" onClick={openMeasurementDetails}>Open details</button>
-      <button type="button" data-testid="close-details" onClick={closeMeasurementDetails}>Close details</button>
-      <button type="button" data-testid="clear" onClick={clearSelection}>Clear</button>
+      <button type="button" data-testid="select" onClick={() => selectMeasurement("line-1")}>
+        Select
+      </button>
+      <button type="button" data-testid="open-details" onClick={openMeasurementDetails}>
+        Open details
+      </button>
+      <button type="button" data-testid="close-details" onClick={closeMeasurementDetails}>
+        Close details
+      </button>
+      <button type="button" data-testid="clear" onClick={clearSelection}>
+        Clear
+      </button>
       <button
         type="button"
         data-testid="show-takeoff"
@@ -114,8 +122,12 @@ afterEach(() => {
 describe("WorkspacePanel", () => {
   it("starts in Scales and exposes the workspace modules as radio menu items", () => {
     expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Scales");
-    expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).not.toBeNull();
-    expect(container?.querySelector('[data-testid="classifications-pane"]')?.closest("[hidden]")).not.toBeNull();
+    expect(
+      container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]"),
+    ).not.toBeNull();
+    expect(
+      container?.querySelector('[data-testid="classifications-pane"]')?.closest("[hidden]"),
+    ).not.toBeNull();
     expect(container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]")).toBeNull();
 
     act(() => trigger().click());
@@ -148,8 +160,12 @@ describe("WorkspacePanel", () => {
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(workspaceTrigger);
     expect(trigger().getAttribute("aria-label")).toBe("Workspace module: Measurements");
-    expect(container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]")).not.toBeNull();
-    expect(container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]")).toBeNull();
+    expect(
+      container?.querySelector('[data-testid="scales-pane"]')?.closest("[hidden]"),
+    ).not.toBeNull();
+    expect(
+      container?.querySelector('[data-testid="measurements-pane"]')?.closest("[hidden]"),
+    ).toBeNull();
   });
 
   it("opens the module list at the full width of the trigger", () => {

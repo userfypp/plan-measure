@@ -32,9 +32,7 @@ interface CalibrationDialogProps {
 
 const SIXTEENTHS_PER_INCH = 16;
 const SIXTEENTHS_PER_FOOT = 12 * SIXTEENTHS_PER_INCH;
-const MAX_ARCHITECTURAL_FEET = Math.floor(
-  MAX_SAFE_ARCHITECTURAL_SIXTEENTHS / SIXTEENTHS_PER_FOOT,
-);
+const MAX_ARCHITECTURAL_FEET = Math.floor(MAX_SAFE_ARCHITECTURAL_SIXTEENTHS / SIXTEENTHS_PER_FOOT);
 const UNIT_OPTIONS: Array<{ value: CalibrationInputUnit; label: string }> = [
   { value: "mm", label: "Millimetres" },
   { value: "cm", label: "Centimetres" },

@@ -11,7 +11,11 @@ import type { SnapTarget } from "./snapping";
 
 const bounds: LogicalPageBounds = { width: 100, height: 80, rotation: 0 };
 
-function measurement(id: string, points: Point[], type: PathMeasurement["type"] = "line"): PathMeasurement {
+function measurement(
+  id: string,
+  points: Point[],
+  type: PathMeasurement["type"] = "line",
+): PathMeasurement {
   return {
     id,
     type,

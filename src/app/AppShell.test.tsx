@@ -12,8 +12,9 @@ let root: Root;
 let container: HTMLDivElement;
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT = true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers();
   container = document.createElement("div");
   document.body.append(container);
@@ -35,18 +36,20 @@ function dismissButton() {
 }
 
 function render(message: string | null, onDismiss?: () => void, actions?: ReactNode) {
-  act(() => root.render(
-    <AppShell
-      documentName={null}
-      canExport={false}
-      onExport={() => undefined}
-      statusMessage={message}
-      onDismissStatus={onDismiss}
-      statusActions={actions}
-    >
-      <main>Workspace</main>
-    </AppShell>,
-  ));
+  act(() =>
+    root.render(
+      <AppShell
+        documentName={null}
+        canExport={false}
+        onExport={() => undefined}
+        statusMessage={message}
+        onDismissStatus={onDismiss}
+        statusActions={actions}
+      >
+        <main>Workspace</main>
+      </AppShell>,
+    ),
+  );
 }
 
 function advance(milliseconds: number) {
@@ -57,9 +60,15 @@ function ErrorStackHarness() {
   const { state, setError, clearError, dismissError } = useAppState();
   return (
     <>
-      <button data-error="First" onClick={() => setError("First")}>First error</button>
-      <button data-error="Second" onClick={() => setError("Second")}>Second error</button>
-      <button data-clear onClick={clearError}>Successful action</button>
+      <button data-error="First" onClick={() => setError("First")}>
+        First error
+      </button>
+      <button data-error="Second" onClick={() => setError("Second")}>
+        Second error
+      </button>
+      <button data-clear onClick={clearError}>
+        Successful action
+      </button>
       <AppShell
         documentName={null}
         canExport={false}
@@ -77,7 +86,13 @@ function ErrorStackHarness() {
 }
 
 function renderStack() {
-  act(() => root.render(<AppProvider><ErrorStackHarness /></AppProvider>));
+  act(() =>
+    root.render(
+      <AppProvider>
+        <ErrorStackHarness />
+      </AppProvider>,
+    ),
+  );
 }
 
 function triggerError(message: string) {
@@ -85,7 +100,10 @@ function triggerError(message: string) {
 }
 
 function messages() {
-  return Array.from(container.querySelectorAll('[role="alert"] > span'), (span) => span.textContent);
+  return Array.from(
+    container.querySelectorAll('[role="alert"] > span'),
+    (span) => span.textContent,
+  );
 }
 
 describe("AppShell notifications", () => {
@@ -108,7 +126,7 @@ describe("AppShell notifications", () => {
     triggerError("First");
     triggerError("First");
     triggerError("Second");
-    act(() => container.querySelector<HTMLButtonElement>('[data-clear]')!.click());
+    act(() => container.querySelector<HTMLButtonElement>("[data-clear]")!.click());
     expect(messages()).toEqual(["Autosave is unavailable.", "First", "First", "Second"]);
     act(() => dismissButton()!.click());
     expect(messages()).toEqual(["Autosave is unavailable.", "First", "Second"]);

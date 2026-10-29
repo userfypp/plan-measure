@@ -12,7 +12,11 @@ function isTabStop(element: HTMLElement): boolean {
       return false;
     }
     const style = window.getComputedStyle(parent);
-    if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") {
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.visibility === "collapse"
+    ) {
       return false;
     }
   }
@@ -135,9 +139,7 @@ function activeTabStopIndex(stops: HTMLElement[], active: HTMLElement | null): n
   const directIndex = stops.indexOf(active);
   if (directIndex >= 0) return directIndex;
   if (!isNamedRadio(active)) return -1;
-  return stops.findIndex(
-    (stop) => isNamedRadio(stop) && isSameRadioGroup(active, stop),
-  );
+  return stops.findIndex((stop) => isNamedRadio(stop) && isSameRadioGroup(active, stop));
 }
 
 function activeFocusTrap(root: HTMLElement): HTMLElement | null {
@@ -166,14 +168,12 @@ export function handleManagedTabNavigation(event: ManagedTabKeyboardEvent, root:
   const active = root.ownerDocument.activeElement;
   const activeElement = active instanceof HTMLElement ? active : null;
   const activePortal = activeElement?.closest<HTMLElement>("[data-focus-portal]");
-  const inOwnedPortal = Boolean(
-    activePortal && ownedPortalBelongsTo(root, activePortal),
-  );
+  const inOwnedPortal = Boolean(activePortal && ownedPortalBelongsTo(root, activePortal));
   const activeInApp = Boolean(
     active === root.ownerDocument.body ||
-      active === root.ownerDocument.documentElement ||
-      (activeElement && root.contains(activeElement)) ||
-      inOwnedPortal,
+    active === root.ownerDocument.documentElement ||
+    (activeElement && root.contains(activeElement)) ||
+    inOwnedPortal,
   );
   if (!activeInApp) return;
 
@@ -199,8 +199,7 @@ export function handleManagedTabNavigation(event: ManagedTabKeyboardEvent, root:
     const last = stops.at(-1)!;
     const activeInTrap = Boolean(
       activeElement &&
-        (trap.contains(activeElement) ||
-          (activePortal && ownedPortalBelongsTo(trap, activePortal))),
+      (trap.contains(activeElement) || (activePortal && ownedPortalBelongsTo(trap, activePortal))),
     );
     if (event.shiftKey && (activeIndex === 0 || !activeInTrap)) {
       event.preventDefault();
@@ -218,7 +217,7 @@ export function handleManagedTabNavigation(event: ManagedTabKeyboardEvent, root:
     if (stops.length === 0) return;
     const activePortal = activeElement?.closest<HTMLElement>("[data-focus-portal]");
     const portalStops = activePortal ? stops.filter((stop) => activePortal.contains(stop)) : [];
-    const next = event.shiftKey ? stops.at(-1) : portalStops[0] ?? stops[0];
+    const next = event.shiftKey ? stops.at(-1) : (portalStops[0] ?? stops[0]);
     if (!next) return;
     event.preventDefault();
     next.focus({ preventScroll: true });
