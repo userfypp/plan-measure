@@ -69,11 +69,7 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   }, [isNarrow, narrowOpen]);
   const availabilityFor = (definition: ToolDefinition) => {
     const base = getToolAvailabilityState(definition, toolAvailability);
-    if (
-      !base.disabled &&
-      !capability.available &&
-      isMeasurementType(definition.id)
-    ) {
+    if (!base.disabled && !capability.available && isMeasurementType(definition.id)) {
       return {
         disabled: true,
         disabledReason:
@@ -159,83 +155,88 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
           </span>
         </button>
       )}
-      {(!isNarrow || narrowOpen) && <div
-        ref={toolbarRef}
-        {...toolbarFocus}
-        id={isNarrow ? toolbarId : undefined}
-        className={styles.tools}
-        role="toolbar"
-        aria-label="Drawing tools"
-        aria-orientation="vertical"
-        onFocusCapture={(event) => {
-          toolbarFocus.onFocusCapture(event);
-          toolFocusOwnedRef.current = true;
-        }}
-        onBlurCapture={(event) => {
-          const next = event.relatedTarget;
-          if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
-            toolFocusOwnedRef.current = false;
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape" && isNarrow) {
-            event.preventDefault();
-            closeNarrowTools(true);
-            return;
-          }
-          toolbarFocus.onKeyDown(event);
-        }}
-      >
-        {toolRailRegistry.map((definition) => {
-          const tool = definition.id as PrimaryTool;
-          const { disabled, disabledReason } = availabilityFor(definition);
-          const active = activeTool === tool;
-          const shortcut = definition.shortcut ? ` (${definition.shortcut})` : "";
+      {(!isNarrow || narrowOpen) && (
+        <div
+          ref={toolbarRef}
+          {...toolbarFocus}
+          id={isNarrow ? toolbarId : undefined}
+          className={styles.tools}
+          role="toolbar"
+          aria-label="Drawing tools"
+          aria-orientation="vertical"
+          onFocusCapture={(event) => {
+            toolbarFocus.onFocusCapture(event);
+            toolFocusOwnedRef.current = true;
+          }}
+          onBlurCapture={(event) => {
+            const next = event.relatedTarget;
+            if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+              toolFocusOwnedRef.current = false;
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && isNarrow) {
+              event.preventDefault();
+              closeNarrowTools(true);
+              return;
+            }
+            toolbarFocus.onKeyDown(event);
+          }}
+        >
+          {toolRailRegistry.map((definition) => {
+            const tool = definition.id as PrimaryTool;
+            const { disabled, disabledReason } = availabilityFor(definition);
+            const active = activeTool === tool;
+            const shortcut = definition.shortcut ? ` (${definition.shortcut})` : "";
 
-          return (
-            <Tooltip
-              key={definition.id}
-              content={`${disabled ? disabledReason : definition.description}${shortcut}`}
-              position="right"
-              describeTrigger={!disabled}
-            >
-              <button
-                type="button"
-                className={[styles.toolButton, active ? styles.active : ""]
-                  .filter(Boolean)
-                  .join(" ")}
-                aria-label={`${definition.label}${definition.shortcut ? `, shortcut ${definition.shortcut}` : ""}`}
-                aria-pressed={active}
-                aria-disabled={disabled || undefined}
-                aria-describedby={disabled ? `tool-disabled-reason-${definition.id}` : undefined}
-                aria-keyshortcuts={definition.shortcut?.toUpperCase()}
-                data-tool-id={definition.id}
-                data-disabled={disabled || undefined}
-                tabIndex={currentRovingToolId === definition.id ? 0 : -1}
-                title={disabled ? disabledReason : undefined}
-                onFocus={() => setRovingToolId(definition.id)}
-                onClick={(event) => {
-                  if (disabled) {
-                    event.preventDefault();
-                    return;
-                  }
-                  if (!active) onChooseTool(tool);
-                  if (isNarrow) closeNarrowTools(true);
-                }}
+            return (
+              <Tooltip
+                key={definition.id}
+                content={`${disabled ? disabledReason : definition.description}${shortcut}`}
+                position="right"
+                describeTrigger={!disabled}
               >
-                <span className={styles.icon} aria-hidden="true">
-                  <ToolIcon name={definition.icon} />
-                </span>
-                {disabled && (
-                  <span id={`tool-disabled-reason-${definition.id}`} className={styles.visuallyHidden}>
-                    {disabledReason}
+                <button
+                  type="button"
+                  className={[styles.toolButton, active ? styles.active : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-label={`${definition.label}${definition.shortcut ? `, shortcut ${definition.shortcut}` : ""}`}
+                  aria-pressed={active}
+                  aria-disabled={disabled || undefined}
+                  aria-describedby={disabled ? `tool-disabled-reason-${definition.id}` : undefined}
+                  aria-keyshortcuts={definition.shortcut?.toUpperCase()}
+                  data-tool-id={definition.id}
+                  data-disabled={disabled || undefined}
+                  tabIndex={currentRovingToolId === definition.id ? 0 : -1}
+                  title={disabled ? disabledReason : undefined}
+                  onFocus={() => setRovingToolId(definition.id)}
+                  onClick={(event) => {
+                    if (disabled) {
+                      event.preventDefault();
+                      return;
+                    }
+                    if (!active) onChooseTool(tool);
+                    if (isNarrow) closeNarrowTools(true);
+                  }}
+                >
+                  <span className={styles.icon} aria-hidden="true">
+                    <ToolIcon name={definition.icon} />
                   </span>
-                )}
-              </button>
-            </Tooltip>
-          );
-        })}
-      </div>}
+                  {disabled && (
+                    <span
+                      id={`tool-disabled-reason-${definition.id}`}
+                      className={styles.visuallyHidden}
+                    >
+                      {disabledReason}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </div>
+      )}
     </aside>
   );
 }

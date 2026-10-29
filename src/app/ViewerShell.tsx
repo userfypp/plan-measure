@@ -32,8 +32,8 @@ import { recoverableLazy } from "./recoverableLazy";
 import styles from "./ViewerShell.module.css";
 
 const loadPageBrowser = retryableImport(() => import("../features/pages/PageBrowserHost"));
-const PageBrowserHost = recoverableLazy(() =>
-  loadPageBrowser().then((module) => ({ default: module.PageBrowserHost })),
+const PageBrowserHost = recoverableLazy(
+  () => loadPageBrowser().then((module) => ({ default: module.PageBrowserHost })),
   "pages",
 );
 export const preloadPageBrowser = PageBrowserHost.preload;
@@ -70,9 +70,10 @@ export function ViewerShell({
   rightObstruction = 0,
   onAuthoringCapabilityChange,
 }: ViewerShellProps) {
-  const [navigation, setNavigation] = useState<
-    Pick<ViewerNavigationModel, "pageNumber" | "pageCount" | "zoom" | "zoomPending"> | null
-  >(null);
+  const [navigation, setNavigation] = useState<Pick<
+    ViewerNavigationModel,
+    "pageNumber" | "pageCount" | "zoom" | "zoomPending"
+  > | null>(null);
   const [pageBrowserDocument, setPageBrowserDocument] = useState<PDFDocumentProxy | null>(null);
   const pagesOpen = Boolean(pdfDocument && pageBrowserDocument === pdfDocument);
   // A closed page browser keeps the thumbnails of the open document only.
@@ -89,9 +90,10 @@ export function ViewerShell({
   }, []);
   const [dockBottomExclusion, setDockBottomExclusion] = useState(0);
   const [viewerFrameSize, setViewerFrameSize] = useState({ width: 0, height: 0 });
-  const navigationActionsRef = useRef<
-    Pick<ViewerNavigationModel, "onPageChange" | "onZoomIn" | "onZoomOut" | "onFit"> | null
-  >(null);
+  const navigationActionsRef = useRef<Pick<
+    ViewerNavigationModel,
+    "onPageChange" | "onZoomIn" | "onZoomOut" | "onFit"
+  > | null>(null);
   const navigatePage = useCallback(
     (number: number) => navigationActionsRef.current?.onPageChange(number),
     [],
@@ -193,10 +195,7 @@ export function ViewerShell({
   } as CSSProperties;
 
   useLayoutEffect(() => {
-    onAuthoringCapabilityChange?.(
-      authoringCapability,
-      authoringCapabilityWithoutRightObstruction,
-    );
+    onAuthoringCapabilityChange?.(authoringCapability, authoringCapabilityWithoutRightObstruction);
   }, [
     authoringCapability,
     authoringCapabilityWithoutRightObstruction,
@@ -248,9 +247,7 @@ export function ViewerShell({
             )}
             {viewerTransientOverlay}
             {pagesOpen && pdfDocument && (
-              <Suspense
-                fallback={<PageBrowserSkeleton />}
-              >
+              <Suspense fallback={<PageBrowserSkeleton />}>
                 <PageBrowserHost
                   document={pdfDocument}
                   sourceLabels={sourcePageLabels}
@@ -270,7 +267,10 @@ export function ViewerShell({
               </ViewerNavigationProvider>
             </ViewerBottomExclusionProvider>
             {navigation && (
-              <div className={`${styles.dock} ${pagesOpen ? styles.dockWithPages : ""}`} ref={dockRef}>
+              <div
+                className={`${styles.dock} ${pagesOpen ? styles.dockWithPages : ""}`}
+                ref={dockRef}
+              >
                 <ViewerDockContainer
                   pagesOpen={pagesOpen}
                   onTogglePages={

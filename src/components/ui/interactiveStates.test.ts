@@ -51,7 +51,9 @@ describe("shared interactive-state contract", () => {
   it("keeps OFF switches visibly bounded and gives both switch states transient feedback", () => {
     expect(tokensCss).toContain("--color-switch-off-track:");
     expect(switchCss).toContain("border: 0");
-    expect(switchCss).toMatch(/\.track\s*\{[^}]*background-color:\s*var\(--color-switch-off-track\)/s);
+    expect(switchCss).toMatch(
+      /\.track\s*\{[^}]*background-color:\s*var\(--color-switch-off-track\)/s,
+    );
     expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:hover');
     expect(switchCss).toContain('.target:not([data-disabled="true"]) .track:active');
     expect(switchCss).toContain(
@@ -65,8 +67,12 @@ describe("shared interactive-state contract", () => {
   });
 
   it("keeps fine-pointer switch feedback on the visible track while preserving a coarse target", () => {
-    expect(switchCss).toMatch(/\.target\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s);
-    expect(switchCss).toMatch(/\.track\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s);
+    expect(switchCss).toMatch(
+      /\.target\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s,
+    );
+    expect(switchCss).toMatch(
+      /\.track\s*\{[^}]*width:\s*var\(--switch-width\);[^}]*height:\s*var\(--switch-height\);/s,
+    );
     expect(switchCss).toMatch(
       /@media \(any-pointer: coarse\)\s*\{[^}]*\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
     );
@@ -120,9 +126,7 @@ describe("shared interactive-state contract", () => {
     expect(disclosureCss).toMatch(
       /\.root\[data-selected\]:has\(> \.header:hover\),\s*\.root\[data-selected\]:has\(> \.header \.toggle:active\)\s*\{[^}]*background-color:\s*var\(--color-selection-surface\);/s,
     );
-    expect(disclosureCss).toMatch(
-      /\.toggle\s*\{[^}]*min-height:\s*var\(--target-current\);/s,
-    );
+    expect(disclosureCss).toMatch(/\.toggle\s*\{[^}]*min-height:\s*var\(--target-current\);/s);
   });
 
   it("keeps selection menus compact on fine pointers without reducing the coarse target", () => {
@@ -151,7 +155,9 @@ describe("shared interactive-state contract", () => {
 
   it("shares a thin overlay-style scrollbar that never reserves a gutter", () => {
     expect(scrollSurfaceCss).toMatch(/scrollbar-width:\s*thin/);
-    expect(scrollSurfaceCss).toMatch(/scrollbar-color:\s*var\(--color-scrollbar-thumb\)\s+transparent/);
+    expect(scrollSurfaceCss).toMatch(
+      /scrollbar-color:\s*var\(--color-scrollbar-thumb\)\s+transparent/,
+    );
     expect(scrollSurfaceCss).not.toContain("scrollbar-gutter");
     expect(tokensCss.match(/--color-scrollbar-thumb:/g)).toHaveLength(2);
     expect(popoverCss).toMatch(/composes:[^;]*\bscrollSurface\b[^;]*from global/);

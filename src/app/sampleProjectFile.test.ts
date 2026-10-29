@@ -11,7 +11,10 @@ const SAMPLE_PROJECT = "assets/orchard-house-sample.planmeasure";
 
 // Reference values come from the sample PDF's own geometry (scripts/sample/geometry.mjs). The
 // bundled measurements were drawn by hand, so they only agree within a small tolerance.
-const REFERENCE: Record<number, Record<string, { area?: number; perimeter?: number; length?: number }>> = {
+const REFERENCE: Record<
+  number,
+  Record<string, { area?: number; perimeter?: number; length?: number }>
+> = {
   2: {
     Parcel: { area: 1295, perimeter: 141.1 },
     House: { area: 110.5 },
@@ -50,7 +53,10 @@ describe("bundled sample project", () => {
     const { session, pdfBlob } = await loadSample();
     const pdfBytes = new Uint8Array(await pdfBlob.arrayBuffer());
     expect(pdfBytes).toEqual(new Uint8Array(await readFile(SAMPLE_PDF)));
-    expect(session.pdf).toMatchObject({ name: "orchard-house-sample.pdf", size: pdfBytes.byteLength });
+    expect(session.pdf).toMatchObject({
+      name: "orchard-house-sample.pdf",
+      size: pdfBytes.byteLength,
+    });
     const pdf = await PDFDocument.load(pdfBytes);
     expect(pdf.getPageCount()).toBe(6);
     expect(session.pageCount).toBe(6);
@@ -103,9 +109,13 @@ describe("bundled sample project", () => {
       for (const [name, expected] of Object.entries(expectedByName)) {
         const measurement = page.measurements.find((candidate) => candidate.name === name);
         expect(measurement, `${name} on page ${pageNumber}`).toBeDefined();
-        const results = measurementResultsMm(measurement!, getMeasurementCalibration(page, measurement!));
+        const results = measurementResultsMm(
+          measurement!,
+          getMeasurementCalibration(page, measurement!),
+        );
         if (expected.area !== undefined) close(results.areaMm2! / 1e6, expected.area);
-        if (expected.perimeter !== undefined) close(results.perimeterMm! / 1000, expected.perimeter);
+        if (expected.perimeter !== undefined)
+          close(results.perimeterMm! / 1000, expected.perimeter);
         if (expected.length !== undefined) close(results.lengthMm! / 1000, expected.length);
       }
     }
@@ -130,9 +140,18 @@ describe("bundled sample project", () => {
     expect(dimension).toMatchObject({ name: "House" });
     expect(dimension!.values.map((value) => value.name)).toEqual(["Living", "Kitchen", "Bedrooms"]);
     const ground = session.pages[4]!;
-    const classified = ground.measurements.filter((measurement) => measurement.classificationValueIds.length > 0);
+    const classified = ground.measurements.filter(
+      (measurement) => measurement.classificationValueIds.length > 0,
+    );
     expect(classified.map((measurement) => measurement.name).sort()).toEqual(
-      ["Bedroom 1", "Bedroom 2", "Countertop (front)", "Dining table", "Kitchen", "Living / Dining"].sort(),
+      [
+        "Bedroom 1",
+        "Bedroom 2",
+        "Countertop (front)",
+        "Dining table",
+        "Kitchen",
+        "Living / Dining",
+      ].sort(),
     );
     expect(ground.measurements.find((measurement) => measurement.type === "cloud")).toMatchObject({
       name: "Rev A",

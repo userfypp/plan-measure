@@ -97,8 +97,12 @@ describe("measurement keyboard shortcuts", () => {
     "allows deleting a selected measurement after %s receives focus",
     (kind) => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;
-      expect(getMeasurementKeyboardAction(keyboardEvent("Delete", target))).toBe("delete-measurement");
-      expect(getMeasurementKeyboardAction(keyboardEvent("Backspace", target))).toBe("delete-measurement");
+      expect(getMeasurementKeyboardAction(keyboardEvent("Delete", target))).toBe(
+        "delete-measurement",
+      );
+      expect(getMeasurementKeyboardAction(keyboardEvent("Backspace", target))).toBe(
+        "delete-measurement",
+      );
     },
   );
 
@@ -117,7 +121,11 @@ describe("measurement keyboard shortcuts", () => {
   ])("preserves native keyboard behavior in the %s control", (_name, target) => {
     for (const key of ["v", "h", "l", "m", "p", "o", "s", " ", "+", "-"]) {
       expect(
-        getViewerKeyboardAction(keyboardEvent(key, target as unknown as EventTarget), "select", null),
+        getViewerKeyboardAction(
+          keyboardEvent(key, target as unknown as EventTarget),
+          "select",
+          null,
+        ),
       ).toBeNull();
     }
   });
@@ -207,9 +215,7 @@ describe("undo and redo keyboard shortcuts", () => {
 
   it.each(["metaKey", "ctrlKey"] as const)("maps %s+Shift+Z to redo", (modifier) => {
     expect(
-      getHistoryKeyboardAction(
-        keyboardEvent("z", canvas(), { [modifier]: true, shiftKey: true }),
-      ),
+      getHistoryKeyboardAction(keyboardEvent("z", canvas(), { [modifier]: true, shiftKey: true })),
     ).toBe("redo");
   });
 
@@ -270,9 +276,9 @@ describe("viewer-local keyboard policy", () => {
     ["S", "toggle-snap"],
   ] as const)("maps %s from the focused viewer surface", (key, action) => {
     const viewerSurface = new FakeHTMLElement("canvas") as unknown as EventTarget;
-    expect(
-      getViewerKeyboardAction(keyboardEvent(key, viewerSurface), "select", null),
-    ).toEqual(action);
+    expect(getViewerKeyboardAction(keyboardEvent(key, viewerSurface), "select", null)).toEqual(
+      action,
+    );
   });
 
   it.each(["input", "textarea", "select"])(
@@ -289,8 +295,13 @@ describe("viewer-local keyboard policy", () => {
     "allows tools and zoom from %s while preserving activation keys",
     (kind) => {
       const target = new FakeHTMLElement(kind) as unknown as EventTarget;
-      expect(getViewerKeyboardAction(keyboardEvent("l", target), "select", null)).toEqual({ type: "choose-tool", tool: "line" });
-      expect(getViewerKeyboardAction(keyboardEvent("s", target), "select", null)).toBe("toggle-snap");
+      expect(getViewerKeyboardAction(keyboardEvent("l", target), "select", null)).toEqual({
+        type: "choose-tool",
+        tool: "line",
+      });
+      expect(getViewerKeyboardAction(keyboardEvent("s", target), "select", null)).toBe(
+        "toggle-snap",
+      );
       expect(getViewerKeyboardAction(keyboardEvent("+", target), "select", null)).toBe("zoom-in");
       expect(getViewerKeyboardAction(keyboardEvent(" ", target), "select", null)).toBeNull();
       expect(getViewerKeyboardAction(keyboardEvent("Enter", target), "line", null)).toBeNull();
@@ -300,7 +311,9 @@ describe("viewer-local keyboard policy", () => {
   it("ignores composition and editable descendants", () => {
     const nested = new FakeHTMLElement("span", false, null, true) as unknown as EventTarget;
     expect(getViewerKeyboardAction(keyboardEvent("l", nested), "select", null)).toBeNull();
-    expect(getViewerKeyboardAction(keyboardEvent("l", null, { isComposing: true }), "select", null)).toBeNull();
+    expect(
+      getViewerKeyboardAction(keyboardEvent("l", null, { isComposing: true }), "select", null),
+    ).toBeNull();
   });
 
   it.each(["checkbox", "radio", "range"])(
@@ -314,7 +327,11 @@ describe("viewer-local keyboard policy", () => {
   it("does not consume an event that a viewer child already handled", () => {
     const target = new FakeHTMLElement("canvas") as unknown as EventTarget;
     expect(
-      getViewerKeyboardAction(keyboardEvent("l", target, { defaultPrevented: true }), "select", null),
+      getViewerKeyboardAction(
+        keyboardEvent("l", target, { defaultPrevented: true }),
+        "select",
+        null,
+      ),
     ).toBeNull();
   });
 });
@@ -439,7 +456,10 @@ describe("viewer keyboard policy", () => {
     const toolbarButton = new FakeHTMLElement("button") as unknown as EventTarget;
     const canvas = new FakeHTMLElement("canvas") as unknown as EventTarget;
 
-    expect(getViewerKeyboardAction(keyboardEvent("l", toolbarButton), "select", null)).toEqual({ type: "choose-tool", tool: "line" });
+    expect(getViewerKeyboardAction(keyboardEvent("l", toolbarButton), "select", null)).toEqual({
+      type: "choose-tool",
+      tool: "line",
+    });
     expect(getViewerKeyboardAction(keyboardEvent("m", canvas), "select", null)).toEqual({
       type: "choose-tool",
       tool: "polyline",

@@ -78,7 +78,9 @@ export function buildTakeoffTables(
   ): ExportTable => ({
     headers: [...headers],
     columnTypes: headers.map((header) =>
-      ["measurement_count", "excluded_count", "length", "perimeter", "area", "count"].includes(header)
+      ["measurement_count", "excluded_count", "length", "perimeter", "area", "count"].includes(
+        header,
+      )
         ? "number"
         : "text",
     ),

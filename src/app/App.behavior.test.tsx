@@ -28,19 +28,25 @@ const lifecycle = vi.hoisted((): SessionLifecycleDouble => ({
 }));
 
 vi.mock("pdfjs-dist", () => ({ getDocument: vi.fn(), GlobalWorkerOptions: {} }));
-vi.mock("react-konva", async () => (await import("../features/viewer/viewerTestUtils")).createReactKonvaMock());
+vi.mock("react-konva", async () =>
+  (await import("../features/viewer/viewerTestUtils")).createReactKonvaMock(),
+);
 vi.mock("../features/viewer/PdfAnnotationLayer", async () =>
-  (await import("../features/viewer/viewerTestUtils")).createAnnotationLayerMock());
+  (await import("../features/viewer/viewerTestUtils")).createAnnotationLayerMock(),
+);
 
 vi.mock("./usePdfSessionLifecycle", async () =>
-  (await import("../features/viewer/viewerTestUtils")).createSessionLifecycleMock(lifecycle));
+  (await import("../features/viewer/viewerTestUtils")).createSessionLifecycleMock(lifecycle),
+);
 
 describe("App open, calibrate and measure flow", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     resetKonvaCapture();
     lifecycle.loading = false;
     lifecycle.session = null;
@@ -59,12 +65,20 @@ describe("App open, calibrate and measure flow", () => {
   });
 
   async function openPdf() {
-    await act(async () => root.render(<ThemeProvider><App /></ThemeProvider>));
+    await act(async () =>
+      root.render(
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>,
+      ),
+    );
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     const file = new File(["%PDF"], "plan.pdf", { type: "application/pdf" });
     Object.defineProperty(input, "files", { value: [file], configurable: true });
-    await act(async () => { input.dispatchEvent(new Event("change", { bubbles: true })); });
-    // El visor y sus paneles se cargan con import() perezoso: se sondea dentro de act.
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    // The viewer and its panels load through a lazy import(), so poll inside act.
     await vi.waitFor(async () => {
       await act(async () => undefined);
       expect(container.querySelector("canvas")).not.toBeNull();
@@ -77,7 +91,8 @@ describe("App open, calibrate and measure flow", () => {
 
   function button(label: string): HTMLButtonElement {
     const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
-      (candidate) => (candidate.getAttribute("aria-label") ?? candidate.textContent?.trim()) === label,
+      (candidate) =>
+        (candidate.getAttribute("aria-label") ?? candidate.textContent?.trim()) === label,
     );
     if (!found) throw new Error(`Button ${label} was not rendered.`);
     return found;
@@ -89,41 +104,54 @@ describe("App open, calibrate and measure flow", () => {
 
   async function menuItem(text: string) {
     const item = [...document.querySelectorAll<HTMLElement>("[role=menuitem]")].find((candidate) =>
-      candidate.textContent?.startsWith(text));
+      candidate.textContent?.startsWith(text),
+    );
     if (!item) throw new Error(`Menu item ${text} was not rendered.`);
     await act(async () => item.click());
   }
 
   async function clickPage(x: number, y: number) {
-    await act(async () => stageHandler("onClick")(konvaPointerEvent(pageToScreen({ x, y }, transform()))));
+    await act(async () =>
+      stageHandler("onClick")(konvaPointerEvent(pageToScreen({ x, y }, transform()))),
+    );
   }
 
   async function setField(element: HTMLInputElement | HTMLSelectElement, value: string) {
-    const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+    const prototype =
+      element instanceof HTMLSelectElement
+        ? HTMLSelectElement.prototype
+        : HTMLInputElement.prototype;
     await act(async () => {
       Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(element, value);
-      element.dispatchEvent(new Event(element instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+      element.dispatchEvent(
+        new Event(element instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }),
+      );
     });
   }
 
-  /** Calibra la página 1 con una referencia horizontal de 200 unidades de página = 10 m (50 mm por unidad). */
+  /** Calibrates page 1 with a horizontal reference of 200 page units = 10 m (50 mm per unit). */
   async function calibrate({ cancel = false } = {}) {
     await press("Add scale");
     await menuItem("Uniform");
     await clickPage(100, 100);
     await clickPage(300, 100);
-    // El diálogo se carga con import() perezoso.
+    // The dialog loads through a lazy import().
     await vi.waitFor(async () => {
       await act(async () => undefined);
       expect(document.querySelector("dialog")).not.toBeNull();
     });
     const dialog = document.querySelector("dialog")!;
     expect(dialog.textContent).toContain("Enter the real-world distance");
-    chooseSelectOption(dialog.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!, "Metres");
-    // Cambiar la unidad reinicia la distancia, así que se escribe después.
+    chooseSelectOption(
+      dialog.querySelector<HTMLButtonElement>('button[aria-label="Calibration unit"]')!,
+      "Metres",
+    );
+    // Changing the unit resets the distance, so type it afterwards.
     await setField(dialog.querySelector<HTMLInputElement>("#calibration-distance")!, "10");
     if (cancel) {
-      await act(async () => [...dialog.querySelectorAll("button")].find((b) => b.textContent === "Cancel")!.click());
+      await act(async () =>
+        [...dialog.querySelectorAll("button")].find((b) => b.textContent === "Cancel")!.click(),
+      );
     } else {
       await act(async () => dialog.querySelector("form")!.requestSubmit());
     }
@@ -163,13 +191,23 @@ describe("App open, calibrate and measure flow", () => {
 
   it("locks the scaled drawing tools until a scale exists and names every tool shortcut", async () => {
     await openPdf();
-    const scaled = ["Line, shortcut L", "Polyline, shortcut M", "Polygon, shortcut P", "Rectangle, shortcut R", "Ellipse, shortcut I"];
-    for (const label of scaled) expect(button(label).getAttribute("aria-disabled"), label).toBe("true");
-    for (const label of ["Count, shortcut C", "Cloud, shortcut K"]) expect(button(label).getAttribute("aria-disabled"), label).toBeNull();
+    const scaled = [
+      "Line, shortcut L",
+      "Polyline, shortcut M",
+      "Polygon, shortcut P",
+      "Rectangle, shortcut R",
+      "Ellipse, shortcut I",
+    ];
+    for (const label of scaled)
+      expect(button(label).getAttribute("aria-disabled"), label).toBe("true");
+    for (const label of ["Count, shortcut C", "Cloud, shortcut K"])
+      expect(button(label).getAttribute("aria-disabled"), label).toBeNull();
     expect(document.querySelector("[data-dialog-focus-fallback]")?.getAttribute("aria-label")).toBe(
-      "PDF viewer, page 1. Use V, H, L, M, P, R, I, K, or C to select a tool.");
+      "PDF viewer, page 1. Use V, H, L, M, P, R, I, K, or C to select a tool.",
+    );
     await calibrate();
-    for (const label of scaled) expect(button(label).getAttribute("aria-disabled"), label).toBeNull();
+    for (const label of scaled)
+      expect(button(label).getAttribute("aria-disabled"), label).toBeNull();
   });
 
   it("does not create a scale when the calibration dialog is cancelled", async () => {
@@ -187,7 +225,11 @@ describe("App open, calibrate and measure flow", () => {
     await clickPage(300, 200);
     expect(page().measurements).toHaveLength(1);
     const line = page().measurements[0]!;
-    expect(line).toMatchObject({ type: "line", name: "Line 1", calibrationId: page().activeCalibrationId });
+    expect(line).toMatchObject({
+      type: "line",
+      name: "Line 1",
+      calibrationId: page().activeCalibrationId,
+    });
     const calibration = getMeasurementCalibration(page(), line)!;
     expect(lineLengthMm(line.points, calibration)).toBeCloseTo(10000, 3);
     await press("Undo");
@@ -205,20 +247,38 @@ describe("App open, calibrate and measure flow", () => {
     await clickPage(300, 200);
     const before = session();
     lifecycle.loading = true;
-    await act(async () => root.render(<ThemeProvider><App /></ThemeProvider>));
+    await act(async () =>
+      root.render(
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>,
+      ),
+    );
     expect(container.querySelector('[inert][aria-busy="true"]')).not.toBeNull();
-    const loadingStatus = [...container.querySelectorAll('[role="status"]')].find(element => element.textContent === "Loading PDF…");
+    const loadingStatus = [...container.querySelectorAll('[role="status"]')].find(
+      (element) => element.textContent === "Loading PDF…",
+    );
     expect(loadingStatus?.textContent).toBe("Loading PDF…");
     expect(loadingStatus?.closest("[inert]")).toBeNull();
     await act(async () => {
       for (const key of ["z", "c", "v", "Delete", "Enter", "Escape"]) {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: key.length === 1, bubbles: true }));
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", { key, ctrlKey: key.length === 1, bubbles: true }),
+        );
       }
     });
     expect(session()).toBe(before);
     lifecycle.loading = false;
-    await act(async () => root.render(<ThemeProvider><App /></ThemeProvider>));
-    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true })));
+    await act(async () =>
+      root.render(
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>,
+      ),
+    );
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true })),
+    );
     expect(page().measurements).toEqual([]);
   });
 
@@ -228,7 +288,9 @@ describe("App open, calibrate and measure flow", () => {
     await press("Line, shortcut L");
     await clickPage(100, 200);
     await act(async () => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
     });
     await clickPage(300, 200);
     expect(page().measurements).toEqual([]);
@@ -254,7 +316,9 @@ describe("App open, calibrate and measure flow", () => {
       await act(async () => undefined);
       expect(lastAnnotationLayer().page).toMatchObject({ pageNumber: 1 });
     });
-    expect((lastAnnotationLayer().page as { measurements: unknown[] }).measurements).toHaveLength(1);
+    expect((lastAnnotationLayer().page as { measurements: unknown[] }).measurements).toHaveLength(
+      1,
+    );
   });
   it("deselects the selected measurement when switching from Select to another tool", async () => {
     await openPdf();
@@ -264,7 +328,12 @@ describe("App open, calibrate and measure flow", () => {
     await clickPage(300, 200);
     const id = page().measurements[0]!.id;
     await press("Select, shortcut V");
-    await act(async () => (lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void)(id, false));
+    await act(async () =>
+      (lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void)(
+        id,
+        false,
+      ),
+    );
     expect(lastAnnotationLayer().selectedMeasurementId).toBe(id);
 
     await press("Hand, shortcut H");
@@ -272,10 +341,17 @@ describe("App open, calibrate and measure flow", () => {
 
     // Same through the keyboard shortcut of a drawing tool.
     await press("Select, shortcut V");
-    await act(async () => (lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void)(id, false));
+    await act(async () =>
+      (lastAnnotationLayer().onSelectMeasurement as (id: string, additive?: boolean) => void)(
+        id,
+        false,
+      ),
+    );
     expect(lastAnnotationLayer().selectedMeasurementId).toBe(id);
     await act(async () => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "p", bubbles: true, cancelable: true }));
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "p", bubbles: true, cancelable: true }),
+      );
     });
     expect(lastAnnotationLayer().selectedMeasurementId).toBeNull();
   });
