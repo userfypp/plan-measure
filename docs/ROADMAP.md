@@ -44,34 +44,34 @@ No issue is assigned right now. Want one? Comment on it and wait for the assignm
 
 A review of the whole test suite (October 2026) is grouped into the issues below, each a checklist that several pull requests can share. Filter them with the [`test`](https://github.com/userfypp/plan-measure/labels/test) label. Other open test issues: [#277](https://github.com/userfypp/plan-measure/issues/277) numerical conservation (remaining: 16–17-digit and subnormal ratios) and [#278](https://github.com/userfypp/plan-measure/issues/278) IME and auxiliary mouse buttons.
 
-| Priority | Issue                                                       | Work                                                                   | Notes                                  |
-| -------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------- |
-| P1       | [#375](https://github.com/userfypp/plan-measure/issues/375) | Cover Undo and Redo semantics for every session command                | Part done (#413)                       |
-| P1       | [#376](https://github.com/userfypp/plan-measure/issues/376) | Cover project open, close, discard and recovery failures               | Part done (#416)                       |
-| P1       | [#377](https://github.com/userfypp/plan-measure/issues/377) | Pin geometry, coordinate, unit and format math with independent values | Part done (#410–#412)                  |
-| P1       | [#378](https://github.com/userfypp/plan-measure/issues/378) | Cover persistence failures and schema migrations with real older data  | Part done (#414)                       |
-| P1       | [#379](https://github.com/userfypp/plan-measure/issues/379) | Cover CSV, spreadsheet, JSON and export dialog correctness             | Part in review (#433)                  |
-| P1       | [#380](https://github.com/userfypp/plan-measure/issues/380) | Assert Takeoff totals and groups in the model and the UI               | Includes #256; part in review (#433)   |
-| P2       | [#381](https://github.com/userfypp/plan-measure/issues/381) | Set up test infrastructure, coverage and CI gates                      | Do first; part in review (#422–#426)   |
-| P2       | [#382](https://github.com/userfypp/plan-measure/issues/382) | Cover rejection paths and no-op identity in session commands           |                                        |
-| P2       | [#383](https://github.com/userfypp/plan-measure/issues/383) | Cover workspace, clipboard, overlay and theme state                    |                                        |
-| P2       | [#384](https://github.com/userfypp/plan-measure/issues/384) | Make autosave and close-prompt tests deterministic and complete        |                                        |
-| P2       | [#385](https://github.com/userfypp/plan-measure/issues/385) | Cover app hooks, preferences and startup modules                       | Part done (#415, #417–#419)            |
-| P2       | [#386](https://github.com/userfypp/plan-measure/issues/386) | Cover app-level flows, dialogs and settings                            |                                        |
-| P2       | [#387](https://github.com/userfypp/plan-measure/issues/387) | Test shape selection, mouse buttons and drag previews with real Konva  | See #272, #278, #295                   |
-| P2       | [#388](https://github.com/userfypp/plan-measure/issues/388) | Cover PdfViewer zoom, pan, keyboard and page-change behaviour          | See #296, #300                         |
-| P2       | [#389](https://github.com/userfypp/plan-measure/issues/389) | Cover snapping, dragging and keyboard geometry edge cases              |                                        |
-| P2       | [#390](https://github.com/userfypp/plan-measure/issues/390) | Cover annotated PDF placement, labels and download                     | See #373                               |
-| P2       | [#391](https://github.com/userfypp/plan-measure/issues/391) | Cover the Measurements list, filters, grouping and details             | See #302                               |
-| P2       | [#392](https://github.com/userfypp/plan-measure/issues/392) | Cover scale dialogs, ratios, scale check and the page browser          | Includes #255                          |
-| P2       | [#393](https://github.com/userfypp/plan-measure/issues/393) | Cover classification manager, templates and name rules                 |                                        |
-| P2       | [#394](https://github.com/userfypp/plan-measure/issues/394) | Cover Dialog, Popover, Tooltip, menus and keyboard policy              |                                        |
-| P2       | [#395](https://github.com/userfypp/plan-measure/issues/395) | Cover UI controls and theme contrast gates                             |                                        |
-| P3       | [#396](https://github.com/userfypp/plan-measure/issues/396) | Tighten tests for toolbars, status and workspace shells                |                                        |
-| P3       | [#397](https://github.com/userfypp/plan-measure/issues/397) | Cover small viewer components, hooks and runtime helpers               |                                        |
-| P3       | [#398](https://github.com/userfypp/plan-measure/issues/398) | Cover label layout, quick shapes and cloud outlines                    |                                        |
-| P3       | [#399](https://github.com/userfypp/plan-measure/issues/399) | Add tests for small utility helpers                                    | Good first issue; see #252, #253, #254 |
-| P3       | [#400](https://github.com/userfypp/plan-measure/issues/400) | Test performance budgets and release automation scripts                |                                        |
+| Priority | Issue                                                       | Work                                                                   | Notes                                                  |
+| -------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| P1       | [#375](https://github.com/userfypp/plan-measure/issues/375) | Cover Undo and Redo semantics for every session command                | Part done (#413)                                       |
+| P1       | [#376](https://github.com/userfypp/plan-measure/issues/376) | Cover project open, close, discard and recovery failures               | Part done (#416)                                       |
+| P1       | [#377](https://github.com/userfypp/plan-measure/issues/377) | Pin geometry, coordinate, unit and format math with independent values | Part done (#410–#412)                                  |
+| P1       | [#378](https://github.com/userfypp/plan-measure/issues/378) | Cover persistence failures and schema migrations with real older data  | Part done (#414)                                       |
+| P1       | [#379](https://github.com/userfypp/plan-measure/issues/379) | Cover CSV, spreadsheet, JSON and export dialog correctness             | Part in review (#433, #438)                            |
+| P1       | [#380](https://github.com/userfypp/plan-measure/issues/380) | Assert Takeoff totals and groups in the model and the UI               | Includes #256; part in review (#433, #437)             |
+| P2       | [#381](https://github.com/userfypp/plan-measure/issues/381) | Set up test infrastructure, coverage and CI gates                      | Do first; part in review (#422–#426, #439, #441, #442) |
+| P2       | [#382](https://github.com/userfypp/plan-measure/issues/382) | Cover rejection paths and no-op identity in session commands           |                                                        |
+| P2       | [#383](https://github.com/userfypp/plan-measure/issues/383) | Cover workspace, clipboard, overlay and theme state                    |                                                        |
+| P2       | [#384](https://github.com/userfypp/plan-measure/issues/384) | Make autosave and close-prompt tests deterministic and complete        |                                                        |
+| P2       | [#385](https://github.com/userfypp/plan-measure/issues/385) | Cover app hooks, preferences and startup modules                       | Part done (#415, #417–#419)                            |
+| P2       | [#386](https://github.com/userfypp/plan-measure/issues/386) | Cover app-level flows, dialogs and settings                            |                                                        |
+| P2       | [#387](https://github.com/userfypp/plan-measure/issues/387) | Test shape selection, mouse buttons and drag previews with real Konva  | See #272, #278, #295                                   |
+| P2       | [#388](https://github.com/userfypp/plan-measure/issues/388) | Cover PdfViewer zoom, pan, keyboard and page-change behaviour          | See #296, #300                                         |
+| P2       | [#389](https://github.com/userfypp/plan-measure/issues/389) | Cover snapping, dragging and keyboard geometry edge cases              |                                                        |
+| P2       | [#390](https://github.com/userfypp/plan-measure/issues/390) | Cover annotated PDF placement, labels and download                     | See #373                                               |
+| P2       | [#391](https://github.com/userfypp/plan-measure/issues/391) | Cover the Measurements list, filters, grouping and details             | See #302                                               |
+| P2       | [#392](https://github.com/userfypp/plan-measure/issues/392) | Cover scale dialogs, ratios, scale check and the page browser          | Includes #255                                          |
+| P2       | [#393](https://github.com/userfypp/plan-measure/issues/393) | Cover classification manager, templates and name rules                 |                                                        |
+| P2       | [#394](https://github.com/userfypp/plan-measure/issues/394) | Cover Dialog, Popover, Tooltip, menus and keyboard policy              |                                                        |
+| P2       | [#395](https://github.com/userfypp/plan-measure/issues/395) | Cover UI controls and theme contrast gates                             |                                                        |
+| P3       | [#396](https://github.com/userfypp/plan-measure/issues/396) | Tighten tests for toolbars, status and workspace shells                |                                                        |
+| P3       | [#397](https://github.com/userfypp/plan-measure/issues/397) | Cover small viewer components, hooks and runtime helpers               |                                                        |
+| P3       | [#398](https://github.com/userfypp/plan-measure/issues/398) | Cover label layout, quick shapes and cloud outlines                    |                                                        |
+| P3       | [#399](https://github.com/userfypp/plan-measure/issues/399) | Add tests for small utility helpers                                    | Good first issue; see #252, #253, #254                 |
+| P3       | [#400](https://github.com/userfypp/plan-measure/issues/400) | Test performance budgets and release automation scripts                |                                                        |
 
 ## Open to contributors
 
