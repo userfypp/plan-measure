@@ -29,6 +29,12 @@ function getVisibility(measurements: readonly Measurement[]): MeasurementGroupVi
   return allHidden ? "hidden" : "mixed";
 }
 
+// Classification IDs from imported projects can contain the ":" and "/" that build group keys, so
+// two different groups could share a key. Encoding the IDs keeps every key unique.
+function keyPart(id: string) {
+  return encodeURIComponent(id);
+}
+
 function prefixGroupKey(group: MeasurementGroup, parentKey: string): MeasurementGroup {
   const key = `${parentKey}/${group.key}`;
   return {
@@ -73,7 +79,7 @@ export function createMeasurementGroups(
     if (!groupedMeasurements?.length) return [];
     return [
       {
-        key: `dimension:${dimension.id}:value:${value.id}`,
+        key: `dimension:${keyPart(dimension.id)}:value:${keyPart(value.id)}`,
         dimensionLabel: dimension.name,
         label: value.name,
         archived: dimension.archived || value.archived,
@@ -86,7 +92,7 @@ export function createMeasurementGroups(
 
   if (unclassified.length) {
     groups.push({
-      key: `dimension:${dimension.id}:unclassified`,
+      key: `dimension:${keyPart(dimension.id)}:unclassified`,
       dimensionLabel: dimension.name,
       label: "Unclassified",
       archived: false,
