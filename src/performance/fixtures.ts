@@ -1,7 +1,7 @@
 import { createEmptySession } from "../app/sessionState";
 import type { CurrentSession, Measurement } from "../types/domain";
 
-// LCG fijo: fixtures reproducibles sin depender del reloj ni de Math.random.
+// Fixed LCG: reproducible fixtures that depend on neither the clock nor Math.random.
 export function performanceSession(count = 5000): CurrentSession {
   let seed = 0x5eed;
   const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
