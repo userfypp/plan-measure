@@ -1868,7 +1868,8 @@ export function PdfViewer({
     const activePage = activePageRequestRef.current;
     if (activePage.document !== document || activePage.pageNumber !== page.pageNumber) return;
     // Annotations still waiting for their batched draw swap in with the raster.
-    if (!candidatePageData && annotationLayerRef.current) flushBatchDraw(annotationLayerRef.current);
+    if (!candidatePageData && annotationLayerRef.current)
+      flushBatchDraw(annotationLayerRef.current);
     const canvas = canvasRef.current;
     if (!canvas || !copyRasterToCanvas(readyRaster.canvas, canvas)) {
       setPageReady(false);

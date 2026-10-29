@@ -51,7 +51,9 @@ function trigger(): HTMLButtonElement {
 
 function key(target: Element, name: string) {
   act(() => {
-    target.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }),
+    );
   });
 }
 

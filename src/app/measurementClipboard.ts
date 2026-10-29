@@ -37,9 +37,9 @@ export function measurementClipboardFitsPage(
   if (clipboard.sourcePageNumber === pageNumber) return true;
   return Boolean(
     bounds &&
-      (clipboard.measurements ?? [clipboard.measurement]).every((measurement) =>
-        measurement.points.every((point) => isPointInPage(point, bounds)),
-      ),
+    (clipboard.measurements ?? [clipboard.measurement]).every((measurement) =>
+      measurement.points.every((point) => isPointInPage(point, bounds)),
+    ),
   );
 }
 
@@ -134,12 +134,13 @@ export function pasteMeasurementsClipboard({
     pageNumber,
     sourcePageNumber: clipboard.sourcePageNumber,
     id: createId(),
-    measurement: delta === 0
-      ? measurement
-      : {
-          ...measurement,
-          points: measurement.points.map((point) => ({ x: point.x + delta, y: point.y + delta })),
-        },
+    measurement:
+      delta === 0
+        ? measurement
+        : {
+            ...measurement,
+            points: measurement.points.map((point) => ({ x: point.x + delta, y: point.y + delta })),
+          },
   }));
   if (!pasteMeasurements(commands)) return null;
   const ids = commands.map((command) => command.id);

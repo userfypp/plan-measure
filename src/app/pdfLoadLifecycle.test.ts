@@ -56,8 +56,12 @@ describe("PDF load lifecycle", () => {
   });
 
   it("confirms only protected recovery or an in-progress PDF activation", () => {
-    expect(shouldConfirmPdfReplacement({ pdfActivating: false, recoveryProtected: true })).toBe(true);
-    expect(shouldConfirmPdfReplacement({ pdfActivating: false, recoveryProtected: false })).toBe(false);
+    expect(shouldConfirmPdfReplacement({ pdfActivating: false, recoveryProtected: true })).toBe(
+      true,
+    );
+    expect(shouldConfirmPdfReplacement({ pdfActivating: false, recoveryProtected: false })).toBe(
+      false,
+    );
     expect(shouldConfirmPdfReplacement({ pdfActivating: true, recoveryProtected: false })).toBe(
       true,
     );
@@ -72,7 +76,11 @@ describe("PDF load lifecycle", () => {
       await loaded.loadingTask.destroy();
     });
 
-    scheduleRetiredPdfRelease(retiredPdfs, (callback) => scheduledCallbacks.push(callback), destroy);
+    scheduleRetiredPdfRelease(
+      retiredPdfs,
+      (callback) => scheduledCallbacks.push(callback),
+      destroy,
+    );
     retiredPdfs.push(second.loaded);
     scheduledCallbacks[0]!();
 
@@ -80,7 +88,11 @@ describe("PDF load lifecycle", () => {
     expect(retiredPdfs).toEqual([second.loaded]);
     expect(second.destroy).not.toHaveBeenCalled();
 
-    scheduleRetiredPdfRelease(retiredPdfs, (callback) => scheduledCallbacks.push(callback), destroy);
+    scheduleRetiredPdfRelease(
+      retiredPdfs,
+      (callback) => scheduledCallbacks.push(callback),
+      destroy,
+    );
     scheduledCallbacks[1]!();
     expect(destroy).toHaveBeenNthCalledWith(2, second.loaded);
   });

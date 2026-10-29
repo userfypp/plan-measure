@@ -114,8 +114,11 @@ describe("atomic measurement geometry batches", () => {
   it("updates all points together, preserves metadata, and rejects invalid or missing members", () => {
     const state = fixture();
     const original = state.session.pages[1]!.measurements;
-    const commands = original.map((measurement) => ({ pageNumber: 1, id: measurement.id,
-      points: measurement.points.map((point) => ({ x: point.x + 5, y: point.y + 8 })) }));
+    const commands = original.map((measurement) => ({
+      pageNumber: 1,
+      id: measurement.id,
+      points: measurement.points.map((point) => ({ x: point.x + 5, y: point.y + 8 })),
+    }));
     const moved = sessionReducer(state, { type: "UPDATE_MEASUREMENTS", commands });
     expect(moved.error).toBeNull();
     moved.session!.pages[1]!.measurements.forEach((measurement, index) => {
@@ -125,31 +128,69 @@ describe("atomic measurement geometry batches", () => {
     for (const invalid of [
       { ...commands[1]!, id: "missing" },
       { ...commands[1]!, pageNumber: 2 },
-      { ...commands[1]!, points: [{ x: NaN, y: 0 }, { x: 2, y: 3 }] },
+      {
+        ...commands[1]!,
+        points: [
+          { x: NaN, y: 0 },
+          { x: 2, y: 3 },
+        ],
+      },
       { ...commands[1]!, id: commands[0]!.id },
     ]) {
-      const rejected = sessionReducer(state, { type: "UPDATE_MEASUREMENTS", commands: [commands[0]!, invalid] });
+      const rejected = sessionReducer(state, {
+        type: "UPDATE_MEASUREMENTS",
+        commands: [commands[0]!, invalid],
+      });
       expect(rejected.session).toBe(state.session);
       expect(rejected.error).not.toBeNull();
     }
-    expect(sessionReducer(moved, { type: "UPDATE_MEASUREMENTS", commands }).session).toBe(moved.session);
+    expect(sessionReducer(moved, { type: "UPDATE_MEASUREMENTS", commands }).session).toBe(
+      moved.session,
+    );
   });
 
   it("pastes the entire batch or none and preserves the per-measurement scales", () => {
     const state = fixture();
-    state.session.pages[1]!.calibrations = [{ id: "scale", name: "Scale", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 }];
-    const commands = state.session.pages[1]!.measurements.map((measurement, index) => ({ pageNumber: 1,
-      sourcePageNumber: 1, id: `copy-${index}`, measurement }));
+    state.session.pages[1]!.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 1000,
+      },
+    ];
+    const commands = state.session.pages[1]!.measurements.map((measurement, index) => ({
+      pageNumber: 1,
+      sourcePageNumber: 1,
+      id: `copy-${index}`,
+      measurement,
+    }));
     const pasted = sessionReducer(state, { type: "PASTE_MEASUREMENTS", commands });
     expect(pasted.error).toBeNull();
     expect(pasted.session!.pages[1]!.measurements).toHaveLength(4);
-    expect(pasted.session!.pages[1]!.measurements.slice(2).map((measurement) => measurement.calibrationId)).toEqual(["scale", "scale"]);
+    expect(
+      pasted
+        .session!.pages[1]!.measurements.slice(2)
+        .map((measurement) => measurement.calibrationId),
+    ).toEqual(["scale", "scale"]);
     for (const invalid of [
       { ...commands[1]!, id: commands[0]!.id },
-      { ...commands[1]!, measurement: { ...commands[1]!.measurement, type: "line" as const, calibrationId: "missing" } },
+      {
+        ...commands[1]!,
+        measurement: {
+          ...commands[1]!.measurement,
+          type: "line" as const,
+          calibrationId: "missing",
+        },
+      },
       { ...commands[1]!, sourcePageNumber: 2 },
     ]) {
-      const rejected = sessionReducer(state, { type: "PASTE_MEASUREMENTS", commands: [commands[0]!, invalid] });
+      const rejected = sessionReducer(state, {
+        type: "PASTE_MEASUREMENTS",
+        commands: [commands[0]!, invalid],
+      });
       expect(rejected.session).toBe(state.session);
       expect(rejected.error).not.toBeNull();
     }

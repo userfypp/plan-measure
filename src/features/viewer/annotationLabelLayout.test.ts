@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Measurement, PageCalibration, PageState, Point } from "../../types/domain";
 import {
   CALIBRATION_LABEL_MAX_WIDTH_SCREEN_PX,
@@ -12,7 +12,7 @@ import {
 } from "./annotationLabelLayout";
 
 // jsdom has no 2D context: measure each glyph as 0.6 em of the context font size.
-beforeAll(() => {
+beforeEach(() => {
   const context = {
     font: "10px sans-serif",
     fillStyle: "",

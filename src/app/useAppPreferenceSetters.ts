@@ -26,30 +26,45 @@ export function useAppPreferenceSetters({
   setConfirmScaleDeletionState,
   setRecoveredPlanStartupWorkspaceState,
 }: AppPreferenceStateSetters) {
-  const setKeyboardAuthoringEnabled = useCallback((enabled: boolean) => {
-    setKeyboardAuthoringEnabledState(enabled);
-    writeKeyboardAuthoringPreference(enabled);
-  }, [setKeyboardAuthoringEnabledState]);
+  const setKeyboardAuthoringEnabled = useCallback(
+    (enabled: boolean) => {
+      setKeyboardAuthoringEnabledState(enabled);
+      writeKeyboardAuthoringPreference(enabled);
+    },
+    [setKeyboardAuthoringEnabledState],
+  );
 
-  const setConfirmMeasurementDeletion = useCallback((enabled: boolean) => {
-    setConfirmMeasurementDeletionState(enabled);
-    writeMeasurementDeleteConfirmationPreference(enabled);
-  }, [setConfirmMeasurementDeletionState]);
+  const setConfirmMeasurementDeletion = useCallback(
+    (enabled: boolean) => {
+      setConfirmMeasurementDeletionState(enabled);
+      writeMeasurementDeleteConfirmationPreference(enabled);
+    },
+    [setConfirmMeasurementDeletionState],
+  );
 
-  const setConfirmValueDeletion = useCallback((enabled: boolean) => {
-    setConfirmValueDeletionState(enabled);
-    writeClassificationDeleteConfirmationPreference("value", enabled);
-  }, [setConfirmValueDeletionState]);
+  const setConfirmValueDeletion = useCallback(
+    (enabled: boolean) => {
+      setConfirmValueDeletionState(enabled);
+      writeClassificationDeleteConfirmationPreference("value", enabled);
+    },
+    [setConfirmValueDeletionState],
+  );
 
-  const setConfirmDimensionDeletion = useCallback((enabled: boolean) => {
-    setConfirmDimensionDeletionState(enabled);
-    writeClassificationDeleteConfirmationPreference("dimension", enabled);
-  }, [setConfirmDimensionDeletionState]);
+  const setConfirmDimensionDeletion = useCallback(
+    (enabled: boolean) => {
+      setConfirmDimensionDeletionState(enabled);
+      writeClassificationDeleteConfirmationPreference("dimension", enabled);
+    },
+    [setConfirmDimensionDeletionState],
+  );
 
-  const setConfirmScaleDeletion = useCallback((enabled: boolean) => {
-    setConfirmScaleDeletionState(enabled);
-    writeScaleDeleteConfirmationPreference(enabled);
-  }, [setConfirmScaleDeletionState]);
+  const setConfirmScaleDeletion = useCallback(
+    (enabled: boolean) => {
+      setConfirmScaleDeletionState(enabled);
+      writeScaleDeleteConfirmationPreference(enabled);
+    },
+    [setConfirmScaleDeletionState],
+  );
 
   const setRecoveredPlanStartupWorkspace = useCallback(
     (workspace: RecoveredPlanStartupWorkspace) => {

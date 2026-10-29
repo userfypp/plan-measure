@@ -62,7 +62,15 @@ function sessionFixture(): CurrentSession {
         activeCalibrationId: null,
         nextCalibrationNumber: 1,
         measurements: [],
-        nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+        nextMeasurementNumber: {
+          line: 1,
+          polyline: 1,
+          polygon: 1,
+          rectangle: 1,
+          ellipse: 1,
+          cloud: 1,
+          count: 1,
+        },
       },
     },
     settings: {
@@ -353,7 +361,9 @@ describe("ExportDialog", () => {
 
     choose("export-format", "annotated-pdf");
 
-    expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["annotated-pdf"]);
+    expect(selectedLabel("export-format")).toContain(
+      SELECT_LABELS["export-format"].options["annotated-pdf"],
+    );
     expect(dialog().querySelector('button[aria-label="Data"]')).toBeNull();
     expect(button("Defaults")).toBeUndefined();
     expect(dialog().querySelector('[role="tablist"]')).toBeNull();
@@ -418,7 +428,9 @@ describe("ExportDialog", () => {
     renderDialog();
     selectClassificationAssignments();
     choose("export-format", "annotated-pdf");
-    expect(selectedLabel("export-format")).toContain(SELECT_LABELS["export-format"].options["annotated-pdf"]);
+    expect(selectedLabel("export-format")).toContain(
+      SELECT_LABELS["export-format"].options["annotated-pdf"],
+    );
 
     act(() => root!.render(null));
     renderDialog();
@@ -433,7 +445,9 @@ describe("ExportDialog", () => {
       act(() => button("Required only")!.click());
       choose("csv-data", "classification-assignments");
       choose("export-format", format);
-      expect(selectedLabel("csv-data")).toContain(SELECT_LABELS["csv-data"].options["measurements"]);
+      expect(selectedLabel("csv-data")).toContain(
+        SELECT_LABELS["csv-data"].options["measurements"],
+      );
       expect(dialog().querySelector('[role="tablist"]')).not.toBeNull();
       await act(async () => button(`Export ${format.toUpperCase()}`)!.click());
       expect(mocks.downloadSpreadsheet).toHaveBeenCalledWith(

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import Konva from "konva";
 import { Util } from "konva/lib/Util";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushBatchDraw } from "./konvaRuntime";
 
 // jsdom has no 2D context. These tests count draws and never paint, so every context method is a
 // no-op.
-beforeAll(() => {
+beforeEach(() => {
   const context = new Proxy({} as Record<string | symbol, unknown>, {
     get: (target, key) => (key in target ? target[key] : () => undefined),
   });
@@ -22,10 +22,6 @@ beforeEach(() => {
   vi.spyOn(Util, "requestAnimFrame").mockImplementation((callback) => {
     frames.push(callback as () => void);
   });
-});
-
-afterEach(() => {
-  vi.mocked(Util.requestAnimFrame).mockRestore();
 });
 
 function runFrames() {
