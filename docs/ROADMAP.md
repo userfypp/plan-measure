@@ -49,7 +49,7 @@ A review of the whole test suite (October 2026) is grouped into the issues below
 | P1       | [#375](https://github.com/userfypp/plan-measure/issues/375) | Cover Undo and Redo semantics for every session command                | Part done (#413)                                       |
 | P1       | [#376](https://github.com/userfypp/plan-measure/issues/376) | Cover project open, close, discard and recovery failures               | Part done (#416)                                       |
 | P1       | [#377](https://github.com/userfypp/plan-measure/issues/377) | Pin geometry, coordinate, unit and format math with independent values | Part done (#410–#412)                                  |
-| P1       | [#378](https://github.com/userfypp/plan-measure/issues/378) | Cover persistence failures and schema migrations with real older data  | Part done (#414)                                       |
+| P1       | [#378](https://github.com/userfypp/plan-measure/issues/378) | Cover persistence failures and schema migrations with real older data  | Part done (#414); in review (#443)                     |
 | P1       | [#379](https://github.com/userfypp/plan-measure/issues/379) | Cover CSV, spreadsheet, JSON and export dialog correctness             | Part in review (#433, #438)                            |
 | P1       | [#380](https://github.com/userfypp/plan-measure/issues/380) | Assert Takeoff totals and groups in the model and the UI               | Includes #256; part in review (#433, #437)             |
 | P2       | [#381](https://github.com/userfypp/plan-measure/issues/381) | Set up test infrastructure, coverage and CI gates                      | Do first; part in review (#422–#426, #439, #441, #442) |
