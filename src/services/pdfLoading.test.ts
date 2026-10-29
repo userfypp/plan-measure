@@ -38,7 +38,10 @@ function realTaskSpy(tasks: PDFDocumentLoadingTask[]) {
 }
 
 function pendingTask(): MockTask {
-  return { promise: new Promise<never>(() => undefined), destroy: vi.fn().mockResolvedValue(undefined) };
+  return {
+    promise: new Promise<never>(() => undefined),
+    destroy: vi.fn().mockResolvedValue(undefined),
+  };
 }
 
 function failingTask(error: Error): MockTask {
@@ -89,7 +92,10 @@ describe("PDF loading failures", () => {
     await expect(loading).rejects.toBeInstanceOf(PdfUserError);
     await expect(loading).rejects.toThrow(message);
     expect(task.destroy).toHaveBeenCalledTimes(1);
-    expect(console.error).toHaveBeenCalledWith("PDF.js failed to load the document.", expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith(
+      "PDF.js failed to load the document.",
+      expect.any(Error),
+    );
   });
 
   it("keeps the explained error when destroying the failed task also fails", async () => {
@@ -118,7 +124,9 @@ describe("PDF loading failures", () => {
   it("rejects a real password-protected PDF and destroys its PDF.js task", async () => {
     const tasks: PDFDocumentLoadingTask[] = [];
     mocked.getDocument.mockImplementation(realTaskSpy(tasks));
-    const bytes = Uint8Array.from(atob(PASSWORD_PROTECTED_PDF_BASE64), (char) => char.charCodeAt(0));
+    const bytes = Uint8Array.from(atob(PASSWORD_PROTECTED_PDF_BASE64), (char) =>
+      char.charCodeAt(0),
+    );
 
     await expect(loadPdf(new Blob([bytes]))).rejects.toThrow(
       "Password-protected PDFs are not supported in this version.",

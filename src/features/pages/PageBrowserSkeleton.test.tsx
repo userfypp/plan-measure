@@ -6,7 +6,9 @@ import { expect, it } from "vitest";
 import { PageBrowserSkeleton } from "./PageBrowserSkeleton";
 
 it("renders the panel structure with placeholders and no visible loading text", () => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);

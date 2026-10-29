@@ -63,13 +63,34 @@ function resolveAtPagePoint(
 
 describe("snap target extraction", () => {
   it("uses Count item positions as targets without inventing connecting segments", () => {
-    const targets = extractSnapTargets([{ id: "count", name: "Plug", type: "count", calibrationId: null, points: [{ x: 10, y: 20 }, { x: 50, y: 60 }], visible: true, classificationValueIds: [] }], true);
+    const targets = extractSnapTargets(
+      [
+        {
+          id: "count",
+          name: "Plug",
+          type: "count",
+          calibrationId: null,
+          points: [
+            { x: 10, y: 20 },
+            { x: 50, y: 60 },
+          ],
+          visible: true,
+          classificationValueIds: [],
+        },
+      ],
+      true,
+    );
     expect(targets.map(({ kind }) => kind)).toEqual(["vertex", "vertex"]);
   });
 
   it("extracts Line vertices and its finite segment", () => {
     const targets = extractSnapTargets(
-      [measurement("line", "line", [{ x: 10, y: 20 }, { x: 30, y: 40 }])],
+      [
+        measurement("line", "line", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]),
+      ],
       true,
     );
     expect(targets.map((target) => [target.kind, target.primitiveIndex])).toEqual([
@@ -95,9 +116,7 @@ describe("snap target extraction", () => {
     );
     expect(targets.filter((target) => target.kind === "vertex")).toHaveLength(3);
     expect(
-      targets
-        .filter((target) => target.kind === "segment")
-        .map((target) => target.primitiveIndex),
+      targets.filter((target) => target.kind === "segment").map((target) => target.primitiveIndex),
     ).toEqual([0, 1]);
   });
 
@@ -192,7 +211,12 @@ describe("snap target extraction", () => {
 
   it("does not create a segment target for a zero-length rendered edge", () => {
     const targets = extractSnapTargets(
-      [measurement("repair", "polyline", [{ x: 10, y: 10 }, { x: 10, y: 10 }])],
+      [
+        measurement("repair", "polyline", [
+          { x: 10, y: 10 },
+          { x: 10, y: 10 },
+        ]),
+      ],
       true,
     );
     expect(targets.filter((target) => target.kind === "segment")).toEqual([]);
@@ -200,10 +224,24 @@ describe("snap target extraction", () => {
   });
 
   it("excludes hidden measurements and all measurements when global rendering is off", () => {
-    const visible = measurement("visible", "line", [{ x: 0, y: 0 }, { x: 10, y: 0 }]);
-    const hidden = measurement("hidden", "line", [{ x: 20, y: 0 }, { x: 30, y: 0 }], false);
-    expect(extractSnapTargets([visible, hidden], true).every((target) => target.measurementId === "visible"))
-      .toBe(true);
+    const visible = measurement("visible", "line", [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ]);
+    const hidden = measurement(
+      "hidden",
+      "line",
+      [
+        { x: 20, y: 0 },
+        { x: 30, y: 0 },
+      ],
+      false,
+    );
+    expect(
+      extractSnapTargets([visible, hidden], true).every(
+        (target) => target.measurementId === "visible",
+      ),
+    ).toBe(true);
     expect(extractSnapTargets([visible, hidden], false)).toEqual([]);
   });
 
@@ -218,7 +256,12 @@ describe("snap target extraction", () => {
     expect(clipped?.end).toEqual({ x: 5, y: 100 });
 
     const targets = extractSnapTargets(
-      [measurement("clipped", "line", [{ x: -5, y: 0 }, { x: 5, y: 100 }])],
+      [
+        measurement("clipped", "line", [
+          { x: -5, y: 0 },
+          { x: 5, y: 100 },
+        ]),
+      ],
       true,
       bounds,
     );
@@ -232,28 +275,25 @@ describe("snap target extraction", () => {
 
   it("clips very large finite axis-aligned historical segments without cancellation", () => {
     const edgeBounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
-    const horizontal = clipSegmentToPage(
-      { x: -1e18, y: 200 },
-      { x: 1e18, y: 200 },
-      edgeBounds,
-    );
+    const horizontal = clipSegmentToPage({ x: -1e18, y: 200 }, { x: 1e18, y: 200 }, edgeBounds);
     expect(horizontal).toEqual({
       start: { x: 0, y: 200 },
       end: { x: 500, y: 200 },
     });
 
-    const vertical = clipSegmentToPage(
-      { x: 250, y: -1e18 },
-      { x: 250, y: 1e18 },
-      edgeBounds,
-    );
+    const vertical = clipSegmentToPage({ x: 250, y: -1e18 }, { x: 250, y: 1e18 }, edgeBounds);
     expect(vertical).toEqual({
       start: { x: 250, y: 0 },
       end: { x: 250, y: 400 },
     });
 
     const targets = extractSnapTargets(
-      [measurement("huge", "line", [{ x: -1e18, y: 200 }, { x: 1e18, y: 200 }])],
+      [
+        measurement("huge", "line", [
+          { x: -1e18, y: 200 },
+          { x: 1e18, y: 200 },
+        ]),
+      ],
       true,
       edgeBounds,
     );
@@ -265,18 +305,19 @@ describe("snap target extraction", () => {
 
   it("preserves page-boundary extent for very large finite non-axis-aligned geometry", () => {
     const edgeBounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
-    const clipped = clipSegmentToPage(
-      { x: -1e18, y: 100 },
-      { x: 1e18, y: 300 },
-      edgeBounds,
-    );
+    const clipped = clipSegmentToPage({ x: -1e18, y: 100 }, { x: 1e18, y: 300 }, edgeBounds);
     expect(clipped?.start.x).toBe(0);
     expect(clipped?.end.x).toBe(500);
     expect(clipped?.start.y).toBeCloseTo(200);
     expect(clipped?.end.y).toBeCloseTo(200);
 
     const targets = extractSnapTargets(
-      [measurement("huge-diagonal", "line", [{ x: -1e18, y: 100 }, { x: 1e18, y: 300 }])],
+      [
+        measurement("huge-diagonal", "line", [
+          { x: -1e18, y: 100 },
+          { x: 1e18, y: 300 },
+        ]),
+      ],
       true,
       edgeBounds,
     );
@@ -295,9 +336,9 @@ describe("snap target extraction", () => {
       start: { x: 0, y: 128 },
       end: { x: 272, y: 400 },
     });
-    expect(Object.values(clipped!.start).concat(Object.values(clipped!.end)).every(Number.isFinite)).toBe(
-      true,
-    );
+    expect(
+      Object.values(clipped!.start).concat(Object.values(clipped!.end)).every(Number.isFinite),
+    ).toBe(true);
   });
 
   it("rejects a very large diagonal that remains outside the page", () => {
@@ -325,11 +366,7 @@ describe("snap target extraction", () => {
 
   it("clips a huge diagonal to the true page edge instead of creating phantom geometry", () => {
     const edgeBounds: LogicalPageBounds = { width: 500, height: 400, rotation: 0 };
-    const clipped = clipSegmentToPage(
-      { x: -1e18, y: -1e18 },
-      { x: 1e18, y: 1e18 },
-      edgeBounds,
-    );
+    const clipped = clipSegmentToPage({ x: -1e18, y: -1e18 }, { x: 1e18, y: 1e18 }, edgeBounds);
 
     expect(clipped).toEqual({
       start: { x: 0, y: 0 },
@@ -337,7 +374,12 @@ describe("snap target extraction", () => {
     });
 
     const targets = extractSnapTargets(
-      [measurement("huge-corner", "line", [{ x: -1e18, y: -1e18 }, { x: 1e18, y: 1e18 }])],
+      [
+        measurement("huge-corner", "line", [
+          { x: -1e18, y: -1e18 },
+          { x: 1e18, y: 1e18 },
+        ]),
+      ],
       true,
       edgeBounds,
     );
@@ -346,7 +388,12 @@ describe("snap target extraction", () => {
 
   it("excludes geometry that is fully clipped outside the page", () => {
     const targets = extractSnapTargets(
-      [measurement("outside", "line", [{ x: -20, y: 10 }, { x: -10, y: 30 }])],
+      [
+        measurement("outside", "line", [
+          { x: -20, y: 10 },
+          { x: -10, y: 30 },
+        ]),
+      ],
       true,
       bounds,
     );
@@ -376,7 +423,10 @@ describe("snap candidate geometry", () => {
           expect(resolveSnapCandidate(raw, zoom, indexed, bounds, excluded)).toEqual(
             resolveSnapCandidate(raw, zoom, linear, bounds, excluded),
           );
-          for (const anchor of [{ x: 20, y: 20 }, { x: 250, y: 190 }]) {
+          for (const anchor of [
+            { x: 20, y: 20 },
+            { x: 250, y: 190 },
+          ]) {
             expect(resolveSnapWithOrtho(anchor, raw, zoom, indexed, bounds, excluded)).toEqual(
               resolveSnapWithOrtho(anchor, raw, zoom, linear, bounds, excluded),
             );
@@ -409,15 +459,19 @@ describe("snap candidate geometry", () => {
     expect(match).toEqual(resolveSnapWithOrtho(anchor, raw, 1, [...indexed], bounds));
     expect(match?.target).toMatchObject({ kind: "segment", measurementId: "crossing" });
     expect(match?.point).toEqual({ x: 200, y: 100 });
-    expect(resolveAtPagePoint(raw, {
-      confirmedPoints: [anchor],
-      orthogonal: true,
-      targets: indexed,
-    })).toEqual(resolveAtPagePoint(raw, {
-      confirmedPoints: [anchor],
-      orthogonal: true,
-      targets: [...indexed],
-    }));
+    expect(
+      resolveAtPagePoint(raw, {
+        confirmedPoints: [anchor],
+        orthogonal: true,
+        targets: indexed,
+      }),
+    ).toEqual(
+      resolveAtPagePoint(raw, {
+        confirmedPoints: [anchor],
+        orthogonal: true,
+        targets: [...indexed],
+      }),
+    );
   });
 
   it("matches the linear resolver at indexed page edges and corrected screen boundaries", () => {
@@ -427,7 +481,10 @@ describe("snap candidate geometry", () => {
     const exact = { x: (rawPointerScreen.x + 10 - view.panX) / view.zoom, y: 100 };
     const measurements = [
       measurement("boundary", "line", [exact, { x: exact.x + 100, y: 100 }]),
-      measurement("clipped", "line", [{ x: -100, y: 300 }, { x: 100, y: 300 }]),
+      measurement("clipped", "line", [
+        { x: -100, y: 300 },
+        { x: 100, y: 300 },
+      ]),
       ...Array.from({ length: 40 }, (_, index) =>
         measurement(`far-${index}`, "line", [
           { x: 700 + index, y: 600 },
@@ -505,12 +562,11 @@ describe("snap candidate geometry", () => {
       end,
     };
     expect(
-      resolveSnapCandidate(
-        { x: rightEdge, y: 101 },
-        1,
-        [target],
-        { width: rightEdge, height: 400, rotation: 0 },
-      )?.point,
+      resolveSnapCandidate({ x: rightEdge, y: 101 }, 1, [target], {
+        width: rightEdge,
+        height: 400,
+        rotation: 0,
+      })?.point,
     ).toEqual(end);
   });
 
@@ -564,9 +620,7 @@ describe("snap candidate geometry", () => {
       primitiveIndex: 0,
       point: { x: raw.x + SNAP_TOLERANCE_SCREEN_PX / zoom, y: raw.y },
     };
-    expect(resolveSnapCandidate(raw, zoom, [exact])?.target.measurementId).toBe(
-      "fractional-exact",
-    );
+    expect(resolveSnapCandidate(raw, zoom, [exact])?.target.measurementId).toBe("fractional-exact");
   });
 
   it("chooses the nearest candidate before applying tie rules", () => {
@@ -651,9 +705,9 @@ describe("snap candidate geometry", () => {
       primitiveIndex: 5,
       point: { x: 12, y: 10 },
     };
-    expect(resolveSnapCandidate(raw, 1, [measurementOne, measurementZero])?.target.measurementId).toBe(
-      "measurement-zero",
-    );
+    expect(
+      resolveSnapCandidate(raw, 1, [measurementOne, measurementZero])?.target.measurementId,
+    ).toBe("measurement-zero");
 
     const primitiveOne: SnapTarget = {
       ...measurementZero,
@@ -666,7 +720,9 @@ describe("snap candidate geometry", () => {
       primitiveIndex: 0,
       point: { x: 12, y: 10 },
     };
-    expect(resolveSnapCandidate(raw, 1, [primitiveOne, primitiveZero])?.target.primitiveIndex).toBe(0);
+    expect(resolveSnapCandidate(raw, 1, [primitiveOne, primitiveZero])?.target.primitiveIndex).toBe(
+      0,
+    );
   });
 });
 
@@ -1482,16 +1538,18 @@ describe("Snap interaction scope", () => {
       measurementEditActive: false,
     };
 
-    expect(resolveDrawingPreview({ ...base, snapEnabled: false, orthogonal: false })?.point).toEqual(
-      rawPage,
-    );
+    expect(
+      resolveDrawingPreview({ ...base, snapEnabled: false, orthogonal: false })?.point,
+    ).toEqual(rawPage);
     expect(resolveDrawingPreview({ ...base, snapEnabled: true, orthogonal: false })?.point).toEqual(
       target.point,
     );
-    expect(resolveDrawingPreview({ ...base, snapEnabled: false, orthogonal: true })?.point).toEqual({
-      x: 33,
-      y: 10,
-    });
+    expect(resolveDrawingPreview({ ...base, snapEnabled: false, orthogonal: true })?.point).toEqual(
+      {
+        x: 33,
+        y: 10,
+      },
+    );
     expect(resolveDrawingPreview({ ...base, snapEnabled: true, orthogonal: true })?.point).toEqual(
       target.point,
     );

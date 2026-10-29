@@ -87,15 +87,19 @@ describe("box ring helpers", () => {
     expect(applyMeasurementVertexEdit("rectangle", box, 2, { x: 12, y: 8 })).toEqual(
       moveBoxVertex(box, 2, { x: 12, y: 8 }),
     );
-    expect(
-      applyMeasurementVertexEdit("polygon", box.slice(0, 3), 1, { x: 11, y: 1 }),
-    ).toEqual([box[0], { x: 11, y: 1 }, box[2]]);
+    expect(applyMeasurementVertexEdit("polygon", box.slice(0, 3), 1, { x: 11, y: 1 })).toEqual([
+      box[0],
+      { x: 11, y: 1 },
+      box[2],
+    ]);
   });
 
   it("validates rectangles, ellipses and clouds", () => {
     expect(hasValidMeasurementPoints("rectangle", box)).toBe(true);
     expect(hasValidMeasurementPoints("ellipse", box)).toBe(true);
-    expect(hasValidMeasurementPoints("rectangle", [...box.slice(0, 3), { x: 1, y: 6 }])).toBe(false);
+    expect(hasValidMeasurementPoints("rectangle", [...box.slice(0, 3), { x: 1, y: 6 }])).toBe(
+      false,
+    );
     expect(hasValidMeasurementPoints("cloud", box.slice(0, 3))).toBe(true);
     expect(hasValidMeasurementPoints("cloud", box.slice(0, 2))).toBe(false);
   });
@@ -188,9 +192,9 @@ describe("cloud geometry", () => {
     expect(isOutward(ccw)).toBe(true);
     expect(isOutward(cw)).toBe(true);
     const outline = measurementOutlinePoints("cloud", ccw, 0.1);
-    expect(outline.some((point) => point.x > 100 || point.y > 100 || point.x < 0 || point.y < 0)).toBe(
-      true,
-    );
+    expect(
+      outline.some((point) => point.x > 100 || point.y > 100 || point.x < 0 || point.y < 0),
+    ).toBe(true);
   });
 
   it.each([1e8, 1e9])("bulges outwards for a small clockwise ring at %s", (offset) => {

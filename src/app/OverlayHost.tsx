@@ -44,12 +44,18 @@ export function OverlayHost({
     return (
       <ConfirmationDialog
         open
-        title={discardUnsavedProject ? "Discard unsaved project?" : recoveryProtected ? "Replace unreadable session?" : "Open as new project"}
+        title={
+          discardUnsavedProject
+            ? "Discard unsaved project?"
+            : recoveryProtected
+              ? "Replace unreadable session?"
+              : "Open as new project"
+        }
         description={
           discardUnsavedProject ? (
             <>
-              Loading <strong>{fileName}</strong> will discard the current project, which exists only
-              in memory. Cancel and export it first if you want to keep a copy.
+              Loading <strong>{fileName}</strong> will discard the current project, which exists
+              only in memory. Cancel and export it first if you want to keep a copy.
             </>
           ) : recoveryProtected ? (
             <>
@@ -63,7 +69,13 @@ export function OverlayHost({
           )
         }
         intent={recoveryProtected || discardUnsavedProject ? "destructive" : "warning"}
-        confirmLabel={discardUnsavedProject ? "Discard and open" : recoveryProtected ? "Replace session" : "Open as new project"}
+        confirmLabel={
+          discardUnsavedProject
+            ? "Discard and open"
+            : recoveryProtected
+              ? "Replace session"
+              : "Open as new project"
+        }
         onCancel={() => {
           closeDialog(dialog);
           onDialogCancel?.(dialog);
@@ -104,8 +116,16 @@ export function OverlayHost({
       return (
         <DeleteConfirmation
           key="measurement"
-          title={confirmation.payload.measurementIds ? `Delete ${confirmation.payload.measurementIds.length} ${confirmation.payload.measurementIds.length === 1 ? "measurement" : "measurements"}?` : `Delete “${confirmation.payload.measurementName}”?`}
-          description={confirmation.payload.measurementIds ? "The selected measurements will be removed. You can undo this change." : "This measurement will be removed from the current page. Its geometry and scale data will not be changed."}
+          title={
+            confirmation.payload.measurementIds
+              ? `Delete ${confirmation.payload.measurementIds.length} ${confirmation.payload.measurementIds.length === 1 ? "measurement" : "measurements"}?`
+              : `Delete “${confirmation.payload.measurementName}”?`
+          }
+          description={
+            confirmation.payload.measurementIds
+              ? "The selected measurements will be removed. You can undo this change."
+              : "This measurement will be removed from the current page. Its geometry and scale data will not be changed."
+          }
           onCancel={() => {
             closeConfirmation(confirmation);
             onConfirmationCancel?.(confirmation);
