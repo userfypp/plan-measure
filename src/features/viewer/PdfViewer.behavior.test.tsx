@@ -658,7 +658,10 @@ describe("PdfViewer behavior", () => {
     });
 
     it("applies a lower maximum zoom to a fitted page", async () => {
-      await mount(createCalibratedSession(), createPdfDocument({ 1: createPdfPage({ width: 50, height: 50 }) }));
+      await mount(
+        createCalibratedSession(),
+        createPdfDocument({ 1: createPdfPage({ width: 50, height: 50 }) }),
+      );
       try {
         expect(transform().zoom).toBe(8);
         await act(async () => setAppPreference("maxZoom", 4));
