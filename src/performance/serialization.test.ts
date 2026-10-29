@@ -17,8 +17,8 @@ afterEach(async () => {
   await resetPersistenceForTests();
 });
 
-describe("presupuestos de serialización", () => {
-  it("autosave de 5000 mediciones serializa exactamente una vez y escribe el snapshot", async () => {
+describe("serialization budgets", () => {
+  it("autosave of 5000 measurements serializes exactly once and writes the snapshot", async () => {
     await resetPersistenceForTests();
     const original = performanceSession();
     const pdf = new Blob(["pdf"]);
@@ -48,7 +48,7 @@ describe("presupuestos de serialización", () => {
     expect((await loadSavedSession())!.session.pages[1]!.measurements[0]!.name).toBe("Editada");
   });
 
-  it("CSV cede cada ≤200 filas y conserva bytes y hash de 5000 mediciones", async () => {
+  it("CSV yields every ≤200 rows and keeps the bytes and hash of 5000 measurements", async () => {
     const session = performanceSession();
     const page = session.pages[1]!;
     let built = 0;
@@ -62,7 +62,7 @@ describe("presupuestos de serialización", () => {
         enumerable: true,
       });
     }
-    // Cuenta filas al entrar en el generador, independientemente de sus lecturas internas.
+    // Count rows as they enter the generator, whatever it reads internally.
     let visited = 0;
     const originalIterator = page.measurements[Symbol.iterator].bind(page.measurements);
     page.measurements[Symbol.iterator] = function* () {
