@@ -1,10 +1,4 @@
-import {
-  deleteDB,
-  openDB,
-  type DBSchema,
-  type IDBPDatabase,
-  type IDBPTransaction,
-} from "idb";
+import { deleteDB, openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from "idb";
 import type { CurrentSession, PdfMetadata } from "../types/domain";
 import {
   deserializeSessionForRecovery,
@@ -61,11 +55,7 @@ interface PlanMeasureDb extends DBSchema {
   };
 }
 
-type PersistenceTransaction = IDBPTransaction<
-  PlanMeasureDb,
-  ["sessions", "pdfs"],
-  "readwrite"
->;
+type PersistenceTransaction = IDBPTransaction<PlanMeasureDb, ["sessions", "pdfs"], "readwrite">;
 
 let databasePromise: Promise<IDBPDatabase<PlanMeasureDb>> | null = null;
 let databaseInstance: IDBPDatabase<PlanMeasureDb> | null = null;
@@ -424,13 +414,15 @@ export async function listSavedProjects(): Promise<SavedProjectSummary[]> {
     listedProjectIds.add(record.projectId);
     const summary = readProjectSessionSummary(record);
     if (!summary) return [];
-    return [{
-      id: record.projectId,
-      name: summary.name,
-      pageCount: summary.pageCount,
-      savedAt: record.savedAt,
-      isCurrent: record.projectId === state.activeProjectId,
-    }];
+    return [
+      {
+        id: record.projectId,
+        name: summary.name,
+        pageCount: summary.pageCount,
+        savedAt: record.savedAt,
+        isCurrent: record.projectId === state.activeProjectId,
+      },
+    ];
   });
   for (const projectId of projectSessionSummaries.keys()) {
     if (!listedProjectIds.has(projectId)) projectSessionSummaries.delete(projectId);
@@ -704,7 +696,15 @@ async function saveSerializedSessionMetadata(
     await finishWrites(
       transaction,
       snapshot && state.activeProjectId
-        ? [putProjectSessionSnapshot(transaction, state.activeProjectId, serialized, preparedPdfBlob, sessionRecord.savedAt)]
+        ? [
+            putProjectSessionSnapshot(
+              transaction,
+              state.activeProjectId,
+              serialized,
+              preparedPdfBlob,
+              sessionRecord.savedAt,
+            ),
+          ]
         : [],
     );
     if (snapshot && state.activeProjectId) {
@@ -731,7 +731,9 @@ async function saveSerializedSessionMetadata(
     }),
   ];
   if (snapshot && state.activeProjectId) {
-    writes.push(putProjectSessionSnapshot(transaction, state.activeProjectId, serialized, preparedPdfBlob));
+    writes.push(
+      putProjectSessionSnapshot(transaction, state.activeProjectId, serialized, preparedPdfBlob),
+    );
   }
   await finishWrites(transaction, writes);
   if (snapshot && state.activeProjectId) {

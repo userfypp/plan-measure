@@ -46,7 +46,11 @@ export function ConfirmationDialog({
           <Button variant="ghost" size="compact" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant={intent === "destructive" ? "danger" : "primary"} size="compact" onClick={onConfirm}>
+          <Button
+            variant={intent === "destructive" ? "danger" : "primary"}
+            size="compact"
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </Button>
         </>

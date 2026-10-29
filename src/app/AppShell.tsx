@@ -1,4 +1,11 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { AppErrorNotification } from "./state";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { LabelPreviewMeasurement, ProjectViewSettings } from "./SettingsDialog";
@@ -159,7 +166,12 @@ export function AppShell({
   );
 }
 
-function StatusNotification({ message, tone, actions, onDismiss }: {
+function StatusNotification({
+  message,
+  tone,
+  actions,
+  onDismiss,
+}: {
   message: string;
   tone: StatusTone;
   actions?: ReactNode;
@@ -207,5 +219,9 @@ export function LoadingOverlay({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", blockApplicationKey, true);
     return () => window.removeEventListener("keydown", blockApplicationKey, true);
   }, []);
-  return <div role="status" className={styles.loadingOverlay} data-app-loading><span className={styles.loadingMessage}>{children}</span></div>;
+  return (
+    <div role="status" className={styles.loadingOverlay} data-app-loading>
+      <span className={styles.loadingMessage}>{children}</span>
+    </div>
+  );
 }

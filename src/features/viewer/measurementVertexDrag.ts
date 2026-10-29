@@ -130,7 +130,8 @@ function pointsWithVertex(
   point: Point,
   measurementType?: MeasurementType,
 ): Point[] {
-  if (measurementType) return applyMeasurementVertexEdit(measurementType, sourcePoints, vertexIndex, point);
+  if (measurementType)
+    return applyMeasurementVertexEdit(measurementType, sourcePoints, vertexIndex, point);
   return sourcePoints.map((sourcePoint, index) =>
     index === vertexIndex ? point : { ...sourcePoint },
   );

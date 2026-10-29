@@ -161,7 +161,15 @@ function createPageState(pageNumber: number): PageState {
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
     measurements: [],
-    nextMeasurementNumber: { line: 1, polyline: 1, polygon: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 1,
+      polyline: 1,
+      polygon: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
   };
 }
 
@@ -372,7 +380,9 @@ function ViewerHarness({
                       onCalibrationReferencePointsChange={noop}
                       onCalibrationReferenceEditCancel={noop}
                     />
-                    {showScaleCheckPanel && scaleCheckStore && <ScaleCheckPanel store={scaleCheckStore} />}
+                    {showScaleCheckPanel && scaleCheckStore && (
+                      <ScaleCheckPanel store={scaleCheckStore} />
+                    )}
                   </ViewerNavigationProvider>
                 </ViewerBottomExclusionProvider>
               </AuthoringCapabilityProvider>
@@ -456,12 +466,8 @@ describe("PdfViewer render liveness", () => {
   }
 
   function canvasTranslation(): { x: number; y: number } {
-    const translation = canvas().style.transform.match(
-      /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/,
-    );
-    return translation
-      ? { x: Number(translation[1]), y: Number(translation[2]) }
-      : { x: 0, y: 0 };
+    const translation = canvas().style.transform.match(/translate3d\(([-\d.]+)px,\s*([-\d.]+)px/);
+    return translation ? { x: Number(translation[1]), y: Number(translation[2]) } : { x: 0, y: 0 };
   }
 
   function pageGroupNode(): {
@@ -634,8 +640,7 @@ describe("PdfViewer render liveness", () => {
       window.devicePixelRatio,
     );
     const firstHighZoomCanvas = pdfPage.render.mock.calls[1]?.[0]?.canvas as
-      | HTMLCanvasElement
-      | undefined;
+      HTMLCanvasElement | undefined;
     if (!firstHighZoomCanvas) throw new Error("The high-zoom raster canvas was not created.");
 
     await act(async () => navigation?.onZoomIn());
@@ -1056,7 +1061,8 @@ describe("PdfViewer render liveness", () => {
     const currentStage = konvaCapture.stages.at(-1);
     const continuePan = currentStage?.onMouseMove as ((event: unknown) => void) | undefined;
     const finishPan = currentStage?.onMouseUp as (() => void) | undefined;
-    if (!continuePan || !finishPan) throw new Error("Updated Stage pan handlers were not captured.");
+    if (!continuePan || !finishPan)
+      throw new Error("Updated Stage pan handlers were not captured.");
 
     await act(async () => continuePan(panEvent(140, 135)));
     expect(Number.parseFloat(canvas().style.left)).toBeCloseTo(zoomedLeft);
@@ -1163,21 +1169,31 @@ describe("PdfViewer render liveness", () => {
       return event;
     };
     button.focus();
-    await act(async () => { expect(press(button, "l").defaultPrevented).toBe(true); });
+    await act(async () => {
+      expect(press(button, "l").defaultPrevented).toBe(true);
+    });
     expect(chooseTool).toHaveBeenCalledExactlyOnceWith("line");
     expect(document.activeElement).toBe(button);
     chooseTool.mockClear();
-    await act(async () => { press(document.body, "h"); });
+    await act(async () => {
+      press(document.body, "h");
+    });
     expect(chooseTool).toHaveBeenCalledExactlyOnceWith("hand");
     chooseTool.mockClear();
     input.focus();
-    await act(async () => { expect(press(input, "l").defaultPrevented).toBe(false); });
+    await act(async () => {
+      expect(press(input, "l").defaultPrevented).toBe(false);
+    });
     dialog.setAttribute("open", "");
-    await act(async () => { expect(press(button, "l").defaultPrevented).toBe(false); });
+    await act(async () => {
+      expect(press(button, "l").defaultPrevented).toBe(false);
+    });
     expect(chooseTool).not.toHaveBeenCalled();
     dialog.remove();
     const viewer = container.querySelector<HTMLElement>('[role="region"]')!;
-    await act(async () => { press(viewer, "l"); });
+    await act(async () => {
+      press(viewer, "l");
+    });
     expect(chooseTool).toHaveBeenCalledExactlyOnceWith("line");
     button.remove();
     input.remove();
@@ -1211,15 +1227,16 @@ describe("PdfViewer render liveness", () => {
     if (!viewer) throw new Error("Viewer focus surface was not mounted.");
     viewer.focus();
     await act(async () => {
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+      viewer.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
+      );
     });
     expect(stageContent()).toBe(initialStageContent);
     expect(stageCursor()).toBe("grab");
 
     // Normal pointer movement remains wired after the state transitions.
     const onMouseMove = konvaCapture.stages.at(-1)?.onMouseMove as
-      | ((event: unknown) => void)
-      | undefined;
+      ((event: unknown) => void) | undefined;
     if (!onMouseMove) throw new Error("Stage mouse-move handler was not captured.");
     await act(async () =>
       onMouseMove({
@@ -1241,11 +1258,15 @@ describe("PdfViewer render liveness", () => {
 
   it("keeps a Safari cursor visible through stationary shortcuts and Space drag", async () => {
     vi.spyOn(navigator, "vendor", "get").mockReturnValue("Apple Computer, Inc.");
-    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh) Safari/605.1.15");
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+      "Mozilla/5.0 (Macintosh) Safari/605.1.15",
+    );
     const pdfPage = createPdfPage();
     let navigation: ViewerNavigationModel | null = null;
     await mountViewer(createPdfDocument({ 1: pdfPage.page }).document, {
-      registerNavigation: (next) => { navigation = next; },
+      registerNavigation: (next) => {
+        navigation = next;
+      },
       onChooseTool: (tool) => workspaceProbe!.chooseTool(tool),
     });
 
@@ -1256,12 +1277,14 @@ describe("PdfViewer render liveness", () => {
     Object.defineProperty(document, "elementFromPoint", { configurable: true, value: hitTest });
     vi.spyOn(viewer, "matches").mockImplementation((selector) => selector === ":hover");
     const move = (x: number, y: number, pointerType = "mouse") =>
-      viewer.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true,
-        pointerType,
-        clientX: x,
-        clientY: y,
-      }));
+      viewer.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          pointerType,
+          clientX: x,
+          clientY: y,
+        }),
+      );
 
     expect(viewer.style.cursor).toBe("none");
     expect(stageCursor()).toBe("none");
@@ -1279,9 +1302,16 @@ describe("PdfViewer render liveness", () => {
     // Controls use the native cursor even while a drawing tool remains active.
     const help = container.querySelector<HTMLElement>("[data-keyboard-controls]")!;
     const dismiss = help.querySelector<HTMLButtonElement>("button")!;
-    await act(async () => dismiss.dispatchEvent(new PointerEvent("pointermove", {
-      bubbles: true, pointerType: "mouse", clientX: 120, clientY: 150,
-    })));
+    await act(async () =>
+      dismiss.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          pointerType: "mouse",
+          clientX: 120,
+          clientY: 150,
+        }),
+      ),
+    );
     expect(cursor.style.visibility).toBe("hidden");
     hitTest.mockReturnValue(dismiss);
     await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
@@ -1298,12 +1328,14 @@ describe("PdfViewer render liveness", () => {
 
     viewer.focus();
     const key = (value: string, options: KeyboardEventInit = {}) =>
-      viewer.dispatchEvent(new KeyboardEvent("keydown", {
-        key: value,
-        bubbles: true,
-        cancelable: true,
-        ...options,
-      }));
+      viewer.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: value,
+          bubbles: true,
+          cancelable: true,
+          ...options,
+        }),
+      );
     await act(async () => key("l"));
     expect(cursor.dataset.cursor).toBe("crosshair");
     expect(cursor.style.visibility).toBe("visible");
@@ -1323,11 +1355,9 @@ describe("PdfViewer render liveness", () => {
     expect(cursor.dataset.cursor).toBe("grab");
     expect(cursor.style.visibility).toBe("visible");
     const onMouseDown = konvaCapture.stages.at(-1)?.onMouseDown as
-      | ((event: unknown) => void)
-      | undefined;
+      ((event: unknown) => void) | undefined;
     const onMouseMove = konvaCapture.stages.at(-1)?.onMouseMove as
-      | ((event: unknown) => void)
-      | undefined;
+      ((event: unknown) => void) | undefined;
     if (!onMouseDown || !onMouseMove) throw new Error("Stage pan handlers were not captured.");
     const panEvent = (x: number, y: number) => ({
       target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) },
@@ -1358,11 +1388,13 @@ describe("PdfViewer render liveness", () => {
     await act(async () => move(160, 180));
     expect(cursor.style.visibility).toBe("visible");
     await act(async () =>
-      viewer.dispatchEvent(new PointerEvent("pointerout", {
-        bubbles: true,
-        pointerType: "mouse",
-        relatedTarget: document.body,
-      })),
+      viewer.dispatchEvent(
+        new PointerEvent("pointerout", {
+          bubbles: true,
+          pointerType: "mouse",
+          relatedTarget: document.body,
+        }),
+      ),
     );
     expect(cursor.style.visibility).toBe("hidden");
     await act(async () => window.dispatchEvent(new Event("focus")));
@@ -1389,9 +1421,7 @@ describe("PdfViewer render liveness", () => {
 
     await act(async () => workspaceProbe!.chooseTool("calibrate"));
     const clickAt = async (point: Point) => {
-      const onClick = konvaCapture.stages.at(-1)?.onClick as
-        | ((event: unknown) => void)
-        | undefined;
+      const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
       if (!onClick) throw new Error("Stage click handler was not captured.");
       await act(async () =>
         onClick({
@@ -1528,44 +1558,78 @@ describe("PdfViewer render liveness", () => {
     expect(container.textContent).not.toContain("Rendering page…");
   });
 
-  it.each([false, true])("cancels registered whole and vertex gestures with Escape (keyboard mode %s)", async (keyboardAuthoringEnabled) => {
-    const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
-    session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line",
-      points: [{ x: 100, y: 100 }, { x: 200, y: 100 }], visible: true,
-      calibrationId: "scale", classificationValueIds: [] }];
-    await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, {
-      page: session.pages[1], keyboardAuthoringEnabled,
-    });
-    await act(async () => sessionProbe!.loadSession(session));
-    await act(async () => { sessionProbe!.renameMeasurement(1, "line", "Renamed"); });
-    await act(async () => sessionProbe!.undo());
-    const original = sessionProbe!.session;
-    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
-    const props = konvaCapture.annotationLayers.at(-1)!;
-    const registerWhole = props.onWholeMeasurementDragCancellationChange as (id: string, cancel: (() => void) | null) => void;
-    const registerVertex = props.onVertexDragCancellationChange as (id: string, owner: object, cancel: (() => void) | null) => void;
-    for (const kind of ["whole", "vertex"] as const) {
-      const cancel = vi.fn();
-      if (kind === "whole") registerWhole("line", cancel);
-      else registerVertex("line", {}, cancel);
-      const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
-      await act(async () => { viewer.focus(); viewer.dispatchEvent(escape); });
-      expect(escape.defaultPrevented).toBe(true);
-      expect(cancel).toHaveBeenCalledOnce();
-      expect(sessionProbe!.session).toBe(original);
-      expect(sessionProbe!.canUndo).toBe(false);
-      expect(sessionProbe!.canRedo).toBe(true);
-      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-      expect(cancel).toHaveBeenCalledOnce();
-    }
-    await act(async () => sessionProbe!.redo());
-    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.name).toBe("Renamed");
-  });
+  it.each([false, true])(
+    "cancels registered whole and vertex gestures with Escape (keyboard mode %s)",
+    async (keyboardAuthoringEnabled) => {
+      const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
+      session.pages[1]!.measurements = [
+        {
+          id: "line",
+          name: "Line",
+          type: "line",
+          points: [
+            { x: 100, y: 100 },
+            { x: 200, y: 100 },
+          ],
+          visible: true,
+          calibrationId: "scale",
+          classificationValueIds: [],
+        },
+      ];
+      await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, {
+        page: session.pages[1],
+        keyboardAuthoringEnabled,
+      });
+      await act(async () => sessionProbe!.loadSession(session));
+      await act(async () => {
+        sessionProbe!.renameMeasurement(1, "line", "Renamed");
+      });
+      await act(async () => sessionProbe!.undo());
+      const original = sessionProbe!.session;
+      const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]")!;
+      const props = konvaCapture.annotationLayers.at(-1)!;
+      const registerWhole = props.onWholeMeasurementDragCancellationChange as (
+        id: string,
+        cancel: (() => void) | null,
+      ) => void;
+      const registerVertex = props.onVertexDragCancellationChange as (
+        id: string,
+        owner: object,
+        cancel: (() => void) | null,
+      ) => void;
+      for (const kind of ["whole", "vertex"] as const) {
+        const cancel = vi.fn();
+        if (kind === "whole") registerWhole("line", cancel);
+        else registerVertex("line", {}, cancel);
+        const escape = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        await act(async () => {
+          viewer.focus();
+          viewer.dispatchEvent(escape);
+        });
+        expect(escape.defaultPrevented).toBe(true);
+        expect(cancel).toHaveBeenCalledOnce();
+        expect(sessionProbe!.session).toBe(original);
+        expect(sessionProbe!.canUndo).toBe(false);
+        expect(sessionProbe!.canRedo).toBe(true);
+        await act(async () =>
+          viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+        );
+        expect(cancel).toHaveBeenCalledOnce();
+      }
+      await act(async () => sessionProbe!.redo());
+      expect(sessionProbe!.session!.pages[1]!.measurements[0]!.name).toBe("Renamed");
+    },
+  );
 
   it("leaves Escape to inputs and blocking dialogs before cancelling a drag", async () => {
     await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document);
-    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
-    const register = konvaCapture.annotationLayers.at(-1)!.onWholeMeasurementDragCancellationChange as (id: string, cancel: () => void) => void;
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]")!;
+    const register = konvaCapture.annotationLayers.at(-1)!
+      .onWholeMeasurementDragCancellationChange as (id: string, cancel: () => void) => void;
     const cancel = vi.fn();
     register("line", cancel);
     const input = document.createElement("input");
@@ -1574,13 +1638,19 @@ describe("PdfViewer render liveness", () => {
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
     try {
-      await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      await act(async () =>
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      );
       expect(cancel).not.toHaveBeenCalled();
       document.body.append(dialog);
-      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      await act(async () =>
+        viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      );
       expect(cancel).not.toHaveBeenCalled();
       dialog.remove();
-      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      await act(async () =>
+        viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      );
       expect(cancel).toHaveBeenCalledOnce();
     } finally {
       input.remove();
@@ -1590,36 +1660,75 @@ describe("PdfViewer render liveness", () => {
 
   it("cancels measurement drags with Escape while a scale check result card is visible", async () => {
     const session = createEmptySession({ name: "check.pdf", size: 10, lastModified: 1 }, 1);
-    const calibration = { id: "scale", name: "Scale", mode: "uniform" as const,
-      start: { x: 0, y: 0 }, end: { x: 100, y: 0 }, referenceDistanceMm: 1000 };
+    const calibration = {
+      id: "scale",
+      name: "Scale",
+      mode: "uniform" as const,
+      start: { x: 0, y: 0 },
+      end: { x: 100, y: 0 },
+      referenceDistanceMm: 1000,
+    };
     session.pages[1]!.calibrations = [calibration];
     session.pages[1]!.activeCalibrationId = calibration.id;
-    session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line",
-      points: [{ x: 100, y: 100 }, { x: 200, y: 100 }], visible: true,
-      calibrationId: calibration.id, classificationValueIds: [] }];
+    session.pages[1]!.measurements = [
+      {
+        id: "line",
+        name: "Line",
+        type: "line",
+        points: [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+        ],
+        visible: true,
+        calibrationId: calibration.id,
+        classificationValueIds: [],
+      },
+    ];
     const store = createScaleCheckStore();
     await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, {
-      page: session.pages[1], scaleCheckStore: store, showScaleCheckPanel: true,
+      page: session.pages[1],
+      scaleCheckStore: store,
+      showScaleCheckPanel: true,
     });
     await act(async () => sessionProbe!.loadSession(session));
     const original = sessionProbe!.session!;
     await act(async () => {
-      store.begin({ pageNumber: 1, workspaceVersion: workspaceProbe!.workspaceVersion,
-        activeCalibrationId: calibration.id, calibration: original.pages[1]!.calibrations[0]! });
-      store.select([{ x: 10, y: 10 }, { x: 110, y: 10 }]);
+      store.begin({
+        pageNumber: 1,
+        workspaceVersion: workspaceProbe!.workspaceVersion,
+        activeCalibrationId: calibration.id,
+        calibration: original.pages[1]!.calibrations[0]!,
+      });
+      store.select([
+        { x: 10, y: 10 },
+        { x: 110, y: 10 },
+      ]);
       store.complete(1000);
     });
-    expect(container.querySelector('[role="group"][aria-label="Scale check: Scale"]')).not.toBeNull();
+    expect(
+      container.querySelector('[role="group"][aria-label="Scale check: Scale"]'),
+    ).not.toBeNull();
     expect(container.querySelector("dialog")).toBeNull();
     const props = konvaCapture.annotationLayers.at(-1)!;
     const cancelWhole = vi.fn();
     const cancelVertex = vi.fn();
-    (props.onWholeMeasurementDragCancellationChange as (id: string, cancel: () => void) => void)("line", cancelWhole);
-    (props.onVertexDragCancellationChange as (id: string, owner: object, cancel: () => void) => void)("line", {}, cancelVertex);
-    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
+    (props.onWholeMeasurementDragCancellationChange as (id: string, cancel: () => void) => void)(
+      "line",
+      cancelWhole,
+    );
+    (
+      props.onVertexDragCancellationChange as (
+        id: string,
+        owner: object,
+        cancel: () => void,
+      ) => void
+    )("line", {}, cancelVertex);
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]")!;
     await act(async () => {
       viewer.focus();
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      viewer.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
     });
     expect(cancelWhole).toHaveBeenCalledOnce();
     expect(cancelVertex).toHaveBeenCalledOnce();
@@ -1637,17 +1746,38 @@ describe("PdfViewer render liveness", () => {
     async function prepare(snap: boolean, tool: "polygon" | "polyline" = "polygon") {
       const session = createEmptySession({ name: "plan.pdf", size: 10, lastModified: 1 }, 1);
       const page = session.pages[1]!;
-      page.calibrations = [{ id: "scale", name: "Scale", mode: "uniform",
-        start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 }];
+      page.calibrations = [
+        {
+          id: "scale",
+          name: "Scale",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ];
       page.activeCalibrationId = "scale";
-      page.measurements = [{ id: "snap-source", name: "Snap source", type: "line",
-        points: [first, second], visible: true, calibrationId: "scale", classificationValueIds: [] }];
+      page.measurements = [
+        {
+          id: "snap-source",
+          name: "Snap source",
+          type: "line",
+          points: [first, second],
+          visible: true,
+          calibrationId: "scale",
+          classificationValueIds: [],
+        },
+      ];
       await mountViewer(createPdfDocument({ 1: createPdfPage().page }).document, { page });
       await act(async () => sessionProbe!.loadSession(session));
       await act(async () => {
         workspaceProbe!.chooseTool(tool);
         workspaceProbe!.setSnap(snap);
-        workspaceProbe!.startDraft({ type: "path", measurementType: tool, points: [first, second] });
+        workspaceProbe!.startDraft({
+          type: "path",
+          measurementType: tool,
+          points: [first, second],
+        });
       });
     }
 
@@ -1659,52 +1789,64 @@ describe("PdfViewer render liveness", () => {
       };
       const pointer = pageToScreen(point, transform);
       const onClick = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
-      await act(async () => onClick({
-        target: { getStage: () => ({ getPointerPosition: () => pointer }) },
-        evt: { button: 0 },
-      }));
+      await act(async () =>
+        onClick({
+          target: { getStage: () => ({ getPointerPosition: () => pointer }) },
+          evt: { button: 0 },
+        }),
+      );
     }
 
-    it.each([false, true])("rejects an early return to the first point and still finishes (Snap %s)", async (snap) => {
-      await prepare(snap);
-      const originalDraft = workspaceProbe!.draft;
-      // With Snap, a nearby click resolves to the existing measurement's first endpoint.
-      await place(snap ? { x: first.x + 2, y: first.y + 2 } : first);
-      expect(workspaceProbe!.draft).toBe(originalDraft);
-      expect(sessionProbe!.canUndo).toBe(false);
-      await place(third);
-      const validDraft = workspaceProbe!.draft;
-      await place(second);
-      expect(workspaceProbe!.draft).toBe(validDraft);
-      await place(fourth);
-      const completedPoints = workspaceProbe!.draft!.points;
-      expect(completedPoints).toHaveLength(4);
-      expect(completedPoints[2]!.x).toBeCloseTo(third.x, 10);
-      expect(completedPoints[2]!.y).toBeCloseTo(third.y, 10);
-      expect(completedPoints[3]!.x).toBeCloseTo(fourth.x, 10);
-      expect(completedPoints[3]!.y).toBeCloseTo(fourth.y, 10);
-      await act(async () => interactionProbe!.completeCurrentDraft());
-      expect(workspaceProbe!.draft).toBeNull();
-      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual(completedPoints);
-      await act(async () => sessionProbe!.undo());
-      expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(1);
-      expect(sessionProbe!.canUndo).toBe(false);
-    });
+    it.each([false, true])(
+      "rejects an early return to the first point and still finishes (Snap %s)",
+      async (snap) => {
+        await prepare(snap);
+        const originalDraft = workspaceProbe!.draft;
+        // With Snap, a nearby click resolves to the existing measurement's first endpoint.
+        await place(snap ? { x: first.x + 2, y: first.y + 2 } : first);
+        expect(workspaceProbe!.draft).toBe(originalDraft);
+        expect(sessionProbe!.canUndo).toBe(false);
+        await place(third);
+        const validDraft = workspaceProbe!.draft;
+        await place(second);
+        expect(workspaceProbe!.draft).toBe(validDraft);
+        await place(fourth);
+        const completedPoints = workspaceProbe!.draft!.points;
+        expect(completedPoints).toHaveLength(4);
+        expect(completedPoints[2]!.x).toBeCloseTo(third.x, 10);
+        expect(completedPoints[2]!.y).toBeCloseTo(third.y, 10);
+        expect(completedPoints[3]!.x).toBeCloseTo(fourth.x, 10);
+        expect(completedPoints[3]!.y).toBeCloseTo(fourth.y, 10);
+        await act(async () => interactionProbe!.completeCurrentDraft());
+        expect(workspaceProbe!.draft).toBeNull();
+        expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual(
+          completedPoints,
+        );
+        await act(async () => sessionProbe!.undo());
+        expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(1);
+        expect(sessionProbe!.canUndo).toBe(false);
+      },
+    );
 
-    it.each([false, true])("rejects middle and last vertices while preserving valid closing (Snap %s)", async (snap) => {
-      await prepare(snap);
-      await place(third);
-      const validDraft = workspaceProbe!.draft;
-      const completedPoints = workspaceProbe!.draft!.points;
-      expect(completedPoints).toHaveLength(3);
-      await place(second);
-      expect(workspaceProbe!.draft).toBe(validDraft);
-      await place(third);
-      expect(workspaceProbe!.draft).toBe(validDraft);
-      await place(first);
-      expect(workspaceProbe!.draft).toBeNull();
-      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual(completedPoints);
-    });
+    it.each([false, true])(
+      "rejects middle and last vertices while preserving valid closing (Snap %s)",
+      async (snap) => {
+        await prepare(snap);
+        await place(third);
+        const validDraft = workspaceProbe!.draft;
+        const completedPoints = workspaceProbe!.draft!.points;
+        expect(completedPoints).toHaveLength(3);
+        await place(second);
+        expect(workspaceProbe!.draft).toBe(validDraft);
+        await place(third);
+        expect(workspaceProbe!.draft).toBe(validDraft);
+        await place(first);
+        expect(workspaceProbe!.draft).toBeNull();
+        expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual(
+          completedPoints,
+        );
+      },
+    );
 
     it("still allows a polyline to revisit a nonconsecutive vertex", async () => {
       await prepare(true, "polyline");
@@ -1713,17 +1855,24 @@ describe("PdfViewer render liveness", () => {
       await act(async () => interactionProbe!.completeCurrentDraft());
       expect(workspaceProbe!.draft).toBeNull();
       expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.type).toBe("polyline");
-      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual([first, second, first]);
+      expect(sessionProbe!.session!.pages[1]!.measurements.at(-1)!.points).toEqual([
+        first,
+        second,
+        first,
+      ]);
     });
 
     it("rejects the repeated Snap vertex through keyboard placement and permits continuing", async () => {
       await prepare(true);
       const originalDraft = workspaceProbe!.draft;
-      const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
-      const press = async (key: string, shiftKey = false) => act(async () => {
-        viewer.focus();
-        viewer.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }));
-      });
+      const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]")!;
+      const press = async (key: string, shiftKey = false) =>
+        act(async () => {
+          viewer.focus();
+          viewer.dispatchEvent(
+            new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }),
+          );
+        });
       await press("ArrowRight");
       await press(" ");
       expect(workspaceProbe!.draft).toBe(originalDraft);
@@ -1816,88 +1965,174 @@ describe("PdfViewer render liveness", () => {
     viewerRect = rect(480, 410);
     const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
     const page = session.pages[1]!;
-    page.measurements = [{ id: "line", name: "Long name ".repeat(100), type: "line", visible: true,
-      classificationValueIds: [], calibrationId: "scale", points: [{x:300,y:300},{x:400,y:300}] }];
-    for (const [property, size] of [["offsetTop",76],["offsetLeft",64],["offsetWidth",400],["offsetHeight",236]] as const) {
-      vi.spyOn(HTMLElement.prototype, property, "get").mockImplementation(function(this: HTMLElement) {
+    page.measurements = [
+      {
+        id: "line",
+        name: "Long name ".repeat(100),
+        type: "line",
+        visible: true,
+        classificationValueIds: [],
+        calibrationId: "scale",
+        points: [
+          { x: 300, y: 300 },
+          { x: 400, y: 300 },
+        ],
+      },
+    ];
+    for (const [property, size] of [
+      ["offsetTop", 76],
+      ["offsetLeft", 64],
+      ["offsetWidth", 400],
+      ["offsetHeight", 236],
+    ] as const) {
+      vi.spyOn(HTMLElement.prototype, property, "get").mockImplementation(function (
+        this: HTMLElement,
+      ) {
         return this.hasAttribute("data-keyboard-controls") ? size : 0;
       });
     }
     const runtime = createPdfDocument({ 1: createPdfPage().page });
-    await mountViewer(runtime.document, { page, bottomExclusion: 50,
-      authoringCapability: computeAuthoringCapability({ viewerSize: {width:480,height:410}, rightObstruction:0,bottomExclusion:50,finePointer:true }) });
+    await mountViewer(runtime.document, {
+      page,
+      bottomExclusion: 50,
+      authoringCapability: computeAuthoringCapability({
+        viewerSize: { width: 480, height: 410 },
+        rightObstruction: 0,
+        bottomExclusion: 50,
+        finePointer: true,
+      }),
+    });
     await act(async () => sessionProbe!.loadSession(session));
     await act(async () => workspaceProbe!.selectMeasurement("line"));
-    const viewer = container.querySelector<HTMLElement>('[data-dialog-focus-fallback]')!;
-    await act(async () => { viewer.focus(); viewer.dispatchEvent(new KeyboardEvent("keydown", {key:"e",bubbles:true,cancelable:true})); });
-    const cursor = container.querySelector<HTMLElement>('[data-keyboard-cursor]')!;
+    const viewer = container.querySelector<HTMLElement>("[data-dialog-focus-fallback]")!;
+    await act(async () => {
+      viewer.focus();
+      viewer.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "e", bubbles: true, cancelable: true }),
+      );
+    });
+    const cursor = container.querySelector<HTMLElement>("[data-keyboard-cursor]")!;
     expect(parseFloat(cursor.style.top)).toBeGreaterThanOrEqual(76 + 236 + 16);
     expect(parseFloat(cursor.style.top)).toBeLessThanOrEqual(360 - 16);
     expect(konvaCapture.annotationLayers.at(-1)!.measurementEditingBlocked).toBe(true);
-    expect(page.measurements[0]!.points).toEqual([{x:300,y:300},{x:400,y:300}]);
+    expect(page.measurements[0]!.points).toEqual([
+      { x: 300, y: 300 },
+      { x: 400, y: 300 },
+    ]);
   });
 
   it("keeps keyboard authoring opt-in and discards an edit when the setting is switched off", async () => {
     const runtime = createPdfDocument({ 1: createPdfPage().page });
     const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
-    session.pages[1]!.measurements = [{ id: "line", name: "Line", type: "line", visible: true,
-      classificationValueIds: [], calibrationId: "scale", points: [{ x: 200, y: 200 }, { x: 300, y: 200 }] }];
+    session.pages[1]!.measurements = [
+      {
+        id: "line",
+        name: "Line",
+        type: "line",
+        visible: true,
+        classificationValueIds: [],
+        calibrationId: "scale",
+        points: [
+          { x: 200, y: 200 },
+          { x: 300, y: 200 },
+        ],
+      },
+    ];
     const page = session.pages[1]!;
     await mountViewer(runtime.document, { page, keyboardAuthoringEnabled: false });
     await act(async () => sessionProbe!.loadSession(session));
     await act(async () => workspaceProbe!.selectMeasurement("line"));
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => viewer.focus());
-    const press = async (key: string) => act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })));
-    await press("ArrowRight"); await press("e");
-    expect(container.querySelector('[data-keyboard-cursor]')).toBeNull();
-    expect(container.querySelector('[data-keyboard-controls]')).toBeNull();
+    const press = async (key: string) =>
+      act(async () =>
+        viewer.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        ),
+      );
+    await press("ArrowRight");
+    await press("e");
+    expect(container.querySelector("[data-keyboard-cursor]")).toBeNull();
+    expect(container.querySelector("[data-keyboard-controls]")).toBeNull();
     await mountViewer(runtime.document, { page, keyboardAuthoringEnabled: true });
-    await press("e"); await press("ArrowDown");
-    expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).not.toEqual(page.measurements[0]!.points);
+    await press("e");
+    await press("ArrowDown");
+    expect(
+      (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points,
+    ).not.toEqual(page.measurements[0]!.points);
     // Interacting with the target selector must preserve the keyboard edit.
-    const select = container.querySelector<HTMLButtonElement>('[data-keyboard-controls] button[aria-haspopup="menu"]')!;
+    const select = container.querySelector<HTMLButtonElement>(
+      '[data-keyboard-controls] button[aria-haspopup="menu"]',
+    )!;
     // A pointerdown on the portaled list bubbles through React but must not cancel the edit.
     act(() => select.click());
     const option = document.body.querySelector<HTMLElement>('[role="menuitemradio"]')!;
-    await act(async () => option.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 })));
-    expect(container.querySelector('[data-keyboard-controls]')).not.toBeNull();
+    await act(async () =>
+      option.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 })),
+    );
+    expect(container.querySelector("[data-keyboard-controls]")).not.toBeNull();
     act(() => select.click());
     chooseSelectOption(select, "Vertex 2 of 2");
-    expect(container.querySelector('[data-keyboard-controls]')!.textContent).toContain("Keyboard editing");
+    expect(container.querySelector("[data-keyboard-controls]")!.textContent).toContain(
+      "Keyboard editing",
+    );
     expect(document.activeElement).toBe(viewer);
     await press("ArrowDown");
     await mountViewer(runtime.document, { page, keyboardAuthoringEnabled: false });
-    expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).toEqual(page.measurements[0]!.points);
-    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(page.measurements[0]!.points);
+    expect(
+      (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points,
+    ).toEqual(page.measurements[0]!.points);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(
+      page.measurements[0]!.points,
+    );
     await press("Enter");
-    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(page.measurements[0]!.points);
+    expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(
+      page.measurements[0]!.points,
+    );
   });
 
   it("reveals the effective Ortho cursor through an axis change and keeps it outside the drawer", async () => {
     const runtime = createPdfDocument({ 1: createPdfPage().page });
     const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
     let navigation: ViewerNavigationModel | null = null;
-    await mountViewer(runtime.document, { page: session.pages[1],
-      authoringCapability: computeAuthoringCapability({ viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
-        rightObstruction: 300, bottomExclusion: 0, finePointer: true }),
-      registerNavigation: (next) => { navigation = next; } });
+    await mountViewer(runtime.document, {
+      page: session.pages[1],
+      authoringCapability: computeAuthoringCapability({
+        viewerSize: { width: VIEWER_WIDTH, height: VIEWER_HEIGHT },
+        rightObstruction: 300,
+        bottomExclusion: 0,
+        finePointer: true,
+      }),
+      registerNavigation: (next) => {
+        navigation = next;
+      },
+    });
     await act(async () => sessionProbe!.loadSession(session));
-    await act(async () => { for (let i = 0; i < 4; i++) navigation?.onZoomIn(); });
-    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 110)); });
-    await act(async () => { workspaceProbe!.chooseTool("polyline"); workspaceProbe!.toggleOrthogonal(); });
+    await act(async () => {
+      for (let i = 0; i < 4; i++) navigation?.onZoomIn();
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 110));
+    });
+    await act(async () => {
+      workspaceProbe!.chooseTool("polyline");
+      workspaceProbe!.toggleOrthogonal();
+    });
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => viewer.focus());
-    const press = async (key: string, shiftKey = false) => act(async () => {
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }));
-    });
+    const press = async (key: string, shiftKey = false) =>
+      act(async () => {
+        viewer.dispatchEvent(
+          new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }),
+        );
+      });
     await press("ArrowRight");
     await press(" ");
     const first = workspaceProbe!.draft!.points[0]!;
     for (const direction of ["ArrowRight", "ArrowDown"]) {
       for (let i = 0; i < 70; i++) {
         await press(direction, true);
-        const cursor = container.querySelector<HTMLElement>('[data-keyboard-cursor]')!;
+        const cursor = container.querySelector<HTMLElement>("[data-keyboard-cursor]")!;
         expect(parseFloat(cursor.style.left)).toBeGreaterThanOrEqual(64 - 0.001);
         expect(parseFloat(cursor.style.left)).toBeLessThanOrEqual(VIEWER_WIDTH - 300 - 16 + 0.001);
         expect(parseFloat(cursor.style.top)).toBeGreaterThanOrEqual(64 - 0.001);
@@ -1913,32 +2148,57 @@ describe("PdfViewer render liveness", () => {
   it("keeps the keyboard cursor visible through automatic pan without dropping an edit", async () => {
     const runtime = createPdfDocument({ 1: createPdfPage().page });
     const page = createPageState(1);
-    page.measurements = [{ id: "offscreen", name: "Line", type: "line", visible: true,
-      classificationValueIds: [], calibrationId: "scale", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] }];
+    page.measurements = [
+      {
+        id: "offscreen",
+        name: "Line",
+        type: "line",
+        visible: true,
+        classificationValueIds: [],
+        calibrationId: "scale",
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+        ],
+      },
+    ];
     let navigation: ViewerNavigationModel | null = null;
-    await mountViewer(runtime.document, { page, registerNavigation: (next) => { navigation = next; } });
+    await mountViewer(runtime.document, {
+      page,
+      registerNavigation: (next) => {
+        navigation = next;
+      },
+    });
     const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
     session.pages[1] = page;
     await act(async () => sessionProbe!.loadSession(session));
     await act(async () => navigation?.onZoomIn());
-    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 110)); });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 110));
+    });
     await act(async () => workspaceProbe!.selectMeasurement("offscreen"));
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => viewer.focus());
-    const press = async (key: string, shiftKey = false) => act(async () => {
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }));
-    });
+    const press = async (key: string, shiftKey = false) =>
+      act(async () => {
+        viewer.dispatchEvent(
+          new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }),
+        );
+      });
     await press("e");
-    const cursor = container.querySelector<HTMLElement>('[data-keyboard-cursor]')!;
+    const cursor = container.querySelector<HTMLElement>("[data-keyboard-cursor]")!;
     expect(parseFloat(cursor.style.left)).toBeGreaterThanOrEqual(64);
     expect(parseFloat(cursor.style.top)).toBeGreaterThanOrEqual(48);
     expect(konvaCapture.annotationLayers.at(-1)!.measurementEditingBlocked).toBe(true);
     await press("ArrowDown", true);
     expect(konvaCapture.annotationLayers.at(-1)!.measurementEditingBlocked).toBe(true);
-    const preview = (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points;
+    const preview = (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!
+      .points;
     expect(preview).not.toEqual(page.measurements[0]!.points);
     await press("Escape");
-    expect((konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points).toEqual(page.measurements[0]!.points);
+    expect(
+      (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points,
+    ).toEqual(page.measurements[0]!.points);
   });
 
   it("checks through the calibration keyboard flow without history or annotation renders on result updates", async () => {
@@ -1977,7 +2237,9 @@ describe("PdfViewer render liveness", () => {
     await act(async () => viewer.focus());
     const press = async (key: string) =>
       act(async () => {
-        viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+        viewer.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
       });
     await press("ArrowRight");
     await press(" ");
@@ -2011,15 +2273,21 @@ describe("PdfViewer render liveness", () => {
 
   it("blocks keyboard placement until the requested page raster is presented", async () => {
     const pending = controlledRenderTask();
-    const runtime = createPdfDocument({ 1: createPdfPage().page, 2: createPdfPage(() => pending.task).page });
+    const runtime = createPdfDocument({
+      1: createPdfPage().page,
+      2: createPdfPage(() => pending.task).page,
+    });
     await mountViewer(runtime.document);
     await act(async () => workspaceProbe!.chooseTool("calibrate"));
     await mountViewer(runtime.document, { page: createPageState(2) });
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => viewer.focus());
-    const press = async (key: string) => act(async () => {
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
-    });
+    const press = async (key: string) =>
+      act(async () => {
+        viewer.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
+      });
     await press("ArrowRight");
     await press(" ");
     expect(workspaceProbe!.draft).toBeNull();
@@ -2032,28 +2300,51 @@ describe("PdfViewer render liveness", () => {
   it("authors and edits a Line through real keyboard events with one undoable commit", async () => {
     const runtime = createPdfDocument({ 1: createPdfPage().page });
     const session = createEmptySession({ name: "keyboard.pdf", size: 10, lastModified: 1 }, 1);
-    session.pages[1] = { ...session.pages[1]!, calibrations: [{
-      id: "scale-1", name: "Scale 1", mode: "uniform", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000,
-    }], activeCalibrationId: "scale-1", nextCalibrationNumber: 2 };
+    session.pages[1] = {
+      ...session.pages[1]!,
+      calibrations: [
+        {
+          id: "scale-1",
+          name: "Scale 1",
+          mode: "uniform",
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 0 },
+          referenceDistanceMm: 1000,
+        },
+      ],
+      activeCalibrationId: "scale-1",
+      nextCalibrationNumber: 2,
+    };
     await mountViewer(runtime.document, { page: session.pages[1] });
     await act(async () => sessionProbe!.loadSession(session));
     await act(async () => workspaceProbe!.chooseTool("line"));
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => viewer.focus());
     const press = async (key: string, shiftKey = false) => {
-      const event = new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true });
+      const event = new KeyboardEvent("keydown", {
+        key,
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+      });
       await act(async () => viewer.dispatchEvent(event));
       return event;
     };
     expect((await press("ArrowRight")).defaultPrevented).toBe(true);
-    const cursorBeforeMouse = container.querySelector('[data-keyboard-cursor]')?.getAttribute("style");
+    const cursorBeforeMouse = container
+      .querySelector("[data-keyboard-cursor]")
+      ?.getAttribute("style");
     expect(cursorBeforeMouse).toBeTruthy();
     const onMouseMove = konvaCapture.stages.at(-1)!.onMouseMove as (event: unknown) => void;
-    await act(async () => onMouseMove({
-      target: { getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }) },
-      evt: {},
-    }));
-    expect(container.querySelector('[data-keyboard-cursor]')?.getAttribute("style")).toBe(cursorBeforeMouse);
+    await act(async () =>
+      onMouseMove({
+        target: { getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }) },
+        evt: {},
+      }),
+    );
+    expect(container.querySelector("[data-keyboard-cursor]")?.getAttribute("style")).toBe(
+      cursorBeforeMouse,
+    );
     await press(" ");
     await press("ArrowRight", true);
     await press(" ");
@@ -2067,7 +2358,8 @@ describe("PdfViewer render liveness", () => {
     await press("e");
     await press("ArrowDown", true);
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(original.points);
-    const preview = (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!.points;
+    const preview = (konvaCapture.annotationLayers.at(-1)!.page as PageState).measurements[0]!
+      .points;
     expect(preview).not.toEqual(original.points);
     await press("Enter");
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toEqual(preview);
@@ -2086,10 +2378,12 @@ describe("PdfViewer render liveness", () => {
     const point = { x: 20, y: 30 };
     const transform = konvaCapture.annotationLayers.at(-1)!.transform as ViewTransform;
     const onClick = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
-    await act(async () => onClick({
-      target: { getStage: () => ({ getPointerPosition: () => pageToScreen(point, transform) }) },
-      evt: { button: 0 },
-    }));
+    await act(async () =>
+      onClick({
+        target: { getStage: () => ({ getPointerPosition: () => pageToScreen(point, transform) }) },
+        evt: { button: 0 },
+      }),
+    );
     const first = sessionProbe!.session!.pages[1]!.measurements[0]!;
     expect(first).toMatchObject({ name: "Count 1", type: "count", calibrationId: null });
     expect(first.points).toHaveLength(1);
@@ -2101,7 +2395,11 @@ describe("PdfViewer render liveness", () => {
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
     await act(async () => viewer.focus());
     for (const key of ["ArrowRight", " "]) {
-      await act(async () => viewer.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })));
+      await act(async () =>
+        viewer.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        ),
+      );
     }
     expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(1);
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toHaveLength(2);
@@ -2112,7 +2410,16 @@ describe("PdfViewer render liveness", () => {
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toHaveLength(2);
     await act(async () => workspaceProbe!.clearSelection());
     const click = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
-    await act(async () => click({ target: { getStage: () => ({ getPointerPosition: () => pageToScreen({ x: 100, y: 100 }, transform) }) }, evt: { button: 0 } }));
+    await act(async () =>
+      click({
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => pageToScreen({ x: 100, y: 100 }, transform),
+          }),
+        },
+        evt: { button: 0 },
+      }),
+    );
     expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(2);
     expect(sessionProbe!.session!.pages[1]!.measurements[1]!.name).toBe("Count 2");
     await act(async () => workspaceProbe!.chooseTool("select"));
@@ -2120,7 +2427,16 @@ describe("PdfViewer render liveness", () => {
     // The app wrapper keeps a selected Count when the Count tool is chosen, to resume it.
     await act(async () => workspaceProbe!.chooseTool("count", { keepSelection: true }));
     const resume = konvaCapture.stages.at(-1)!.onClick as (event: unknown) => void;
-    await act(async () => resume({ target: { getStage: () => ({ getPointerPosition: () => pageToScreen({ x: 120, y: 100 }, transform) }) }, evt: { button: 0 } }));
+    await act(async () =>
+      resume({
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => pageToScreen({ x: 120, y: 100 }, transform),
+          }),
+        },
+        evt: { button: 0 },
+      }),
+    );
     expect(sessionProbe!.session!.pages[1]!.measurements).toHaveLength(2);
     expect(sessionProbe!.session!.pages[1]!.measurements[0]!.points).toHaveLength(3);
   });
@@ -2192,7 +2508,9 @@ describe("PdfViewer render liveness", () => {
     viewer.focus();
 
     await act(async () => {
-      viewer.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+      viewer.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
+      );
     });
     await act(async () => stageHandler("onMouseDown")(stageEvent(100, 100)));
     await act(async () => stageHandler("onMouseMove")(stageEvent(130, 120)));
@@ -2235,7 +2553,8 @@ describe("PdfViewer render liveness", () => {
       await act(async () => sessionProbe!.loadSession(session));
 
       const clickPagePoint = async (point: Point, detail: number) => {
-        const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
+        const onClick = konvaCapture.stages.at(-1)?.onClick as
+          ((event: unknown) => void) | undefined;
         const transform = konvaCapture.annotationLayers.at(-1)?.transform as ViewTransform;
         if (!onClick || !transform) throw new Error("Drawing stage was not ready.");
         await act(async () =>
@@ -2487,10 +2806,7 @@ describe("PdfViewer render liveness", () => {
 
     expect(hybridCapability.available).toBe(true);
     expect(konvaCapture.annotationLayers.at(-1)?.interactionTargetScreenPx).toBe(44);
-    expect(konvaCapture.layers.slice(-2).map((layer) => layer.listening)).toEqual([
-      true,
-      false,
-    ]);
+    expect(konvaCapture.layers.slice(-2).map((layer) => layer.listening)).toEqual([true, false]);
 
     const pageHit = konvaCapture.rects.find((props) => props.name === "page-background");
     expect(pageHit?.fill).toBe("rgba(255,255,255,0.001)");
@@ -2501,7 +2817,8 @@ describe("PdfViewer render liveness", () => {
     expect(draftFill).toMatchObject({ fill: "#2465c718", listening: false });
 
     const confirmed = konvaCapture.lines.find(
-      (props) => Array.isArray(props.points) && props.points.length === 6 && props.dash === undefined,
+      (props) =>
+        Array.isArray(props.points) && props.points.length === 6 && props.dash === undefined,
     );
     expect(confirmed).toMatchObject({
       stroke: "#2465c7",
@@ -2546,9 +2863,7 @@ describe("PdfViewer render liveness", () => {
       listening: false,
     });
 
-    const onClick = konvaCapture.stages.at(-1)?.onClick as
-      | ((event: unknown) => void)
-      | undefined;
+    const onClick = konvaCapture.stages.at(-1)?.onClick as ((event: unknown) => void) | undefined;
     if (!onClick) throw new Error("Stage click handler was not captured.");
     konvaCapture.lines.length = 0;
     await act(async () => {

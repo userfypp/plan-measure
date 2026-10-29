@@ -39,7 +39,9 @@ vi.mock("./usePdfSessionLifecycle", async () => {
       loadSession: (session: CurrentSession) => void;
     }) => {
       const { session, loadSession } = options;
-      useEffect(() => { if (session) lifecycleHarness.autosave(session); }, [session]);
+      useEffect(() => {
+        if (session) lifecycleHarness.autosave(session);
+      }, [session]);
       lifecycleHarness.latestSession = session;
       lifecycleHarness.loadSession = loadSession;
       useEffect(() => {
@@ -99,8 +101,17 @@ vi.mock("./AppShell", () => ({
     <div>
       {saveStatus}
       {onExport && <button onClick={onExport}>Open export</button>}
-      {statusMessage && <div role="alert">{statusMessage}{statusActions}</div>}
-      {errorNotifications.map(({ id, message }) => <div key={id} role="alert">{message}</div>)}
+      {statusMessage && (
+        <div role="alert">
+          {statusMessage}
+          {statusActions}
+        </div>
+      )}
+      {errorNotifications.map(({ id, message }) => (
+        <div key={id} role="alert">
+          {message}
+        </div>
+      ))}
       {children}
     </div>
   ),
@@ -108,7 +119,8 @@ vi.mock("./AppShell", () => ({
 }));
 
 vi.mock("./WorkspaceShell", async () => {
-  const { ViewerInteractionCommandsProvider } = await import("../features/viewer/ViewerInteractionCommands");
+  const { ViewerInteractionCommandsProvider } =
+    await import("../features/viewer/ViewerInteractionCommands");
   const { useWorkspaceState } = await import("./workspaceState");
   const { useSessionState } = await import("./sessionState");
   function PendingDraftControl() {
@@ -129,7 +141,9 @@ vi.mock("./WorkspaceShell", async () => {
           Start pending drawing
         </button>
         <output data-testid="history">{`${canUndo}:${canRedo}`}</output>
-        <output data-testid="pending-draft">{draft ? `${draft.type}:${draft.points.length}` : ""}</output>
+        <output data-testid="pending-draft">
+          {draft ? `${draft.type}:${draft.points.length}` : ""}
+        </output>
       </>
     );
   }
@@ -152,7 +166,9 @@ vi.mock("./WorkspaceShell", async () => {
       <main>
         {workspacePanel ?? emptyState}
         <ViewerInteractionCommandsProvider>{contextToolbar}</ViewerInteractionCommandsProvider>
-        {viewer}{viewerOverlay}{viewerTransientOverlay}
+        {viewer}
+        {viewerOverlay}
+        {viewerTransientOverlay}
         <PendingDraftControl />
       </main>
     ),
@@ -161,7 +177,15 @@ vi.mock("./WorkspaceShell", async () => {
 });
 
 vi.mock("./WorkspacePanel", () => ({
-  WorkspacePanel: ({ measurements, scales, takeoff }: { measurements: ReactNode; scales: ReactNode; takeoff: ReactNode }) => (
+  WorkspacePanel: ({
+    measurements,
+    scales,
+    takeoff,
+  }: {
+    measurements: ReactNode;
+    scales: ReactNode;
+    takeoff: ReactNode;
+  }) => (
     <aside>
       <div>{measurements}</div>
       <div>{scales}</div>
@@ -173,19 +197,31 @@ vi.mock("./WorkspacePanel", () => ({
 vi.mock("../features/measurements/MeasurementPanel", async () => {
   const { useWorkspaceState } = await import("./workspaceState");
   return {
-    MeasurementPanel: ({ onSelectMeasurement }: {
+    MeasurementPanel: ({
+      onSelectMeasurement,
+    }: {
       onSelectMeasurement: (pageNumber: number, measurementId: string, additive?: boolean) => void;
     }) => {
       lifecycleHarness.measurementRenders();
       const { selectedMeasurementIds, measurementDetailsOpen } = useWorkspaceState();
-      return <>
-        <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>Select page 2 measurement</button>
-        <button type="button" onClick={() => onSelectMeasurement(1, "page-one-line", true)}>Toggle page 1 measurement</button>
-        <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line", true)}>Toggle page 2 measurement</button>
-        <button type="button" onClick={() => onSelectMeasurement(1, "page-one-second", true)}>Toggle second page 1 measurement</button>
-        <output data-testid="selected-measurements">{selectedMeasurementIds.join(",")}</output>
-        <output data-testid="details-open">{String(measurementDetailsOpen)}</output>
-      </>;
+      return (
+        <>
+          <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line")}>
+            Select page 2 measurement
+          </button>
+          <button type="button" onClick={() => onSelectMeasurement(1, "page-one-line", true)}>
+            Toggle page 1 measurement
+          </button>
+          <button type="button" onClick={() => onSelectMeasurement(2, "page-two-line", true)}>
+            Toggle page 2 measurement
+          </button>
+          <button type="button" onClick={() => onSelectMeasurement(1, "page-one-second", true)}>
+            Toggle second page 1 measurement
+          </button>
+          <output data-testid="selected-measurements">{selectedMeasurementIds.join(",")}</output>
+          <output data-testid="details-open">{String(measurementDetailsOpen)}</output>
+        </>
+      );
     },
   };
 });
@@ -211,23 +247,54 @@ vi.mock("./WorkspaceDrawerContext", () => ({
 vi.mock("../features/viewer/PdfViewer", async () => {
   const { useState } = await import("react");
   const { PageBrowserHost } = await import("../features/pages/PageBrowserHost");
-  const pdf = { numPages: 2, getPage: vi.fn().mockRejectedValue(new Error("Thumbnail unavailable in App harness")) } as unknown as import("pdfjs-dist").PDFDocumentProxy;
+  const pdf = {
+    numPages: 2,
+    getPage: vi.fn().mockRejectedValue(new Error("Thumbnail unavailable in App harness")),
+  } as unknown as import("pdfjs-dist").PDFDocumentProxy;
   const { useWorkspaceState } = await import("./workspaceState");
-  return { ViewerDock: () => null, PdfViewer: ({ onCalibrationCandidate, onPageChange, onChooseTool }: {
-    onCalibrationCandidate: (points: [{ x: number; y: number }, { x: number; y: number }]) => void;
-    onPageChange: (page: number) => void;
-    onChooseTool: (tool: "hand") => void;
-  }) => {
-    const { chooseTool } = useWorkspaceState();
-    const [pagesOpen, setPagesOpen] = useState(false);
-    return <>
-      <button onClick={() => setPagesOpen(!pagesOpen)}>Pages</button>
-      {pagesOpen && <PageBrowserHost document={pdf} sourceLabels={["i", "ii"]} onNavigate={onPageChange} onClose={() => setPagesOpen(false)} />}
-      <button onClick={() => { chooseTool("select"); onCalibrationCandidate([{ x: 0, y: 0 }, { x: 10, y: 20 }]); }}>Mark check points</button>
-      <button onClick={() => onPageChange(2)}>Next viewer page</button>
-      <button onClick={() => onChooseTool("hand")}>Choose hand tool</button>
-    </>;
-  } };
+  return {
+    ViewerDock: () => null,
+    PdfViewer: ({
+      onCalibrationCandidate,
+      onPageChange,
+      onChooseTool,
+    }: {
+      onCalibrationCandidate: (
+        points: [{ x: number; y: number }, { x: number; y: number }],
+      ) => void;
+      onPageChange: (page: number) => void;
+      onChooseTool: (tool: "hand") => void;
+    }) => {
+      const { chooseTool } = useWorkspaceState();
+      const [pagesOpen, setPagesOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setPagesOpen(!pagesOpen)}>Pages</button>
+          {pagesOpen && (
+            <PageBrowserHost
+              document={pdf}
+              sourceLabels={["i", "ii"]}
+              onNavigate={onPageChange}
+              onClose={() => setPagesOpen(false)}
+            />
+          )}
+          <button
+            onClick={() => {
+              chooseTool("select");
+              onCalibrationCandidate([
+                { x: 0, y: 0 },
+                { x: 10, y: 20 },
+              ]);
+            }}
+          >
+            Mark check points
+          </button>
+          <button onClick={() => onPageChange(2)}>Next viewer page</button>
+          <button onClick={() => onChooseTool("hand")}>Choose hand tool</button>
+        </>
+      );
+    },
+  };
 });
 
 let root: Root | null = null;
@@ -432,7 +499,7 @@ afterEach(() => {
 });
 
 describe("App export diferido", () => {
-  it("abre el módulo resuelto y conserva cierre, reapertura y sesión", async () => {
+  it("opens the resolved module and keeps closing, reopening and the session", async () => {
     await renderApp(twoPageSession());
     const before = currentSession();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
@@ -579,7 +646,6 @@ describe("App Set ratio impact confirmation", () => {
   });
 });
 
-
 describe("App scale deletion", () => {
   beforeEach(() => window.localStorage.removeItem(SCALE_DELETE_CONFIRMATION_STORAGE_KEY));
   afterEach(() => window.localStorage.removeItem(SCALE_DELETE_CONFIRMATION_STORAGE_KEY));
@@ -621,7 +687,21 @@ describe("App scale deletion", () => {
 describe("App multiple measurement selection", () => {
   function assignedSession() {
     const session = twoPageSession();
-    for (const page of Object.values(session.pages)) page.measurements = [{ id: page.pageNumber === 1 ? "page-one-line" : "page-two-line", name: "Line", type: "line", calibrationId: "scale", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], visible: true, classificationValueIds: [] }];
+    for (const page of Object.values(session.pages))
+      page.measurements = [
+        {
+          id: page.pageNumber === 1 ? "page-one-line" : "page-two-line",
+          name: "Line",
+          type: "line",
+          calibrationId: "scale",
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+          ],
+          visible: true,
+          classificationValueIds: [],
+        },
+      ];
     return session;
   }
 
@@ -629,21 +709,44 @@ describe("App multiple measurement selection", () => {
     const session = assignedSession();
     session.pages[1]!.calibrations = [{ ...uniformScale(), id: "scale" }];
     session.pages[1]!.activeCalibrationId = "scale";
-    session.pages[1]!.measurements.push({ ...session.pages[1]!.measurements[0]!, id: "page-one-second", points: [{ x: 20, y: 20 }, { x: 30, y: 20 }] });
+    session.pages[1]!.measurements.push({
+      ...session.pages[1]!.measurements[0]!,
+      id: "page-one-second",
+      points: [
+        { x: 20, y: 20 },
+        { x: 30, y: 20 },
+      ],
+    });
     await renderApp(session);
     act(() => buttonByText("Toggle page 1 measurement").click());
     act(() => buttonByText("Toggle second page 1 measurement").click());
     expect(buttonByLabel("Duplicate").disabled).toBe(false);
     act(() => buttonByLabel("Duplicate").click());
     expect(currentSession().pages[1]!.measurements).toHaveLength(4);
-    const newIds = currentSession().pages[1]!.measurements.slice(2).map((measurement) => measurement.id);
-    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe(newIds.join(","));
-    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true })));
-    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "v", ctrlKey: true, bubbles: true })));
+    const newIds = currentSession()
+      .pages[1]!.measurements.slice(2)
+      .map((measurement) => measurement.id);
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe(
+      newIds.join(","),
+    );
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true }),
+      ),
+    );
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "v", ctrlKey: true, bubbles: true }),
+      ),
+    );
     expect(currentSession().pages[1]!.measurements).toHaveLength(6);
     act(() => buttonByText("Toggle page 2 measurement").click());
     expect(buttonByLabel("Duplicate").disabled).toBe(true);
-    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true })));
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true }),
+      ),
+    );
     expect(document.querySelector('[role="alert"]')!.textContent).toContain("single page");
     expect(currentSession().pages[1]!.measurements).toHaveLength(6);
   });
@@ -653,7 +756,9 @@ describe("App multiple measurement selection", () => {
     act(() => buttonByText("Toggle page 1 measurement").click());
     act(() => buttonByText("Toggle page 2 measurement").click());
     expect(currentSession().currentPage).toBe(1);
-    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("page-one-line,page-two-line");
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe(
+      "page-one-line,page-two-line",
+    );
     act(() => buttonByLabel("Delete").click());
     expect(document.querySelector("dialog")!.textContent).toContain("Delete 2 measurements?");
     act(() => dialogButtonByText("Cancel").click());
@@ -676,7 +781,6 @@ describe("App multiple measurement selection", () => {
     expect(currentSession().pages[2]!.measurements).toEqual([]);
   });
 });
-
 
 describe("App autosave recovery actions", () => {
   it("hides status in an empty workspace and connects backup and retry to the existing lifecycle actions", async () => {
@@ -736,11 +840,23 @@ describe("App autosave recovery actions", () => {
   });
 });
 
-
 describe("App Takeoff source navigation", () => {
   function sourceSession() {
     const session = twoPageSession();
-    session.pages[2]!.measurements = [{id: "hidden-source", name: "Hidden source", type: "line", calibrationId: "gone", points: [{x:0,y:0},{x:10,y:0}], visible: false, classificationValueIds: []}];
+    session.pages[2]!.measurements = [
+      {
+        id: "hidden-source",
+        name: "Hidden source",
+        type: "line",
+        calibrationId: "gone",
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+        visible: false,
+        classificationValueIds: [],
+      },
+    ];
     return session;
   }
   it("navigates to an excluded hidden source and opens details without changing it", async () => {
@@ -750,7 +866,9 @@ describe("App Takeoff source navigation", () => {
     act(() => buttonByLabel("Inspect excluded measurements").click());
     act(() => buttonByLabel("Open Hidden source on page 2").click());
     expect(currentSession().currentPage).toBe(2);
-    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe("hidden-source");
+    expect(container!.querySelector('[data-testid="selected-measurements"]')!.textContent).toBe(
+      "hidden-source",
+    );
     expect(container!.querySelector('[data-testid="details-open"]')!.textContent).toBe("true");
     expect(currentSession().pages).toEqual(before);
   });
@@ -803,9 +921,13 @@ describe("App scale check", () => {
       expect(status?.textContent).toContain("Real distance: 1.00 m");
       expect(status?.textContent).toContain("Difference (measured − real):");
       expect(status?.getAttribute("aria-atomic")).toBe("true");
-      expect(document.querySelector('[data-layout-slot="scale-check-interaction-shield"]')).toBeNull();
+      expect(
+        document.querySelector('[data-layout-slot="scale-check-interaction-shield"]'),
+      ).toBeNull();
       expect(document.querySelector("dialog")).toBeNull();
-      expect(document.querySelector(`[role="group"][aria-label="Scale check: ${scale.name}"]`)).not.toBeNull();
+      expect(
+        document.querySelector(`[role="group"][aria-label="Scale check: ${scale.name}"]`),
+      ).not.toBeNull();
       expect(currentSession()).toEqual(before);
       expect(currentSession()).toBe(persisted);
       expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("false:false");
@@ -833,7 +955,14 @@ describe("App scale check", () => {
       )!;
       chooseSelectOption(
         select,
-        { mm: "Millimetres", cm: "Centimetres", m: "Metres", in: "Inches", ft: "Feet", "ft-in": "Feet & inches" }[unit as string]!,
+        {
+          mm: "Millimetres",
+          cm: "Centimetres",
+          m: "Metres",
+          in: "Inches",
+          ft: "Feet",
+          "ft-in": "Feet & inches",
+        }[unit as string]!,
       );
       if (unit === "ft-in") {
         setInputValue(document.querySelector<HTMLInputElement>("#calibration-feet")!, "1");
@@ -886,7 +1015,9 @@ describe("App scale check", () => {
     const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
     act(() => window.dispatchEvent(escape));
     expect(escape.defaultPrevented).toBe(false);
-    expect(document.querySelector('[role="group"][aria-label="Scale check: Ground floor"]')).toBeNull();
+    expect(
+      document.querySelector('[role="group"][aria-label="Scale check: Ground floor"]'),
+    ).toBeNull();
     expect(lifecycleHarness.autosave).not.toHaveBeenCalled();
   });
   it("does not enqueue autosave when completing a check", async () => {
@@ -939,9 +1070,16 @@ describe("App scale check", () => {
   });
 });
 
-
 describe("App page browser navigation purity", () => {
-  beforeEach(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
+  beforeEach(() =>
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    ),
+  );
   afterEach(() => vi.unstubAllGlobals());
   it("keeps opening/search local and uses the same navigation effects as the viewer controls", async () => {
     const session = buildSession(uniformScale(), { withMeasurement: true });

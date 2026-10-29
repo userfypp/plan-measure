@@ -6,16 +6,16 @@ import type { Measurement, PageState, Tool, ViewTransform } from "../types/domai
 import { PdfAnnotationLayer } from "../features/viewer/PdfAnnotationLayer";
 import { resolveCanvasVisualRoles } from "../features/viewer/canvasVisualRoles";
 
-// Presupuesto de renders de MeasurementShape con 1000 medidas en la capa real. Cada interacción
-// solo puede renderizar las medidas que cambian para ella: una prop compartida con identidad nueva
-// (array, objeto o callback recreado) vuelve a renderizar las 1000 y cuesta frames visibles en un
-// plano real. Si falla, busca la prop inestable; no amplíes el presupuesto.
+// MeasurementShape render budget with 1000 measurements in the real layer. Each interaction may
+// render only the measurements it changes: a shared prop with a new identity (a recreated array,
+// object or callback) re-renders all 1000 and costs visible frames on a real plan. If this fails,
+// find the unstable prop; don't raise the budget.
 
 type Props = Record<string, unknown>;
 
 const captured = vi.hoisted(() => ({ shapes: [] as Props[] }));
 
-// Cada render de MeasurementShape pinta exactamente una línea con este nombre.
+// Each MeasurementShape render draws exactly one line with this name.
 vi.mock("react-konva", () => ({
   Circle: () => null,
   Group: ({ children }: { children?: ReactNode }) => children ?? null,
@@ -79,7 +79,7 @@ function line(i: number, dx = 0): Measurement {
   };
 }
 
-// Las ediciones de la sesión conservan los objetos que no cambian, como las calibraciones.
+// Session edits keep the objects that don't change, such as calibrations.
 const CALIBRATIONS: PageState["calibrations"] = [
   {
     id: "scale-1",
@@ -128,7 +128,7 @@ const BASE: LayerState = {
 };
 const ids = (...indexes: number[]) => indexes.map((i) => `m-${i}`);
 
-describe("presupuesto de renders de la capa de anotaciones", () => {
+describe("annotation layer render budget", () => {
   let container: HTMLDivElement;
   let root: Root;
   let state: LayerState;
@@ -148,7 +148,7 @@ describe("presupuesto de renders de la capa de anotaciones", () => {
     container.remove();
   });
 
-  /** Aplica el cambio y devuelve, en orden de página, las medidas cuya forma se renderizó. */
+  /** Applies the change and returns, in page order, the measurements whose shape rendered. */
   function update(next: Partial<LayerState> = {}) {
     state = { ...state, ...next };
     const byStart = new Map(
@@ -208,7 +208,7 @@ describe("presupuesto de renders de la capa de anotaciones", () => {
       ),
     );
 
-  it("montar renderiza cada medida una vez y repetir las mismas props no renderiza ninguna", () => {
+  it("mounting renders each measurement once and repeating the same props renders none", () => {
     mount();
     expect(update()).toEqual([]);
     expect(update({ page: page(state.page.measurements) })).toEqual([]);
@@ -223,7 +223,7 @@ describe("presupuesto de renders de la capa de anotaciones", () => {
     expect(update({ activeTool: "select" })).toEqual([]);
   });
 
-  it("seleccionar renderiza solo las medidas que entran, salen o cambian de grupo", () => {
+  it("selecting renders only the measurements that join, leave or change group", () => {
     mount();
     expect(update({ selected: ids(501) })).toEqual(ids(501));
     expect(update({ selected: ids(502) })).toEqual(ids(501, 502));
@@ -233,9 +233,9 @@ describe("presupuesto de renders de la capa de anotaciones", () => {
     expect(update({ selected: [] })).toEqual(ids(503));
   });
 
-  // Las ediciones elegidas no recolocan etiquetas vecinas; si una lo hace, esas vecinas cambian de
-  // posición y también deben renderizarse.
-  it("añadir, editar u ocultar una medida renderiza solo esa medida", () => {
+  // These edits don't move neighbouring labels; if one did, those neighbours would move and would
+  // have to render too.
+  it("adding, editing or hiding a measurement renders only that measurement", () => {
     mount();
     expect(update({ page: page([...state.page.measurements, line(COUNT)]) })).toEqual(ids(COUNT));
     expect(update({ page: edit(COUNT, line(COUNT, 2)) })).toEqual(ids(COUNT));
@@ -245,8 +245,8 @@ describe("presupuesto de renders de la capa de anotaciones", () => {
     expect(update({ selected: ids(10), page: edit(500, line(500, 2)) })).toEqual(ids(10, 500));
   });
 
-  // El tamaño de trazos, asas y etiquetas depende del zoom: cada medida visible se renderiza una vez.
-  it("el zoom renderiza cada medida visible una sola vez", () => {
+  // Stroke, handle and label sizes depend on zoom: each visible measurement renders once.
+  it("zooming renders each visible measurement exactly once", () => {
     mount();
     expect(update({ transform: { zoom: 1.25, panX: 0, panY: 0 } })).toHaveLength(COUNT);
     expect(update({ transform: { zoom: 1.25, panX: 10, panY: 0 } })).toEqual([]);

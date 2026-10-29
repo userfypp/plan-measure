@@ -44,7 +44,11 @@ export interface MeasurementDetailsProps {
   onSaveNote: (note: string) => void;
   /** Present only where cloud colors can be edited. */
   onChangeColor?: (color: string) => void;
-  onAssignClassification: (measurementId: string, dimensionId: string, valueId: string | null) => void;
+  onAssignClassification: (
+    measurementId: string,
+    dimensionId: string,
+    valueId: string | null,
+  ) => void;
   onRemoveCountItem?: (index: number) => void;
   onMoveCountItem?: (index: number, targetId: string) => void;
   onAddCountItems?: () => void;
@@ -104,10 +108,15 @@ export function MeasurementDetails({
         ? "None"
         : "Scale unavailable";
   const [perimeterResult, areaResult] = viewModel.valueLabel.split(" · ");
-  const polygonResults = measurementPathSpecs[measurement.type].closed && perimeterResult && areaResult;
-  const otherCounts = useMemo(() => page.measurements.filter(
-    (candidate) => candidate.type === "count" && candidate.id !== measurement.id,
-  ), [page.measurements, measurement.id]);
+  const polygonResults =
+    measurementPathSpecs[measurement.type].closed && perimeterResult && areaResult;
+  const otherCounts = useMemo(
+    () =>
+      page.measurements.filter(
+        (candidate) => candidate.type === "count" && candidate.id !== measurement.id,
+      ),
+    [page.measurements, measurement.id],
+  );
   const [itemPage, setItemPage] = useState(0);
   const lastItemPage = Math.max(0, Math.ceil(measurement.points.length / COUNT_ITEMS_PER_PAGE) - 1);
   const visibleItemPage = Math.min(itemPage, lastItemPage);
@@ -130,7 +139,9 @@ export function MeasurementDetails({
             data-measurement-details-back
             onClick={onBack}
           />
-          <h2 className={styles.name} title={measurement.name}>{measurement.name}</h2>
+          <h2 className={styles.name} title={measurement.name}>
+            {measurement.name}
+          </h2>
         </div>
 
         {!unmeasuredCloud && (
@@ -198,58 +209,78 @@ export function MeasurementDetails({
                 />
               )}
             </div>
-            <ul ref={itemsListRef} className={styles.itemsList} aria-label={`Items in ${measurement.name}`}>
-              {measurement.points.slice(itemsStart, itemsStart + COUNT_ITEMS_PER_PAGE).map((_, localIndex) => {
-                const index = itemsStart + localIndex;
-                return (
-                <li className={styles.itemRow} key={index}>
-                  <span>Item {index + 1}</span>
-                  <div className={styles.itemActions}>
-                    {onMoveCountItem && (
-                      <AnchoredMenu
-                        trigger="Move to…"
-                        triggerProps={{
-                          className: styles.itemMove,
-                          "aria-label": `Move item ${index + 1} to another count`,
-                          disabled: assignmentDisabled || otherCounts.length === 0,
-                          title: otherCounts.length === 0 ? "Create another count on this page first" : undefined,
-                        }}
-                        label={`Move item ${index + 1} to count`}
-                        placement="bottom-end"
-                        items={() => otherCounts.map((count) => ({
-                          id: count.id,
-                          label: `${count.name}${count.visible ? "" : " (hidden)"}`,
-                          onSelect: () => onMoveCountItem(index, count.id),
-                        }))}
-                      />
-                    )}
-                    <IconButton
-                      className={styles.itemRemove}
-                      aria-label={`Delete item ${index + 1}`}
-                      tooltip={`Delete item ${index + 1}`}
-                      tooltipPosition="left"
-                      tone="danger"
-                      disabled={assignmentDisabled}
-                      data-count-item-index={index}
-                      data-count-item-remove
-                      onClick={(event) => {
-                        if (measurement.points.length === 1) {
-                          onDelete();
-                          return;
-                        }
-                        const list = event.currentTarget.closest("ul");
-                        onRemoveCountItem(index);
-                        window.requestAnimationFrame(() => {
-                          const buttons = Array.from(list?.querySelectorAll<HTMLButtonElement>("[data-count-item-remove]") ?? []);
-                          const nearest = buttons.find((button) => Number(button.dataset.countItemIndex) === Math.min(index, measurement.points.length - 2));
-                          (nearest ?? buttons.at(-1))?.focus({ preventScroll: true });
-                        });
-                      }}
-                      icon={<TrashIcon />}
-                    />
-                  </div>
-                </li>
-              ); })}
+            <ul
+              ref={itemsListRef}
+              className={styles.itemsList}
+              aria-label={`Items in ${measurement.name}`}
+            >
+              {measurement.points
+                .slice(itemsStart, itemsStart + COUNT_ITEMS_PER_PAGE)
+                .map((_, localIndex) => {
+                  const index = itemsStart + localIndex;
+                  return (
+                    <li className={styles.itemRow} key={index}>
+                      <span>Item {index + 1}</span>
+                      <div className={styles.itemActions}>
+                        {onMoveCountItem && (
+                          <AnchoredMenu
+                            trigger="Move to…"
+                            triggerProps={{
+                              className: styles.itemMove,
+                              "aria-label": `Move item ${index + 1} to another count`,
+                              disabled: assignmentDisabled || otherCounts.length === 0,
+                              title:
+                                otherCounts.length === 0
+                                  ? "Create another count on this page first"
+                                  : undefined,
+                            }}
+                            label={`Move item ${index + 1} to count`}
+                            placement="bottom-end"
+                            items={() =>
+                              otherCounts.map((count) => ({
+                                id: count.id,
+                                label: `${count.name}${count.visible ? "" : " (hidden)"}`,
+                                onSelect: () => onMoveCountItem(index, count.id),
+                              }))
+                            }
+                          />
+                        )}
+                        <IconButton
+                          className={styles.itemRemove}
+                          aria-label={`Delete item ${index + 1}`}
+                          tooltip={`Delete item ${index + 1}`}
+                          tooltipPosition="left"
+                          tone="danger"
+                          disabled={assignmentDisabled}
+                          data-count-item-index={index}
+                          data-count-item-remove
+                          onClick={(event) => {
+                            if (measurement.points.length === 1) {
+                              onDelete();
+                              return;
+                            }
+                            const list = event.currentTarget.closest("ul");
+                            onRemoveCountItem(index);
+                            window.requestAnimationFrame(() => {
+                              const buttons = Array.from(
+                                list?.querySelectorAll<HTMLButtonElement>(
+                                  "[data-count-item-remove]",
+                                ) ?? [],
+                              );
+                              const nearest = buttons.find(
+                                (button) =>
+                                  Number(button.dataset.countItemIndex) ===
+                                  Math.min(index, measurement.points.length - 2),
+                              );
+                              (nearest ?? buttons.at(-1))?.focus({ preventScroll: true });
+                            });
+                          }}
+                          icon={<TrashIcon />}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
             </ul>
             {measurement.points.length > COUNT_ITEMS_PER_PAGE && (
               <nav className={styles.itemsPagination} aria-label="Count items pagination">
@@ -260,7 +291,11 @@ export function MeasurementDetails({
                   disabled={visibleItemPage === 0}
                   onClick={() => changeItemPage(visibleItemPage - 1)}
                 />
-                <span role="status">{itemsStart + 1}–{Math.min(itemsStart + COUNT_ITEMS_PER_PAGE, measurement.points.length)} of {measurement.points.length}</span>
+                <span role="status">
+                  {itemsStart + 1}–
+                  {Math.min(itemsStart + COUNT_ITEMS_PER_PAGE, measurement.points.length)} of{" "}
+                  {measurement.points.length}
+                </span>
                 <IconButton
                   icon={<ChevronRightIcon />}
                   aria-label="Next items"
@@ -304,10 +339,7 @@ export function MeasurementDetails({
           </div>
         </section>
 
-        <section
-          className={styles.section}
-          aria-label="Measurement organization"
-        >
+        <section className={styles.section} aria-label="Measurement organization">
           <h3>Organization</h3>
           <ClassificationAssignment
             measurementId={measurement.id}
@@ -318,7 +350,6 @@ export function MeasurementDetails({
             compact
           />
         </section>
-
       </div>
     </section>
   );
