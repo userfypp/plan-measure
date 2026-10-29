@@ -581,10 +581,12 @@ describe("annotated PDF export", () => {
     ) {
       downloadName = this.download;
     });
-    const timeout = vi.spyOn(window as Window, "setTimeout").mockImplementation((handler: TimerHandler) => {
-      if (typeof handler === "function") handler();
-      return 1;
-    });
+    const timeout = vi
+      .spyOn(window as Window, "setTimeout")
+      .mockImplementation((handler: TimerHandler) => {
+        if (typeof handler === "function") handler();
+        return 1;
+      });
 
     await downloadAnnotatedPdf(sessionFixture(), sourceDocument(source));
 
