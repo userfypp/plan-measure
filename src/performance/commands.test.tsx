@@ -6,7 +6,7 @@ import { SessionProvider, useMeasurementCommands, useSessionState } from "../app
 import { AppProvider } from "../app/state";
 import { performanceSession } from "./fixtures";
 
-it("5000 consumidores de comandos no se notifican por preferencias, edición ni undo", () => {
+it("5000 command consumers are not notified by preference, edit or undo changes", () => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;

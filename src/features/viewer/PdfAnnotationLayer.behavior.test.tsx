@@ -109,7 +109,7 @@ vi.mock("../../app/sessionState", () => ({
 const noop = () => undefined;
 const roles = resolveCanvasVisualRoles("light");
 const BOUNDS = { width: 600, height: 800, rotation: 0 as const };
-// Zoom 2 sin desplazamiento: pantalla = 2 * página.
+// Zoom 2 without panning: screen = 2 * page.
 const TRANSFORM = { zoom: 2, panX: 0, panY: 0 };
 const toScreen = (point: Point): Point => ({ x: point.x * 2, y: point.y * 2 });
 
@@ -120,7 +120,7 @@ const SQUARE: Point[] = [
   { x: 50, y: 120 },
 ];
 
-/** Página con una escala uniforme de 50 mm por unidad de página y una medición. */
+/** A page with a uniform 50 mm per page unit scale and one measurement. */
 function pageWith(type: PathMeasurementType, points: Point[], visible = true): PageState {
   return {
     pageNumber: 1,
@@ -247,10 +247,10 @@ describe("PdfAnnotationLayer behavior", () => {
     });
   }
 
-  /** Línea de la medición (excluye la línea de calibración, que no se pinta con showCalibration=false). */
+  /** The measurement's line (not the calibration line, which showCalibration=false hides). */
   const shape = () => captured.lines.find((line) => line.name === "measurement-preview-line")!;
 
-  /** Nodo Konva simulado cuyo puntero se controla desde el test. */
+  /** A fake Konva node whose pointer the test controls. */
   function dragNode() {
     const pointer = { x: 0, y: 0 };
     const node = {
@@ -276,13 +276,13 @@ describe("PdfAnnotationLayer behavior", () => {
     cancelBubble: false,
   });
 
-  /** Tiradores de vértice (las esquinas de un rectángulo), sin los de lado. */
+  /** Vertex handles (a rectangle's corners), without the side handles. */
   const cornerHandles = () =>
     captured.circles.filter((circle) => circle.name === "measurement-preview-handle");
   const sideHandles = () =>
     captured.circles.filter((circle) => circle.name === "measurement-preview-side-handle");
 
-  /** Arrastra el tirador `handle` desde su posición hasta `to` (coordenadas de pantalla). */
+  /** Drags `handle` from where it is to `to` (screen coordinates). */
   function dragHandle(handle: Props, to: Point, { button = 0 } = {}) {
     const { node, moveTo } = dragNode();
     const event = mouseEvent(node, button);
@@ -293,7 +293,7 @@ describe("PdfAnnotationLayer behavior", () => {
     return { handle, node, event, end: () => fire(handle, "onDragEnd", event) };
   }
 
-  /** Arrastra el vértice `index` desde su posición hasta `to` (coordenadas de pantalla). */
+  /** Drags vertex `index` from where it is to `to` (screen coordinates). */
   const dragVertex = (index: number, to: Point, options?: { button?: number }) =>
     dragHandle(cornerHandles()[index]!, to, options);
 
@@ -397,7 +397,7 @@ describe("PdfAnnotationLayer behavior", () => {
     });
 
     it("labels each type with its scaled result and refreshes it when the points change", () => {
-      // 50 mm por unidad de página.
+      // 50 mm per page unit.
       renderLayer({
         page: pageWith("line", [
           { x: 50, y: 50 },
@@ -485,7 +485,7 @@ describe("PdfAnnotationLayer behavior", () => {
     });
 
     it("hides the handles of sides too short on screen to grab apart from the corners", () => {
-      // 100 × 70 de página; el mínimo es el doble del objetivo táctil (2 × 32 px).
+      // 100 × 70 page units; the minimum is twice the touch target (2 × 32 px).
       renderLayer({
         page: pageWith("rectangle", SQUARE),
         selected: ["m-1"],
@@ -732,7 +732,7 @@ describe("PdfAnnotationLayer behavior", () => {
         fire(handle, "onDragMove", event);
         act(() => frame!(0));
         expect(captured.previewPoints).toEqual([20, 50, 150, 50, 150, 120, 20, 120]);
-        // Los tiradores de lado de la vista previa siguen a los lados.
+        // The preview's side handles follow the sides.
         expect(captured.previewSideHandles.map((side) => side.position.mock.lastCall?.[0])).toEqual(
           [
             { x: 85, y: 50 },
