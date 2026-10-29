@@ -9,19 +9,49 @@ describe("overlay state", () => {
   });
 
   it("stores only a replace-PDF descriptor and closes only the matching request", () => {
-    const opened = overlayReducer(initialOverlayState, { type: "REQUEST_REPLACE_PDF", payload: { pdfId: "pdf-1", fileName: "replacement.pdf" } });
-    expect(opened.active).toEqual({ kind: "dialog", descriptor: { type: "replacePdf", payload: { pdfId: "pdf-1", fileName: "replacement.pdf" } } });
+    const opened = overlayReducer(initialOverlayState, {
+      type: "REQUEST_REPLACE_PDF",
+      payload: { pdfId: "pdf-1", fileName: "replacement.pdf" },
+    });
+    expect(opened.active).toEqual({
+      kind: "dialog",
+      descriptor: { type: "replacePdf", payload: { pdfId: "pdf-1", fileName: "replacement.pdf" } },
+    });
     expect(opened).not.toHaveProperty("file");
     expect(opened).not.toHaveProperty("session");
 
-    const stale = overlayReducer(opened, { type: "CLOSE_DIALOG", dialog: { type: "replacePdf", payload: { pdfId: "old" } } });
+    const stale = overlayReducer(opened, {
+      type: "CLOSE_DIALOG",
+      dialog: { type: "replacePdf", payload: { pdfId: "old" } },
+    });
     expect(stale).toBe(opened);
     expect(overlayReducer(opened, { type: "CLOSE_DIALOG" })).toEqual(initialOverlayState);
   });
 
   it("keeps confirmation payloads to identifiers and presentation values", () => {
-    const state = overlayReducer(initialOverlayState, { type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT", payload: { pageNumber: 4, calibrationId: "scale-4", reference: "x", calibrationName: "Detail", measurementCount: 2 } });
-    expect(state.active).toEqual({ kind: "confirmation", descriptor: { type: "saveCalibrationReferenceEdit", payload: { pageNumber: 4, calibrationId: "scale-4", reference: "x", calibrationName: "Detail", measurementCount: 2 } } });
+    const state = overlayReducer(initialOverlayState, {
+      type: "REQUEST_SAVE_CALIBRATION_REFERENCE_EDIT",
+      payload: {
+        pageNumber: 4,
+        calibrationId: "scale-4",
+        reference: "x",
+        calibrationName: "Detail",
+        measurementCount: 2,
+      },
+    });
+    expect(state.active).toEqual({
+      kind: "confirmation",
+      descriptor: {
+        type: "saveCalibrationReferenceEdit",
+        payload: {
+          pageNumber: 4,
+          calibrationId: "scale-4",
+          reference: "x",
+          calibrationName: "Detail",
+          measurementCount: 2,
+        },
+      },
+    });
     expect(state.active).not.toHaveProperty("onConfirm");
   });
 
@@ -53,17 +83,32 @@ describe("overlay state", () => {
   it("requests a scale deletion confirmation unless a dialog is open", () => {
     const payload = { pageNumber: 1, calibrationId: "xy", calibrationName: "Survey" };
     const state = overlayReducer(initialOverlayState, { type: "REQUEST_DELETE_SCALE", payload });
-    expect(state.active).toEqual({ kind: "confirmation", descriptor: { type: "deleteScale", payload } });
+    expect(state.active).toEqual({
+      kind: "confirmation",
+      descriptor: { type: "deleteScale", payload },
+    });
 
-    const dialog = overlayReducer(initialOverlayState, { type: "REQUEST_REPLACE_PDF", payload: { pdfId: "pdf-1" } });
+    const dialog = overlayReducer(initialOverlayState, {
+      type: "REQUEST_REPLACE_PDF",
+      payload: { pdfId: "pdf-1" },
+    });
     expect(overlayReducer(dialog, { type: "REQUEST_DELETE_SCALE", payload })).toBe(dialog);
   });
 
   it("cannot represent two blocking overlays at the same time", () => {
-    const dialog = overlayReducer(initialOverlayState, { type: "REQUEST_REPLACE_PDF", payload: { pdfId: "pdf-1" } });
-    const confirmation = overlayReducer(dialog, { type: "REQUEST_DELETE_MEASUREMENT", payload: { pageNumber: 1, measurementId: "line-1", measurementName: "Hallway" } });
+    const dialog = overlayReducer(initialOverlayState, {
+      type: "REQUEST_REPLACE_PDF",
+      payload: { pdfId: "pdf-1" },
+    });
+    const confirmation = overlayReducer(dialog, {
+      type: "REQUEST_DELETE_MEASUREMENT",
+      payload: { pageNumber: 1, measurementId: "line-1", measurementName: "Hallway" },
+    });
 
     expect(Object.keys(confirmation)).toEqual(["active"]);
-    expect(getActiveOverlay(confirmation)).toEqual({ kind: "dialog", descriptor: { type: "replacePdf", payload: { pdfId: "pdf-1" } } });
+    expect(getActiveOverlay(confirmation)).toEqual({
+      kind: "dialog",
+      descriptor: { type: "replacePdf", payload: { pdfId: "pdf-1" } },
+    });
   });
 });

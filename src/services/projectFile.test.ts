@@ -118,14 +118,21 @@ describe("malformed project files", () => {
   const MAX_METADATA_BYTES = 100 * 1024 * 1024;
   const PDF = "%PDF-1.7";
 
-  function header(declaredMetadataSize: number, magic: Uint8Array = new TextEncoder().encode(MAGIC)) {
+  function header(
+    declaredMetadataSize: number,
+    magic: Uint8Array = new TextEncoder().encode(MAGIC),
+  ) {
     const bytes = new Uint8Array(HEADER_SIZE);
     bytes.set(magic);
     new DataView(bytes.buffer).setUint32(MAGIC.length, declaredMetadataSize, true);
     return bytes;
   }
 
-  function projectBytes(metadata: Uint8Array<ArrayBuffer>, pdf: BlobPart = PDF, declaredSize = metadata.length) {
+  function projectBytes(
+    metadata: Uint8Array<ArrayBuffer>,
+    pdf: BlobPart = PDF,
+    declaredSize = metadata.length,
+  ) {
     return new Blob([header(declaredSize), metadata, pdf]);
   }
 
@@ -138,7 +145,8 @@ describe("malformed project files", () => {
     return {
       size: prefix.size + pdfSize,
       slice(start = 0, end?: number, type?: string) {
-        if (start >= prefix.size) return { size: (end ?? prefix.size + pdfSize) - start, type } as Blob;
+        if (start >= prefix.size)
+          return { size: (end ?? prefix.size + pdfSize) - start, type } as Blob;
         return prefix.slice(start, end, type);
       },
     } as Blob;
@@ -154,8 +162,14 @@ describe("malformed project files", () => {
   it.each([
     ["a file shorter than the header", () => new Blob([MAGIC])],
     ["an empty file", () => new Blob([])],
-    ["a header that is not valid UTF-8", () => new Blob([header(2, new Uint8Array(MAGIC.length).fill(0xff)), "{}", PDF])],
-    ["metadata that is not valid UTF-8", () => projectBytes(new Uint8Array([0x7b, 0xc3, 0x28, 0x7d]))],
+    [
+      "a header that is not valid UTF-8",
+      () => new Blob([header(2, new Uint8Array(MAGIC.length).fill(0xff)), "{}", PDF]),
+    ],
+    [
+      "metadata that is not valid UTF-8",
+      () => projectBytes(new Uint8Array([0x7b, 0xc3, 0x28, 0x7d])),
+    ],
     ["metadata that is not JSON", () => projectBytes(new TextEncoder().encode("{session"))],
     ["null metadata", () => projectBytes(metadataFor(null))],
     ["array metadata", () => projectBytes(metadataFor([{ session: "{}" }]))],
@@ -166,7 +180,9 @@ describe("malformed project files", () => {
     ["an object session", () => projectBytes(metadataFor({ session: {} }))],
     ["a session that is not JSON", () => projectBytes(metadataFor({ session: "{" }))],
   ])("rejects %s", async (_, file) => {
-    await expect(readProjectFile(file())).rejects.toThrow("This project file is invalid or unsupported.");
+    await expect(readProjectFile(file())).rejects.toThrow(
+      "This project file is invalid or unsupported.",
+    );
   });
 
   it.each([
@@ -187,7 +203,9 @@ describe("malformed project files", () => {
       },
     } as Blob;
 
-    await expect(readProjectFile(tracked)).rejects.toThrow("This project file is invalid or unsupported.");
+    await expect(readProjectFile(tracked)).rejects.toThrow(
+      "This project file is invalid or unsupported.",
+    );
     expect(reads).toEqual([[0, HEADER_SIZE]]);
   });
 
@@ -195,7 +213,9 @@ describe("malformed project files", () => {
     const file = createProjectFile(measuredSession(), new Blob([PDF]));
     const bytes = new Uint8Array(await file.arrayBuffer());
     const name = new TextEncoder().encode("Level 01");
-    const at = bytes.findIndex((_, index) => name.every((byte, offset) => bytes[index + offset] === byte));
+    const at = bytes.findIndex((_, index) =>
+      name.every((byte, offset) => bytes[index + offset] === byte),
+    );
     expect(at).toBeGreaterThan(HEADER_SIZE);
     // A lenient decoder would read this as "Level \uFFFD1" and accept the project.
     bytes[at + "Level ".length] = 0xff;

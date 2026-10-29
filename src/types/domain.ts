@@ -176,11 +176,7 @@ export interface SessionV3 {
 }
 
 export type LegacyPathMeasurementType = "line" | "polyline" | "polygon";
-export type PathMeasurementType =
-  | LegacyPathMeasurementType
-  | "rectangle"
-  | "ellipse"
-  | "cloud";
+export type PathMeasurementType = LegacyPathMeasurementType | "rectangle" | "ellipse" | "cloud";
 export type MeasurementType = PathMeasurementType | "count";
 
 export interface PathMeasurementV4 extends MeasurementBase {
@@ -281,7 +277,10 @@ export interface PathMeasurement extends Omit<MeasurementBase, "calibrationId"> 
   color?: string;
 }
 
-export interface CountMeasurement extends Omit<PathMeasurement, "type" | "calibrationId" | "color"> {
+export interface CountMeasurement extends Omit<
+  PathMeasurement,
+  "type" | "calibrationId" | "color"
+> {
   type: "count";
   calibrationId: null;
 }

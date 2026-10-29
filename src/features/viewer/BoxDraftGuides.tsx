@@ -74,7 +74,13 @@ export function BoxDraftGuides({
   const offset = metrics.boxGuideDimensionOffsetScreenPx / zoom;
   const labelFontScreenPx = metrics.boxGuideDimensionFontSizeScreenPx;
 
-  function dimensionLabel(key: string, text: string, anchor: "below" | "right", x: number, y: number) {
+  function dimensionLabel(
+    key: string,
+    text: string,
+    anchor: "below" | "right",
+    x: number,
+    y: number,
+  ) {
     // Estimated size (no Konva node is created per pointer move): digits and most units
     // are close to 0.56 em wide in the label font, which is accurate enough to center.
     const paddingScreenPx = metrics.labelPaddingScreenPx;
@@ -107,8 +113,14 @@ export function BoxDraftGuides({
           <Line
             name="box-guide-bounds"
             points={[
-              bounds.minX, bounds.minY, bounds.maxX, bounds.minY,
-              bounds.maxX, bounds.maxY, bounds.minX, bounds.maxY,
+              bounds.minX,
+              bounds.minY,
+              bounds.maxX,
+              bounds.minY,
+              bounds.maxX,
+              bounds.maxY,
+              bounds.minX,
+              bounds.maxY,
             ]}
             closed
             stroke={roles.drawingDraftStroke}
@@ -134,9 +146,7 @@ export function BoxDraftGuides({
           />
           <Line
             name="box-guide-center-cross"
-            points={[
-              centerX - crossHalf, centerY, centerX + crossHalf, centerY,
-            ]}
+            points={[centerX - crossHalf, centerY, centerX + crossHalf, centerY]}
             stroke={roles.drawingDraftStroke}
             strokeWidth={hairline}
             opacity={metrics.boxGuideOpacity}

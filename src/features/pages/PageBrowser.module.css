@@ -4,11 +4,7 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: min(
-    var(--geometry-page-browser-width),
-    var(--geometry-workspace-panel-width),
-    100%
-  );
+  width: min(var(--geometry-page-browser-width), var(--geometry-workspace-panel-width), 100%);
   display: flex;
   flex-direction: column;
   min-height: 0;

@@ -1,5 +1,12 @@
 // Sheet 2: C-101 site plan 1:200 (5 mm per metre, origin at paper (25, 40)).
-import { SAMPLE_GEOMETRY, area, circleArea, ellipseArea, polylineLength, rectPoly } from "./geometry.mjs";
+import {
+  SAMPLE_GEOMETRY,
+  area,
+  circleArea,
+  ellipseArea,
+  polylineLength,
+  rectPoly,
+} from "./geometry.mjs";
 import { C, LW } from "./lib.mjs";
 
 const G = SAMPLE_GEOMETRY.site;
@@ -42,7 +49,10 @@ export const siteData = () => [
   ["Parcel area", `${area(G.parcel).toFixed(2)} m²`],
   ["House footprint", `${area(rectPoly(G.house)).toFixed(2)} m²`],
   ["Parking", `${G.parking.n} bays, ${(G.parking.n * G.parking.w * G.parking.d).toFixed(2)} m²`],
-  ["Trees", `${G.trees.pts.length} × Ø${G.trees.d.toFixed(1)} m, ${(G.trees.pts.length * circleArea(G.trees.d)).toFixed(2)} m²`],
+  [
+    "Trees",
+    `${G.trees.pts.length} × Ø${G.trees.d.toFixed(1)} m, ${(G.trees.pts.length * circleArea(G.trees.d)).toFixed(2)} m²`,
+  ],
   ["Pond", `${ellipseArea(G.pond.rx, G.pond.ry).toFixed(2)} m²`],
   ["Path length", `${polylineLength(G.path.axis).toFixed(2)} m`],
 ];
@@ -60,7 +70,12 @@ export const drawSite = (d) => {
   const [hx1, hy1, hx2, hy2] = G.house;
   const [h1, h2] = [px([hx1, hy1]), px([hx2, hy2])];
   d.rect(h1[0], h1[1], h2[0] - h1[0], h2[1] - h1[1], { fill: C.FOOT, stroke: C.INK, w: LW.main });
-  d.txt("HOUSE", (h1[0] + h2[0]) / 2, (h1[1] + h2[1]) / 2 + 1, { size: 8, f: "b", col: C.INK, align: "c" });
+  d.txt("HOUSE", (h1[0] + h2[0]) / 2, (h1[1] + h2[1]) / 2 + 1, {
+    size: 8,
+    f: "b",
+    col: C.INK,
+    align: "c",
+  });
   const [t1, t2] = [px(G.terrace.slice(0, 2)), px(G.terrace.slice(2))];
   d.rect(t1[0], t1[1], t2[0] - t1[0], t2[1] - t1[1], { fill: C.PAPER, stroke: C.FINE, w: LW.obj });
 
@@ -73,7 +88,11 @@ export const drawSite = (d) => {
   d.txt("PARKING", pcx, px([0, pk.d])[1] + 5, { size: 7, align: "c" });
 
   const [ex, ey] = px(G.pond.c);
-  d.ellipse(ex, ey, G.pond.rx * K, G.pond.ry * K, { fill: C.WATER_F, stroke: C.WATER_S, w: LW.obj });
+  d.ellipse(ex, ey, G.pond.rx * K, G.pond.ry * K, {
+    fill: C.WATER_F,
+    stroke: C.WATER_S,
+    w: LW.obj,
+  });
   d.txt("POND", ex, ey + 1, { size: 7, align: "c" });
 
   // Path: two offsets of the axis plus the dashed axis.
@@ -94,7 +113,14 @@ export const drawSite = (d) => {
   const [sa, sb] = [px([s.x0, 0])[0], px([s.x1, 0])[0]];
   d.ln(sa, sy, sb, sy, { w: LW.main, dash: [6, 2, 1, 2] });
   for (const x of [sa, sb]) {
-    d.poly([[x, sy - 4], [x - 1.8, sy], [x + 1.8, sy]], { fill: C.INK, stroke: C.INK, w: LW.thin });
+    d.poly(
+      [
+        [x, sy - 4],
+        [x - 1.8, sy],
+        [x + 1.8, sy],
+      ],
+      { fill: C.INK, stroke: C.INK, w: LW.thin },
+    );
     d.txt("A", x, sy - 5.5, { size: 8, f: "b", col: C.INK, align: "c" });
   }
 

@@ -15,7 +15,7 @@ export interface MeasurementGroup {
   label: string;
   archived: boolean;
   unassigned: boolean;
-  /** Cadena fusionada por `compactMeasurementGroups` (incluye la cabeza). */
+  /** The chain `compactMeasurementGroups` merged, head included. */
   segments?: MeasurementGroupSegment[];
   measurementIds: string[];
   visibility: MeasurementGroupVisibility;
