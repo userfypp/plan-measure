@@ -92,7 +92,7 @@ function potentialCollisions(
 }
 
 describe("consulta booleana de colisiones", () => {
-  it("coincide con la visita ordenada incluso con overflow, referencias ignoradas y solapes densos", () => {
+  it("matches the ordered visit even with overflow, ignored references and dense overlaps", () => {
     let seed = 20261010;
     const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
     const index = createLabelCollisionIndex();

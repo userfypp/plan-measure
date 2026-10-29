@@ -6,7 +6,7 @@ import { createMeasurementGroups } from "../features/measurements/measurementGro
 import { createMeasurementViewModel } from "../features/measurements/measurementViewModels";
 import { performanceSession } from "./fixtures";
 
-describe("presupuestos de operaciones del panel", () => {
+describe("panel operation budgets", () => {
   it.each([false, true])(
     "monta ≤40 filas y ≤1000 nodos DOM de 5000 mediciones (agrupado=%s)",
     (grouped) => {
@@ -37,7 +37,7 @@ describe("presupuestos de operaciones del panel", () => {
     },
   );
 
-  it("agrupa N y 5N con búsquedas por ID lineales", () => {
+  it("groups N and 5N with linear ID lookups", () => {
     const costs = [1000, 5000].map((count) => {
       const session = performanceSession(count);
       let reads = 0;
@@ -65,7 +65,7 @@ describe("presupuestos de operaciones del panel", () => {
     expect(costs[1]! / costs[0]!).toBeLessThanOrEqual(5.1);
   });
 
-  it("el índice ID→medición del panel evita búsquedas completas para cada fila agrupada", () => {
+  it("the panel's ID→measurement index avoids full scans for each grouped row", () => {
     const session = performanceSession();
     const page = session.pages[1]!;
     const groups = createMeasurementGroups(page.measurements, session.classificationCatalog, [

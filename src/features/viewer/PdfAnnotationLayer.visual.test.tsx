@@ -183,7 +183,7 @@ function xyPage(): PageState {
 }
 
 describe("PdfAnnotationLayer V2 visual semantics", () => {
-  it("conserva el golden determinista de etiquetas, prioridad, zoom y visibilidad", () => {
+  it("keeps the deterministic golden for labels, priority, zoom and visibility", () => {
     let state = 20261010;
     const random = () => {
       state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -390,7 +390,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     },
   );
 
-  it("ejecuta el layout global una vez por zoom y ninguna por paso de pan con 5000 mediciones", () => {
+  it("runs the global layout once per zoom and never per pan step with 5000 measurements", () => {
     const page = uniformPage();
     const source = page.measurements[0]!;
     page.measurements = Array.from({ length: 5000 }, (_, index) => ({
