@@ -95,9 +95,7 @@ export type DrawingKeyboardAction =
 export type ToolShortcut = Exclude<Tool, "calibrate">;
 
 export type ShortcutAction =
-  | "toggle-orthogonal"
-  | "toggle-snap"
-  | { type: "choose-tool"; tool: ToolShortcut };
+  "toggle-orthogonal" | "toggle-snap" | { type: "choose-tool"; tool: ToolShortcut };
 
 export interface ViewerShortcut {
   key: string;
@@ -175,17 +173,28 @@ export function getDrawingKeyboardAction(
 
 /** Keep editing and native control activation ahead of application shortcuts. */
 export function shouldIgnoreViewerKeyboardShortcut(event: KeyboardShortcutEvent): boolean {
-  if (event.defaultPrevented || event.isComposing || hasKeyboardShortcutModifier(event)) return true;
+  if (event.defaultPrevented || event.isComposing || hasKeyboardShortcutModifier(event))
+    return true;
   const target = event.target;
   if (!(target instanceof HTMLElement)) return false;
   if (
     target.isContentEditable ||
     target.matches("input, textarea, select") ||
-    target.closest("input, textarea, select, [data-select-trigger], [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']")
-  ) return true;
-  return (event.key === " " || event.key === "Enter") && Boolean(
-    target.matches("button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']") ||
-    target.closest("button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']"),
+    target.closest(
+      "input, textarea, select, [data-select-trigger], [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']",
+    )
+  )
+    return true;
+  return (
+    (event.key === " " || event.key === "Enter") &&
+    Boolean(
+      target.matches(
+        "button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']",
+      ) ||
+      target.closest(
+        "button, a, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='radio']",
+      ),
+    )
   );
 }
 

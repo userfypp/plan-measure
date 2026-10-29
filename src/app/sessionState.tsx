@@ -36,10 +36,7 @@ import {
   type ClassificationTemplateDimension,
 } from "../features/classification/classificationTemplates";
 import { classificationNameKey } from "../utils/classificationNames";
-import {
-  MEASUREMENT_NAME_EMPTY_ERROR,
-  normalizeMeasurementName,
-} from "../utils/measurementName";
+import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils/measurementName";
 import { normalizeCustomPageLabel } from "../utils/pageLabels";
 
 /**
@@ -518,7 +515,13 @@ export function sessionReducer(
     case "PASTE_MEASUREMENTS": {
       if (!state.session || action.commands.length === 0) return state;
       const first = action.commands[0]!;
-      if (action.commands.some((command) => command.pageNumber !== first.pageNumber || command.sourcePageNumber !== first.sourcePageNumber)) {
+      if (
+        action.commands.some(
+          (command) =>
+            command.pageNumber !== first.pageNumber ||
+            command.sourcePageNumber !== first.sourcePageNumber,
+        )
+      ) {
         return { ...state, error: "Copy measurements from a single page at a time." };
       }
       let staged: SessionCommandResult = { ...state, error: null };
@@ -534,9 +537,13 @@ export function sessionReducer(
       const source = page?.measurements.find((measurement) => measurement.id === action.sourceId);
       const target = page?.measurements.find((measurement) => measurement.id === action.targetId);
       if (
-        !page || source?.type !== "count" || target?.type !== "count" ||
-        source.id === target.id || !Number.isInteger(action.itemIndex) ||
-        action.itemIndex < 0 || action.itemIndex >= source.points.length ||
+        !page ||
+        source?.type !== "count" ||
+        target?.type !== "count" ||
+        source.id === target.id ||
+        !Number.isInteger(action.itemIndex) ||
+        action.itemIndex < 0 ||
+        action.itemIndex >= source.points.length ||
         !hasValidMeasurementPoints("count", source.points) ||
         !hasValidMeasurementPoints("count", target.points)
       ) {
@@ -567,20 +574,44 @@ export function sessionReducer(
       const pageNumber = action.commands[0]!.pageNumber;
       const page = state.session.pages[pageNumber];
       const ids = new Set(action.commands.map((command) => command.id));
-      if (!page || ids.size !== action.commands.length || action.commands.some((command) => {
-        const measurement = page.measurements.find((candidate) => candidate.id === command.id);
-        return command.pageNumber !== pageNumber || !measurement || !hasValidMeasurementPoints(measurement.type, command.points);
-      })) return { ...state, error: "The selected measurements can no longer be moved together." };
+      if (
+        !page ||
+        ids.size !== action.commands.length ||
+        action.commands.some((command) => {
+          const measurement = page.measurements.find((candidate) => candidate.id === command.id);
+          return (
+            command.pageNumber !== pageNumber ||
+            !measurement ||
+            !hasValidMeasurementPoints(measurement.type, command.points)
+          );
+        })
+      )
+        return { ...state, error: "The selected measurements can no longer be moved together." };
       const updates = new Map(action.commands.map((command) => [command.id, command.points]));
       let changed = false;
       const measurements = page.measurements.map((measurement) => {
         const points = updates.get(measurement.id);
-        if (!points || points.every((point, index) => point.x === measurement.points[index]?.x && point.y === measurement.points[index]?.y) && points.length === measurement.points.length) return measurement;
+        if (
+          !points ||
+          (points.every(
+            (point, index) =>
+              point.x === measurement.points[index]?.x && point.y === measurement.points[index]?.y,
+          ) &&
+            points.length === measurement.points.length)
+        )
+          return measurement;
         changed = true;
         return { ...measurement, points: points.map((point) => ({ ...point })) };
       });
       return changed
-        ? { ...state, session: updatePageState(state.session, pageNumber, (currentPage) => ({ ...currentPage, measurements })), error: null }
+        ? {
+            ...state,
+            session: updatePageState(state.session, pageNumber, (currentPage) => ({
+              ...currentPage,
+              measurements,
+            })),
+            error: null,
+          }
         : { ...state, error: null };
     }
     case "PASTE_MEASUREMENT": {
@@ -646,14 +677,19 @@ export function sessionReducer(
     case "UPDATE_MEASUREMENT": {
       if (!state.session) return state;
       const { pageNumber, id, points } = action;
-      const measurement = state.session.pages[pageNumber]?.measurements.find((item) => item.id === id);
+      const measurement = state.session.pages[pageNumber]?.measurements.find(
+        (item) => item.id === id,
+      );
       if (
         !measurement ||
         !hasValidMeasurementPoints(measurement.type, points) ||
         (points.length === measurement.points.length &&
-          points.every((point, index) =>
-            point.x === measurement.points[index]!.x && point.y === measurement.points[index]!.y))
-      ) return state;
+          points.every(
+            (point, index) =>
+              point.x === measurement.points[index]!.x && point.y === measurement.points[index]!.y,
+          ))
+      )
+        return state;
       const session = updatePageState(state.session, pageNumber, (page) => ({
         ...page,
         measurements: page.measurements.map((measurement) =>
@@ -666,7 +702,9 @@ export function sessionReducer(
       if (!state.session) return state;
       const name = normalizeMeasurementName(action.name);
       if (!name) return { ...state, error: MEASUREMENT_NAME_EMPTY_ERROR };
-      const measurement = state.session.pages[action.pageNumber]?.measurements.find((item) => item.id === action.id);
+      const measurement = state.session.pages[action.pageNumber]?.measurements.find(
+        (item) => item.id === action.id,
+      );
       if (!measurement || measurement.name === name) return { ...state, error: null };
       const session = updatePageState(state.session, action.pageNumber, (page) => ({
         ...page,
@@ -849,7 +887,10 @@ export function sessionReducer(
           error: null,
         };
       } catch (error) {
-        return { ...state, error: error instanceof Error ? error.message : "Could not apply template." };
+        return {
+          ...state,
+          error: error instanceof Error ? error.message : "Could not apply template.",
+        };
       }
     }
     case "ADD_CLASSIFICATION_DIMENSION": {
@@ -901,7 +942,8 @@ export function sessionReducer(
         session: {
           ...state.session,
           settings:
-            deletingDimension && state.session.settings.labelClassificationDimensionId === dimensionId
+            deletingDimension &&
+            state.session.settings.labelClassificationDimensionId === dimensionId
               ? { ...state.session.settings, labelClassificationDimensionId: null }
               : state.session.settings,
           classificationCatalog: {
@@ -1188,7 +1230,16 @@ export function sessionReducer(
 }
 
 // The list also fixes the property order, so equal geometry always serializes the same way.
-const CALIBRATION_GEOMETRY_KEYS = ["mode", "start", "end", "xReference", "yReference", "x", "y", "referenceDistanceMm"];
+const CALIBRATION_GEOMETRY_KEYS = [
+  "mode",
+  "start",
+  "end",
+  "xReference",
+  "yReference",
+  "x",
+  "y",
+  "referenceDistanceMm",
+];
 
 function updateRecalibration(
   state: SessionCommandResult,
@@ -1347,13 +1398,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
   // A lower Undo history limit applies to the existing stacks right away, keeping the most recent steps.
-  useEffect(() => subscribeAppPreferences(() => {
-    const { undoDepth } = getAppPreferences();
-    if (undoStackRef.current.length <= undoDepth && redoStackRef.current.length <= undoDepth) return;
-    undoStackRef.current = undoStackRef.current.slice(-undoDepth);
-    redoStackRef.current = redoStackRef.current.slice(-undoDepth);
-    updateHistoryState();
-  }), [updateHistoryState]);
+  useEffect(
+    () =>
+      subscribeAppPreferences(() => {
+        const { undoDepth } = getAppPreferences();
+        if (undoStackRef.current.length <= undoDepth && redoStackRef.current.length <= undoDepth)
+          return;
+        undoStackRef.current = undoStackRef.current.slice(-undoDepth);
+        redoStackRef.current = redoStackRef.current.slice(-undoDepth);
+        updateHistoryState();
+      }),
+    [updateHistoryState],
+  );
   const applyAction = useCallback(
     (action: SessionAction): SessionCommandResult => {
       const result = sessionReducer({ session: sessionRef.current, error: null }, action);
@@ -1367,7 +1423,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         sessionRef.current &&
         result.session !== sessionRef.current
       ) {
-        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(-getAppPreferences().undoDepth);
+        undoStackRef.current = [...undoStackRef.current, sessionRef.current].slice(
+          -getAppPreferences().undoDepth,
+        );
         redoStackRef.current = [];
         updateHistoryState();
       }
@@ -1400,19 +1458,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setError(null);
     updateHistoryState();
   }, [setError, updateHistoryState]);
-  const measurementCommands = useMemo<MeasurementCommands>(() => ({
-    updateMeasurements: (commands) => {
-      const result = applyAction({ type: "UPDATE_MEASUREMENTS", commands });
-      return commands.length > 0 && result.error === null && Boolean(result.session);
-    },
-    updateMeasurement: (command) => {
-      const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
-      const measurement = result.session?.pages[command.pageNumber]?.measurements.find(
-        (candidate) => candidate.id === command.id,
-      );
-      return measurement ? pointsEqual(measurement.points, command.points) : false;
-    },
-  }), [applyAction]);
+  const measurementCommands = useMemo<MeasurementCommands>(
+    () => ({
+      updateMeasurements: (commands) => {
+        const result = applyAction({ type: "UPDATE_MEASUREMENTS", commands });
+        return commands.length > 0 && result.error === null && Boolean(result.session);
+      },
+      updateMeasurement: (command) => {
+        const result = applyAction({ type: "UPDATE_MEASUREMENT", ...command });
+        const measurement = result.session?.pages[command.pageNumber]?.measurements.find(
+          (candidate) => candidate.id === command.id,
+        );
+        return measurement ? pointsEqual(measurement.points, command.points) : false;
+      },
+    }),
+    [applyAction],
+  );
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
@@ -1461,7 +1522,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       pasteMeasurements: (commands) => {
         const result = applyAction({ type: "PASTE_MEASUREMENTS", commands });
-        return commands.length > 0 && result.error === null && commands.every((command) => result.session?.pages[command.pageNumber]?.measurements.some((measurement) => measurement.id === command.id));
+        return (
+          commands.length > 0 &&
+          result.error === null &&
+          commands.every((command) =>
+            result.session?.pages[command.pageNumber]?.measurements.some(
+              (measurement) => measurement.id === command.id,
+            ),
+          )
+        );
       },
       ...measurementCommands,
       moveCountItem: (command) => {
@@ -1478,7 +1547,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
       setMeasurementsVisibility: (pageNumber, measurementIds, visible) =>
         applyAction({ type: "SET_MEASUREMENTS_VISIBILITY", pageNumber, measurementIds, visible }),
-      editMeasurements: (command) => applyAction({ type: "EDIT_MEASUREMENTS", ...command }).error === null,
+      editMeasurements: (command) =>
+        applyAction({ type: "EDIT_MEASUREMENTS", ...command }).error === null,
       deleteMeasurement: (pageNumber, id) =>
         applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
       applyClassificationTemplate: (dimensions) =>

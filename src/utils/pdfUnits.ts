@@ -10,11 +10,7 @@ const RATIO_ROUNDING_TOLERANCE_ULPS = 1.5;
 export function scaleRatioDenominatorFromMillimetresPerPageUnit(
   millimetresPerPageUnit: number,
 ): number {
-  return scaleByRatio(
-    millimetresPerPageUnit,
-    PDF_POINT_MM_DENOMINATOR,
-    PDF_POINT_MM_NUMERATOR,
-  );
+  return scaleByRatio(millimetresPerPageUnit, PDF_POINT_MM_DENOMINATOR, PDF_POINT_MM_NUMERATOR);
 }
 
 export function cleanScaleRatioDenominator(value: number): number | null {

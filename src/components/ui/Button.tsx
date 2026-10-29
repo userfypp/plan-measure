@@ -13,26 +13,30 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   children: ReactNode;
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
-  variant = "primary",
-  size = "regular",
-  disabled = false,
-  disabledReason,
-  loading = false,
-  type = "button",
-  className,
-  children,
-  onClick,
-  "aria-describedby": ariaDescribedBy,
-  ...buttonProps
-}: ButtonProps, ref) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = "primary",
+    size = "regular",
+    disabled = false,
+    disabledReason,
+    loading = false,
+    type = "button",
+    className,
+    children,
+    onClick,
+    "aria-describedby": ariaDescribedBy,
+    ...buttonProps
+  }: ButtonProps,
+  ref,
+) {
   const classNames = [styles.button, styles[variant], styles[size], className]
     .filter(Boolean)
     .join(" ");
   const isDisabled = disabled || loading;
   const contextualDisabled = disabled && !loading && Boolean(disabledReason);
   const reasonId = useId();
-  const describedBy = [ariaDescribedBy, contextualDisabled ? reasonId : ""].filter(Boolean).join(" ") || undefined;
+  const describedBy =
+    [ariaDescribedBy, contextualDisabled ? reasonId : ""].filter(Boolean).join(" ") || undefined;
 
   const button = (
     <button
@@ -61,8 +65,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   return contextualDisabled ? (
     <span className={styles.disabledReasonOwner}>
-      <Tooltip content={disabledReason!} delay={0} describeTrigger={false}>{button}</Tooltip>
-      <span id={reasonId} className={styles.visuallyHidden}>{disabledReason}</span>
+      <Tooltip content={disabledReason!} delay={0} describeTrigger={false}>
+        {button}
+      </Tooltip>
+      <span id={reasonId} className={styles.visuallyHidden}>
+        {disabledReason}
+      </span>
     </span>
-  ) : button;
+  ) : (
+    button
+  );
 });

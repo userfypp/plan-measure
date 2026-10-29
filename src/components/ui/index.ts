@@ -40,17 +40,9 @@ export type { SelectOption, SelectProps } from "./Select";
 export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
 export { Popover } from "./Popover";
-export type {
-  PopoverInitialFocus,
-  PopoverPlacement,
-  PopoverProps,
-} from "./Popover";
+export type { PopoverInitialFocus, PopoverPlacement, PopoverProps } from "./Popover";
 export { AnchoredMenu } from "./AnchoredMenu";
-export type {
-  AnchoredMenuItem,
-  AnchoredMenuItemRole,
-  AnchoredMenuProps,
-} from "./AnchoredMenu";
+export type { AnchoredMenuItem, AnchoredMenuItemRole, AnchoredMenuProps } from "./AnchoredMenu";
 export { Tooltip } from "./Tooltip";
 export type { TooltipPosition, TooltipProps } from "./Tooltip";
 export { Textarea } from "./Textarea";

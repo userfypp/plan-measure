@@ -74,10 +74,22 @@ export function ProjectLibraryDialog({
   return (
     <Dialog
       open
-      title={confirmingOpen ? "Discard unsaved project?" : confirmingDiscard ? "Discard project?" : "Projects"}
+      title={
+        confirmingOpen
+          ? "Discard unsaved project?"
+          : confirmingDiscard
+            ? "Discard project?"
+            : "Projects"
+      }
       size={confirmingDiscard || confirmingOpen ? "medium" : "large"}
       trapFocus
-      onClose={confirmingOpen ? () => setPendingOpenProjectId(null) : confirmingDiscard ? onCancelDiscard : onClose}
+      onClose={
+        confirmingOpen
+          ? () => setPendingOpenProjectId(null)
+          : confirmingDiscard
+            ? onCancelDiscard
+            : onClose
+      }
     >
       {confirmingOpen ? (
         <div className={styles.discardConfirmation}>
@@ -87,7 +99,12 @@ export function ProjectLibraryDialog({
             export it first if you want to keep a copy.
           </p>
           <div className={styles.actions}>
-            <Button variant="ghost" size="compact" disabled={opening} onClick={() => setPendingOpenProjectId(null)}>
+            <Button
+              variant="ghost"
+              size="compact"
+              disabled={opening}
+              onClick={() => setPendingOpenProjectId(null)}
+            >
               Cancel
             </Button>
             <Button
@@ -156,7 +173,8 @@ export function ProjectLibraryDialog({
                         tooltip={isCurrent && !isOpen ? "Continue" : "Open"}
                         aria-label={`${isOpen ? "Current project" : isCurrent ? "Continue project" : "Open project"} ${project.name}`}
                         onClick={() => {
-                          if (discardsCurrentProject && !isOpen) setPendingOpenProjectId(project.id);
+                          if (discardsCurrentProject && !isOpen)
+                            setPendingOpenProjectId(project.id);
                           else onOpenProject(project.id);
                         }}
                       />

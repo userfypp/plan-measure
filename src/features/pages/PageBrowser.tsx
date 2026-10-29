@@ -289,7 +289,9 @@ export function PageBrowser({
             if (number !== null) navigate(number);
           }}
         >
-          <label id={`${id}-number-label`} htmlFor={`${id}-number`}>Go to page</label>
+          <label id={`${id}-number-label`} htmlFor={`${id}-number`}>
+            Go to page
+          </label>
           <div className={styles.numberField}>
             <Input
               className={styles.numberInput}

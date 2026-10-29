@@ -82,7 +82,11 @@ export function createReactKonvaMock() {
         const contentRef = useRef<HTMLDivElement>(null);
         useImperativeHandle(ref, () => ({ getContent: () => contentRef.current }));
         konvaCapture.stages.push({ ...props });
-        return <div ref={contentRef} data-testid="konva-content">{children as ReactNode}</div>;
+        return (
+          <div ref={contentRef} data-testid="konva-content">
+            {children as ReactNode}
+          </div>
+        );
       },
     ),
   };
@@ -195,14 +199,26 @@ export function konvaPointerEvent(
     shiftKey = false,
   }: { button?: number; onStage?: boolean; deltaY?: number; shiftKey?: boolean } = {},
 ) {
-  const stage = { getPointerPosition: () => ({ ...screen }), getStage: () => stage, name: () => "" };
+  const stage = {
+    getPointerPosition: () => ({ ...screen }),
+    getStage: () => stage,
+    name: () => "",
+  };
   const target = onStage ? stage : { getStage: () => stage, name: () => "" };
   return { target, evt: { button, deltaY, shiftKey, preventDefault: vi.fn() } };
 }
 
 export function rect(width: number, height: number): DOMRect {
   return {
-    x: 0, y: 0, width, height, top: 0, right: width, bottom: height, left: 0, toJSON: () => ({}),
+    x: 0,
+    y: 0,
+    width,
+    height,
+    top: 0,
+    right: width,
+    bottom: height,
+    left: 0,
+    toJSON: () => ({}),
   } as DOMRect;
 }
 
@@ -262,7 +278,9 @@ export function installViewerDomDoubles(): void {
     () => ({ drawImage: vi.fn() }) as unknown as CanvasRenderingContext2D,
   );
   const viewerRect = rect(VIEWER_WIDTH, VIEWER_HEIGHT);
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
     // El visor y el marco del ViewerShell (que mide la capacidad de edición) ocupan todo el viewport.
     return this.getAttribute("aria-label")?.startsWith("PDF viewer, page") ||
       this.hasAttribute("data-authoring-capability")
@@ -296,7 +314,9 @@ export function installManualAnimationFrames() {
   };
 }
 
-export function createPdfPage(dimensions = { width: PAGE_WIDTH, height: PAGE_HEIGHT }): PDFPageProxy {
+export function createPdfPage(
+  dimensions = { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+): PDFPageProxy {
   return {
     rotate: 0,
     getViewport: ({ scale, rotation = 0 }: { scale: number; rotation?: number }) => ({

@@ -51,7 +51,15 @@ beforeEach(() => {
     calibrations: [],
     activeCalibrationId: null,
     nextCalibrationNumber: 1,
-    nextMeasurementNumber: { line: 2, polygon: 1, polyline: 1, rectangle: 1, ellipse: 1, cloud: 1, count: 1 },
+    nextMeasurementNumber: {
+      line: 2,
+      polygon: 1,
+      polyline: 1,
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+      count: 1,
+    },
     measurements: [line],
   };
   options = {
@@ -167,7 +175,11 @@ describe("keyboard geometry interaction", () => {
   });
 
   it("keeps the cursor across tool changes and resumes it after it was hidden", () => {
-    render({ tool: "polygon", selectedIds: [], bounds: { width: 1000, height: 1000, rotation: 0 } });
+    render({
+      tool: "polygon",
+      selectedIds: [],
+      bounds: { width: 1000, height: 1000, rotation: 0 },
+    });
     press("ArrowRight");
     press("ArrowRight");
     expect(result.cursor).toEqual({ x: 51, y: 50 });

@@ -48,7 +48,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-
 const cloudArcsCache = new WeakMap<readonly Point[], CloudArc[]>();
 
 /** Deterministic scalloped arcs along every edge of the control polygon, bulging outwards. */
@@ -129,7 +128,11 @@ export function measurementOutlinePoints(
     const { cx, cy, rx, ry } = ellipseParams(points);
     const radius = Math.max(rx, ry);
     const step = radius > tolerance ? Math.acos(1 - tolerance / radius) : Math.PI / 2;
-    const segments = clamp(Math.ceil((2 * Math.PI) / step), ELLIPSE_SEGMENTS_MIN, ELLIPSE_SEGMENTS_MAX);
+    const segments = clamp(
+      Math.ceil((2 * Math.PI) / step),
+      ELLIPSE_SEGMENTS_MIN,
+      ELLIPSE_SEGMENTS_MAX,
+    );
     return Array.from({ length: segments }, (_, index) => {
       const angle = (2 * Math.PI * index) / segments;
       return { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) };

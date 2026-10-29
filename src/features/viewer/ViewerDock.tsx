@@ -284,23 +284,23 @@ export function ViewerDock({
           <form className={styles.pageLabelEditor} onSubmit={handlePageLabelSubmit}>
             <strong className={styles.pageLabelHeading}>Page label</strong>
             <Input
-                label="Label"
-                ref={pageLabelInputRef}
-                id={pageLabelInputId}
-                data-popover-autofocus="true"
-                type="text"
-                value={pageLabelDraft}
-                aria-invalid={pageLabelError ? true : undefined}
-                onChange={(event) => {
-                  setPageLabelDraft(event.target.value);
-                  if (pageLabelError) setPageLabelError(null);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }}
-              />
+              label="Label"
+              ref={pageLabelInputRef}
+              id={pageLabelInputId}
+              data-popover-autofocus="true"
+              type="text"
+              value={pageLabelDraft}
+              aria-invalid={pageLabelError ? true : undefined}
+              onChange={(event) => {
+                setPageLabelDraft(event.target.value);
+                if (pageLabelError) setPageLabelError(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }}
+            />
             <div className={styles.pageLabelSource}>
               PDF label:{" "}
               <span title={sourcePageLabel ?? undefined}>
