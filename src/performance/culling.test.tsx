@@ -29,7 +29,7 @@ vi.mock("../app/sessionState", async (importOriginal) => ({
 }));
 
 describe("presupuesto de montaje Konva", () => {
-  it("el viewport monta ≤50 de 5000 formas y conserva propietarios fuera de pantalla", () => {
+  it("the viewport mounts ≤50 of 5000 shapes and keeps off-screen owners", () => {
     const page = performanceSession().pages[1]!;
     const far = page.measurements.find((item) => item.points[0]!.x > 5000)!.id;
     const noop = () => undefined;
