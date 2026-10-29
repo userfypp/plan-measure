@@ -18,7 +18,8 @@
     "perf:e2e": "node perf/run.mjs",
     "perf:e2e:strict": "node perf/run.mjs --strict",
     "perf:update-baseline": "node perf/run.mjs --update-baseline",
-    "perf:selftest": "node --test perf/budgets.check.mjs"
+    "perf:selftest": "node --test perf/budgets.check.mjs",
+    "test:smoke": "node perf/smoke.mjs"
   },
   "dependencies": {
     "fflate": "0.8.3",
