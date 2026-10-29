@@ -17,6 +17,7 @@ import {
   ZOOM_STEP_FACTOR,
   getAppPreferences,
   wheelAction,
+  type AppPreferences,
   type DefaultZoom,
   returnsToSelectAfterFinishing,
   useAppPreferences,
@@ -180,7 +181,7 @@ function fitTransformFor(
   bounds: Pick<LogicalPageBounds, "width" | "height">,
   viewer: { width: number; height: number },
   defaultZoom: DefaultZoom,
-  maxZoom: number,
+  maxZoom: AppPreferences["maxZoom"],
 ): ViewTransform {
   return initialViewTransform(
     mode === "page" ? "fit-page" : defaultZoom,
