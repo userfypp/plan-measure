@@ -149,7 +149,7 @@
   .toolIdentity,
   .modifierHint,
   .measurementNameTrigger,
-    .renameInput {
+  .renameInput {
     height: var(--target-coarse);
   }
 
@@ -218,12 +218,18 @@
   transition: var(--transition-interactive);
 }
 
-.toolbar .selectionIconButton:hover:not(:disabled):not([data-disabled="true"]):not([aria-disabled="true"]) {
+.toolbar
+  .selectionIconButton:hover:not(:disabled):not([data-disabled="true"]):not(
+    [aria-disabled="true"]
+  ) {
   border-color: var(--color-control-hover-border);
   background: var(--color-control-hover-surface);
 }
 
-.toolbar .selectionIconButton:active:not(:disabled):not([data-disabled="true"]):not([aria-disabled="true"]) {
+.toolbar
+  .selectionIconButton:active:not(:disabled):not([data-disabled="true"]):not(
+    [aria-disabled="true"]
+  ) {
   border-color: var(--color-control-active-border);
   background: var(--color-control-active-surface);
 }

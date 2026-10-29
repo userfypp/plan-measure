@@ -97,8 +97,9 @@ function pressTab(shiftKey = false): KeyboardEvent {
 }
 
 beforeEach(() => {
-  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-    true;
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
   showDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "show");
   closeDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close");
   Object.defineProperty(HTMLDialogElement.prototype, "show", {
@@ -199,9 +200,7 @@ describe("managed application Tab navigation", () => {
   });
 
   it("keeps native radio groups to one Tab stop and targets the checked option", () => {
-    const search = document.querySelector<HTMLInputElement>(
-      '[aria-label="Search measurements"]',
-    )!;
+    const search = document.querySelector<HTMLInputElement>('[aria-label="Search measurements"]')!;
     const radioGroup = document.createElement("div");
     const firstRadio = document.createElement("input");
     firstRadio.type = "radio";

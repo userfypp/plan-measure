@@ -18,8 +18,7 @@ export interface AppErrorNotification {
 }
 
 type AppShellAction =
-  | { type: "SET_ERROR"; message: string | null }
-  | { type: "DISMISS_ERROR"; id: number };
+  { type: "SET_ERROR"; message: string | null } | { type: "DISMISS_ERROR"; id: number };
 
 export const initialAppState: AppState = {
   error: null,

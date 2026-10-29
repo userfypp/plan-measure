@@ -61,11 +61,7 @@ export function MeasurementsHeader({
       </div>
       {groupByDimensionIds.length > 0 && (
         <footer className={styles.footer}>
-          <Button
-            variant="ghost"
-            size="compact"
-            onClick={() => onGroupByDimensionsChange([])}
-          >
+          <Button variant="ghost" size="compact" onClick={() => onGroupByDimensionsChange([])}>
             Clear grouping
           </Button>
         </footer>
