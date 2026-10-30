@@ -1107,7 +1107,8 @@ describe("workspace initialization", () => {
       downloadName = this.download;
     });
     const setTimeout = window.setTimeout.bind(window);
-    vi.spyOn(window, "setTimeout").mockImplementation((handler, timeout) =>
+    // `as Window`: the DOM setTimeout returns a number, Node's a Timeout.
+    vi.spyOn(window as Window, "setTimeout").mockImplementation((handler, timeout) =>
       timeout === 60_000 ? 0 : setTimeout(handler, timeout),
     );
     try {

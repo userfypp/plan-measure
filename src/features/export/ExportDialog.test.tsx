@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession } from "../../types/domain";
+import { createCsvExportSettingsPreset, normalizeCsvExportSettings } from "../../services/csv";
 import { chooseSelectOption } from "../../components/ui/selectTestUtils";
 import { ExportDialog } from "./ExportDialog";
 
@@ -450,13 +451,12 @@ describe("ExportDialog", () => {
       );
       expect(dialog().querySelector('[role="tablist"]')).not.toBeNull();
       await act(async () => button(`Export ${format.toUpperCase()}`)!.click());
-      expect(mocks.downloadSpreadsheet).toHaveBeenCalledWith(
-        format,
-        session,
-        ["1"],
-        expect.any(Object),
-      );
-      expect(mocks.updateSettings).toHaveBeenCalledOnce();
+      const requiredOnly = createCsvExportSettingsPreset(session, "required-only");
+      expect(requiredOnly).not.toEqual(session.settings.csvExport);
+      expect(mocks.downloadSpreadsheet).toHaveBeenCalledWith(format, session, ["1"], requiredOnly);
+      expect(mocks.updateSettings).toHaveBeenCalledExactlyOnceWith({
+        csvExport: normalizeCsvExportSettings(session, requiredOnly),
+      });
       expect(mocks.downloadClassificationAssignmentsCsv).not.toHaveBeenCalled();
       expect(onClose).toHaveBeenCalledOnce();
     },
