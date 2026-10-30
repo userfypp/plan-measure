@@ -26,6 +26,8 @@ Measure distances, perimeters, and areas on architectural PDF plans, then export
 
 ## Quick start
 
+[![Launch on PicoRunner](https://picorunner.com/badges/launch.svg)](https://picorunner.com/launch/?repository=https%3A%2F%2Fgithub.com%2Fuserfypp%2Fplan-measure)
+
 1. Choose **Open PDF** or drop a PDF into the workspace, or **Try a sample**.
 2. In **Scales → Add scale**, mark a known distance and enter its real-world length.
 3. Choose **Line**, **Polyline**, or **Polygon**, click to place points, and press `Enter` to finish.
