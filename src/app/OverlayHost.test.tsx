@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPageCalibrationFromRatio } from "../features/calibration/ratioCalibration";
 import { OverlayHost } from "./OverlayHost";
 import { OverlayProvider, useOverlayState } from "./overlayState";
+import { stubDialogMethods } from "../test/domTestUtils";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let restoreDialogMethods = () => {};
 
 const deletePayload = {
   pageNumber: 1,
@@ -91,26 +93,7 @@ beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "show", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      if (!this.open) return;
-      this.open = false;
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -118,6 +101,7 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   vi.restoreAllMocks();
   root = null;

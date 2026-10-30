@@ -7,6 +7,7 @@ import type { CurrentSession } from "../../types/domain";
 import { createCsvExportSettingsPreset, normalizeCsvExportSettings } from "../../services/csv";
 import { chooseSelectOption } from "../../components/ui/selectTestUtils";
 import { ExportDialog } from "./ExportDialog";
+import { stubDialogMethods } from "../../test/domTestUtils";
 
 const mocks = vi.hoisted(() => ({
   downloadTakeoff: vi.fn(),
@@ -48,6 +49,7 @@ vi.mock("../../services/dataJson", () => ({ downloadDataJson: mocks.downloadData
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let restoreDialogMethods = () => {};
 
 function sessionFixture(): CurrentSession {
   return {
@@ -173,20 +175,7 @@ beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      if (!this.open) return;
-      this.open = false;
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   mocks.downloadTakeoff.mockReset().mockResolvedValue(undefined);
   mocks.downloadCsvWithTakeoff.mockReset().mockResolvedValue(undefined);
   mocks.downloadCsv.mockReset();
@@ -202,6 +191,7 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   document.querySelectorAll('[role="dialog"]').forEach((element) => element.remove());
   root = null;

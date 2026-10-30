@@ -16,6 +16,7 @@ import { lineLengthMm } from "../utils/geometry";
 import { createEmptySession, sessionReducer, type SessionCommandResult } from "./sessionState";
 import { App } from "./App";
 import { createSaveStatusStore, type SaveStatusStore } from "./saveStatus";
+import { stubDialogMethods } from "../test/domTestUtils";
 
 const lifecycleHarness = vi.hoisted(() => ({
   saveStatusStore: undefined as SaveStatusStore | undefined,
@@ -299,6 +300,7 @@ vi.mock("../features/viewer/PdfViewer", async () => {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let restoreDialogMethods = () => {};
 
 function buildSession(
   calibration: PageCalibration,
@@ -455,26 +457,7 @@ beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "show", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      if (!this.open) return;
-      this.open = false;
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -483,6 +466,7 @@ beforeEach(() => {
 afterEach(() => {
   lifecycleHarness.saveStatusStore = undefined;
   if (root) act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   lifecycleHarness.autosaveFailed = false;
   lifecycleHarness.canRetryAutosave = true;

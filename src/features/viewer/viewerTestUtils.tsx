@@ -13,6 +13,7 @@ import {
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { vi } from "vitest";
 import { createEmptySession } from "../../app/sessionState";
+import { stubDialogMethods } from "../../test/domTestUtils";
 import type { CurrentSession, PageState, Point } from "../../types/domain";
 
 export type CapturedProps = Record<string, unknown>;
@@ -242,8 +243,9 @@ export class ControlledResizeObserver implements ResizeObserver {
 }
 
 /**
- * Installs the DOM doubles the viewer needs in jsdom (matchMedia, ResizeObserver, canvas and viewer
- * size). Call it in `beforeEach`; `vi.restoreAllMocks()`/`unstubAllGlobals()` undo it.
+ * Installs the DOM doubles the viewer needs in jsdom (matchMedia, `<dialog>`, ResizeObserver, canvas
+ * and viewer size). Call it in `beforeEach`; `vi.restoreAllMocks()`/`unstubAllGlobals()` undo it,
+ * except the `<dialog>` methods, which stay for the rest of the file.
  */
 export function installViewerDomDoubles(): void {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -256,22 +258,7 @@ export function installViewerDomDoubles(): void {
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(() => true),
   }));
-  // jsdom lacks <dialog>.show()/showModal()/close(); mirroring the `open` attribute is enough.
-  for (const method of ["show", "showModal"] as const) {
-    Object.defineProperty(HTMLDialogElement.prototype, method, {
-      configurable: true,
-      value(this: HTMLDialogElement) {
-        this.setAttribute("open", "");
-      },
-    });
-  }
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.removeAttribute("open");
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  stubDialogMethods();
   ControlledResizeObserver.instances = [];
   vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(

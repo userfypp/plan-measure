@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import buttonStyles from "../components/ui/Button.module.css";
 import { ThemeProvider } from "./themeState";
 import { AppBar } from "./AppBar";
+import { stubDialogMethods } from "../test/domTestUtils";
 
 class MatchMediaController {
   readonly matchMedia = (query: string): MediaQueryList =>
@@ -23,6 +24,7 @@ class MatchMediaController {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let restoreDialogMethods = () => {};
 
 function buttonByLabel(label: string): HTMLButtonElement {
   const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
@@ -93,19 +95,7 @@ function renderAppBar({
 }
 
 beforeEach(() => {
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.setAttribute("open", "");
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.removeAttribute("open");
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -121,8 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
-  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
-  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
+  restoreDialogMethods();
   container?.remove();
   vi.restoreAllMocks();
   root = null;

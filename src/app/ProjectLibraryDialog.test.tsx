@@ -8,6 +8,7 @@ import buttonStyles from "../components/ui/Button.module.css";
 import dialogStyles from "../components/ui/Dialog.module.css";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { ProjectLibraryDialog } from "./ProjectLibraryDialog";
+import { stubDialogMethods } from "../test/domTestUtils";
 
 const projects: SavedProjectSummary[] = [
   {
@@ -22,8 +23,7 @@ const projects: SavedProjectSummary[] = [
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
-let showModalDescriptor: PropertyDescriptor | undefined;
-let closeDescriptor: PropertyDescriptor | undefined;
+let restoreDialogMethods = () => {};
 
 function render({
   savedProjects = projects,
@@ -88,21 +88,7 @@ beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
-  showModalDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "showModal");
-  closeDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close");
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.setAttribute("open", "");
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.removeAttribute("open");
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -110,19 +96,10 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   root = null;
   container = null;
-  if (showModalDescriptor) {
-    Object.defineProperty(HTMLDialogElement.prototype, "showModal", showModalDescriptor);
-  } else {
-    Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
-  }
-  if (closeDescriptor) {
-    Object.defineProperty(HTMLDialogElement.prototype, "close", closeDescriptor);
-  } else {
-    Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
-  }
 });
 
 describe("ProjectLibraryDialog", () => {

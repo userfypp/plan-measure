@@ -14,6 +14,7 @@ import {
 } from "../utils/appPreferences";
 import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
+import { stubDialogMethods } from "../test/domTestUtils";
 
 class MatchMediaController {
   readonly matchMedia = (query: string): MediaQueryList =>
@@ -31,6 +32,7 @@ class MatchMediaController {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let restoreDialogMethods = () => {};
 
 interface RenderOptions {
   theme?: ThemePreference;
@@ -183,19 +185,7 @@ beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.setAttribute("open", "");
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.removeAttribute("open");
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   window.localStorage.clear();
   reloadAppPreferencesFromStorage();
   document.documentElement.removeAttribute("data-motion");
@@ -216,10 +206,9 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   vi.restoreAllMocks();
-  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
-  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
   root = null;
   container = null;
 });
