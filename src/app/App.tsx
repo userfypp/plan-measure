@@ -15,6 +15,9 @@ import { AppShell, LoadingOverlay } from "./AppShell";
 import { SaveStatusIndicator } from "./SaveStatusIndicator";
 import { EmptyWorkspaceState, WorkspaceShell } from "./WorkspaceShell";
 import { WorkspacePanel } from "./WorkspacePanel";
+import { CalibrateShortcut } from "./CalibrateShortcut";
+import { ThemeShortcut } from "./ThemeShortcut";
+import { useShortcutsNotice } from "./useShortcutsNotice";
 import { ContextToolbar } from "./ContextToolbar";
 import { ToolRail } from "./ToolRail";
 import { preloadPdfRuntime, usePdfSessionLifecycle } from "./usePdfSessionLifecycle";
@@ -22,6 +25,7 @@ import { usePdfPageLabels } from "./usePdfPageLabels";
 import { useFileDropZone } from "./useFileDropZone";
 import { useAppPreferenceSetters } from "./useAppPreferenceSetters";
 import { useMeasurementShortcuts } from "./useMeasurementShortcuts";
+import { useAppShortcuts } from "./useAppShortcuts";
 import { useCalibrationActions } from "./useCalibrationActions";
 import { Modal } from "../components/Modal";
 import { Button, ConfirmationDialog } from "../components/ui";
@@ -35,7 +39,7 @@ import { MeasurementDetails } from "../features/measurements/MeasurementDetails"
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import { confirmCalibration, selectCalibrationReference } from "./calibrationFlow";
 import type { LogicalPageBounds } from "../types/domain";
-import { getHistoryKeyboardAction } from "../utils/keyboard";
+import { useShortcutHandlers } from "../utils/shortcuts/dispatcher";
 import {
   defaultCalibrationName,
   findPageCalibration,
@@ -218,6 +222,7 @@ function PlanMeasureApp() {
     confirmReferenceEdit,
     openMeasurementDetails,
     closeMeasurementDetails,
+    setWorkspaceModule,
   } = useWorkspaceState();
   const [scaleCheckStore] = useState(createScaleCheckStore);
   const [scaleCheckLoaded, setScaleCheckLoaded] = useState(false);
@@ -323,17 +328,13 @@ function PlanMeasureApp() {
     bounds: LogicalPageBounds;
   } | null>(null);
 
-  useEffect(() => {
-    function handleHistoryShortcut(event: KeyboardEvent) {
-      const action = getHistoryKeyboardAction(event);
-      if (!action) return;
-      event.preventDefault();
-      if (action === "redo") redo();
-      else undo();
-    }
-    window.addEventListener("keydown", handleHistoryShortcut);
-    return () => window.removeEventListener("keydown", handleHistoryShortcut);
-  }, [redo, undo]);
+  useShortcutHandlers((action, event) => {
+    if (action !== "edit.undo" && action !== "edit.redo") return false;
+    event.preventDefault();
+    if (action === "edit.redo") redo();
+    else undo();
+    return true;
+  });
 
   const focusViewer = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -417,6 +418,11 @@ function PlanMeasureApp() {
     closeConfirmation,
     closeAllOverlays,
     setError,
+  });
+  const shortcutsNotice = useShortcutsNotice({
+    recoveryChecked,
+    quiet: recoveryChecked && !recoveryIssue && !loading,
+    hasSavedProjects: savedProjects.length > 0,
   });
 
   const { labels: sourcePageLabels, pending: sourcePageLabelsPending } =
@@ -668,6 +674,18 @@ function PlanMeasureApp() {
     activeMeasurementEditIdRef,
     viewerPageZoomRef,
     applicationCopyRef,
+  });
+
+  const openProjectLibrary = () => {
+    setProjectLibraryOpen(true);
+    void refreshSavedProjects();
+  };
+  useAppShortcuts({
+    hasProject: Boolean(session),
+    workspaceModule,
+    openExportDialog,
+    openProjectLibrary,
+    setWorkspaceModule,
   });
 
   useEffect(() => {
@@ -1016,10 +1034,7 @@ function PlanMeasureApp() {
         confirmScaleDeletion={confirmScaleDeletion}
         recoveredPlanStartupWorkspace={recoveredPlanStartupWorkspace}
         onExport={openExportDialog}
-        onOpenProjects={() => {
-          setProjectLibraryOpen(true);
-          void refreshSavedProjects();
-        }}
+        onOpenProjects={openProjectLibrary}
         onCloseProject={() => {
           if (hasUnsavedMemoryProject()) setConfirmingCloseProject(true);
           else void closeProject();
@@ -1075,6 +1090,15 @@ function PlanMeasureApp() {
         onDismissStatus={
           autosaveWarning && !autosaveUnavailable ? dismissAutosaveWarning : undefined
         }
+        noticeMessage={shortcutsNotice.message}
+        noticeActions={
+          shortcutsNotice.message ? (
+            <Button variant="ghost" size="compact" onClick={shortcutsNotice.review}>
+              Review
+            </Button>
+          ) : undefined
+        }
+        onDismissNotice={shortcutsNotice.dismiss}
       >
         {confirmAutosaveReload && (
           <ConfirmationDialog
@@ -1131,195 +1155,201 @@ function PlanMeasureApp() {
                 : null
             }
             workspacePanel={
-              <WorkspacePanel
-                measurements={
-                  <MeasurementPanel
-                    key={workspaceVersion}
-                    page={previewPage}
-                    pages={previewPages ?? session.pages}
-                    pageLabelOverrides={session.pageLabelOverrides}
-                    sourcePageLabels={sourcePageLabels}
-                    selectedMeasurementId={selectedMeasurementId}
-                    selectedMeasurementIds={selectedMeasurementIds}
-                    onSelectMeasurement={selectMeasurementFromPanel}
-                    onSetMeasurementVisibility={setMeasurementVisibility}
-                    onSetMeasurementsVisibility={setGroupVisibility}
-                  />
-                }
-                takeoff={
-                  <Suspense fallback={null}>
-                    <TakeoffWorkspace
+              <>
+                <CalibrateShortcut
+                  disabled={calibrationActionsDisabled}
+                  onAddScale={beginNewCalibration}
+                />
+                <WorkspacePanel
+                  measurements={
+                    <MeasurementPanel
                       key={workspaceVersion}
+                      page={previewPage}
                       pages={previewPages ?? session.pages}
-                      catalog={session.classificationCatalog}
-                      onOpenMeasurement={openTakeoffMeasurement}
-                      navigationBlocked={summaryExportBlocked}
-                      displayUnit={session.settings.displayUnit}
-                      decimalPlaces={session.settings.measurementDecimalPlaces}
-                      areaDisplay={session.settings.areaDisplay}
-                      measureClouds={session.settings.measureClouds}
                       pageLabelOverrides={session.pageLabelOverrides}
                       sourcePageLabels={sourcePageLabels}
+                      selectedMeasurementId={selectedMeasurementId}
+                      selectedMeasurementIds={selectedMeasurementIds}
+                      onSelectMeasurement={selectMeasurementFromPanel}
+                      onSetMeasurementVisibility={setMeasurementVisibility}
+                      onSetMeasurementsVisibility={setGroupVisibility}
                     />
-                  </Suspense>
-                }
-                classifications={
-                  <Suspense fallback={null}>
-                    <ClassificationWorkspace
-                      key={workspaceVersion}
-                      catalog={session.classificationCatalog}
-                      disabled={Boolean(
-                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                      )}
-                      onCreateDimension={(name) =>
-                        addClassificationDimension(crypto.randomUUID(), name)
-                      }
-                      onApplyTemplate={applyClassificationTemplate}
-                      onRenameDimension={renameClassificationDimension}
-                      onDeleteDimension={(dimensionId) => {
-                        const dimension = session.classificationCatalog.dimensions.find(
-                          (item) => item.id === dimensionId,
-                        );
-                        if (dimension && !confirmDimensionDeletion) {
-                          deleteClassificationDimension(dimensionId);
-                        } else if (dimension) {
-                          requestDeleteClassification({
-                            target: "dimension",
-                            dimensionId,
-                            name: dimension.name,
-                          });
+                  }
+                  takeoff={
+                    <Suspense fallback={null}>
+                      <TakeoffWorkspace
+                        key={workspaceVersion}
+                        pages={previewPages ?? session.pages}
+                        catalog={session.classificationCatalog}
+                        onOpenMeasurement={openTakeoffMeasurement}
+                        navigationBlocked={summaryExportBlocked}
+                        displayUnit={session.settings.displayUnit}
+                        decimalPlaces={session.settings.measurementDecimalPlaces}
+                        areaDisplay={session.settings.areaDisplay}
+                        measureClouds={session.settings.measureClouds}
+                        pageLabelOverrides={session.pageLabelOverrides}
+                        sourcePageLabels={sourcePageLabels}
+                      />
+                    </Suspense>
+                  }
+                  classifications={
+                    <Suspense fallback={null}>
+                      <ClassificationWorkspace
+                        key={workspaceVersion}
+                        catalog={session.classificationCatalog}
+                        disabled={Boolean(
+                          calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                        )}
+                        onCreateDimension={(name) =>
+                          addClassificationDimension(crypto.randomUUID(), name)
                         }
-                      }}
-                      onArchiveDimension={archiveClassificationDimension}
-                      onRestoreDimension={restoreClassificationDimension}
-                      onCreateValue={(dimensionId, name) =>
-                        addClassificationValue(dimensionId, crypto.randomUUID(), name)
-                      }
-                      onRenameValue={renameClassificationValue}
-                      onDeleteValue={(dimensionId, valueId) => {
-                        const value = session.classificationCatalog.dimensions
-                          .find((item) => item.id === dimensionId)
-                          ?.values.find((item) => item.id === valueId);
-                        if (value && !confirmValueDeletion) {
-                          deleteClassificationValue(dimensionId, valueId);
-                        } else if (value) {
-                          requestDeleteClassification({
-                            target: "value",
-                            dimensionId,
-                            valueId,
-                            name: value.name,
-                          });
+                        onApplyTemplate={applyClassificationTemplate}
+                        onRenameDimension={renameClassificationDimension}
+                        onDeleteDimension={(dimensionId) => {
+                          const dimension = session.classificationCatalog.dimensions.find(
+                            (item) => item.id === dimensionId,
+                          );
+                          if (dimension && !confirmDimensionDeletion) {
+                            deleteClassificationDimension(dimensionId);
+                          } else if (dimension) {
+                            requestDeleteClassification({
+                              target: "dimension",
+                              dimensionId,
+                              name: dimension.name,
+                            });
+                          }
+                        }}
+                        onArchiveDimension={archiveClassificationDimension}
+                        onRestoreDimension={restoreClassificationDimension}
+                        onCreateValue={(dimensionId, name) =>
+                          addClassificationValue(dimensionId, crypto.randomUUID(), name)
                         }
-                      }}
-                      onArchiveValue={archiveClassificationValue}
-                      onRestoreValue={restoreClassificationValue}
-                    />
-                  </Suspense>
-                }
-                scales={
-                  <ScalesWorkspace
-                    page={currentPage}
-                    displayUnit={session.settings.displayUnit}
-                    actionsDisabled={calibrationActionsDisabled}
-                    onCheckScale={(calibration) => {
-                      if (calibrationActionsDisabled || measurementEditActive || draft) return;
-                      setScaleCheckLoaded(true);
-                      scaleCheckStore.begin({
-                        pageNumber: currentPage.pageNumber,
-                        activeCalibrationId: currentPage.activeCalibrationId,
-                        workspaceVersion,
-                        calibration,
-                      });
-                      clearDraft();
-                      chooseWorkspaceTool("calibrate");
-                      clearError();
-                      focusViewer();
-                    }}
-                    onAddScale={beginNewCalibration}
-                    onAddCustomRatioScale={addCustomRatioScale}
-                    onAddPresetScale={addStandardScalePreset}
-                    onSetRatio={setScaleRatio}
-                    onRenameScale={(calibrationId, name) =>
-                      renameCalibration({
-                        pageNumber: currentPage.pageNumber,
-                        calibrationId,
-                        name,
-                      })
-                    }
-                    onRecalibrate={requestRecalibration}
-                    onEditReference={beginCalibrationReferenceEdit}
-                    onCopyScale={(calibration) => copyScale(currentPage.pageNumber, calibration)}
-                    onDeleteScale={(calibration) =>
-                      requestScaleDelete(currentPage.pageNumber, calibration)
-                    }
-                  />
-                }
-                details={
-                  selectedMeasurement ? (
-                    <MeasurementDetails
-                      key={selectedMeasurement.id}
-                      page={previewPage}
-                      measurement={selectedMeasurement}
+                        onRenameValue={renameClassificationValue}
+                        onDeleteValue={(dimensionId, valueId) => {
+                          const value = session.classificationCatalog.dimensions
+                            .find((item) => item.id === dimensionId)
+                            ?.values.find((item) => item.id === valueId);
+                          if (value && !confirmValueDeletion) {
+                            deleteClassificationValue(dimensionId, valueId);
+                          } else if (value) {
+                            requestDeleteClassification({
+                              target: "value",
+                              dimensionId,
+                              valueId,
+                              name: value.name,
+                            });
+                          }
+                        }}
+                        onArchiveValue={archiveClassificationValue}
+                        onRestoreValue={restoreClassificationValue}
+                      />
+                    </Suspense>
+                  }
+                  scales={
+                    <ScalesWorkspace
+                      page={currentPage}
                       displayUnit={session.settings.displayUnit}
-                      areaDisplay={session.settings.areaDisplay}
-                      measureClouds={session.settings.measureClouds}
-                      measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
-                      catalog={session.classificationCatalog}
-                      returnModule={workspaceModule}
-                      assignmentDisabled={Boolean(
-                        calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                      )}
-                      onBack={() => {
-                        closeMeasurementDetails();
-                        focusMeasurementRow(selectedMeasurement.id);
-                      }}
-                      onSaveNote={(note) =>
-                        setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
-                      }
-                      onChangeColor={(color) =>
-                        setMeasurementColor(currentPage.pageNumber, selectedMeasurement.id, color)
-                      }
-                      onAssignClassification={assignClassification}
-                      onAddCountItems={beginAddingCountItems}
-                      addCountItemsDisabledReason={addCountItemsDisabledReason}
-                      onMoveCountItem={(itemIndex, targetId) => {
-                        if (
-                          !moveCountItem({
-                            pageNumber: currentPage.pageNumber,
-                            sourceId: selectedMeasurement.id,
-                            targetId,
-                            itemIndex,
-                          })
-                        )
-                          return;
-                        if (selectedMeasurement.points.length === 1) {
-                          chooseTool("select");
-                          selectWorkspaceMeasurement(targetId);
-                          focusMeasurementDetails();
-                        }
-                      }}
-                      onRemoveCountItem={(index) => {
-                        updateMeasurements([
-                          {
-                            pageNumber: currentPage.pageNumber,
-                            id: selectedMeasurement.id,
-                            points: selectedMeasurement.points.filter(
-                              (_, pointIndex) => pointIndex !== index,
-                            ),
-                          },
-                        ]);
-                      }}
-                      onDelete={() =>
-                        requestMeasurementDelete({
+                      actionsDisabled={calibrationActionsDisabled}
+                      onCheckScale={(calibration) => {
+                        if (calibrationActionsDisabled || measurementEditActive || draft) return;
+                        setScaleCheckLoaded(true);
+                        scaleCheckStore.begin({
                           pageNumber: currentPage.pageNumber,
-                          measurementId: selectedMeasurement.id,
-                          measurementName: selectedMeasurement.name,
+                          activeCalibrationId: currentPage.activeCalibrationId,
+                          workspaceVersion,
+                          calibration,
+                        });
+                        clearDraft();
+                        chooseWorkspaceTool("calibrate");
+                        clearError();
+                        focusViewer();
+                      }}
+                      onAddScale={beginNewCalibration}
+                      onAddCustomRatioScale={addCustomRatioScale}
+                      onAddPresetScale={addStandardScalePreset}
+                      onSetRatio={setScaleRatio}
+                      onRenameScale={(calibrationId, name) =>
+                        renameCalibration({
+                          pageNumber: currentPage.pageNumber,
+                          calibrationId,
+                          name,
                         })
                       }
+                      onRecalibrate={requestRecalibration}
+                      onEditReference={beginCalibrationReferenceEdit}
+                      onCopyScale={(calibration) => copyScale(currentPage.pageNumber, calibration)}
+                      onDeleteScale={(calibration) =>
+                        requestScaleDelete(currentPage.pageNumber, calibration)
+                      }
                     />
-                  ) : null
-                }
-              />
+                  }
+                  details={
+                    selectedMeasurement ? (
+                      <MeasurementDetails
+                        key={selectedMeasurement.id}
+                        page={previewPage}
+                        measurement={selectedMeasurement}
+                        displayUnit={session.settings.displayUnit}
+                        areaDisplay={session.settings.areaDisplay}
+                        measureClouds={session.settings.measureClouds}
+                        measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
+                        catalog={session.classificationCatalog}
+                        returnModule={workspaceModule}
+                        assignmentDisabled={Boolean(
+                          calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                        )}
+                        onBack={() => {
+                          closeMeasurementDetails();
+                          focusMeasurementRow(selectedMeasurement.id);
+                        }}
+                        onSaveNote={(note) =>
+                          setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
+                        }
+                        onChangeColor={(color) =>
+                          setMeasurementColor(currentPage.pageNumber, selectedMeasurement.id, color)
+                        }
+                        onAssignClassification={assignClassification}
+                        onAddCountItems={beginAddingCountItems}
+                        addCountItemsDisabledReason={addCountItemsDisabledReason}
+                        onMoveCountItem={(itemIndex, targetId) => {
+                          if (
+                            !moveCountItem({
+                              pageNumber: currentPage.pageNumber,
+                              sourceId: selectedMeasurement.id,
+                              targetId,
+                              itemIndex,
+                            })
+                          )
+                            return;
+                          if (selectedMeasurement.points.length === 1) {
+                            chooseTool("select");
+                            selectWorkspaceMeasurement(targetId);
+                            focusMeasurementDetails();
+                          }
+                        }}
+                        onRemoveCountItem={(index) => {
+                          updateMeasurements([
+                            {
+                              pageNumber: currentPage.pageNumber,
+                              id: selectedMeasurement.id,
+                              points: selectedMeasurement.points.filter(
+                                (_, pointIndex) => pointIndex !== index,
+                              ),
+                            },
+                          ]);
+                        }}
+                        onDelete={() =>
+                          requestMeasurementDelete({
+                            pageNumber: currentPage.pageNumber,
+                            measurementId: selectedMeasurement.id,
+                            measurementName: selectedMeasurement.name,
+                          })
+                        }
+                      />
+                    ) : null
+                  }
+                />
+              </>
             }
             authoringIntentScopeKey={`${currentPage.pageNumber}:${workspaceVersion}:${selectedMeasurementId ?? ""}`}
             toolRail={<ToolRail toolAvailability={toolAvailability} onChooseTool={chooseTool} />}
@@ -1360,6 +1390,10 @@ function PlanMeasureApp() {
                 onOpenMeasurementDetails={() => {
                   openMeasurementDetails();
                   focusMeasurementDetails();
+                }}
+                onCloseMeasurementDetails={() => {
+                  closeMeasurementDetails();
+                  if (selectedMeasurement) focusMeasurementRow(selectedMeasurement.id);
                 }}
                 onExitDrawingTool={() => {
                   chooseTool("select");
@@ -1579,6 +1613,7 @@ function PlanMeasureApp() {
           />
         )}
       </AppShell>
+      <ThemeShortcut />
       {loading && <LoadingOverlay>Loading PDF…</LoadingOverlay>}
     </>
   );

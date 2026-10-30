@@ -19,6 +19,9 @@ import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
 import { scaleDisplayMetadata } from "./scaleDisplay";
 import { setAppPreference, useAppPreferences } from "../../utils/appPreferences";
+import type { ActionId } from "../../utils/shortcuts/bindings";
+import { isBlockingOverlayOpen, useShortcutHandlers } from "../../utils/shortcuts/dispatcher";
+import { useShortcutAria, useShortcutLabel } from "../../utils/shortcuts/store";
 import styles from "./ViewerDock.module.css";
 
 type ViewerSettings = Pick<
@@ -102,6 +105,22 @@ function FitIcon() {
   );
 }
 
+/** The page a page-navigation action goes to, or null for any other action. */
+function pageShortcutTarget(action: ActionId, pageNumber: number, pageCount: number) {
+  switch (action) {
+    case "page.previous":
+      return pageNumber - 1;
+    case "page.next":
+      return pageNumber + 1;
+    case "page.first":
+      return 1;
+    case "page.last":
+      return pageCount;
+    default:
+      return null;
+  }
+}
+
 export function ViewerDock({
   navigation,
   pagesOpen = false,
@@ -134,6 +153,15 @@ export function ViewerDock({
   const labelSizeId = useId();
   const labelSizeLabelId = useId();
   const appPreferences = useAppPreferences();
+  const zoomOutKeys = useShortcutAria("view.zoomOut");
+  const zoomInKeys = useShortcutAria("view.zoomIn");
+  const fitPageKeys = useShortcutAria("view.fitPage");
+  const pagesShortcut = useShortcutLabel("page.panel");
+  const pagesKeys = useShortcutAria("page.panel");
+  const previousPageShortcut = useShortcutLabel("page.previous");
+  const previousPageKeys = useShortcutAria("page.previous");
+  const nextPageShortcut = useShortcutLabel("page.next");
+  const nextPageKeys = useShortcutAria("page.next");
   const pageLabelInputRef = useRef<HTMLInputElement>(null);
   const pageNavigationRef = useRef<HTMLDivElement>(null);
   const pageNavigationFocus = useRovingFocusGroup(pageNavigationRef, { orientation: "horizontal" });
@@ -209,6 +237,32 @@ export function ViewerDock({
     closePageLabelEditor();
   }
 
+  // Same conditions as the buttons: no page change during a drawing or scale workflow, none past the ends.
+  useShortcutHandlers((action, event) => {
+    if (isBlockingOverlayOpen()) return false;
+    if (action === "page.panel") {
+      if (!onTogglePages) return false;
+      event.preventDefault();
+      if (!pagesOpen) onPreparePages?.();
+      onTogglePages();
+      return true;
+    }
+    const { pageNumber, pageCount } = navigation;
+    const target = pageShortcutTarget(action, pageNumber, pageCount);
+    if (
+      target === null ||
+      pageNavigationDisabled ||
+      target < 1 ||
+      target > pageCount ||
+      target === pageNumber
+    ) {
+      return false;
+    }
+    event.preventDefault();
+    navigation.onPageChange(target);
+    return true;
+  });
+
   const pageLabelTriggerAriaLabel = effectivePageLabel
     ? `Page label: ${effectivePageLabel}. Page ${navigation.pageNumber} of ${navigation.pageCount}. Edit page label`
     : `Page ${navigation.pageNumber} of ${navigation.pageCount}. No page label. Set page label`;
@@ -228,7 +282,8 @@ export function ViewerDock({
             className={styles.pagesTrigger}
             icon={<PagesIcon />}
             aria-label="Pages"
-            tooltip="Pages"
+            aria-keyshortcuts={pagesKeys || undefined}
+            tooltip={pagesShortcut ? `Pages (${pagesShortcut})` : "Pages"}
             pressed={pagesOpen}
             aria-controls="page-browser"
             onPointerEnter={onPreparePages}
@@ -241,7 +296,8 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Previous page"
-          title="Previous page"
+          aria-keyshortcuts={previousPageKeys || undefined}
+          title={previousPageShortcut ? `Previous page (${previousPageShortcut})` : "Previous page"}
           disabled={pageNavigationDisabled || navigation.pageNumber <= 1}
           disabledReason={
             pageNavigationDisabled
@@ -340,7 +396,8 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Next page"
-          title="Next page"
+          aria-keyshortcuts={nextPageKeys || undefined}
+          title={nextPageShortcut ? `Next page (${nextPageShortcut})` : "Next page"}
           disabled={pageNavigationDisabled || navigation.pageNumber >= navigation.pageCount}
           disabledReason={
             pageNavigationDisabled
@@ -368,7 +425,7 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Zoom out"
-          aria-keyshortcuts="-"
+          aria-keyshortcuts={zoomOutKeys || undefined}
           title="Zoom out"
           onClick={navigation.onZoomOut}
         >
@@ -390,7 +447,7 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Zoom in"
-          aria-keyshortcuts="+"
+          aria-keyshortcuts={zoomInKeys || undefined}
           title="Zoom in"
           onClick={navigation.onZoomIn}
         >
@@ -401,6 +458,7 @@ export function ViewerDock({
           size="compact"
           className={styles.iconButton}
           aria-label="Fit page"
+          aria-keyshortcuts={fitPageKeys || undefined}
           title="Fit page"
           onClick={navigation.onFit}
         >

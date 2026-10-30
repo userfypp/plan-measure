@@ -1,8 +1,8 @@
 {
   "sizeLimits": {
-    "mainBytes": 495150,
-    "mainGzipBytes": 145611,
-    "startupBytes": 510082,
+    "mainBytes": 504388,
+    "mainGzipBytes": 149015,
+    "startupBytes": 519256,
     "viewerBytes": 810169
   },
   "sizeGrowthAllowance": {

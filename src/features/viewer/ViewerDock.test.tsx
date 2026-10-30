@@ -12,6 +12,7 @@ import {
   type SessionCommandResult,
 } from "../../app/sessionState";
 import type { PageCalibration } from "../../types/domain";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
 
 const dockCss = readFileSync(resolve(import.meta.dirname, "ViewerDock.module.css"), "utf8");
@@ -155,6 +156,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetAppPreferences();
   if (root) act(() => root?.unmount());
   container?.remove();
   document
@@ -185,6 +187,26 @@ describe("ViewerDock", () => {
       }),
     );
     expect(buttonByLabel("Next page").disabled).toBe(true);
+  });
+
+  it("exposes the zoom and Fit keys to assistive technology and follows rebinding", () => {
+    renderDock(createProps());
+
+    expect(buttonByLabel("Zoom out").getAttribute("aria-keyshortcuts")).toBe("-");
+    expect(buttonByLabel("Zoom in").getAttribute("aria-keyshortcuts")).toBe("+ =");
+    expect(buttonByLabel("Fit page").getAttribute("aria-keyshortcuts")).toBe("F");
+
+    act(() =>
+      setAppPreference("shortcutBindings", {
+        "view.zoomIn": ["Z"],
+        "view.zoomOut": [],
+        "view.fitPage": ["Mod+0"],
+      }),
+    );
+
+    expect(buttonByLabel("Zoom in").getAttribute("aria-keyshortcuts")).toBe("Z");
+    expect(buttonByLabel("Zoom out").hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(buttonByLabel("Fit page").getAttribute("aria-keyshortcuts")).toBe("Control+0 Meta+0");
   });
 
   it("shows unambiguous active-scale identity and switches through a radio menu", () => {
@@ -850,5 +872,168 @@ describe("ViewerDock", () => {
 
     expect(activeScaleTrigger().getAttribute("aria-label")).toContain("Ground floor revised");
     expect(state.session!.pages[1]!.activeCalibrationId).toBe(beforeId);
+  });
+});
+
+describe("ViewerDock page shortcuts", () => {
+  function pressKey(key: string, init: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    act(() => {
+      document.body.dispatchEvent(event);
+    });
+    return event;
+  }
+
+  function tooltipOf(button: HTMLElement): string | undefined {
+    act(() => setAppPreference("tooltipDelay", "instant"));
+    act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    const text = document.querySelector('[role="tooltip"]')?.textContent ?? undefined;
+    act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+    return text;
+  }
+
+  function propsOnPage(pageNumber: number, overrides: Partial<ViewerDockProps> = {}) {
+    const props = createProps(overrides);
+    return { ...props, navigation: { ...props.navigation, pageNumber } };
+  }
+
+  it("goes to the previous, next, first and last page", () => {
+    const props = propsOnPage(2);
+    renderDock(props);
+
+    expect(pressKey("PageDown").defaultPrevented).toBe(true);
+    expect(pressKey("PageUp").defaultPrevented).toBe(true);
+    pressKey("Home");
+    pressKey("End");
+
+    expect(vi.mocked(props.navigation.onPageChange).mock.calls).toEqual([[3], [1], [1], [3]]);
+  });
+
+  it("does nothing past the ends of the document and leaves the key to the browser", () => {
+    const first = propsOnPage(1);
+    renderDock(first);
+    expect(pressKey("PageUp").defaultPrevented).toBe(false);
+    expect(pressKey("Home").defaultPrevented).toBe(false);
+    expect(first.navigation.onPageChange).not.toHaveBeenCalled();
+
+    const last = propsOnPage(3);
+    renderDock(last);
+    expect(pressKey("PageDown").defaultPrevented).toBe(false);
+    expect(pressKey("End").defaultPrevented).toBe(false);
+    expect(last.navigation.onPageChange).not.toHaveBeenCalled();
+  });
+
+  it("does nothing during a drawing or scale workflow, like the disabled buttons", () => {
+    const props = propsOnPage(2, { pageNavigationDisabled: true });
+    renderDock(props);
+
+    ["PageDown", "PageUp", "Home", "End"].forEach((key) => pressKey(key));
+
+    expect(props.navigation.onPageChange).not.toHaveBeenCalled();
+  });
+
+  it("does nothing while a dialog is open", () => {
+    const props = propsOnPage(2, { onTogglePages: vi.fn() });
+    renderDock(props);
+    const dialog = document.createElement("dialog");
+    dialog.setAttribute("open", "");
+    document.body.append(dialog);
+
+    ["PageDown", "Home", "T"].forEach((key) => pressKey(key));
+    dialog.remove();
+
+    expect(props.navigation.onPageChange).not.toHaveBeenCalled();
+    expect(props.onTogglePages).not.toHaveBeenCalled();
+  });
+
+  it("repeats while held for the previous and next page only", () => {
+    const props = propsOnPage(2);
+    renderDock(props);
+
+    pressKey("PageDown", { repeat: true });
+    pressKey("PageUp", { repeat: true });
+    pressKey("Home", { repeat: true });
+    pressKey("End", { repeat: true });
+
+    expect(vi.mocked(props.navigation.onPageChange).mock.calls).toEqual([[3], [1]]);
+  });
+
+  it("leaves paging keys to the focused control that scrolls with them", () => {
+    const props = propsOnPage(2);
+    renderDock(props);
+    const list = document.createElement("div");
+    list.setAttribute("role", "tree");
+    const item = document.createElement("button");
+    list.append(item);
+    document.body.append(list);
+
+    act(() => {
+      item.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
+    });
+    list.remove();
+
+    expect(props.navigation.onPageChange).not.toHaveBeenCalled();
+  });
+
+  it("toggles the Pages browser like the Pages button, preparing it only when opening", () => {
+    const onTogglePages = vi.fn();
+    const onPreparePages = vi.fn();
+    renderDock(createProps({ onTogglePages, onPreparePages }));
+
+    expect(pressKey("T").defaultPrevented).toBe(true);
+    expect(onPreparePages).toHaveBeenCalledOnce();
+    expect(onTogglePages).toHaveBeenCalledOnce();
+
+    renderDock(createProps({ onTogglePages, onPreparePages, pagesOpen: true }));
+    pressKey("t");
+    expect(onPreparePages).toHaveBeenCalledOnce();
+    expect(onTogglePages).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves T alone when there is no Pages button", () => {
+    renderDock(createProps());
+
+    expect(pressKey("T").defaultPrevented).toBe(false);
+  });
+
+  it("shows each key in the control it drives", () => {
+    renderDock(createProps({ onTogglePages: vi.fn() }));
+
+    expect(tooltipOf(buttonByLabel("Pages"))).toBe("Pages (T)");
+    expect(buttonByLabel("Pages").getAttribute("aria-keyshortcuts")).toBe("T");
+    expect(buttonByLabel("Previous page").title).toBe("Previous page (PageUp)");
+    expect(buttonByLabel("Previous page").getAttribute("aria-keyshortcuts")).toBe("PageUp");
+    expect(buttonByLabel("Next page").title).toBe("Next page (PageDown)");
+    expect(buttonByLabel("Next page").getAttribute("aria-keyshortcuts")).toBe("PageDown");
+  });
+
+  it("follows rebinding live, in the keys and in the labels, and drops cleared keys", () => {
+    const props = propsOnPage(2, { onTogglePages: vi.fn() });
+    renderDock(props);
+
+    act(() =>
+      setAppPreference("shortcutBindings", {
+        "page.next": ["J"],
+        "page.previous": [],
+        "page.panel": ["Mod+Shift+P"],
+      }),
+    );
+
+    pressKey("J");
+    pressKey("PageDown");
+    pressKey("PageUp");
+    pressKey("T");
+    pressKey("P", { ctrlKey: true, shiftKey: true });
+    expect(vi.mocked(props.navigation.onPageChange).mock.calls).toEqual([[3]]);
+    expect(props.onTogglePages).toHaveBeenCalledOnce();
+
+    expect(buttonByLabel("Next page").title).toBe("Next page (J)");
+    expect(buttonByLabel("Next page").getAttribute("aria-keyshortcuts")).toBe("J");
+    expect(buttonByLabel("Previous page").title).toBe("Previous page");
+    expect(buttonByLabel("Previous page").hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(tooltipOf(buttonByLabel("Pages"))).toBe("Pages (Ctrl+Shift+P)");
+    expect(buttonByLabel("Pages").getAttribute("aria-keyshortcuts")).toBe(
+      "Control+Shift+P Meta+Shift+P",
+    );
   });
 });

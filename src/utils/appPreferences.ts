@@ -1,5 +1,13 @@
 import { useSyncExternalStore } from "react";
 import type { MeasurementDisplayUnit } from "../types/domain";
+import {
+  EMPTY_SHORTCUT_BINDINGS,
+  PRESET_IDS,
+  isShortcutBindings,
+  sanitizeShortcutBindings,
+  type PresetId,
+  type ShortcutBindings,
+} from "./shortcuts/bindings";
 
 /**
  * Per-device preferences (not stored in the project). One typed registry:
@@ -76,6 +84,10 @@ export interface AppPreferences {
   rasterCache: RasterCache;
   hitTolerance: HitTolerance;
   debugOverlay: boolean;
+  /** The preset last applied; the effective keys are Default plus `shortcutBindings`. */
+  shortcutPreset: PresetId;
+  /** Per-action keys that differ from Default (`[]` clears an action's shortcut). */
+  shortcutBindings: ShortcutBindings;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -122,6 +134,8 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   rasterCache: "normal",
   hitTolerance: "normal",
   debugOverlay: false,
+  shortcutPreset: "default",
+  shortcutBindings: EMPTY_SHORTCUT_BINDINGS,
 };
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
@@ -174,6 +188,8 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     rasterCache: oneOf("small", "normal", "large"),
     hitTolerance: oneOf("tight", "normal", "wide"),
     debugOverlay: isBoolean,
+    shortcutPreset: oneOf<PresetId>(...PRESET_IDS),
+    shortcutBindings: isShortcutBindings,
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */
@@ -253,6 +269,8 @@ function sanitize(raw: unknown): AppPreferences {
   for (const key of Object.keys(VALIDATORS) as Array<keyof AppPreferences>) {
     if (VALIDATORS[key](source[key])) result[key] = source[key];
   }
+  // One corrupt shortcut must not reset the others, so this map is read entry by entry.
+  result.shortcutBindings = sanitizeShortcutBindings(source.shortcutBindings);
   return result as unknown as AppPreferences;
 }
 

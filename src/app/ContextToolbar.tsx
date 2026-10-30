@@ -19,7 +19,9 @@ import {
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import { useViewerInteractionCommands } from "../features/viewer/ViewerInteractionCommands";
 import { isMeasurementType, measurementPathSpecs } from "../utils/geometry";
-import { getShortcutLabel } from "../utils/keyboard";
+import type { ActionId } from "../utils/shortcuts/bindings";
+import { isBlockingOverlayOpen, useShortcutHandlers } from "../utils/shortcuts/dispatcher";
+import { useShortcutAria, useShortcutLabel } from "../utils/shortcuts/store";
 import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils/measurementName";
 import { useWorkspaceState } from "./workspaceState";
 import type { ClassificationCatalog, Measurement } from "../types/domain";
@@ -44,6 +46,7 @@ export interface ContextToolbarProps {
   onDuplicateSelectedMeasurement: () => void;
   onRenameSelectedMeasurement: (name: string) => void;
   onOpenMeasurementDetails: () => void;
+  onCloseMeasurementDetails: () => void;
   onExitDrawingTool: () => void;
   onCancelCalibration: () => void;
   onCancelReferenceEdit: () => void;
@@ -148,31 +151,66 @@ function DiscardPointsIcon() {
   );
 }
 
-function DrawingAidButton({
+function ShortcutButton({
   label,
   icon,
   pressed,
-  shortcut,
+  disabled,
+  actionId,
   onClick,
 }: {
   label: string;
   icon: ReactNode;
-  pressed: boolean;
-  shortcut: string | null;
+  pressed?: boolean;
+  disabled?: boolean;
+  actionId: ActionId;
   onClick: () => void;
 }) {
+  const shortcut = useShortcutLabel(actionId);
+  const keyShortcuts = useShortcutAria(actionId);
   return (
     <IconButton
       className={styles.selectionIconButton}
       icon={icon}
       aria-label={label}
-      aria-keyshortcuts={shortcut ?? undefined}
+      aria-keyshortcuts={keyShortcuts || undefined}
       tooltip={shortcut ? `${label} (${shortcut})` : label}
       tooltipPosition="bottom"
       pressed={pressed}
+      disabled={disabled}
       onClick={onClick}
     />
   );
+}
+
+/**
+ * Renders nothing. It is mounted with the selection toolbar and given only the commands whose
+ * buttons are currently shown and enabled, so each key is live exactly while its button is.
+ */
+function SelectionShortcuts({
+  duplicate,
+  details,
+  visibility,
+}: {
+  duplicate: (() => void) | null;
+  details: (() => void) | null;
+  visibility: (() => void) | null;
+}) {
+  useShortcutHandlers((action, event) => {
+    const run =
+      action === "edit.duplicate"
+        ? duplicate
+        : action === "measurement.toggleDetails"
+          ? details
+          : action === "measurement.toggleVisibility"
+            ? visibility
+            : null;
+    if (!run || isBlockingOverlayOpen()) return false;
+    event.preventDefault();
+    run();
+    return true;
+  });
+  return null;
 }
 
 /** Live Shift state, cleared on window blur so a missed keyup never leaves it stuck. */
@@ -224,6 +262,8 @@ function MeasurementNameEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const returnFocusRef = useRef(false);
   const errorId = useId();
+  const shortcut = useShortcutLabel("edit.rename");
+  const keyShortcuts = useShortcutAria("edit.rename");
 
   useLayoutEffect(() => {
     if (editing) {
@@ -235,6 +275,12 @@ function MeasurementNameEditor({
     returnFocusRef.current = false;
     triggerRef.current?.focus({ preventScroll: true });
   }, [editing]);
+
+  function startEditing() {
+    setDraftName(name);
+    setNameError(null);
+    setEditing(true);
+  }
 
   function finishEditing() {
     returnFocusRef.current = true;
@@ -265,6 +311,14 @@ function MeasurementNameEditor({
     commitRename();
   }
 
+  // This editor is mounted only for a single selected measurement, so the key exists only then.
+  useShortcutHandlers((action, event) => {
+    if (action !== "edit.rename" || editing || isBlockingOverlayOpen()) return false;
+    event.preventDefault();
+    startEditing();
+    return true;
+  });
+
   if (!editing) {
     return (
       <button
@@ -272,12 +326,9 @@ function MeasurementNameEditor({
         type="button"
         className={styles.measurementNameTrigger}
         aria-label={`Rename selected measurement ${name}`}
-        title={`Rename ${name}`}
-        onClick={() => {
-          setDraftName(name);
-          setNameError(null);
-          setEditing(true);
-        }}
+        aria-keyshortcuts={keyShortcuts || undefined}
+        title={shortcut ? `Rename ${name} (${shortcut})` : `Rename ${name}`}
+        onClick={startEditing}
       >
         <span>{name}</span>
       </button>
@@ -363,6 +414,7 @@ export function ContextToolbar({
   onDuplicateSelectedMeasurement,
   onRenameSelectedMeasurement,
   onOpenMeasurementDetails,
+  onCloseMeasurementDetails,
   onExitDrawingTool,
   onCancelCalibration,
   onCancelReferenceEdit,
@@ -521,18 +573,18 @@ export function ContextToolbar({
             <Divider />
           </>
         )}
-        <DrawingAidButton
+        <ShortcutButton
           label="Snap"
           icon={<SnapIcon />}
-          shortcut={getShortcutLabel("toggle-snap")}
+          actionId="mode.snap"
           pressed={snap}
           onClick={toggleSnap}
         />
         {activeTool !== "rectangle" && activeTool !== "ellipse" && (
-          <DrawingAidButton
+          <ShortcutButton
             label="Ortho"
             icon={<OrthoIcon />}
-            shortcut={getShortcutLabel("toggle-orthogonal")}
+            actionId="mode.orthogonal"
             pressed={orthogonal}
             onClick={toggleOrthogonal}
           />
@@ -594,9 +646,28 @@ export function ContextToolbar({
   const allSelectedVisible =
     selectedMeasurements?.every((measurement) => measurement.visible) ?? false;
   const singleSelection = selectionCount === 1 && selectedMeasurementName !== null;
+  const toggleSelectedVisibility =
+    selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements
+      ? () =>
+          onEditSelectedMeasurements({
+            measurementIds: selectedMeasurements.map((measurement) => measurement.id),
+            operation: { type: "visibility", visible: !allSelectedVisible },
+          })
+      : null;
 
   return (
     <ToolbarComposite label="Selected measurement controls" contextKind="selection">
+      <SelectionShortcuts
+        duplicate={duplicateDisabled ? null : onDuplicateSelectedMeasurement}
+        details={
+          singleSelection
+            ? measurementDetailsOpen
+              ? onCloseMeasurementDetails
+              : onOpenMeasurementDetails
+            : null
+        }
+        visibility={toggleSelectedVisibility}
+      />
       {singleSelection ? (
         <MeasurementNameEditor
           key={selectedMeasurementId ?? "none"}
@@ -621,22 +692,18 @@ export function ContextToolbar({
           onClick={onAddCountItems}
         />
       )}
-      <IconButton
-        className={styles.selectionIconButton}
-        aria-label="Duplicate"
-        tooltip="Duplicate"
-        tooltipPosition="bottom"
+      <ShortcutButton
+        label="Duplicate"
         icon={<DuplicateIcon />}
+        actionId="edit.duplicate"
         disabled={duplicateDisabled}
         onClick={onDuplicateSelectedMeasurement}
       />
       {singleSelection && !measurementDetailsOpen && (
-        <IconButton
-          className={styles.selectionIconButton}
-          aria-label="Details"
-          tooltip="Details"
-          tooltipPosition="bottom"
+        <ShortcutButton
+          label="Details"
           icon={<DetailsIcon />}
+          actionId="measurement.toggleDetails"
           onClick={onOpenMeasurementDetails}
         />
       )}
@@ -659,14 +726,10 @@ export function ContextToolbar({
         icon={<TrashIcon />}
         onClick={onDeleteSelectedMeasurement}
       />
-      {selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements && (
-        <IconButton
-          className={styles.selectionIconButton}
-          aria-label={
-            allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"
-          }
-          tooltip={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
-          tooltipPosition="bottom"
+      {toggleSelectedVisibility && (
+        <ShortcutButton
+          label={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
+          actionId="measurement.toggleVisibility"
           icon={
             <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
               <path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z" />
@@ -674,12 +737,7 @@ export function ContextToolbar({
               {!allSelectedVisible && <path d="m3.5 3.5 13 13" />}
             </svg>
           }
-          onClick={() =>
-            onEditSelectedMeasurements({
-              measurementIds: selectedMeasurements.map((measurement) => measurement.id),
-              operation: { type: "visibility", visible: !allSelectedVisible },
-            })
-          }
+          onClick={toggleSelectedVisibility}
         />
       )}
       {onClearMeasurementSelection && (

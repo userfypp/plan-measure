@@ -57,7 +57,7 @@ In **Classifications**, create dimensions such as Trade with values such as Elec
 
 Use the controls below the plan for previous/next pages, zoom, **Fit**, active scale, and **View**. Open **Pages**, search a label (Enter opens a single match), or enter a physical number in **Go to page** and press Enter. Thumbnails load only for visible rows and nearby pages; for large or slow-to-render PDFs, the current page still gets its thumbnail, and **Load previews** loads the others at a higher memory cost. Click the label below the plan to rename it; the browser also shows existing custom labels. **View** sets display units and annotation visibility; polygon area can also use acres. In **Settings > View**, **Label classification** adds the measurement's value from a chosen classification to its on-screen label (exports and the annotated PDF are unchanged). Projects saved with this version do not open in earlier versions of the app.
 
-**Settings** opens a dialog with sections for Interface, Accessibility, Measurements, Drawing, View, Canvas, Confirmations, Shortcuts (read-only reference), Performance, and Advanced. They cover appearance, wider sidebar, displayed decimal places, tooltips and their delay, deletion confirmations, the workspace used when reopening projects, and keyboard authoring; most are saved per device, and **Reset…** restores them. Displayed decimal places do not change CSV precision or feet-and-inches fractions.
+**Settings** opens a dialog with sections for Interface, Accessibility, Measurements, Drawing, View, Canvas, Confirmations, Shortcuts, Performance, and Advanced. They cover appearance, wider sidebar, displayed decimal places, tooltips and their delay, deletion confirmations, the workspace used when reopening projects, and keyboard authoring; most are saved per device, and **Reset…** restores them. Displayed decimal places do not change CSV precision or feet-and-inches fractions.
 
 ## Projects and recovery
 
@@ -93,22 +93,34 @@ Encrypted PDFs cannot be exported as annotated PDFs, even if they open without a
 
 ## Keyboard controls
 
-Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native control actions retain their own keys.
+Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native control actions retain their own keys. Tooltips, the toolbar, and menus always show the keys currently in use.
 
-| Shortcut                           | Action                                              |
-| ---------------------------------- | --------------------------------------------------- |
-| `V` / `H`                          | Select / Hand                                       |
-| `L` / `M` / `P`                    | Line / Polyline / Polygon                           |
-| `R` / `I` / `K`                    | Rectangle / Ellipse / Cloud                         |
-| `C`                                | Count                                               |
-| `S` / `O`                          | Toggle Snap / Ortho                                 |
-| `Enter` / `Escape`                 | Finish / cancel drawing; leave an idle drawing tool |
-| Hold `Space`                       | Pan                                                 |
-| Hold `Shift` (Rectangle / Ellipse) | Square / circle at the second corner                |
-| `+` or `=` / `-`                   | Zoom in / out                                       |
-| `Cmd/Ctrl+Z` / `Cmd/Ctrl+Shift+Z`  | Undo / redo                                         |
-| `Cmd/Ctrl+C` / `Cmd/Ctrl+V`        | Copy / paste selected measurements                  |
-| `Delete` or `Backspace`            | Delete selected measurements                        |
+| Default shortcut                                  | Action                                              |
+| ------------------------------------------------- | --------------------------------------------------- |
+| `V` / `H`                                         | Select / Hand                                       |
+| `L` / `M` / `P`                                   | Line / Polyline / Polygon                           |
+| `R` / `I` / `K`                                   | Rectangle / Ellipse / Cloud                         |
+| `C`                                               | Count                                               |
+| `S` / `O`                                         | Toggle Snap / Ortho                                 |
+| `Enter` / `Escape`                                | Finish / cancel drawing; leave an idle drawing tool |
+| Hold `Space`                                      | Pan                                                 |
+| Hold `Shift` (Rectangle / Ellipse)                | Square / circle at the second corner                |
+| `+` or `=` / `-`                                  | Zoom in / out                                       |
+| `F` / `W` / `0`                                   | Fit page / fit width / actual size                  |
+| `PageUp` / `PageDown` / `Home` / `End`            | Previous / next / first / last page                 |
+| `T`                                               | Open or close Pages                                 |
+| `1` / `2` / `3` / `4`                             | Measurements / Takeoff / Classifications / Scales   |
+| `Cmd/Ctrl+Z` / `Cmd/Ctrl+Shift+Z` or `Cmd/Ctrl+Y` | Undo / redo                                         |
+| `Cmd/Ctrl+C` / `Cmd/Ctrl+V`                       | Copy / paste selected measurements                  |
+| `Cmd/Ctrl+D` / `F2`                               | Duplicate / rename the selected measurement         |
+| `Delete` or `Backspace`                           | Delete selected measurements                        |
+| `Cmd/Ctrl+O` / `Cmd/Ctrl+E` / `Cmd/Ctrl+,`        | Projects / Export / Settings                        |
+
+**Settings → Shortcuts** lets you change any of these, and also bind actions that have no key by default (Calibrate, Details, Show or hide, workspace and theme switching). Click a key, press the new combination, and the app reflects it everywhere. Each action can have up to two keys.
+
+- If a combination is already used, you can reassign it from the other action. Keys the app or browser reserves (such as `Space`, `Enter`, `Escape`, arrows, `Cmd/Ctrl+W`, `Cmd/Ctrl+T`) cannot be used, and combinations that may also trigger a browser shortcut are flagged.
+- Each row's restore button returns it to its preset (disabled while unchanged); the restore button beside the search (**Reset all shortcuts**) discards every change. The **Preset** menu switches the whole set at once: **Default**, **Legacy** (the keys from before shortcuts were customizable), **Keyboard first** (a key for every action), **Left hand** and **Right hand** (tool keys on one side of the keyboard), and **Essentials** (no single-letter keys). Switching presets while you have custom keys asks before discarding them.
+- Shortcuts are saved per device. After updating from an earlier version, the new defaults apply automatically and a one-time notification at the top right offers **Review** to open this list; choose the **Legacy** preset to go back to the previous keys.
 
 For keyboard authoring, enable **Settings → Keyboard drawing and editing** and focus the PDF viewer:
 

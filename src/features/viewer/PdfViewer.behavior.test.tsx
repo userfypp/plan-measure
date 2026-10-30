@@ -10,7 +10,7 @@ import { ThemeProvider } from "../../app/themeState";
 import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import type { CurrentSession, Point, ViewTransform } from "../../types/domain";
 import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
-import { pageToScreen, screenToPage } from "../../utils/coordinates";
+import { initialViewTransform, pageToScreen, screenToPage } from "../../utils/coordinates";
 import { formatLinearValue } from "../../utils/format";
 import { PdfViewer } from "./PdfViewer";
 import { AuthoringCapabilityProvider, computeAuthoringCapability } from "./AuthoringCapability";
@@ -26,6 +26,8 @@ import {
   konvaCapture,
   konvaPointerEvent,
   lastAnnotationLayer,
+  PAGE_HEIGHT,
+  PAGE_WIDTH,
   resetKonvaCapture,
   stageHandler,
   VIEWER_HEIGHT,
@@ -161,14 +163,19 @@ describe("PdfViewer behavior", () => {
     );
   }
 
-  async function key(name: string) {
+  async function key(name: string, init: KeyboardEventInit = {}) {
     const viewer = container.querySelector<HTMLElement>('[role="region"][tabindex="0"]')!;
+    const event = new KeyboardEvent("keydown", {
+      key: name,
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
     await act(async () => {
       viewer.focus();
-      viewer.dispatchEvent(
-        new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }),
-      );
+      viewer.dispatchEvent(event);
     });
+    return event;
   }
 
   function expectPoints(actual: Point[], expected: Point[]) {
@@ -670,6 +677,141 @@ describe("PdfViewer behavior", () => {
       } finally {
         resetAppPreferences();
       }
+    });
+  });
+
+  describe("keyboard shortcuts", () => {
+    const viewerLabel = () =>
+      container.querySelector('[role="region"][tabindex="0"]')!.getAttribute("aria-label");
+
+    afterEach(() => resetAppPreferences());
+
+    it("chooses a tool from its default key, with or without Shift, and consumes the key", async () => {
+      await mount(createCalibratedSession());
+      expect((await key("l")).defaultPrevented).toBe(true);
+      expect(workspaceProbe!.activeTool).toBe("line");
+      await act(async () => workspaceProbe!.chooseTool("select"));
+      await key("L", { shiftKey: true });
+      expect(workspaceProbe!.activeTool).toBe("line");
+      // Asking for the active tool changes nothing, but the key is still consumed.
+      expect((await key("l")).defaultPrevented).toBe(true);
+      expect(workspaceProbe!.activeTool).toBe("line");
+      await key("v");
+      expect(workspaceProbe!.activeTool).toBe("select");
+    });
+
+    it("moves a tool to the key chosen in the bindings and frees the old one", async () => {
+      await mount(createCalibratedSession());
+      await act(async () => setAppPreference("shortcutBindings", { "tool.line": ["Q"] }));
+      await key("q");
+      expect(workspaceProbe!.activeTool).toBe("line");
+      await act(async () => workspaceProbe!.chooseTool("select"));
+      const old = await key("l");
+      expect(workspaceProbe!.activeTool).toBe("select");
+      expect(old.defaultPrevented).toBe(false);
+    });
+
+    it("toggles the drawing aids and honors key repeat only for zoom", async () => {
+      await mount(createCalibratedSession());
+      const fit = transform();
+      await key("+");
+      expect(transform().zoom).toBeCloseTo(fit.zoom * 1.25, 6);
+      await key("=", { repeat: true });
+      expect(transform().zoom).toBeCloseTo(fit.zoom * 1.25 * 1.25, 6);
+      await key("-");
+      expect(transform().zoom).toBeCloseTo(fit.zoom * 1.25, 6);
+      await key("f");
+      expect(transform()).toEqual(fit);
+      await key("l", { repeat: true });
+      expect(workspaceProbe!.activeTool).toBe("select");
+    });
+
+    it("zooms and fits from rebound keys", async () => {
+      await mount(createCalibratedSession());
+      const fit = transform();
+      await act(async () =>
+        setAppPreference("shortcutBindings", { "view.zoomIn": ["Z"], "view.fitPage": ["G"] }),
+      );
+      await key("+");
+      expect(transform()).toEqual(fit);
+      await key("z");
+      expect(transform().zoom).toBeCloseTo(fit.zoom * 1.25, 6);
+      await key("g");
+      expect(transform()).toEqual(fit);
+    });
+
+    it("fits the width and shows the actual size from their keys, which can be rebound", async () => {
+      await mount(createCalibratedSession());
+      const page = { width: PAGE_WIDTH, height: PAGE_HEIGHT };
+      const viewer = { width: VIEWER_WIDTH, height: VIEWER_HEIGHT };
+      const fit = transform();
+      const fitWidth = initialViewTransform("fit-width", page, viewer);
+      const actual = initialViewTransform("actual", page, viewer);
+      expect(fitWidth.zoom).not.toBeCloseTo(fit.zoom, 3);
+      expect(actual.zoom).toBe(1);
+
+      await key("w");
+      expect(transform()).toEqual(fitWidth);
+      await key("0");
+      expect(transform()).toEqual(actual);
+      await key("f");
+      expect(transform()).toEqual(fit);
+      await key("w", { repeat: true });
+      expect(transform()).toEqual(fit);
+
+      await act(async () =>
+        setAppPreference("shortcutBindings", { "view.fitWidth": ["Q"], "view.actualSize": ["J"] }),
+      );
+      await key("w");
+      await key("0");
+      expect(transform()).toEqual(fit);
+      await key("q");
+      expect(transform()).toEqual(fitWidth);
+      await key("j");
+      expect(transform()).toEqual(actual);
+    });
+
+    it("ignores the keys while a modal dialog is open", async () => {
+      await mount(createCalibratedSession());
+      const dialog = document.createElement("dialog");
+      dialog.setAttribute("open", "");
+      document.body.append(dialog);
+      try {
+        const event = await key("l");
+        expect(workspaceProbe!.activeTool).toBe("select");
+        expect(event.defaultPrevented).toBe(false);
+      } finally {
+        dialog.remove();
+      }
+    });
+
+    it("announces the tool keys in the viewer name and follows the bindings", async () => {
+      await mount(createCalibratedSession());
+      expect(viewerLabel()).toBe(
+        "PDF viewer, page 1. Use V, H, L, M, P, R, I, K, or C to select a tool.",
+      );
+      await act(async () => setAppPreference("shortcutBindings", { "tool.line": ["Q"] }));
+      expect(viewerLabel()).toBe(
+        "PDF viewer, page 1. Use V, H, Q, M, P, R, I, K, or C to select a tool.",
+      );
+      await act(async () =>
+        setAppPreference("shortcutBindings", {
+          "tool.select": [],
+          "tool.hand": [],
+          "tool.line": ["Q"],
+          "tool.polyline": [],
+          "tool.polygon": [],
+          "tool.rectangle": [],
+          "tool.ellipse": [],
+          "tool.cloud": [],
+          "tool.count": [],
+        }),
+      );
+      expect(viewerLabel()).toBe("PDF viewer, page 1. Use Q to select a tool.");
+      await act(async () => setAppPreference("shortcutBindings", { "tool.line": [] }));
+      expect(viewerLabel()).toBe(
+        "PDF viewer, page 1. Use V, H, M, P, R, I, K, or C to select a tool.",
+      );
     });
   });
 

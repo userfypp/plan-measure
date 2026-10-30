@@ -11,6 +11,7 @@ import {
 } from "../features/viewer/toolRegistry";
 import type { Tool } from "../types/domain";
 import { isMeasurementType } from "../utils/geometry";
+import { getShortcutSnapshot, useShortcutLabels } from "../utils/shortcuts/store";
 import { useAuthoringCapability } from "../features/viewer/AuthoringCapability";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import { useWorkspaceState } from "./workspaceState";
@@ -25,6 +26,9 @@ interface ToolRailProps {
 
 export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
   const { activeTool } = useWorkspaceState();
+  const shortcutLabels = useShortcutLabels();
+  // The labels map is rebuilt with the snapshot, so the aria values read here are never stale.
+  const { aria: shortcutAria } = getShortcutSnapshot();
   const capability = useAuthoringCapability();
   const { isNarrow, narrowVersion } = useWorkspaceDrawerPresentation();
   const [rovingToolId, setRovingToolId] = useState<ToolDefinition["id"]>("select");
@@ -187,7 +191,9 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
             const tool = definition.id as PrimaryTool;
             const { disabled, disabledReason } = availabilityFor(definition);
             const active = activeTool === tool;
-            const shortcut = definition.shortcut ? ` (${definition.shortcut})` : "";
+            const shortcutLabel = definition.actionId ? shortcutLabels[definition.actionId] : "";
+            const shortcut = shortcutLabel ? ` (${shortcutLabel})` : "";
+            const keyShortcuts = definition.actionId ? shortcutAria[definition.actionId] : "";
 
             return (
               <Tooltip
@@ -201,11 +207,11 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                   className={[styles.toolButton, active ? styles.active : ""]
                     .filter(Boolean)
                     .join(" ")}
-                  aria-label={`${definition.label}${definition.shortcut ? `, shortcut ${definition.shortcut}` : ""}`}
+                  aria-label={`${definition.label}${shortcutLabel ? `, shortcut ${shortcutLabel}` : ""}`}
                   aria-pressed={active}
                   aria-disabled={disabled || undefined}
                   aria-describedby={disabled ? `tool-disabled-reason-${definition.id}` : undefined}
-                  aria-keyshortcuts={definition.shortcut?.toUpperCase()}
+                  aria-keyshortcuts={keyShortcuts || undefined}
                   data-tool-id={definition.id}
                   data-disabled={disabled || undefined}
                   tabIndex={currentRovingToolId === definition.id ? 0 : -1}

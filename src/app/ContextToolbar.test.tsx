@@ -10,6 +10,7 @@ import {
   ViewerInteractionCommandsProvider,
 } from "../features/viewer/ViewerInteractionCommands";
 import { useWorkspaceState, WorkspaceProvider } from "./workspaceState";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -45,6 +46,7 @@ function props(overrides: Partial<ContextToolbarProps> = {}): ContextToolbarProp
     onDuplicateSelectedMeasurement: vi.fn(),
     onRenameSelectedMeasurement: vi.fn(),
     onOpenMeasurementDetails: () => workspace?.openMeasurementDetails(),
+    onCloseMeasurementDetails: () => workspace?.closeMeasurementDetails(),
     onExitDrawingTool: () => workspace?.chooseTool("select"),
     onCancelCalibration: vi.fn(),
     onCancelReferenceEdit: vi.fn(),
@@ -121,6 +123,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetAppPreferences();
   if (root) act(() => root?.unmount());
   container?.remove();
   workspace = null;
@@ -281,6 +284,30 @@ describe("ContextToolbar V2", () => {
       act(() => workspace!.chooseTool(tool));
       expect(container?.querySelector("[data-active]")).toBeNull();
     }
+  });
+
+  it("shows the Snap and Ortho keys, follows rebinding and drops them when cleared", () => {
+    const tooltipOf = (button: HTMLElement) => {
+      act(() => setAppPreference("tooltipDelay", "instant"));
+      act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+      const text = document.querySelector('[role="tooltip"]')?.textContent;
+      act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+      return text;
+    };
+    renderToolbar();
+    act(() => workspace!.chooseTool("polyline"));
+
+    expect(tooltipOf(buttonByLabel("Snap"))).toBe("Snap (S)");
+    expect(buttonByLabel("Snap").getAttribute("aria-keyshortcuts")).toBe("S");
+    expect(tooltipOf(buttonByLabel("Ortho"))).toBe("Ortho (O)");
+    expect(buttonByLabel("Ortho").getAttribute("aria-keyshortcuts")).toBe("O");
+
+    act(() => setAppPreference("shortcutBindings", { "mode.snap": ["G"], "mode.orthogonal": [] }));
+
+    expect(tooltipOf(buttonByLabel("Snap"))).toBe("Snap (G)");
+    expect(buttonByLabel("Snap").getAttribute("aria-keyshortcuts")).toBe("G");
+    expect(tooltipOf(buttonByLabel("Ortho"))).toBe("Ortho");
+    expect(buttonByLabel("Ortho").hasAttribute("aria-keyshortcuts")).toBe(false);
   });
 
   it("keeps Snap and Ortho independent and finishes/cancels Polyline through canonical commands", () => {
@@ -828,5 +855,287 @@ describe("selection actions in the context bar", () => {
     expect(buttonByLabel("Details")).toBeTruthy();
     expect(buttonByLabel("Classify")).toBeTruthy();
     expect(container!.querySelector('button[aria-label="Hide selected measurements"]')).toBeNull();
+  });
+});
+
+describe("selection shortcuts", () => {
+  const line = (id: string, visible = true) => ({
+    id,
+    name: id,
+    type: "line" as const,
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ],
+    calibrationId: "scale",
+    visible,
+    classificationValueIds: [],
+  });
+  const pair = [line("one"), line("two")];
+
+  function pressKey(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    act(() => document.body.dispatchEvent(event));
+    return event;
+  }
+
+  function bind(shortcutBindings: Record<string, string[]>) {
+    act(() => setAppPreference("shortcutBindings", shortcutBindings));
+  }
+
+  function tooltipOf(button: HTMLElement) {
+    act(() => setAppPreference("tooltipDelay", "instant"));
+    act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    const text = document.querySelector('[role="tooltip"]')?.textContent;
+    act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+    return text;
+  }
+
+  function withOverlay(run: () => void) {
+    const dialog = document.createElement("dialog");
+    dialog.setAttribute("open", "");
+    document.body.append(dialog);
+    try {
+      run();
+    } finally {
+      dialog.remove();
+    }
+  }
+
+  function renderSingle(overrides: Partial<ContextToolbarProps> = {}) {
+    renderToolbar(props({ selectedMeasurementName: "Line 1", ...overrides }));
+    act(() => workspace!.selectMeasurement("line-1"));
+  }
+
+  describe("edit.duplicate", () => {
+    it("duplicates like the Duplicate button and follows rebinding", () => {
+      const duplicate = vi.fn();
+      renderSingle({ onDuplicateSelectedMeasurement: duplicate });
+
+      expect(pressKey("d", { ctrlKey: true }).defaultPrevented).toBe(true);
+      expect(duplicate).toHaveBeenCalledOnce();
+      expect(pressKey("d", { metaKey: true }).defaultPrevented).toBe(true);
+      expect(duplicate).toHaveBeenCalledTimes(2);
+      // Held keys act once per press.
+      pressKey("d", { ctrlKey: true, repeat: true });
+      expect(duplicate).toHaveBeenCalledTimes(2);
+
+      bind({ "edit.duplicate": ["Mod+G"] });
+      expect(pressKey("d", { ctrlKey: true }).defaultPrevented).toBe(false);
+      pressKey("g", { ctrlKey: true });
+      expect(duplicate).toHaveBeenCalledTimes(3);
+    });
+
+    it("duplicates a multiple selection as the button does", () => {
+      const duplicate = vi.fn();
+      renderToolbar(
+        props({ selectedMeasurements: pair, onDuplicateSelectedMeasurement: duplicate }),
+      );
+      pressKey("d", { ctrlKey: true });
+      expect(duplicate).toHaveBeenCalledOnce();
+    });
+
+    it("does nothing when the button is disabled or absent, or an overlay is open", () => {
+      const duplicate = vi.fn();
+      renderSingle({ duplicateDisabled: true, onDuplicateSelectedMeasurement: duplicate });
+      expect(pressKey("d", { ctrlKey: true }).defaultPrevented).toBe(false);
+
+      renderSingle({ onDuplicateSelectedMeasurement: duplicate });
+      withOverlay(() => {
+        expect(pressKey("d", { ctrlKey: true }).defaultPrevented).toBe(false);
+      });
+      act(() => workspace!.chooseTool("line"));
+      expect(pressKey("d", { ctrlKey: true }).defaultPrevented).toBe(false);
+      act(() => workspace!.chooseTool("select"));
+      act(() => workspace!.clearSelection());
+      renderToolbar(props({ onDuplicateSelectedMeasurement: duplicate }));
+      expect(pressKey("d", { ctrlKey: true }).defaultPrevented).toBe(false);
+      expect(duplicate).not.toHaveBeenCalled();
+    });
+
+    it("shows its key on the button and drops it when unbound", () => {
+      renderSingle();
+      expect(tooltipOf(buttonByLabel("Duplicate"))).toBe("Duplicate (Ctrl+D)");
+      expect(buttonByLabel("Duplicate").getAttribute("aria-keyshortcuts")).toBe("Control+D Meta+D");
+
+      bind({ "edit.duplicate": [] });
+      expect(tooltipOf(buttonByLabel("Duplicate"))).toBe("Duplicate");
+      expect(buttonByLabel("Duplicate").hasAttribute("aria-keyshortcuts")).toBe(false);
+    });
+  });
+
+  describe("measurement.toggleDetails", () => {
+    it("opens and closes the details of a single selection", () => {
+      const close = vi.fn(() => workspace!.closeMeasurementDetails());
+      renderSingle({ onCloseMeasurementDetails: close });
+      bind({ "measurement.toggleDetails": ["D"] });
+
+      expect(pressKey("d").defaultPrevented).toBe(true);
+      expect(workspace?.measurementDetailsOpen).toBe(true);
+      expect(pressKey("d").defaultPrevented).toBe(true);
+      expect(close).toHaveBeenCalledOnce();
+      expect(workspace?.measurementDetailsOpen).toBe(false);
+
+      bind({ "measurement.toggleDetails": ["J"] });
+      expect(pressKey("d").defaultPrevented).toBe(false);
+      pressKey("j");
+      expect(workspace?.measurementDetailsOpen).toBe(true);
+    });
+
+    it("is unbound by default and does nothing without a single selection or with an overlay", () => {
+      renderSingle();
+      expect(pressKey("d").defaultPrevented).toBe(false);
+      expect(workspace?.measurementDetailsOpen).toBe(false);
+
+      bind({ "measurement.toggleDetails": ["D"] });
+      withOverlay(() => {
+        expect(pressKey("d").defaultPrevented).toBe(false);
+      });
+      expect(workspace?.measurementDetailsOpen).toBe(false);
+
+      renderToolbar(props({ selectedMeasurements: pair }));
+      expect(pressKey("d").defaultPrevented).toBe(false);
+      act(() => workspace!.chooseTool("line"));
+      expect(pressKey("d").defaultPrevented).toBe(false);
+      expect(workspace?.measurementDetailsOpen).toBe(false);
+    });
+
+    it("labels the Details button only while a key is bound", () => {
+      renderSingle();
+      expect(tooltipOf(buttonByLabel("Details"))).toBe("Details");
+      expect(buttonByLabel("Details").hasAttribute("aria-keyshortcuts")).toBe(false);
+
+      bind({ "measurement.toggleDetails": ["D"] });
+      expect(tooltipOf(buttonByLabel("Details"))).toBe("Details (D)");
+      expect(buttonByLabel("Details").getAttribute("aria-keyshortcuts")).toBe("D");
+    });
+  });
+
+  describe("measurement.toggleVisibility", () => {
+    it("hides and shows the selection like the visibility button", () => {
+      const onEdit = vi.fn(() => true);
+      renderToolbar(props({ selectedMeasurements: pair, onEditSelectedMeasurements: onEdit }));
+      bind({ "measurement.toggleVisibility": ["J"] });
+
+      expect(pressKey("j").defaultPrevented).toBe(true);
+      expect(onEdit).toHaveBeenLastCalledWith({
+        measurementIds: ["one", "two"],
+        operation: { type: "visibility", visible: false },
+      });
+
+      renderToolbar(
+        props({
+          selectedMeasurements: [line("one"), line("two", false)],
+          onEditSelectedMeasurements: onEdit,
+        }),
+      );
+      pressKey("j");
+      expect(onEdit).toHaveBeenLastCalledWith({
+        measurementIds: ["one", "two"],
+        operation: { type: "visibility", visible: true },
+      });
+      expect(onEdit).toHaveBeenCalledTimes(2);
+
+      bind({ "measurement.toggleVisibility": ["Mod+Shift+H"] });
+      expect(pressKey("j").defaultPrevented).toBe(false);
+      pressKey("h", { ctrlKey: true, shiftKey: true });
+      expect(onEdit).toHaveBeenCalledTimes(3);
+    });
+
+    it("does nothing without a bulk selection, an editor or while an overlay is open", () => {
+      const onEdit = vi.fn(() => true);
+      bind({ "measurement.toggleVisibility": ["J"] });
+      renderSingle({
+        selectedMeasurements: [line("line-1")],
+        onEditSelectedMeasurements: onEdit,
+      });
+      expect(pressKey("j").defaultPrevented).toBe(false);
+
+      renderToolbar(props({ selectedMeasurements: pair }));
+      expect(pressKey("j").defaultPrevented).toBe(false);
+
+      renderToolbar(props({ selectedMeasurements: pair, onEditSelectedMeasurements: onEdit }));
+      withOverlay(() => {
+        expect(pressKey("j").defaultPrevented).toBe(false);
+      });
+      expect(onEdit).not.toHaveBeenCalled();
+    });
+
+    it("labels the button with the key for Hide and Show and drops it when unbound", () => {
+      renderToolbar(
+        props({ selectedMeasurements: pair, onEditSelectedMeasurements: vi.fn(() => true) }),
+      );
+      expect(tooltipOf(buttonByLabel("Hide selected measurements"))).toBe(
+        "Hide selected measurements",
+      );
+
+      bind({ "measurement.toggleVisibility": ["J"] });
+      expect(tooltipOf(buttonByLabel("Hide selected measurements"))).toBe(
+        "Hide selected measurements (J)",
+      );
+      expect(buttonByLabel("Hide selected measurements").getAttribute("aria-keyshortcuts")).toBe(
+        "J",
+      );
+    });
+  });
+
+  describe("edit.rename", () => {
+    it("starts renaming the single selected measurement with focus in the field", () => {
+      renderSingle();
+
+      expect(pressKey("F2").defaultPrevented).toBe(true);
+      const input = renameInput("Line 1");
+      expect(document.activeElement).toBe(input);
+      expect(input.value).toBe("Line 1");
+      // Already editing: the key is plain input there.
+      const inField = new KeyboardEvent("keydown", { key: "F2", bubbles: true, cancelable: true });
+      act(() => input.dispatchEvent(inField));
+      expect(inField.defaultPrevented).toBe(false);
+    });
+
+    it("also renames while a drawing tool shows the name", () => {
+      renderSingle();
+      act(() => workspace!.chooseTool("line"));
+      expect(pressKey("F2").defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(renameInput("Line 1"));
+    });
+
+    it("follows rebinding", () => {
+      renderSingle();
+      bind({ "edit.rename": ["F3"] });
+
+      expect(pressKey("F2").defaultPrevented).toBe(false);
+      expect(container?.querySelector("input")).toBeNull();
+      pressKey("F3");
+      expect(document.activeElement).toBe(renameInput("Line 1"));
+    });
+
+    it("does nothing without a single selection or while an overlay is open", () => {
+      renderToolbar(props({ selectedMeasurements: pair }));
+      expect(pressKey("F2").defaultPrevented).toBe(false);
+      expect(container?.querySelector("input")).toBeNull();
+
+      act(() => root!.unmount());
+      root = createRoot(container!);
+      renderToolbar();
+      expect(pressKey("F2").defaultPrevented).toBe(false);
+
+      renderSingle();
+      withOverlay(() => {
+        expect(pressKey("F2").defaultPrevented).toBe(false);
+      });
+      expect(container?.querySelector("input")).toBeNull();
+    });
+
+    it("shows its key on the name button and drops it when unbound", () => {
+      renderSingle();
+      const trigger = () => renameTrigger("Line 1");
+      expect(trigger().title).toBe("Rename Line 1 (F2)");
+      expect(trigger().getAttribute("aria-keyshortcuts")).toBe("F2");
+
+      bind({ "edit.rename": [] });
+      expect(trigger().title).toBe("Rename Line 1");
+      expect(trigger().hasAttribute("aria-keyshortcuts")).toBe(false);
+    });
   });
 });

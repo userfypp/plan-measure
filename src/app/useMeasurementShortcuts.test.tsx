@@ -4,6 +4,7 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession, Measurement } from "../types/domain";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { createEmptySession } from "./sessionState";
 import { useMeasurementShortcuts } from "./useMeasurementShortcuts";
 
@@ -92,6 +93,7 @@ afterEach(() => {
   container = null;
   window.getSelection()?.removeAllRanges();
   vi.restoreAllMocks();
+  resetAppPreferences();
 });
 
 describe("deleting with the keyboard", () => {
@@ -350,5 +352,40 @@ describe("pasting with the keyboard", () => {
     root = null;
     press("v", pasteKey);
     expect(mounted.calls.pasteMeasurements).not.toHaveBeenCalled();
+  });
+});
+
+describe("rebinding the shortcuts", () => {
+  it("follows the configured keys and stops answering to the old ones", () => {
+    const { calls } = setup({
+      selectedMeasurementId: "a",
+      selectedMeasurementIds: ["a"],
+      measurementClipboard: {
+        sourcePageNumber: 1,
+        measurement: line("a", "Wall A"),
+        measurements: [line("a", "Wall A")],
+      },
+    });
+    setAppPreference("shortcutBindings", {
+      "edit.copy": ["Mod+Shift+K"],
+      "edit.paste": ["Mod+Shift+J"],
+      "edit.delete": ["Mod+Shift+Backspace"],
+    });
+    const shifted = { ctrlKey: true, shiftKey: true };
+
+    press("c", { ctrlKey: true });
+    press("v", { ctrlKey: true });
+    press("Delete");
+    press("Backspace");
+    expect(calls.copyMeasurements).not.toHaveBeenCalled();
+    expect(calls.pasteMeasurements).not.toHaveBeenCalled();
+    expect(calls.requestMeasurementDelete).not.toHaveBeenCalled();
+
+    expect(press("K", shifted).defaultPrevented).toBe(true);
+    expect(press("J", shifted).defaultPrevented).toBe(true);
+    expect(press("Backspace", shifted).defaultPrevented).toBe(true);
+    expect(calls.copyMeasurements).toHaveBeenCalledOnce();
+    expect(calls.pasteMeasurements).toHaveBeenCalledOnce();
+    expect(calls.requestMeasurementDelete).toHaveBeenCalledOnce();
   });
 });
