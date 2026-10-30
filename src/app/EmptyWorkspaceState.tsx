@@ -62,7 +62,6 @@ export function EmptyWorkspaceState({
                   <span className={styles.projectText}>
                     <span className={styles.projectName}>
                       <span className={styles.projectLabel}>{project.name}</span>
-                      {project.isCurrent && <Badge variant="info">Current</Badge>}
                     </span>
                     <span className={styles.projectMeta}>
                       {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
@@ -70,7 +69,10 @@ export function EmptyWorkspaceState({
                       {formatSavedDate(project.savedAt, dateFormat)}
                     </span>
                   </span>
-                  <span className={styles.chevron} aria-hidden="true" />
+                  <span className={styles.projectTrail}>
+                    {project.isCurrent && <Badge variant="info">Current</Badge>}
+                    <span className={styles.chevron} aria-hidden="true" />
+                  </span>
                 </button>
               </li>
             ))}

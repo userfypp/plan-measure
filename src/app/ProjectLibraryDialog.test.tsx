@@ -229,6 +229,28 @@ describe("ProjectLibraryDialog", () => {
     spy.mockRestore();
   });
 
+  it("does not show the already-open reason when the dialog moves focus to its first action", () => {
+    const matches = Element.prototype.matches;
+    const spy = vi.spyOn(Element.prototype, "matches").mockImplementation(function (
+      this: Element,
+      selector: string,
+    ) {
+      return selector === ":focus-visible" ? true : matches.call(this, selector);
+    });
+    render();
+    const button = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Current project Level 01.pdf"]',
+    );
+    expect(document.activeElement).toBe(button);
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    act(() => button?.blur());
+    act(() => button?.focus());
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+      "This project is already open.",
+    );
+    spy.mockRestore();
+  });
+
   it("offers a continue action before restoring the current project and supports an empty library", () => {
     const onOpenPdf = vi.fn();
     const callbacks = render({ currentSessionLoaded: false, onOpenPdf });
