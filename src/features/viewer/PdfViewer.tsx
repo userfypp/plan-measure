@@ -47,7 +47,6 @@ import {
 import {
   canvasLayout,
   clampPointToPage,
-  fitToScreen,
   initialViewTransform,
   logicalPageBoundsFromViewport,
   normalizeRotation,
@@ -61,18 +60,21 @@ import {
 import { pdfRenderErrorMessage } from "../../services/pdf";
 import {
   getDrawingKeyboardAction,
-  getViewerKeyboardAction,
+  getFixedViewerKeyboardAction,
   shouldIgnoreGlobalKeyboardShortcut,
   shouldIgnoreViewerKeyboardShortcut,
-  viewerShortcuts,
   type ViewerKeyboardAction,
 } from "../../utils/keyboard";
+import type { ActionId } from "../../utils/shortcuts/bindings";
+import { isBlockingOverlayOpen, useShortcutHandlers } from "../../utils/shortcuts/dispatcher";
 import { boxFromCorners } from "../../utils/quickShapesCore";
 import { buildDraftPreviewPoints } from "./draftPreview";
 import { drawMeasurementOutlineScene } from "./annotationKonva";
 import { flushBatchDraw } from "./konvaRuntime";
 import { useKeyboardGeometry } from "./useKeyboardGeometry";
 import { KeyboardGeometryHelp } from "./KeyboardGeometryHelp";
+import { toolRegistry } from "./toolRegistry";
+import { useToolShortcutHint } from "./useToolShortcutHint";
 import {
   registerWholeMeasurementDragEnvironmentCancellation,
   registerWholeMeasurementDragPointerReleaseCleanup,
@@ -138,11 +140,20 @@ export { ViewerDock } from "./ViewerDock";
 const WHEEL_ZOOM_SETTLE_MS = 120;
 const WHEEL_ZOOM_MAX_SETTLE_MS = 600;
 const WHEEL_ZOOM_MIN_MEASUREMENTS = 200;
-const TOOL_SHORTCUT_KEYS = viewerShortcuts.flatMap(({ key, action }) =>
-  typeof action === "object" ? [key.toUpperCase()] : [],
-);
-// Derived from the shortcut registry so a new tool is announced with the others.
-const TOOL_SHORTCUT_HINT = `Use ${TOOL_SHORTCUT_KEYS.slice(0, -1).join(", ")}, or ${TOOL_SHORTCUT_KEYS.at(-1)} to select a tool.`;
+
+/** The viewer behaviour behind a customizable shortcut, or null when the viewer does not own it. */
+function viewerKeyboardActionFor(action: ActionId): ViewerKeyboardAction | null {
+  if (action === "view.zoomIn") return "zoom-in";
+  if (action === "view.zoomOut") return "zoom-out";
+  if (action === "view.fitPage") return "fit-page";
+  if (action === "view.fitWidth") return "fit-width";
+  if (action === "view.actualSize") return "actual";
+  const definition = toolRegistry.find((entry) => entry.actionId === action);
+  if (!definition || definition.id === "calibrate") return null;
+  if (definition.id === "orthogonal") return "toggle-orthogonal";
+  if (definition.id === "snap") return "toggle-snap";
+  return { type: "choose-tool", tool: definition.id };
+}
 
 interface PdfViewerProps {
   document: PDFDocumentProxy;
@@ -177,14 +188,14 @@ function isInsideViewerPopover(viewer: HTMLElement, node: EventTarget | null): b
 const LIVE_LENGTH_TYPES: ReadonlySet<string> = new Set(["line", "polyline", "polygon"]);
 
 function fitTransformFor(
-  mode: "initial" | "page",
+  mode: "initial" | DefaultZoom,
   bounds: Pick<LogicalPageBounds, "width" | "height">,
   viewer: { width: number; height: number },
   defaultZoom: DefaultZoom,
   maxZoom: AppPreferences["maxZoom"],
 ): ViewTransform {
   return initialViewTransform(
-    mode === "page" ? "fit-page" : defaultZoom,
+    mode === "initial" ? defaultZoom : mode,
     bounds,
     viewer,
     undefined,
@@ -232,6 +243,7 @@ export function PdfViewer({
     rasterCache,
     debugOverlay,
   } = useAppPreferences();
+  const toolShortcutHint = useToolShortcutHint();
   const fillScale = FILL_OPACITY_SCALE[fillOpacity];
   const handleRadiusScreenPx = scaledHandleRadiusScreenPx(HANDLE_SIZE_SCALE[handleSize]);
   const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
@@ -320,8 +332,8 @@ export function PdfViewer({
   const [transform, setTransform] = useState<ViewTransform>({ zoom: 1, panX: 0, panY: 0 });
   const transformRef = useRef<ViewTransform>(transform);
   const [presentedState, setPresentedState] = useState({ page, transform });
-  // "initial" follows the default-zoom preference; "page" is the manual Fit button.
-  const [fitMode, setFitModeState] = useState<false | "initial" | "page">("initial");
+  // "initial" follows the default-zoom preference; the others are the manual fit actions.
+  const [fitMode, setFitModeState] = useState<false | "initial" | DefaultZoom>("initial");
   const [spacePan, setSpacePan] = useState(false);
   const [draftPointer, setDraftPointer] = useState<Point | null>(null);
   const [placementPointer, setPlacementPointer] = useState<Point | null>(null);
@@ -1012,23 +1024,29 @@ export function PdfViewer({
     ],
   );
 
-  const fitPage = useCallback(() => {
-    if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0) return;
-    cancelActiveWholeMeasurementDrag();
-    cancelActiveVertexDrag();
-    cancelActiveCalibrationReferenceDrag();
-    clearSnapFeedback();
-    setFitModeState("page");
-    commitTransform(fitToScreen(bounds, safeViewer.size));
-  }, [
-    bounds,
-    safeViewer.size,
-    cancelActiveWholeMeasurementDrag,
-    cancelActiveVertexDrag,
-    cancelActiveCalibrationReferenceDrag,
-    clearSnapFeedback,
-    commitTransform,
-  ]);
+  const fitView = useCallback(
+    (mode: DefaultZoom) => {
+      if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0) return;
+      cancelActiveWholeMeasurementDrag();
+      cancelActiveVertexDrag();
+      cancelActiveCalibrationReferenceDrag();
+      clearSnapFeedback();
+      setFitModeState(mode);
+      commitTransform(fitTransformFor(mode, bounds, safeViewer.size, defaultZoom, maxZoom));
+    },
+    [
+      bounds,
+      safeViewer.size,
+      defaultZoom,
+      maxZoom,
+      cancelActiveWholeMeasurementDrag,
+      cancelActiveVertexDrag,
+      cancelActiveCalibrationReferenceDrag,
+      clearSnapFeedback,
+      commitTransform,
+    ],
+  );
+  const fitPage = useCallback(() => fitView("fit-page"), [fitView]);
 
   const changePage = useCallback(
     (pageNumber: number) => {
@@ -1147,6 +1165,8 @@ export function PdfViewer({
         if (!safeCenter) return;
         const zoomStep = ZOOM_STEP_FACTOR[getAppPreferences().zoomStep];
         zoomAround(safeCenter, action === "zoom-in" ? zoomStep : 1 / zoomStep);
+      } else if (action === "fit-page" || action === "fit-width" || action === "actual") {
+        fitView(action);
       } else if (action === "cancel-calibration") {
         clearDraftRef.current();
         onCalibrationCancelRef.current();
@@ -1168,6 +1188,7 @@ export function PdfViewer({
     [
       clearSnapFeedback,
       completeCurrentDraft,
+      fitView,
       precisionAuthoringBlocked,
       toggleOrthogonal,
       toggleSnap,
@@ -1204,12 +1225,7 @@ export function PdfViewer({
 
   const handleViewerKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (shouldIgnoreViewerKeyboardShortcut(event)) return;
-    if (
-      window.document.querySelector(
-        "dialog[open], [role='dialog'][aria-modal='true'], [data-layout-slot='viewer-interaction-shield']",
-      )
-    )
-      return;
+    if (isBlockingOverlayOpen()) return;
     if (viewerRef.current === event.target && !isPresentedTarget) return;
     if (
       event.key === "Escape" &&
@@ -1252,17 +1268,28 @@ export function PdfViewer({
       onCalibrationReferenceEditCancelRef.current();
       return;
     }
-    const action = getViewerKeyboardAction(event, activeToolRef.current, workspaceDraftRef.current);
+    const action = getFixedViewerKeyboardAction(
+      event,
+      activeToolRef.current,
+      workspaceDraftRef.current,
+    );
     if (!action) return;
-    if (
-      event.repeat &&
-      (action === "toggle-orthogonal" || action === "toggle-snap" || typeof action === "object")
-    )
-      return;
 
     event.preventDefault();
-    if (typeof action === "object" && action.tool === activeToolRef.current) return;
     executeKeyboardAction(action);
+  });
+
+  // Tool, drawing-aid and zoom keys are customizable: the dispatcher resolves the key to an action.
+  useShortcutHandlers((action, event) => {
+    const keyboardAction = viewerKeyboardActionFor(action);
+    if (!keyboardAction || isBlockingOverlayOpen()) return false;
+    if (viewerRef.current === event.target && !isPresentedTarget) return false;
+    event.preventDefault();
+    if (typeof keyboardAction === "object" && keyboardAction.tool === activeToolRef.current) {
+      return true;
+    }
+    executeKeyboardAction(keyboardAction);
+    return true;
   });
 
   const handleKeyboardGeometryKeyUp = useEffectEvent((event: KeyboardEvent) =>
@@ -2041,7 +2068,7 @@ export function PdfViewer({
         role="region"
         tabIndex={0}
         data-dialog-focus-fallback
-        aria-label={`PDF viewer, page ${page.pageNumber}. ${TOOL_SHORTCUT_HINT}`}
+        aria-label={`PDF viewer, page ${page.pageNumber}. ${toolShortcutHint}`.trimEnd()}
         aria-describedby={keyboardAuthoringEnabled ? keyboardHelpId : undefined}
         onBlur={(event) => {
           if (event.currentTarget.contains(event.relatedTarget)) return;

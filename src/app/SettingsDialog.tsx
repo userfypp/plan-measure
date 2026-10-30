@@ -1,13 +1,5 @@
 import { createPortal } from "react-dom";
-import {
-  Fragment,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, Dialog, Select, Switch, Tooltip } from "../components/ui";
 import type {
   ClassificationDimension,
@@ -28,15 +20,15 @@ import {
   type AppPreferences,
 } from "../utils/appPreferences";
 import { DEFAULT_MEASUREMENT_DECIMAL_PLACES } from "../utils/format";
-import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
 import {
   sanitizeRecoveredPlanStartupWorkspace,
   type RecoveredPlanStartupWorkspace,
 } from "./recoveredPlanStartupPreference";
+import { ShortcutsSettings } from "./settings/ShortcutsSettings";
 import { sanitizeThemePreference, useTheme, type ThemePreference } from "./themeState";
 import styles from "./SettingsDialog.module.css";
 
-type SectionId =
+export type SettingsSectionId =
   | "interface"
   | "accessibility"
   | "measurements"
@@ -311,7 +303,7 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-const SECTIONS: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
+const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }> = [
   {
     id: "interface",
     label: "Interface",
@@ -667,6 +659,8 @@ function LabelPreview({
 
 export interface SettingsDialogProps {
   onClose: () => void;
+  /** The section shown when the dialog opens; Interface when omitted. */
+  initialSection?: SettingsSectionId;
   /** Previewed in Measurements instead of the sample measurements. */
   labelPreviewMeasurement?: LabelPreviewMeasurement | null;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
@@ -692,6 +686,7 @@ export interface SettingsDialogProps {
 
 export function SettingsDialog({
   onClose,
+  initialSection = "interface",
   labelPreviewMeasurement = null,
   measurementDecimalPlaces = null,
   viewSettings = null,
@@ -711,20 +706,20 @@ export function SettingsDialog({
   onConfirmScaleDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: SettingsDialogProps) {
-  const [section, setSection] = useState<SectionId>("interface");
+  const [section, setSection] = useState<SettingsSectionId>(initialSection);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importStatus, setImportStatus] = useState("");
   const settingsFileInputRef = useRef<HTMLInputElement>(null);
   const { preference, setPreference } = useTheme();
   const preferences = useAppPreferences();
   const tabIdPrefix = useId();
-  const tabRefs = useRef<Partial<Record<SectionId, HTMLButtonElement | null>>>({});
+  const tabRefs = useRef<Partial<Record<SettingsSectionId, HTMLButtonElement | null>>>({});
 
   function set<K extends keyof AppPreferences>(key: K) {
     return (value: AppPreferences[K]) => setAppPreference(key, value);
   }
 
-  function selectSection(next: SectionId) {
+  function selectSection(next: SettingsSectionId) {
     setSection(next);
     setConfirmingReset(false);
     setImportStatus("");
@@ -861,7 +856,11 @@ export function SettingsDialog({
             </div>
 
             <div
-              className={styles.panel}
+              // The overlay scrollbar is decided once per scroller, so the contained panel is a new element.
+              key={section === "shortcuts" ? "contained" : "scrolling"}
+              className={[styles.panel, section === "shortcuts" ? styles.panelContained : ""]
+                .filter(Boolean)
+                .join(" ")}
               role="tabpanel"
               id={`${tabIdPrefix}-panel`}
               aria-labelledby={`${tabIdPrefix}-tab-${section}`}
@@ -1238,25 +1237,7 @@ export function SettingsDialog({
                 </div>
               )}
 
-              {section === "shortcuts" && (
-                <div className={styles.settingList}>
-                  {SHORTCUT_GROUPS.map((group) => (
-                    <Fragment key={group.title}>
-                      <h3 className={styles.groupTitle}>{group.title}</h3>
-                      <dl className={styles.shortcutList}>
-                        {group.entries.map((entry) => (
-                          <div key={entry.label} className={styles.shortcutRow}>
-                            <dt>{entry.label}</dt>
-                            <dd>
-                              <kbd className={styles.kbd}>{entry.keys}</kbd>
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </Fragment>
-                  ))}
-                </div>
-              )}
+              {section === "shortcuts" && <ShortcutsSettings />}
 
               {section === "performance" && (
                 <div className={styles.settingList}>

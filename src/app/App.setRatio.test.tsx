@@ -16,7 +16,8 @@ import { lineLengthMm } from "../utils/geometry";
 import { createEmptySession, sessionReducer, type SessionCommandResult } from "./sessionState";
 import { App } from "./App";
 import { createSaveStatusStore, type SaveStatusStore } from "./saveStatus";
-import { stubDialogMethods } from "../test/domTestUtils";
+import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
+import { ThemeProvider } from "./themeState";
 
 const lifecycleHarness = vi.hoisted(() => ({
   saveStatusStore: undefined as SaveStatusStore | undefined,
@@ -419,7 +420,11 @@ async function renderApp(session: CurrentSession) {
   lifecycleHarness.latestSession = null;
   lifecycleHarness.loadSession = null;
   await act(async () => {
-    root!.render(<App />);
+    root!.render(
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>,
+    );
     await Promise.resolve();
   });
   currentSession();
@@ -458,6 +463,7 @@ beforeEach(() => {
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   restoreDialogMethods = stubDialogMethods();
+  stubMatchMedia();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -771,7 +777,11 @@ describe("App autosave recovery actions", () => {
     const store = createSaveStatusStore();
     lifecycleHarness.saveStatusStore = store;
     await act(async () => {
-      root!.render(<App />);
+      root!.render(
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>,
+      );
     });
     expect(container!.querySelector('[role="status"]')).toBeNull();
     store.set("failed");

@@ -40,55 +40,6 @@ export function shouldIgnoreMeasurementClipboardShortcutTarget(
   return !["button", "checkbox", "radio", "range", "reset", "submit"].includes(inputType);
 }
 
-export type HistoryKeyboardAction = "undo" | "redo";
-
-export function getHistoryKeyboardAction(
-  event: KeyboardShortcutEvent,
-): HistoryKeyboardAction | null {
-  if (
-    event.defaultPrevented ||
-    event.repeat ||
-    event.altKey ||
-    event.metaKey === event.ctrlKey ||
-    shouldIgnoreMeasurementClipboardShortcutTarget(event.target) ||
-    event.key.toLowerCase() !== "z"
-  ) {
-    return null;
-  }
-  return event.shiftKey ? "redo" : "undo";
-}
-
-export type MeasurementKeyboardAction =
-  "copy-measurement" | "delete-measurement" | "paste-measurement";
-
-/**
- * Application-level copy/paste stays available after non-editing application
- * controls receive focus. Editable controls and dialogs retain native clipboard
- * behavior. Delete/Backspace follows the same non-editing focus policy as viewer shortcuts.
- */
-export function getMeasurementKeyboardAction(
-  event: KeyboardShortcutEvent,
-): MeasurementKeyboardAction | null {
-  if (event.key === "Delete" || event.key === "Backspace") {
-    return shouldIgnoreViewerKeyboardShortcut(event) ? null : "delete-measurement";
-  }
-
-  if (
-    event.defaultPrevented ||
-    shouldIgnoreMeasurementClipboardShortcutTarget(event.target) ||
-    event.repeat ||
-    event.altKey ||
-    event.shiftKey ||
-    event.metaKey === event.ctrlKey
-  ) {
-    return null;
-  }
-  const key = event.key.toLowerCase();
-  if (key === "c") return "copy-measurement";
-  if (key === "v") return "paste-measurement";
-  return null;
-}
-
 export type DrawingKeyboardAction =
   "cancel-calibration" | "cancel-draft" | "complete-path" | "exit-tool";
 
@@ -97,53 +48,15 @@ export type ToolShortcut = Exclude<Tool, "calibrate">;
 export type ShortcutAction =
   "toggle-orthogonal" | "toggle-snap" | { type: "choose-tool"; tool: ToolShortcut };
 
-export interface ViewerShortcut {
-  key: string;
-  label: string;
-  action: ShortcutAction;
-}
-
-/**
- * Single source of truth for the viewer's tool and drawing-mode shortcuts.
- * Toolbar labels and keyboard dispatch both derive from this registry.
- */
-export const viewerShortcuts: readonly ViewerShortcut[] = [
-  { key: "v", label: "Select", action: { type: "choose-tool", tool: "select" } },
-  { key: "h", label: "Hand", action: { type: "choose-tool", tool: "hand" } },
-  { key: "l", label: "Line", action: { type: "choose-tool", tool: "line" } },
-  { key: "m", label: "Polyline", action: { type: "choose-tool", tool: "polyline" } },
-  { key: "p", label: "Polygon", action: { type: "choose-tool", tool: "polygon" } },
-  { key: "r", label: "Rectangle", action: { type: "choose-tool", tool: "rectangle" } },
-  { key: "i", label: "Ellipse", action: { type: "choose-tool", tool: "ellipse" } },
-  { key: "k", label: "Cloud", action: { type: "choose-tool", tool: "cloud" } },
-  { key: "c", label: "Count", action: { type: "choose-tool", tool: "count" } },
-  { key: "o", label: "Ortho 90°", action: "toggle-orthogonal" },
-  { key: "s", label: "Snap", action: "toggle-snap" },
-];
-
 export type ViewerKeyboardAction =
-  DrawingKeyboardAction | "start-pan" | "zoom-in" | "zoom-out" | ShortcutAction;
-
-function findShortcut(key: string): ViewerShortcut | null {
-  return viewerShortcuts.find((shortcut) => shortcut.key === key.toLowerCase()) ?? null;
-}
-
-export function getToolShortcutLabel(tool: ToolShortcut): string | null {
-  const shortcut = viewerShortcuts.find(
-    (entry) => typeof entry.action !== "string" && entry.action.tool === tool,
-  );
-  return shortcut?.key.toUpperCase() ?? null;
-}
-
-export function getShortcutLabel(action: ShortcutAction): string | null {
-  const shortcut = viewerShortcuts.find((entry) => {
-    if (typeof entry.action === "string" || typeof action === "string") {
-      return entry.action === action;
-    }
-    return entry.action.tool === action.tool;
-  });
-  return shortcut?.key.toUpperCase() ?? null;
-}
+  | DrawingKeyboardAction
+  | "start-pan"
+  | "zoom-in"
+  | "zoom-out"
+  | "fit-page"
+  | "fit-width"
+  | "actual"
+  | ShortcutAction;
 
 export function getDrawingKeyboardAction(
   key: string,
@@ -198,20 +111,13 @@ export function shouldIgnoreViewerKeyboardShortcut(event: KeyboardShortcutEvent)
   );
 }
 
-/** Application-wide viewer shortcuts, except editing and native control keys. */
-export function getViewerKeyboardAction(
+/** The viewer keys that cannot be rebound: temporary pan and the drawing finish/cancel keys. */
+export function getFixedViewerKeyboardAction(
   event: KeyboardShortcutEvent,
   tool: Tool,
   draft: DrawingDraft | null,
-): ViewerKeyboardAction | null {
+): DrawingKeyboardAction | "start-pan" | null {
   if (shouldIgnoreViewerKeyboardShortcut(event)) return null;
-
   if (event.key === " ") return "start-pan";
-  if (event.key === "+" || event.key === "=") return "zoom-in";
-  if (event.key === "-") return "zoom-out";
-
-  const drawingAction = getDrawingKeyboardAction(event.key, tool, draft);
-  if (drawingAction) return drawingAction;
-
-  return findShortcut(event.key)?.action ?? null;
+  return getDrawingKeyboardAction(event.key, tool, draft);
 }

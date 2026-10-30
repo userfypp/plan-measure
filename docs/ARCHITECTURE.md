@@ -30,6 +30,7 @@ Tests live next to the code (`*.test.ts(x)`).
 - **Saving/recovering projects**: `services/persistence*.ts`, `services/projectFile.ts`, `app/autosave.ts`.
 - **State and undo/redo**: `app/sessionState.tsx`, `app/state.tsx`.
 - **Panels and dialogs**: `app/` and `features/<area>/`.
+- **Keyboard shortcuts**: actions, bindings and the single key dispatcher live in `utils/shortcuts/` (stable action ids are the storage contract); the Settings panel, catalog, presets and conflict rules are lazy in `features/shortcuts/`. Components read labels through `useShortcutLabel`; new actions register a handler with `useShortcutHandlers`.
 
 ## Lazy loading
 

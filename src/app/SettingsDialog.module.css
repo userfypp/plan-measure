@@ -82,6 +82,16 @@ dialog.dialog {
   padding-right: var(--space-4);
 }
 
+/* Shortcuts keeps its preset and search in view: the panel holds still and its own list scrolls.
+   The left padding, cancelled by the margin, leaves room for the focus ring that the clip would cut. */
+.panelContained {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-left: calc(-1 * var(--space-4));
+  padding: 0 0 0 var(--space-4);
+}
+
 .settingList {
   min-width: 0;
   display: grid;
@@ -121,46 +131,6 @@ dialog.dialog {
 
 .groupTitle + .settingRow {
   border-top: 0;
-}
-
-.shortcutList {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--space-24);
-}
-
-.shortcutRow {
-  min-width: 0;
-  min-height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
-}
-
-.shortcutRow dt {
-  min-width: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-}
-
-.shortcutRow dd {
-  margin: 0;
-}
-
-.kbd {
-  display: inline-block;
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  padding: 0 var(--space-4);
-  color: var(--color-text-secondary);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-secondary);
-  font-variant-numeric: var(--font-variant-numeric-quantities);
-  line-height: var(--line-height-secondary);
-  white-space: nowrap;
 }
 
 .sectionNote {
@@ -381,6 +351,11 @@ dialog.dialog {
     height: auto;
     min-height: var(--geometry-settings-panel-height);
     padding-right: 0;
+  }
+
+  .panelContained {
+    height: var(--geometry-settings-panel-height);
+    min-height: 0;
   }
 
   .settingRow:has(.select, .narrowSelect) {

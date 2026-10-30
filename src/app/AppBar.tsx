@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import {
   AnchoredMenu,
   Button,
@@ -8,6 +8,7 @@ import {
 } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
+import { useShortcutAria, useShortcutLabel } from "../utils/shortcuts/store";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsButton } from "./SettingsButton";
 import type { LabelPreviewMeasurement, ProjectViewSettings } from "./SettingsDialog";
@@ -103,6 +104,35 @@ function FeedbackIcon() {
   );
 }
 
+function HistoryButton({
+  label,
+  actionId,
+  icon,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  actionId: "edit.undo" | "edit.redo";
+  icon: ReactNode;
+  disabled: boolean;
+  onClick?: () => void;
+}) {
+  const shortcut = useShortcutLabel(actionId);
+  const keyShortcuts = useShortcutAria(actionId);
+  return (
+    <IconButton
+      className={styles.iconAction}
+      icon={icon}
+      aria-label={label}
+      aria-keyshortcuts={keyShortcuts || undefined}
+      tooltip={shortcut ? `${label} (${shortcut})` : label}
+      tooltipPosition="bottom"
+      disabled={disabled}
+      onClick={onClick}
+    />
+  );
+}
+
 export function AppBar({
   documentName,
   canExport,
@@ -135,6 +165,10 @@ export function AppBar({
 }: AppBarProps) {
   const actionsRef = useRef<HTMLDivElement>(null);
   const actionsFocus = useRovingFocusGroup(actionsRef, { orientation: "horizontal" });
+  const exportShortcut = useShortcutLabel("app.export");
+  const exportKeys = useShortcutAria("app.export");
+  const projectsShortcut = useShortcutLabel("app.projects");
+  const projectsKeys = useShortcutAria("app.projects");
 
   return (
     <header className={styles.appBar} aria-label="Application bar">
@@ -165,23 +199,17 @@ export function AppBar({
         aria-orientation="horizontal"
       >
         <div className={styles.group}>
-          <IconButton
-            className={styles.iconAction}
+          <HistoryButton
+            label="Undo"
+            actionId="edit.undo"
             icon={<UndoIcon />}
-            aria-label="Undo"
-            aria-keyshortcuts="Control+Z Meta+Z"
-            tooltip="Undo (Ctrl+Z / ⌘Z)"
-            tooltipPosition="bottom"
             disabled={!canUndo}
             onClick={onUndo}
           />
-          <IconButton
-            className={styles.iconAction}
+          <HistoryButton
+            label="Redo"
+            actionId="edit.redo"
             icon={<RedoIcon />}
-            aria-label="Redo"
-            aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
-            tooltip="Redo (Ctrl+Shift+Z / ⌘⇧Z)"
-            tooltipPosition="bottom"
             disabled={!canRedo}
             onClick={onRedo}
           />
@@ -193,6 +221,8 @@ export function AppBar({
               variant="primary"
               size="compact"
               className={styles.exportAction}
+              aria-keyshortcuts={exportKeys || undefined}
+              title={exportShortcut ? `Export (${exportShortcut})` : undefined}
               onClick={onExport}
             >
               Export
@@ -204,6 +234,8 @@ export function AppBar({
             className={styles.projectsAction}
             aria-haspopup="dialog"
             aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
+            aria-keyshortcuts={projectsKeys || undefined}
+            title={projectsShortcut ? `Projects (${projectsShortcut})` : undefined}
             onClick={onOpenProjects}
           >
             Projects

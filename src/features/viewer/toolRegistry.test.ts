@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { Tool } from "../../types/domain";
-import { getToolShortcutLabel, type ToolShortcut } from "../../utils/keyboard";
 import {
   getToolAvailabilityState,
   getToolRailVerticalNeighbor,
@@ -8,7 +7,7 @@ import {
   toolRegistry,
 } from "./toolRegistry";
 
-function getToolDefinition(tool: Tool) {
+function getToolDefinition(tool: Tool | "orthogonal" | "snap") {
   return toolRegistry.find((definition) => definition.id === tool)!;
 }
 
@@ -30,10 +29,10 @@ describe("viewer tool registry", () => {
     expect(toolRegistry.find((tool) => tool.id === "snap")?.inRail).toBe(false);
   });
 
-  it("derives rail shortcuts from the existing keyboard registry", () => {
-    for (const tool of toolRailRegistry) {
-      expect(tool.shortcut).toBe(getToolShortcutLabel(tool.id as ToolShortcut));
-    }
+  it("points every rail tool and drawing aid at its shortcut action", () => {
+    for (const tool of toolRailRegistry) expect(tool.actionId).toBe(`tool.${tool.id}`);
+    expect(getToolDefinition("orthogonal").actionId).toBe("mode.orthogonal");
+    expect(getToolDefinition("snap").actionId).toBe("mode.snap");
   });
 
   it("keeps vertical keyboard navigation aligned with the tool rail", () => {
@@ -58,7 +57,7 @@ describe("viewer tool registry", () => {
   it("provides context metadata for the temporary calibration tool", () => {
     expect(getToolDefinition("calibrate")).toMatchObject({
       label: "Calibrate",
-      shortcut: null,
+      actionId: null,
       inRail: false,
       icon: "calibrate",
     });

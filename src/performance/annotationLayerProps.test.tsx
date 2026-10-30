@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../app/themeState";
 import { App } from "../app/App";
 import type { Measurement, PageState, ViewTransform } from "../types/domain";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { pageToScreen } from "../utils/coordinates";
+import type { ShortcutBindings } from "../utils/shortcuts/bindings";
 import {
   createCalibratedSession,
   createPdfDocument,
@@ -85,6 +87,7 @@ describe("annotation layer prop stability in App", () => {
     await act(async () => root.unmount());
     container.remove();
     delete lifecycle.createSession;
+    resetAppPreferences();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -147,6 +150,8 @@ describe("annotation layer prop stability in App", () => {
           active,
         ),
       );
+    const rebind = (bindings: ShortcutBindings) =>
+      act(async () => setAppPreference("shortcutBindings", bindings));
     const steps: Array<[name: string, run: () => Promise<unknown>, changes: string[]]> = [
       [
         "pasar el puntero",
@@ -234,6 +239,11 @@ describe("annotation layer prop stability in App", () => {
         ["selectedMeasurementId", "selectedMeasurementIds"],
       ],
       ["página anterior", () => press("Previous page"), []],
+      // Shortcuts are read when a key is pressed and by labels; the layer never receives them.
+      ["cambiar un atajo ajeno al lienzo", () => rebind({ "view.zoomIn": ["Z"] }), []],
+      ["mover Línea a otra tecla", () => rebind({ "view.zoomIn": ["Z"], "tool.line": ["Q"] }), []],
+      ["elegir Línea con su nueva tecla", () => keydown("q"), ["activeTool"]],
+      ["volver a Selección con la nueva tecla", () => keydown("Escape"), ["activeTool"]],
     ];
 
     const observed: Array<[string, string[]]> = [];

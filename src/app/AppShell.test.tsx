@@ -209,6 +209,79 @@ describe("AppShell notifications", () => {
   });
 });
 
+describe("AppShell info notice", () => {
+  function renderNotice(
+    notice: string | null,
+    onDismissNotice?: () => void,
+    statusMessage?: string,
+  ) {
+    act(() =>
+      root.render(
+        <AppShell
+          documentName={null}
+          canExport={false}
+          onExport={() => undefined}
+          noticeMessage={notice}
+          noticeActions={notice ? <button>Review</button> : undefined}
+          onDismissNotice={onDismissNotice}
+          statusMessage={statusMessage}
+          statusTone="warning"
+        >
+          <main>Workspace</main>
+        </AppShell>,
+      ),
+    );
+  }
+
+  it("announces politely, without the alert role", () => {
+    renderNotice("Shortcuts updated.", vi.fn());
+    const notice = container.querySelector('[role="status"]')!;
+    expect(notice.querySelector("span")!.textContent).toBe("Shortcuts updated.");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("dismisses itself after eight seconds and pauses while hovered", () => {
+    const dismiss = vi.fn(() => renderNotice(null));
+    renderNotice("Shortcuts updated.", dismiss);
+    const notice = container.querySelector('[role="status"]')!;
+    advance(7000);
+    act(() => notice.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    advance(10000);
+    expect(dismiss).not.toHaveBeenCalled();
+    act(() => notice.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+    advance(8000);
+    expect(dismiss).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it("offers Dismiss and its action next to the message", () => {
+    const dismiss = vi.fn();
+    renderNotice("Shortcuts updated.", dismiss);
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="status"] button'),
+      (button) => button.textContent,
+    );
+    expect(buttons).toEqual(["Dismiss", "Review"]);
+    act(() => dismissButton()!.click());
+    expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("sits beside the autosave warning without replacing it", () => {
+    renderNotice("Shortcuts updated.", vi.fn(), "Autosave is unavailable.");
+    expect(container.querySelector('[role="alert"] > span')?.textContent).toBe(
+      "Autosave is unavailable.",
+    );
+    expect(container.querySelector('[role="status"] > span')?.textContent).toBe(
+      "Shortcuts updated.",
+    );
+  });
+
+  it("renders nothing without a message", () => {
+    renderNotice(null);
+    expect(container.querySelector('[role="status"]')).toBeNull();
+  });
+});
+
 it("blocks application key handlers only while the loading overlay is mounted", () => {
   const handler = vi.fn();
   window.addEventListener("keydown", handler);

@@ -22,6 +22,7 @@ import {
   setAppPreference,
   subscribeAppPreferences,
 } from "./appPreferences";
+import { EMPTY_SHORTCUT_BINDINGS } from "./shortcuts/bindings";
 import { formatDisplayNumber } from "./format";
 
 beforeEach(() => {
@@ -338,8 +339,17 @@ describe("settings file", () => {
     setAppPreference("projectsShown", "25");
     setAppPreference("confirmBeforeClosing", true);
     setAppPreference("lineThickness", "thick");
+    setAppPreference("shortcutPreset", "legacy");
+    setAppPreference("shortcutBindings", { "tool.line": ["Q"], "tool.hand": [] });
     const json = exportAppPreferencesJson();
-    expect(JSON.parse(json)).toMatchObject({ version: 1, preferences: { autosaveDelayMs: 3000 } });
+    expect(JSON.parse(json)).toMatchObject({
+      version: 1,
+      preferences: {
+        autosaveDelayMs: 3000,
+        shortcutPreset: "legacy",
+        shortcutBindings: { "tool.line": ["Q"], "tool.hand": [] },
+      },
+    });
     const exported = getAppPreferences();
     resetAppPreferences();
     expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
@@ -407,5 +417,105 @@ describe("settings file", () => {
     const before = getAppPreferences();
     expect(importAppPreferencesJson(text)).toBe(false);
     expect(getAppPreferences()).toBe(before);
+  });
+});
+
+describe("shortcut preferences", () => {
+  it("default to the Default preset with no stored differences", () => {
+    expect(DEFAULT_APP_PREFERENCES.shortcutPreset).toBe("default");
+    expect(DEFAULT_APP_PREFERENCES.shortcutBindings).toBe(EMPTY_SHORTCUT_BINDINGS);
+    expect(Object.isFrozen(DEFAULT_APP_PREFERENCES.shortcutBindings)).toBe(true);
+    expect(getAppPreferences().shortcutBindings).toBe(EMPTY_SHORTCUT_BINDINGS);
+  });
+
+  it("rejects an invalid preset and an invalid bindings map as a whole", () => {
+    setAppPreference("shortcutPreset", "vim" as never);
+    setAppPreference("shortcutBindings", { "tool.line": ["q"] } as never);
+    setAppPreference("shortcutBindings", { "tool.line": ["Q", "W", "A"] } as never);
+    setAppPreference("shortcutBindings", { "tool.nothing": ["Q"] } as never);
+    setAppPreference("shortcutBindings", { "tool.hand": ["E"] } as never);
+    setAppPreference("shortcutBindings", [] as never);
+    expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
+  });
+
+  it("stores a valid map and notifies subscribers once", () => {
+    let calls = 0;
+    const unsubscribe = subscribeAppPreferences(() => (calls += 1));
+    const next = { "tool.line": ["Q", "Alt+L"], "mode.snap": [] };
+    setAppPreference("shortcutBindings", next);
+    expect(calls).toBe(1);
+    expect(getAppPreferences().shortcutBindings).toBe(next);
+    expect(JSON.parse(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)!)).toMatchObject({
+      shortcutBindings: next,
+    });
+    unsubscribe();
+  });
+
+  it("falls back to the default preset for an unknown value in storage", () => {
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ shortcutPreset: "vim", shortcutBindings: { "tool.line": ["Q"] } }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().shortcutPreset).toBe("default");
+    expect(getAppPreferences().shortcutBindings).toEqual({ "tool.line": ["Q"] });
+  });
+
+  it("drops only the corrupt shortcut entries from storage", () => {
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        maxZoom: 16,
+        shortcutBindings: {
+          "tool.line": ["Q"],
+          "tool.hand": ["h"],
+          "tool.cloud": ["A", "B", "C"],
+          "tool.count": ["Enter"],
+          "tool.polygon": ["P", "P"],
+          "tool.nothing": ["Z"],
+          "mode.snap": [],
+          "edit.copy": "Mod+C",
+        },
+      }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().maxZoom).toBe(16);
+    expect(getAppPreferences().shortcutBindings).toEqual({ "tool.line": ["Q"], "mode.snap": [] });
+  });
+
+  it.each([[null], ["Q"], [[]], [{ "tool.line": "Q" }]])(
+    "uses the empty map when the stored bindings are %j",
+    (stored) => {
+      window.localStorage.setItem(
+        APP_PREFERENCES_STORAGE_KEY,
+        JSON.stringify({ shortcutBindings: stored }),
+      );
+      reloadAppPreferencesFromStorage();
+      expect(getAppPreferences().shortcutBindings).toBe(EMPTY_SHORTCUT_BINDINGS);
+    },
+  );
+
+  it("round-trips through the settings file, dropping corrupt entries on import", () => {
+    setAppPreference("shortcutPreset", "essentials");
+    setAppPreference("shortcutBindings", { "edit.undo": ["Mod+Z"], "tool.line": [] });
+    const exported = getAppPreferences();
+    const json = exportAppPreferencesJson();
+    resetAppPreferences();
+    expect(getAppPreferences().shortcutBindings).toBe(EMPTY_SHORTCUT_BINDINGS);
+    expect(importAppPreferencesJson(json)).toBe(true);
+    expect(getAppPreferences()).toEqual(exported);
+
+    const file = JSON.parse(json) as { preferences: Record<string, unknown> };
+    file.preferences.shortcutBindings = { "tool.hand": ["H"], "tool.line": ["l"] };
+    expect(importAppPreferencesJson(JSON.stringify(file))).toBe(true);
+    expect(getAppPreferences().shortcutBindings).toEqual({ "tool.hand": ["H"] });
+  });
+
+  it("is cleared by a reset", () => {
+    setAppPreference("shortcutPreset", "left-hand");
+    setAppPreference("shortcutBindings", { "tool.line": ["Q"] });
+    resetAppPreferences();
+    expect(getAppPreferences().shortcutPreset).toBe("default");
+    expect(getAppPreferences().shortcutBindings).toBe(EMPTY_SHORTCUT_BINDINGS);
   });
 });

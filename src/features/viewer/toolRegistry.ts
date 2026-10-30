@@ -1,10 +1,5 @@
 import type { Tool } from "../../types/domain";
-import {
-  getShortcutLabel,
-  getToolShortcutLabel,
-  viewerShortcuts,
-  type ToolShortcut,
-} from "../../utils/keyboard";
+import type { ActionId } from "../../utils/shortcuts/bindings";
 
 export type ToolIconName =
   | "select"
@@ -24,7 +19,8 @@ export interface ToolDefinition {
   id: Tool | "orthogonal" | "snap";
   label: string;
   description: string;
-  shortcut: string | null;
+  /** The customizable shortcut that selects or toggles it; null while none is wired. */
+  actionId: ActionId | null;
   icon: ToolIconName;
   inRail: boolean;
 }
@@ -36,88 +32,80 @@ export interface ToolAvailability {
 
 export type ToolAvailabilityMap = Partial<Record<ToolDefinition["id"], ToolAvailability>>;
 
-function shortcutLabelForTool(tool: ToolShortcut): string {
-  return (
-    viewerShortcuts.find(
-      (shortcut) => typeof shortcut.action !== "string" && shortcut.action.tool === tool,
-    )?.label ?? tool
-  );
-}
-
 /**
- * The viewer's chrome reads this registry for labels, icons, and shortcuts.
- * Keyboard dispatch itself remains owned by utils/keyboard.ts.
+ * The viewer's chrome reads this registry for labels, icons, and shortcut ids.
+ * The keys behind `actionId` live in the shortcut store (utils/shortcuts).
  */
 export const toolRegistry: readonly ToolDefinition[] = [
   {
     id: "select",
-    label: shortcutLabelForTool("select"),
+    label: "Select",
     description: "Select and edit measurements",
-    shortcut: getToolShortcutLabel("select"),
+    actionId: "tool.select",
     icon: "select",
     inRail: true,
   },
   {
     id: "hand",
-    label: shortcutLabelForTool("hand"),
+    label: "Hand",
     description: "Pan the page",
-    shortcut: getToolShortcutLabel("hand"),
+    actionId: "tool.hand",
     icon: "hand",
     inRail: true,
   },
   {
     id: "line",
-    label: shortcutLabelForTool("line"),
+    label: "Line",
     description: "Draw a two-point line",
-    shortcut: getToolShortcutLabel("line"),
+    actionId: "tool.line",
     icon: "line",
     inRail: true,
   },
   {
     id: "polyline",
-    label: shortcutLabelForTool("polyline"),
+    label: "Polyline",
     description: "Draw an open polyline",
-    shortcut: getToolShortcutLabel("polyline"),
+    actionId: "tool.polyline",
     icon: "polyline",
     inRail: true,
   },
   {
     id: "polygon",
-    label: shortcutLabelForTool("polygon"),
+    label: "Polygon",
     description: "Draw a closed polygon",
-    shortcut: getToolShortcutLabel("polygon"),
+    actionId: "tool.polygon",
     icon: "polygon",
     inRail: true,
   },
   {
     id: "rectangle",
-    label: shortcutLabelForTool("rectangle"),
+    label: "Rectangle",
     description: "Draw a rectangle from two opposite corners (Shift for a square)",
-    shortcut: getToolShortcutLabel("rectangle"),
+    actionId: "tool.rectangle",
     icon: "rectangle",
     inRail: true,
   },
   {
     id: "ellipse",
-    label: shortcutLabelForTool("ellipse"),
+    label: "Ellipse",
     description: "Draw an ellipse inside a bounding box (Shift for a circle)",
-    shortcut: getToolShortcutLabel("ellipse"),
+    actionId: "tool.ellipse",
     icon: "ellipse",
     inRail: true,
   },
   {
     id: "cloud",
-    label: shortcutLabelForTool("cloud"),
+    label: "Cloud",
     description: "Draw a closed revision cloud",
-    shortcut: getToolShortcutLabel("cloud"),
+    actionId: "tool.cloud",
     icon: "cloud",
     inRail: true,
   },
   {
     id: "count",
-    label: shortcutLabelForTool("count"),
+    label: "Count",
     description: "Mark multiple items in a count without a scale",
-    shortcut: getToolShortcutLabel("count"),
+    actionId: "tool.count",
     icon: "count",
     inRail: true,
   },
@@ -125,7 +113,7 @@ export const toolRegistry: readonly ToolDefinition[] = [
     id: "calibrate",
     label: "Calibrate",
     description: "Select two points for a scale reference",
-    shortcut: null,
+    actionId: null,
     icon: "calibrate",
     inRail: false,
   },
@@ -133,7 +121,7 @@ export const toolRegistry: readonly ToolDefinition[] = [
     id: "orthogonal",
     label: "Ortho",
     description: "Constrain drawing segments to horizontal or vertical",
-    shortcut: getShortcutLabel("toggle-orthogonal"),
+    actionId: "mode.orthogonal",
     icon: "orthogonal",
     inRail: false,
   },
@@ -141,7 +129,7 @@ export const toolRegistry: readonly ToolDefinition[] = [
     id: "snap",
     label: "Snap",
     description: "Snap new measurement points to visible measurement geometry",
-    shortcut: getShortcutLabel("toggle-snap"),
+    actionId: "mode.snap",
     icon: "snap",
     inRail: false,
   },

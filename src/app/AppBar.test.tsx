@@ -7,6 +7,8 @@ import buttonStyles from "../components/ui/Button.module.css";
 import { ThemeProvider } from "./themeState";
 import { AppBar } from "./AppBar";
 import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
+import { requestSettingsDialog } from "./settingsDialogRequest";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -93,6 +95,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetAppPreferences();
   if (root) act(() => root?.unmount());
   restoreDialogMethods();
   container?.remove();
@@ -100,6 +103,14 @@ afterEach(() => {
   root = null;
   container = null;
 });
+
+function tooltipOf(button: HTMLElement): string | undefined {
+  act(() => setAppPreference("tooltipDelay", "instant"));
+  act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+  const text = document.querySelector('[role="tooltip"]')?.textContent ?? undefined;
+  act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+  return text;
+}
 
 /** Settings loads lazily, so wait for the module before asserting on the dialog. */
 async function clickAndLoad(button: HTMLElement) {
@@ -307,5 +318,85 @@ describe("AppBar", () => {
     renderAppBar({ documentName: null, canExport: false });
 
     expect(document.querySelector('button[aria-label="Close project"]')).toBeNull();
+  });
+
+  it("shows the undo and redo shortcuts in the tooltip and key shortcuts", () => {
+    renderAppBar();
+
+    expect(tooltipOf(buttonByLabel("Undo"))).toBe("Undo (Ctrl+Z)");
+    expect(buttonByLabel("Undo").getAttribute("aria-keyshortcuts")).toBe("Control+Z Meta+Z");
+    expect(tooltipOf(buttonByLabel("Redo"))).toBe("Redo (Ctrl+Shift+Z)");
+    expect(buttonByLabel("Redo").getAttribute("aria-keyshortcuts")).toBe(
+      "Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y",
+    );
+  });
+
+  it("follows rebound undo and redo keys, and drops the text when a key is cleared", () => {
+    renderAppBar();
+
+    act(() => setAppPreference("shortcutBindings", { "edit.undo": ["Mod+U"], "edit.redo": [] }));
+
+    expect(tooltipOf(buttonByLabel("Undo"))).toBe("Undo (Ctrl+U)");
+    expect(buttonByLabel("Undo").getAttribute("aria-keyshortcuts")).toBe("Control+U Meta+U");
+    expect(tooltipOf(buttonByLabel("Redo"))).toBe("Redo");
+    expect(buttonByLabel("Redo").hasAttribute("aria-keyshortcuts")).toBe(false);
+  });
+
+  it("shows the Export, Projects and Settings shortcuts in their labels and key shortcuts", () => {
+    renderAppBar();
+    const exportButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === "Export",
+    )!;
+
+    expect(exportButton.title).toBe("Export (Ctrl+E)");
+    expect(exportButton.getAttribute("aria-keyshortcuts")).toBe("Control+E Meta+E");
+    expect(buttonByLabel("Projects").title).toBe("Projects (Ctrl+O)");
+    expect(buttonByLabel("Projects").getAttribute("aria-keyshortcuts")).toBe("Control+O Meta+O");
+    expect(tooltipOf(buttonByLabel("Settings"))).toBe("Settings (Ctrl+,)");
+    expect(buttonByLabel("Settings").getAttribute("aria-keyshortcuts")).toBe("Control+, Meta+,");
+  });
+
+  it("follows rebound Export, Projects and Settings keys, and drops them when cleared", () => {
+    renderAppBar();
+    const exportButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === "Export",
+    )!;
+
+    act(() =>
+      setAppPreference("shortcutBindings", {
+        "app.export": ["Mod+Shift+E"],
+        "app.projects": [],
+        "app.settings": [],
+      }),
+    );
+
+    expect(exportButton.title).toBe("Export (Ctrl+Shift+E)");
+    expect(exportButton.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+E Meta+Shift+E");
+    expect(buttonByLabel("Projects").hasAttribute("title")).toBe(false);
+    expect(buttonByLabel("Projects").hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(tooltipOf(buttonByLabel("Settings"))).toBe("Settings");
+    expect(buttonByLabel("Settings").hasAttribute("aria-keyshortcuts")).toBe(false);
+  });
+
+  it("opens Settings on the requested section, or on Interface when none is given", async () => {
+    renderAppBar();
+    await import("./SettingsDialog");
+
+    await act(async () => requestSettingsDialog("shortcuts"));
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe(
+      "Shortcuts",
+    );
+
+    act(() =>
+      Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"] button'))
+        .find((button) => button.textContent === "Done")
+        ?.click(),
+    );
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await act(async () => requestSettingsDialog());
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe(
+      "Interface",
+    );
   });
 });

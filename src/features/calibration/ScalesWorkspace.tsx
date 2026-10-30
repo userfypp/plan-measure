@@ -24,6 +24,7 @@ import type {
 } from "../../types/domain";
 import { formatDisplayNumber, formatLinearValue } from "../../utils/format";
 import { defaultCalibrationName } from "../../utils/calibration";
+import { useShortcutLabel } from "../../utils/shortcuts/store";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { useWorkspaceDrawerPresentation } from "../../app/WorkspaceDrawerContext";
 import { retryableImport } from "../../app/retryableImport";
@@ -88,10 +89,16 @@ function formatReferenceDistance(millimetres: number, displayUnit: MeasurementDi
 }
 
 function ScaleOptionLabel({ mode }: { mode: "uniform" | "xy" }) {
+  // The Calibrate key starts a Uniform scale, so only that option shows it.
+  const shortcut = useShortcutLabel("tool.calibrate");
   return (
     <span className={styles.addOptionLabel}>
       <strong>{mode === "uniform" ? "Uniform" : "X/Y"}</strong>
-      <span>{mode === "uniform" ? "One reference" : "Separate X and Y references"}</span>
+      <span>
+        {mode === "uniform"
+          ? `One reference${shortcut ? ` (${shortcut})` : ""}`
+          : "Separate X and Y references"}
+      </span>
     </span>
   );
 }

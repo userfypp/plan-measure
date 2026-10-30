@@ -1,18 +1,12 @@
 import { memo, type ReactNode } from "react";
 import { AnchoredMenu, ChevronDownIcon, CloseIcon, IconButton } from "../components/ui";
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
+import { WORKSPACE_MODULES } from "./workspaceModules";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
 import styles from "./WorkspacePanel.module.css";
 
-const MODULES: Array<{ id: WorkspaceModule; label: string }> = [
-  { id: "measurements", label: "Measurements" },
-  { id: "takeoff", label: "Takeoff" },
-  { id: "classifications", label: "Classifications" },
-  { id: "scales", label: "Scales" },
-];
-
 export function workspaceModuleLabel(module: WorkspaceModule): string {
-  return MODULES.find((candidate) => candidate.id === module)?.label ?? module;
+  return WORKSPACE_MODULES.find((candidate) => candidate.id === module)?.label ?? module;
 }
 
 export interface WorkspacePanelProps {
@@ -62,7 +56,7 @@ export function WorkspacePanel({
             "aria-label": `Workspace module: ${activeLabel}`,
           }}
           label="Workspace modules"
-          items={MODULES.map((module) => ({
+          items={WORKSPACE_MODULES.map((module) => ({
             id: module.id,
             label: module.label,
             role: "menuitemradio" as const,

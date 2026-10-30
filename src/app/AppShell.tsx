@@ -15,7 +15,7 @@ import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPrefer
 import { useManagedTabNavigation } from "../components/ui/tabNavigation";
 import styles from "./AppShell.module.css";
 
-type StatusTone = "error" | "warning";
+type StatusTone = "error" | "warning" | "info";
 
 interface AppShellProps {
   interactionBlocked?: boolean;
@@ -53,6 +53,9 @@ interface AppShellProps {
   statusTone?: StatusTone;
   statusActions?: ReactNode;
   onDismissStatus?: () => void;
+  noticeMessage?: string | null;
+  noticeActions?: ReactNode;
+  onDismissNotice?: () => void;
   errorNotifications?: readonly AppErrorNotification[];
   onDismissError?: (id: number) => void;
 }
@@ -93,6 +96,9 @@ export function AppShell({
   statusTone = "error",
   statusActions,
   onDismissStatus,
+  noticeMessage,
+  noticeActions,
+  onDismissNotice,
   errorNotifications = [],
   onDismissError,
 }: AppShellProps) {
@@ -138,7 +144,7 @@ export function AppShell({
         onRecoveredPlanStartupWorkspaceChange={onRecoveredPlanStartupWorkspaceChange}
       />
       <div className={styles.content}>
-        {(statusMessage || errorNotifications.length > 0) && (
+        {(statusMessage || noticeMessage || errorNotifications.length > 0) && (
           <div className={styles.statusRow}>
             {statusMessage && (
               <StatusNotification
@@ -147,6 +153,15 @@ export function AppShell({
                 tone={statusTone}
                 actions={statusActions}
                 onDismiss={onDismissStatus}
+              />
+            )}
+            {noticeMessage && (
+              <StatusNotification
+                key={`notice:${noticeMessage}`}
+                message={noticeMessage}
+                tone="info"
+                actions={noticeActions}
+                onDismiss={onDismissNotice}
               />
             )}
             {errorNotifications.map(({ id, message }) => (
@@ -193,7 +208,7 @@ function StatusNotification({
       className={[styles.status, styles[tone], actions ? styles.statusWithActions : ""]
         .filter(Boolean)
         .join(" ")}
-      role="alert"
+      role={tone === "info" ? "status" : "alert"}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}

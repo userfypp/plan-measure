@@ -1,0 +1,283 @@
+/* Never scrolls: the preset and the search stay put while only `.list` moves. The top padding
+   leaves room for the focus ring, because the Settings panel clips what overflows it. */
+.header {
+  flex: none;
+  container-type: inline-size;
+  margin-right: var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-divider);
+  padding-block: var(--space-4) var(--space-8);
+}
+
+.toolbar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.presetSelect {
+  width: var(--geometry-select-width-regular);
+}
+
+.search {
+  position: relative;
+  min-width: 0;
+}
+
+.search .searchInput {
+  padding-right: var(--control-height-compact);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+/* Over the end of the field, so showing it never moves the text or remounts the input. */
+.search .clear {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+
+.search .clearButton {
+  border-color: transparent;
+}
+
+/* A narrow header (small dialog, large text) puts the search on its own line below the preset. */
+@container (max-width: 360px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .presetSelect {
+    width: 100%;
+  }
+
+  .search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.confirmText {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+/* The only scroller of the section. The padding keeps the overlay scrollbar off the controls.
+   Its columns (label, first key, second key, reset) are shared by every row through subgrid, so
+   the keys line up from the first row to the last whatever they contain. */
+.list {
+  composes: scrollSurface overlayScroll from global;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-content: start;
+  column-gap: var(--space-8);
+  overflow-y: auto;
+  padding-right: var(--space-4);
+}
+
+.groupTitle {
+  composes: groupTitle from "../SettingsDialog.module.css";
+  grid-column: 1 / -1;
+}
+
+/* One line per action: the label takes what the keys leave. Fixed keys use it as a plain row. */
+.row {
+  grid-column: 1 / -1;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: calc(var(--control-height-compact) + var(--space-16) + var(--border-width));
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding-block: var(--space-8);
+}
+
+.editRow {
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+.row + .row {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.groupTitle + .row {
+  border-top: 0;
+}
+
+.label {
+  composes: settingLabel from "../SettingsDialog.module.css";
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* A key fills its column, so every key of a column is as wide as the widest one. */
+.cell {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.cellFirst {
+  grid-column: 2;
+}
+
+.cellSecond {
+  grid-column: 3;
+}
+
+.cell > .slot {
+  flex: 1 1 auto;
+}
+
+.slot {
+  composes: button compact from "../../components/ui/Button.module.css";
+}
+
+.row .slot {
+  min-width: max(var(--target-current), var(--geometry-shortcut-key-min-width));
+  padding-inline: var(--space-8);
+}
+
+.slotFilled {
+  composes: secondary from "../../components/ui/Button.module.css";
+}
+
+.slotEmpty {
+  composes: ghost from "../../components/ui/Button.module.css";
+}
+
+/* The key inside a slot button: the button supplies the border, so only the text is set here. */
+.slotKey {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The second key: an icon button that stays quiet until hovered or focused. */
+.addSecond {
+  composes: button from "../../components/ui/IconButton.module.css";
+}
+
+.row .addSecond {
+  border-color: transparent;
+}
+
+.addSecondIcon {
+  composes: icon from "../../components/ui/IconButton.module.css";
+}
+
+/* Always in the last column; it is disabled while the row matches the preset. */
+.reset {
+  grid-column: 4;
+  display: flex;
+}
+
+/* Fixed keys cannot be reset, so they take the space the reset column leaves to the others. */
+.fixedKeys {
+  flex: none;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.kbd {
+  display: inline-block;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+  white-space: nowrap;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: var(--space-24);
+  text-align: center;
+}
+
+.capture {
+  width: min(var(--geometry-viewer-popover-width-compact), calc(100vw - var(--space-24)));
+}
+
+.captureSurface {
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-12);
+}
+
+.captureSurface:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: calc(-1 * var(--focus-width));
+}
+
+.captureMessage {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.captureTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  overflow-wrap: anywhere;
+}
+
+.captureRejected {
+  color: var(--color-danger-semantic);
+}
+
+.captureHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  overflow-wrap: anywhere;
+}
+
+.captureActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+
+.captureClear {
+  margin-right: auto;
+}
+
+.visuallyHidden {
+  composes: visuallyHidden from global;
+}

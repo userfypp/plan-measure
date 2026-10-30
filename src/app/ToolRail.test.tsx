@@ -7,7 +7,8 @@ import {
   AuthoringCapabilityProvider,
   computeAuthoringCapability,
 } from "../features/viewer/AuthoringCapability";
-import type { ToolAvailabilityMap } from "../features/viewer/toolRegistry";
+import { toolRailRegistry, type ToolAvailabilityMap } from "../features/viewer/toolRegistry";
+import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { ToolRail } from "./ToolRail";
 import { WorkspaceDrawerProvider } from "./WorkspaceDrawerContext";
 import { useWorkspaceState, WorkspaceProvider } from "./workspaceState";
@@ -99,6 +100,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetAppPreferences();
   if (root) act(() => root?.unmount());
   container?.remove();
   root = null;
@@ -307,5 +309,52 @@ describe("ToolRail V2", () => {
         ?.getAttribute("aria-expanded"),
     ).toBe("false");
     expect(toolButtons()).toHaveLength(0);
+  });
+});
+
+describe("ToolRail shortcut labels", () => {
+  function lineTooltip(): string | undefined {
+    act(() => setAppPreference("tooltipDelay", "instant"));
+    const hover = (type: "mouseover" | "mouseout") =>
+      act(() => button("line").dispatchEvent(new MouseEvent(type, { bubbles: true })));
+    hover("mouseover");
+    const text = document.querySelector('[role="tooltip"]')?.textContent ?? undefined;
+    hover("mouseout");
+    return text;
+  }
+
+  const lineDescription = toolRailRegistry.find(
+    (definition) => definition.id === "line",
+  )!.description;
+
+  it("names the shortcut in the label, the key shortcuts and the tooltip", () => {
+    renderRail();
+
+    expect(button("line").getAttribute("aria-label")).toBe("Line, shortcut L");
+    expect(button("line").getAttribute("aria-keyshortcuts")).toBe("L");
+    expect(lineTooltip()).toBe(`${lineDescription} (L)`);
+  });
+
+  it("follows a rebound key without remounting", () => {
+    renderRail();
+    const before = button("line");
+
+    act(() => setAppPreference("shortcutBindings", { "tool.line": ["Q"] }));
+
+    expect(button("line")).toBe(before);
+    expect(before.getAttribute("aria-label")).toBe("Line, shortcut Q");
+    expect(before.getAttribute("aria-keyshortcuts")).toBe("Q");
+    expect(lineTooltip()).toBe(`${lineDescription} (Q)`);
+  });
+
+  it("keeps only the label, with no key shortcuts, when the tool has no key", () => {
+    renderRail();
+
+    act(() => setAppPreference("shortcutBindings", { "tool.line": [] }));
+
+    expect(button("line").getAttribute("aria-label")).toBe("Line");
+    expect(button("line").hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(lineTooltip()).toBe(lineDescription);
+    expect(button("polyline").getAttribute("aria-label")).toBe("Polyline, shortcut M");
   });
 });

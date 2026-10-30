@@ -8,6 +8,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { WorkspaceDrawerProvider } from "../../app/WorkspaceDrawerContext";
 import { computeAuthoringCapability } from "../viewer/AuthoringCapability";
 import type { Measurement, PageCalibration, PageState } from "../../types/domain";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import { scaleByRatio } from "../../utils/units";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { createPageCalibrationFromRatio } from "./ratioCalibration";
@@ -959,5 +960,29 @@ describe("ScalesWorkspace", () => {
     expect(props.onEditReference).toHaveBeenCalledWith(uniform, "uniform");
     expect(props.onEditReference).toHaveBeenCalledWith(xy, "x");
     expect(props.onEditReference).toHaveBeenCalledWith(xy, "y");
+  });
+});
+
+describe("tool.calibrate shortcut", () => {
+  function bindCalibrate(...combos: string[]) {
+    act(() => setAppPreference("shortcutBindings", { "tool.calibrate": combos }));
+  }
+
+  afterEach(() => resetAppPreferences());
+
+  it("shows the key on the Uniform option only while it is bound", () => {
+    const optionTexts = () => {
+      act(() => buttonByLabel("Add scale").click());
+      const texts = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+      ).map((item) => item.textContent);
+      act(() => buttonByLabel("Add scale").click());
+      return texts.slice(0, 2);
+    };
+    renderScales(createProps());
+    expect(optionTexts()).toEqual(["UniformOne reference", "X/YSeparate X and Y references"]);
+
+    bindCalibrate("B");
+    expect(optionTexts()).toEqual(["UniformOne reference (B)", "X/YSeparate X and Y references"]);
   });
 });

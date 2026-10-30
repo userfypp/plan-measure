@@ -73,6 +73,11 @@
   color: var(--color-status-warning);
 }
 
+.info {
+  background: var(--color-status-info-surface);
+  color: var(--color-status-info);
+}
+
 .content {
   position: relative;
   min-width: 0;

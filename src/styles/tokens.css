@@ -290,6 +290,8 @@
   --geometry-settings-dialog-width: 600px;
   --geometry-settings-nav-width: 168px;
   --geometry-settings-panel-height: 456px;
+  /* Narrowest key chip in Settings > Shortcuts, so single letters read as keycaps. */
+  --geometry-shortcut-key-min-width: 40px;
   --geometry-page-browser-width: 240px;
   --geometry-page-goto-input-width: 48px;
   --geometry-page-thumbnail-width: 144px;
@@ -401,6 +403,7 @@
   --geometry-select-width-narrow: 79px;
   --geometry-settings-dialog-width: 660px;
   --geometry-settings-nav-width: 185px;
+  --geometry-shortcut-key-min-width: 44px;
   --tooltip-max-width: 264px;
   --geometry-viewer-page-width: 132px;
   --geometry-viewer-zoom-min-width: 48px;
@@ -424,6 +427,7 @@
   --geometry-select-width-narrow: 90px;
   --geometry-settings-dialog-width: 750px;
   --geometry-settings-nav-width: 210px;
+  --geometry-shortcut-key-min-width: 50px;
   --tooltip-max-width: 300px;
   --geometry-viewer-page-width: 150px;
   --geometry-viewer-zoom-min-width: 55px;

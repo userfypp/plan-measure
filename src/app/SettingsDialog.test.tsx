@@ -1,5 +1,7 @@
 /* @vitest-environment jsdom */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +14,7 @@ import {
   getAppPreferences,
   reloadAppPreferencesFromStorage,
 } from "../utils/appPreferences";
-import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
+import { FIXED_KEYS_GROUP, SHORTCUT_GROUPS } from "../features/shortcuts/catalog";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
 import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
 
@@ -283,21 +285,39 @@ describe("SettingsDialog", () => {
     expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
   });
 
-  it("lists every shortcut in a read-only Shortcuts section", async () => {
+  it("lists every shortcut group with its editable keys in the Shortcuts section", async () => {
     renderSettings();
     await openSettings();
     openTab("Shortcuts");
 
     const panel = dialog().querySelector('[role="tabpanel"]');
-    expect(panel?.querySelectorAll("h3")).toHaveLength(SHORTCUT_GROUPS.length);
-    expect(panel?.querySelectorAll("button, input, select, a, [tabindex]")).toHaveLength(0);
-    const rows = Array.from(panel?.querySelectorAll("dl > div") ?? []).map((row) => [
-      row.querySelector("dt")?.textContent,
-      row.querySelector("kbd")?.textContent,
-    ]);
-    expect(rows).toEqual(
-      SHORTCUT_GROUPS.flatMap((group) => group.entries.map((entry) => [entry.label, entry.keys])),
+    expect(
+      Array.from(panel?.querySelectorAll("h3") ?? [], (heading) => heading.textContent),
+    ).toEqual([...SHORTCUT_GROUPS, FIXED_KEYS_GROUP]);
+    expect(panel?.querySelector("button[data-select-trigger]")?.textContent).toBe("Default");
+    expect(panel?.querySelector('button[aria-label="Line shortcut 1: L"]')).toBeInstanceOf(
+      HTMLButtonElement,
     );
+    expect(panel?.querySelector('input[type="search"]')).not.toBeNull();
+  });
+
+  it("holds the Shortcuts panel still so only its list scrolls, and lets the other sections scroll", async () => {
+    renderSettings();
+    await openSettings();
+    const panel = () => dialog().querySelector<HTMLElement>('[role="tabpanel"]')!;
+    const scrollingPanel = panel();
+    expect(scrollingPanel.className).not.toContain("panelContained");
+
+    openTab("Shortcuts");
+    expect(panel().className).toContain("panelContained");
+    expect(panel().id).toBe(scrollingPanel.id);
+
+    openTab("Interface");
+    expect(panel().className).not.toContain("panelContained");
+
+    const css = readFileSync(resolve(import.meta.dirname, "SettingsDialog.module.css"), "utf8");
+    expect(css).toMatch(/\.panelContained\s*\{[^}]*overflow:\s*hidden;/s);
+    expect(css).toMatch(/\.panelContained\s*\{[^}]*flex-direction:\s*column;/s);
   });
 
   it("toggles larger touch targets on <html> from the Accessibility section", async () => {
