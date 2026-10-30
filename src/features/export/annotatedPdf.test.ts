@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { EncryptedPDFError, PDFDocument, PDFPage, degrees } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -526,7 +527,7 @@ describe("annotated PDF export", () => {
 
   it("explains how to export an encrypted PDF without exposing pdf-lib internals", async () => {
     const bytes = new Uint8Array(
-      readFileSync("src/features/export/fixtures/encrypted-empty-password.pdf"),
+      readFileSync(resolve(import.meta.dirname, "fixtures/encrypted-empty-password.pdf")),
     );
     await expect(PDFDocument.load(bytes)).rejects.toThrow(new EncryptedPDFError().message);
     const document = sourceDocument(bytes);
@@ -541,7 +542,7 @@ describe("annotated PDF export", () => {
 
   it("does not download a file when the source PDF is encrypted", async () => {
     const bytes = new Uint8Array(
-      readFileSync("src/features/export/fixtures/encrypted-empty-password.pdf"),
+      readFileSync(resolve(import.meta.dirname, "fixtures/encrypted-empty-password.pdf")),
     );
     const createObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL });

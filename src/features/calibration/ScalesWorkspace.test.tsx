@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,7 +18,7 @@ import {
 } from "./ScalesWorkspace";
 import { stubDialogMethods } from "../../test/domTestUtils";
 
-const scalesCss = readFileSync("src/features/calibration/ScalesWorkspace.module.css", "utf8");
+const scalesCss = readFileSync(resolve(import.meta.dirname, "ScalesWorkspace.module.css"), "utf8");
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
