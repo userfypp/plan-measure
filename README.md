@@ -44,7 +44,7 @@ Projects autosave in this browser, with no cloud sync; clearing site data remove
 
 ## Development
 
-Requires Node.js 24:
+Requires Node.js 24 (pinned in `.nvmrc`):
 
 ```bash
 npm ci
