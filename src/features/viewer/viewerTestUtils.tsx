@@ -13,7 +13,7 @@ import {
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { vi } from "vitest";
 import { createEmptySession } from "../../app/sessionState";
-import { stubDialogMethods } from "../../test/domTestUtils";
+import { stubDialogMethods, stubMatchMedia } from "../../test/domTestUtils";
 import type { CurrentSession, PageState, Point } from "../../types/domain";
 
 export type CapturedProps = Record<string, unknown>;
@@ -248,16 +248,7 @@ export class ControlledResizeObserver implements ResizeObserver {
  * except the `<dialog>` methods, which stay for the rest of the file.
  */
 export function installViewerDomDoubles(): void {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: query.includes("(any-pointer: fine)"),
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatchEvent: vi.fn(() => true),
-  }));
+  stubMatchMedia((query) => query.includes("(any-pointer: fine)"));
   stubDialogMethods();
   ControlledResizeObserver.instances = [];
   vi.stubGlobal("ResizeObserver", ControlledResizeObserver);

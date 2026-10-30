@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, useTheme } from "../../app/themeState";
 import { useCanvasVisualRoles } from "./canvasVisualRoles";
+import { stubMatchMedia } from "../../test/domTestUtils";
 
 function CanvasThemeProbe() {
   const roles = useCanvasVisualRoles();
@@ -36,16 +37,7 @@ describe("canvas visual role theme bridge", () => {
       }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     window.localStorage.clear();
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true),
-    }));
+    stubMatchMedia();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);

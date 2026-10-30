@@ -41,6 +41,7 @@ import {
   ViewerInteractionCommandsProvider,
 } from "./ViewerInteractionCommands";
 import { ViewerBottomExclusionProvider } from "./viewerLayout";
+import { stubMatchMedia } from "../../test/domTestUtils";
 
 const pdfJs = vi.hoisted(() => ({
   getDocument: vi.fn(),
@@ -406,16 +407,7 @@ describe("PdfViewer render liveness", () => {
         IS_REACT_ACT_ENVIRONMENT: boolean;
       }
     ).IS_REACT_ACT_ENVIRONMENT = true;
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true),
-    }));
+    stubMatchMedia();
     viewerRect = rect(VIEWER_WIDTH, VIEWER_HEIGHT);
     drawImage = vi.fn();
     ControlledResizeObserver.instances = [];
@@ -2713,16 +2705,7 @@ describe("PdfViewer render liveness", () => {
   });
 
   it("renders V2 draft/Snap semantics and uses coarse hit targets on a hybrid pointer", async () => {
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(any-pointer: coarse)",
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true),
-    }));
+    stubMatchMedia((query) => query === "(any-pointer: coarse)");
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
       return 1;

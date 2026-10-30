@@ -1,3 +1,5 @@
+import { vi } from "vitest";
+
 const DIALOG_METHODS = ["show", "showModal", "close"] as const;
 
 /**
@@ -29,4 +31,27 @@ export function stubDialogMethods(): () => void {
       else Reflect.deleteProperty(prototype, name);
     }
   };
+}
+
+/**
+ * Replaces `matchMedia` for the current test; `unstubGlobals` in the Vitest config puts it back.
+ * A query matches when `matches(query)` returns true. Listeners are accepted but never called.
+ */
+export function stubMatchMedia(matches: (query: string) => boolean = () => false): void {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(
+      (query: string) =>
+        ({
+          media: query,
+          matches: matches(query),
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(() => true),
+        }) as MediaQueryList,
+    ),
+  );
 }

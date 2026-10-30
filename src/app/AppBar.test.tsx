@@ -6,21 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import buttonStyles from "../components/ui/Button.module.css";
 import { ThemeProvider } from "./themeState";
 import { AppBar } from "./AppBar";
-import { stubDialogMethods } from "../test/domTestUtils";
-
-class MatchMediaController {
-  readonly matchMedia = (query: string): MediaQueryList =>
-    ({
-      media: query,
-      matches: false,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      dispatchEvent: () => true,
-    }) as MediaQueryList;
-}
+import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -100,10 +86,7 @@ beforeEach(() => {
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    value: new MatchMediaController().matchMedia,
-  });
+  stubMatchMedia();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

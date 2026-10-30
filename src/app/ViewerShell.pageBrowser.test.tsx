@@ -8,6 +8,7 @@ import { ViewerShell } from "./ViewerShell";
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
 import { WorkspaceProvider } from "./workspaceState";
 import { useViewerNavigationRegistration } from "../features/viewer/ViewerNavigation";
+import { stubMatchMedia } from "../test/domTestUtils";
 
 let root: Root, container: HTMLDivElement;
 const shapes = vi.fn(),
@@ -86,9 +87,7 @@ beforeEach(() => {
       disconnect() {}
     },
   );
-  window.matchMedia = vi
-    .fn()
-    .mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() });
+  stubMatchMedia();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     drawImage: vi.fn(),
   } as unknown as CanvasRenderingContext2D);

@@ -14,21 +14,7 @@ import {
 } from "../utils/appPreferences";
 import { SHORTCUT_GROUPS } from "../utils/shortcutReference";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
-import { stubDialogMethods } from "../test/domTestUtils";
-
-class MatchMediaController {
-  readonly matchMedia = (query: string): MediaQueryList =>
-    ({
-      media: query,
-      matches: false,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      dispatchEvent: () => true,
-    }) as MediaQueryList;
-}
+import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -195,10 +181,7 @@ beforeEach(() => {
   document.documentElement.removeAttribute("data-contrast");
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-theme-preference");
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    value: new MatchMediaController().matchMedia,
-  });
+  stubMatchMedia();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

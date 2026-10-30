@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REVEAL_DURATION_MS, revealElements } from "./reveal";
+import { stubMatchMedia } from "../test/domTestUtils";
 
 function animatable() {
   const animate = vi.fn();
@@ -35,10 +36,7 @@ describe("revealElements", () => {
   });
 
   it("does nothing when the system asks for reduced motion", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)" })),
-    );
+    stubMatchMedia((query) => query === "(prefers-reduced-motion: reduce)");
     const { element, animate } = animatable();
     revealElements([element]);
     expect(animate).not.toHaveBeenCalled();
