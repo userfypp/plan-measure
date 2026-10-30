@@ -167,23 +167,20 @@ function aggregateGroup(
   measurements: readonly LocatedMeasurement[],
   calculationsByMeasurement: ReadonlyMap<Measurement, CalculatedMeasurement>,
   archived = false,
-): { group: MeasurementTotalGroup; excludedCount: number } {
+): MeasurementTotalGroup {
   const calculated = measurements.map(({ measurement }) =>
     calculationsByMeasurement.get(measurement)!,
   );
   return {
-    group: {
-      key,
-      label,
-      archived,
-      measurementCount: measurements.length,
-      excludedCount: calculated.filter((result) => result.excluded).length,
-      length: sumQuantity(calculated.map((result) => result.length)),
-      perimeter: sumQuantity(calculated.map((result) => result.perimeter)),
-      area: sumQuantity(calculated.map((result) => result.area)),
-      count: sumQuantity(calculated.map((result) => result.count)),
-    },
+    key,
+    label,
+    archived,
+    measurementCount: measurements.length,
     excludedCount: calculated.filter((result) => result.excluded).length,
+    length: sumQuantity(calculated.map((result) => result.length)),
+    perimeter: sumQuantity(calculated.map((result) => result.perimeter)),
+    area: sumQuantity(calculated.map((result) => result.area)),
+    count: sumQuantity(calculated.map((result) => result.count)),
   };
 }
 
@@ -302,7 +299,7 @@ export function createMeasurementTotals({
     ),
   );
   return {
-    groups: groups.map((entry) => entry.group),
+    groups,
     sourcesByGroup: new Map(
       groupInputs.map((input) => [
         input.key,

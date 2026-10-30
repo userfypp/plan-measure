@@ -6,8 +6,19 @@ export const PAGE_GRID_TARGET_SCREEN_PX: Record<Exclude<PageGrid, "off">, number
   coarse: 96,
 };
 
-/** Hard cap on lines per axis so a tiny step can never flood the canvas. */
-const MAX_LINES_PER_AXIS = 200;
+/**
+ * Hard cap on lines per axis so a tiny step can never flood the canvas. The viewer asks for three
+ * viewports per axis, which stays under it even on a 4K screen with the fine grid (3 × 3840 / 24).
+ */
+const MAX_LINES_PER_AXIS = 500;
+
+/** Page-unit rectangle the grid has to cover; lines outside it are left out. */
+export interface PageGridRange {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
 
 export function pageGridStep(grid: PageGrid, zoom: number): number | null {
   if (grid === "off" || !(zoom > 0)) return null;
@@ -18,22 +29,41 @@ export function pageGridStep(grid: PageGrid, zoom: number): number | null {
   return nice * magnitude;
 }
 
-/** Flat `[x1, y1, x2, y2, ...]` segments (page units) for vertical then horizontal lines. */
+/** Interior multiples of `step` inside `[from, to)`, starting at the first one at or after `from`. */
+function gridPositions(step: number, size: number, from: number, to: number): number[] {
+  const positions: number[] = [];
+  const end = Math.min(size, to);
+  for (
+    let index = Math.max(1, Math.ceil(Math.max(0, from) / step));
+    index * step < end && positions.length < MAX_LINES_PER_AXIS;
+    index += 1
+  ) {
+    positions.push(index * step);
+  }
+  return positions;
+}
+
+/**
+ * Flat `[x1, y1, x2, y2, ...]` segments (page units) for vertical then horizontal lines. With a
+ * `range`, only the lines inside it are generated, so the per-axis cap applies to what is on
+ * screen rather than to the start of the page.
+ */
 export function pageGridLines(
   grid: PageGrid,
   zoom: number,
   width: number,
   height: number,
+  range: PageGridRange = { left: 0, top: 0, right: width, bottom: height },
 ): { vertical: number[]; horizontal: number[] } {
   const step = pageGridStep(grid, zoom);
-  const vertical: number[] = [];
-  const horizontal: number[] = [];
-  if (!step || width <= 0 || height <= 0) return { vertical, horizontal };
-  for (let x = step, n = 0; x < width && n < MAX_LINES_PER_AXIS; x += step, n += 1) {
-    vertical.push(x, 0, x, height);
-  }
-  for (let y = step, n = 0; y < height && n < MAX_LINES_PER_AXIS; y += step, n += 1) {
-    horizontal.push(0, y, width, y);
-  }
-  return { vertical, horizontal };
+  if (!step || width <= 0 || height <= 0) return { vertical: [], horizontal: [] };
+  return {
+    vertical: gridPositions(step, width, range.left, range.right).flatMap((x) => [x, 0, x, height]),
+    horizontal: gridPositions(step, height, range.top, range.bottom).flatMap((y) => [
+      0,
+      y,
+      width,
+      y,
+    ]),
+  };
 }

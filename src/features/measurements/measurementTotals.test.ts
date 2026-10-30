@@ -127,7 +127,8 @@ describe("createMeasurementTotals", () => {
     expect(result.groups[0]).toMatchObject({
       measurementCount: 5,
       length: { kind: "value", value: 5000 },
-      perimeter: { kind: "value", value: expect.any(Number) },
+      // Two right triangles with 1 m legs: 2 × (1 m + 1 m + √2 m).
+      perimeter: { kind: "value", value: expect.closeTo(4000 + 2000 * Math.SQRT2, 9) },
       area: { kind: "value", value: 1000000 },
     });
   });
@@ -415,56 +416,144 @@ describe("createMeasurementTotals", () => {
   });
 });
 
-it("reports exclusion causes without changing calculation or grouping semantics", () => {
-  const missing = measurement(
-    "missing",
-    "line",
-    [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-    ],
-    { calibrationId: "gone" },
-  );
-  const invalid = measurement("invalid", "line", [
-    { x: 0, y: 0 },
-    { x: 0, y: 0 },
-  ]);
-  const badScale = page(
-    2,
-    [
-      measurement("bad-scale", "line", [
+describe("exclusions and mixed inputs", () => {
+  it("reports exclusion causes without changing calculation or grouping semantics", () => {
+    const missing = measurement(
+      "missing",
+      "line",
+      [
         { x: 0, y: 0 },
         { x: 10, y: 0 },
+      ],
+      { calibrationId: "gone" },
+    );
+    const invalid = measurement("invalid", "line", [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ]);
+    const badScale = page(
+      2,
+      [
+        measurement("bad-scale", "line", [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ]),
+      ],
+      0,
+    );
+    const huge = page(
+      3,
+      [
+        measurement("overflow", "line", [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+        ]),
+      ],
+      1e308,
+    );
+    const result = totals({ 1: page(1, [missing, invalid]), 2: badScale, 3: huge });
+    expect(
+      result.excludedMeasurements.map((source) => [
+        source.pageNumber,
+        source.measurement.id,
+        source.exclusionReason,
       ]),
-    ],
-    0,
-  );
-  const huge = page(
-    3,
-    [
-      measurement("overflow", "line", [
+    ).toEqual([
+      [1, "missing", "missing-scale"],
+      [1, "invalid", "invalid-geometry"],
+      [2, "bad-scale", "invalid-scale"],
+      [3, "overflow", "nonfinite-result"],
+    ]);
+    expect(result.sourcesByGroup.get("overall")).toHaveLength(4);
+    expect(result.groups[0]!.length).toEqual({ kind: "absent" });
+    expect(result.excludedCount).toBe(4);
+  });
+
+  it("sums uniform and X/Y scales on the same page with each measurement's own scale", () => {
+    const xy = {
+      id: "xy",
+      name: "X/Y",
+      mode: "xy" as const,
+      xReference: { start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, referenceDistanceMm: 1000 },
+      yReference: { start: { x: 0, y: 0 }, end: { x: 0, y: 10 }, referenceDistanceMm: 3000 },
+    };
+    const base = page(1, [
+      // Uniform, 100 mm per unit: 2 m × 1 m.
+      measurement("uniform-rectangle", "rectangle", [
         { x: 0, y: 0 },
-        { x: 100, y: 0 },
+        { x: 20, y: 0 },
+        { x: 20, y: 10 },
+        { x: 0, y: 10 },
       ]),
-    ],
-    1e308,
-  );
-  const result = totals({ 1: page(1, [missing, invalid]), 2: badScale, 3: huge });
-  expect(
-    result.excludedMeasurements.map((source) => [
-      source.pageNumber,
-      source.measurement.id,
-      source.exclusionReason,
-    ]),
-  ).toEqual([
-    [1, "missing", "missing-scale"],
-    [1, "invalid", "invalid-geometry"],
-    [2, "bad-scale", "invalid-scale"],
-    [3, "overflow", "nonfinite-result"],
-  ]);
-  expect(result.sourcesByGroup.get("overall")).toHaveLength(4);
-  expect(result.groups[0]!.length).toEqual({ kind: "absent" });
-  expect(result.excludedCount).toBe(4);
+      // X/Y, 100 mm across and 300 mm down per unit: the same box is 2 m × 3 m.
+      measurement(
+        "xy-rectangle",
+        "rectangle",
+        [
+          { x: 0, y: 0 },
+          { x: 20, y: 0 },
+          { x: 20, y: 10 },
+          { x: 0, y: 10 },
+        ],
+        { calibrationId: "xy" },
+      ),
+      // X/Y, 10 units down: 3 m.
+      measurement(
+        "xy-line",
+        "line",
+        [
+          { x: 0, y: 0 },
+          { x: 0, y: 10 },
+        ],
+        { calibrationId: "xy" },
+      ),
+    ]);
+    const result = totals({ 1: { ...base, calibrations: [...base.calibrations, xy] } }, "type");
+
+    expect(
+      result.groups.map((group) => [group.label, group.length, group.perimeter, group.area]),
+    ).toEqual([
+      ["Line", { kind: "value", value: 3000 }, { kind: "absent" }, { kind: "absent" }],
+      [
+        "Rectangle",
+        { kind: "absent" },
+        { kind: "value", value: 6000 + 10000 },
+        { kind: "value", value: 2_000_000 + 6_000_000 },
+      ],
+    ]);
+  });
+
+  it("counts hidden Count markers and excludes a Count without points", () => {
+    const count = (id: string, points: Measurement["points"], visible = true): Measurement => ({
+      id,
+      name: id,
+      type: "count",
+      points,
+      calibrationId: null,
+      classificationValueIds: [],
+      visible,
+    });
+    const result = totals({
+      1: page(1, [
+        count("visible", [
+          { x: 1, y: 1 },
+          { x: 2, y: 2 },
+        ]),
+        count("hidden", [{ x: 3, y: 3 }], false),
+        count("empty", []),
+      ]),
+    });
+
+    expect(result.groups[0]).toMatchObject({
+      measurementCount: 3,
+      excludedCount: 1,
+      count: { kind: "value", value: 3 },
+      length: { kind: "absent" },
+    });
+    expect(result.excludedMeasurements.map((source) => source.exclusionReason)).toEqual([
+      "invalid-geometry",
+    ]);
+  });
 });
 
 describe("revision clouds in totals", () => {
