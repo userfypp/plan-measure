@@ -1,5 +1,4 @@
 import "fake-indexeddb/auto";
-// @ts-expect-error Vitest runs this test in Node; the app's TypeScript intentionally omits Node types.
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave } from "../app/autosave";

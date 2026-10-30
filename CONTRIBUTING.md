@@ -6,7 +6,7 @@ Search existing issues, then use the bug or feature request template. Keep each 
 
 ## Development
 
-Requires Node.js 24 and npm:
+Requires Node.js 24, pinned in `.nvmrc` (`nvm use` picks it up), and npm:
 
 ```bash
 npm ci
@@ -25,10 +25,13 @@ git diff --check
 
 CI fails on unformatted files; `npm run format` fixes them.
 
-Two more checks, when they apply:
+More checks, when they apply:
 
 - Changed `.github/scripts`? Run `node --test .github/scripts/*.test-node.mjs`.
 - Changed dependencies, startup or the viewer? Run `npm run build && npm run perf:size`. The required `size` check fails when a size budget is exceeded.
+- Changed startup, loading or the app shell? Run `npm run build && npm run test:smoke`, which opens the start screen and the sample project in Chromium and fails on any page error. It needs `npm ci --prefix perf` and `./perf/node_modules/.bin/playwright install chromium` once.
+
+`npm run test:coverage` runs the tests with coverage and writes an HTML report to `coverage/`. CI shows the totals in the job summary; there is no threshold.
 
 ## Pull requests
 
