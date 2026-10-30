@@ -1,13 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Vite injects this config file's directory; typed here instead of pulling in @types/node.
-declare global {
-  interface ImportMeta {
-    readonly dirname: string;
-  }
-}
-
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/plan-measure/" : "/",
   plugins: [react()],

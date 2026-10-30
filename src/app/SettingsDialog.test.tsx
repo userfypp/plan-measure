@@ -1192,7 +1192,7 @@ describe("SettingsDialog", () => {
     await openSettings();
     openTab("Advanced");
     await act(async () => undefined);
-    expect(dialog().textContent).toContain("Using 5.3 MB of 2048 MB");
+    expect(dialog().textContent).toContain("Using 5.3 MiB of 2048 MiB");
     expect(
       Array.from(dialog().querySelectorAll("button")).some((b) =>
         /clear|delete/i.test(b.textContent ?? ""),

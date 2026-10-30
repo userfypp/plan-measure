@@ -260,7 +260,7 @@ const TEXT_SIZE_OPTIONS = [
   { value: "125", label: "125%" },
 ] as const;
 
-const BYTES_PER_MB = 1024 * 1024;
+const BYTES_PER_MIB = 1024 * 1024;
 
 /** Read-only browser storage estimate; falls back to a note when the API is missing or fails. */
 function StorageUsageRow() {
@@ -284,7 +284,7 @@ function StorageUsageRow() {
           return;
         }
         setText(
-          `Using ${(usage / BYTES_PER_MB).toFixed(1)} MB of ${Math.round(quota / BYTES_PER_MB)} MB`,
+          `Using ${(usage / BYTES_PER_MIB).toFixed(1)} MiB of ${Math.round(quota / BYTES_PER_MIB)} MiB`,
         );
       })
       .catch(unavailable);

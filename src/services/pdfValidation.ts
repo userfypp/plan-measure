@@ -14,6 +14,6 @@ export function validatePdfFile(file: File): void {
     throw new PdfUserError("Unsupported file type. Choose a PDF file.");
   }
   if (file.size > MAX_PDF_SIZE_BYTES) {
-    throw new PdfUserError("This PDF is larger than the 100 MB limit.");
+    throw new PdfUserError("This PDF is larger than the 100 MiB limit.");
   }
 }

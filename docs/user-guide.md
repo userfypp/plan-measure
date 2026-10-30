@@ -49,7 +49,7 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 In **Classifications**, create dimensions such as Trade with values such as Electrical. Archive entries to keep their assignments; delete them to remove the assignments from the whole project. **Templates** saves a reusable catalog on this device. Applying a template adds the missing entries and reuses matching names without changing any assignment; restore matching archived entries first.
 
-**Measurements** lists the current page, with a search box, a filter menu and a grouping menu (icon buttons; hover for their names) that nests entries by classification. The eye button on a row or group hides or shows it.
+**Measurements** lists all pages by default; set the **Page** filter to **This page** or another page to narrow it. It has a search box, a filter menu and a grouping menu (icon buttons; hover for their names) that nests entries by classification. The eye button on a row or group hides or shows it.
 
 **Takeoff** totals all pages, hidden measurements included, with breakdowns by page, type or classification. Lines and Polylines add length, Polygons add perimeter and area, and Count markers add items. Measurements that cannot be calculated are left out with a notice; choose **Inspect** on it to see which ones and why. Open a measurement count to see its sources, then select one to jump to its page and details. Source lists over 50 measurements use **Previous** and **Next**.
 
