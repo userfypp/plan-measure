@@ -32,10 +32,17 @@ export function withHexAlpha(color: string, alpha: number): string {
   return `${color}${byte.toString(16).padStart(2, "0")}`;
 }
 
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** Channels of a `#rgb` or `#rrggbb` color; throws on anything else instead of returning NaN. */
 export function hexToRgb(color: string): { r: number; g: number; b: number } {
+  if (!HEX_COLOR.test(color))
+    throw new RangeError(`Expected a #rgb or #rrggbb color, got ${JSON.stringify(color)}`);
+  const hex =
+    color.length === 4 ? color.slice(1).replace(/./g, (digit) => digit + digit) : color.slice(1);
   return {
-    r: parseInt(color.slice(1, 3), 16),
-    g: parseInt(color.slice(3, 5), 16),
-    b: parseInt(color.slice(5, 7), 16),
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16),
   };
 }

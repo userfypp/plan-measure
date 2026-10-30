@@ -47,6 +47,31 @@ describe("hexToRgb", () => {
   ])("converts %s into separate channels", (color, expected) => {
     expect(hexToRgb(color)).toEqual(expected);
   });
+
+  it.each<[string, { r: number; g: number; b: number }]>([
+    ["#abc", { r: 170, g: 187, b: 204 }],
+    ["#FFF", { r: 255, g: 255, b: 255 }],
+    ["#000", { r: 0, g: 0, b: 0 }],
+  ])("expands the shorthand %s", (color, expected) => {
+    expect(hexToRgb(color)).toEqual(expected);
+  });
+
+  it.each([
+    "",
+    "#",
+    "abc",
+    "d92d20",
+    "#ab",
+    "#abcd",
+    "#d92d2",
+    "#d92d200",
+    "#d92d20ff",
+    "#ggg",
+    " #abc",
+    "red",
+  ])("rejects %j instead of returning NaN channels", (color) => {
+    expect(() => hexToRgb(color)).toThrow(RangeError);
+  });
 });
 
 describe("withHexAlpha", () => {
