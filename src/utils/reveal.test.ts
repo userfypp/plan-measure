@@ -15,6 +15,10 @@ afterEach(() => {
 });
 
 describe("revealElements", () => {
+  it("matches the dialog enter duration", () => {
+    expect(REVEAL_DURATION_MS).toBe(180);
+  });
+
   it("fades each present element in with an opacity-only animation", () => {
     const canvas = animatable();
     const stage = animatable();
@@ -22,8 +26,8 @@ describe("revealElements", () => {
     for (const { animate } of [canvas, stage]) {
       expect(animate).toHaveBeenCalledOnce();
       expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], {
-        duration: REVEAL_DURATION_MS,
-        easing: expect.any(String),
+        duration: 180,
+        easing: "cubic-bezier(0.2, 0, 0, 1)",
       });
     }
   });

@@ -101,4 +101,80 @@ describe("page labels", () => {
       }),
     ).toEqual({ kind: "remove" });
   });
+
+  it("sets a trimmed custom label that differs from the source and the current override", () => {
+    expect(
+      decidePageLabelOverride({
+        draft: "  A-201  ",
+        originalEffectiveLabel: "A-101",
+        customPageLabel: null,
+        sourcePageLabel: "A-101",
+      }),
+    ).toEqual({ kind: "set", value: "A-201" });
+    expect(
+      decidePageLabelOverride({
+        draft: "Level 2",
+        originalEffectiveLabel: "Level 1",
+        customPageLabel: "Level 1",
+        sourcePageLabel: null,
+      }),
+    ).toEqual({ kind: "set", value: "Level 2" });
+  });
+
+  it("keeps an override that only gained surrounding spaces", () => {
+    expect(
+      decidePageLabelOverride({
+        draft: " Level 1 ",
+        originalEffectiveLabel: "Level 1",
+        customPageLabel: "Level 1",
+        sourcePageLabel: null,
+      }),
+    ).toEqual({ kind: "unchanged" });
+  });
+
+  it("removes an override when the draft is cleared, and leaves a page without one alone", () => {
+    expect(
+      decidePageLabelOverride({
+        draft: "   ",
+        originalEffectiveLabel: "Custom",
+        customPageLabel: "Custom",
+        sourcePageLabel: "A-101",
+      }),
+    ).toEqual({ kind: "remove" });
+    expect(
+      decidePageLabelOverride({
+        draft: "",
+        originalEffectiveLabel: "A-101",
+        customPageLabel: null,
+        sourcePageLabel: "A-101",
+      }),
+    ).toEqual({ kind: "unchanged" });
+    expect(
+      decidePageLabelOverride({
+        draft: " ",
+        originalEffectiveLabel: "",
+        customPageLabel: null,
+        sourcePageLabel: null,
+      }),
+    ).toEqual({ kind: "unchanged" });
+  });
+
+  it("rejects a draft with a control character before any other decision", () => {
+    expect(
+      decidePageLabelOverride({
+        draft: "A\tB",
+        originalEffectiveLabel: "Custom",
+        customPageLabel: "Custom",
+        sourcePageLabel: "A-101",
+      }),
+    ).toEqual({ kind: "invalid" });
+    expect(
+      decidePageLabelOverride({
+        draft: " \n ",
+        originalEffectiveLabel: "A-101",
+        customPageLabel: null,
+        sourcePageLabel: "A-101",
+      }),
+    ).toEqual({ kind: "invalid" });
+  });
 });

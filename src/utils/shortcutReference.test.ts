@@ -63,12 +63,38 @@ describe("shortcut reference", () => {
 
   it("lists the tool shortcuts 1:1 with the viewer registry", () => {
     expect(tools?.title).toBe("Tools");
-    expect(tools?.entries).toEqual(
-      viewerShortcuts.map((shortcut) => ({
-        label: shortcut.label,
-        keys: shortcut.key.toUpperCase(),
-      })),
+    expect(tools?.entries).toEqual([
+      { label: "Select", keys: "V" },
+      { label: "Hand", keys: "H" },
+      { label: "Line", keys: "L" },
+      { label: "Polyline", keys: "M" },
+      { label: "Polygon", keys: "P" },
+      { label: "Rectangle", keys: "R" },
+      { label: "Ellipse", keys: "I" },
+      { label: "Cloud", keys: "K" },
+      { label: "Count", keys: "C" },
+      { label: "Ortho 90°", keys: "O" },
+      { label: "Snap", keys: "S" },
+    ]);
+    expect(tools?.entries.map(({ keys }) => keys.toLowerCase())).toEqual(
+      viewerShortcuts.map(({ key }) => key),
     );
+  });
+
+  it("shows the literal keys for viewing and editing", () => {
+    expect(other?.title).toBe("View and editing");
+    expect(other?.entries).toEqual([
+      { label: "Pan (hold)", keys: "Space" },
+      { label: "Zoom in", keys: "+" },
+      { label: "Zoom out", keys: "-" },
+      { label: "Finish measurement", keys: "Enter" },
+      { label: "Cancel or leave tool", keys: "Esc" },
+      { label: "Delete selected", keys: "Delete" },
+      { label: "Copy", keys: "Ctrl/⌘+C" },
+      { label: "Paste", keys: "Ctrl/⌘+V" },
+      { label: "Undo", keys: "Ctrl/⌘+Z" },
+      { label: "Redo", keys: "Ctrl/⌘+Shift+Z" },
+    ]);
   });
 
   it("resolves every tool key to its registered action", () => {

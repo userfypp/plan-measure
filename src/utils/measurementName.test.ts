@@ -12,6 +12,19 @@ describe("normalizeMeasurementName", () => {
     expect(normalizeMeasurementName(name)).toBeNull();
   });
 
+  it.each(["\u00a0", " \u00a0\u202f ", "\ufeff", "\u200b", "\u200c\u200d", " \u2060\u200b "])(
+    "rejects a name made only of non-breaking or zero-width spaces: %j",
+    (name) => {
+      expect(normalizeMeasurementName(name)).toBeNull();
+    },
+  );
+
+  it("keeps zero-width characters inside a visible name", () => {
+    expect(normalizeMeasurementName(" Wall\u200bA ")).toBe("Wall\u200bA");
+    // Devanagari "ksha" with a zero-width joiner stays as typed.
+    expect(normalizeMeasurementName("क्\u200dष")).toBe("क्\u200dष");
+  });
+
   it("keeps the empty-name error message", () => {
     expect(MEASUREMENT_NAME_EMPTY_ERROR).toBe("Measurement name cannot be empty.");
   });
