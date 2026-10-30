@@ -9,6 +9,7 @@ import { AppProvider } from "../../app/state";
 import { ThemeProvider } from "../../app/themeState";
 import { useWorkspaceState, WorkspaceProvider } from "../../app/workspaceState";
 import type { CurrentSession, Point, ViewTransform } from "../../types/domain";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import { pageToScreen, screenToPage } from "../../utils/coordinates";
 import { formatLinearValue } from "../../utils/format";
 import { PdfViewer } from "./PdfViewer";
@@ -639,6 +640,36 @@ describe("PdfViewer behavior", () => {
       expect(transform().zoom).toBeCloseTo(fit.zoom / 1.25, 6);
       await act(async () => navigation!.onFit());
       expect(transform()).toEqual(fit);
+    });
+
+    it("zooms out at once when a lower maximum zoom is chosen", async () => {
+      await mount(createCalibratedSession());
+      try {
+        for (let step = 0; step < 20; step += 1) await act(async () => navigation!.onZoomIn());
+        expect(transform().zoom).toBe(8);
+        await act(async () => setAppPreference("maxZoom", 4));
+        expect(transform().zoom).toBe(4);
+        expect(navigation!.zoom).toBe(4);
+        await act(async () => setAppPreference("maxZoom", 16));
+        expect(transform().zoom).toBe(4);
+      } finally {
+        resetAppPreferences();
+      }
+    });
+
+    it("applies a lower maximum zoom to a fitted page", async () => {
+      await mount(
+        createCalibratedSession(),
+        createPdfDocument({ 1: createPdfPage({ width: 50, height: 50 }) }),
+      );
+      try {
+        expect(transform().zoom).toBe(8);
+        await act(async () => setAppPreference("maxZoom", 4));
+        expect(transform().zoom).toBe(4);
+        expect(navigation!.zoom).toBe(4);
+      } finally {
+        resetAppPreferences();
+      }
     });
   });
 

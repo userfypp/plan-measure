@@ -147,6 +147,10 @@ describe("MeasurementCollection keyboard model", () => {
       control("line-1", "selection"),
     ]);
     expect(rowControls.every((button) => button.tabIndex <= 0)).toBe(true);
+    // The list shows every page unless the Page filter narrows it, so its name names no page.
+    expect(container!.querySelector('[role="list"]')?.getAttribute("aria-label")).toBe(
+      "Measurements",
+    );
   });
 
   it("uses vertical arrows for rows and horizontal arrows for the row action", () => {
