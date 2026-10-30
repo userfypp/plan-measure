@@ -7,7 +7,9 @@ import { readProjectFile } from "../services/projectFile";
 // must read as the ratio printed on its sheet, not a hand-picked approximation of it.
 describe("orchard-house sample project", () => {
   it("calibrates every scale to the exact ratio printed on its scale bar", async () => {
-    const file = new Blob([readFileSync("assets/orchard-house-sample.planmeasure")]);
+    const file = new Blob([
+      readFileSync(new URL("../../assets/orchard-house-sample.planmeasure", import.meta.url)),
+    ]);
     const { session } = await readProjectFile(file);
 
     const labels = Object.values(session.pages).flatMap((page) =>

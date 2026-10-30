@@ -7,11 +7,11 @@ import { Dialog } from "./Dialog";
 import { Popover } from "./Popover";
 import { useRovingFocusGroup } from "./rovingFocus";
 import { useManagedTabNavigation } from "./tabNavigation";
+import { stubDialogMethods } from "../../test/domTestUtils";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
-let showDescriptor: PropertyDescriptor | undefined;
-let closeDescriptor: PropertyDescriptor | undefined;
+let restoreDialogMethods = () => {};
 
 function FocusHarness({ showTrap = false }: { showTrap?: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -100,22 +100,7 @@ beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
-  showDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "show");
-  closeDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close");
-  Object.defineProperty(HTMLDialogElement.prototype, "show", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      if (!this.open) return;
-      this.open = false;
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -124,21 +109,10 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   root = null;
   container = null;
-  if (showDescriptor) {
-    Object.defineProperty(HTMLDialogElement.prototype, "show", showDescriptor);
-  } else {
-    Reflect.deleteProperty(HTMLDialogElement.prototype, "show");
-  }
-  if (closeDescriptor) {
-    Object.defineProperty(HTMLDialogElement.prototype, "close", closeDescriptor);
-  } else {
-    Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
-  }
-  showDescriptor = undefined;
-  closeDescriptor = undefined;
 });
 
 describe("managed application Tab navigation", () => {

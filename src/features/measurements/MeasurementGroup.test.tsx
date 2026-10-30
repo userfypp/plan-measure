@@ -1,13 +1,14 @@
 /* @vitest-environment jsdom */
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MeasurementGroup } from "./MeasurementGroup";
 
 const measurementGroupCss = readFileSync(
-  "src/features/measurements/MeasurementGroup.module.css",
+  resolve(import.meta.dirname, "MeasurementGroup.module.css"),
   "utf8",
 );
 

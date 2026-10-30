@@ -5,8 +5,8 @@ import { createProjectFile, readProjectFile } from "../services/projectFile";
 import { getMeasurementCalibration } from "../utils/calibration";
 import { isValidPageCalibration, measurementResultsMm } from "../utils/geometry";
 
-const SAMPLE_PDF = "assets/orchard-house-sample.pdf";
-const SAMPLE_PROJECT = "assets/orchard-house-sample.planmeasure";
+const SAMPLE_PDF = new URL("../../assets/orchard-house-sample.pdf", import.meta.url);
+const SAMPLE_PROJECT = new URL("../../assets/orchard-house-sample.planmeasure", import.meta.url);
 
 // Reference values come from the sample PDF's own geometry (scripts/sample/geometry.mjs). The
 // bundled measurements were drawn by hand, so they only agree within a small tolerance.

@@ -8,14 +8,12 @@ import { createSaveStatusStore, SAVE_STATUS_TEXT, type SaveState } from "./saveS
 import { SessionProvider, useMeasurementCommands } from "./sessionState";
 import { AppProvider } from "./state";
 import { ThemeProvider } from "./themeState";
+import { stubMatchMedia } from "../test/domTestUtils";
 
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
-  );
+  stubMatchMedia();
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;

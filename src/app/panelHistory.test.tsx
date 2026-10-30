@@ -15,9 +15,11 @@ import type { CurrentSession, PageState, PathMeasurement } from "../types/domain
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
 import { AppProvider } from "./state";
 import { WorkspaceProvider } from "./workspaceState";
+import { stubDialogMethods } from "../test/domTestUtils";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let restoreDialogMethods = () => {};
 
 function line(id: string, name: string): PathMeasurement {
   return {
@@ -202,20 +204,7 @@ beforeEach(() => {
     configurable: true,
     value: () => undefined,
   });
-  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      this.open = true;
-    },
-  });
-  Object.defineProperty(HTMLDialogElement.prototype, "close", {
-    configurable: true,
-    value(this: HTMLDialogElement) {
-      if (!this.open) return;
-      this.open = false;
-      this.dispatchEvent(new Event("close"));
-    },
-  });
+  restoreDialogMethods = stubDialogMethods();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -234,6 +223,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root?.unmount());
+  restoreDialogMethods();
   container?.remove();
   root = null;
   container = null;

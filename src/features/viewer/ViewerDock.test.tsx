@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,10 +14,19 @@ import {
 import type { PageCalibration } from "../../types/domain";
 import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
 
-const dockCss = readFileSync("src/features/viewer/ViewerDock.module.css", "utf8");
-const buttonCss = readFileSync("src/components/ui/Button.module.css", "utf8");
-const controlStatesCss = readFileSync("src/components/ui/controlStates.css", "utf8");
-const popoverCss = readFileSync("src/components/ui/Popover.module.css", "utf8");
+const dockCss = readFileSync(resolve(import.meta.dirname, "ViewerDock.module.css"), "utf8");
+const buttonCss = readFileSync(
+  resolve(import.meta.dirname, "../../components/ui/Button.module.css"),
+  "utf8",
+);
+const controlStatesCss = readFileSync(
+  resolve(import.meta.dirname, "../../components/ui/controlStates.css"),
+  "utf8",
+);
+const popoverCss = readFileSync(
+  resolve(import.meta.dirname, "../../components/ui/Popover.module.css"),
+  "utf8",
+);
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
