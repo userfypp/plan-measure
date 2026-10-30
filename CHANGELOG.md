@@ -4,6 +4,26 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.11.4](https://github.com/userfypp/plan-measure/compare/v2.11.3...v2.11.4) (2026-10-30)
+
+
+### Fixed
+
+* apply a lower maximum zoom to the current view at once ([#428](https://github.com/userfypp/plan-measure/issues/428)) ([6f9f3e9](https://github.com/userfypp/plan-measure/commit/6f9f3e964b5893d91eb490bf4c2e2133e4640088))
+* draw the page grid wherever the view is on large pages ([#440](https://github.com/userfypp/plan-measure/issues/440)) ([c4af64b](https://github.com/userfypp/plan-measure/commit/c4af64b8e9f8732ef3b9c0102772fa1420d0017a))
+* ignore right and middle clicks when selecting a measurement ([#429](https://github.com/userfypp/plan-measure/issues/429)) ([a91f1df](https://github.com/userfypp/plan-measure/commit/a91f1df2532100226e01fb14ebf35903a0eb4ea4))
+* keep measurement group keys unique for imported classification IDs ([#427](https://github.com/userfypp/plan-measure/issues/427)) ([e16a893](https://github.com/userfypp/plan-measure/commit/e16a893839ce12da85434b27c66802a69c32530f))
+* keep the page window in range for negative scroll positions ([#435](https://github.com/userfypp/plan-measure/issues/435)) ([7d59458](https://github.com/userfypp/plan-measure/commit/7d59458760091516f221400b45c033e5610ba7b6))
+* show the PDF size limit and storage use in MiB ([#431](https://github.com/userfypp/plan-measure/issues/431)) ([89d069f](https://github.com/userfypp/plan-measure/commit/89d069fcbdb89c9ca402a0742c5fc23698d9b446))
+* stop describing the Measurements list as the current page only ([#432](https://github.com/userfypp/plan-measure/issues/432)) ([20946a4](https://github.com/userfypp/plan-measure/commit/20946a4ba064d5a669bccbbe40c22bc827a5c118))
+* stop failed read and discard transactions from raising unhandled rejections ([#414](https://github.com/userfypp/plan-measure/issues/414)) ([7c37799](https://github.com/userfypp/plan-measure/commit/7c37799291f733f6adf90e1124ada438cbbd7cf5))
+
+
+### Documentation
+
+* bring the roadmap up to date and point the architecture checks to CONTRIBUTING ([#436](https://github.com/userfypp/plan-measure/issues/436)) ([9a788c4](https://github.com/userfypp/plan-measure/commit/9a788c4621264ff0f767d4d96110a9b7162cbf22))
+* correct the FPS target status in the performance guide ([#430](https://github.com/userfypp/plan-measure/issues/430)) ([3463b1f](https://github.com/userfypp/plan-measure/commit/3463b1f4b04bd0583f37a1ea85a3ea72f50d3337))
+
 ## [2.11.3](https://github.com/userfypp/plan-measure/compare/v2.11.2...v2.11.3) (2026-10-28)
 
 
