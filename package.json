@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "build": "tsc -b && vite build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -19,7 +20,8 @@
     "perf:e2e": "node perf/run.mjs",
     "perf:e2e:strict": "node perf/run.mjs --strict",
     "perf:update-baseline": "node perf/run.mjs --update-baseline",
-    "perf:selftest": "node --test perf/budgets.check.mjs"
+    "perf:selftest": "node --test perf/budgets.check.mjs",
+    "test:smoke": "node perf/smoke.mjs"
   },
   "dependencies": {
     "fflate": "0.8.3",
@@ -33,9 +35,11 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "6.1.2",
+    "@vitest/coverage-v8": "5.0.5",
     "eslint": "10.13.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",
