@@ -178,14 +178,13 @@ network, GC, OS, or automation overhead, and it should be treated as a secondary
 signal.
 
 Compares the medians of five samples with `perf/baseline.json`. Fails on a
-regression
-
-> 30% of metrics (for small counts, 2 long tasks, 10 shapes, or 20 additional nodes
-> are tolerated). FPS fails with a drop >30%. In normal mode, the absolute targets
-> M1000/4x ≥30 FPS and M5000/1x ≥30 FPS on the real unnormalized median
-> (`rawMedianFps`) produce visible warnings in the console and in the GitHub Actions
-> summary, without blocking the run. The initial baseline is still below both. Only
-> strict mode additionally requires those minimums:
+regression of more than 30% in any metric (for small counts, 2 long tasks, 10
+shapes, or 20 additional nodes are tolerated). FPS fails with a drop of more than
+30%. In normal mode, the absolute zoom targets M1000/4x ≥30 FPS and M5000/1x ≥30
+FPS on the real unnormalized median (`rawMedianFps`) produce visible warnings in
+the console and in the GitHub Actions summary, without blocking the run. The
+current baseline meets both (about 58 FPS each, with no `targetWarnings`). Only
+strict mode additionally requires those minimums:
 
 ```sh
 npm run perf:e2e:strict
@@ -359,9 +358,9 @@ to verify the budgets.
 
 The `performance.yml` workflow runs the size checks and selftests on PRs and main
 (the comparison with the base only on PRs); e2e in normal mode via
-`workflow_dispatch` and a weekly cron. Strict mode is optional, to enforce
-the absolute target once it is reached. Shared runners are noisy, and normalization
-does not turn them into a lab. A failure there requires confirmation before
+`workflow_dispatch` and a weekly cron. Strict mode, which also enforces the
+absolute targets, is optional and only runs by hand. Shared runners are noisy,
+and normalization does not turn them into a lab. A failure there requires confirmation before
 accepting new references. It never updates the baseline automatically. The
 scenarios are synthetic; CPU 4x does not identify a physical device. Playwright's
 WebKit is not equivalent to Safari; this automated layer uses Chromium.

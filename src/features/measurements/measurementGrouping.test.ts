@@ -244,6 +244,49 @@ describe("createMeasurementGroups", () => {
       label: "Planned",
     });
   });
+
+  it("keeps keys unique when classification IDs contain the key separators", () => {
+    // Without encoding, the top-level value "v1/dimension:d2:value:v2" and the child "v2" beneath
+    // "v1" both produce the key "dimension:d1:value:v1/dimension:d2:value:v2".
+    const imported: ClassificationCatalog = {
+      dimensions: [
+        {
+          id: "d1",
+          name: "First",
+          archived: false,
+          values: [
+            { id: "v1", name: "One", archived: false },
+            { id: "v1/dimension:d2:value:v2", name: "Lookalike", archived: false },
+          ],
+        },
+        {
+          id: "d2",
+          name: "Second",
+          archived: false,
+          values: [{ id: "v2", name: "Two", archived: false }],
+        },
+      ],
+    };
+    const groups = createMeasurementGroups(
+      [measurement("nested", ["v1", "v2"]), measurement("lookalike", ["v1/dimension:d2:value:v2"])],
+      imported,
+      ["d1", "d2"],
+    );
+
+    const keys: string[] = [];
+    const collect = (list: readonly MeasurementGroup[] | undefined) => {
+      for (const item of list ?? []) {
+        keys.push(item.key);
+        collect(item.children);
+      }
+    };
+    collect(groups);
+
+    expect(groups.map((item) => item.label)).toEqual(["One", "Lookalike"]);
+    expect(groups[0]?.children?.map((item) => item.label)).toEqual(["Two"]);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(groups[1]?.key).toBe("dimension:d1:value:v1%2Fdimension%3Ad2%3Avalue%3Av2");
+  });
 });
 
 function group(

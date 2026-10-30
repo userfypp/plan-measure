@@ -20,5 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Tests run in Node and get its types through tsconfig.test.json; the app never does.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
