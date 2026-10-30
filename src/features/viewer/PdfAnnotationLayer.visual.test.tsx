@@ -266,7 +266,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     expect(Number(captured.labels[0]!.x)).toBeGreaterThan(33);
     expect(captured.lines[0]!.visible).toBe(false);
     const click = captured.circles[0]!.onClick as (event: unknown) => void;
-    click({ evt: {}, cancelBubble: false });
+    click({ evt: { button: 0 }, cancelBubble: false });
     expect(select).toHaveBeenCalledWith("count", undefined);
     page.measurements[0]!.visible = false;
     captured.circles.length = 0;
@@ -848,7 +848,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     const select = captured.lines[0]!.onClick as (event: unknown) => void;
     const event = {
       cancelBubble: false,
-      evt: { shiftKey: false, ctrlKey: false, metaKey: false, [modifier]: true },
+      evt: { button: 0, shiftKey: false, ctrlKey: false, metaKey: false, [modifier]: true },
     };
     act(() => select(event));
     expect(event.cancelBubble).toBe(true);

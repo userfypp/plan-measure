@@ -1,4 +1,3 @@
-// @ts-expect-error Vitest executes this regression test in Node; app TypeScript intentionally omits Node types.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { scaleDisplayMetadata } from "../features/viewer/scaleDisplay";
