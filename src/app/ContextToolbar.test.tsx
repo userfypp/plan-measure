@@ -928,7 +928,9 @@ describe("selection shortcuts", () => {
 
     it("duplicates a multiple selection as the button does", () => {
       const duplicate = vi.fn();
-      renderToolbar(props({ selectedMeasurements: pair, onDuplicateSelectedMeasurement: duplicate }));
+      renderToolbar(
+        props({ selectedMeasurements: pair, onDuplicateSelectedMeasurement: duplicate }),
+      );
       pressKey("d", { ctrlKey: true });
       expect(duplicate).toHaveBeenCalledOnce();
     });
