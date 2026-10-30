@@ -15,9 +15,13 @@ describe("PDF file validation", () => {
     expect(() => validatePdfFile(fileLike("plan.png", "image/png", 100))).toThrow(PdfUserError);
   });
 
-  it("rejects files over 100 MB before loading", () => {
+  it("accepts files up to 100 MiB and rejects larger ones before loading", () => {
+    expect(MAX_PDF_SIZE_BYTES).toBe(104_857_600);
+    expect(() =>
+      validatePdfFile(fileLike("large.pdf", "application/pdf", MAX_PDF_SIZE_BYTES)),
+    ).not.toThrow();
     expect(() =>
       validatePdfFile(fileLike("large.pdf", "application/pdf", MAX_PDF_SIZE_BYTES + 1)),
-    ).toThrow("100 MB");
+    ).toThrow("This PDF is larger than the 100 MiB limit.");
   });
 });

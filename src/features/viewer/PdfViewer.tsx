@@ -17,6 +17,7 @@ import {
   ZOOM_STEP_FACTOR,
   getAppPreferences,
   wheelAction,
+  type AppPreferences,
   type DefaultZoom,
   returnsToSelectAfterFinishing,
   useAppPreferences,
@@ -180,8 +181,16 @@ function fitTransformFor(
   bounds: Pick<LogicalPageBounds, "width" | "height">,
   viewer: { width: number; height: number },
   defaultZoom: DefaultZoom,
+  maxZoom: AppPreferences["maxZoom"],
 ): ViewTransform {
-  return initialViewTransform(mode === "page" ? "fit-page" : defaultZoom, bounds, viewer);
+  return initialViewTransform(
+    mode === "page" ? "fit-page" : defaultZoom,
+    bounds,
+    viewer,
+    undefined,
+    undefined,
+    maxZoom,
+  );
 }
 
 export function PdfViewer({
@@ -213,6 +222,7 @@ export function PdfViewer({
     fillOpacity,
     handleSize,
     defaultZoom,
+    maxZoom,
     wheelBehavior,
     crosshairCursor,
     liveLength,
@@ -652,15 +662,23 @@ export function PdfViewer({
     if (!bounds || safeViewer.size.width <= 0 || safeViewer.size.height <= 0 || !fitMode) return;
     // The view transform intentionally follows ResizeObserver output while fit mode is active.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    commitTransform(fitTransformFor(fitMode, bounds, safeViewer.size, defaultZoom));
-  }, [bounds, safeViewer.size, fitMode, defaultZoom, commitTransform]);
+    commitTransform(fitTransformFor(fitMode, bounds, safeViewer.size, defaultZoom, maxZoom));
+  }, [bounds, safeViewer.size, fitMode, defaultZoom, maxZoom, commitTransform]);
+
+  useEffect(() => {
+    // Every zoom gesture clamps to the maximum zoom, so only a lower limit from Settings can leave
+    // the view above it. Zoom out to the new limit around the viewer centre.
+    const current = transformRef.current;
+    if (fitMode || current.zoom <= maxZoom || !safeViewer.center) return;
+    commitTransform(zoomViewAtPoint(current, safeViewer.center, maxZoom));
+  }, [fitMode, maxZoom, safeViewer.center, commitTransform]);
 
   const viewTransform = useMemo(
     () =>
       bounds && safeViewer.size.width > 0 && safeViewer.size.height > 0 && fitMode
-        ? fitTransformFor(fitMode, bounds, safeViewer.size, defaultZoom)
+        ? fitTransformFor(fitMode, bounds, safeViewer.size, defaultZoom, maxZoom)
         : transform,
-    [bounds, defaultZoom, fitMode, safeViewer.size, transform],
+    [bounds, defaultZoom, fitMode, maxZoom, safeViewer.size, transform],
   );
 
   // The page grid covers the visible area plus one viewport on each side, so a pan shows grid
