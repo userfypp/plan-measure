@@ -18,4 +18,16 @@ describe("formatSavedDate", () => {
       formatSavedDate(stamp, "medium").length,
     );
   });
+
+  it.each(["short", "medium", "with-time"] as const)(
+    "throws a RangeError for an invalid timestamp in the %s format",
+    (format) => {
+      expect(() => formatSavedDate(NaN, format)).toThrow(RangeError);
+    },
+  );
+
+  it("falls back to the locale's default date for an unknown format", () => {
+    const format = "unknown" as unknown as Parameters<typeof formatSavedDate>[1];
+    expect(formatSavedDate(stamp, format)).toBe(new Intl.DateTimeFormat().format(stamp));
+  });
 });

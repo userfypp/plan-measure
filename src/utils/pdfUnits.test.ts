@@ -45,4 +45,23 @@ describe("PDF scale units", () => {
       Number("283.464566929134"),
     );
   });
+
+  it("treats one page unit as a PDF point of 1/72 inch (25.4 / 72 mm)", () => {
+    expect(millimetresPerPageUnitForScaleRatio(1)).toBeCloseTo(25.4 / 72, 15);
+    expect(72 * millimetresPerPageUnitForScaleRatio(1)).toBeCloseTo(25.4, 12);
+    // At 1:100, one inch of paper (72 points) is 2.54 m.
+    expect(72 * millimetresPerPageUnitForScaleRatio(100)).toBeCloseTo(2540, 9);
+  });
+
+  it.each([NaN, Infinity, -Infinity])("has no clean ratio for the non-finite value %s", (value) => {
+    expect(cleanScaleRatioDenominator(value)).toBeNull();
+    expect(practicalScaleRatioDenominator(value)).toBe(value);
+  });
+
+  it("passes non-finite values through the unit conversions", () => {
+    expect(millimetresPerPageUnitForScaleRatio(NaN)).toBeNaN();
+    expect(millimetresPerPageUnitForScaleRatio(Infinity)).toBe(Infinity);
+    expect(scaleRatioDenominatorFromMillimetresPerPageUnit(NaN)).toBeNaN();
+    expect(scaleRatioDenominatorFromMillimetresPerPageUnit(-Infinity)).toBe(-Infinity);
+  });
 });
