@@ -22,15 +22,15 @@ export function filterPages(
   );
 }
 export function pageWindow(count: number, scrollTop: number, height: number) {
-  const first = Math.max(
-    0,
-    Math.min(Math.max(0, count - 1), Math.floor(scrollTop / PAGE_ROW_HEIGHT)),
-  );
+  // Elastic scrolling can report a negative scrollTop while the list bounces past its top.
+  const top = Math.max(0, scrollTop);
+  const bottom = top + Math.max(0, height);
+  const first = Math.min(Math.max(0, count - 1), Math.floor(top / PAGE_ROW_HEIGHT));
   return {
     start: Math.max(0, first - PAGE_OVERSCAN),
-    end: Math.min(count, Math.ceil((scrollTop + height) / PAGE_ROW_HEIGHT) + PAGE_OVERSCAN),
+    end: Math.min(count, Math.ceil(bottom / PAGE_ROW_HEIGHT) + PAGE_OVERSCAN),
     first,
-    last: Math.min(count, Math.ceil((scrollTop + height) / PAGE_ROW_HEIGHT)),
+    last: Math.min(count, Math.ceil(bottom / PAGE_ROW_HEIGHT)),
   };
 }
 export function parsePhysicalPage(value: string, pageCount: number): number | null {
