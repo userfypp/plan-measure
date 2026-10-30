@@ -1,4 +1,3 @@
-// @ts-expect-error Vitest executes this contract in Node.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
