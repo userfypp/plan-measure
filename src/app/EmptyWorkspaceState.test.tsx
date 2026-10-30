@@ -47,7 +47,7 @@ describe("EmptyWorkspaceState", () => {
     expect(onOpenPdf).toHaveBeenCalledTimes(1);
     expect(onOpenSample).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("Files stay in this browser.");
-    expect(container.textContent).not.toContain("100 MB");
+    expect(container.textContent).not.toContain("100 MiB");
     expect(container.querySelector("#start-projects-title")).toBeNull();
   });
 

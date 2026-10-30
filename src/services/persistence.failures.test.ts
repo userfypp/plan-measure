@@ -53,7 +53,6 @@ interface RejectionSource {
   on(event: "unhandledRejection", listener: (reason: unknown) => void): void;
   off(event: "unhandledRejection", listener: (reason: unknown) => void): void;
 }
-// @ts-expect-error Vitest runs this test in Node; the app's TypeScript intentionally omits Node types.
 const nodeProcess = process as RejectionSource;
 
 async function collectUnhandledRejections(run: () => Promise<unknown>) {
