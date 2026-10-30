@@ -123,6 +123,13 @@
   line-height: var(--line-height-secondary);
 }
 
+.projectTrail {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-12);
+}
+
 .chevron {
   width: 7px;
   height: 7px;

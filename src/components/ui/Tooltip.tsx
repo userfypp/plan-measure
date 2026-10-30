@@ -192,7 +192,9 @@ export function Tooltip({
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
       onFocusCapture={(event) => {
-        // Programmatic focus (e.g. a dialog's initial focus) must not pin the tooltip open.
+        // Programmatic focus (e.g. a dialog's initial focus) must not pin the tooltip open; some
+        // browsers still report it as focus-visible, so the dialog marks its own focus move.
+        if (event.target instanceof Element && event.target.closest("[data-initial-focus]")) return;
         if (!matchesFocusVisible(event.target)) return;
         showTooltip();
       }}

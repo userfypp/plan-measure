@@ -9,6 +9,9 @@ import {
 } from "react";
 import styles from "./Dialog.module.css";
 
+// Read by Tooltip, which must not open for the focus the dialog moves in on its own.
+const INITIAL_FOCUS_ATTRIBUTE = "data-initial-focus";
+
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
   "[href]",
@@ -39,6 +42,16 @@ function focusElement(element: HTMLElement | null): boolean {
   if (!element?.isConnected) return false;
   element.focus({ preventScroll: true });
   return document.activeElement === element;
+}
+
+/** Runs `move`, a focus change the dialog makes on its own; tooltips ignore it, as nothing was hovered. */
+function withInitialFocusMarker<T>(dialog: HTMLDialogElement, move: () => T): T {
+  dialog.setAttribute(INITIAL_FOCUS_ATTRIBUTE, "");
+  try {
+    return move();
+  } finally {
+    dialog.removeAttribute(INITIAL_FOCUS_ATTRIBUTE);
+  }
 }
 
 function getFocusableElements(dialog: HTMLDialogElement): HTMLElement[] {
@@ -141,11 +154,15 @@ export function Dialog({
     if (!dialog) return;
 
     if (open && !dialog.open) {
-      if (modal) dialog.showModal();
-      else dialog.show();
-      wasOpenRef.current = true;
-      const initial = getInitialFocus(dialog, initialFocus);
-      focusElement(initial);
+      // The browser moves focus into the dialog while opening it, before the explicit focus below.
+      const initial = withInitialFocusMarker(dialog, () => {
+        if (modal) dialog.showModal();
+        else dialog.show();
+        wasOpenRef.current = true;
+        const target = getInitialFocus(dialog, initialFocus);
+        focusElement(target);
+        return target;
+      });
       lastFocusedInsideRef.current = initial;
       return;
     }
@@ -184,8 +201,11 @@ export function Dialog({
 
       const fallback = lastFocusedInsideRef.current;
       if (!focusElement(fallback)) {
-        const initial = getInitialFocus(dialog, initialFocus);
-        focusElement(initial);
+        const initial = withInitialFocusMarker(dialog, () => {
+          const target = getInitialFocus(dialog, initialFocus);
+          focusElement(target);
+          return target;
+        });
         lastFocusedInsideRef.current = initial;
       }
     };

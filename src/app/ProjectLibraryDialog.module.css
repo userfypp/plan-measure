@@ -117,6 +117,11 @@
 }
 
 @media (max-width: 520px) {
+  .project {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
   .actions > * {
     flex: 1 1 calc(50% - var(--space-8));
   }

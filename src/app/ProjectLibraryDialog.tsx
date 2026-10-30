@@ -157,7 +157,6 @@ export function ProjectLibraryDialog({
                     <div className={styles.projectInfo}>
                       <div className={styles.projectName}>
                         <h3 title={project.name}>{project.name}</h3>
-                        {isCurrent && <Badge variant="info">Current</Badge>}
                       </div>
                       <p>
                         {project.pageCount} {project.pageCount === 1 ? "page" : "pages"}
@@ -166,6 +165,7 @@ export function ProjectLibraryDialog({
                       </p>
                     </div>
                     <div className={styles.projectActions}>
+                      {isCurrent && <Badge variant="info">Current</Badge>}
                       <IconButton
                         icon={openIcon}
                         disabled={opening || isOpen}
