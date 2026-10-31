@@ -4,7 +4,7 @@
 .header {
   flex: none;
   container-type: inline-size;
-  padding: 0 var(--space-16) var(--space-12);
+  padding: 0 var(--space-16) var(--space-16);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 
