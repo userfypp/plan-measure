@@ -4,6 +4,41 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.12.0](https://github.com/userfypp/plan-measure/compare/v2.11.4...v2.12.0) (2026-10-31)
+
+
+### Added
+
+* keep the undo history across reloads and crash recovery ([#458](https://github.com/userfypp/plan-measure/issues/458)) ([18d927e](https://github.com/userfypp/plan-measure/commit/18d927ec9e1e5f31134c4052fda64d372e010712))
+* **settings:** group a project's settings in a labelled Project box and open on the first available tab ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+* **settings:** set default measurement filters per project ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+* **shortcuts:** add Default, Legacy, Keyboard first, Left hand, Right hand and Essentials presets ([999449f](https://github.com/userfypp/plan-measure/commit/999449fffa78ce4328f17556737bab65bd26e14b))
+* **shortcuts:** customize every keyboard shortcut in Settings ([999449f](https://github.com/userfypp/plan-measure/commit/999449fffa78ce4328f17556737bab65bd26e14b))
+
+
+### Fixed
+
+* dismiss the visible tooltip with Escape without moving focus ([#455](https://github.com/userfypp/plan-measure/issues/455)) ([e95cba7](https://github.com/userfypp/plan-measure/commit/e95cba7d56684175d7ccd4fe30d78124469c60a5))
+* **measurements:** use one eye icon everywhere and space the filter count evenly ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+* place the Current badge beside the open arrow in the project menus ([05eb4d9](https://github.com/userfypp/plan-measure/commit/05eb4d930809ec24db750a3497d3bcf851818449))
+* reject measurement names made only of zero-width characters ([8f1e5f9](https://github.com/userfypp/plan-measure/commit/8f1e5f96ec85305c78c2d86415046c96daaf80a6))
+* restore tooltips on buttons and menus and round the scrollbar ends ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+* **settings:** even out nav item spacing and polish the Accessibility icon ([#457](https://github.com/userfypp/plan-measure/issues/457)) ([845e797](https://github.com/userfypp/plan-measure/commit/845e797d1ce106f313d3df0c55a54cc6b58b9576))
+* **settings:** frame every dialog with a rule under the title and above the footer ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+* **settings:** open dialogs without a focus ring until Tab is pressed, also in Safari ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+* stop a tooltip opening with the Projects dialog ([05eb4d9](https://github.com/userfypp/plan-measure/commit/05eb4d930809ec24db750a3497d3bcf851818449))
+* validate hexToRgb input ([#450](https://github.com/userfypp/plan-measure/issues/450)) ([4331ca0](https://github.com/userfypp/plan-measure/commit/4331ca0b610930d280f7520e59cf3ba8839e172a))
+
+
+### Improved
+
+* **measurements:** render the list in half-overscan steps and move the scroll hover marker once per frame ([e7b866e](https://github.com/userfypp/plan-measure/commit/e7b866eb304fbfcb580d6a7aee0c4fec3cb44006))
+
+
+### Documentation
+
+* mark good first issues in the roadmap ([#456](https://github.com/userfypp/plan-measure/issues/456)) ([c4bb3ef](https://github.com/userfypp/plan-measure/commit/c4bb3efd8b186d4d5f4b29f3d8dcc450ae8ac025))
+
 ## [2.11.4](https://github.com/userfypp/plan-measure/compare/v2.11.3...v2.11.4) (2026-10-30)
 
 
