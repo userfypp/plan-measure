@@ -5,6 +5,7 @@ import {
   type PopoverPlacement,
   type PopoverTriggerProps,
 } from "./Popover";
+import type { TooltipPosition } from "./Tooltip";
 import styles from "./AnchoredMenu.module.css";
 
 export type AnchoredMenuItemRole = "menuitem" | "menuitemcheckbox" | "menuitemradio";
@@ -38,6 +39,9 @@ export type AnchoredMenuItem = AnchoredMenuItemBase &
 export interface AnchoredMenuProps {
   trigger: ReactNode;
   triggerProps?: PopoverTriggerProps;
+  /** Tooltip for an icon-only trigger; hidden while the menu is open. */
+  tooltip?: ReactNode;
+  tooltipPosition?: TooltipPosition;
   className?: string;
   label: string;
   items: readonly AnchoredMenuItem[] | (() => readonly AnchoredMenuItem[]);
@@ -56,6 +60,8 @@ function firstInitialFocusIndex(items: readonly AnchoredMenuItem[]): number {
 export function AnchoredMenu({
   trigger,
   triggerProps,
+  tooltip,
+  tooltipPosition,
   className,
   label,
   items: providedItems,
@@ -162,6 +168,8 @@ export function AnchoredMenu({
     <Popover
       trigger={trigger}
       triggerProps={{ ...triggerProps, "aria-haspopup": "menu" }}
+      tooltip={tooltip}
+      tooltipPosition={tooltipPosition}
       open={isOpen}
       onOpenChange={setOpen}
       placement={placement}

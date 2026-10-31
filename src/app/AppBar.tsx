@@ -121,6 +121,7 @@ function HistoryButton({
   const keyShortcuts = useShortcutAria(actionId);
   return (
     <IconButton
+      quiet
       className={styles.iconAction}
       icon={icon}
       aria-label={label}
@@ -180,6 +181,7 @@ export function AppBar({
         </div>
         {documentName && onCloseProject && (
           <IconButton
+            quiet
             className={styles.iconAction}
             icon={<CloseIcon />}
             aria-label="Close project"
@@ -222,7 +224,8 @@ export function AppBar({
               size="compact"
               className={styles.exportAction}
               aria-keyshortcuts={exportKeys || undefined}
-              title={exportShortcut ? `Export (${exportShortcut})` : undefined}
+              tooltip={exportShortcut ? `Export (${exportShortcut})` : undefined}
+              tooltipPosition="bottom"
               onClick={onExport}
             >
               Export
@@ -235,7 +238,8 @@ export function AppBar({
             aria-haspopup="dialog"
             aria-label={`Projects${savedProjectCount ? `, ${savedProjectCount} saved` : ""}`}
             aria-keyshortcuts={projectsKeys || undefined}
-            title={projectsShortcut ? `Projects (${projectsShortcut})` : undefined}
+            tooltip={projectsShortcut ? `Projects (${projectsShortcut})` : undefined}
+            tooltipPosition="bottom"
             onClick={onOpenProjects}
           >
             Projects
@@ -253,8 +257,9 @@ export function AppBar({
             triggerProps={{
               className: styles.iconTrigger,
               "aria-label": "Feedback",
-              title: "Feedback",
             }}
+            tooltip="Feedback"
+            tooltipPosition="bottom"
             label="Feedback options"
             items={FEEDBACK_ITEMS}
             placement="bottom-end"
@@ -262,6 +267,7 @@ export function AppBar({
           <SettingsButton
             trigger={<SettingsIcon />}
             triggerClassName={styles.iconAction}
+            triggerQuiet
             labelPreviewMeasurement={labelPreviewMeasurement}
             measurementDecimalPlaces={measurementDecimalPlaces}
             viewSettings={viewSettings}

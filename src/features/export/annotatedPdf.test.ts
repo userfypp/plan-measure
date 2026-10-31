@@ -78,7 +78,7 @@ function sessionFixture(pageCount = 1): CurrentSession {
     };
   }
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount,
     currentPage: 1,
@@ -92,6 +92,7 @@ function sessionFixture(pageCount = 1): CurrentSession {
       showCalibration: false,
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
     },

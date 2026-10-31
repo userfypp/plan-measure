@@ -133,7 +133,6 @@
   --line-height-identity: 22px;
   --line-height-quantity: 24px;
   --line-height-result: 28px;
-  --letter-spacing-overline: 0.04em;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
@@ -274,22 +273,23 @@
   --dialog-width-default: 480px;
   --dialog-width-large: 720px;
   --dialog-body-chrome: 144px;
+  /* End padding of a scroller that holds controls: the overlay thumb's bar is --space-4 wide at the edge, so this leaves --space-4 clear. */
+  --scroll-inset: var(--space-8);
   --tooltip-max-width: 240px;
 
   /* Feature geometry (classification, calibration, pages, export). */
   --geometry-selection-indicator-width: 2px;
   --geometry-checkbox-size: 16px;
-  --geometry-checkbox-mark-width: 8px;
-  --geometry-checkbox-mark-height: 4px;
   --geometry-calibration-field-min-width: 144px;
   --geometry-calibration-field-max-width: 180px;
   --geometry-calibration-fraction-min-width: 112px;
   --geometry-scale-add-menu-max-width: 224px;
   --geometry-select-width-narrow: 72px;
   --geometry-select-width-regular: 136px;
-  --geometry-settings-dialog-width: 600px;
-  --geometry-settings-nav-width: 168px;
-  --geometry-settings-panel-height: 456px;
+  --geometry-select-width-wide: 208px;
+  --geometry-settings-dialog-width: 720px;
+  --geometry-settings-nav-width: 176px;
+  --geometry-settings-panel-height: 580px;
   /* Narrowest key chip in Settings > Shortcuts, so single letters read as keycaps. */
   --geometry-shortcut-key-min-width: 40px;
   --geometry-page-browser-width: 240px;
@@ -383,7 +383,8 @@
   --focus-ring-offset: -4px;
 }
 
-/* Interface text scale. Only UI type and the widths that hold text change; micro text, glyph badges,
+/* Interface text scale. Line heights stay even so a centered 32px control never lands on a half pixel.
+ * Only UI type and the widths that hold text change; micro text, glyph badges,
  * target heights, the canvas and measurement labels keep their size. */
 :root[data-text-size="110"] {
   --font-size-secondary: 13px;
@@ -398,11 +399,12 @@
   --line-height-heading: 22px;
   --line-height-identity: 24px;
   --line-height-quantity: 26px;
-  --line-height-result: 31px;
+  --line-height-result: 32px;
   --geometry-select-width-regular: 150px;
+  --geometry-select-width-wide: 230px;
   --geometry-select-width-narrow: 79px;
-  --geometry-settings-dialog-width: 660px;
-  --geometry-settings-nav-width: 185px;
+  --geometry-settings-dialog-width: 792px;
+  --geometry-settings-nav-width: 194px;
   --geometry-shortcut-key-min-width: 44px;
   --tooltip-max-width: 264px;
   --geometry-viewer-page-width: 132px;
@@ -418,15 +420,16 @@
   --font-size-result: 30px;
   --font-size-title: 28px;
   --line-height-secondary: 20px;
-  --line-height-base: 23px;
-  --line-height-heading: 25px;
+  --line-height-base: 24px;
+  --line-height-heading: 26px;
   --line-height-identity: 28px;
   --line-height-quantity: 30px;
-  --line-height-result: 35px;
+  --line-height-result: 36px;
   --geometry-select-width-regular: 170px;
+  --geometry-select-width-wide: 260px;
   --geometry-select-width-narrow: 90px;
-  --geometry-settings-dialog-width: 750px;
-  --geometry-settings-nav-width: 210px;
+  --geometry-settings-dialog-width: 900px;
+  --geometry-settings-nav-width: 220px;
   --geometry-shortcut-key-min-width: 50px;
   --tooltip-max-width: 300px;
   --geometry-viewer-page-width: 150px;
@@ -493,6 +496,6 @@
   --target-current: var(--target-coarse);
   --control-height-compact: 44px;
   --control-height-regular: 44px;
-  /* Measured: the tallest Settings section (Advanced, 498px) plus 16px. */
-  --geometry-settings-panel-height: 514px;
+  /* The base height plus what 44px controls add to the tallest section. */
+  --geometry-settings-panel-height: 724px;
 }

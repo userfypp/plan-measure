@@ -11,7 +11,6 @@ import {
 } from "react";
 import {
   Button,
-  CloseIcon,
   IconButton,
   Input,
   Popover,
@@ -472,28 +471,16 @@ export function ShortcutsSettings() {
           <div className={styles.search}>
             <Input
               ref={searchRef}
-              className={styles.searchInput}
               type="search"
               aria-label="Search shortcuts"
               placeholder="Search shortcuts"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onClear={() => {
+                setQuery("");
+                searchRef.current?.focus();
+              }}
             />
-            {/* Laid over the field's end rather than passed as `trailing`, which would remount the input. */}
-            {query && (
-              <span className={styles.clear}>
-                <IconButton
-                  className={styles.clearButton}
-                  icon={<CloseIcon />}
-                  aria-label="Clear search"
-                  tooltip="Clear search"
-                  onClick={() => {
-                    setQuery("");
-                    searchRef.current?.focus();
-                  }}
-                />
-              </span>
-            )}
           </div>
           <IconButton
             icon={<RestoreIcon />}

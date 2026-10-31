@@ -16,7 +16,8 @@
   min-height: var(--target-coarse);
   display: flex;
   align-items: center;
-  padding: var(--space-4) var(--geometry-panel-gutter);
+  /* The divider takes 1px of the header; the same extra top padding keeps the title on whole pixels. */
+  padding: calc(var(--space-4) + var(--border-width)) var(--geometry-panel-gutter) var(--space-4);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 

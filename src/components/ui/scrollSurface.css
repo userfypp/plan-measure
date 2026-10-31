@@ -11,10 +11,13 @@
 
 /*
  * A scroller whose native scrollbar is replaced by an overlay thumb (see `installOverlayScrollbars`),
- * so the scrollbar takes no width. Compose it next to `scrollSurface`.
+ * so the scrollbar takes no width. Compose it next to `scrollSurface`. `overscroll-behavior: none`
+ * switches off the elastic bounce (it would drag the content and thumb past the edges, and a context
+ * menu opened mid-bounce can leave the scroller stuck displaced) and stops scroll chaining.
  */
 .overlayScroll {
   scrollbar-width: none;
+  overscroll-behavior: none;
 }
 
 /*
@@ -24,7 +27,6 @@
  */
 .overlayScrollThumb {
   z-index: var(--z-raised);
-  border-radius: var(--radius-control);
   background-color: var(--color-scrollbar-thumb-overlay);
   background-clip: padding-box;
   transition: var(--transition-interactive);
@@ -33,11 +35,25 @@
 .overlayScrollThumb[data-axis="y"] {
   width: var(--space-8);
   border-inline-start: var(--space-4) solid transparent;
+  /*
+   * The visible bar is --space-4 wide and ends in a true semicircle (radius = half of it). The
+   * background clips to the padding box, whose corner radii are the outer ones minus the adjacent
+   * border width, so the corners beside the transparent border add it back across the bar only
+   * (inline radius first, block radius second): a circular end, never a crescent.
+   */
+  border-start-start-radius: calc(var(--space-4) * 1.5) calc(var(--space-4) / 2);
+  border-end-start-radius: calc(var(--space-4) * 1.5) calc(var(--space-4) / 2);
+  border-start-end-radius: calc(var(--space-4) / 2);
+  border-end-end-radius: calc(var(--space-4) / 2);
 }
 
 .overlayScrollThumb[data-axis="x"] {
   height: var(--space-8);
   border-block-start: var(--space-4) solid transparent;
+  border-start-start-radius: calc(var(--space-4) / 2) calc(var(--space-4) * 1.5);
+  border-start-end-radius: calc(var(--space-4) / 2) calc(var(--space-4) * 1.5);
+  border-end-start-radius: calc(var(--space-4) / 2);
+  border-end-end-radius: calc(var(--space-4) / 2);
 }
 
 .overlayScrollThumb:hover,

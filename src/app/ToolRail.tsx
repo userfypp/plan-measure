@@ -215,7 +215,6 @@ export function ToolRail({ toolAvailability, onChooseTool }: ToolRailProps) {
                   data-tool-id={definition.id}
                   data-disabled={disabled || undefined}
                   tabIndex={currentRovingToolId === definition.id ? 0 : -1}
-                  title={disabled ? disabledReason : undefined}
                   onFocus={() => setRovingToolId(definition.id)}
                   onClick={(event) => {
                     if (disabled) {

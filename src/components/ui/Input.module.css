@@ -58,6 +58,54 @@
   background-color: var(--color-control-active-surface);
 }
 
+/* Room for the in-field clear button; the browser's own is hidden. */
+.control.clearable {
+  padding-right: var(--control-height-compact);
+}
+
+.control.clearable::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.clearAnchor {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Same left edge as a row glyph: the border plus --space-8, then the text one --space-8 past it. */
+.leading {
+  position: absolute;
+  inset-block: 0;
+  left: calc(var(--border-width) + var(--space-8));
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--color-text-secondary);
+}
+
+.leading > svg {
+  width: var(--geometry-icon-size);
+  height: var(--geometry-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: var(--icon-stroke-width);
+}
+
+.control.hasLeading {
+  padding-left: calc(var(--space-8) * 2 + var(--geometry-icon-size));
+}
+
+.clear {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+
 .control[aria-invalid="true"]:not(:disabled) {
   border-color: var(--color-danger-semantic);
 }

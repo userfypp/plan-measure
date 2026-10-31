@@ -56,9 +56,6 @@
   gap: var(--space-4);
   min-width: 0;
 }
-.searchInput::-webkit-search-cancel-button {
-  appearance: none;
-}
 .list:focus-visible {
   outline: var(--focus-outline);
   outline-offset: calc(-1 * var(--focus-width));
@@ -109,7 +106,6 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
   /* The dock floats over the panel, so the last page must be able to scroll clear of it. */
   padding-bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-8));
 }

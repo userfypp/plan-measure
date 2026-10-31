@@ -1,6 +1,7 @@
 import { memo, type RefCallback } from "react";
 import { IconButton } from "../../components/ui";
 import { measurementPathSpecs, measurementTypeRequiresScale } from "../../utils/geometry";
+import { HOVER_ROW_ATTRIBUTE } from "../../app/scrollHover";
 import { ToolIcon } from "../viewer/ToolIcon";
 import type { MeasurementViewModel } from "./measurementViewModels";
 import { VisibilityIcon } from "./VisibilityIcon";
@@ -46,6 +47,7 @@ export const MeasurementRow = memo(function MeasurementRow({
     <article
       ref={rowRef}
       data-virtual-key={virtualKey}
+      {...{ [HOVER_ROW_ATTRIBUTE]: "" }}
       aria-posinset={positionInSet}
       aria-setsize={setSize}
       className={[styles.row, viewModel.selected ? styles.selected : ""].filter(Boolean).join(" ")}

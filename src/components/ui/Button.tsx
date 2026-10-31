@@ -1,15 +1,21 @@
 import { forwardRef, useId, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Tooltip } from "./Tooltip";
+import { Tooltip, type TooltipPosition } from "./Tooltip";
 import styles from "./Button.module.css";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "dangerSecondary";
 export type ButtonSize = "compact" | "regular";
 
-export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
+/** `title` is excluded: hints go through `tooltip` so every bubble shares one style and honours the tooltip preferences. */
+export interface ButtonProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "children" | "title"
+> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   disabledReason?: string;
+  tooltip?: ReactNode;
+  tooltipPosition?: TooltipPosition;
   children: ReactNode;
 }
 
@@ -19,6 +25,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     size = "regular",
     disabled = false,
     disabledReason,
+    tooltip,
+    tooltipPosition,
     loading = false,
     type = "button",
     className,
@@ -72,6 +80,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         {disabledReason}
       </span>
     </span>
+  ) : tooltip ? (
+    <Tooltip content={tooltip} position={tooltipPosition}>
+      {button}
+    </Tooltip>
   ) : (
     button
   );

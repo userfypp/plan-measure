@@ -10,10 +10,12 @@ import {
 import {
   CheckIcon,
   CloseIcon,
+  EyeIcon,
   IconButton,
   Input,
   PlusIcon,
   SaveIcon,
+  Tooltip,
   TrashIcon,
 } from "../components/ui";
 import { useRovingFocusGroup } from "../components/ui/rovingFocus";
@@ -74,7 +76,7 @@ function DuplicateIcon() {
   return (
     <SelectionSvg>
       <rect x="7.25" y="7.25" width="9.25" height="9.25" rx="1.75" />
-      <path d="M12.75 7.25V4.75a1.5 1.5 0 0 0-1.5-1.5h-6.5a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h2.5" />
+      <path d="M12.75 7.25v-2A1.75 1.75 0 0 0 11 3.5H5.25A1.75 1.75 0 0 0 3.5 5.25V11a1.75 1.75 0 0 0 1.75 1.75h2" />
     </SelectionSvg>
   );
 }
@@ -156,6 +158,7 @@ function ShortcutButton({
   icon,
   pressed,
   disabled,
+  danger,
   actionId,
   onClick,
 }: {
@@ -163,6 +166,7 @@ function ShortcutButton({
   icon: ReactNode;
   pressed?: boolean;
   disabled?: boolean;
+  danger?: boolean;
   actionId: ActionId;
   onClick: () => void;
 }) {
@@ -170,7 +174,12 @@ function ShortcutButton({
   const keyShortcuts = useShortcutAria(actionId);
   return (
     <IconButton
-      className={styles.selectionIconButton}
+      className={
+        danger
+          ? `${styles.selectionIconButton} ${styles.selectionDanger}`
+          : styles.selectionIconButton
+      }
+      tone={danger ? "danger" : undefined}
       icon={icon}
       aria-label={label}
       aria-keyshortcuts={keyShortcuts || undefined}
@@ -236,15 +245,16 @@ function useShiftPressed(): boolean {
 function ShiftConstrainHint({ constraint }: { constraint: "square" | "circle" }) {
   const pressed = useShiftPressed();
   return (
-    <span
-      className={[styles.modifierHint, pressed ? styles.modifierHintActive : ""]
-        .filter(Boolean)
-        .join(" ")}
-      data-active={pressed ? "true" : "false"}
-      title={`Hold Shift while drawing to constrain to a ${constraint}`}
-    >
-      <kbd>Shift</kbd> {constraint}
-    </span>
+    <Tooltip content={`Hold Shift while drawing to constrain to a ${constraint}`} position="bottom">
+      <span
+        className={[styles.modifierHint, pressed ? styles.modifierHintActive : ""]
+          .filter(Boolean)
+          .join(" ")}
+        data-active={pressed ? "true" : "false"}
+      >
+        <kbd>Shift</kbd> {constraint}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -321,17 +331,21 @@ function MeasurementNameEditor({
 
   if (!editing) {
     return (
-      <button
-        ref={triggerRef}
-        type="button"
-        className={styles.measurementNameTrigger}
-        aria-label={`Rename selected measurement ${name}`}
-        aria-keyshortcuts={keyShortcuts || undefined}
-        title={shortcut ? `Rename ${name} (${shortcut})` : `Rename ${name}`}
-        onClick={startEditing}
+      <Tooltip
+        content={shortcut ? `Rename ${name} (${shortcut})` : `Rename ${name}`}
+        position="bottom"
       >
-        <span>{name}</span>
-      </button>
+        <button
+          ref={triggerRef}
+          type="button"
+          className={styles.measurementNameTrigger}
+          aria-label={`Rename selected measurement ${name}`}
+          aria-keyshortcuts={keyShortcuts || undefined}
+          onClick={startEditing}
+        >
+          <span>{name}</span>
+        </button>
+      </Tooltip>
     );
   }
 
@@ -717,12 +731,10 @@ export function ContextToolbar({
         />
       )}
       <Divider />
-      <IconButton
-        className={`${styles.selectionIconButton} ${styles.selectionDanger}`}
-        tone="danger"
-        aria-label="Delete"
-        tooltip="Delete"
-        tooltipPosition="bottom"
+      <ShortcutButton
+        danger
+        label="Delete"
+        actionId="edit.delete"
         icon={<TrashIcon />}
         onClick={onDeleteSelectedMeasurement}
       />
@@ -731,11 +743,10 @@ export function ContextToolbar({
           label={allSelectedVisible ? "Hide selected measurements" : "Show selected measurements"}
           actionId="measurement.toggleVisibility"
           icon={
-            <svg className={styles.selectionIcon} viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z" />
-              <circle cx="10" cy="10" r="2.2" />
-              {!allSelectedVisible && <path d="m3.5 3.5 13 13" />}
-            </svg>
+            <EyeIcon
+              className={styles.selectionIcon}
+              state={allSelectedVisible ? "visible" : "hidden"}
+            />
           }
           onClick={toggleSelectedVisibility}
         />

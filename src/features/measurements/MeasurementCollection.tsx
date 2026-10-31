@@ -298,6 +298,15 @@ export function MeasurementCollection({
   );
 }
 
+/** Pixels rendered beyond the visible band, above and below. */
+const OVERSCAN = 240;
+/**
+ * The scroll position is tracked in steps of this size, so the list re-renders when the rendered
+ * window can change, not on every scrolled pixel. Kept below `OVERSCAN`: the window then always
+ * covers the visible band, and the main thread stays free for the hover updates while scrolling.
+ */
+const VIEWPORT_STEP = OVERSCAN / 2;
+
 type CollectionMeasurement = MeasurementViewModel & { selected: boolean };
 type VirtualEntry = { key: string; estimate: number; tabStops?: number };
 type GroupRange = { start: number; end: number; rowsStart: number };
@@ -374,7 +383,10 @@ function VirtualCollectionContents({
     if (!collection) return;
     function updateViewport() {
       setViewport((current) => {
-        const next = { top: collection!.scrollTop, height: collection!.clientHeight || 640 };
+        const next = {
+          top: Math.floor(collection!.scrollTop / VIEWPORT_STEP) * VIEWPORT_STEP,
+          height: collection!.clientHeight || 640,
+        };
         return next.top === current.top && next.height === current.height ? current : next;
       });
     }
@@ -479,9 +491,8 @@ function VirtualCollectionContents({
     pendingTabFocus.current = next;
     setFocusedKey(next.key);
   }
-  const overscan = 240;
-  const windowTop = Math.max(0, viewport.top - overscan);
-  const windowBottom = viewport.top + viewport.height + overscan;
+  const windowTop = Math.max(0, viewport.top - OVERSCAN);
+  const windowBottom = viewport.top + viewport.height + OVERSCAN;
   const pinnedIndexes = [focusedKey, rovingCell ? `row:${rovingCell.measurementId}` : null].flatMap(
     (key) => (key && entryIndexes.has(key) ? [entryIndexes.get(key)!] : []),
   );

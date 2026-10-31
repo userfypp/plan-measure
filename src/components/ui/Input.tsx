@@ -1,4 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { CloseIcon } from "./icons";
+import { IconButton } from "./IconButton";
 import styles from "./Input.module.css";
 
 type InputElementProps = Omit<
@@ -47,6 +49,10 @@ export type InputProps = InputElementProps &
     description?: ReactNode;
     /** Icon buttons that act on the field, shown beside the control. */
     trailing?: ReactNode;
+    /** A glyph inside the field's start; the text moves past it. */
+    leading?: ReactNode;
+    /** Shows one clear button inside the field's end while it has text; it replaces the browser's own. */
+    onClear?: () => void;
   };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
@@ -56,6 +62,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     error,
     description,
     trailing,
+    leading,
+    onClear,
     disabled = false,
     className,
     "aria-describedby": ariaDescribedBy,
@@ -92,7 +100,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       ref={ref}
       {...inputProps}
       id={inputId}
-      className={[styles.control, className].filter(Boolean).join(" ")}
+      className={[
+        styles.control,
+        onClear ? styles.clearable : "",
+        leading ? styles.hasLeading : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       disabled={disabled}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
@@ -100,6 +115,29 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       aria-describedby={describedBy || undefined}
     />
   );
+
+  const showClear = onClear && !disabled && Boolean(inputProps.value);
+  const field =
+    onClear || leading ? (
+      <div className={styles.clearAnchor}>
+        {leading && <span className={styles.leading}>{leading}</span>}
+        {control}
+        {/* Laid over the field, never `trailing`: mounting it later would remount the input. */}
+        {showClear && (
+          <span className={styles.clear}>
+            <IconButton
+              quiet
+              icon={<CloseIcon />}
+              aria-label="Clear search"
+              tooltip="Clear search"
+              onClick={onClear}
+            />
+          </span>
+        )}
+      </div>
+    ) : (
+      control
+    );
 
   return (
     <div className={styles.field}>
@@ -110,11 +148,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       )}
       {trailing ? (
         <div className={styles.row}>
-          {control}
+          {field}
           <div className={styles.trailing}>{trailing}</div>
         </div>
       ) : (
-        control
+        field
       )}
       {hasDescription && (
         <p className={styles.description} id={descriptionId}>

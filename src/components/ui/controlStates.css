@@ -5,6 +5,11 @@
   outline-offset: var(--focus-offset);
 }
 
+/* Focus placed by a dialog on open: the ring waits for Tab (set and cleared in Dialog.tsx). */
+:root [data-quiet-focus]:focus-visible {
+  outline: none;
+}
+
 .disabledSurface:disabled,
 .disabledSurface[data-disabled="true"] {
   cursor: not-allowed;

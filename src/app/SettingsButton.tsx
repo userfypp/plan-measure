@@ -18,10 +18,17 @@ export interface SettingsButtonProps extends Omit<
 > {
   trigger: ReactNode;
   triggerClassName?: string;
+  /** Borderless at rest, for a trigger grouped in a bar. */
+  triggerQuiet?: boolean;
 }
 
 /** Eager trigger; the dialog and its sections load on first use to keep the startup bundle small. */
-export function SettingsButton({ trigger, triggerClassName, ...dialogProps }: SettingsButtonProps) {
+export function SettingsButton({
+  trigger,
+  triggerClassName,
+  triggerQuiet,
+  ...dialogProps
+}: SettingsButtonProps) {
   const [open, setOpen] = useState(false);
   const [initialSection, setInitialSection] = useState<SettingsSectionId | undefined>();
   const shortcut = useShortcutLabel("app.settings");
@@ -37,6 +44,7 @@ export function SettingsButton({ trigger, triggerClassName, ...dialogProps }: Se
   return (
     <>
       <IconButton
+        quiet={triggerQuiet}
         className={triggerClassName}
         icon={trigger}
         aria-label="Settings"

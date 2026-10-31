@@ -1127,14 +1127,22 @@ describe("selection shortcuts", () => {
       expect(container?.querySelector("input")).toBeNull();
     });
 
+    it("names the Delete key in the Delete button tooltip", () => {
+      renderSingle();
+      expect(tooltipOf(buttonByLabel("Delete"))).toBe("Delete (Delete)");
+
+      bind({ "edit.delete": [] });
+      expect(tooltipOf(buttonByLabel("Delete"))).toBe("Delete");
+    });
+
     it("shows its key on the name button and drops it when unbound", () => {
       renderSingle();
       const trigger = () => renameTrigger("Line 1");
-      expect(trigger().title).toBe("Rename Line 1 (F2)");
+      expect(tooltipOf(trigger())).toBe("Rename Line 1 (F2)");
       expect(trigger().getAttribute("aria-keyshortcuts")).toBe("F2");
 
       bind({ "edit.rename": [] });
-      expect(trigger().title).toBe("Rename Line 1");
+      expect(tooltipOf(trigger())).toBe("Rename Line 1");
       expect(trigger().hasAttribute("aria-keyshortcuts")).toBe(false);
     });
   });

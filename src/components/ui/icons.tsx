@@ -25,6 +25,16 @@ export function ArrowLeftIcon(props: IconProps) {
   );
 }
 
+/** Search field. */
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="9" r="5.67" />
+      <path d="m13.33 13.33 3.75 3.75" />
+    </Icon>
+  );
+}
+
 export function CheckIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -81,12 +91,19 @@ export function EditPointsIcon(props: IconProps) {
   );
 }
 
-/** Look at something, reveal it. */
-export function EyeIcon(props: IconProps) {
+export type EyeState = "visible" | "hidden" | "mixed";
+
+/**
+ * Look at something, reveal it. The one eye of the app: `hidden` strikes it through and `mixed`
+ * swaps the pupil for a dash. Every coordinate is a whole or half unit, so the lens and pupil stay
+ * crisp at 16 and 18px.
+ */
+export function EyeIcon({ state = "visible", ...props }: IconProps & { state?: EyeState }) {
   return (
     <Icon {...props}>
-      <path d="M2.08 10s2.71-4.38 7.92-4.38S17.92 10 17.92 10s-2.71 4.38-7.92 4.38S2.08 10 2.08 10Z" />
-      <circle cx="10" cy="10" r="2.08" />
+      <path d="M2.5 10S5.5 5 10 5s7.5 5 7.5 5-3 5-7.5 5S2.5 10 2.5 10Z" />
+      {state === "mixed" ? <path d="M7.5 10h5" /> : <circle cx="10" cy="10" r="2.5" />}
+      {state === "hidden" && <path d="M4 4l12 12" />}
     </Icon>
   );
 }
@@ -176,7 +193,7 @@ export function TemplatesIcon(props: IconProps) {
 export function TrashIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.25 8.75v5M11.75 8.75v5" />
+      <path d="M3.25 5.5h13.5M7.75 5.5V4.25A1.25 1.25 0 0 1 9 3h2a1.25 1.25 0 0 1 1.25 1.25V5.5M5.25 5.5v10A1.75 1.75 0 0 0 7 17.25h6a1.75 1.75 0 0 0 1.75-1.75v-10M8.4 8.75v5M11.6 8.75v5" />
     </Icon>
   );
 }

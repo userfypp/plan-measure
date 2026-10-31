@@ -1,10 +1,10 @@
 /* Never scrolls: the preset and the search stay put while only `.list` moves. The top padding
-   leaves room for the focus ring, because the Settings panel clips what overflows it. */
+   leaves room for the focus ring, because the Settings panel clips what overflows it. No rule
+   under it: the first category opens the list like the first title of any Settings section. */
 .header {
   flex: none;
   container-type: inline-size;
-  margin-right: var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-divider);
+  margin-right: var(--scroll-inset);
   padding-block: var(--space-4) var(--space-8);
 }
 
@@ -21,29 +21,7 @@
 }
 
 .search {
-  position: relative;
   min-width: 0;
-}
-
-.search .searchInput {
-  padding-right: var(--control-height-compact);
-}
-
-.searchInput::-webkit-search-cancel-button {
-  appearance: none;
-}
-
-/* Over the end of the field, so showing it never moves the text or remounts the input. */
-.search .clear {
-  position: absolute;
-  inset-block: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-}
-
-.search .clearButton {
-  border-color: transparent;
 }
 
 /* A narrow header (small dialog, large text) puts the search on its own line below the preset. */
@@ -91,12 +69,24 @@
   align-content: start;
   column-gap: var(--space-8);
   overflow-y: auto;
-  padding-right: var(--space-4);
+  padding-right: var(--scroll-inset);
 }
 
+/* The shortcuts are many, so their groups keep a heading: --space-24 of air above, --space-4 below. */
 .groupTitle {
-  composes: groupTitle from "../SettingsDialog.module.css";
   grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--space-24) 0 var(--space-4);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+/* The first title opens the list, as in `.settingList`: only --space-8 of air above it. */
+.list > .groupTitle:first-child {
+  padding-top: var(--space-8);
 }
 
 /* One line per action: the label takes what the keys leave. Fixed keys use it as a plain row. */
@@ -104,7 +94,7 @@
   grid-column: 1 / -1;
   min-width: 0;
   box-sizing: border-box;
-  min-height: calc(var(--control-height-compact) + var(--space-16) + var(--border-width));
+  min-height: calc(var(--control-height-compact) + var(--space-16));
   display: flex;
   align-items: center;
   gap: var(--space-8);
@@ -114,14 +104,6 @@
 .editRow {
   display: grid;
   grid-template-columns: subgrid;
-}
-
-.row + .row {
-  border-top: var(--border-width) solid var(--color-divider);
-}
-
-.groupTitle + .row {
-  border-top: 0;
 }
 
 .label {

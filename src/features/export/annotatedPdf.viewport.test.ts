@@ -9,7 +9,7 @@ const CROP = { x: 50, y: 40, width: 200, height: 120 };
 
 function session(points: [Point, Point]): CurrentSession {
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     pdf: { name: "plan.pdf", size: 10, lastModified: 1 },
     pageCount: 1,
     currentPage: 1,
@@ -59,6 +59,7 @@ function session(points: [Point, Point]): CurrentSession {
       showCalibration: false,
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
     },

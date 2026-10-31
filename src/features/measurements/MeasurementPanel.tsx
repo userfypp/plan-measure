@@ -1,9 +1,9 @@
 import { memo, Suspense, useMemo, useState } from "react";
 import { recoverableLazy } from "../../app/recoverableLazy";
 import { retryableImport } from "../../app/retryableImport";
-import { useNumberFormatKey } from "../../utils/appPreferences";
+import { getAppPreferences, useNumberFormatKey } from "../../utils/appPreferences";
 import { useSessionState } from "../../app/sessionState";
-import { Popover } from "../../components/ui";
+import { Input, Popover, SearchIcon } from "../../components/ui";
 import type { ClassificationCatalog, PageState } from "../../types/domain";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { MeasurementCollection } from "./MeasurementCollection";
@@ -11,8 +11,8 @@ import { MeasurementsHeader } from "./MeasurementsHeader";
 import { createMeasurementGroups } from "./measurementGrouping";
 import {
   CURRENT_PAGE_FILTER,
-  NO_MEASUREMENT_FILTERS,
   UNCLASSIFIED_FILTER,
+  initialMeasurementFilters,
   measurementScaleFilterValue,
   type MeasurementFilters,
 } from "./measurementFilters";
@@ -89,7 +89,14 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   const measureClouds = session?.settings.measureClouds ?? false;
   const [selectedGroupByDimensionIds, setGroupByDimensionIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [selectedFilters, setFilters] = useState<MeasurementFilters>(NO_MEASUREMENT_FILTERS);
+  // The defaults apply when the panel mounts (a new project remounts it); later changes to them
+  // leave the list as the user has it.
+  const [selectedFilters, setFilters] = useState<MeasurementFilters>(() =>
+    initialMeasurementFilters(
+      session?.settings.defaultMeasurementFilters,
+      getAppPreferences().defaultMeasurementFilters,
+    ),
+  );
   const [openControls, setOpenControls] = useState<"filters" | "grouping" | null>(null);
   const catalog = session?.classificationCatalog ?? emptyClassificationCatalog;
   const groupByDimensionIds = useMemo(
@@ -225,24 +232,15 @@ export const MeasurementPanel = memo(function MeasurementPanel({
   return (
     <aside className={styles.panel} aria-label="Measurements workspace">
       <div className={styles.toolbar}>
-        <label className={styles.search}>
-          <span className={styles.visuallyHidden}>Search measurements by name</span>
-          <svg
-            className={styles.searchIcon}
-            viewBox="0 0 20 20"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <circle cx="9" cy="9" r="5.67" />
-            <path d="m13.33 13.33 3.75 3.75" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search measurements"
-          />
-        </label>
+        <Input
+          type="search"
+          aria-label="Search measurements by name"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery("")}
+          leading={<SearchIcon />}
+          placeholder="Search measurements"
+        />
         <Popover
           open={openControls === "filters"}
           onOpenChange={(open) => setOpenControls(open ? "filters" : null)}

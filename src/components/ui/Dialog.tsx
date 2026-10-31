@@ -11,6 +11,7 @@ import styles from "./Dialog.module.css";
 
 // Read by Tooltip, which must not open for the focus the dialog moves in on its own.
 const INITIAL_FOCUS_ATTRIBUTE = "data-initial-focus";
+const QUIET_FOCUS_ATTRIBUTE = "data-quiet-focus";
 
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
@@ -42,6 +43,26 @@ function focusElement(element: HTMLElement | null): boolean {
   if (!element?.isConnected) return false;
   element.focus({ preventScroll: true });
   return document.activeElement === element;
+}
+
+/** Focus the dialog moves on its own: no ring until the user presses Tab or leaves the element.
+    `focusVisible: false` covers Chrome and Firefox; the attribute (see controlStates.css) covers Safari. */
+function focusQuietly(element: HTMLElement): boolean {
+  if (!element.isConnected) return false;
+  element.focus({ preventScroll: true, focusVisible: false });
+  if (document.activeElement !== element) return false;
+  element.setAttribute(QUIET_FOCUS_ATTRIBUTE, "");
+  const release = () => {
+    element.removeAttribute(QUIET_FOCUS_ATTRIBUTE);
+    element.removeEventListener("blur", release);
+    element.removeEventListener("keydown", onKeyDown);
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Tab") release();
+  };
+  element.addEventListener("blur", release);
+  element.addEventListener("keydown", onKeyDown);
+  return true;
 }
 
 /** Runs `move`, a focus change the dialog makes on its own; tooltips ignore it, as nothing was hovered. */
@@ -160,7 +181,7 @@ export function Dialog({
         else dialog.show();
         wasOpenRef.current = true;
         const target = getInitialFocus(dialog, initialFocus);
-        focusElement(target);
+        focusQuietly(target);
         return target;
       });
       lastFocusedInsideRef.current = initial;

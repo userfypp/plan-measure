@@ -31,7 +31,7 @@ describe("SessionState", () => {
   it("creates a V12 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(15);
+    expect(created.schemaVersion).toBe(16);
     expect(created.pageLabelOverrides).toEqual({});
     expect(created.settings.measurementDecimalPlaces).toBe(2);
     expect(created.settings.areaDisplay).toBe("auto");
@@ -48,7 +48,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(15);
+    expect(loaded.session?.schemaVersion).toBe(16);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -114,7 +114,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(15);
+    expect(state.session?.schemaVersion).toBe(16);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });

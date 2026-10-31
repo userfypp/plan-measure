@@ -1,4 +1,9 @@
 import type { Measurement } from "../../types/domain";
+import { isMeasurementType } from "../../utils/geometry";
+import {
+  pickDefaultMeasurementFilters,
+  type DefaultMeasurementFilters,
+} from "./defaultMeasurementFilters";
 
 export type MeasurementFilterKey =
   "page" | "type" | "scale" | "classification" | "visibility" | "selection";
@@ -15,10 +20,25 @@ export const NO_MEASUREMENT_FILTERS: MeasurementFilters = {
   selection: "",
 };
 
-/** Page filter that follows the page on screen. */
-export const CURRENT_PAGE_FILTER = "current";
-/** Classification filter for measurements without any value; generated value ids never start with ":". */
-export const UNCLASSIFIED_FILTER = ":unclassified";
+export {
+  CURRENT_PAGE_FILTER,
+  NO_DEFAULT_MEASUREMENT_FILTERS,
+  UNCLASSIFIED_FILTER,
+  type DefaultMeasurementFilters,
+} from "./defaultMeasurementFilters";
+
+/** The filters a measurement list starts with: the project's own when it has them, else the app's. */
+export function initialMeasurementFilters(
+  project: DefaultMeasurementFilters | null | undefined,
+  app: DefaultMeasurementFilters,
+): MeasurementFilters {
+  const defaults = pickDefaultMeasurementFilters(project ?? app);
+  return {
+    ...NO_MEASUREMENT_FILTERS,
+    ...defaults,
+    type: isMeasurementType(defaults.type) ? defaults.type : "",
+  };
+}
 
 export interface FilterableMeasurement {
   pageNumber: number;

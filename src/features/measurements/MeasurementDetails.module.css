@@ -74,12 +74,10 @@
 .section > h3,
 .itemsHeader h3 {
   margin: 0 0 var(--space-8);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: var(--letter-spacing-overline);
-  line-height: var(--line-height-secondary);
-  text-transform: uppercase;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }
 
 .section > h3 {
@@ -124,9 +122,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
-  letter-spacing: var(--letter-spacing-overline);
   line-height: var(--line-height-secondary);
-  text-transform: uppercase;
 }
 
 .cell > dd {

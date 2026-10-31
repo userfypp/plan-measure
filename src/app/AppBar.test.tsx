@@ -348,9 +348,9 @@ describe("AppBar", () => {
       (button) => button.textContent === "Export",
     )!;
 
-    expect(exportButton.title).toBe("Export (Ctrl+E)");
+    expect(tooltipOf(exportButton)).toBe("Export (Ctrl+E)");
     expect(exportButton.getAttribute("aria-keyshortcuts")).toBe("Control+E Meta+E");
-    expect(buttonByLabel("Projects").title).toBe("Projects (Ctrl+O)");
+    expect(tooltipOf(buttonByLabel("Projects"))).toBe("Projects (Ctrl+O)");
     expect(buttonByLabel("Projects").getAttribute("aria-keyshortcuts")).toBe("Control+O Meta+O");
     expect(tooltipOf(buttonByLabel("Settings"))).toBe("Settings (Ctrl+,)");
     expect(buttonByLabel("Settings").getAttribute("aria-keyshortcuts")).toBe("Control+, Meta+,");
@@ -370,9 +370,9 @@ describe("AppBar", () => {
       }),
     );
 
-    expect(exportButton.title).toBe("Export (Ctrl+Shift+E)");
+    expect(tooltipOf(exportButton)).toBe("Export (Ctrl+Shift+E)");
     expect(exportButton.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+E Meta+Shift+E");
-    expect(buttonByLabel("Projects").hasAttribute("title")).toBe(false);
+    expect(tooltipOf(buttonByLabel("Projects"))).toBeUndefined();
     expect(buttonByLabel("Projects").hasAttribute("aria-keyshortcuts")).toBe(false);
     expect(tooltipOf(buttonByLabel("Settings"))).toBe("Settings");
     expect(buttonByLabel("Settings").hasAttribute("aria-keyshortcuts")).toBe(false);

@@ -519,3 +519,76 @@ describe("shortcut preferences", () => {
     expect(getAppPreferences().shortcutBindings).toBe(EMPTY_SHORTCUT_BINDINGS);
   });
 });
+
+describe("default measurement filters", () => {
+  const filters = {
+    page: "current",
+    type: "polygon",
+    scale: "active",
+    classification: ":unclassified",
+    visibility: "false",
+  };
+
+  it("start with every filter off", () => {
+    expect(getAppPreferences().defaultMeasurementFilters).toEqual({
+      page: "",
+      type: "",
+      scale: "",
+      classification: "",
+      visibility: "",
+    });
+  });
+
+  it("store a valid set, persist it and notify subscribers once", () => {
+    let calls = 0;
+    const unsubscribe = subscribeAppPreferences(() => (calls += 1));
+    setAppPreference("defaultMeasurementFilters", filters);
+    unsubscribe();
+    expect(calls).toBe(1);
+    expect(getAppPreferences().defaultMeasurementFilters).toEqual(filters);
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().defaultMeasurementFilters).toEqual(filters);
+  });
+
+  it("reject an invalid set as a whole, including a project-only classification id", () => {
+    setAppPreference("defaultMeasurementFilters", filters);
+    for (const invalid of [
+      { ...filters, page: "2" },
+      { ...filters, type: 3 },
+      { ...filters, scale: "all" },
+      { ...filters, classification: "wall" },
+      { ...filters, visibility: "yes" },
+      { page: "" },
+      null,
+    ]) {
+      setAppPreference("defaultMeasurementFilters", invalid as never);
+      expect(getAppPreferences().defaultMeasurementFilters).toEqual(filters);
+    }
+  });
+
+  it("fall back to no filters for invalid storage", () => {
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ defaultMeasurementFilters: { ...filters, scale: "all" } }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences().defaultMeasurementFilters).toEqual(
+      DEFAULT_APP_PREFERENCES.defaultMeasurementFilters,
+    );
+  });
+
+  it("round-trip through the settings file and are cleared by a reset", () => {
+    setAppPreference("defaultMeasurementFilters", filters);
+    const json = exportAppPreferencesJson();
+    resetAppPreferences();
+    expect(getAppPreferences().defaultMeasurementFilters).toBe(
+      DEFAULT_APP_PREFERENCES.defaultMeasurementFilters,
+    );
+    expect(importAppPreferencesJson(json)).toBe(true);
+    expect(getAppPreferences().defaultMeasurementFilters).toEqual(filters);
+    resetAppPreferences();
+    expect(getAppPreferences().defaultMeasurementFilters).toEqual(
+      DEFAULT_APP_PREFERENCES.defaultMeasurementFilters,
+    );
+  });
+});
