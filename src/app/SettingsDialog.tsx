@@ -382,8 +382,8 @@ const SECTIONS: Array<{
     icon: (
       <Icon>
         <circle cx="10" cy="10" r="7.5" />
-        <circle cx="10" cy="6.4" r="0.9" />
-        <path d="M6 8.6c2.6.7 5.4.7 8 0M10 9.2v2.3m0 0-1.8 3.2m1.8-3.2 1.8 3.2" />
+        <circle cx="10" cy="6.3" r="1.1" fill="currentColor" stroke="none" />
+        <path d="M6.3 8.8h7.4M10 8.8v2.6m0 0-1.7 3.1m1.7-3.1 1.7 3.1" />
       </Icon>
     ),
   },
