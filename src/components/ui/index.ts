@@ -28,9 +28,11 @@ export {
   RestoreIcon,
   ScaleCheckIcon,
   SaveIcon,
+  SearchIcon,
   TemplatesIcon,
   TrashIcon,
 } from "./icons";
+export type { EyeState } from "./icons";
 export { InlineField } from "./InlineField";
 export type { InlineFieldProps } from "./InlineField";
 export { Input } from "./Input";

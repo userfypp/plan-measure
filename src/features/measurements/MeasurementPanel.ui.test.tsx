@@ -5,6 +5,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PathMeasurement, CurrentSession, Measurement, PageState } from "../../types/domain";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
+import { NO_DEFAULT_MEASUREMENT_FILTERS } from "./measurementFilters";
 
 const state = vi.hoisted(() => ({
   session: null as CurrentSession | null,
@@ -68,7 +70,7 @@ function page(measurements: Measurement[]): PageState {
 
 function session(pages: Record<number, PageState>, withCatalog = true): CurrentSession {
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     pageCount: Object.keys(pages).length,
     currentPage: 1,
     pages,
@@ -82,6 +84,7 @@ function session(pages: Record<number, PageState>, withCatalog = true): CurrentS
       showCalibration: true,
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
       csvExport: { columnOverrides: {} },
     },
     classificationCatalog: withCatalog
@@ -143,6 +146,7 @@ afterEach(() => {
   container = null;
   state.session = null;
   state.selectedMeasurementId = null;
+  resetAppPreferences();
 });
 
 describe("MeasurementPanel and TakeoffWorkspace", () => {
@@ -775,5 +779,118 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
       "1 measurement was excluded because it cannot be calculated.",
     );
     expect(container?.textContent).toContain("No calculable quantities.");
+  });
+});
+
+describe("MeasurementPanel default filters", () => {
+  const hallway = '[aria-label="Select measurement Hallway"]';
+  const kitchen = '[aria-label="Select measurement Kitchen"]';
+
+  function twoPages() {
+    const firstPage = page([measurement({ name: "Hallway" })]);
+    const secondPage = {
+      ...page([
+        measurement({
+          id: "line-2",
+          name: "Kitchen",
+          visible: false,
+          classificationValueIds: ["electrical"],
+        }),
+      ]),
+      pageNumber: 2,
+    };
+    return { firstPage, currentSession: session({ 1: firstPage, 2: secondPage }) };
+  }
+
+  it("starts with the app defaults and clears them with Clear filters", () => {
+    setAppPreference("defaultMeasurementFilters", {
+      ...NO_DEFAULT_MEASUREMENT_FILTERS,
+      visibility: "false",
+    });
+    const { firstPage, currentSession } = twoPages();
+    renderPanel(currentSession, firstPage);
+
+    expect(container!.querySelector(hallway)).toBeNull();
+    expect(container!.querySelector(kitchen)).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Filters, 1 active"]')).not.toBeNull();
+
+    act(() => container!.querySelector<HTMLButtonElement>('[aria-label^="Filters,"]')!.click());
+    const clear = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Clear filters",
+    );
+    act(() => clear!.click());
+
+    expect(container!.querySelector(hallway)).not.toBeNull();
+    expect(container!.querySelector(kitchen)).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Filters"]')).not.toBeNull();
+  });
+
+  it("follows the page on screen with the This page default", () => {
+    setAppPreference("defaultMeasurementFilters", {
+      ...NO_DEFAULT_MEASUREMENT_FILTERS,
+      page: "current",
+    });
+    const { firstPage, currentSession } = twoPages();
+    renderPanel(currentSession, firstPage);
+
+    expect(container!.querySelector(hallway)).not.toBeNull();
+    expect(container!.querySelector(kitchen)).toBeNull();
+  });
+
+  it("uses the project's own filters instead of the app defaults", () => {
+    setAppPreference("defaultMeasurementFilters", {
+      ...NO_DEFAULT_MEASUREMENT_FILTERS,
+      visibility: "false",
+    });
+    const { firstPage, currentSession } = twoPages();
+    currentSession.settings.defaultMeasurementFilters = {
+      ...NO_DEFAULT_MEASUREMENT_FILTERS,
+      classification: "electrical",
+    };
+    renderPanel(currentSession, firstPage);
+
+    expect(container!.querySelector(hallway)).toBeNull();
+    expect(container!.querySelector(kitchen)).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Filters, 1 active"]')).not.toBeNull();
+  });
+
+  it("lets a project show everything while the app default filters", () => {
+    setAppPreference("defaultMeasurementFilters", {
+      ...NO_DEFAULT_MEASUREMENT_FILTERS,
+      visibility: "false",
+    });
+    const { firstPage, currentSession } = twoPages();
+    currentSession.settings.defaultMeasurementFilters = { ...NO_DEFAULT_MEASUREMENT_FILTERS };
+    renderPanel(currentSession, firstPage);
+
+    expect(container!.querySelector(hallway)).not.toBeNull();
+    expect(container!.querySelector(kitchen)).not.toBeNull();
+  });
+
+  it("ignores a default classification that no longer exists", () => {
+    const { firstPage, currentSession } = twoPages();
+    currentSession.settings.defaultMeasurementFilters = {
+      ...NO_DEFAULT_MEASUREMENT_FILTERS,
+      classification: "deleted-value",
+    };
+    renderPanel(currentSession, firstPage);
+
+    expect(container!.querySelector(hallway)).not.toBeNull();
+    expect(container!.querySelector(kitchen)).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Filters"]')).not.toBeNull();
+  });
+
+  it("applies the defaults when the panel mounts, not when they change afterwards", () => {
+    const { firstPage, currentSession } = twoPages();
+    renderPanel(currentSession, firstPage);
+    act(() =>
+      setAppPreference("defaultMeasurementFilters", {
+        ...NO_DEFAULT_MEASUREMENT_FILTERS,
+        visibility: "false",
+      }),
+    );
+
+    expect(container!.querySelector(hallway)).not.toBeNull();
+    expect(container!.querySelector('[aria-label="Filters"]')).not.toBeNull();
   });
 });

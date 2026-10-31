@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const globalCss = readFileSync(new URL("../../styles/global.css", import.meta.url), "utf8");
@@ -158,9 +158,22 @@ describe("shared interactive-state contract", () => {
       /scrollbar-color:\s*var\(--color-scrollbar-thumb\)\s+transparent/,
     );
     expect(scrollSurfaceCss).not.toContain("scrollbar-gutter");
+    expect(scrollSurfaceCss).toMatch(/\.overlayScroll\s*\{[^}]*overscroll-behavior:\s*none/s);
     expect(tokensCss.match(/--color-scrollbar-thumb:/g)).toHaveLength(2);
     expect(popoverCss).toMatch(/composes:[^;]*\bscrollSurface\b[^;]*from global/);
     expect(selectCss).toMatch(/composes:[^;]*\bscrollSurface\b[^;]*from global/);
+  });
+
+  it("never re-enables the elastic bounce on a stylesheet-level scroller", () => {
+    const srcDir = new URL("../../", import.meta.url);
+    const offenders = readdirSync(srcDir, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".css"))
+      .filter((file) =>
+        /overscroll-behavior(-[xy])?:\s*(auto|contain)/.test(
+          readFileSync(new URL(file, srcDir), "utf8"),
+        ),
+      );
+    expect(offenders).toEqual([]);
   });
 
   it("keeps the Select trigger as the only hit target so the cursor is uniform", () => {

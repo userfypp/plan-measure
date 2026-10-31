@@ -153,8 +153,11 @@ export function ViewerDock({
   const labelSizeId = useId();
   const labelSizeLabelId = useId();
   const appPreferences = useAppPreferences();
+  const zoomOutShortcut = useShortcutLabel("view.zoomOut");
   const zoomOutKeys = useShortcutAria("view.zoomOut");
+  const zoomInShortcut = useShortcutLabel("view.zoomIn");
   const zoomInKeys = useShortcutAria("view.zoomIn");
+  const fitPageShortcut = useShortcutLabel("view.fitPage");
   const fitPageKeys = useShortcutAria("view.fitPage");
   const pagesShortcut = useShortcutLabel("page.panel");
   const pagesKeys = useShortcutAria("page.panel");
@@ -279,7 +282,8 @@ export function ViewerDock({
       >
         {onTogglePages && (
           <IconButton
-            className={styles.pagesTrigger}
+            quiet
+            className={styles.iconButton}
             icon={<PagesIcon />}
             aria-label="Pages"
             aria-keyshortcuts={pagesKeys || undefined}
@@ -291,13 +295,15 @@ export function ViewerDock({
             onClick={onTogglePages}
           />
         )}
-        <Button
-          variant="ghost"
-          size="compact"
+        <IconButton
+          quiet
           className={styles.iconButton}
+          icon={<ChevronLeftIcon />}
           aria-label="Previous page"
           aria-keyshortcuts={previousPageKeys || undefined}
-          title={previousPageShortcut ? `Previous page (${previousPageShortcut})` : "Previous page"}
+          tooltip={
+            previousPageShortcut ? `Previous page (${previousPageShortcut})` : "Previous page"
+          }
           disabled={pageNavigationDisabled || navigation.pageNumber <= 1}
           disabledReason={
             pageNavigationDisabled
@@ -305,9 +311,7 @@ export function ViewerDock({
               : undefined
           }
           onClick={() => navigation.onPageChange(navigation.pageNumber - 1)}
-        >
-          <ChevronLeftIcon />
-        </Button>
+        />
         <Popover
           trigger={
             <span className={styles.pageTriggerText}>
@@ -391,13 +395,13 @@ export function ViewerDock({
             </div>
           </form>
         </Popover>
-        <Button
-          variant="ghost"
-          size="compact"
+        <IconButton
+          quiet
           className={styles.iconButton}
+          icon={<ChevronRightIcon />}
           aria-label="Next page"
           aria-keyshortcuts={nextPageKeys || undefined}
-          title={nextPageShortcut ? `Next page (${nextPageShortcut})` : "Next page"}
+          tooltip={nextPageShortcut ? `Next page (${nextPageShortcut})` : "Next page"}
           disabled={pageNavigationDisabled || navigation.pageNumber >= navigation.pageCount}
           disabledReason={
             pageNavigationDisabled
@@ -405,9 +409,7 @@ export function ViewerDock({
               : undefined
           }
           onClick={() => navigation.onPageChange(navigation.pageNumber + 1)}
-        >
-          <ChevronRightIcon />
-        </Button>
+        />
       </div>
 
       <span className={styles.separator} aria-hidden="true" />
@@ -420,17 +422,15 @@ export function ViewerDock({
         aria-label="Zoom controls"
         aria-orientation="horizontal"
       >
-        <Button
-          variant="ghost"
-          size="compact"
+        <IconButton
+          quiet
           className={styles.iconButton}
+          icon={<MinusIcon />}
           aria-label="Zoom out"
           aria-keyshortcuts={zoomOutKeys || undefined}
-          title="Zoom out"
+          tooltip={zoomOutShortcut ? `Zoom out (${zoomOutShortcut})` : "Zoom out"}
           onClick={navigation.onZoomOut}
-        >
-          <MinusIcon />
-        </Button>
+        />
         <span
           className={[
             styles.zoomValue,
@@ -442,28 +442,24 @@ export function ViewerDock({
         >
           {Math.round(navigation.zoom * 100)}%
         </span>
-        <Button
-          variant="ghost"
-          size="compact"
+        <IconButton
+          quiet
           className={styles.iconButton}
+          icon={<PlusIcon />}
           aria-label="Zoom in"
           aria-keyshortcuts={zoomInKeys || undefined}
-          title="Zoom in"
+          tooltip={zoomInShortcut ? `Zoom in (${zoomInShortcut})` : "Zoom in"}
           onClick={navigation.onZoomIn}
-        >
-          <PlusIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="compact"
+        />
+        <IconButton
+          quiet
           className={styles.iconButton}
+          icon={<FitIcon />}
           aria-label="Fit page"
           aria-keyshortcuts={fitPageKeys || undefined}
-          title="Fit page"
+          tooltip={fitPageShortcut ? `Fit page (${fitPageShortcut})` : "Fit page"}
           onClick={navigation.onFit}
-        >
-          <FitIcon />
-        </Button>
+        />
       </div>
 
       <span className={styles.separator} aria-hidden="true" />
@@ -516,7 +512,7 @@ export function ViewerDock({
           size="compact"
           className={styles.applyCopiedScaleButton}
           aria-label="Apply copied scale to this page"
-          title={`Apply “${copiedScaleName}” to this page`}
+          tooltip={`Apply “${copiedScaleName}” to this page`}
           disabled={scaleApplyDisabled}
           disabledReason={
             scaleApplyDisabled

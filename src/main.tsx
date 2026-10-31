@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { installOverlayScrollbars } from "./app/overlayScrollbars";
+import { installScrollHover } from "./app/scrollHover";
 import { ThemeProvider } from "./app/themeState";
 import "./styles/global.css";
 
@@ -12,6 +13,7 @@ if (!root) {
 }
 
 installOverlayScrollbars();
+installScrollHover();
 
 createRoot(root).render(
   <StrictMode>

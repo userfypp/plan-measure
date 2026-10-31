@@ -14,9 +14,19 @@ import {
   getAppPreferences,
   reloadAppPreferencesFromStorage,
 } from "../utils/appPreferences";
-import { FIXED_KEYS_GROUP, SHORTCUT_GROUPS } from "../features/shortcuts/catalog";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
 import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
+
+const VIEW_SETTINGS: ProjectViewSettings = {
+  displayUnit: "m",
+  areaDisplay: "auto",
+  showLabels: true,
+  showMeasurements: true,
+  showCalibration: true,
+  labelClassificationDimensionId: null,
+  measureClouds: false,
+  defaultMeasurementFilters: null,
+};
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -148,7 +158,7 @@ function switchControl(label: string): HTMLInputElement {
 
 function tab(label: string): HTMLButtonElement {
   const element = Array.from(dialog().querySelectorAll<HTMLButtonElement>('[role="tab"]')).find(
-    (candidate) => candidate.textContent?.trim() === label,
+    (candidate) => candidate.querySelector("span")?.textContent?.trim() === label,
   );
   if (!element) throw new Error(`Tab ${label} was not rendered.`);
   return element;
@@ -199,8 +209,8 @@ afterEach(() => {
 });
 
 describe("SettingsDialog", () => {
-  it("renders a labelled dialog with a vertical tablist of eight sections", async () => {
-    renderSettings();
+  it("renders a labelled dialog with a vertical tablist, marking the project's own tab", async () => {
+    renderSettings({ viewSettings: VIEW_SETTINGS });
     await openSettings();
 
     const settingsDialog = dialog();
@@ -208,18 +218,24 @@ describe("SettingsDialog", () => {
     expect(heading?.textContent).toBe("Settings");
     expect(settingsDialog.getAttribute("aria-labelledby")).toBe(heading?.id);
     const tabs = Array.from(settingsDialog.querySelectorAll('[role="tab"]'));
-    expect(tabs.map((candidate) => candidate.textContent)).toEqual([
+    expect(tabs.map((candidate) => candidate.querySelector("span")?.textContent)).toEqual([
+      "View",
       "Interface",
       "Accessibility",
       "Measurements",
       "Drawing",
-      "View",
+      "Filters",
       "Canvas",
       "Confirmations",
       "Shortcuts",
       "Performance",
-      "Advanced",
     ]);
+    expect(tabs.map((candidate) => candidate.textContent)).toEqual([
+      "View",
+      ...["Interface", "Accessibility", "Measurements", "Drawing", "Filters", "Canvas"],
+      ...["Confirmations", "Shortcuts", "Performance"],
+    ]);
+    expect(settingsDialog.querySelectorAll("h3")).toHaveLength(0);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
       "false",
@@ -238,11 +254,12 @@ describe("SettingsDialog", () => {
     expect(settingsDialog.querySelector('[role="tabpanel"]')?.getAttribute("aria-labelledby")).toBe(
       tabs[0]?.id,
     );
+    expect(document.activeElement).toBe(tabs[0]);
     expect(settingsDialog.querySelector('[role="menu"]')).toBeNull();
   });
 
   it("switches sections by click and by arrow keys with a roving tabindex", async () => {
-    renderSettings();
+    renderSettings({ viewSettings: VIEW_SETTINGS });
     await openSettings();
 
     openTab("Drawing");
@@ -256,44 +273,42 @@ describe("SettingsDialog", () => {
         new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
       );
     });
-    expect(tab("View").getAttribute("aria-selected")).toBe("true");
-    expect(document.activeElement).toBe(tab("View"));
+    expect(tab("Filters").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("Filters"));
 
     act(() => {
-      tab("View").dispatchEvent(
+      tab("Filters").dispatchEvent(
         new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }),
       );
     });
-    expect(tab("Advanced").getAttribute("aria-selected")).toBe("true");
+    expect(tab("Performance").getAttribute("aria-selected")).toBe("true");
     act(() => {
-      tab("Advanced").dispatchEvent(
+      tab("Performance").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(tab("View").getAttribute("aria-selected")).toBe("true");
+    act(() => {
+      tab("View").dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
       );
     });
     expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
     act(() => {
       tab("Interface").dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
-      );
-    });
-    expect(tab("Accessibility").getAttribute("aria-selected")).toBe("true");
-    act(() => {
-      tab("Accessibility").dispatchEvent(
         new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
       );
     });
-    expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
+    expect(tab("View").getAttribute("aria-selected")).toBe("true");
   });
 
-  it("lists every shortcut group with its editable keys in the Shortcuts section", async () => {
+  it("lists the editable shortcut keys in the Shortcuts section", async () => {
     renderSettings();
     await openSettings();
     openTab("Shortcuts");
 
     const panel = dialog().querySelector('[role="tabpanel"]');
-    expect(
-      Array.from(panel?.querySelectorAll("h3") ?? [], (heading) => heading.textContent),
-    ).toEqual([...SHORTCUT_GROUPS, FIXED_KEYS_GROUP]);
+    expect(panel?.querySelectorAll("h3")).toHaveLength(0);
     expect(panel?.querySelector("button[data-select-trigger]")?.textContent).toBe("Default");
     expect(panel?.querySelector('button[aria-label="Line shortcut 1: L"]')).toBeInstanceOf(
       HTMLButtonElement,
@@ -341,6 +356,7 @@ describe("SettingsDialog", () => {
         showCalibration: false,
         labelClassificationDimensionId: null,
         measureClouds: false,
+        defaultMeasurementFilters: null,
       },
     });
     await openSettings();
@@ -369,6 +385,7 @@ describe("SettingsDialog", () => {
       showCalibration: true,
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
     };
     const dimensions: ClassificationDimension[] = [
       { id: "trade", name: "Trade", archived: false, values: [] },
@@ -415,12 +432,216 @@ describe("SettingsDialog", () => {
     });
   });
 
-  it("stores line thickness and label size per device and explains missing projects", async () => {
+  describe("Filters", () => {
+    const dimensions: ClassificationDimension[] = [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: false,
+        values: [{ id: "electrical", name: "Electrical", archived: false }],
+      },
+    ];
+    const NO_FILTERS = { page: "", type: "", scale: "", classification: "", visibility: "" };
+
+    /** Every select with this row name: the app default first, then the project's own. */
+    function selectsByLabel(label: string): HTMLButtonElement[] {
+      return Array.from(dialog().querySelectorAll<HTMLElement>("[class*='settingLabel']"))
+        .filter((candidate) => candidate.textContent?.trim() === label)
+        .map((candidate) =>
+          dialog().querySelector<HTMLButtonElement>(`button[aria-labelledby~="${candidate.id}"]`),
+        )
+        .filter((control): control is HTMLButtonElement => control !== null);
+    }
+
+    it("stores the default filters for every project, whether or not a plan is open", async () => {
+      renderSettings({ classificationDimensions: dimensions });
+      await openSettings();
+      openTab("Filters");
+
+      expect(getAppPreferences().defaultMeasurementFilters).toEqual(NO_FILTERS);
+      expect(selectByLabel("Page").textContent).toBe("All pages");
+      choose("Page", "This page");
+      choose("Type", "Polygon");
+      choose("Scale", "Other scales");
+      choose("Classification", "Unclassified");
+      choose("Visibility", "Hidden");
+
+      const expected = {
+        page: "current",
+        type: "polygon",
+        scale: "other",
+        classification: ":unclassified",
+        visibility: "false",
+      };
+      expect(getAppPreferences().defaultMeasurementFilters).toEqual(expected);
+      expect(
+        JSON.parse(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY) ?? "{}"),
+      ).toMatchObject({ defaultMeasurementFilters: expected });
+    });
+
+    it("offers only All and Unclassified as the device-wide classification", async () => {
+      renderSettings({ classificationDimensions: dimensions });
+      await openSettings();
+      openTab("Filters");
+
+      act(() => selectByLabel("Classification").click());
+      expect(selectItems().map((option) => option.textContent)).toEqual([
+        "All classifications",
+        "Unclassified",
+      ]);
+    });
+
+    it("offers the project's own filters at the end of Filters, only with a project open", async () => {
+      renderSettings({ viewSettings: VIEW_SETTINGS });
+      await openSettings();
+      openTab("Filters");
+
+      expect(selectsByLabel("Page")).toHaveLength(1);
+      expect(selectByLabel("Default filters").textContent).toBe("Same as all projects");
+      const group = dialog().querySelector("[role='group'][aria-label='Project']")!;
+      expect(group.textContent).toContain("Saved with this plan");
+      expect(group.contains(selectByLabel("Default filters"))).toBe(true);
+      expect(group.contains(selectsByLabel("Page")[0]!)).toBe(false);
+    });
+
+    it("shows only the app filters in Filters without a project", async () => {
+      renderSettings();
+      await openSettings();
+      openTab("Filters");
+
+      expect(selectsByLabel("Page")).toHaveLength(1);
+      expect(dialog().textContent).not.toContain("Default filters");
+      expect(dialog().querySelector("[role='group']")).toBeNull();
+    });
+
+    it("frames the View settings as saved with the plan instead of tagging its tab", async () => {
+      renderSettings({ viewSettings: VIEW_SETTINGS });
+      await openSettings();
+      openTab("View");
+
+      expect(dialog().querySelector("[role='group'][aria-label='Project']")!.textContent).toContain(
+        "Saved with this plan",
+      );
+      expect(selectsByLabel("Default filters")).toHaveLength(0);
+    });
+
+    it("follows the app defaults until the project is made custom, copying them", async () => {
+      const { onViewSettingsChange } = renderSettings({ viewSettings: VIEW_SETTINGS });
+      await openSettings();
+      openTab("Filters");
+      choose("Visibility", "Visible");
+
+      expect(selectByLabel("Default filters").textContent).toBe("Same as all projects");
+      expect(selectsByLabel("Page filter")).toHaveLength(0);
+      choose("Default filters", "Custom");
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({
+        defaultMeasurementFilters: { ...NO_FILTERS, visibility: "true" },
+      });
+    });
+
+    it("edits the project's own filters, listing its classification values", async () => {
+      const { onViewSettingsChange } = renderSettings({
+        classificationDimensions: dimensions,
+        viewSettings: {
+          ...VIEW_SETTINGS,
+          defaultMeasurementFilters: { ...NO_FILTERS, type: "line" },
+        },
+      });
+      await openSettings();
+      openTab("Filters");
+
+      expect(selectByLabel("Default filters").textContent).toBe("Custom");
+      expect(selectByLabel("Type filter").textContent).toBe("Line");
+      act(() => selectByLabel("Classification filter").click());
+      expect(selectItems().map((option) => option.textContent)).toEqual([
+        "All classifications",
+        "Unclassified",
+        "Trade: Electrical",
+      ]);
+      act(() => selectItems()[2]!.click());
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({
+        defaultMeasurementFilters: { ...NO_FILTERS, type: "line", classification: "electrical" },
+      });
+      expect(getAppPreferences().defaultMeasurementFilters).toEqual(NO_FILTERS);
+
+      choose("Page filter", "This page");
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({
+        defaultMeasurementFilters: { ...NO_FILTERS, type: "line", page: "current" },
+      });
+      choose("Default filters", "Same as all projects");
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({ defaultMeasurementFilters: null });
+    });
+
+    it("keeps a removed classification value visible in the project's rows", async () => {
+      renderSettings({
+        classificationDimensions: dimensions,
+        viewSettings: {
+          ...VIEW_SETTINGS,
+          defaultMeasurementFilters: { ...NO_FILTERS, classification: "deleted" },
+        },
+      });
+      await openSettings();
+      openTab("Filters");
+
+      expect(selectByLabel("Classification filter").textContent).toBe("Removed value");
+    });
+
+    it("restores the default filters with Reset settings", async () => {
+      renderSettings();
+      await openSettings();
+      openTab("Filters");
+      choose("Page", "This page");
+      expect(getAppPreferences().defaultMeasurementFilters.page).toBe("current");
+
+      act(() =>
+        Array.from(dialog().querySelectorAll("button"))
+          .find((button) => button.textContent === "Reset…")!
+          .click(),
+      );
+      act(() =>
+        Array.from(dialog().querySelectorAll("button"))
+          .find((button) => button.textContent === "Reset")!
+          .click(),
+      );
+      expect(getAppPreferences().defaultMeasurementFilters).toEqual(NO_FILTERS);
+      openTab("Filters");
+      expect(selectByLabel("Page").textContent).toBe("All pages");
+    });
+  });
+
+  it("moves focus to the open tab without the focus ring", async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    try {
+      renderSettings({ viewSettings: null });
+      await openSettings();
+
+      const call = focus.mock.instances.findIndex((element) => element === tab("Interface"));
+      expect(call).toBeGreaterThanOrEqual(0);
+      expect(focus.mock.calls[call]?.[0]).toMatchObject({ focusVisible: false });
+      // Safari ignores the option, so the ring is also held back by an attribute until Tab.
+      expect(tab("Interface").hasAttribute("data-quiet-focus")).toBe(true);
+      act(() => {
+        tab("Interface").dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+      });
+      expect(tab("Interface").hasAttribute("data-quiet-focus")).toBe(false);
+    } finally {
+      focus.mockRestore();
+    }
+  });
+
+  it("disables the project's own View tab without an open project", async () => {
     renderSettings({ viewSettings: null });
     await openSettings();
-    openTab("View");
 
-    expect(dialog().textContent).toContain("Open a plan to change its display unit");
+    expect(tab("View").disabled).toBe(true);
+    expect(tab("Interface").disabled).toBe(false);
+    expect(tab("Interface").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("Interface"));
+  });
+
+  it("stores line thickness and label size per device", async () => {
+    renderSettings({ viewSettings: null });
+    await openSettings();
     openTab("Canvas");
     choose("Line thickness", "Thick");
     choose("Label size", "Small");
@@ -530,9 +751,9 @@ describe("SettingsDialog", () => {
   });
 
   it("renders decimal places as options 0 through 8 and reports the change", async () => {
-    const { onMeasurementDecimalPlacesChange } = renderSettings();
+    const { onMeasurementDecimalPlacesChange } = renderSettings({ viewSettings: VIEW_SETTINGS });
     await openSettings();
-    openTab("Measurements");
+    openTab("View");
 
     const select = selectByLabel("Decimal places");
     expect(select.textContent).toBe("2");
@@ -570,7 +791,7 @@ describe("SettingsDialog", () => {
   it("gives the storage usage output its row name", async () => {
     renderSettings();
     await openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     const output = Array.from(dialog().querySelectorAll<HTMLOutputElement>("output")).find(
       (candidate) => candidate.className.includes("storageUsage"),
     );
@@ -580,9 +801,9 @@ describe("SettingsDialog", () => {
   });
 
   it("omits decimal places when there is no current session", async () => {
-    renderSettings({ measurementDecimalPlaces: null });
+    renderSettings({ measurementDecimalPlaces: null, viewSettings: VIEW_SETTINGS });
     await openSettings();
-    openTab("Measurements");
+    openTab("View");
     expect(
       Array.from(dialog().querySelectorAll("[class*='settingLabel']")).some(
         (label) => label.textContent === "Decimal places",
@@ -629,6 +850,7 @@ describe("SettingsDialog", () => {
         showCalibration: true,
         labelClassificationDimensionId: "phase",
         measureClouds: false,
+        defaultMeasurementFilters: null,
       },
       classificationDimensions: [
         {
@@ -645,7 +867,10 @@ describe("SettingsDialog", () => {
     await openSettings();
     openTab("Measurements");
 
-    expect(dialog().textContent).toContain("Sample measurements");
+    expect(Array.from(dialog().querySelectorAll("dt"), (term) => term.textContent)).toEqual([
+      "Sample length",
+      "Sample area",
+    ]);
     expect(previewLabels()).toEqual(["New · 4050.4 ft", "New · P 466.9 ft · A 0.3 ac"]);
   });
 
@@ -667,6 +892,7 @@ describe("SettingsDialog", () => {
       showCalibration: true,
       labelClassificationDimensionId: "phase",
       measureClouds: false,
+      defaultMeasurementFilters: null,
     };
     const classificationDimensions: ClassificationDimension[] = [
       {
@@ -694,7 +920,6 @@ describe("SettingsDialog", () => {
     await openSettings();
     openTab("Measurements");
 
-    expect(dialog().textContent).toContain("Selected measurement");
     expect(dialog().querySelector("dt")?.textContent).toBe("Beam");
     // An archived value still labels the measurement that has it, as on the canvas.
     expect(previewLabels()).toEqual(["Old · 500.00 cm"]);
@@ -793,7 +1018,6 @@ describe("SettingsDialog", () => {
       renderDelayMs: 150,
     });
 
-    openTab("Advanced");
     const reset = Array.from(dialog().querySelectorAll("button")).find(
       (button) => button.textContent === "Reset…",
     )!;
@@ -828,7 +1052,6 @@ describe("SettingsDialog", () => {
       hitTolerance: "wide",
       debugOverlay: true,
     });
-    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -851,7 +1074,6 @@ describe("SettingsDialog", () => {
     await openSettings();
     openTab("Performance");
     choose("Maximum zoom", "4×");
-    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -864,7 +1086,6 @@ describe("SettingsDialog", () => {
     );
     openTab("Performance");
     expect(selectByLabel("Maximum zoom").textContent).toBe("4×");
-    openTab("Advanced");
     expect(
       Array.from(dialog().querySelectorAll("button")).some((b) => b.textContent === "Reset…"),
     ).toBe(true);
@@ -905,7 +1126,6 @@ describe("SettingsDialog", () => {
     expect(onConfirmScaleDeletionChange).toHaveBeenLastCalledWith(true);
 
     onConfirmScaleDeletionChange.mockClear();
-    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -973,9 +1193,11 @@ describe("SettingsDialog", () => {
         showCalibration: true,
         labelClassificationDimensionId: null,
         measureClouds: false,
+        defaultMeasurementFilters: null,
       },
     });
     await openSettings();
+    openTab("Interface");
     const helpLabels = () =>
       Array.from(dialog().querySelectorAll("button[aria-label^='About ']")).map((button) =>
         button.getAttribute("aria-label"),
@@ -993,6 +1215,8 @@ describe("SettingsDialog", () => {
       "About Measurements",
       "About Calibration",
     ]);
+    openTab("Filters");
+    expect(helpLabels()).toEqual(["About Default filters"]);
     // Where canvas appearance lives is told in the visibility tooltips, not in a note below them.
     expect(dialog().textContent).not.toContain("appearance settings are in");
     openTab("Canvas");
@@ -1002,21 +1226,19 @@ describe("SettingsDialog", () => {
     openTab("Performance");
     expect(helpLabels()).toEqual([
       "About Maximum zoom",
-      "About Undo history",
       "About Render delay",
       "About Render quality",
       "About Raster cache",
+      "About Undo history",
       "About Click tolerance",
       "About Debug overlay",
     ]);
-    openTab("Advanced");
-    expect(helpLabels()).toEqual([]);
   });
 
   it("stores the autosave delay, projects shown and closing confirmation", async () => {
     renderSettings();
     await openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     expect(selectByLabel("Autosave delay").textContent).toBe("0.3 s");
     act(() => selectByLabel("Autosave delay").click());
     expect(selectItems().map((option) => option.textContent)).toEqual([
@@ -1027,6 +1249,7 @@ describe("SettingsDialog", () => {
     ]);
     act(() => selectItems()[0]!.click());
     choose("Autosave delay", "3 s");
+    openTab("Interface");
     expect(selectByLabel("Saved projects shown").textContent).toBe("All");
     choose("Saved projects shown", "10");
     openTab("Confirmations");
@@ -1044,7 +1267,6 @@ describe("SettingsDialog", () => {
   it("exports the settings file and imports one, ignoring invalid values", async () => {
     renderSettings();
     await openSettings();
-    openTab("Advanced");
     const createObjectURL = vi.fn(() => "blob:settings");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -1108,7 +1330,6 @@ describe("SettingsDialog", () => {
       ...handlers,
     });
     await openSettings();
-    openTab("Advanced");
     const createObjectURL = vi.fn(() => "blob:settings");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -1182,7 +1403,7 @@ describe("SettingsDialog", () => {
     });
     renderSettings();
     await openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     await act(async () => undefined);
     expect(dialog().textContent).toContain("Using 5.3 MiB of 2048 MiB");
     expect(
@@ -1193,7 +1414,7 @@ describe("SettingsDialog", () => {
 
     Reflect.deleteProperty(navigator, "storage");
     openTab("Interface");
-    openTab("Advanced");
+    openTab("Performance");
     await act(async () => undefined);
     expect(dialog().textContent).toContain("Not available in this browser");
   });

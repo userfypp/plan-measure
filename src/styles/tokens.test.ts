@@ -30,3 +30,14 @@ describe("text size tokens", () => {
     },
   );
 });
+
+describe("line height tokens", () => {
+  it("keeps every line height an even number of pixels", () => {
+    const heights = [...css.matchAll(/--line-height-[a-z-]+:\s*(\d+)px/g)].map((m) => ({
+      token: m[0],
+      px: Number(m[1]),
+    }));
+    expect(heights.length).toBeGreaterThan(0);
+    expect(heights.filter(({ px }) => px % 2 !== 0)).toEqual([]);
+  });
+});

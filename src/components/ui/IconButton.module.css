@@ -43,6 +43,14 @@
   border-color: var(--color-control-active-border);
 }
 
+/* Rests without a border or surface (also when disabled); hover, press and selection add them. */
+.button.quiet,
+.button.quiet:disabled,
+.button.quiet[data-disabled="true"] {
+  background-color: transparent;
+  border-color: transparent;
+}
+
 .primary {
   color: var(--color-surface-panel);
   background-color: var(--color-accent);

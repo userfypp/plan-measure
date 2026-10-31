@@ -151,7 +151,6 @@ dialog.dialog[open] {
   height: auto;
   max-height: none;
   overflow-y: auto;
-  overscroll-behavior: contain;
   padding: var(--space-16);
   background: var(--color-surface-panel);
   border: var(--border-width) solid var(--color-divider);
@@ -252,14 +251,15 @@ dialog.dialog[open] {
   transition: var(--transition-interactive);
 }
 
+/* Same tick as CheckIcon, drawn as one round-joined stroke so the elbow stays closed. */
 .columnOption input::before {
-  width: var(--geometry-checkbox-mark-width);
-  height: var(--geometry-checkbox-mark-height);
+  width: calc(var(--geometry-checkbox-size) - 2 * var(--border-width));
+  height: calc(var(--geometry-checkbox-size) - 2 * var(--border-width));
   content: "";
-  border-bottom: calc(var(--icon-stroke-width) * 1px) solid var(--color-surface-panel);
-  border-left: calc(var(--icon-stroke-width) * 1px) solid var(--color-surface-panel);
+  background-color: var(--color-surface-panel);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 10.5 3.5 3.5 7.5-8'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
   opacity: 0;
-  transform: translateY(-1px) rotate(-45deg);
 }
 
 .columnOption input:hover:not(:disabled):not(:checked) {

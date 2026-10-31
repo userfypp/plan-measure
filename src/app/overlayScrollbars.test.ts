@@ -103,6 +103,24 @@ describe("installOverlayScrollbars", () => {
     expect(thumb?.style.transform).toBe("translateY(150px)");
   });
 
+  it("keeps the thumb on its track while elastic overscroll reports out-of-range positions", async () => {
+    const scroller = addScroller({});
+    setMetrics(scroller, { clientHeight: 200, scrollHeight: 800, clientWidth: 300, scrollTop: 0 });
+    uninstall = installOverlayScrollbars(host);
+    await frames();
+    const [thumb] = thumbs("y");
+
+    for (const [position, offset] of [
+      [-80, "0px"],
+      [900, "150px"],
+    ] as const) {
+      scroller.scrollTop = position;
+      scroller.dispatchEvent(new Event("scroll"));
+      await frames();
+      expect(thumb?.style.transform).toBe(`translateY(${offset})`);
+    }
+  });
+
   it("hides the thumb while the scroller does not overflow", async () => {
     const scroller = addScroller({});
     setMetrics(scroller, { clientHeight: 200, scrollHeight: 200, scrollTop: 0 });

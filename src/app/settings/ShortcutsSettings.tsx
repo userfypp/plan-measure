@@ -1,5 +1,4 @@
 import {
-  Fragment,
   memo,
   useCallback,
   useId,
@@ -11,7 +10,6 @@ import {
 } from "react";
 import {
   Button,
-  CloseIcon,
   IconButton,
   Input,
   Popover,
@@ -472,28 +470,16 @@ export function ShortcutsSettings() {
           <div className={styles.search}>
             <Input
               ref={searchRef}
-              className={styles.searchInput}
               type="search"
               aria-label="Search shortcuts"
               placeholder="Search shortcuts"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onClear={() => {
+                setQuery("");
+                searchRef.current?.focus();
+              }}
             />
-            {/* Laid over the field's end rather than passed as `trailing`, which would remount the input. */}
-            {query && (
-              <span className={styles.clear}>
-                <IconButton
-                  className={styles.clearButton}
-                  icon={<CloseIcon />}
-                  aria-label="Clear search"
-                  tooltip="Clear search"
-                  onClick={() => {
-                    setQuery("");
-                    searchRef.current?.focus();
-                  }}
-                />
-              </span>
-            )}
           </div>
           <IconButton
             icon={<RestoreIcon />}
@@ -538,42 +524,34 @@ export function ShortcutsSettings() {
         )}
       </div>
       <div className={styles.list}>
-        {visibleGroups.map(({ group, entries }) => (
-          <Fragment key={group}>
-            <h3 className={styles.groupTitle}>{group}</h3>
-            {entries.map((entry) => (
-              <ShortcutRow
-                key={entry.id}
-                entry={entry}
-                combos={effective[entry.id]}
-                changed={!sameCombos(effective[entry.id], base[entry.id])}
-                captureSlot={capture?.id === entry.id ? capture.slot : null}
-                idPrefix={idPrefix}
-                onCaptureOpenChange={handleCaptureOpenChange}
-                onApply={handleApply}
-                onClear={handleClear}
-                onReset={handleResetRow}
-              />
-            ))}
-          </Fragment>
-        ))}
-        {visibleFixed.length > 0 && (
-          <>
-            <h3 className={styles.groupTitle}>{FIXED_KEYS_GROUP}</h3>
-            {visibleFixed.map((row) => (
-              <div key={row.id} className={styles.row}>
-                <span className={styles.label}>{row.label}</span>
-                <span className={styles.fixedKeys}>
-                  {row.keys.map((key) => (
-                    <kbd key={key} className={styles.kbd}>
-                      {key}
-                    </kbd>
-                  ))}
-                </span>
-              </div>
-            ))}
-          </>
+        {visibleGroups.flatMap(({ entries }) =>
+          entries.map((entry) => (
+            <ShortcutRow
+              key={entry.id}
+              entry={entry}
+              combos={effective[entry.id]}
+              changed={!sameCombos(effective[entry.id], base[entry.id])}
+              captureSlot={capture?.id === entry.id ? capture.slot : null}
+              idPrefix={idPrefix}
+              onCaptureOpenChange={handleCaptureOpenChange}
+              onApply={handleApply}
+              onClear={handleClear}
+              onReset={handleResetRow}
+            />
+          )),
         )}
+        {visibleFixed.map((row) => (
+          <div key={row.id} className={styles.row}>
+            <span className={styles.label}>{row.label}</span>
+            <span className={styles.fixedKeys}>
+              {row.keys.map((key) => (
+                <kbd key={key} className={styles.kbd}>
+                  {key}
+                </kbd>
+              ))}
+            </span>
+          </div>
+        ))}
         {empty && (
           <div className={styles.empty}>
             <p>No shortcuts match</p>

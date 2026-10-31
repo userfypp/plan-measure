@@ -321,7 +321,12 @@ touches startup, the viewer, the canvas or the panels, check each point:
    and runtime patches, which apply once per Konva; still measure canvas changes
    on a build, and check parity screenshots after upgrading Konva.
 6. **Lists stay virtual.** Panels mount at most the visible rows plus overscan,
-   and cache formatted values by measurement and display settings.
+   and cache formatted values by measurement and display settings. A virtual
+   list tracks its scroll position in steps smaller than its overscan, never per
+   pixel, so scrolling does not re-render the list on every event. Browsers
+   refresh `:hover` only on a timer while a list scrolls, so row highlights that
+   must follow the pointer use `data-hover`, moved once per frame by
+   `installScrollHover` (`src/app/scrollHover.ts`) without touching React state.
 7. **Motion only hides waits, never adds them.** Animate opacity only (never
    transform: it slows the e2e timings and makes automation wait for movement).
    One-time entrances use WAAPI through `src/utils/reveal.ts`; menus and

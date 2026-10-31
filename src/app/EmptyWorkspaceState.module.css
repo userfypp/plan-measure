@@ -134,7 +134,7 @@
   width: 7px;
   height: 7px;
   border: solid var(--color-text-secondary);
-  border-width: 1.5px 1.5px 0 0;
+  border-width: calc(var(--icon-stroke-width) * 1px) calc(var(--icon-stroke-width) * 1px) 0 0;
   transform: rotate(45deg);
   transition: var(--transition-interactive);
 }

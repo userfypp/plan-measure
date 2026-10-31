@@ -53,7 +53,7 @@ let restoreDialogMethods = () => {};
 
 function sessionFixture(): CurrentSession {
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount: 1,
     currentPage: 1,
@@ -83,6 +83,7 @@ function sessionFixture(): CurrentSession {
       showCalibration: true,
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",

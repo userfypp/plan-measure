@@ -984,7 +984,7 @@ function PlanMeasureApp() {
       <AppShell
         interactionBlocked={loading}
         saveStatus={
-          session && saveStatusStore ? (
+          session && activePdf && saveStatusStore ? (
             <SaveStatusIndicator
               store={saveStatusStore}
               pending={projectOperationPending}
@@ -995,8 +995,8 @@ function PlanMeasureApp() {
             />
           ) : undefined
         }
-        documentName={session?.pdf.name ?? null}
-        canExport={Boolean(session)}
+        documentName={session && activePdf ? session.pdf.name : null}
+        canExport={Boolean(session && activePdf)}
         savedProjectCount={savedProjects.length}
         canUndo={canUndo}
         canRedo={canRedo}
@@ -1023,6 +1023,7 @@ function PlanMeasureApp() {
                 showCalibration: session.settings.showCalibration,
                 labelClassificationDimensionId: session.settings.labelClassificationDimensionId,
                 measureClouds: session.settings.measureClouds,
+                defaultMeasurementFilters: session.settings.defaultMeasurementFilters,
               }
             : null
         }

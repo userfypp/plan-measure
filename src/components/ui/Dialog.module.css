@@ -41,6 +41,9 @@
 }
 
 .dialog[open] {
+  /* Title bar and footer keep their height; the body takes what is left and scrolls. */
+  display: flex;
+  flex-direction: column;
   transform: none;
 }
 
@@ -67,8 +70,15 @@
   width: min(var(--dialog-width-large), calc(100vw - var(--space-32)));
 }
 
+/* Title bar and footer have the same height (a compact control plus 12px above and below) and are
+   closed by a rule, so every dialog frames its body the same way. */
 .header {
-  padding: var(--space-16) var(--space-16) 0;
+  flex: none;
+  min-height: calc(var(--control-height-compact) + var(--space-24) + var(--border-width));
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-16);
+  border-bottom: var(--border-width) solid var(--color-divider);
 }
 
 .title {
@@ -80,7 +90,8 @@
 
 .body {
   composes: scrollSurface overlayScroll from global;
-  max-height: calc(100dvh - var(--dialog-body-chrome));
+  flex: 1 1 auto;
+  min-height: 0;
   padding: var(--space-16);
   overflow-y: auto;
 }
@@ -93,11 +104,14 @@
 }
 
 .actions {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
   gap: var(--space-8);
-  padding: 0 var(--space-16) var(--space-16);
+  padding: var(--space-12) var(--space-16);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
 @media (max-width: 520px) {

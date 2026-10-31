@@ -134,7 +134,8 @@ export function installOverlayScrollbars(root: HTMLElement = document.body): () 
         const visible = scroller[client];
         const scrollSize = scroller[scroll];
         const overflow = scrollSize - visible;
-        const scrolled = scroller[position];
+        // Elastic overscroll reports positions beyond the range; the thumb never leaves the track.
+        const scrolled = Math.min(Math.max(scroller[position], 0), overflow);
         placements.push(() => {
           if (after.nextElementSibling !== element) after.after(element);
           if (visible === 0 || overflow <= 1) {

@@ -1,3 +1,5 @@
+import type { DefaultMeasurementFilters } from "../features/measurements/measurementFilters";
+
 export type MetricLinearUnit = "mm" | "cm" | "m";
 export type LinearUnit = MetricLinearUnit | "in" | "ft";
 export type MeasurementDisplayUnit = LinearUnit | "ft-in";
@@ -99,13 +101,18 @@ export interface SessionSettingsV14 extends SessionSettingsV13 {
   labelClassificationDimensionId: string | null;
 }
 
-export interface SessionSettings extends SessionSettingsV14 {
+export interface SessionSettingsV15 extends SessionSettingsV14 {
   /**
    * Show area and perimeter for revision clouds, measured with straight sides between their
    * vertices (approximate: the scallops are ignored). False by default: clouds are markup with
    * no measures.
    */
   measureClouds: boolean;
+}
+
+export interface SessionSettings extends SessionSettingsV15 {
+  /** Filters the measurement list starts with when the project opens; null follows the app-wide default. */
+  defaultMeasurementFilters: DefaultMeasurementFilters | null;
 }
 
 interface LegacyMeasurementBase {
@@ -373,10 +380,15 @@ export interface SessionV14 extends Omit<SessionV13, "schemaVersion" | "settings
 
 export interface SessionV15 extends Omit<SessionV14, "schemaVersion" | "settings"> {
   schemaVersion: 15;
+  settings: SessionSettingsV15;
+}
+
+export interface SessionV16 extends Omit<SessionV15, "schemaVersion" | "settings"> {
+  schemaVersion: 16;
   settings: SessionSettings;
 }
 
-export type CurrentSession = SessionV15;
+export type CurrentSession = SessionV16;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

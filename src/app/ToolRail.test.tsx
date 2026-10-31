@@ -209,7 +209,10 @@ describe("ToolRail V2", () => {
       const reasonId = button(tool).getAttribute("aria-describedby");
       expect(reasonId).not.toBeNull();
       expect(document.getElementById(reasonId!)?.textContent).toContain("480 px");
-      expect(button(tool).title).toContain("480 px");
+      act(() => setAppPreference("tooltipDelay", "instant"));
+      act(() => button(tool).dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain("480 px");
+      act(() => button(tool).dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
     }
   });
 

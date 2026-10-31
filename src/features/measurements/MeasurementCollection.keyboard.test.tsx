@@ -440,6 +440,36 @@ describe("large measurement collection", () => {
     expect(container!.querySelectorAll('[role="listitem"]').length).toBeLessThan(40);
   });
 
+  it("tracks the scroll in steps yet always mounts the whole visible band", () => {
+    renderCollection(largeMeasurements);
+    const collection = container!.querySelector<HTMLElement>(
+      '[aria-label="Measurement collection"]',
+    )!;
+    const mounted = () =>
+      Array.from(container!.querySelectorAll('[role="listitem"]')).map((item) =>
+        item.getAttribute("aria-posinset"),
+      );
+    // A multiple of the 120 px step, so the offsets below stay inside one step.
+    const stepTop = 120 * 1020;
+    function scrollTo(top: number) {
+      act(() => {
+        collection.scrollTop = top;
+        collection.dispatchEvent(new Event("scroll"));
+      });
+    }
+    scrollTo(stepTop);
+    const stepStart = mounted();
+    // Pixels inside one step leave the rendered window as it was, so no row work runs for them.
+    scrollTo(stepTop + 20);
+    expect(mounted()).toEqual(stepStart);
+    // The last pixel before the next step still has the 640 px fallback viewport mounted.
+    scrollTo(stepTop + 119);
+    const visibleFirst = Math.ceil((stepTop + 119) / 49) + 1;
+    const visibleLast = Math.floor((stepTop + 119 + 640) / 49);
+    for (let position = visibleFirst; position <= visibleLast; position += 1)
+      expect(mounted()).toContain(String(position));
+  });
+
   function renderManyGroups() {
     act(() =>
       root!.render(

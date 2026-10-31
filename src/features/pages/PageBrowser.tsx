@@ -249,7 +249,6 @@ export function PageBrowser({
       <div className={styles.controls}>
         <Input
           ref={searchRef}
-          className={styles.searchInput}
           type="search"
           aria-label="Search labels"
           placeholder="Search labels"
@@ -265,19 +264,10 @@ export function PageBrowser({
               navigate(pages[0]!);
             }
           }}
-          // Always mounted: toggling `trailing` would remount the input and drop its focus.
-          trailing={
-            <IconButton
-              icon={<CloseIcon />}
-              aria-label="Clear search"
-              tooltip="Clear search"
-              disabled={!search}
-              onClick={() => {
-                setSearch("");
-                searchRef.current?.focus();
-              }}
-            />
-          }
+          onClear={() => {
+            setSearch("");
+            searchRef.current?.focus();
+          }}
         />
         <form
           className={styles.goTo}

@@ -394,9 +394,6 @@ describe("measurement grouping surfaces", () => {
     expect(measurementPanelCss).toMatch(
       /\.toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*grid-auto-columns:\s*auto;[^}]*grid-auto-flow:\s*column;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*var\(--space-8\);[^}]*padding-inline-end:[^;]*var\(--geometry-tree-inset-end\)/s,
     );
-    expect(measurementPanelCss).toMatch(
-      /\.search\s*\{[^}]*height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-field\);/s,
-    );
     // Icon-only triggers with IconButton geometry; an applied filter or grouping looks pressed.
     expect(measurementPanelCss).toMatch(
       /\.toolbarButton\s*\{[^}]*min-width:\s*var\(--control-height-compact\);[^}]*min-height:\s*var\(--control-height-compact\);[^}]*border:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*transparent;/s,
@@ -513,8 +510,8 @@ describe("measurement grouping surfaces", () => {
       'aria-label="Show all measurements in Trade · Electrical; currently mixed visibility"',
     );
     expect(markup).toContain('data-group-visibility="mixed"');
-    expect(markup).toContain('d="M7.92 10h4.17"');
-    expect(markup).not.toContain('d="m3.33 3.33 13.33 13.33"');
+    expect(markup).toContain('d="M7.5 10h5"');
+    expect(markup).not.toContain('d="M4 4l12 12"');
     expect(markup).not.toContain(">Mixed<");
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain('aria-label="Selected measurement Hallway"');

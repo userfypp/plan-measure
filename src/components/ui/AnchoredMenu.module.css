@@ -76,9 +76,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
-  letter-spacing: var(--letter-spacing-overline);
   line-height: var(--line-height-secondary);
-  text-transform: none;
 }
 
 .sectionLabel:not(:first-child) {

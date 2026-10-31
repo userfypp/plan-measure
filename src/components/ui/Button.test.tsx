@@ -92,4 +92,31 @@ describe("shared disabled control semantics", () => {
     });
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("shows a Button tooltip through the shared bubble", () => {
+    act(() =>
+      root!.render(
+        <Button tooltip="Export (Ctrl+E)" tooltipPosition="bottom">
+          Export
+        </Button>,
+      ),
+    );
+    const button = container!.querySelector<HTMLButtonElement>("button")!;
+    act(() => button.focus());
+    expect(button.hasAttribute("title")).toBe(false);
+  });
+
+  it("marks a quiet IconButton so it rests without a border", () => {
+    act(() =>
+      root!.render(
+        <>
+          <IconButton icon={<span>i</span>} aria-label="Plain" />
+          <IconButton quiet icon={<span>i</span>} aria-label="Quiet" />
+        </>,
+      ),
+    );
+    const [plain, quiet] = Array.from(container!.querySelectorAll("button"));
+    expect(plain!.className).not.toBe(quiet!.className);
+    expect(quiet!.className).toMatch(/quiet/);
+  });
 });

@@ -437,7 +437,7 @@ it("persists a custom Uniform ratio as the existing PageCalibration shape and pr
   await replaceSavedSession(state.session!, new Blob(["pdf"], { type: "application/pdf" }), null);
   const recovered = await loadSavedSession();
   const page = recovered?.session.pages[1];
-  expect(recovered?.session.schemaVersion).toBe(15);
+  expect(recovered?.session.schemaVersion).toBe(16);
   expect(page?.calibrations[0]).toEqual({ id: "custom-uniform", name: "Scale 1", ...calibration });
   expect(page?.activeCalibrationId).toBe("custom-uniform");
   expect(page?.measurements[0]?.calibrationId).toBe("custom-uniform");
@@ -1182,7 +1182,7 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v7,
-      schemaVersion: 15,
+      schemaVersion: 16,
       pages: withQuickShapeCounters(v7.pages),
       pageLabelOverrides: {},
       settings: {
@@ -1192,6 +1192,7 @@ describe("session persistence", () => {
         areaDisplay: "auto",
         labelClassificationDimensionId: null,
         measureClouds: false,
+        defaultMeasurementFilters: null,
       },
     });
   });
@@ -1202,7 +1203,7 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v8));
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v8.settings,
@@ -1210,6 +1211,7 @@ describe("session persistence", () => {
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
     });
   });
 
@@ -1220,13 +1222,14 @@ describe("session persistence", () => {
 
     const migrated = deserializeSession(JSON.stringify(v9));
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.settings).toEqual({
       ...v9.settings,
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
     });
     expect(migrated.pages).toEqual(v9.pages);
     expect(migrated.classificationCatalog).toEqual(v9.classificationCatalog);
@@ -1241,13 +1244,14 @@ describe("session persistence", () => {
 
     expect(migrated).toEqual({
       ...v10,
-      schemaVersion: 15,
+      schemaVersion: 16,
       pages: withQuickShapeCounters(v10.pages),
       pageLabelOverrides: {},
       settings: {
         ...v10.settings,
         labelClassificationDimensionId: null,
         measureClouds: false,
+        defaultMeasurementFilters: null,
       },
     });
   });
@@ -1256,7 +1260,7 @@ describe("session persistence", () => {
     const migrated = deserializeSession(JSON.stringify(legacySession(false)));
     const page = migrated.pages[1]!;
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pageLabelOverrides).toEqual({});
     expect(migrated.classificationCatalog).toEqual({ dimensions: [] });
     expect(migrated.settings.csvExport).toEqual({ columnOverrides: {} });
@@ -1319,6 +1323,7 @@ describe("session persistence", () => {
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
     });
     expect(page.measurements.map((measurement) => measurement.calibrationId)).toEqual([
       calibration.id,
@@ -1362,7 +1367,7 @@ describe("session persistence", () => {
     );
     const migrated = deserializeSession(JSON.stringify(v2));
     const page = migrated.pages[1]!;
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(page.calibrations[0]).toMatchObject({
       id: "v2-scale",
       name: "V2 scale",
@@ -1378,7 +1383,7 @@ describe("session persistence", () => {
     const v3 = v3MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v3));
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pages[1]!.measurements).toEqual(
       v3.pages[1]!.measurements.map((measurement) => ({
         ...measurement,
@@ -1401,7 +1406,7 @@ describe("session persistence", () => {
     const v4 = v4MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v4));
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pages[1]!.measurements).toEqual([
       {
         ...v4.pages[1]!.measurements[0],
@@ -1425,7 +1430,7 @@ describe("session persistence", () => {
     it("migrates a hand-serialized V13 session to V14 with no label classification", () => {
       const migrated = deserializeSession(v13Serialized());
 
-      expect(migrated.schemaVersion).toBe(15);
+      expect(migrated.schemaVersion).toBe(16);
       expect(migrated.settings.labelClassificationDimensionId).toBeNull();
       expect(migrated.classificationCatalog).toEqual(
         archivedCurrentSession().classificationCatalog,
@@ -1465,7 +1470,7 @@ describe("session persistence", () => {
         labelClassificationDimensionId: null,
       });
       const migrated = deserializeSession(JSON.stringify(v7MeasuredSession()));
-      expect(migrated.schemaVersion).toBe(15);
+      expect(migrated.schemaVersion).toBe(16);
       expect(migrated.settings.labelClassificationDimensionId).toBeNull();
     });
   });
@@ -1525,6 +1530,7 @@ describe("session persistence", () => {
       const value = structuredClone(session) as unknown as LooseSession;
       value.schemaVersion = 14;
       delete value.settings.measureClouds;
+      delete value.settings.defaultMeasurementFilters;
       mutate?.(value);
       return JSON.stringify(value);
     }
@@ -1535,7 +1541,7 @@ describe("session persistence", () => {
 
       const migrated = deserializeSession(v14Serialized(session));
 
-      expect(migrated.schemaVersion).toBe(15);
+      expect(migrated.schemaVersion).toBe(16);
       expect(migrated.settings.measureClouds).toBe(false);
       expect(migrated).toEqual(session);
     });
@@ -1714,6 +1720,80 @@ describe("session persistence", () => {
     });
   });
 
+  describe("schema V16 default measurement filters", () => {
+    type LooseSession = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    const filters = {
+      page: "current",
+      type: "polygon",
+      scale: "active",
+      classification: "wall",
+      visibility: "true",
+    };
+
+    function v15Serialized(session: CurrentSession): string {
+      const value = structuredClone(session) as unknown as LooseSession;
+      value.schemaVersion = 15;
+      delete value.settings.defaultMeasurementFilters;
+      return JSON.stringify(value);
+    }
+
+    it("migrates a hand-serialized V15 session to V16 following the app default", () => {
+      const session = archivedCurrentSession();
+
+      const migrated = deserializeSession(v15Serialized(session));
+
+      expect(migrated.schemaVersion).toBe(16);
+      expect(migrated.settings.defaultMeasurementFilters).toBeNull();
+      expect(migrated).toEqual(session);
+    });
+
+    it("overwrites a leaked filters key when migrating V15", () => {
+      const value = JSON.parse(v15Serialized(currentMeasuredSession()));
+      value.settings.defaultMeasurementFilters = filters;
+
+      expect(
+        deserializeSession(JSON.stringify(value)).settings.defaultMeasurementFilters,
+      ).toBeNull();
+    });
+
+    it("round trips the project's own default filters", () => {
+      const session = currentMeasuredSession();
+      session.settings.defaultMeasurementFilters = { ...filters };
+
+      const restored = deserializeSession(serializeSession(session));
+
+      expect(restored.settings.defaultMeasurementFilters).toEqual(filters);
+      expect(restored).toEqual(session);
+    });
+
+    it("rejects invalid default filters", () => {
+      const invalid = [
+        undefined,
+        "current",
+        [],
+        {},
+        { ...filters, page: "2" },
+        { ...filters, type: "circle" },
+        { ...filters, scale: "all" },
+        { ...filters, classification: 3 },
+        { ...filters, visibility: "yes" },
+        { ...filters, type: undefined },
+      ];
+      for (const value of invalid) {
+        const parsed = JSON.parse(serializeSession(currentMeasuredSession()));
+        parsed.settings.defaultMeasurementFilters = value;
+        expect(() => deserializeSession(JSON.stringify(parsed))).toThrow();
+      }
+      const session = currentMeasuredSession();
+      (session.settings as unknown as LooseSession).defaultMeasurementFilters = {
+        ...filters,
+        page: "9",
+      };
+      expect(() => serializeSession(session)).toThrow();
+    });
+  });
+
   describe("schema V13 quick shapes", () => {
     type LooseSession = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -1767,7 +1847,7 @@ describe("session persistence", () => {
     it("migrates V12 to V13 adding the quick shape counters", () => {
       const migrated = deserializeSession(v12Serialized());
 
-      expect(migrated.schemaVersion).toBe(15);
+      expect(migrated.schemaVersion).toBe(16);
       for (const page of Object.values(migrated.pages)) {
         expect(page.nextMeasurementNumber).toMatchObject({ rectangle: 1, ellipse: 1, cloud: 1 });
       }
@@ -1873,7 +1953,7 @@ describe("session persistence", () => {
     };
     session.settings.measurementDecimalPlaces = 6;
     const serialized = serializeSession(session);
-    expect(JSON.parse(serialized).schemaVersion).toBe(15);
+    expect(JSON.parse(serialized).schemaVersion).toBe(16);
     expect(deserializeSession(serialized)).toEqual(session);
   });
 
@@ -1933,7 +2013,7 @@ describe("session persistence", () => {
     const v5 = v5MeasuredSession();
     const migrated = deserializeSession(JSON.stringify(v5));
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pages[2]!.measurements[0]).toMatchObject({
       id: "custom",
       name: "Custom name",
@@ -1957,7 +2037,7 @@ describe("session persistence", () => {
     const migratedDimension = migrated.classificationCatalog.dimensions[0]!;
     const migratedMeasurement = migrated.pages[2]!.measurements[0]!;
 
-    expect(migrated.schemaVersion).toBe(15);
+    expect(migrated.schemaVersion).toBe(16);
     expect(migrated.pdf).toEqual(v6.pdf);
     expect(migrated.settings).toEqual({
       ...v6.settings,
@@ -1966,6 +2046,7 @@ describe("session persistence", () => {
       areaDisplay: "auto",
       labelClassificationDimensionId: null,
       measureClouds: false,
+      defaultMeasurementFilters: null,
     });
     expect(migratedDimension).toEqual({
       id: "discipline",
@@ -1983,7 +2064,7 @@ describe("session persistence", () => {
     const session = archivedCurrentSession();
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(15);
+    expect(restored.schemaVersion).toBe(16);
     expect(restored.classificationCatalog).toEqual(session.classificationCatalog);
     expect(restored.pages[2]!.measurements[0]!.classificationValueIds).toEqual(["legacy"]);
   });
@@ -2293,7 +2374,7 @@ describe("session persistence", () => {
     const recovered = deserializeSessionForRecovery(JSON.stringify(historical));
 
     expect(recovered.compatibility).toBe("classification-repair-required");
-    expect(recovered.session.schemaVersion).toBe(15);
+    expect(recovered.session.schemaVersion).toBe(16);
     expect(recovered.session.classificationCatalog.dimensions).toEqual([
       {
         id: "discipline",
@@ -2436,7 +2517,7 @@ describe("session persistence", () => {
     };
     const restored = deserializeSession(serializeSession(session));
 
-    expect(restored.schemaVersion).toBe(15);
+    expect(restored.schemaVersion).toBe(16);
     expect(restored.pages[2]!.calibrations[0]).toMatchObject({
       id: "custom-scale",
       start: { x: 15, y: 16 },
@@ -3088,7 +3169,7 @@ describe("session persistence", () => {
 
     const recovered = await loadSavedSession();
 
-    expect(recovered?.session.schemaVersion).toBe(15);
+    expect(recovered?.session.schemaVersion).toBe(16);
     expect(recovered?.session.pdf).toEqual(historical.pdf);
     expect(recovered?.session.pages[1]!.measurements.map(({ id }) => id)).toEqual([
       "legacy-line",

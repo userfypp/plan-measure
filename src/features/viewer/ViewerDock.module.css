@@ -25,9 +25,6 @@
 .iconButton {
   width: var(--target-current);
   min-width: var(--target-current);
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
 }
 
 .iconButton svg,
@@ -46,22 +43,6 @@
 .scaleTrigger .chevron {
   width: var(--geometry-icon-size-small);
   height: var(--geometry-icon-size-small);
-}
-
-.dock .pagesTrigger {
-  width: var(--target-current);
-  height: var(--target-current);
-  min-width: var(--target-current);
-  flex: 0 0 auto;
-  border-color: transparent;
-}
-
-.dock .pagesTrigger:hover:not(:disabled) {
-  border-color: var(--color-control-hover-border);
-}
-
-.dock .pagesTrigger[aria-pressed="true"] {
-  border-color: var(--color-accent);
 }
 
 /* Values the dock shows before the document has supplied them stay hidden, so the dock does not

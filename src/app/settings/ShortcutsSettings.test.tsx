@@ -6,12 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { chooseSelectOption, selectOptionLabels } from "../../components/ui/selectTestUtils";
-import {
-  CATALOG,
-  FIXED_KEYS,
-  FIXED_KEYS_GROUP,
-  SHORTCUT_GROUPS,
-} from "../../features/shortcuts/catalog";
+import { CATALOG, FIXED_KEYS } from "../../features/shortcuts/catalog";
 import { diffFromDefault, presetBindings } from "../../features/shortcuts/presets";
 import {
   getAppPreferences,
@@ -136,10 +131,6 @@ function setSearch(value: string) {
   });
 }
 
-function groupTitles(): string[] {
-  return Array.from(host!.querySelectorAll("h3"), (heading) => heading.textContent ?? "");
-}
-
 function rowLabels(): string[] {
   return Array.from(
     host!.querySelectorAll("[class*='row'] > [class*='label']"),
@@ -157,8 +148,9 @@ function isRowResetEnabled(action: string): boolean {
 }
 
 describe("ShortcutsSettings layout", () => {
-  it("lists every action under its group, then the read-only Fixed keys", () => {
-    expect(groupTitles()).toEqual([...SHORTCUT_GROUPS, FIXED_KEYS_GROUP]);
+  it("lists every action, then the read-only Fixed keys, with no group headings", () => {
+    expect(host!.querySelectorAll("h3")).toHaveLength(0);
+    expect(rowLabels()).toHaveLength(CATALOG.length + FIXED_KEYS.length);
     expect(slot("Line shortcut 1: L").textContent).toBe("L");
     expect(slot("Add shortcut for Calibrate").textContent).toBe("Add");
     expect(slot("Zoom in shortcut 1: +")).toBeTruthy();
@@ -185,11 +177,10 @@ describe("ShortcutsSettings layout", () => {
     expect(host!.textContent).not.toContain("Customized from");
   });
 
-  it("scrolls only the list: the header and the groups never share a parent", () => {
+  it("scrolls only the list: the header and the rows never share a parent", () => {
     const list = host!.querySelector<HTMLElement>("[class*='list']")!;
     expect(list.contains(header())).toBe(false);
-    expect(list.contains(host!.querySelector("h3"))).toBe(true);
-    expect(list.querySelectorAll("h3")).toHaveLength(SHORTCUT_GROUPS.length + 1);
+    expect(list.children).toHaveLength(CATALOG.length + FIXED_KEYS.length);
     expect(list.contains(host!.querySelector('p[aria-live="polite"]'))).toBe(false);
   });
 
@@ -210,11 +201,8 @@ describe("ShortcutsSettings layout", () => {
   });
 
   it("keeps the Fixed keys read-only", () => {
-    const fixedTitle = Array.from(host!.querySelectorAll("h3")).find(
-      (heading) => heading.textContent === FIXED_KEYS_GROUP,
-    )!;
-    const rows: Element[] = [];
-    for (let row = fixedTitle.nextElementSibling; row; row = row.nextElementSibling) rows.push(row);
+    const list = host!.querySelector<HTMLElement>("[class*='list']")!;
+    const rows = Array.from(list.children).slice(CATALOG.length);
 
     expect(rows).toHaveLength(FIXED_KEYS.length);
     for (const row of rows) {
@@ -621,9 +609,8 @@ describe("ShortcutsSettings row reset", () => {
 });
 
 describe("ShortcutsSettings search", () => {
-  it("filters by label, group, description and key, and keeps the groups that still match", () => {
+  it("filters by label, group, description and key", () => {
     setSearch("zoom");
-    expect(groupTitles()).toEqual(["View"]);
     expect(rowLabels()).toEqual(["Zoom in", "Zoom out"]);
 
     setSearch("drawing aids");
@@ -642,7 +629,6 @@ describe("ShortcutsSettings search", () => {
   it("searches the Fixed keys too", () => {
     setSearch("pan");
 
-    expect(groupTitles()).toContain(FIXED_KEYS_GROUP);
     expect(rowLabels()).toContain("Pan");
   });
 
@@ -659,12 +645,12 @@ describe("ShortcutsSettings search", () => {
     setSearch("zzzz");
 
     expect(host!.textContent).toContain("No shortcuts match");
-    expect(groupTitles()).toEqual([]);
+    expect(rowLabels()).toEqual([]);
 
     click(slot("Clear search"));
 
     expect(host!.textContent).not.toContain("No shortcuts match");
-    expect(groupTitles()).toEqual([...SHORTCUT_GROUPS, FIXED_KEYS_GROUP]);
+    expect(rowLabels()).toHaveLength(CATALOG.length + FIXED_KEYS.length);
     expect(hasSlot("Clear search")).toBe(false);
     expect(document.activeElement).toBe(host!.querySelector('input[type="search"]'));
   });

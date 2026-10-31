@@ -1,4 +1,9 @@
 import { useSyncExternalStore } from "react";
+import {
+  NO_DEFAULT_MEASUREMENT_FILTERS,
+  isDefaultMeasurementFilters,
+  type DefaultMeasurementFilters,
+} from "../features/measurements/defaultMeasurementFilters";
 import type { MeasurementDisplayUnit } from "../types/domain";
 import {
   EMPTY_SHORTCUT_BINDINGS,
@@ -88,6 +93,8 @@ export interface AppPreferences {
   shortcutPreset: PresetId;
   /** Per-action keys that differ from Default (`[]` clears an action's shortcut). */
   shortcutBindings: ShortcutBindings;
+  /** Filters the measurement list starts with, unless the open project sets its own. */
+  defaultMeasurementFilters: DefaultMeasurementFilters;
 }
 
 export const APP_PREFERENCES_STORAGE_KEY = "plan-measure.preferences";
@@ -136,6 +143,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   debugOverlay: false,
   shortcutPreset: "default",
   shortcutBindings: EMPTY_SHORTCUT_BINDINGS,
+  defaultMeasurementFilters: NO_DEFAULT_MEASUREMENT_FILTERS,
 };
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
@@ -153,8 +161,8 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     thousandsSeparator: oneOf("none", "space", "comma", "point"),
     decimalSeparator: oneOf("point", "comma"),
     defaultDisplayUnit: oneOf<MeasurementDisplayUnit>("mm", "cm", "m", "in", "ft", "ft-in"),
-    snapDefault: (value): value is boolean => typeof value === "boolean",
-    orthoDefault: (value): value is boolean => typeof value === "boolean",
+    snapDefault: isBoolean,
+    orthoDefault: isBoolean,
     snapSensitivity: oneOf("low", "normal", "high"),
     closeSensitivity: oneOf("low", "normal", "high"),
     maxZoom: oneOf(4, 8, 16),
@@ -190,6 +198,8 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     debugOverlay: isBoolean,
     shortcutPreset: oneOf<PresetId>(...PRESET_IDS),
     shortcutBindings: isShortcutBindings,
+    defaultMeasurementFilters: (value): value is DefaultMeasurementFilters =>
+      isDefaultMeasurementFilters(value, "app"),
   };
 
 /** Multipliers for on-canvas stroke width and measurement label text (normal keeps the original look). */

@@ -20,7 +20,7 @@
 
 .sectionHeading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
   padding-inline: var(--space-4);

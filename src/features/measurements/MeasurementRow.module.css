@@ -36,7 +36,9 @@
   pointer-events: none;
 }
 
-.row:hover::before {
+/* `data-hover` follows the pointer on every scrolled frame (`app/scrollHover.ts`); `:hover` would
+   trail it by up to 100 ms while the list scrolls. */
+.row[data-hover]::before {
   background: var(--color-surface-field);
 }
 
@@ -44,7 +46,7 @@
   background: var(--color-selection-surface);
 }
 
-.selected:hover::before {
+.selected[data-hover]::before {
   background: var(--color-selection-surface);
 }
 
@@ -113,7 +115,6 @@
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: var(--space-8);
-  row-gap: 1px;
 }
 
 .name,

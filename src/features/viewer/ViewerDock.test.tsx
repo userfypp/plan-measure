@@ -93,6 +93,14 @@ function renderDock(props: ViewerDockProps) {
   act(() => root!.render(<ViewerDock {...props} />));
 }
 
+function tooltipOf(button: HTMLElement): string | undefined {
+  act(() => setAppPreference("tooltipDelay", "instant"));
+  act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+  const text = document.querySelector('[role="tooltip"]')?.textContent ?? undefined;
+  act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+  return text;
+}
+
 function buttonByLabel(label: string): HTMLButtonElement {
   const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
   if (!button) throw new Error(`Button with label ${label} was not rendered.`);
@@ -209,6 +217,19 @@ describe("ViewerDock", () => {
     expect(buttonByLabel("Fit page").getAttribute("aria-keyshortcuts")).toBe("Control+0 Meta+0");
   });
 
+  it("names the zoom and Fit keys in their tooltips and follows rebinding", () => {
+    renderDock(createProps());
+
+    expect(tooltipOf(buttonByLabel("Zoom out"))).toBe("Zoom out (-)");
+    expect(tooltipOf(buttonByLabel("Zoom in"))).toBe("Zoom in (+)");
+    expect(tooltipOf(buttonByLabel("Fit page"))).toBe("Fit page (F)");
+
+    act(() => setAppPreference("shortcutBindings", { "view.zoomIn": ["Z"], "view.zoomOut": [] }));
+
+    expect(tooltipOf(buttonByLabel("Zoom in"))).toBe("Zoom in (Z)");
+    expect(tooltipOf(buttonByLabel("Zoom out"))).toBe("Zoom out");
+  });
+
   it("shows unambiguous active-scale identity and switches through a radio menu", () => {
     const props = createProps();
     renderDock(props);
@@ -266,7 +287,7 @@ describe("ViewerDock", () => {
 
     const apply = buttonByLabel("Apply copied scale to this page");
     expect(apply.textContent).toContain("Apply copied scale");
-    expect(apply.title).toContain("Ground floor");
+    expect(tooltipOf(apply)).toContain("Ground floor");
     act(() => apply.click());
     expect(props.onApplyCopiedScale).toHaveBeenCalledOnce();
 
@@ -884,14 +905,6 @@ describe("ViewerDock page shortcuts", () => {
     return event;
   }
 
-  function tooltipOf(button: HTMLElement): string | undefined {
-    act(() => setAppPreference("tooltipDelay", "instant"));
-    act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-    const text = document.querySelector('[role="tooltip"]')?.textContent ?? undefined;
-    act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
-    return text;
-  }
-
   function propsOnPage(pageNumber: number, overrides: Partial<ViewerDockProps> = {}) {
     const props = createProps(overrides);
     return { ...props, navigation: { ...props.navigation, pageNumber } };
@@ -1001,9 +1014,9 @@ describe("ViewerDock page shortcuts", () => {
 
     expect(tooltipOf(buttonByLabel("Pages"))).toBe("Pages (T)");
     expect(buttonByLabel("Pages").getAttribute("aria-keyshortcuts")).toBe("T");
-    expect(buttonByLabel("Previous page").title).toBe("Previous page (PageUp)");
+    expect(tooltipOf(buttonByLabel("Previous page"))).toBe("Previous page (PageUp)");
     expect(buttonByLabel("Previous page").getAttribute("aria-keyshortcuts")).toBe("PageUp");
-    expect(buttonByLabel("Next page").title).toBe("Next page (PageDown)");
+    expect(tooltipOf(buttonByLabel("Next page"))).toBe("Next page (PageDown)");
     expect(buttonByLabel("Next page").getAttribute("aria-keyshortcuts")).toBe("PageDown");
   });
 
@@ -1027,9 +1040,9 @@ describe("ViewerDock page shortcuts", () => {
     expect(vi.mocked(props.navigation.onPageChange).mock.calls).toEqual([[3]]);
     expect(props.onTogglePages).toHaveBeenCalledOnce();
 
-    expect(buttonByLabel("Next page").title).toBe("Next page (J)");
+    expect(tooltipOf(buttonByLabel("Next page"))).toBe("Next page (J)");
     expect(buttonByLabel("Next page").getAttribute("aria-keyshortcuts")).toBe("J");
-    expect(buttonByLabel("Previous page").title).toBe("Previous page");
+    expect(tooltipOf(buttonByLabel("Previous page"))).toBe("Previous page");
     expect(buttonByLabel("Previous page").hasAttribute("aria-keyshortcuts")).toBe(false);
     expect(tooltipOf(buttonByLabel("Pages"))).toBe("Pages (Ctrl+Shift+P)");
     expect(buttonByLabel("Pages").getAttribute("aria-keyshortcuts")).toBe(

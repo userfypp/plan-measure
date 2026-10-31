@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Button, Dialog, Select, Switch, Tooltip } from "../components/ui";
+import { Button, Dialog, EyeIcon, Select, Switch, Tooltip } from "../components/ui";
 import type {
   ClassificationDimension,
   Measurement,
@@ -9,6 +9,13 @@ import type {
   PageCalibration,
   SessionSettings,
 } from "../types/domain";
+import {
+  CURRENT_PAGE_FILTER,
+  UNCLASSIFIED_FILTER,
+  initialMeasurementFilters,
+  type DefaultMeasurementFilters,
+} from "../features/measurements/measurementFilters";
+import { pickDefaultMeasurementFilters } from "../features/measurements/defaultMeasurementFilters";
 import { measurementLabelText } from "../features/viewer/labelContent";
 import { downloadExportFile } from "../services/exportDownload";
 import {
@@ -20,6 +27,7 @@ import {
   type AppPreferences,
 } from "../utils/appPreferences";
 import { DEFAULT_MEASUREMENT_DECIMAL_PLACES } from "../utils/format";
+import { MEASUREMENT_TYPES, measurementPathSpecs } from "../utils/geometry";
 import {
   sanitizeRecoveredPlanStartupWorkspace,
   type RecoveredPlanStartupWorkspace,
@@ -33,12 +41,12 @@ export type SettingsSectionId =
   | "accessibility"
   | "measurements"
   | "drawing"
+  | "filters"
   | "view"
   | "canvas"
   | "confirmations"
   | "shortcuts"
-  | "performance"
-  | "advanced";
+  | "performance";
 
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
 export type ProjectViewSettings = Pick<
@@ -50,6 +58,7 @@ export type ProjectViewSettings = Pick<
   | "showCalibration"
   | "labelClassificationDimensionId"
   | "measureClouds"
+  | "defaultMeasurementFilters"
 >;
 
 const AREA_DISPLAY_OPTIONS: Array<{ value: ProjectViewSettings["areaDisplay"]; label: string }> = [
@@ -252,6 +261,42 @@ const TEXT_SIZE_OPTIONS = [
   { value: "125", label: "125%" },
 ] as const;
 
+const FILTER_PAGE_OPTIONS = [
+  { value: "", label: "All pages" },
+  { value: CURRENT_PAGE_FILTER, label: "This page" },
+];
+
+const FILTER_TYPE_OPTIONS = [
+  { value: "", label: "All types" },
+  ...MEASUREMENT_TYPES.map((type) => ({
+    value: type as string,
+    label: measurementPathSpecs[type].label,
+  })),
+];
+
+const FILTER_SCALE_OPTIONS = [
+  { value: "", label: "All scales" },
+  { value: "active", label: "Active scale" },
+  { value: "other", label: "Other scales" },
+];
+
+const FILTER_VISIBILITY_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "true", label: "Visible" },
+  { value: "false", label: "Hidden" },
+];
+
+/** All a device-wide default can say about classification: a value only exists inside one project. */
+const APP_FILTER_CLASSIFICATION_OPTIONS = [
+  { value: "", label: "All classifications" },
+  { value: UNCLASSIFIED_FILTER, label: "Unclassified" },
+];
+
+const FILTER_SOURCE_OPTIONS = [
+  { value: "app", label: "Same as all projects" },
+  { value: "project", label: "Custom" },
+] as const;
+
 const BYTES_PER_MIB = 1024 * 1024;
 
 /** Read-only browser storage estimate; falls back to a note when the API is missing or fails. */
@@ -303,10 +348,26 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }> = [
+/** Where a tab's settings live: saved with the open plan, or kept on this device for every project. */
+type SettingsScope = "project" | "app";
+
+/** Tabs in sidebar order: the project's own settings first, then those of the whole app. */
+const SECTIONS: Array<{
+  id: SettingsSectionId;
+  label: string;
+  scope: SettingsScope;
+  icon: ReactNode;
+}> = [
+  {
+    id: "view",
+    label: "View",
+    scope: "project",
+    icon: <EyeIcon />,
+  },
   {
     id: "interface",
     label: "Interface",
+    scope: "app",
     icon: (
       <Icon>
         <rect x="3" y="4" width="14" height="12" rx="2" />
@@ -317,6 +378,7 @@ const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }>
   {
     id: "accessibility",
     label: "Accessibility",
+    scope: "app",
     icon: (
       <Icon>
         <circle cx="10" cy="10" r="7.5" />
@@ -328,6 +390,7 @@ const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }>
   {
     id: "measurements",
     label: "Measurements",
+    scope: "app",
     icon: (
       <Icon>
         <path d="m4 13.5 9.5-9.5 2.5 2.5L6.5 16H4Z" />
@@ -338,6 +401,7 @@ const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }>
   {
     id: "drawing",
     label: "Drawing",
+    scope: "app",
     icon: (
       <Icon>
         <path d="M4 16 16 4" />
@@ -347,28 +411,30 @@ const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }>
     ),
   },
   {
-    id: "view",
-    label: "View",
+    id: "filters",
+    label: "Filters",
+    scope: "app",
     icon: (
       <Icon>
-        <path d="M2.5 10S5.5 4.75 10 4.75 17.5 10 17.5 10 14.5 15.25 10 15.25 2.5 10 2.5 10Z" />
-        <circle cx="10" cy="10" r="2.25" />
+        <path d="M3.33 4.58h13.34l-5.21 6.25v4.17l-2.92 1.67v-5.84Z" />
       </Icon>
     ),
   },
   {
     id: "canvas",
     label: "Canvas",
+    scope: "app",
     icon: (
       <Icon>
         <rect x="3" y="3" width="14" height="14" rx="2" />
-        <path d="M3 8h14M3 12h14M8 3v14M12 3v14" />
+        <path d="M3 7.67h14M3 12.33h14M7.67 3v14M12.33 3v14" />
       </Icon>
     ),
   },
   {
     id: "confirmations",
     label: "Confirmations",
+    scope: "app",
     icon: (
       <Icon>
         <circle cx="10" cy="10" r="7" />
@@ -379,31 +445,22 @@ const SECTIONS: Array<{ id: SettingsSectionId; label: string; icon: ReactNode }>
   {
     id: "shortcuts",
     label: "Shortcuts",
+    scope: "app",
     icon: (
       <Icon>
-        <rect x="2.5" y="5" width="15" height="10" rx="2" />
-        <path d="M5.5 8h1M9.5 8h1M13.5 8h1M5.5 12h9" />
+        <rect x="2.5" y="4.5" width="15" height="11" rx="2" />
+        <path d="M5.25 7.25h1.33M9.33 7.25h1.34M13.42 7.25h1.33M5.25 10h1.33M9.33 10h1.34M13.42 10h1.33M5.25 12.75h9.5" />
       </Icon>
     ),
   },
   {
     id: "performance",
     label: "Performance",
+    scope: "app",
     icon: (
       <Icon>
         <path d="M3 14a7 7 0 1 1 14 0" />
         <path d="m10 14 3-4" />
-      </Icon>
-    ),
-  },
-  {
-    id: "advanced",
-    label: "Advanced",
-    icon: (
-      <Icon>
-        <path d="M4 6h8M15 6h1M4 14h1M8 14h8" />
-        <circle cx="13.5" cy="6" r="1.5" />
-        <circle cx="6.5" cy="14" r="1.5" />
       </Icon>
     ),
   },
@@ -523,6 +580,95 @@ function SwitchRow({
   );
 }
 
+/** The classification choices of one project, labelled as the measurement filters label them. */
+function projectClassificationOptions(
+  dimensions: readonly ClassificationDimension[],
+  chosen: string,
+) {
+  const options = [
+    ...APP_FILTER_CLASSIFICATION_OPTIONS,
+    ...dimensions.flatMap((dimension) =>
+      dimension.values.map((value) => ({
+        value: value.id,
+        label: `${dimension.name}: ${value.name}`,
+      })),
+    ),
+  ];
+  // A deleted value stays visible, as in the measurement filters, so the row never reads blank.
+  return chosen && !options.some((option) => option.value === chosen)
+    ? [...options, { value: chosen, label: "Removed value" }]
+    : options;
+}
+
+/** Frames the settings stored with the open plan, apart from the app-wide ones around it. */
+function ProjectGroup({ children }: { children: ReactNode }) {
+  return (
+    <div className={styles.projectGroup} role="group" aria-label="Project">
+      <div className={styles.projectGroupHeader} aria-hidden="true">
+        <span className={styles.projectGroupTitle}>Project</span>
+        <span className={styles.projectGroupCaption}>Saved with this plan</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** The five default filters as rows; Classification offers the options of the level being edited. */
+function DefaultFilterRows({
+  filters,
+  classificationOptions,
+  labelSuffix = "",
+  onChange,
+}: {
+  filters: DefaultMeasurementFilters;
+  classificationOptions: readonly { value: string; label: string }[];
+  /** Appended to each label where the rows sit among settings that are not filters. */
+  labelSuffix?: string;
+  onChange: (filters: DefaultMeasurementFilters) => void;
+}) {
+  const change = (key: keyof DefaultMeasurementFilters) => (value: string) =>
+    onChange({ ...filters, [key]: value });
+  return (
+    <>
+      <SelectRow
+        label={`Page${labelSuffix}`}
+        className={styles.wideSelect}
+        value={filters.page}
+        options={FILTER_PAGE_OPTIONS}
+        onChange={change("page")}
+      />
+      <SelectRow
+        label={`Type${labelSuffix}`}
+        className={styles.wideSelect}
+        value={filters.type}
+        options={FILTER_TYPE_OPTIONS}
+        onChange={change("type")}
+      />
+      <SelectRow
+        label={`Scale${labelSuffix}`}
+        className={styles.wideSelect}
+        value={filters.scale}
+        options={FILTER_SCALE_OPTIONS}
+        onChange={change("scale")}
+      />
+      <SelectRow
+        label={`Classification${labelSuffix}`}
+        className={styles.wideSelect}
+        value={filters.classification}
+        options={classificationOptions}
+        onChange={change("classification")}
+      />
+      <SelectRow
+        label={`Visibility${labelSuffix}`}
+        className={styles.wideSelect}
+        value={filters.visibility}
+        options={FILTER_VISIBILITY_OPTIONS}
+        onChange={change("visibility")}
+      />
+    </>
+  );
+}
+
 /** The selected measurement and the scale it is measured with, previewed in Measurements. */
 export interface LabelPreviewMeasurement {
   measurement: Pick<Measurement, "type" | "points" | "name" | "classificationValueIds">;
@@ -541,7 +687,7 @@ const SAMPLE_CALIBRATION: PageCalibration = {
 
 const SAMPLE_MEASUREMENTS = [
   {
-    kind: "Length",
+    kind: "Sample length",
     measurement: {
       type: "line",
       name: "Wall",
@@ -552,7 +698,7 @@ const SAMPLE_MEASUREMENTS = [
     },
   },
   {
-    kind: "Area",
+    kind: "Sample area",
     measurement: {
       type: "polygon",
       name: "Room",
@@ -637,9 +783,8 @@ function LabelPreview({
       }));
   return (
     <section className={styles.labelPreview} aria-labelledby={titleId}>
-      <h3 id={titleId} className={styles.groupTitle}>
+      <h3 id={titleId} className={styles.visuallyHidden}>
         Label preview
-        <span>{selected ? "Selected measurement" : "Sample measurements"}</span>
       </h3>
       <dl className={styles.labelPreviewList}>
         {rows.map(({ kind, text }) => (
@@ -659,7 +804,7 @@ function LabelPreview({
 
 export interface SettingsDialogProps {
   onClose: () => void;
-  /** The section shown when the dialog opens; Interface when omitted. */
+  /** The section shown when the dialog opens; the first available one when omitted. */
   initialSection?: SettingsSectionId;
   /** Previewed in Measurements instead of the sample measurements. */
   labelPreviewMeasurement?: LabelPreviewMeasurement | null;
@@ -686,7 +831,7 @@ export interface SettingsDialogProps {
 
 export function SettingsDialog({
   onClose,
-  initialSection = "interface",
+  initialSection,
   labelPreviewMeasurement = null,
   measurementDecimalPlaces = null,
   viewSettings = null,
@@ -706,7 +851,7 @@ export function SettingsDialog({
   onConfirmScaleDeletionChange,
   onRecoveredPlanStartupWorkspaceChange,
 }: SettingsDialogProps) {
-  const [section, setSection] = useState<SettingsSectionId>(initialSection);
+  const [chosenSection, setSection] = useState<SettingsSectionId | undefined>(initialSection);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importStatus, setImportStatus] = useState("");
   const settingsFileInputRef = useRef<HTMLInputElement>(null);
@@ -714,6 +859,14 @@ export function SettingsDialog({
   const preferences = useAppPreferences();
   const tabIdPrefix = useId();
   const tabRefs = useRef<Partial<Record<SettingsSectionId, HTMLButtonElement | null>>>({});
+
+  /** The project's own tab needs an open project; without one it is disabled and never shown. */
+  const isAvailable = (item: (typeof SECTIONS)[number]) => item.scope === "app" || !!viewSettings;
+  const section =
+    SECTIONS.find((item) => item.id === chosenSection && isAvailable(item))?.id ??
+    SECTIONS.find(isAvailable)!.id;
+  /** Focus starts on the open tab, so the ring never sits on a tab that is not shown. */
+  const selectedTabRef = useRef<HTMLButtonElement | null>(null);
 
   function set<K extends keyof AppPreferences>(key: K) {
     return (value: AppPreferences[K]) => setAppPreference(key, value);
@@ -783,17 +936,18 @@ export function SettingsDialog({
     const keys = ["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"];
     if (!keys.includes(event.key)) return;
     event.preventDefault();
-    const index = SECTIONS.findIndex((candidate) => candidate.id === section);
-    const last = SECTIONS.length - 1;
+    const available = SECTIONS.filter(isAvailable);
+    const index = available.findIndex((candidate) => candidate.id === section);
+    const last = available.length - 1;
     const nextIndex =
       event.key === "Home"
         ? 0
         : event.key === "End"
           ? last
           : event.key === "ArrowDown" || event.key === "ArrowRight"
-            ? (index + 1) % SECTIONS.length
-            : (index - 1 + SECTIONS.length) % SECTIONS.length;
-    const next = SECTIONS[nextIndex]!.id;
+            ? (index + 1) % available.length
+            : (index - 1 + available.length) % available.length;
+    const next = available[nextIndex]!.id;
     selectSection(next);
     tabRefs.current[next]?.focus();
   }
@@ -819,11 +973,65 @@ export function SettingsDialog({
           size="large"
           className={styles.dialog}
           bodyClassName={styles.dialogBody}
+          initialFocus={selectedTabRef}
           onClose={onClose}
           actions={
-            <Button size="compact" variant="primary" onClick={onClose}>
-              Done
-            </Button>
+            <>
+              <div className={styles.footerTools}>
+                <Button size="compact" variant="secondary" onClick={exportSettingsFile}>
+                  Export settings
+                </Button>
+                <Button
+                  size="compact"
+                  variant="secondary"
+                  onClick={() => settingsFileInputRef.current?.click()}
+                >
+                  Import settings
+                </Button>
+                <input
+                  ref={settingsFileInputRef}
+                  className={styles.visuallyHidden}
+                  type="file"
+                  tabIndex={-1}
+                  accept="application/json,.json"
+                  aria-label="Settings file to import"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void importSettingsFile(file);
+                    event.target.value = "";
+                  }}
+                />
+                {confirmingReset ? (
+                  <>
+                    <Button
+                      size="compact"
+                      variant="ghost"
+                      onClick={() => setConfirmingReset(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="compact" variant="danger" onClick={resetAll}>
+                      Reset
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="compact"
+                    variant="secondary"
+                    tooltip="Restores every option on this device to its default. Projects are not changed."
+                    onClick={() => setConfirmingReset(true)}
+                  >
+                    Reset…
+                  </Button>
+                )}
+                <span className={styles.footerStatus} role="status">
+                  {importStatus}
+                </span>
+              </div>
+              <Button size="compact" variant="primary" onClick={onClose}>
+                Done
+              </Button>
+            </>
           }
         >
           <div className={styles.layout}>
@@ -839,6 +1047,7 @@ export function SettingsDialog({
                   key={item.id}
                   ref={(element) => {
                     tabRefs.current[item.id] = element;
+                    if (section === item.id) selectedTabRef.current = element;
                   }}
                   type="button"
                   role="tab"
@@ -846,6 +1055,7 @@ export function SettingsDialog({
                   aria-selected={section === item.id}
                   aria-controls={`${tabIdPrefix}-panel`}
                   tabIndex={section === item.id ? 0 : -1}
+                  disabled={!isAvailable(item)}
                   className={styles.navItem}
                   onClick={() => selectSection(item.id)}
                 >
@@ -874,24 +1084,6 @@ export function SettingsDialog({
                     onChange={setPreference}
                   />
                   <SelectRow
-                    label="Zoom step"
-                    value={preferences.zoomStep}
-                    options={ZOOM_STEP_OPTIONS}
-                    onChange={set("zoomStep")}
-                  />
-                  <SelectRow
-                    label="Default zoom"
-                    value={preferences.defaultZoom}
-                    options={DEFAULT_ZOOM_OPTIONS}
-                    onChange={set("defaultZoom")}
-                  />
-                  <SelectRow
-                    label="Mouse wheel"
-                    value={preferences.wheelBehavior}
-                    options={WHEEL_BEHAVIOR_OPTIONS}
-                    onChange={set("wheelBehavior")}
-                  />
-                  <SelectRow
                     label="Date format"
                     value={preferences.dateFormat}
                     options={DATE_FORMAT_OPTIONS}
@@ -901,6 +1093,24 @@ export function SettingsDialog({
                     label="Wider sidebar"
                     checked={preferences.widerSidebar}
                     onChange={set("widerSidebar")}
+                  />
+                  <SelectRow
+                    label="Default zoom"
+                    value={preferences.defaultZoom}
+                    options={DEFAULT_ZOOM_OPTIONS}
+                    onChange={set("defaultZoom")}
+                  />
+                  <SelectRow
+                    label="Zoom step"
+                    value={preferences.zoomStep}
+                    options={ZOOM_STEP_OPTIONS}
+                    onChange={set("zoomStep")}
+                  />
+                  <SelectRow
+                    label="Mouse wheel"
+                    value={preferences.wheelBehavior}
+                    options={WHEEL_BEHAVIOR_OPTIONS}
+                    onChange={set("wheelBehavior")}
                   />
                   {onKeyboardAuthoringEnabledChange && (
                     <SwitchRow
@@ -919,16 +1129,40 @@ export function SettingsDialog({
                       onChange={onRecoveredPlanStartupWorkspaceChange}
                     />
                   )}
+                  <SelectRow
+                    label="Saved projects shown"
+                    value={preferences.projectsShown}
+                    options={PROJECTS_SHOWN_OPTIONS}
+                    onChange={set("projectsShown")}
+                  />
                 </div>
               )}
 
               {section === "accessibility" && (
                 <div className={styles.settingList}>
                   <SelectRow
-                    label="Reduce motion"
-                    value={preferences.motion}
-                    options={MOTION_OPTIONS}
-                    onChange={set("motion")}
+                    label="Text size"
+                    value={preferences.textSize}
+                    options={TEXT_SIZE_OPTIONS}
+                    onChange={set("textSize")}
+                  />
+                  <SwitchRow
+                    label="High contrast"
+                    checked={preferences.contrast === "more"}
+                    onChange={(enabled) =>
+                      setAppPreference("contrast", enabled ? "more" : "normal")
+                    }
+                  />
+                  <SelectRow
+                    label="Focus ring"
+                    value={preferences.focusRing}
+                    options={FOCUS_RING_OPTIONS}
+                    onChange={set("focusRing")}
+                  />
+                  <SwitchRow
+                    label="Larger touch targets"
+                    checked={preferences.largeTargets}
+                    onChange={set("largeTargets")}
                   />
                   <SwitchRow
                     label="Show tooltips"
@@ -943,46 +1177,16 @@ export function SettingsDialog({
                     disabled={!preferences.tooltips}
                   />
                   <SelectRow
-                    label="Focus ring"
-                    value={preferences.focusRing}
-                    options={FOCUS_RING_OPTIONS}
-                    onChange={set("focusRing")}
-                  />
-                  <SelectRow
-                    label="Text size"
-                    value={preferences.textSize}
-                    options={TEXT_SIZE_OPTIONS}
-                    onChange={set("textSize")}
-                  />
-                  <SwitchRow
-                    label="High contrast"
-                    checked={preferences.contrast === "more"}
-                    onChange={(enabled) =>
-                      setAppPreference("contrast", enabled ? "more" : "normal")
-                    }
-                  />
-                  <SwitchRow
-                    label="Larger touch targets"
-                    checked={preferences.largeTargets}
-                    onChange={set("largeTargets")}
+                    label="Reduce motion"
+                    value={preferences.motion}
+                    options={MOTION_OPTIONS}
+                    onChange={set("motion")}
                   />
                 </div>
               )}
 
               {section === "measurements" && (
                 <div className={styles.settingList}>
-                  {measurementDecimalPlaces !== null && onMeasurementDecimalPlacesChange && (
-                    <SelectRow
-                      label="Decimal places"
-                      help="Applies to the current project only."
-                      className={styles.narrowSelect}
-                      value={String(measurementDecimalPlaces)}
-                      options={MEASUREMENT_DECIMAL_OPTIONS}
-                      onChange={(value) =>
-                        onMeasurementDecimalPlacesChange(Number(value) as MeasurementDecimalPlaces)
-                      }
-                    />
-                  )}
                   <SelectRow
                     label="Thousands separator"
                     value={preferences.thousandsSeparator}
@@ -1035,6 +1239,18 @@ export function SettingsDialog({
                     onChange={set("orthoDefault")}
                   />
                   <SelectRow
+                    label="After finishing"
+                    help="Tool used after completing a measurement. Count always stays active."
+                    value={preferences.afterFinishing}
+                    options={AFTER_FINISHING_OPTIONS}
+                    onChange={set("afterFinishing")}
+                  />
+                  <SwitchRow
+                    label="Finish on double-click"
+                    checked={preferences.finishOnDoubleClick}
+                    onChange={set("finishOnDoubleClick")}
+                  />
+                  <SelectRow
                     label="Snap sensitivity"
                     help="How close the pointer must be to a target to snap. Higher catches targets from farther away."
                     value={preferences.snapSensitivity}
@@ -1048,13 +1264,6 @@ export function SettingsDialog({
                     options={SENSITIVITY_OPTIONS}
                     onChange={set("closeSensitivity")}
                   />
-                  <SelectRow
-                    label="After finishing"
-                    help="Tool used after completing a measurement. Count always stays active."
-                    value={preferences.afterFinishing}
-                    options={AFTER_FINISHING_OPTIONS}
-                    onChange={set("afterFinishing")}
-                  />
                   <SwitchRow
                     label="Crosshair cursor"
                     checked={preferences.crosshairCursor}
@@ -1065,28 +1274,79 @@ export function SettingsDialog({
                     checked={preferences.liveLength}
                     onChange={set("liveLength")}
                   />
-                  <SwitchRow
-                    label="Finish on double-click"
-                    checked={preferences.finishOnDoubleClick}
-                    onChange={set("finishOnDoubleClick")}
+                </div>
+              )}
+
+              {section === "filters" && (
+                <div className={styles.settingList}>
+                  <DefaultFilterRows
+                    filters={preferences.defaultMeasurementFilters}
+                    classificationOptions={APP_FILTER_CLASSIFICATION_OPTIONS}
+                    onChange={set("defaultMeasurementFilters")}
                   />
+                  {viewSettings && onViewSettingsChange && (
+                    <ProjectGroup>
+                      <SelectRow<(typeof FILTER_SOURCE_OPTIONS)[number]["value"]>
+                        label="Default filters"
+                        help="Filters applied to the measurement list when this project opens. Clear filters still shows everything."
+                        className={styles.wideSelect}
+                        value={viewSettings.defaultMeasurementFilters ? "project" : "app"}
+                        options={FILTER_SOURCE_OPTIONS}
+                        onChange={(source) =>
+                          onViewSettingsChange({
+                            defaultMeasurementFilters:
+                              source === "project"
+                                ? pickDefaultMeasurementFilters(
+                                    initialMeasurementFilters(
+                                      null,
+                                      preferences.defaultMeasurementFilters,
+                                    ),
+                                  )
+                                : null,
+                          })
+                        }
+                      />
+                      {viewSettings.defaultMeasurementFilters && (
+                        <DefaultFilterRows
+                          filters={viewSettings.defaultMeasurementFilters}
+                          labelSuffix=" filter"
+                          classificationOptions={projectClassificationOptions(
+                            classificationDimensions,
+                            viewSettings.defaultMeasurementFilters.classification,
+                          )}
+                          onChange={(defaultMeasurementFilters) =>
+                            onViewSettingsChange({ defaultMeasurementFilters })
+                          }
+                        />
+                      )}
+                    </ProjectGroup>
+                  )}
                 </div>
               )}
 
               {section === "view" && (
                 <div className={styles.settingList}>
                   {viewSettings && onViewSettingsChange && (
-                    <>
-                      <h3 className={styles.groupTitle}>
-                        This project
-                        <span>Saved with the plan</span>
-                      </h3>
+                    <ProjectGroup>
                       <SelectRow
                         label="Display unit"
                         value={viewSettings.displayUnit}
                         options={UNIT_OPTIONS}
                         onChange={(displayUnit) => onViewSettingsChange({ displayUnit })}
                       />
+                      {measurementDecimalPlaces !== null && onMeasurementDecimalPlacesChange && (
+                        <SelectRow
+                          label="Decimal places"
+                          className={styles.narrowSelect}
+                          value={String(measurementDecimalPlaces)}
+                          options={MEASUREMENT_DECIMAL_OPTIONS}
+                          onChange={(value) =>
+                            onMeasurementDecimalPlacesChange(
+                              Number(value) as MeasurementDecimalPlaces,
+                            )
+                          }
+                        />
+                      )}
                       <SelectRow
                         label="Polygon area"
                         help="Auto picks square units from the display unit; Acres always shows acres."
@@ -1137,33 +1397,18 @@ export function SettingsDialog({
                         checked={viewSettings.showCalibration}
                         onChange={(showCalibration) => onViewSettingsChange({ showCalibration })}
                       />
-                    </>
-                  )}
-                  {!viewSettings && (
-                    <p className={styles.sectionNote}>
-                      Open a plan to change its display unit and visibility settings.
-                    </p>
+                    </ProjectGroup>
                   )}
                 </div>
               )}
 
               {section === "canvas" && (
                 <div className={styles.settingList}>
-                  <h3 className={styles.groupTitle}>
-                    This device
-                    <span>Applies to every project</span>
-                  </h3>
                   <SelectRow
                     label="Line thickness"
                     value={preferences.lineThickness}
                     options={LINE_THICKNESS_OPTIONS}
                     onChange={set("lineThickness")}
-                  />
-                  <SelectRow
-                    label="Label size"
-                    value={preferences.labelSize}
-                    options={LABEL_SIZE_OPTIONS}
-                    onChange={set("labelSize")}
                   />
                   <SelectRow
                     label="Fill opacity"
@@ -1176,6 +1421,12 @@ export function SettingsDialog({
                     value={preferences.handleSize}
                     options={HANDLE_SIZE_OPTIONS}
                     onChange={set("handleSize")}
+                  />
+                  <SelectRow
+                    label="Label size"
+                    value={preferences.labelSize}
+                    options={LABEL_SIZE_OPTIONS}
+                    onChange={set("labelSize")}
                   />
                   <SelectRow
                     label="Label background"
@@ -1251,15 +1502,6 @@ export function SettingsDialog({
                     }
                   />
                   <SelectRow
-                    label="Undo history"
-                    help="How many edits can be undone. Longer histories use more memory on large projects."
-                    value={String(preferences.undoDepth)}
-                    options={UNDO_DEPTH_OPTIONS}
-                    onChange={(value) =>
-                      setAppPreference("undoDepth", Number(value) as AppPreferences["undoDepth"])
-                    }
-                  />
-                  <SelectRow
                     label="Render delay"
                     help="Wait after zooming or panning before the plan is redrawn sharply. Lower is crisper sooner, higher is lighter on slow devices."
                     value={String(preferences.renderDelayMs)}
@@ -1286,6 +1528,15 @@ export function SettingsDialog({
                     onChange={set("rasterCache")}
                   />
                   <SelectRow
+                    label="Undo history"
+                    help="How many edits can be undone. Longer histories use more memory on large projects."
+                    value={String(preferences.undoDepth)}
+                    options={UNDO_DEPTH_OPTIONS}
+                    onChange={(value) =>
+                      setAppPreference("undoDepth", Number(value) as AppPreferences["undoDepth"])
+                    }
+                  />
+                  <SelectRow
                     label="Click tolerance"
                     help="How close to a measurement a click still selects it."
                     value={preferences.hitTolerance}
@@ -1298,11 +1549,6 @@ export function SettingsDialog({
                     checked={preferences.debugOverlay}
                     onChange={set("debugOverlay")}
                   />
-                </div>
-              )}
-
-              {section === "advanced" && (
-                <div className={styles.settingList}>
                   <SelectRow
                     label="Autosave delay"
                     value={String(preferences.autosaveDelayMs)}
@@ -1314,76 +1560,7 @@ export function SettingsDialog({
                       )
                     }
                   />
-                  <SelectRow
-                    label="Saved projects shown"
-                    value={preferences.projectsShown}
-                    options={PROJECTS_SHOWN_OPTIONS}
-                    onChange={set("projectsShown")}
-                  />
-                  <Row label="Settings file">
-                    {({ labelId }) => (
-                      <div className={styles.resetActions} role="group" aria-labelledby={labelId}>
-                        <Button size="compact" variant="secondary" onClick={exportSettingsFile}>
-                          Export settings
-                        </Button>
-                        <Button
-                          size="compact"
-                          variant="secondary"
-                          onClick={() => settingsFileInputRef.current?.click()}
-                        >
-                          Import settings
-                        </Button>
-                        <input
-                          ref={settingsFileInputRef}
-                          className={styles.visuallyHidden}
-                          type="file"
-                          tabIndex={-1}
-                          accept="application/json,.json"
-                          aria-label="Settings file to import"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) void importSettingsFile(file);
-                            event.target.value = "";
-                          }}
-                        />
-                      </div>
-                    )}
-                  </Row>
                   <StorageUsageRow />
-                  <p className={styles.sectionNote} role="status">
-                    {importStatus}
-                  </p>
-                  <div className={styles.resetRow}>
-                    <div className={styles.resetCopy}>
-                      <span className={styles.settingLabel}>Reset settings</span>
-                      <span className={styles.resetHint}>
-                        Restores every option on this device to its default. Projects are not
-                        changed.
-                      </span>
-                    </div>
-                    {confirmingReset ? (
-                      <div className={styles.resetActions}>
-                        <Button
-                          size="compact"
-                          variant="ghost"
-                          onClick={() => setConfirmingReset(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button size="compact" variant="danger" onClick={resetAll}>
-                          Reset
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="compact"
-                        variant="secondary"
-                        onClick={() => setConfirmingReset(true)}
-                      >
-                        Reset…
-                      </Button>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
