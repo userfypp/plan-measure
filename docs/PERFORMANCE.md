@@ -21,6 +21,8 @@ measurements. It protects:
   edit, or undo changes; the current state and semantics are preserved.
 - Autosave: exactly one JSON serialization to prepare and write the snapshot;
   also verifies the persisted session.
+- Undo history: persisted off the editing path in one lazy chunk (idle write, one structured-clone record,
+  at most 250,000 measurement slots); autosave and its single JSON serialization are unaffected.
 - CSV: each batch contains at most 200 rows, 25 yields for 5,000 rows,
   byte-for-byte equality with the canonical generator, and a fixed SHA-256.
 - Labels: deterministic golden output to prevent changes in positions,

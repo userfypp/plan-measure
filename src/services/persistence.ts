@@ -11,7 +11,7 @@ import {
 const DATABASE_NAME = "plan-measure";
 const LEGACY_ACTIVE_KEY = "active";
 const ACTIVE_KEY = "active-v2";
-const STATE_KEY = "persistence-v2";
+export const STATE_KEY = "persistence-v2";
 
 interface SessionRecord {
   key: string;
@@ -144,6 +144,13 @@ function isProjectRecord(
 
 function projectRecordKey(projectId: string): string {
   return `project:${projectId}`;
+}
+
+/** Drops the persisted Undo history (`undo-history-*` records) with the session it belonged to. */
+function deleteUndoHistory(transaction: PersistenceTransaction): Promise<unknown> {
+  return transaction
+    .objectStore("sessions")
+    .delete(IDBKeyRange.bound("undo-history", "undo-history\uffff"));
 }
 
 function readMatchingActiveRevision(
@@ -402,7 +409,7 @@ export async function listSavedProjects(): Promise<SavedProjectSummary[]> {
   void transaction.done.catch(() => undefined);
   const state = await readOrCreatePersistenceState(transaction);
   const [records, pdfKeys] = await Promise.all([
-    transaction.objectStore("sessions").getAll(),
+    transaction.objectStore("sessions").getAll(IDBKeyRange.bound("project:", "project:\uffff")),
     transaction.objectStore("pdfs").getAllKeys(),
   ]);
   const storedPdfKeys = new Set<string>(pdfKeys);
@@ -507,6 +514,7 @@ export async function activateSavedProject(
   }
   const revision = crypto.randomUUID();
   writes.push(
+    deleteUndoHistory(transaction),
     transaction.objectStore("sessions").put({
       key: ACTIVE_KEY,
       serialized: project.serialized,
@@ -561,6 +569,7 @@ export async function replaceSavedSession(
   }
   const revision = crypto.randomUUID();
   writes.push(
+    deleteUndoHistory(transaction),
     transaction.objectStore("sessions").put({
       key: ACTIVE_KEY,
       serialized,
@@ -776,6 +785,7 @@ export async function discardSavedSession(expectedRevision: string): Promise<voi
   void transaction.done.catch(() => undefined);
   const state = await requireExpectedRevision(transaction, expectedRevision);
   const writes: Array<Promise<unknown>> = [
+    deleteUndoHistory(transaction),
     transaction.objectStore("sessions").delete(ACTIVE_KEY),
     transaction.objectStore("pdfs").delete(ACTIVE_KEY),
     transaction.objectStore("sessions").delete(LEGACY_ACTIVE_KEY),
@@ -818,6 +828,7 @@ export async function closeActiveSession(
     );
   }
   writes.push(
+    deleteUndoHistory(transaction),
     transaction.objectStore("sessions").delete(ACTIVE_KEY),
     transaction.objectStore("pdfs").delete(ACTIVE_KEY),
     transaction.objectStore("sessions").delete(LEGACY_ACTIVE_KEY),
@@ -857,6 +868,7 @@ export async function discardSavedProject(
   ];
   if (isActive) {
     writes.push(
+      deleteUndoHistory(transaction),
       transaction.objectStore("sessions").delete(ACTIVE_KEY),
       transaction.objectStore("pdfs").delete(ACTIVE_KEY),
       transaction.objectStore("sessions").delete(LEGACY_ACTIVE_KEY),
@@ -871,6 +883,22 @@ export async function discardSavedProject(
   await Promise.all(writes);
   await transaction.done;
   return isActive;
+}
+
+/** The shared connection, for the lazily loaded Undo history storage. */
+export async function openSessionsTransaction<Mode extends IDBTransactionMode>(mode: Mode) {
+  const database = databaseInstance ?? (await getDatabase());
+  return database.transaction("sessions", mode);
+}
+
+/** Whether `state`, the `persistence-v2` record, has `revision` active for `projectId`. */
+export function isActiveRevision(state: unknown, projectId: string, revision: string): boolean {
+  const record = state as PersistenceStateRecord | undefined;
+  return (
+    isPersistenceStateRecord(record) &&
+    record.activeRevision === revision &&
+    record.activeProjectId === projectId
+  );
 }
 
 export async function resetPersistenceForTests(): Promise<void> {

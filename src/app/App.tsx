@@ -175,6 +175,8 @@ function PlanMeasureApp() {
     assignClassificationValue,
     removeClassificationValue,
     updateSettings,
+    getUndoHistory,
+    restoreUndoHistory,
   } = useSessionState();
   const {
     requestDeleteClassification,
@@ -409,6 +411,8 @@ function PlanMeasureApp() {
     session,
     loadSession,
     clearSession,
+    getUndoHistory,
+    restoreUndoHistory,
     resetWorkspace,
     recoveredStartupWorkspace: recoveredPlanStartupWorkspace,
     cancelWorkspaceCalibration,
