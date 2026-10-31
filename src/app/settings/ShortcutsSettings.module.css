@@ -1,11 +1,11 @@
-/* Never scrolls: the preset and the search stay put while only `.list` moves. The top padding
-   leaves room for the focus ring, because the Settings panel clips what overflows it. No rule
-   under it: the first category opens the list like the first title of any Settings section. */
+/* Never scrolls: the preset and the search stay put while only `.list` moves. A rule under it, from
+   the nav divider to the dialog's edge, gives the scrolling list an edge, so rows do not fade out
+   in mid-air. */
 .header {
   flex: none;
   container-type: inline-size;
-  margin-right: var(--scroll-inset);
-  padding-block: var(--space-4) var(--space-8);
+  padding: 0 var(--space-16) var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-divider);
 }
 
 .toolbar {
@@ -69,24 +69,7 @@
   align-content: start;
   column-gap: var(--space-8);
   overflow-y: auto;
-  padding-right: var(--scroll-inset);
-}
-
-/* The shortcuts are many, so their groups keep a heading: --space-24 of air above, --space-4 below. */
-.groupTitle {
-  grid-column: 1 / -1;
-  margin: 0;
-  padding: var(--space-24) 0 var(--space-4);
-  color: var(--color-text-primary);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-heading);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
-}
-
-/* The first title opens the list, as in `.settingList`: only --space-8 of air above it. */
-.list > .groupTitle:first-child {
-  padding-top: var(--space-8);
+  padding: var(--space-8) var(--space-16);
 }
 
 /* One line per action: the label takes what the keys leave. Fixed keys use it as a plain row. */
@@ -94,11 +77,11 @@
   grid-column: 1 / -1;
   min-width: 0;
   box-sizing: border-box;
-  min-height: calc(var(--control-height-compact) + var(--space-16));
+  min-height: calc(var(--control-height-compact) + var(--space-12));
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  padding-block: var(--space-8);
+  padding-block: var(--space-4);
 }
 
 .editRow {

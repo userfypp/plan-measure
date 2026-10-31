@@ -14,7 +14,6 @@ import {
   getAppPreferences,
   reloadAppPreferencesFromStorage,
 } from "../utils/appPreferences";
-import { FIXED_KEYS_GROUP, SHORTCUT_GROUPS } from "../features/shortcuts/catalog";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
 import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
 
@@ -230,17 +229,15 @@ describe("SettingsDialog", () => {
       "Confirmations",
       "Shortcuts",
       "Performance",
-      "Advanced",
     ]);
     expect(tabs.map((candidate) => candidate.textContent)).toEqual([
       "View",
       ...["Interface", "Accessibility", "Measurements", "Drawing", "Filters", "Canvas"],
-      ...["Confirmations", "Shortcuts", "Performance", "Advanced"],
+      ...["Confirmations", "Shortcuts", "Performance"],
     ]);
     expect(settingsDialog.querySelectorAll("h3")).toHaveLength(0);
     expect(tabs.map((candidate) => candidate.getAttribute("aria-selected"))).toEqual([
       "true",
-      "false",
       "false",
       "false",
       "false",
@@ -284,9 +281,9 @@ describe("SettingsDialog", () => {
         new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }),
       );
     });
-    expect(tab("Advanced").getAttribute("aria-selected")).toBe("true");
+    expect(tab("Performance").getAttribute("aria-selected")).toBe("true");
     act(() => {
-      tab("Advanced").dispatchEvent(
+      tab("Performance").dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
       );
     });
@@ -305,15 +302,13 @@ describe("SettingsDialog", () => {
     expect(tab("View").getAttribute("aria-selected")).toBe("true");
   });
 
-  it("lists every shortcut group with its editable keys in the Shortcuts section", async () => {
+  it("lists the editable shortcut keys in the Shortcuts section", async () => {
     renderSettings();
     await openSettings();
     openTab("Shortcuts");
 
     const panel = dialog().querySelector('[role="tabpanel"]');
-    expect(
-      Array.from(panel?.querySelectorAll("h3") ?? [], (heading) => heading.textContent),
-    ).toEqual([...SHORTCUT_GROUPS, FIXED_KEYS_GROUP]);
+    expect(panel?.querySelectorAll("h3")).toHaveLength(0);
     expect(panel?.querySelector("button[data-select-trigger]")?.textContent).toBe("Default");
     expect(panel?.querySelector('button[aria-label="Line shortcut 1: L"]')).toBeInstanceOf(
       HTMLButtonElement,
@@ -598,7 +593,6 @@ describe("SettingsDialog", () => {
       choose("Page", "This page");
       expect(getAppPreferences().defaultMeasurementFilters.page).toBe("current");
 
-      openTab("Advanced");
       act(() =>
         Array.from(dialog().querySelectorAll("button"))
           .find((button) => button.textContent === "Reset…")!
@@ -797,7 +791,7 @@ describe("SettingsDialog", () => {
   it("gives the storage usage output its row name", async () => {
     renderSettings();
     await openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     const output = Array.from(dialog().querySelectorAll<HTMLOutputElement>("output")).find(
       (candidate) => candidate.className.includes("storageUsage"),
     );
@@ -1024,7 +1018,6 @@ describe("SettingsDialog", () => {
       renderDelayMs: 150,
     });
 
-    openTab("Advanced");
     const reset = Array.from(dialog().querySelectorAll("button")).find(
       (button) => button.textContent === "Reset…",
     )!;
@@ -1059,7 +1052,6 @@ describe("SettingsDialog", () => {
       hitTolerance: "wide",
       debugOverlay: true,
     });
-    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -1082,7 +1074,6 @@ describe("SettingsDialog", () => {
     await openSettings();
     openTab("Performance");
     choose("Maximum zoom", "4×");
-    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -1095,7 +1086,6 @@ describe("SettingsDialog", () => {
     );
     openTab("Performance");
     expect(selectByLabel("Maximum zoom").textContent).toBe("4×");
-    openTab("Advanced");
     expect(
       Array.from(dialog().querySelectorAll("button")).some((b) => b.textContent === "Reset…"),
     ).toBe(true);
@@ -1136,7 +1126,6 @@ describe("SettingsDialog", () => {
     expect(onConfirmScaleDeletionChange).toHaveBeenLastCalledWith(true);
 
     onConfirmScaleDeletionChange.mockClear();
-    openTab("Advanced");
     act(() =>
       Array.from(dialog().querySelectorAll("button"))
         .find((button) => button.textContent === "Reset…")!
@@ -1244,14 +1233,12 @@ describe("SettingsDialog", () => {
       "About Click tolerance",
       "About Debug overlay",
     ]);
-    openTab("Advanced");
-    expect(helpLabels()).toEqual([]);
   });
 
   it("stores the autosave delay, projects shown and closing confirmation", async () => {
     renderSettings();
     await openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     expect(selectByLabel("Autosave delay").textContent).toBe("0.3 s");
     act(() => selectByLabel("Autosave delay").click());
     expect(selectItems().map((option) => option.textContent)).toEqual([
@@ -1262,6 +1249,7 @@ describe("SettingsDialog", () => {
     ]);
     act(() => selectItems()[0]!.click());
     choose("Autosave delay", "3 s");
+    openTab("Interface");
     expect(selectByLabel("Saved projects shown").textContent).toBe("All");
     choose("Saved projects shown", "10");
     openTab("Confirmations");
@@ -1279,7 +1267,6 @@ describe("SettingsDialog", () => {
   it("exports the settings file and imports one, ignoring invalid values", async () => {
     renderSettings();
     await openSettings();
-    openTab("Advanced");
     const createObjectURL = vi.fn(() => "blob:settings");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -1343,7 +1330,6 @@ describe("SettingsDialog", () => {
       ...handlers,
     });
     await openSettings();
-    openTab("Advanced");
     const createObjectURL = vi.fn(() => "blob:settings");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -1417,7 +1403,7 @@ describe("SettingsDialog", () => {
     });
     renderSettings();
     await openSettings();
-    openTab("Advanced");
+    openTab("Performance");
     await act(async () => undefined);
     expect(dialog().textContent).toContain("Using 5.3 MiB of 2048 MiB");
     expect(
@@ -1428,7 +1414,7 @@ describe("SettingsDialog", () => {
 
     Reflect.deleteProperty(navigator, "storage");
     openTab("Interface");
-    openTab("Advanced");
+    openTab("Performance");
     await act(async () => undefined);
     expect(dialog().textContent).toContain("Not available in this browser");
   });

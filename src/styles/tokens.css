@@ -272,7 +272,7 @@
   --dialog-width-small: 360px;
   --dialog-width-default: 480px;
   --dialog-width-large: 720px;
-  --dialog-body-chrome: 144px;
+  --dialog-body-chrome: 146px;
   /* End padding of a scroller that holds controls: the overlay thumb's bar is --space-4 wide at the edge, so this leaves --space-4 clear. */
   --scroll-inset: var(--space-8);
   --tooltip-max-width: 240px;

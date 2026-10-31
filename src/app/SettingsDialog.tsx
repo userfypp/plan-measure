@@ -46,8 +46,7 @@ export type SettingsSectionId =
   | "canvas"
   | "confirmations"
   | "shortcuts"
-  | "performance"
-  | "advanced";
+  | "performance";
 
 /** Project-level view settings shown in Settings → View (also reachable from the viewer dock). */
 export type ProjectViewSettings = Pick<
@@ -462,18 +461,6 @@ const SECTIONS: Array<{
       <Icon>
         <path d="M3 14a7 7 0 1 1 14 0" />
         <path d="m10 14 3-4" />
-      </Icon>
-    ),
-  },
-  {
-    id: "advanced",
-    label: "Advanced",
-    scope: "app",
-    icon: (
-      <Icon>
-        <path d="M4 6h8M15 6h1M4 14h1M8 14h8" />
-        <circle cx="13.5" cy="6" r="1.5" />
-        <circle cx="6.5" cy="14" r="1.5" />
       </Icon>
     ),
   },
@@ -989,9 +976,62 @@ export function SettingsDialog({
           initialFocus={selectedTabRef}
           onClose={onClose}
           actions={
-            <Button size="compact" variant="primary" onClick={onClose}>
-              Done
-            </Button>
+            <>
+              <div className={styles.footerTools}>
+                <Button size="compact" variant="secondary" onClick={exportSettingsFile}>
+                  Export settings
+                </Button>
+                <Button
+                  size="compact"
+                  variant="secondary"
+                  onClick={() => settingsFileInputRef.current?.click()}
+                >
+                  Import settings
+                </Button>
+                <input
+                  ref={settingsFileInputRef}
+                  className={styles.visuallyHidden}
+                  type="file"
+                  tabIndex={-1}
+                  accept="application/json,.json"
+                  aria-label="Settings file to import"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void importSettingsFile(file);
+                    event.target.value = "";
+                  }}
+                />
+                {confirmingReset ? (
+                  <>
+                    <Button
+                      size="compact"
+                      variant="ghost"
+                      onClick={() => setConfirmingReset(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="compact" variant="danger" onClick={resetAll}>
+                      Reset
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="compact"
+                    variant="secondary"
+                    tooltip="Restores every option on this device to its default. Projects are not changed."
+                    onClick={() => setConfirmingReset(true)}
+                  >
+                    Reset…
+                  </Button>
+                )}
+                <span className={styles.footerStatus} role="status">
+                  {importStatus}
+                </span>
+              </div>
+              <Button size="compact" variant="primary" onClick={onClose}>
+                Done
+              </Button>
+            </>
           }
         >
           <div className={styles.layout}>
@@ -1089,6 +1129,12 @@ export function SettingsDialog({
                       onChange={onRecoveredPlanStartupWorkspaceChange}
                     />
                   )}
+                  <SelectRow
+                    label="Saved projects shown"
+                    value={preferences.projectsShown}
+                    options={PROJECTS_SHOWN_OPTIONS}
+                    onChange={set("projectsShown")}
+                  />
                 </div>
               )}
 
@@ -1503,11 +1549,6 @@ export function SettingsDialog({
                     checked={preferences.debugOverlay}
                     onChange={set("debugOverlay")}
                   />
-                </div>
-              )}
-
-              {section === "advanced" && (
-                <div className={styles.settingList}>
                   <SelectRow
                     label="Autosave delay"
                     value={String(preferences.autosaveDelayMs)}
@@ -1519,76 +1560,7 @@ export function SettingsDialog({
                       )
                     }
                   />
-                  <SelectRow
-                    label="Saved projects shown"
-                    value={preferences.projectsShown}
-                    options={PROJECTS_SHOWN_OPTIONS}
-                    onChange={set("projectsShown")}
-                  />
-                  <Row label="Settings file">
-                    {({ labelId }) => (
-                      <div className={styles.resetActions} role="group" aria-labelledby={labelId}>
-                        <Button size="compact" variant="secondary" onClick={exportSettingsFile}>
-                          Export settings
-                        </Button>
-                        <Button
-                          size="compact"
-                          variant="secondary"
-                          onClick={() => settingsFileInputRef.current?.click()}
-                        >
-                          Import settings
-                        </Button>
-                        <input
-                          ref={settingsFileInputRef}
-                          className={styles.visuallyHidden}
-                          type="file"
-                          tabIndex={-1}
-                          accept="application/json,.json"
-                          aria-label="Settings file to import"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) void importSettingsFile(file);
-                            event.target.value = "";
-                          }}
-                        />
-                      </div>
-                    )}
-                  </Row>
                   <StorageUsageRow />
-                  <p className={styles.sectionNote} role="status">
-                    {importStatus}
-                  </p>
-                  <div className={styles.resetRow}>
-                    <div className={styles.resetCopy}>
-                      <span className={styles.settingLabel}>Reset settings</span>
-                      <span className={styles.resetHint}>
-                        Restores every option on this device to its default. Projects are not
-                        changed.
-                      </span>
-                    </div>
-                    {confirmingReset ? (
-                      <div className={styles.resetActions}>
-                        <Button
-                          size="compact"
-                          variant="ghost"
-                          onClick={() => setConfirmingReset(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button size="compact" variant="danger" onClick={resetAll}>
-                          Reset
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="compact"
-                        variant="secondary"
-                        onClick={() => setConfirmingReset(true)}
-                      >
-                        Reset…
-                      </Button>
-                    )}
-                  </div>
                 </div>
               )}
             </div>

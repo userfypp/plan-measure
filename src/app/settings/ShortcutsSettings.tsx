@@ -1,5 +1,4 @@
 import {
-  Fragment,
   memo,
   useCallback,
   useId,
@@ -525,42 +524,34 @@ export function ShortcutsSettings() {
         )}
       </div>
       <div className={styles.list}>
-        {visibleGroups.map(({ group, entries }) => (
-          <Fragment key={group}>
-            <h3 className={styles.groupTitle}>{group}</h3>
-            {entries.map((entry) => (
-              <ShortcutRow
-                key={entry.id}
-                entry={entry}
-                combos={effective[entry.id]}
-                changed={!sameCombos(effective[entry.id], base[entry.id])}
-                captureSlot={capture?.id === entry.id ? capture.slot : null}
-                idPrefix={idPrefix}
-                onCaptureOpenChange={handleCaptureOpenChange}
-                onApply={handleApply}
-                onClear={handleClear}
-                onReset={handleResetRow}
-              />
-            ))}
-          </Fragment>
-        ))}
-        {visibleFixed.length > 0 && (
-          <>
-            <h3 className={styles.groupTitle}>{FIXED_KEYS_GROUP}</h3>
-            {visibleFixed.map((row) => (
-              <div key={row.id} className={styles.row}>
-                <span className={styles.label}>{row.label}</span>
-                <span className={styles.fixedKeys}>
-                  {row.keys.map((key) => (
-                    <kbd key={key} className={styles.kbd}>
-                      {key}
-                    </kbd>
-                  ))}
-                </span>
-              </div>
-            ))}
-          </>
+        {visibleGroups.flatMap(({ entries }) =>
+          entries.map((entry) => (
+            <ShortcutRow
+              key={entry.id}
+              entry={entry}
+              combos={effective[entry.id]}
+              changed={!sameCombos(effective[entry.id], base[entry.id])}
+              captureSlot={capture?.id === entry.id ? capture.slot : null}
+              idPrefix={idPrefix}
+              onCaptureOpenChange={handleCaptureOpenChange}
+              onApply={handleApply}
+              onClear={handleClear}
+              onReset={handleResetRow}
+            />
+          )),
         )}
+        {visibleFixed.map((row) => (
+          <div key={row.id} className={styles.row}>
+            <span className={styles.label}>{row.label}</span>
+            <span className={styles.fixedKeys}>
+              {row.keys.map((key) => (
+                <kbd key={key} className={styles.kbd}>
+                  {key}
+                </kbd>
+              ))}
+            </span>
+          </div>
+        ))}
         {empty && (
           <div className={styles.empty}>
             <p>No shortcuts match</p>

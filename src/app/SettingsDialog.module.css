@@ -3,7 +3,7 @@ dialog.dialog {
 }
 
 .dialogBody {
-  /* No block padding: the nav divider runs from the header rule to the footer rule. */
+  /* No block padding: the nav divider and the scrolling rows run from the header rule to the footer rule. */
   padding: 0 var(--space-16);
   overflow-x: hidden;
 }
@@ -20,22 +20,16 @@ dialog.dialog {
   display: grid;
   align-content: start;
   gap: var(--space-4);
-  padding: var(--space-8) calc(var(--space-12) + var(--border-width)) var(--space-8) 0;
+  padding: var(--space-16) calc(var(--space-12) + var(--border-width)) var(--space-16) 0;
 }
 
-/* The divider is strongest at the middle and fades out at both ends instead of ending in a hard cut. */
+/* A plain 1px rule from the header to the footer. */
 .nav::after {
   position: absolute;
   inset-block: 0;
   inset-inline-end: 0;
   width: var(--border-width);
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    var(--color-divider) 25%,
-    var(--color-divider) 75%,
-    transparent
-  );
+  background: var(--color-divider);
   content: "";
   pointer-events: none;
 }
@@ -100,33 +94,31 @@ dialog.dialog {
 .panel {
   composes: scrollSurface overlayScroll from global;
   min-width: 0;
-  margin-block: var(--space-8);
-  height: var(--geometry-settings-panel-height);
+  /* Padding, not margin: the rows scroll right up to the rules. A row is 48px with a 32px control
+     centred in it, so --space-8 here leaves --space-16 between a rule and the control, like the sides. */
+  height: calc(var(--geometry-settings-panel-height) + var(--space-16));
   max-height: calc(100dvh - var(--dialog-body-chrome) - var(--space-24));
   overflow-y: auto;
-  padding-right: var(--scroll-inset);
+  /* The scroller reaches the dialog's edge, so its bar sits there and the controls keep the same 16px
+     from the edge as the nav keeps on the left. */
+  margin-right: calc(-1 * var(--space-16));
+  padding: var(--space-8) var(--space-16) var(--space-8) 0;
 }
 
 /* Shortcuts keeps its preset and search in view: the panel holds still and its own list scrolls.
-   The left padding, cancelled by the margin, leaves room for the focus ring that the clip would cut. */
+   It spans from the nav divider to the dialog's edge, so the rule under its header runs the full width;
+   the header and the list put the 16px back on each side, which also leaves room for the focus ring. */
 .panelContained {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  margin-left: calc(-1 * var(--space-4));
-  padding: 0 0 0 var(--space-4);
+  margin-inline: calc(-1 * var(--space-16));
+  padding: var(--space-16) 0 0;
 }
 
 .settingList {
   min-width: 0;
   display: grid;
-}
-
-.sectionNote {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
 }
 
 /* Settings stored with the open plan sit in a box, so they are not mistaken for the app-wide rows.
@@ -140,8 +132,9 @@ dialog.dialog {
   border-radius: var(--radius-control);
 }
 
+/* The box is a bordered edge, not a 48px row: it needs the --space-8 the rows bring themselves. */
 .projectGroup:first-child {
-  margin-top: 0;
+  margin-top: var(--space-8);
 }
 
 .projectGroupHeader {
@@ -170,12 +163,12 @@ dialog.dialog {
 .settingRow {
   min-width: 0;
   box-sizing: border-box;
-  min-height: calc(var(--control-height-compact) + var(--space-16));
+  min-height: calc(var(--control-height-compact) + var(--space-12));
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-16);
-  padding-block: var(--space-8);
+  padding-block: var(--space-4);
 }
 
 .settingCopy {
@@ -265,12 +258,12 @@ dialog.dialog {
 
 .labelPreviewRow {
   min-width: 0;
-  min-height: calc(var(--control-height-compact) + var(--space-16));
+  min-height: calc(var(--control-height-compact) + var(--space-12));
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-16);
-  padding-block: var(--space-8);
+  padding-block: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
@@ -304,30 +297,20 @@ dialog.dialog {
   line-height: var(--line-height-secondary);
 }
 
-.resetRow {
+.footerTools {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-16);
-  padding-block: var(--space-12) var(--space-4);
+  gap: var(--space-8);
+  margin-inline-end: auto;
 }
 
-.resetCopy {
+.footerStatus {
   min-width: 0;
-  display: grid;
-  gap: var(--space-4);
-}
-
-.resetHint {
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
-}
-
-.resetActions {
-  display: flex;
-  gap: var(--space-8);
 }
 
 @media (any-pointer: coarse), (max-width: 800px) {
@@ -348,20 +331,14 @@ dialog.dialog {
   .nav {
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    padding: var(--space-8) 0;
+    padding: var(--space-16) 0 var(--space-8);
   }
 
   .nav::after {
     inset: auto 0 0;
     width: auto;
     height: var(--border-width);
-    background: linear-gradient(
-      to right,
-      transparent,
-      var(--color-divider) 25%,
-      var(--color-divider) 75%,
-      transparent
-    );
+    background: var(--color-divider);
   }
 
   .navItem {
@@ -378,15 +355,16 @@ dialog.dialog {
   }
 
   .panel {
-    margin-top: 0;
     height: auto;
     min-height: var(--geometry-settings-panel-height);
-    padding-right: 0;
+    margin-right: 0;
+    padding: 0 0 var(--space-16);
   }
 
   .panelContained {
     height: var(--geometry-settings-panel-height);
     min-height: 0;
+    padding: 0;
   }
 
   .settingRow:has(.select, .wideSelect, .narrowSelect) {

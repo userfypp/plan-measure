@@ -71,9 +71,73 @@ export function ProjectLibraryDialog({
   const confirmingOpen = pendingOpenProjectId !== null && discardsCurrentProject;
   const openingProject = projects.find((project) => project.id === pendingOpenProjectId);
 
+  const actions = confirmingOpen ? (
+    <>
+      <Button
+        variant="ghost"
+        size="compact"
+        disabled={opening}
+        onClick={() => setPendingOpenProjectId(null)}
+      >
+        Cancel
+      </Button>
+      <Button
+        variant="danger"
+        size="compact"
+        disabled={opening}
+        onClick={() => {
+          const projectId = pendingOpenProjectId;
+          setPendingOpenProjectId(null);
+          if (projectId) onOpenProject(projectId, { discardUnsavedProject: true });
+        }}
+      >
+        Discard and open
+      </Button>
+    </>
+  ) : confirmingDiscard ? (
+    <>
+      <Button variant="ghost" size="compact" disabled={opening} onClick={onCancelDiscard}>
+        Keep project
+      </Button>
+      <Button
+        variant="danger"
+        size="compact"
+        disabled={opening}
+        onClick={() => {
+          if (pendingDiscardProjectId) onConfirmDiscard(pendingDiscardProjectId);
+        }}
+      >
+        Discard
+      </Button>
+    </>
+  ) : (
+    <>
+      <Button variant="ghost" size="compact" onClick={onClose}>
+        Close
+      </Button>
+      {currentSessionLoaded && !projects.some((project) => project.id === activeProjectId) && (
+        <Button
+          variant="secondary"
+          size="compact"
+          disabled={opening}
+          onClick={() => onExportProject()}
+        >
+          Export current project
+        </Button>
+      )}
+      <Button variant="secondary" size="compact" disabled={opening} onClick={onImportProject}>
+        Import project
+      </Button>
+      <Button size="compact" onClick={onOpenPdf} disabled={opening}>
+        Open PDF
+      </Button>
+    </>
+  );
+
   return (
     <Dialog
       open
+      actions={actions}
       title={
         confirmingOpen
           ? "Discard unsaved project?"
@@ -98,28 +162,6 @@ export function ProjectLibraryDialog({
             current project, which exists only in memory because it could not be saved. Cancel and
             export it first if you want to keep a copy.
           </p>
-          <div className={styles.actions}>
-            <Button
-              variant="ghost"
-              size="compact"
-              disabled={opening}
-              onClick={() => setPendingOpenProjectId(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="compact"
-              disabled={opening}
-              onClick={() => {
-                const projectId = pendingOpenProjectId;
-                setPendingOpenProjectId(null);
-                if (projectId) onOpenProject(projectId, { discardUnsavedProject: true });
-              }}
-            >
-              Discard and open
-            </Button>
-          </div>
         </div>
       ) : confirmingDiscard ? (
         <div className={styles.discardConfirmation}>
@@ -127,21 +169,6 @@ export function ProjectLibraryDialog({
             Remove <strong>{pendingProject?.name ?? "this project"}</strong> and its PDF from this
             device? Other projects stay saved.
           </p>
-          <div className={styles.actions}>
-            <Button variant="ghost" size="compact" disabled={opening} onClick={onCancelDiscard}>
-              Keep project
-            </Button>
-            <Button
-              variant="danger"
-              size="compact"
-              disabled={opening}
-              onClick={() => {
-                if (pendingDiscardProjectId) onConfirmDiscard(pendingDiscardProjectId);
-              }}
-            >
-              Discard
-            </Button>
-          </div>
         </div>
       ) : (
         <>
@@ -217,28 +244,6 @@ export function ProjectLibraryDialog({
               this in Settings.
             </p>
           )}
-          <div className={styles.actions}>
-            <Button variant="ghost" size="compact" onClick={onClose}>
-              Close
-            </Button>
-            {currentSessionLoaded &&
-              !projects.some((project) => project.id === activeProjectId) && (
-                <Button
-                  variant="secondary"
-                  size="compact"
-                  disabled={opening}
-                  onClick={() => onExportProject()}
-                >
-                  Export current project
-                </Button>
-              )}
-            <Button variant="secondary" size="compact" disabled={opening} onClick={onImportProject}>
-              Import project
-            </Button>
-            <Button size="compact" onClick={onOpenPdf} disabled={opening}>
-              Open PDF
-            </Button>
-          </div>
         </>
       )}
     </Dialog>
