@@ -43,7 +43,7 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 - **Select** moves measurements or drags single vertices. **Details** holds the notes and classification assignments. Rename a selected measurement from the context bar.
 - `Shift`/`Ctrl`/`Cmd`-click adds or removes measurements from the selection. Bulk classification, visibility and deletion work across pages.
 - Moving, duplicating and copying a group need a selection on a single page. Pasting onto another page uses that page's active scale for paths, and all the geometry must fit.
-- **Undo/Redo** covers measurements, scales, classifications and page labels. History resets when you open a project or reload; navigation and display settings are not part of it.
+- **Undo/Redo** covers measurements, scales, classifications and page labels. The history of the open project also survives a reload, returning shortly after the plan opens and capped for very large plans; opening another project or PDF starts it empty. Navigation and display settings are not part of it.
 
 ### Classifications, lists and Takeoff
 
@@ -63,7 +63,7 @@ Use the controls below the plan for previous/next pages, zoom, **Fit**, active s
 
 **Projects** opens, imports, exports, and deletes local projects. Opening another PDF or importing a project keeps existing saved projects. Editing is temporarily blocked while a project loads. If the current project exists only in memory, cancel and export it first, or confirm **Discard and open** to open another PDF. Click the save status in the application bar → **Export backup (.planmeasure)**, or use **Projects → Export**, to download a file with the PDF and editable data.
 
-The save status shows **Saving…**, **Saved on this device** after confirmation, or **Couldn't save**; repair, another-tab, and storage problems have their own labels. Completed edits autosave in IndexedDB only in this browser. Drafts, Snap, Ortho, zoom, pan, and undo history are not saved. The app requests persistent storage after a confirmed save when supported; the browser may deny it or ask for permission. Clearing site data still removes saved projects, so keep downloaded backups.
+The save status shows **Saving…**, **Saved on this device** after confirmation, or **Couldn't save**; repair, another-tab, and storage problems have their own labels. Completed edits autosave in IndexedDB only in this browser. Drafts, Snap, Ortho, zoom and pan are not saved. The undo history of the open project is kept separately and best-effort, so reloading right after an edit can lose it. The app requests persistent storage after a confirmed save when supported; the browser may deny it or ask for permission. Clearing site data still removes saved projects, so keep downloaded backups.
 
 If saving fails:
 

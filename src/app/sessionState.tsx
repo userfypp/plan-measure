@@ -1320,6 +1320,16 @@ interface SessionContextValue extends SessionState {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
+  getUndoHistory: () => {
+    session: CurrentSession | null;
+    undo: readonly CurrentSession[];
+    redo: readonly CurrentSession[];
+  };
+  restoreUndoHistory: (
+    expected: { undo: readonly CurrentSession[]; redo: readonly CurrentSession[] },
+    undo: readonly CurrentSession[],
+    redo: readonly CurrentSession[],
+  ) => boolean;
   loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
   updatePage: (pageNumber: number) => void;
@@ -1438,9 +1448,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [setError, updateHistoryState],
   );
   const undo = useCallback(() => {
-    const previous = undoStackRef.current.pop();
+    const previous = undoStackRef.current.at(-1);
     const current = sessionRef.current;
     if (!previous || !current) return;
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
     redoStackRef.current = [...redoStackRef.current, current];
     const restored = restoreSnapshot(previous, current);
     sessionRef.current = restored;
@@ -1449,9 +1460,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     updateHistoryState();
   }, [setError, updateHistoryState]);
   const redo = useCallback(() => {
-    const next = redoStackRef.current.pop();
+    const next = redoStackRef.current.at(-1);
     const current = sessionRef.current;
     if (!next || !current) return;
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
     undoStackRef.current = [...undoStackRef.current, current].slice(-getAppPreferences().undoDepth);
     const restored = restoreSnapshot(next, current);
     sessionRef.current = restored;
@@ -1459,6 +1471,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setError(null);
     updateHistoryState();
   }, [setError, updateHistoryState]);
+  // The stacks are replaced, never mutated, so a captured pair stays valid until the history changes.
+  const getUndoHistory = useCallback(
+    () => ({
+      session: sessionRef.current,
+      undo: undoStackRef.current,
+      redo: redoStackRef.current,
+    }),
+    [],
+  );
+  const restoreUndoHistory = useCallback(
+    (
+      expected: { undo: readonly CurrentSession[]; redo: readonly CurrentSession[] },
+      undoStack: readonly CurrentSession[],
+      redoStack: readonly CurrentSession[],
+    ) => {
+      if (
+        !sessionRef.current ||
+        undoStackRef.current !== expected.undo ||
+        redoStackRef.current !== expected.redo
+      )
+        return false;
+      const { undoDepth } = getAppPreferences();
+      undoStackRef.current = undoStack.slice(-undoDepth);
+      redoStackRef.current = redoStack.slice(-undoDepth);
+      updateHistoryState();
+      return true;
+    },
+    [updateHistoryState],
+  );
   const measurementCommands = useMemo<MeasurementCommands>(
     () => ({
       updateMeasurements: (commands) => {
@@ -1481,6 +1522,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...historyState,
       undo,
       redo,
+      getUndoHistory,
+      restoreUndoHistory,
       loadSession: (nextSession) => applyAction({ type: "LOAD_SESSION", session: nextSession }),
       clearSession: () => applyAction({ type: "CLEAR_SESSION" }),
       updatePage: (pageNumber) => applyAction({ type: "UPDATE_PAGE", pageNumber }),
@@ -1580,7 +1623,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "REMOVE_CLASSIFICATION_VALUE", ...command }),
       updateSettings: (settings) => applyAction({ type: "UPDATE_SETTINGS", settings }),
     }),
-    [applyAction, historyState, measurementCommands, redo, session, undo],
+    [
+      applyAction,
+      getUndoHistory,
+      historyState,
+      measurementCommands,
+      redo,
+      restoreUndoHistory,
+      session,
+      undo,
+    ],
   );
   return (
     <SessionContext.Provider value={value}>
