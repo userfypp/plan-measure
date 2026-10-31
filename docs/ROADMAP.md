@@ -22,7 +22,6 @@ No issue is assigned right now. Want one? Comment on it and wait for the assignm
 | 4     | [#235](https://github.com/userfypp/plan-measure/issues/235) | Text, callout and arrow markups        |                                  |
 | 5     | [#236](https://github.com/userfypp/plan-measure/issues/236) | Highlight and stamp markups            | After #235; schema migration     |
 | –     | [#229](https://github.com/userfypp/plan-measure/issues/229) | Persistent undo history                |                                  |
-| –     | [#230](https://github.com/userfypp/plan-measure/issues/230) | Customizable keyboard shortcuts        |                                  |
 | –     | [#234](https://github.com/userfypp/plan-measure/issues/234) | Small-screen and touch layout          | Layout only; touch drawing later |
 | –     | [#251](https://github.com/userfypp/plan-measure/issues/251) | Pages exceeds pause and memory budgets | Cause still unknown              |
 
@@ -49,8 +48,8 @@ A review of the whole test suite (October 2026) is grouped into the issues below
 | P1       | [#379](https://github.com/userfypp/plan-measure/issues/379) | Cover CSV, spreadsheet, JSON and export dialog correctness             | Part done (#433, #438)                            |
 | P1       | [#380](https://github.com/userfypp/plan-measure/issues/380) | Assert Takeoff totals and groups in the model and the UI               | Part done (#433, #437)                            |
 | P2       | [#381](https://github.com/userfypp/plan-measure/issues/381) | Set up test infrastructure, coverage and CI gates                      | Do first; part done (#422–#426, #439, #441, #442) |
-| P2       | [#382](https://github.com/userfypp/plan-measure/issues/382) | Cover rejection paths and no-op identity in session commands           |                                                   |
-| P2       | [#383](https://github.com/userfypp/plan-measure/issues/383) | Cover workspace, clipboard, overlay and theme state                    |                                                   |
+| P2       | [#382](https://github.com/userfypp/plan-measure/issues/382) | Cover rejection paths and no-op identity in session commands           | Good first issue                                  |
+| P2       | [#383](https://github.com/userfypp/plan-measure/issues/383) | Cover workspace, clipboard, overlay and theme state                    | Good first issue                                  |
 | P2       | [#384](https://github.com/userfypp/plan-measure/issues/384) | Make autosave and close-prompt tests deterministic and complete        |                                                   |
 | P2       | [#385](https://github.com/userfypp/plan-measure/issues/385) | Cover app hooks, preferences and startup modules                       | Part done (#415, #417–#419)                       |
 | P2       | [#386](https://github.com/userfypp/plan-measure/issues/386) | Cover app-level flows, dialogs and settings                            |                                                   |
@@ -62,19 +61,18 @@ A review of the whole test suite (October 2026) is grouped into the issues below
 | P2       | [#392](https://github.com/userfypp/plan-measure/issues/392) | Cover scale dialogs, ratios, scale check and the page browser          | Part done (#435)                                  |
 | P2       | [#393](https://github.com/userfypp/plan-measure/issues/393) | Cover classification manager, templates and name rules                 | Part done (#434)                                  |
 | P2       | [#394](https://github.com/userfypp/plan-measure/issues/394) | Cover Dialog, Popover, Tooltip, menus and keyboard policy              |                                                   |
-| P2       | [#395](https://github.com/userfypp/plan-measure/issues/395) | Cover UI controls and theme contrast gates                             |                                                   |
+| P2       | [#395](https://github.com/userfypp/plan-measure/issues/395) | Cover UI controls and theme contrast gates                             | Good first issue                                  |
 | P3       | [#396](https://github.com/userfypp/plan-measure/issues/396) | Tighten tests for toolbars, status and workspace shells                |                                                   |
-| P3       | [#397](https://github.com/userfypp/plan-measure/issues/397) | Cover small viewer components, hooks and runtime helpers               |                                                   |
+| P3       | [#397](https://github.com/userfypp/plan-measure/issues/397) | Cover small viewer components, hooks and runtime helpers               | Good first issue                                  |
 | P3       | [#398](https://github.com/userfypp/plan-measure/issues/398) | Cover label layout, quick shapes and cloud outlines                    |                                                   |
-| P3       | [#399](https://github.com/userfypp/plan-measure/issues/399) | Add tests for small utility helpers                                    | Good first issue                                  |
 | P3       | [#400](https://github.com/userfypp/plan-measure/issues/400) | Test performance budgets and release automation scripts                |                                                   |
 
 ## Open to contributors
 
-| Type                            | Issues                                                                            |
-| ------------------------------- | --------------------------------------------------------------------------------- |
-| Helper tests (good first issue) | [#399](https://github.com/userfypp/plan-measure/issues/399) small utility helpers |
-| Test coverage (help wanted)     | The P2 and P3 issues in [Test coverage](#test-coverage)                           |
+| Type                        | Issues                                                                                                                                                                                                                                                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Good first issue            | [#295](https://github.com/userfypp/plan-measure/issues/295) (bug), [#382](https://github.com/userfypp/plan-measure/issues/382), [#383](https://github.com/userfypp/plan-measure/issues/383), [#395](https://github.com/userfypp/plan-measure/issues/395), [#397](https://github.com/userfypp/plan-measure/issues/397) (tests) |
+| Test coverage (help wanted) | The P2 and P3 issues in [Test coverage](#test-coverage)                                                                                                                                                                                                                                                                       |
 
 ## Principles
 
