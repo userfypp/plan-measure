@@ -34,6 +34,8 @@ import {
   type SavedProjectSummary,
   type SavedSession,
 } from "../services/persistence";
+import type { UndoHistory } from "../services/undoHistoryStorage";
+import type { UndoHistoryWriter } from "./undoHistoryPersistence";
 import { prepareSessionSnapshot, type PreparedSessionSnapshot } from "../services/persistenceCodec";
 import type { LoadedPdf } from "../services/pdf";
 import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
@@ -74,6 +76,12 @@ interface PdfSessionLifecycleOptions {
 
   loadSession: (session: CurrentSession) => void;
   clearSession: () => void;
+  getUndoHistory: () => UndoHistory & { session: CurrentSession | null };
+  restoreUndoHistory: (
+    expected: UndoHistory,
+    undo: readonly CurrentSession[],
+    redo: readonly CurrentSession[],
+  ) => boolean;
 
   resetWorkspace: (module?: WorkspaceModule) => void;
   recoveredStartupWorkspace: RecoveredPlanStartupWorkspace;
@@ -105,6 +113,8 @@ export function usePdfSessionLifecycle({
   session,
   loadSession,
   clearSession,
+  getUndoHistory,
+  restoreUndoHistory,
   resetWorkspace,
   recoveredStartupWorkspace,
   cancelWorkspaceCalibration,
@@ -144,6 +154,8 @@ export function usePdfSessionLifecycle({
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("inactive");
   const autosaveStatusRef = useRef(autosaveStatus);
   const currentSessionRef = useRef(session);
+  // Created on the first confirmed save, so the history code stays out of the startup bundle.
+  const undoHistoryWriterRef = useRef<UndoHistoryWriter | null>(null);
   const [projectOperationPending, setProjectOperationPending] = useState(false);
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
   const [autosaveRetryable, setAutosaveRetryable] = useState(false);
@@ -164,6 +176,35 @@ export function usePdfSessionLifecycle({
       setAutosaveStatus("unavailable");
     },
     [saveStatusStore],
+  );
+
+  const withUndoHistoryWriter = useCallback((use: (writer: UndoHistoryWriter) => void) => {
+    if (undoHistoryWriterRef.current) use(undoHistoryWriterRef.current);
+    else {
+      void import("./undoHistoryPersistence").then(({ createUndoHistoryWriter }) => {
+        undoHistoryWriterRef.current ??= createUndoHistoryWriter();
+        use(undoHistoryWriterRef.current);
+      });
+    }
+  }, []);
+
+  // Called once a save is confirmed: the stacks are stored only if they still end at that snapshot.
+  const recordSavedHistory = useCallback(
+    (snapshot: CurrentSession, revision: string | null | undefined, generation: number) => {
+      const history = getUndoHistory();
+      const projectId = activeProjectIdRef.current;
+      if (history.session !== snapshot || !projectId || !revision) return;
+      withUndoHistoryWriter((writer) =>
+        writer.recordSaved({
+          projectId,
+          revision,
+          isCurrent: () => generation === persistenceGenerationRef.current,
+          undo: history.undo,
+          redo: history.redo,
+        }),
+      );
+    },
+    [getUndoHistory, withUndoHistoryWriter],
   );
 
   useLayoutEffect(() => {
@@ -439,6 +480,7 @@ export function usePdfSessionLifecycle({
           if (generation === persistenceGenerationRef.current) {
             persistedSessionRef.current = snapshot;
             confirmSavedSnapshot(snapshot, preparedPdfBlob);
+            recordSavedHistory(snapshot, persistenceRevisionRef.current, generation);
             if (currentSessionRef.current === snapshot) {
               if (repairedHistoricalSession) updateAutosaveStatus("available");
               setAutosaveWarning(null);
@@ -448,6 +490,7 @@ export function usePdfSessionLifecycle({
         .catch((error: unknown) => {
           if (generation !== persistenceGenerationRef.current) return;
           persistenceGenerationRef.current += 1;
+          undoHistoryWriterRef.current?.reset();
           console.error("IndexedDB autosave failed.", error);
           reportAutosaveFailure(error);
         })
@@ -486,11 +529,13 @@ export function usePdfSessionLifecycle({
           if (exitGeneration === persistenceGenerationRef.current) {
             persistedSessionRef.current = snapshot;
             confirmSavedSnapshot(snapshot, preparedPdfBlob);
+            recordSavedHistory(snapshot, revision, exitGeneration);
           }
         })
         .catch((error: unknown) => {
           if (exitGeneration !== persistenceGenerationRef.current) return;
           persistenceGenerationRef.current += 1;
+          undoHistoryWriterRef.current?.reset();
           reportAutosaveFailure(error);
         })
         .finally(finishAutosave);
@@ -499,6 +544,7 @@ export function usePdfSessionLifecycle({
       if (document.visibilityState !== "hidden") return;
       window.clearTimeout(timer);
       queueAutosave();
+      void saveQueueRef.current.finally(() => undoHistoryWriterRef.current?.flushNow());
     };
     if (snapshot !== persistedSessionRef.current) {
       window.addEventListener("beforeunload", handleBeforeUnload);
@@ -518,6 +564,7 @@ export function usePdfSessionLifecycle({
     session,
     saveStatusStore,
     confirmSavedSnapshot,
+    recordSavedHistory,
   ]);
 
   useEffect(() => {
@@ -578,6 +625,7 @@ export function usePdfSessionLifecycle({
       const previousPdf = activePdfRef.current;
       const recoveryWasProtected = recoveryProtected;
       persistenceGenerationRef.current += 1;
+      undoHistoryWriterRef.current?.reset();
       updateAutosaveStatus("inactive");
       try {
         await saveQueueRef.current.catch(() => undefined);
@@ -884,6 +932,7 @@ export function usePdfSessionLifecycle({
           : persistenceRevisionRef.current;
         if (!openingCurrentRecovery) {
           persistenceGenerationRef.current += 1;
+          undoHistoryWriterRef.current?.reset();
           updateAutosaveStatus("inactive");
           await saveQueueRef.current.catch(() => undefined);
           if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) {
@@ -930,6 +979,25 @@ export function usePdfSessionLifecycle({
         currentSessionRef.current = savedProject.session;
         persistedSessionRef.current = savedProject.session;
         loadSession(savedProject.session);
+        if (openingCurrentRecovery && savedProject.compatibility === "current") {
+          // Only the plan restored from this browser's own session may bring its history back.
+          const expected = getUndoHistory();
+          const restoredRevision = activatedRevision;
+          withUndoHistoryWriter((writer) =>
+            writer.restoreWhenIdle({
+              projectId,
+              revision: restoredRevision,
+              base: savedProject.session,
+              expected,
+              isCurrent: () =>
+                !disposedRef.current &&
+                persistenceRevisionRef.current === restoredRevision &&
+                activeProjectIdRef.current === projectId &&
+                autosaveStatusRef.current === "available",
+              restore: restoreUndoHistory,
+            }),
+          );
+        }
         if (pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) setError(null);
         resetWorkspace(recoveredStartupWorkspace);
         if (pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) closeAllOverlays();
@@ -1008,6 +1076,7 @@ export function usePdfSessionLifecycle({
         }
         previousAutosaveStatus = autosaveStatusRef.current;
         persistenceGenerationRef.current += 1;
+        undoHistoryWriterRef.current?.reset();
         updateAutosaveStatus("inactive");
         cancelWorkspaceCalibration();
         closeConfirmation();
@@ -1068,6 +1137,7 @@ export function usePdfSessionLifecycle({
         if (disposedRef.current || !pdfLoadLifecycleRef.current.isCurrent(loadGeneration)) return;
         previousAutosaveStatus = autosaveStatusRef.current;
         persistenceGenerationRef.current += 1;
+        undoHistoryWriterRef.current?.reset();
         updateAutosaveStatus("inactive");
         cancelWorkspaceCalibration();
         closeConfirmation();
@@ -1137,6 +1207,7 @@ export function usePdfSessionLifecycle({
         const discardingCurrent = project.isCurrent;
         previousAutosaveStatus = autosaveStatusRef.current;
         persistenceGenerationRef.current += 1;
+        undoHistoryWriterRef.current?.reset();
         updateAutosaveStatus("inactive");
         if (discardingCurrent) {
           cancelWorkspaceCalibration();
@@ -1260,6 +1331,7 @@ export function usePdfSessionLifecycle({
       } catch (error) {
         if (disposedRef.current || generation !== persistenceGenerationRef.current) return;
         persistenceGenerationRef.current += 1;
+        undoHistoryWriterRef.current?.reset();
         console.error("IndexedDB autosave retry failed.", error);
         reportAutosaveFailure(error);
       }

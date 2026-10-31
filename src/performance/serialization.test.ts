@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enqueueAutosave } from "../app/autosave";
+import { createUndoHistoryWriter } from "../app/undoHistoryPersistence";
 import { buildCsv, buildCsvInBatches } from "../services/csv";
 import {
   loadSavedSession,
@@ -10,6 +11,7 @@ import {
   saveSessionMetadata,
 } from "../services/persistence";
 import { prepareSessionSnapshot } from "../services/persistenceCodec";
+import { loadUndoHistory } from "../services/undoHistoryStorage";
 import { performanceSession } from "./fixtures";
 
 afterEach(async () => {
@@ -46,6 +48,28 @@ describe("serialization budgets", () => {
     expect(stringify).toHaveBeenCalledTimes(1);
     stringify.mockRestore();
     expect((await loadSavedSession())!.session.pages[1]!.measurements[0]!.name).toBe("Editada");
+  });
+
+  it("flushing the undo history of 5000 measurements never serializes it to text", async () => {
+    await resetPersistenceForTests();
+    const original = performanceSession();
+    const revision = await replaceSavedSession(original, new Blob(["pdf"]), null, "project");
+    const writer = createUndoHistoryWriter({ idle: () => () => undefined });
+    const stringify = vi.spyOn(JSON, "stringify");
+
+    writer.recordSaved({
+      projectId: "project",
+      revision,
+      isCurrent: () => true,
+      undo: [original],
+      redo: [],
+    });
+    await writer.flushNow();
+
+    expect(stringify).not.toHaveBeenCalled();
+    stringify.mockRestore();
+    const restored = await loadUndoHistory("project", revision, original);
+    expect(restored?.undo[0]!.pages[1]!.measurements).toHaveLength(5000);
   });
 
   it("CSV yields every ≤200 rows and keeps the bytes and hash of 5000 measurements", async () => {

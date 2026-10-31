@@ -674,3 +674,106 @@ it("trims the existing Undo and Redo history as soon as the limit is lowered", (
   expect(historyState()!.startsWith("false:true:")).toBe(true);
   expect(countSteps("Redo", 1)).toBe(50);
 });
+
+describe("capturing and restoring the history", () => {
+  const historyState = () => document.querySelector('[data-testid="history-state"]')!.textContent;
+  const loaded = () => createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+
+  it("replaces the stacks on every push, undo and redo, never mutating one", () => {
+    const seen = new Set<unknown>();
+    const capture = () => {
+      const { undo, redo } = historyProbe.getUndoHistory();
+      return { undo, redo };
+    };
+    click("Add");
+    const afterAdd = capture();
+    click("Branch");
+    const afterBranch = capture();
+    click("Undo");
+    const afterUndo = capture();
+    click("Redo");
+    const afterRedo = capture();
+    for (const captured of [afterAdd, afterBranch, afterUndo, afterRedo]) {
+      expect(seen.has(captured.undo)).toBe(false);
+      seen.add(captured.undo);
+    }
+    expect(afterBranch.undo).toHaveLength(2);
+    expect(afterUndo.redo).toHaveLength(1);
+    expect(afterRedo.redo).toHaveLength(0);
+  });
+
+  it("leaves a captured pair as it was after Undo", () => {
+    click("Add");
+    click("Branch");
+    const captured = historyProbe.getUndoHistory();
+    const undoLength = captured.undo.length;
+    const redoLength = captured.redo.length;
+
+    click("Undo");
+
+    expect(captured.undo).toHaveLength(undoLength);
+    expect(captured.redo).toHaveLength(redoLength);
+    expect(historyProbe.getUndoHistory().undo).not.toBe(captured.undo);
+  });
+
+  it("reports the session the stacks end at", () => {
+    click("Add");
+    expect(historyProbe.getUndoHistory().session).toBe(historyProbe.session);
+  });
+
+  it("restores the stacks while the history is untouched and updates Undo and Redo", () => {
+    const previous = loaded();
+    const next = loaded();
+    const expected = historyProbe.getUndoHistory();
+    expect(historyState()).toBe("false:false:0");
+
+    let restored = false;
+    act(() => {
+      restored = historyProbe.restoreUndoHistory(expected, [previous], [next]);
+    });
+
+    expect(restored).toBe(true);
+    expect(historyState()).toBe("true:true:0");
+    expect(historyProbe.getUndoHistory().undo).toEqual([previous]);
+    expect(historyProbe.getUndoHistory().redo).toEqual([next]);
+  });
+
+  it("refuses to restore once an edit, Undo or Redo changed the history", () => {
+    const expected = historyProbe.getUndoHistory();
+    click("Add");
+    const afterEdit = historyProbe.getUndoHistory();
+    click("Undo");
+
+    for (const stale of [expected, afterEdit]) {
+      let restored = true;
+      act(() => {
+        restored = historyProbe.restoreUndoHistory(stale, [loaded()], []);
+      });
+      expect(restored).toBe(false);
+    }
+    expect(historyState()).toBe("false:true:0");
+  });
+
+  it("keeps only the most recent steps allowed by the history limit", () => {
+    act(() => setAppPreference("undoDepth", 50));
+    const steps = Array.from({ length: 80 }, loaded);
+    const expected = historyProbe.getUndoHistory();
+
+    act(() => {
+      historyProbe.restoreUndoHistory(expected, steps, steps);
+    });
+
+    const restored = historyProbe.getUndoHistory();
+    expect(restored.undo).toHaveLength(50);
+    expect(restored.undo[49]).toBe(steps[79]);
+    expect(restored.redo).toHaveLength(50);
+    expect(restored.redo[49]).toBe(steps[79]);
+  });
+
+  it("keeps the same capture functions across renders", () => {
+    const { getUndoHistory, restoreUndoHistory } = historyProbe;
+    click("Add");
+    expect(historyProbe.getUndoHistory).toBe(getUndoHistory);
+    expect(historyProbe.restoreUndoHistory).toBe(restoreUndoHistory);
+  });
+});

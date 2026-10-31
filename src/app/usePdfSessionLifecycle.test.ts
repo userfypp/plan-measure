@@ -13,6 +13,7 @@ import type { ReplacePdfPayload } from "./overlayState";
 import * as persistenceService from "../services/persistence";
 import * as storagePersistence from "../services/storagePersistence";
 import * as persistenceCodec from "../services/persistenceCodec";
+import * as undoHistoryStorage from "../services/undoHistoryStorage";
 import {
   activateSavedProject,
   listSavedProjects,
@@ -21,6 +22,7 @@ import {
   replaceSavedSession,
   resetPersistenceForTests,
 } from "../services/persistence";
+import { loadUndoHistory } from "../services/undoHistoryStorage";
 import type { CurrentSession } from "../types/domain";
 import type { LoadedPdf } from "../services/pdf";
 import { createEmptySession, SessionProvider, useSessionState } from "./sessionState";
@@ -235,6 +237,10 @@ function LifecycleHarness({
     session,
     loadSession: (nextSession) => setSession(nextSession),
     clearSession: () => (history ? history.clearSession() : setLocalSession(null)),
+    getUndoHistory: history
+      ? history.getUndoHistory
+      : () => ({ session: null, undo: [], redo: [] }),
+    restoreUndoHistory: history ? history.restoreUndoHistory : () => false,
     resetWorkspace: (module) => resetWorkspaceCalls.push(module),
     recoveredStartupWorkspace,
     cancelWorkspaceCalibration: () => undefined,
@@ -2280,5 +2286,149 @@ describe("discarding a saved session that cannot be used", () => {
     expect(discard).not.toHaveBeenCalled();
     expect(lifecycleErrors).toContain("The saved session could not be discarded.");
     expect(lifecycle!.recoveryIssue).not.toBeNull();
+  });
+});
+
+describe("persisted undo history", () => {
+  const wait = (ms: number) =>
+    act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, ms));
+    });
+
+  async function hideTab() {
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    });
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  }
+
+  /** Recovers the seeded plan, makes one undoable edit and flushes its history to storage. */
+  async function editAndStoreHistory() {
+    await seedRecoverySession();
+    await renderLifecycleHarness("scales", true);
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    act(() => historyCommands!.addClassificationDimension("trade", "Trade"));
+    await wait(450);
+    await hideTab();
+    const saved = (await loadSavedSession())!;
+    return { saved, projectId: lifecycle!.activeProjectId! };
+  }
+
+  async function remount() {
+    act(() => root?.unmount());
+    container?.remove();
+    root = null;
+    container = null;
+    lifecycle = null;
+    historyCommands = null;
+    await renderLifecycleHarness("scales", true);
+  }
+
+  async function storedKeys() {
+    const transaction = await persistenceService.openSessionsTransaction("readonly");
+    return (await transaction.objectStore("sessions").getAllKeys()).filter((key) =>
+      key.startsWith("undo-history"),
+    );
+  }
+
+  it("stores the stacks after a confirmed save and brings them back when the plan is recovered", async () => {
+    const { saved, projectId } = await editAndStoreHistory();
+    expect(historyCommands!.canUndo).toBe(true);
+    await expect(loadUndoHistory(projectId, saved.revision, saved.session)).resolves.toMatchObject({
+      undo: [expect.anything()],
+      redo: [],
+    });
+
+    await remount();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    await wait(50);
+
+    expect(historyCommands!.canUndo).toBe(true);
+    expect(historyCommands!.canRedo).toBe(false);
+    act(() => historyCommands!.undo());
+    expect(harnessSession!.classificationCatalog.dimensions).toHaveLength(0);
+  });
+
+  it("brings the redo steps back too", async () => {
+    await editAndStoreHistory();
+    act(() => historyCommands!.undo());
+    await wait(450);
+    await hideTab();
+
+    const load = vi.spyOn(undoHistoryStorage, "loadUndoHistory");
+    await remount();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    await wait(50);
+
+    expect(load).toHaveBeenCalledOnce();
+    expect(historyCommands!.canUndo).toBe(false);
+    expect(historyCommands!.canRedo).toBe(true);
+  });
+
+  it("does not bring the history back when the recovered plan needs repair", async () => {
+    const { saved } = await editAndStoreHistory();
+    await remount();
+    vi.spyOn(persistenceService, "loadSavedSession").mockResolvedValueOnce({
+      ...saved,
+      compatibility: "historical-repair-required",
+      incompatibleMeasurementIds: [],
+    });
+    const load = vi.spyOn(undoHistoryStorage, "loadUndoHistory");
+    await remount();
+
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    await wait(50);
+
+    expect(load).not.toHaveBeenCalled();
+    expect(historyCommands!.canUndo).toBe(false);
+  });
+
+  it("does not bring the history back when the plan is opened from the library", async () => {
+    const { saved, projectId } = await editAndStoreHistory();
+    await act(async () => {
+      await lifecycle!.closeProject();
+    });
+    expect(await storedKeys()).toEqual([]);
+    const load = vi.spyOn(undoHistoryStorage, "loadUndoHistory");
+
+    await act(async () => {
+      await lifecycle!.openProject(projectId);
+    });
+    await wait(50);
+
+    expect(load).not.toHaveBeenCalled();
+    expect(historyCommands!.canUndo).toBe(false);
+    await expect(loadUndoHistory(projectId, saved.revision, saved.session)).resolves.toBeNull();
+  });
+
+  it("empties the stored history and the stacks when the project is closed", async () => {
+    await editAndStoreHistory();
+    expect(await storedKeys()).toHaveLength(2);
+
+    await act(async () => {
+      await lifecycle!.closeProject();
+    });
+
+    expect(await storedKeys()).toEqual([]);
+    expect(historyCommands!.canUndo).toBe(false);
+  });
+
+  it("never lets a failed history write touch the save status", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(undoHistoryStorage, "writeUndoHistory").mockResolvedValue(false);
+    await editAndStoreHistory();
+
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
+    expect(lifecycle!.autosaveUnavailable).toBe(false);
   });
 });
