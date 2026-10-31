@@ -86,6 +86,16 @@ export function Tooltip({
     };
   }, []);
 
+  // WCAG 1.4.13: a bubble covering content can be dismissed without moving the pointer or focus.
+  useEffect(() => {
+    if (!visible) return;
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.isComposing) setVisible(false);
+    }
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => document.removeEventListener("keydown", dismissOnEscape);
+  }, [visible]);
+
   useLayoutEffect(() => {
     if (!visible) return;
 
