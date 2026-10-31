@@ -257,3 +257,28 @@ describe("Tooltip fit to text", () => {
     expect(tooltip().style.width).toBe("");
   });
 });
+
+// Last on purpose: after a key event jsdom no longer reports a script focus as :focus-visible.
+describe("Tooltip dismissal", () => {
+  it("dismisses on Escape while the trigger keeps focus", () => {
+    renderTooltip();
+    showTooltip();
+    expect(tooltip()).not.toBeNull();
+    const press = (init: KeyboardEventInit) =>
+      act(() => {
+        container
+          .querySelector("button")!
+          .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ...init }));
+      });
+    press({ key: "Escape", isComposing: true });
+    expect(tooltip()).not.toBeNull();
+    press({ key: "Enter" });
+    expect(tooltip()).not.toBeNull();
+    press({ key: "Escape" });
+    expect(tooltip()).toBeNull();
+    expect(container.querySelector("button")!.getAttribute("aria-describedby")).toBe(
+      "existing-description",
+    );
+    expect(document.activeElement).toBe(container.querySelector("button"));
+  });
+});
