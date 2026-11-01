@@ -650,6 +650,26 @@ describe("two writers holding the same revision", () => {
   });
 });
 
+describe("leaving a project whose own copy of the PDF is lost", () => {
+  it.each<[string, (revision: string) => Promise<unknown>]>([
+    ["closing it", (revision) => closeActiveSession(revision)],
+    ["switching to another project", (revision) => activateSavedProject("first", revision)],
+    [
+      "replacing it with a new project",
+      (revision) => replaceSavedSession(sessionNamed("third.pdf"), pdfBlob(3), revision, "third"),
+    ],
+  ])("keeps the active copy when %s", async (_name, leave) => {
+    const { revision, original } = await seed();
+    await editStore("pdfs", (pdfs) => pdfs.delete("project:second"));
+
+    await leave(revision);
+
+    const project = await loadSavedProject("second");
+    expect(project.session).toStrictEqual(original);
+    expect(await bytesOf(project.pdfBlob)).toStrictEqual(pdfBytes(2));
+  });
+});
+
 describe("unexpected stored state", () => {
   const upgradeDatabase = async () => {
     const database = await openDB("plan-measure", 2, {
@@ -714,12 +734,18 @@ describe("unexpected stored state", () => {
     expect(await storedRecords()).toStrictEqual(before);
   });
 
-  it("hides a project without a PDF and refuses to open it", async () => {
+  const pdfAvailability = async () =>
+    (await listSavedProjects()).map(({ id, pdfAvailable }) => [id, pdfAvailable]);
+
+  it("flags a project without a PDF and refuses to open it", async () => {
     const { revision, original } = await seed();
     await editStore("pdfs", (pdfs) => pdfs.delete("project:first"));
     const before = await storedRecords();
 
-    expect((await listSavedProjects()).map(({ id }) => id)).toStrictEqual(["second"]);
+    expect(await pdfAvailability()).toStrictEqual([
+      ["second", true],
+      ["first", false],
+    ]);
     await expect(loadSavedProject("first")).rejects.toThrow(
       "The selected project is no longer available.",
     );
@@ -728,6 +754,65 @@ describe("unexpected stored state", () => {
     );
 
     expect(await storedRecords()).toStrictEqual(before);
+  });
+
+  it("counts the active copy as the PDF of the current project", async () => {
+    await seed();
+    await editStore("pdfs", (pdfs) => pdfs.delete("project:second"));
+
+    expect(await pdfAvailability()).toStrictEqual([
+      ["second", true],
+      ["first", true],
+    ]);
+  });
+
+  it("discards a project that lost its PDF", async () => {
+    const { revision } = await seed();
+    await editStore("pdfs", (pdfs) => pdfs.delete("project:first"));
+
+    await expect(discardSavedProject("first", revision)).resolves.toBe(false);
+
+    expect((await listSavedProjects()).map(({ id }) => id)).toStrictEqual(["second"]);
+    const { sessions } = await storedRecords();
+    expect(storedRecord(sessions, "project:first")).toBeUndefined();
+  });
+
+  it("notices a stored PDF of the wrong size, as saved by every build since V11", async () => {
+    await seed();
+    await storeActivePdf(new Blob([pdfBytes(2).slice(1)], { type: "application/pdf" }));
+
+    await expect(loadSavedSession()).rejects.toThrow(
+      "The saved PDF does not match its session metadata.",
+    );
+  });
+
+  it("keeps the project of the active pair when the index lags behind it", async () => {
+    await seed();
+    await storeState("older");
+
+    expect((await loadSavedSession())?.projectId).toBe("second");
+
+    expect((await listSavedProjects()).map(({ id }) => id).sort()).toStrictEqual([
+      "first",
+      "second",
+    ]);
+  });
+
+  it("gives the active pair its own project when the lagging index names another PDF", async () => {
+    await seed();
+    await storeState("older");
+    const other = sessionNamed("other.pdf");
+    await editStore("sessions", (sessions) => {
+      const request = sessions.get("project:second");
+      request.onsuccess = () =>
+        sessions.put({ ...request.result, serialized: serializeSession(other) });
+    });
+
+    const loaded = await loadSavedSession();
+
+    expect(loaded?.projectId).not.toBe("second");
+    expect((await loadSavedProject("second")).session).toStrictEqual(other);
+    expect(await listSavedProjects()).toHaveLength(3);
   });
 
   it.each(["active session", "active PDF"])(

@@ -56,7 +56,7 @@ export function EmptyWorkspaceState({
                 <button
                   type="button"
                   className={styles.project}
-                  disabled={disabled}
+                  disabled={disabled || !project.pdfAvailable}
                   onClick={() => onOpenProject?.(project.id)}
                 >
                   <span className={styles.projectText}>
@@ -71,6 +71,7 @@ export function EmptyWorkspaceState({
                   </span>
                   <span className={styles.projectTrail}>
                     {project.isCurrent && <Badge variant="info">Current</Badge>}
+                    {!project.pdfAvailable && <Badge variant="warning">PDF unavailable</Badge>}
                     <span className={styles.chevron} aria-hidden="true" />
                   </span>
                 </button>

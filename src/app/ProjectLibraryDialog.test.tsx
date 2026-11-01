@@ -17,8 +17,16 @@ const projects: SavedProjectSummary[] = [
     pageCount: 2,
     savedAt: 1_800_000_000_000,
     isCurrent: true,
+    pdfAvailable: true,
   },
-  { id: "other", name: "Level 02.pdf", pageCount: 4, savedAt: 1_799_000_000_000, isCurrent: false },
+  {
+    id: "other",
+    name: "Level 02.pdf",
+    pageCount: 4,
+    savedAt: 1_799_000_000_000,
+    isCurrent: false,
+    pdfAvailable: true,
+  },
 ];
 
 let root: Root | null = null;
@@ -157,6 +165,31 @@ describe("ProjectLibraryDialog", () => {
     );
     if (!discardButton) throw new Error("The project discard action was not rendered.");
     act(() => discardButton.click());
+    expect(callbacks.onRequestDiscard).toHaveBeenCalledWith("other");
+  });
+
+  it("only lets a project that lost its PDF be discarded", () => {
+    const lost = { ...projects[1]!, pdfAvailable: false };
+    const callbacks = render({ savedProjects: [projects[0]!, lost] });
+    const [intact, unavailable] = container?.querySelectorAll("li") ?? [];
+    const action = (label: string) =>
+      unavailable?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+
+    expect(unavailable?.textContent).toContain("PDF unavailable");
+    expect(intact?.textContent).not.toContain("PDF unavailable");
+    expect(action("Open project Level 02.pdf")?.getAttribute("aria-disabled")).toBe("true");
+    expect(action("Export project Level 02.pdf")?.getAttribute("aria-disabled")).toBe("true");
+    expect(action("Discard project Level 02.pdf")?.getAttribute("aria-disabled")).toBeNull();
+    expect(unavailable?.textContent).toContain(
+      "The PDF of this project is no longer on this device.",
+    );
+
+    act(() => action("Open project Level 02.pdf")?.click());
+    act(() => action("Export project Level 02.pdf")?.click());
+    act(() => action("Discard project Level 02.pdf")?.click());
+
+    expect(callbacks.onOpenProject).not.toHaveBeenCalled();
+    expect(callbacks.onExportProject).not.toHaveBeenCalled();
     expect(callbacks.onRequestDiscard).toHaveBeenCalledWith("other");
   });
 
@@ -362,6 +395,34 @@ describe("ProjectLibraryDialog", () => {
     expect(onConfirmDiscard).toHaveBeenCalledWith("current");
   });
 
+  it.each([
+    [true, "Remove Level 02.pdf and its PDF from this device? Other projects stay saved."],
+    [false, "Remove Level 02.pdf from this device? Other projects stay saved."],
+  ])("states what discarding removes when the PDF availability is %s", (pdfAvailable, text) => {
+    act(() => {
+      root!.render(
+        <ProjectLibraryDialog
+          open
+          projects={[projects[0]!, { ...projects[1]!, pdfAvailable }]}
+          currentSessionLoaded={false}
+          activeProjectId="current"
+          opening={false}
+          pendingDiscardProjectId="other"
+          onOpenProject={vi.fn()}
+          onOpenPdf={vi.fn()}
+          onImportProject={vi.fn()}
+          onExportProject={vi.fn()}
+          onRequestDiscard={vi.fn()}
+          onCancelDiscard={vi.fn()}
+          onConfirmDiscard={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+    });
+
+    expect(container?.querySelector("p")?.textContent).toBe(text);
+  });
+
   it("limits the list to the most recent projects when the preference asks for it", () => {
     const many: SavedProjectSummary[] = Array.from({ length: 12 }, (_, index) => ({
       id: `project-${index}`,
@@ -369,6 +430,7 @@ describe("ProjectLibraryDialog", () => {
       pageCount: 1,
       savedAt: 1_800_000_000_000 - index,
       isCurrent: false,
+      pdfAvailable: true,
     }));
     const rows = () => container?.querySelectorAll('[aria-label="Saved projects"] > li').length;
     render({ savedProjects: many });

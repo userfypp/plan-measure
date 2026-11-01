@@ -71,6 +71,7 @@ describe("EmptyWorkspaceState recent projects", () => {
       pageCount: index === 0 ? 1 : 3,
       savedAt: 1_700_000_000_000 + index,
       isCurrent: index === 0,
+      pdfAvailable: true,
     }));
   const byLabel = (label: string) => {
     const match = [...container.querySelectorAll<HTMLButtonElement>("ul button")].find((row) =>
@@ -98,6 +99,17 @@ describe("EmptyWorkspaceState recent projects", () => {
     renderWith({ projects: [] });
     expect(container.querySelector("#start-projects-title")).toBeNull();
     expect(container.textContent).not.toContain("All projects");
+  });
+
+  it("flags a recent project that lost its PDF and does not open it", () => {
+    const onOpenProject = vi.fn();
+    const [intact, lost] = make(2);
+    renderWith({ projects: [intact!, { ...lost!, pdfAvailable: false }], onOpenProject });
+
+    expect(byLabel("Project 1").textContent).toContain("PDF unavailable");
+    expect(byLabel("Project 1").disabled).toBe(true);
+    expect(byLabel("Project 0").textContent).not.toContain("PDF unavailable");
+    expect(byLabel("Project 0").disabled).toBe(false);
   });
 
   it("lists projects with current badge and page counts", () => {

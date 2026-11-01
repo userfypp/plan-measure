@@ -848,7 +848,8 @@ describe("session persistence", () => {
       const originalValid = structuredClone(
         historicalPage.measurements.find((measurement) => measurement.id === validId)!,
       );
-      const pdfBlob = new Blob([`pdf-v${historical.schemaVersion}`]);
+      const pdfText = "p".repeat(historical.pdf.size);
+      const pdfBlob = new Blob([pdfText]);
       const originalRevision = await writeRawActiveSession(historical, pdfBlob);
 
       const recovered = await loadSavedSession();
@@ -882,7 +883,7 @@ describe("session persistence", () => {
       });
       expect(recoveredPage.calibrations[0]).toEqual(expectedCalibration);
       expect(recovered.session.classificationCatalog).toEqual({ dimensions: [] });
-      expect(await recovered.pdfBlob.text()).toBe(`pdf-v${historical.schemaVersion}`);
+      expect(await recovered.pdfBlob.text()).toBe(pdfText);
       expect(isSessionPersistable(recovered.session)).toBe(false);
       expect(() => serializeSession(recovered.session)).toThrow("invalid");
       expect(() => deserializeSession(JSON.stringify(historical))).toThrow("require repair");
@@ -920,7 +921,7 @@ describe("session persistence", () => {
       expect(savedRevision).not.toBe(originalRevision);
       expect(restored?.compatibility).toBe("current");
       expect(restored?.session).toEqual(state.session);
-      expect(await restored?.pdfBlob.text()).toBe(`pdf-v${historical.schemaVersion}`);
+      expect(await restored?.pdfBlob.text()).toBe(pdfText);
     },
   );
 
@@ -1141,7 +1142,7 @@ describe("session persistence", () => {
       points,
     };
 
-    const originalRevision = await writeRawActiveSession(crossingV9, new Blob(["pdf-v9"]));
+    const originalRevision = await writeRawActiveSession(crossingV9, new Blob(["pdf"]));
     const decoded = await loadSavedSession();
     if (!decoded) throw new Error("Expected the V9 session to be recovered.");
 
@@ -1150,7 +1151,7 @@ describe("session persistence", () => {
     expect(decoded.incompatibleMeasurementIds).toEqual(["custom"]);
     expect(decoded.revision).toBe(originalRevision);
     expect(decoded.session.pages[2]!.measurements[0]!.points).toEqual(points);
-    expect(await decoded.pdfBlob.text()).toBe("pdf-v9");
+    expect(await decoded.pdfBlob.text()).toBe("pdf");
   });
 
   it("preserves V11 page-label overrides through historical geometry recovery", () => {
@@ -2705,8 +2706,8 @@ describe("session persistence", () => {
   });
 
   it("keeps multiple local projects and saves the outgoing project before switching", async () => {
-    const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 2);
-    const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
+    const projectA = createEmptySession({ name: "A-101.pdf", size: 5, lastModified: 1 }, 2);
+    const projectB = createEmptySession({ name: "B-202.pdf", size: 5, lastModified: 2 }, 1);
     const projectAId = "project-a";
     const projectBId = "project-b";
     let revision = await replaceSavedSession(projectA, new Blob(["pdf-a"]), null, projectAId);
@@ -2750,7 +2751,7 @@ describe("session persistence", () => {
   });
 
   it("discards the selected inactive project without disturbing the active project", async () => {
-    const activeSession = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const activeSession = createEmptySession({ name: "Current.pdf", size: 10, lastModified: 3 }, 1);
     const archivedSession = createEmptySession(
       { name: "Archive.pdf", size: 8, lastModified: 4 },
       2,
@@ -2914,7 +2915,7 @@ describe("session persistence", () => {
   });
 
   it("discards an active project and keeps the other projects saved", async () => {
-    const activeSession = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const activeSession = createEmptySession({ name: "Current.pdf", size: 10, lastModified: 3 }, 1);
     const archivedSession = createEmptySession(
       { name: "Archive.pdf", size: 8, lastModified: 4 },
       2,
@@ -2945,7 +2946,7 @@ describe("session persistence", () => {
   });
 
   it("closes the active project and keeps its latest session in the library", async () => {
-    const session = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const session = createEmptySession({ name: "Current.pdf", size: 3, lastModified: 3 }, 1);
     const projectId = "closed-project";
     const revision = await replaceSavedSession(session, new Blob(["pdf"]), null, projectId);
     const edited = structuredClone(session);
@@ -2961,7 +2962,7 @@ describe("session persistence", () => {
   });
 
   it("rejects closing a project whose active revision changed", async () => {
-    const session = createEmptySession({ name: "Current.pdf", size: 7, lastModified: 3 }, 1);
+    const session = createEmptySession({ name: "Current.pdf", size: 3, lastModified: 3 }, 1);
     await replaceSavedSession(session, new Blob(["pdf"]), null);
 
     await expect(closeActiveSession("stale-revision")).rejects.toBeInstanceOf(
@@ -3063,7 +3064,7 @@ describe("session persistence", () => {
   });
 
   it("rejects divergent metadata from the second writer of one logical session", async () => {
-    const session = createEmptySession({ name: "shared.pdf", size: 3, lastModified: 1 }, 1);
+    const session = createEmptySession({ name: "shared.pdf", size: 10, lastModified: 1 }, 1);
     await replaceSavedSession(session, new Blob(["shared-pdf"]), null);
     const tabA = await loadSavedSession();
     const tabB = await loadSavedSession();
@@ -3083,7 +3084,7 @@ describe("session persistence", () => {
   });
 
   it("keeps page-exit saves behind the same stale-writer revision check", async () => {
-    const session = createEmptySession({ name: "shared.pdf", size: 3, lastModified: 1 }, 1);
+    const session = createEmptySession({ name: "shared.pdf", size: 10, lastModified: 1 }, 1);
     await replaceSavedSession(session, new Blob(["shared-pdf"]), null);
     const tabA = await loadSavedSession();
     const tabB = await loadSavedSession();
@@ -3105,8 +3106,8 @@ describe("session persistence", () => {
   });
 
   it("rejects a stale discard after another tab replaces the active session", async () => {
-    const sessionA = createEmptySession({ name: "a.pdf", size: 3, lastModified: 1 }, 1);
-    const sessionB = createEmptySession({ name: "b.pdf", size: 3, lastModified: 2 }, 1);
+    const sessionA = createEmptySession({ name: "a.pdf", size: 5, lastModified: 1 }, 1);
+    const sessionB = createEmptySession({ name: "b.pdf", size: 5, lastModified: 2 }, 1);
     await replaceSavedSession(sessionA, new Blob(["pdf-a"]), null);
     const tabA = await loadSavedSession();
     const tabB = await loadSavedSession();
