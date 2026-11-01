@@ -214,10 +214,11 @@ function hasValidSessionHeader(value: Record<string, unknown>): boolean {
   return (
     isObject(value.pdf) &&
     typeof value.pdf.name === "string" &&
+    value.pdf.name.length > 0 &&
     isFiniteNumber(value.pdf.size) &&
+    value.pdf.size >= 0 &&
     isFiniteNumber(value.pdf.lastModified) &&
     Number.isInteger(value.pageCount) &&
-    (value.pageCount as number) >= 1 &&
     Number.isInteger(value.currentPage) &&
     (value.currentPage as number) >= 1 &&
     (value.currentPage as number) <= (value.pageCount as number) &&
@@ -323,7 +324,7 @@ function assertValidSessionV3(
     }
   }
 }
-function hasValidMeasurementCounters(value: unknown): boolean {
+function hasValidMeasurementCounters(value: unknown): value is Record<string, unknown> {
   if (!isObject(value)) return false;
   return ["line", "polyline", "polygon"].every(
     (type) => Number.isInteger(value[type]) && (value[type] as number) >= 1,
@@ -360,8 +361,7 @@ function assertValidSessionV4(
       (page.nextCalibrationNumber as number) < 1 ||
       !hasValidMeasurementCounters(page.nextMeasurementNumber) ||
       (allowCounts &&
-        (!isObject(page.nextMeasurementNumber) ||
-          !Number.isInteger(page.nextMeasurementNumber.count) ||
+        (!Number.isInteger(page.nextMeasurementNumber.count) ||
           (page.nextMeasurementNumber.count as number) < 1))
     )
       throw new Error(`The saved state for page ${pageNumber} is invalid.`);
@@ -1242,7 +1242,6 @@ function requiresClassificationNameRepair(value: unknown): boolean {
 
 function finalizeDecodedSession(
   source: SessionV11 | SessionV12 | SessionV13 | SessionV14 | SessionV15 | CurrentSession,
-  allowHistoricalGeometry: boolean,
   classificationRepairRequired = false,
 ): DecodedSession {
   const sessionV12 = source.schemaVersion === 11 ? migrateSessionV11(source) : source;
@@ -1255,8 +1254,7 @@ function finalizeDecodedSession(
       .filter((measurement) => !hasValidMeasurementPoints(measurement.type, measurement.points))
       .map((measurement) => measurement.id),
   );
-  const historicalGeometryRepairRequired =
-    allowHistoricalGeometry && incompatibleMeasurementIds.length > 0;
+  const historicalGeometryRepairRequired = incompatibleMeasurementIds.length > 0;
   if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
     assertValidSessionV16(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
@@ -1304,7 +1302,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
           ),
         ),
       ),
-      true,
     );
   }
   if (value.schemaVersion === 2) {
@@ -1321,7 +1318,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
           ),
         ),
       ),
-      true,
     );
   }
   if (value.schemaVersion === 3) {
@@ -1336,7 +1332,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
           ),
         ),
       ),
-      true,
     );
   }
   if (value.schemaVersion === 4) {
@@ -1350,7 +1345,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
           ),
         ),
       ),
-      true,
     );
   }
   if (value.schemaVersion === 5) {
@@ -1367,7 +1361,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
           migrateSessionV7(migrateSessionV6(migrateSessionV5(value as unknown as SessionV5))),
         ),
       ),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1383,7 +1376,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       migrateAndCanonicalizeSessionV9(
         migrateSessionV8(migrateSessionV7(migrateSessionV6(value as unknown as SessionV6))),
       ),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1399,7 +1391,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
       migrateAndCanonicalizeSessionV9(
         migrateSessionV8(migrateSessionV7(value as unknown as SessionV7)),
       ),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1413,7 +1404,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
     return finalizeDecodedSession(
       migrateAndCanonicalizeSessionV9(migrateSessionV8(value as unknown as SessionV8)),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1427,7 +1417,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
     return finalizeDecodedSession(
       migrateAndCanonicalizeSessionV9(value as unknown as SessionV9),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1441,7 +1430,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
     return finalizeDecodedSession(
       canonicalizeSessionV11(migrateSessionV10(value as unknown as SessionV10)),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1455,7 +1443,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     );
     return finalizeDecodedSession(
       canonicalizeSessionV11(value as unknown as SessionV11),
-      true,
       classificationRepairRequired,
     );
   }
@@ -1467,7 +1454,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV12(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV12(value as unknown as SessionV12),
-      false,
       classificationRepairRequired,
     );
   }
@@ -1478,7 +1464,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV13(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV13(value as unknown as SessionV13),
-      false,
       classificationRepairRequired,
     );
   }
@@ -1489,7 +1474,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV14(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV14(value as unknown as SessionV14),
-      false,
       classificationRepairRequired,
     );
   }
@@ -1500,7 +1484,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV15(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV15(value as unknown as SessionV15),
-      false,
       classificationRepairRequired,
     );
   }
@@ -1511,7 +1494,6 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV16(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV16(value as unknown as SessionV16),
-      false,
       classificationRepairRequired,
     );
   }
