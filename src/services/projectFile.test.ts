@@ -245,6 +245,15 @@ describe("malformed project files", () => {
     );
   });
 
+  it("exports a PDF at the size limit", async () => {
+    const session = measuredSession();
+    session.pdf.size = MAX_PDF_SIZE_BYTES;
+
+    const file = createProjectFile(session, new Blob([new Uint8Array(MAX_PDF_SIZE_BYTES)]));
+
+    expect((await readProjectFile(file)).pdfBlob.size).toBe(MAX_PDF_SIZE_BYTES);
+  });
+
   it("refuses to export a PDF above the size limit", () => {
     const session = measuredSession();
     session.pdf.size = MAX_PDF_SIZE_BYTES + 1;
