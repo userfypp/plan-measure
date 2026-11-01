@@ -346,9 +346,9 @@ async function seedRecoverySession(): Promise<CurrentSession> {
 
 describe("workspace initialization", () => {
   it("discards any saved project and closes the workspace only when discarding the current project", async () => {
-    const activeProject = createEmptySession({ name: "Active.pdf", size: 3, lastModified: 1 }, 1);
+    const activeProject = createEmptySession({ name: "Active.pdf", size: 10, lastModified: 1 }, 1);
     const archivedProject = createEmptySession(
-      { name: "Archived.pdf", size: 4, lastModified: 2 },
+      { name: "Archived.pdf", size: 12, lastModified: 2 },
       1,
     );
     let revision = await replaceSavedSession(
@@ -392,8 +392,8 @@ describe("workspace initialization", () => {
   });
 
   it("switches between local projects and saves the outgoing session before switching", async () => {
-    const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 1);
-    const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
+    const projectA = createEmptySession({ name: "A-101.pdf", size: 5, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B-202.pdf", size: 5, lastModified: 2 }, 1);
     let revision = await replaceSavedSession(
       projectA,
       new Blob(["pdf-a"], { type: "application/pdf" }),
@@ -496,8 +496,8 @@ describe("workspace initialization", () => {
   });
 
   it("releases the previous PDF runtime after the viewer effects clean up", async () => {
-    const projectA = createEmptySession({ name: "A.pdf", size: 3, lastModified: 1 }, 1);
-    const projectB = createEmptySession({ name: "B.pdf", size: 4, lastModified: 2 }, 1);
+    const projectA = createEmptySession({ name: "A.pdf", size: 5, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B.pdf", size: 5, lastModified: 2 }, 1);
     let revision = await replaceSavedSession(
       projectA,
       new Blob(["pdf-a"], { type: "application/pdf" }),
@@ -655,8 +655,8 @@ describe("workspace initialization", () => {
   });
 
   async function seedTwoProjects() {
-    const projectA = createEmptySession({ name: "A-101.pdf", size: 3, lastModified: 1 }, 1);
-    const projectB = createEmptySession({ name: "B-202.pdf", size: 4, lastModified: 2 }, 1);
+    const projectA = createEmptySession({ name: "A-101.pdf", size: 5, lastModified: 1 }, 1);
+    const projectB = createEmptySession({ name: "B-202.pdf", size: 5, lastModified: 2 }, 1);
     let revision = await replaceSavedSession(
       projectA,
       new Blob(["pdf-a"], { type: "application/pdf" }),
@@ -977,7 +977,7 @@ describe("workspace initialization", () => {
     if (!previous) throw new Error("Expected a saved project before import.");
     const imported = createEmptySession({ name: "Imported.pdf", size: 3, lastModified: 7 }, 1);
     imported.settings.showLabels = false;
-    const file = createProjectFile(imported, new Blob(["new"]));
+    const file = await createProjectFile(imported, new Blob(["new"]));
 
     await act(async () => {
       await lifecycle!.importProject(file as File);
@@ -1067,7 +1067,9 @@ describe("workspace initialization", () => {
     vi.spyOn(persistenceService, "replaceSavedSession").mockRejectedValueOnce(persistenceFailure);
     const imported = createEmptySession({ name: "Imported.pdf", size: 3, lastModified: 7 }, 1);
     await act(async () => {
-      await lifecycle!.importProject(createProjectFile(imported, new Blob(["new"])) as File);
+      await lifecycle!.importProject(
+        (await createProjectFile(imported, new Blob(["new"]))) as File,
+      );
     });
     expect(harnessSession).toBeNull();
     expect((await loadSavedSession())?.session).toEqual(previous);

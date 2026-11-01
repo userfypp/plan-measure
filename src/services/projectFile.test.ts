@@ -47,7 +47,7 @@ describe("portable project files", () => {
     const session = measuredSession();
     const pdf = new Blob(["%PDF-1.7"]);
 
-    const result = await readProjectFile(createProjectFile(session, pdf));
+    const result = await readProjectFile(await createProjectFile(session, pdf));
 
     expect(result.session).toEqual(session);
     expect(await result.pdfBlob.text()).toBe("%PDF-1.7");
@@ -59,7 +59,7 @@ describe("portable project files", () => {
     const session = measuredSession();
     session.settings.labelClassificationDimensionId = "trade";
 
-    const result = await readProjectFile(createProjectFile(session, new Blob(["%PDF-1.7"])));
+    const result = await readProjectFile(await createProjectFile(session, new Blob(["%PDF-1.7"])));
 
     expect(result.session.settings.labelClassificationDimensionId).toBe("trade");
   });
@@ -73,7 +73,7 @@ describe("portable project files", () => {
       y: 50 + 40 * Math.sin((index / 10_000) * 2 * Math.PI),
     }));
 
-    const result = await readProjectFile(createProjectFile(session, new Blob(["%PDF-1.7"])));
+    const result = await readProjectFile(await createProjectFile(session, new Blob(["%PDF-1.7"])));
 
     expect(result.session).toEqual(session);
     expect(result.session.pages[2]!.measurements[0]!.points).toHaveLength(10_000);
@@ -81,7 +81,7 @@ describe("portable project files", () => {
 
   it("rejects an unsupported header, truncated PDF, and mismatched export PDF", async () => {
     const session = measuredSession();
-    const file = createProjectFile(session, new Blob(["%PDF-1.7"]));
+    const file = await createProjectFile(session, new Blob(["%PDF-1.7"]));
 
     await expect(readProjectFile(new Blob(["unknown", file]))).rejects.toThrow(
       "invalid or unsupported",
@@ -89,12 +89,12 @@ describe("portable project files", () => {
     await expect(readProjectFile(file.slice(0, file.size - 1))).rejects.toThrow(
       "invalid or unsupported",
     );
-    expect(() => createProjectFile(session, new Blob(["short"]))).toThrow("does not match");
+    await expect(createProjectFile(session, new Blob(["short"]))).rejects.toThrow("does not match");
   });
 
   it("rejects an invalid saved session before exposing the PDF", async () => {
     const session = measuredSession();
-    const file = createProjectFile(session, new Blob(["%PDF-1.7"]));
+    const file = await createProjectFile(session, new Blob(["%PDF-1.7"]));
     const bytes = new Uint8Array(await file.arrayBuffer());
     const headerSize = "PLANMEASURE1".length + 4;
     const metadataSize = new DataView(bytes.buffer).getUint32("PLANMEASURE1".length, true);
@@ -139,6 +139,48 @@ describe("malformed project files", () => {
   function metadataFor(value: unknown) {
     return new TextEncoder().encode(JSON.stringify(value));
   }
+
+  it("opens a file exported before the PDF checksum existed", async () => {
+    const session = measuredSession();
+    const metadata = metadataFor({ session: serializeSession(session) });
+
+    const result = await readProjectFile(projectBytes(metadata));
+
+    expect(result.session).toStrictEqual(session);
+    expect(await result.pdfBlob.text()).toBe(PDF);
+  });
+
+  it("stores the SHA-256 of the PDF next to the session", async () => {
+    const file = await createProjectFile(measuredSession(), new Blob([PDF]));
+    const size = new DataView(await file.slice(MAGIC.length, HEADER_SIZE).arrayBuffer());
+    const metadata = file.slice(HEADER_SIZE, HEADER_SIZE + size.getUint32(0, true));
+
+    expect((JSON.parse(await metadata.text()) as { pdfSha256: unknown }).pdfSha256).toBe(
+      "86edbaa24831badfa0a8b04bb410141e2ee4182b6d0014493fe262a7a331c20b",
+    );
+  });
+
+  it("rejects a PDF swapped for another of the same size", async () => {
+    const file = await createProjectFile(measuredSession(), new Blob([PDF]));
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    bytes[bytes.length - 1] = 0x39;
+
+    await expect(readProjectFile(new Blob([bytes]))).rejects.toThrow(
+      "This project file is invalid or unsupported.",
+    );
+  });
+
+  it.each([
+    ["missing its value", null],
+    ["a number", 1],
+    ["the digest of another PDF", "0".repeat(64)],
+  ])("rejects a PDF checksum that is %s", async (_name, pdfSha256) => {
+    const metadata = metadataFor({ session: serializeSession(measuredSession()), pdfSha256 });
+
+    await expect(readProjectFile(projectBytes(metadata))).rejects.toThrow(
+      "This project file is invalid or unsupported.",
+    );
+  });
 
   /** A file whose embedded PDF is only sized, so size limits can be checked without allocating it. */
   function withSizedPdf(prefix: Blob, pdfSize: number): Blob {
@@ -210,7 +252,7 @@ describe("malformed project files", () => {
   });
 
   it("rejects metadata whose only defect is an invalid UTF-8 byte inside a string", async () => {
-    const file = createProjectFile(measuredSession(), new Blob([PDF]));
+    const file = await createProjectFile(measuredSession(), new Blob([PDF]));
     const bytes = new Uint8Array(await file.arrayBuffer());
     const name = new TextEncoder().encode("Level 01");
     const at = bytes.findIndex((_, index) =>
@@ -238,7 +280,7 @@ describe("malformed project files", () => {
   });
 
   it("rejects an embedded PDF a byte longer than its session says", async () => {
-    const file = createProjectFile(measuredSession(), new Blob([PDF]));
+    const file = await createProjectFile(measuredSession(), new Blob([PDF]));
 
     await expect(readProjectFile(new Blob([file, "x"]))).rejects.toThrow(
       "This project file is invalid or unsupported.",
@@ -249,16 +291,16 @@ describe("malformed project files", () => {
     const session = measuredSession();
     session.pdf.size = MAX_PDF_SIZE_BYTES;
 
-    const file = createProjectFile(session, new Blob([new Uint8Array(MAX_PDF_SIZE_BYTES)]));
+    const file = await createProjectFile(session, new Blob([new Uint8Array(MAX_PDF_SIZE_BYTES)]));
 
     expect((await readProjectFile(file)).pdfBlob.size).toBe(MAX_PDF_SIZE_BYTES);
   });
 
-  it("refuses to export a PDF above the size limit", () => {
+  it("refuses to export a PDF above the size limit", async () => {
     const session = measuredSession();
     session.pdf.size = MAX_PDF_SIZE_BYTES + 1;
-    expect(() => createProjectFile(session, { size: MAX_PDF_SIZE_BYTES + 1 } as Blob)).toThrow(
-      "does not match",
-    );
+    await expect(
+      createProjectFile(session, { size: MAX_PDF_SIZE_BYTES + 1 } as Blob),
+    ).rejects.toThrow("does not match");
   });
 });

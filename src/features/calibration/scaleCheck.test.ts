@@ -131,7 +131,7 @@ describe("scale check export boundary", () => {
         csv: buildCsv(session),
         xlsx: await buildSpreadsheet("xlsx", session),
         ods: await buildSpreadsheet("ods", session),
-        project: new Uint8Array(await createProjectFile(session, pdf).arrayBuffer()),
+        project: new Uint8Array(await (await createProjectFile(session, pdf)).arrayBuffer()),
       };
     }
     const before = structuredClone(session);

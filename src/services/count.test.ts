@@ -133,7 +133,7 @@ describe("native item counts", () => {
   it("round trips counts, notes, archived assignments and numbering in session and project files", async () => {
     const session = countedSession();
     expect(deserializeSession(serializeSession(session))).toEqual(session);
-    const project = await readProjectFile(createProjectFile(session, new Blob(["%PDF-1.7"])));
+    const project = await readProjectFile(await createProjectFile(session, new Blob(["%PDF-1.7"])));
     expect(project.session).toEqual(session);
     expect(await project.pdfBlob.text()).toBe("%PDF-1.7");
   });

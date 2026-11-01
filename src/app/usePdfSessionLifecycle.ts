@@ -849,13 +849,13 @@ export function usePdfSessionLifecycle({
     );
   }
 
-  function downloadProject(sessionToExport: CurrentSession, projectPdf: Blob) {
+  async function downloadProject(sessionToExport: CurrentSession, projectPdf: Blob) {
     if (!isSessionPersistable(sessionToExport)) {
       throw new Error(
         "Repair this project's measurements or classification names before exporting it.",
       );
     }
-    const file = createProjectFile(sessionToExport, projectPdf);
+    const file = await createProjectFile(sessionToExport, projectPdf);
     const url = URL.createObjectURL(file);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -873,10 +873,10 @@ export function usePdfSessionLifecycle({
         currentSessionRef.current &&
         pdfBlob
       ) {
-        downloadProject(currentSessionRef.current, pdfBlob);
+        await downloadProject(currentSessionRef.current, pdfBlob);
       } else if (projectId) {
         const saved = await loadSavedProject(projectId);
-        downloadProject(saved.session, saved.pdfBlob);
+        await downloadProject(saved.session, saved.pdfBlob);
       } else {
         throw new Error("No project is open to export.");
       }
