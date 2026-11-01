@@ -79,8 +79,15 @@ describe("canvas preference helpers", () => {
     expect(scaleFillAlpha("#2465c718", 1.5)).toBe("#2465c724");
     expect(scaleFillAlpha("#2465c7f0", 1.5)).toBe("#2465c7ff");
     expect(scaleFillAlpha("#2465c7", 0.5)).toBe("#2465c7");
+    expect(scaleFillAlpha("#258a8810", 0)).toBe("#258a8800");
     expect(scaledAlpha(0.8, 1.5)).toBe(1);
     expect(scaledAlpha(0.14, 0.5)).toBeCloseTo(0.07);
+  });
+
+  it("keeps a valid fill color when the alpha scale is not a number", () => {
+    for (const scale of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(scaleFillAlpha("#258a8810", scale)).toBe("#258a8810");
+    }
   });
 
   it("scales only the visible handle radius, not the hit area", () => {

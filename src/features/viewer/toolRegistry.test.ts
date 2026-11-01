@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tool } from "../../types/domain";
+import { DEFAULT_BINDINGS } from "../../utils/shortcuts/bindings";
 import {
   getToolAvailabilityState,
   getToolRailVerticalNeighbor,
@@ -29,10 +30,26 @@ describe("viewer tool registry", () => {
     expect(toolRegistry.find((tool) => tool.id === "snap")?.inRail).toBe(false);
   });
 
-  it("points every rail tool and drawing aid at its shortcut action", () => {
-    for (const tool of toolRailRegistry) expect(tool.actionId).toBe(`tool.${tool.id}`);
-    expect(getToolDefinition("orthogonal").actionId).toBe("mode.orthogonal");
-    expect(getToolDefinition("snap").actionId).toBe("mode.snap");
+  it("points every rail tool and drawing aid at its shortcut action and default key", () => {
+    const shortcuts = toolRegistry.map(({ id, actionId }) => [
+      id,
+      actionId,
+      actionId ? DEFAULT_BINDINGS[actionId] : null,
+    ]);
+    expect(shortcuts).toEqual([
+      ["select", "tool.select", ["V"]],
+      ["hand", "tool.hand", ["H"]],
+      ["line", "tool.line", ["L"]],
+      ["polyline", "tool.polyline", ["M"]],
+      ["polygon", "tool.polygon", ["P"]],
+      ["rectangle", "tool.rectangle", ["R"]],
+      ["ellipse", "tool.ellipse", ["I"]],
+      ["cloud", "tool.cloud", ["K"]],
+      ["count", "tool.count", ["C"]],
+      ["calibrate", null, null],
+      ["orthogonal", "mode.orthogonal", ["O"]],
+      ["snap", "mode.snap", ["S"]],
+    ]);
   });
 
   it("keeps vertical keyboard navigation aligned with the tool rail", () => {
