@@ -166,6 +166,8 @@ export async function stats(page, cdp) {
       maxPauseMs: Math.max(0, ...window.perfAudit.longtasks, ...window.perfAudit.frames),
     };
   });
+  // Without it, the reading depends on whether a collection happened to run first.
+  await cdp.send("HeapProfiler.collectGarbage");
   const { metrics } = await cdp.send("Performance.getMetrics");
   result.heapBytes = metrics.find((metric) => metric.name === "JSHeapUsedSize").value;
   return result;

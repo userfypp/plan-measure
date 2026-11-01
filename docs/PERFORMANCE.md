@@ -165,7 +165,7 @@ the visual session and that zoom has observed transformations; page errors make
 the run fail.
 
 It records DOM nodes, IDs of mounted shapes, number of long tasks, maximum pause,
-heap, duration, and rAF FPS. The shape count walks both React roots (DOM and
+heap after a forced collection, duration, and rAF FPS. The shape count walks both React roots (DOM and
 Konva) and the `measurement` prop IDs; a structural change must update the probe.
 Long tasks and maximum pause include 350 ms of post-gesture consolidation; FPS and
 duration end when the action completes. Pan also stores the raw acquisition
@@ -181,8 +181,9 @@ network, GC, OS, or automation overhead, and it should be treated as a secondary
 signal.
 
 Compares the medians of five samples with `perf/baseline.json`. Fails on a
-regression of more than 30% in any metric (for small counts, 2 long tasks, 10
-shapes, or 20 additional nodes are tolerated). FPS fails with a drop of more than
+regression of more than 30% in any metric (for small values, 2 long tasks, 10
+shapes, 20 additional nodes, or 17 ms of pause or duration, one frame, are
+tolerated). FPS fails with a drop of more than
 30%. In normal mode, the absolute zoom targets M1000/4x ≥30 FPS and M5000/1x ≥30
 FPS on the real unnormalized median (`rawMedianFps`) produce visible warnings in
 the console and in the GitHub Actions summary, without blocking the run. The
