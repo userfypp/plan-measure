@@ -17,7 +17,7 @@ import {
   resetPersistenceForTests,
   saveSessionMetadata,
 } from "./persistence";
-import { deserializeSession } from "./persistenceCodec";
+import { deserializeSession, serializeSession } from "./persistenceCodec";
 
 beforeEach(resetPersistenceForTests);
 afterEach(async () => {
@@ -91,6 +91,28 @@ function editStore(store: "sessions" | "pdfs", edit: (records: IDBObjectStore) =
 
 const storedRecord = (records: StoredRecord[], key: string) =>
   records.find((record) => record.key === key);
+
+const editActive = (store: "sessions" | "pdfs", edit: (record: StoredRecord) => StoredRecord) =>
+  editStore(store, (records) => {
+    const request = records.get("active-v2");
+    request.onsuccess = () => records.put(edit(request.result as StoredRecord));
+  });
+const tearActivePair = (store: "sessions" | "pdfs") =>
+  editActive(store, (record) => ({ ...record, revision: "torn" }));
+const storeActivePdf = (blob: Blob) => editActive("pdfs", (record) => ({ ...record, blob }));
+const storeState = (activeRevision: string) =>
+  editStore("sessions", (sessions) =>
+    sessions.put({ key: "persistence-v2", activeRevision, activeProjectId: "second" }),
+  );
+
+/** What an old build leaves behind when it stored a pair this one cannot prove belongs together. */
+async function leaveLegacyPair(blob: Blob) {
+  const serialized = serializeSession(sessionNamed("legacy.pdf"));
+  await editStore("sessions", (sessions) =>
+    sessions.put({ key: "active", serialized, savedAt: 1 }),
+  );
+  await editStore("pdfs", (pdfs) => pdfs.put({ key: "active", blob }));
+}
 
 interface Seeded {
   revision: string;
@@ -272,6 +294,18 @@ describe("stored PDF bytes", () => {
     expect(pdfOf(records, "active-v2")).toBeUndefined();
     expect(await bytesOf((await loadSavedProject("second")).pdfBlob)).toStrictEqual(pdfBytes(2));
   });
+
+  it.each<[string, (seeded: Seeded) => Promise<unknown>]>([
+    ["closing it", (s) => closeActiveSession(s.revision, s.original)],
+    ["leaving it for another", (s) => activateSavedProject("first", s.revision, s.original)],
+  ])("gives a project that lost its PDF the active bytes on %s", async (_label, run) => {
+    const seeded = await seed();
+    await editStore("pdfs", (pdfs) => pdfs.delete("project:second"));
+
+    await run(seeded);
+
+    expect(pdfOf(await storedRecords(), "project:second")).toStrictEqual(pdfBytes(2));
+  });
 });
 
 describe("loading, activating and discarding what cannot be used", () => {
@@ -349,6 +383,39 @@ describe("loading, activating and discarding what cannot be used", () => {
     expect(await storedRecords()).toStrictEqual(before);
   });
 
+  it.each<[string, (seeded: Seeded) => Promise<unknown>]>([
+    ["loading", () => loadSavedProject("first")],
+    ["activating", (s) => activateSavedProject("first", s.revision, s.original)],
+    ["discarding", (s) => discardSavedProject("first", s.revision)],
+  ])("%s a project whose session is gone but whose PDF remains", async (_label, run) => {
+    const seeded = await seed();
+    await editStore("sessions", (sessions) => sessions.delete("project:first"));
+    const before = await storedRecords();
+
+    await expect(run(seeded)).rejects.toThrow(unavailableMessage);
+
+    expect(await storedRecords()).toStrictEqual(before);
+  });
+
+  it("stops activating a project whose PDF disappears while it is copied", async () => {
+    const { revision, original } = await seed();
+    const before = await storedRecords();
+    const read = Blob.prototype.arrayBuffer;
+    vi.spyOn(Blob.prototype, "arrayBuffer").mockImplementationOnce(async function (this: Blob) {
+      await editStore("pdfs", (pdfs) => pdfs.delete("project:first"));
+      return read.call(this);
+    });
+
+    await expect(activateSavedProject("first", revision, original)).rejects.toThrow(
+      unavailableMessage,
+    );
+
+    expect(await storedRecords()).toStrictEqual({
+      ...before,
+      pdfs: before.pdfs.filter(({ key }) => key !== "project:first"),
+    });
+  });
+
   it("leaves a corrupt project out of the list without losing the others", async () => {
     await seed();
     await corruptProject();
@@ -410,6 +477,72 @@ describe("loading, activating and discarding what cannot be used", () => {
       expect(await loadSavedSession()).toBeNull();
     },
   );
+
+  it("notices a stored file of another size", async () => {
+    await seed();
+    await storeActivePdf(new File([pdfBytes(2), "x"], "second.pdf", { lastModified: 1 }));
+
+    await expect(loadSavedSession()).rejects.toThrow(mismatchMessage);
+  });
+
+  it.each(["sessions", "pdfs"] as const)(
+    "reports an active pair torn in %s as incomplete and leaves it alone",
+    async (store) => {
+      const { revision } = await seed();
+      await tearActivePair(store);
+      const before = await storedRecords();
+
+      await expect(loadSavedSession()).rejects.toMatchObject({
+        message: "The saved session is incomplete.",
+        revision,
+      });
+
+      expect(await storedRecords()).toStrictEqual(before);
+    },
+  );
+
+  it.each(["sessions", "pdfs"] as const)(
+    "refuses to save over an active pair torn in %s",
+    async (store) => {
+      const { revision, original } = await seed();
+      await tearActivePair(store);
+      const before = await storedRecords();
+
+      await expect(saveSessionMetadata(relabeled(original, "edited"), revision)).rejects.toThrow(
+        "Cannot save session metadata without its PDF.",
+      );
+
+      expect(await storedRecords()).toStrictEqual(before);
+    },
+  );
+});
+
+describe("what a change of session clears", () => {
+  it.each<[string, (seeded: Seeded) => Promise<unknown>]>([
+    ["discarding the session", (s) => discardSavedSession(s.revision)],
+    ["closing the session", (s) => closeActiveSession(s.revision, s.original)],
+    ["discarding the active project", (s) => discardSavedProject("second", s.revision)],
+  ])("%s deletes any legacy pair left behind", async (_label, run) => {
+    const seeded = await seed();
+    await leaveLegacyPair(pdfBlob(3));
+
+    await run(seeded);
+
+    const records = await storedRecords();
+    expect(storedRecord(records.sessions, "active")).toBeUndefined();
+    expect(storedRecord(records.pdfs, "active")).toBeUndefined();
+  });
+
+  it("discarding the session takes its project and no other", async () => {
+    const { revision } = await seed();
+
+    await discardSavedSession(revision);
+
+    const { sessions, pdfs } = await storedRecords();
+    expect(storedRecord(sessions, "project:second")).toBeUndefined();
+    expect(storedRecord(pdfs, "project:second")).toBeUndefined();
+    expect((await listSavedProjects()).map(({ id }) => id)).toStrictEqual(["first"]);
+  });
 });
 
 describe("two writers holding the same revision", () => {
@@ -554,6 +687,31 @@ describe("unexpected stored state", () => {
     expect(project.session).toStrictEqual(original);
     expect(await bytesOf(project.pdfBlob)).toStrictEqual(pdfBytes(2));
     expect((await listSavedProjects()).map(({ id }) => id)).toStrictEqual(["second", "first"]);
+  });
+
+  it("does not rebuild a project from a PDF that does not match its session", async () => {
+    await seed();
+    await editStore("sessions", (sessions) => sessions.delete("project:second"));
+    await editStore("pdfs", (pdfs) => pdfs.delete("project:second"));
+    await storeActivePdf(new File([pdfBytes(9)], "other.pdf", { lastModified: 1 }));
+
+    expect((await listSavedProjects()).map(({ id }) => id)).toStrictEqual(["first"]);
+
+    const { sessions, pdfs } = await storedRecords();
+    expect(storedRecord(sessions, "project:second")).toBeUndefined();
+    expect(storedRecord(pdfs, "project:second")).toBeUndefined();
+  });
+
+  it("rolls that repair back when the writer turns out to be stale", async () => {
+    const { staleRevision } = await seed();
+    await storeState("behind");
+    const before = await storedRecords();
+
+    await expect(discardSavedSession(staleRevision)).rejects.toBeInstanceOf(
+      PersistenceConflictError,
+    );
+
+    expect(await storedRecords()).toStrictEqual(before);
   });
 
   it("hides a project without a PDF and refuses to open it", async () => {
