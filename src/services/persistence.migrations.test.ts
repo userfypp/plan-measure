@@ -63,6 +63,17 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+async function storedKeys(store: "sessions" | "pdfs"): Promise<IDBValidKey[]> {
+  const database = await openDatabase();
+  const request = database.transaction(store).objectStore(store).getAllKeys();
+  const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  database.close();
+  return keys;
+}
+
 type StoredRecord = Record<string, unknown>;
 
 /** The IndexedDB records each era of the app left behind for one active project. */
@@ -159,6 +170,19 @@ describe.each(SCHEMA_VERSIONS)("a session saved by schema V%i", (version) => {
     expect(project.session).toStrictEqual(await expectedSession(name));
     expect(await bytesOf(project.pdfBlob)).toStrictEqual(bytes);
   });
+});
+
+it.each([5, 6, 7])("moves V%i records off the key they were saved under", async (version) => {
+  const name = fixtureName(version);
+  await writeStoredRecords(
+    storedRecords(version, await savedText(name), await storedPdf(version, name)),
+  );
+
+  await loadSavedSession();
+
+  const project = expect.stringMatching(/^project:/) as string;
+  expect(await storedKeys("sessions")).toStrictEqual(["active-v2", "persistence-v2", project]);
+  expect(await storedKeys("pdfs")).toStrictEqual(["active-v2", project]);
 });
 
 describe.each(PROJECT_FILE_VERSIONS)("a project file exported by schema V%i", (version) => {
