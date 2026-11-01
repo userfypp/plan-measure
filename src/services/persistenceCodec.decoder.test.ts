@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createEmptySession } from "../app/sessionState";
 import type { CurrentSession } from "../types/domain";
-import { deserializeSession, serializeSession } from "./persistenceCodec";
+import {
+  deserializeSession,
+  deserializeSessionForRecovery,
+  serializeSession,
+} from "./persistenceCodec";
 
 // These tests edit the saved JSON directly, so the decoder sees data that `serializeSession` would
 // refuse to write: corrupt files come from disk, old builds or hand edits, not from this encoder.
@@ -114,6 +118,27 @@ describe("deserializeSession with raw saved JSON", () => {
     ],
   ])("rejects %s", (_name, edit, message) => {
     expect(() => deserializeSession(corrupted(edit))).toThrow(message);
+  });
+
+  it("refuses a self-crossing polygon in a schema that could never have saved one", () => {
+    const json = corrupted((raw) => {
+      const page = raw.pages["1"];
+      page.measurements.push({
+        ...page.measurements[0],
+        id: "polygon-1",
+        name: "Polygon 1",
+        type: "polygon",
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+          { x: 10, y: 0 },
+          { x: 0, y: 10 },
+        ],
+      });
+    });
+    expect(() => deserializeSessionForRecovery(json)).toThrow(
+      "The saved state for page 1 is invalid.",
+    );
   });
 
   it.each(["[]", "null", '"session"', "42"])("rejects the non-object JSON %s", (json) => {
@@ -295,6 +320,11 @@ describe("the oldest saved schemas", () => {
     );
   });
 
+  it.each(everySchema)("rejects a %s header without settings", (_name, raw) => {
+    const json = edited(raw(), (session) => delete session.settings);
+    expect(() => deserializeSession(json)).toThrow("The saved session is invalid.");
+  });
+
   it.each(everySchema)("rejects a %s page key that is not canonical", (_name, raw) => {
     const json = edited(raw(), (session) => {
       session.pages["01"] = session.pages["1"];
@@ -338,6 +368,11 @@ describe("the oldest saved schemas", () => {
     expect(() => deserializeSession(json)).toThrow("The saved state for page 1 is invalid.");
   });
 
+  it("rejects a V1 page with no calibration field at all", () => {
+    const json = edited(v1(), (session) => delete session.pages["1"].calibration);
+    expect(() => deserializeSession(json)).toThrow("The saved state for page 1 is invalid.");
+  });
+
   it("rejects V1 measurements without a calibration", () => {
     const json = edited(v1(), (session) => (session.pages["1"].calibration = null));
     expect(() => deserializeSession(json)).toThrow("Page 1 has measurements without calibration.");
@@ -345,6 +380,11 @@ describe("the oldest saved schemas", () => {
 
   it("rejects a V3 calibration that names no mode, which V2 did not need", () => {
     const json = edited(v3(), (session) => delete session.pages["1"].calibrations[0].mode);
+    expect(() => deserializeSession(json)).toThrow("The saved state for page 1 is invalid.");
+  });
+
+  it.each(withCalibrations)("rejects a %s page with no calibration list", (_name, raw) => {
+    const json = edited(raw(), (session) => delete session.pages["1"].calibrations);
     expect(() => deserializeSession(json)).toThrow("The saved state for page 1 is invalid.");
   });
 
