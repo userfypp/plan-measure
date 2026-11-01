@@ -12,6 +12,20 @@ export function instrument() {
     window.perfAudit.longtasks.push(...list.getEntries().map((entry) => entry.duration)),
   ).observe({ type: "longtask" });
 }
+// The app preloads the deferred chunks on idle on purpose: holding those callbacks keeps them out of
+// the startup check, which must only see what the first load itself requests. `window.name` survives
+// the reload in `seed`, so later loads keep the app's own idle behaviour.
+export function holdIdleCallbacks() {
+  if (window.name === "idle-released") return;
+  const { requestIdleCallback } = window;
+  const held = [];
+  window.requestIdleCallback = (...args) => held.push(args);
+  window.releaseIdleCallbacks = () => {
+    window.name = "idle-released";
+    window.requestIdleCallback = requestIdleCallback;
+    for (const args of held) requestIdleCallback(...args);
+  };
+}
 export async function ready(page) {
   await page.waitForFunction(
     () => {

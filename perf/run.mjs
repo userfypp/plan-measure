@@ -8,7 +8,16 @@ import { chromium } from "playwright";
 import { generateFixtures } from "./fixtures.mjs";
 import { measureSize } from "./size.mjs";
 import { pageBrowserBenchmarks } from "./page-browser.mjs";
-import { instrument, ready, seed, calibration, measure, gesture, drag } from "./browser.mjs";
+import {
+  holdIdleCallbacks,
+  instrument,
+  ready,
+  seed,
+  calibration,
+  measure,
+  gesture,
+  drag,
+} from "./browser.mjs";
 import { checkStartup, median, compareResults, fpsWarnings } from "./budgets.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -115,6 +124,7 @@ async function context(cpu) {
     acceptDownloads: true,
   });
   await result.addInitScript(instrument);
+  await result.addInitScript(holdIdleCallbacks);
   const page = await result.newPage();
   page.setDefaultTimeout(90000);
   const errors = [];
@@ -129,7 +139,12 @@ async function context(cpu) {
   await page.goto(url);
   await page.waitForLoadState("networkidle");
   checkStartup(requests, workers);
+  // Right after the load, like the baseline's: later on the same loop runs almost twice as fast.
   const calibrationMs = await calibration(page);
+  // PDF.js is the last idle preload: the scenarios must not measure it landing in the background.
+  const preloaded = page.waitForResponse((response) => /\/pdf-[^/]+\.js$/.test(response.url()));
+  await page.evaluate(() => window.releaseIdleCallbacks());
+  await preloaded;
   return { result, page, cdp, errors, calibrationMs };
 }
 async function record(name, sample, c, action, { fps = false } = {}) {
@@ -174,6 +189,11 @@ try {
             await c.page.getByRole("button", { name: "Fit page", exact: true }).click();
             await c.page.waitForTimeout(500);
             await record(name + "/drag", sample, c, () => drag(c.page), { fps: true });
+            // Playwright waits for the dialog animation before clicking: measure the export, not it.
+            await c.page.addStyleTag({
+              content:
+                ":root { --dialog-duration-enter: 0ms !important; --dialog-duration-exit: 0ms !important; }",
+            });
             await record(name + "/firstCSV", sample, c, async () => {
               // Includes the initial chunk download and opening the dialog; the first real export.
               await c.page.getByRole("button", { name: "Export", exact: true }).click();
