@@ -155,10 +155,11 @@ export function scaledHandleRadiusScreenPx(scale: number): number {
 
 /**
  * Scales the alpha of a `#rrggbb` / `#rrggbbaa` color (capped at 1). Colors
- * without an alpha channel, or a scale of 1, are returned unchanged.
+ * without an alpha channel, or a scale of 1 or one that is not finite, are
+ * returned unchanged.
  */
 export function scaleFillAlpha(color: string, scale: number): string {
-  if (scale === 1 || !/^#[0-9a-f]{8}$/i.test(color)) return color;
+  if (scale === 1 || !Number.isFinite(scale) || !/^#[0-9a-f]{8}$/i.test(color)) return color;
   const alpha = parseInt(color.slice(7, 9), 16);
   const scaled = Math.min(255, Math.round(alpha * scale));
   return `${color.slice(0, 7)}${scaled.toString(16).padStart(2, "0")}`;

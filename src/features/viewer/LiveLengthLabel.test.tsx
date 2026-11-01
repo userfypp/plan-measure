@@ -6,6 +6,7 @@ import {
   LABEL_SIZE_SCALE,
   setAppPreference,
 } from "../../utils/appPreferences";
+import type { UniformPageCalibration } from "../../types/domain";
 import { MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX } from "./annotationLabelLayout";
 import { LiveLengthLabel } from "./LiveLengthLabel";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
@@ -38,16 +39,26 @@ function prop(name: string): Record<string, unknown> {
   return found;
 }
 
-const base = {
+// 100 px is 1 m, so the 208.8 px draft segment below is 2.088 m.
+const calibration: UniformPageCalibration = {
+  id: "calibration-1",
+  name: "Scale 1",
+  mode: "uniform",
+  start: { x: 0, y: 0 },
+  end: { x: 100, y: 0 },
+  referenceDistanceMm: 1000,
+};
+
+const base: Parameters<typeof LiveLengthLabel>[0] = {
   from: { x: 100, y: 100 },
   to: { x: 300, y: 160 },
   bounds: { width: 1000, height: 800 },
   zoom: 1.5,
   roles: resolveCanvasVisualRoles("light"),
-  calibration: { pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, realLength: 1, unit: "m" },
+  calibration,
   displayUnit: "m",
   decimalPlaces: 2,
-} as unknown as Parameters<typeof LiveLengthLabel>[0];
+};
 
 describe("LiveLengthLabel", () => {
   beforeEach(() => {
@@ -61,6 +72,7 @@ describe("LiveLengthLabel", () => {
     const label = prop("Label");
     const text = prop("Text");
     expect(label.name).toBe("live-length-label");
+    expect(text.text).toBe("2.09 m");
     expect(Number.isFinite(label.x as number)).toBe(true);
     expect(Number.isFinite(label.y as number)).toBe(true);
     expect(text.fontSize as number).toBeCloseTo(
@@ -102,8 +114,20 @@ describe("LiveLengthLabel", () => {
     setAppPreference("labelTextColor", "auto");
   });
 
+  it("formats the length in the chosen unit and precision", () => {
+    renderToStaticMarkup(<LiveLengthLabel {...base} displayUnit="mm" decimalPlaces={0} />);
+    expect(prop("Text").text).toBe("2088 mm");
+  });
+
   it("renders nothing without bounds", () => {
     expect(() => renderToStaticMarkup(<LiveLengthLabel {...base} bounds={null} />)).not.toThrow();
+    expect(captured.props.Label).toBeUndefined();
+  });
+
+  it("renders nothing without a calibration or for a zero-length segment", () => {
+    renderToStaticMarkup(<LiveLengthLabel {...base} calibration={null} />);
+    expect(captured.props.Label).toBeUndefined();
+    renderToStaticMarkup(<LiveLengthLabel {...base} to={base.from} />);
     expect(captured.props.Label).toBeUndefined();
   });
 });
