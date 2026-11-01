@@ -28,7 +28,7 @@ describe("SessionState", () => {
     expect(deleted.session?.settings.labelClassificationDimensionId).toBeNull();
   });
 
-  it("creates a V12 session with empty page-label overrides and existing defaults", () => {
+  it("creates a schema 16 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
     expect(created.schemaVersion).toBe(16);
@@ -206,17 +206,21 @@ describe("SessionState", () => {
 
   it("rejects out-of-range pages and control characters without mutating page-label overrides", () => {
     const original = session();
-    for (const action of [
-      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 0, label: "A" },
-      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 3, label: "A" },
-      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\nB" },
-      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\tB" },
-      { type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\u007fB" },
-    ]) {
+    for (const [action, error] of [
+      [{ type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 0, label: "A" }, "page"],
+      [{ type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 3, label: "A" }, "page"],
+      [{ type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\nB" }, "label"],
+      [{ type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\tB" }, "label"],
+      [{ type: "SET_PAGE_LABEL_OVERRIDE" as const, pageNumber: 1, label: "A\u007fB" }, "label"],
+    ] as const) {
       const state = sessionReducer({ session: original, error: null }, action);
       expect(state.session).toBe(original);
       expect(state.session?.pageLabelOverrides).toEqual({});
-      expect(state.error).not.toBeNull();
+      expect(state.error).toBe(
+        error === "page"
+          ? "The selected page is no longer available."
+          : "Page labels must be single-line text without control characters.",
+      );
     }
   });
 

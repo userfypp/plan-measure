@@ -273,8 +273,12 @@ export function sessionReducer(
     case "CLEAR_SESSION":
       return initialSessionState;
     case "UPDATE_PAGE": {
-      if (!state.session) return state;
-      const pageNumber = Math.min(state.session.pageCount, Math.max(1, action.pageNumber));
+      if (!state.session || !Number.isFinite(action.pageNumber)) return state;
+      const pageNumber = Math.min(
+        state.session.pageCount,
+        Math.max(1, Math.trunc(action.pageNumber)),
+      );
+      if (pageNumber === state.session.currentPage) return { ...state, error: null };
       return {
         ...state,
         session: { ...state.session, currentPage: pageNumber },
