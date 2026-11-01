@@ -237,6 +237,14 @@ describe("malformed project files", () => {
     ).rejects.toThrow("This project file is invalid or unsupported.");
   });
 
+  it("rejects an embedded PDF a byte longer than its session says", async () => {
+    const file = createProjectFile(measuredSession(), new Blob([PDF]));
+
+    await expect(readProjectFile(new Blob([file, "x"]))).rejects.toThrow(
+      "This project file is invalid or unsupported.",
+    );
+  });
+
   it("refuses to export a PDF above the size limit", () => {
     const session = measuredSession();
     session.pdf.size = MAX_PDF_SIZE_BYTES + 1;

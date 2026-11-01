@@ -11,6 +11,14 @@ describe("PDF file validation", () => {
     expect(() => validatePdfFile(fileLike("plan", "application/pdf", 100))).not.toThrow();
   });
 
+  it.each(["PLAN.PDF", "Plan.Pdf"])("accepts the extension in capitals: %s", (name) => {
+    expect(() => validatePdfFile(fileLike(name, "", 100))).not.toThrow();
+  });
+
+  it("leaves an empty file for the parser to refuse", () => {
+    expect(() => validatePdfFile(fileLike("empty.pdf", "application/pdf", 0))).not.toThrow();
+  });
+
   it("rejects unsupported file types", () => {
     expect(() => validatePdfFile(fileLike("plan.png", "image/png", 100))).toThrow(PdfUserError);
   });

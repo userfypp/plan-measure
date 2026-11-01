@@ -98,6 +98,16 @@ describe("PDF loading failures", () => {
     );
   });
 
+  it("explains an empty file, which only the real parser refuses", async () => {
+    const tasks: PDFDocumentLoadingTask[] = [];
+    mocked.getDocument.mockImplementation(realTaskSpy(tasks));
+
+    await expect(loadPdf(new Blob([]))).rejects.toThrow(
+      "This PDF is invalid or corrupt and could not be opened.",
+    );
+    expect(tasks[0]!.destroy).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the explained error when destroying the failed task also fails", async () => {
     const task = failingTask(namedError("InvalidPDFException"));
     task.destroy.mockRejectedValue(new Error("Worker already terminated"));
