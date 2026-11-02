@@ -65,7 +65,9 @@ describe("bundled sample project", () => {
         Object.values(session.pages).map((page) => [page.pageNumber, page.measurements.length]),
       ),
     ).toEqual({ 1: 0, 2: 6, 3: 4, 4: 10, 5: 0, 6: 0 });
-    expect((await readProjectFile(createProjectFile(session, pdfBlob))).session).toEqual(session);
+    expect((await readProjectFile(await createProjectFile(session, pdfBlob))).session).toEqual(
+      session,
+    );
   });
 
   it("keeps every measurement inside its page and calculable", async () => {

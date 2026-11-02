@@ -146,7 +146,7 @@ export function compareResults(current, baseline, { strict = false } = {}) {
         `Invalid metric ${row.name}/${metric}`,
       );
       if (metric === "fps") continue; // The relative drop is checked below.
-      // A new long task or one more shape is not a regression by itself.
+      // A new long task, one more shape, or one more frame is not a regression by itself.
       const floor =
         metric === "longTasks"
           ? 2
@@ -154,7 +154,9 @@ export function compareResults(current, baseline, { strict = false } = {}) {
             ? 10
             : metric === "domNodes"
               ? 20
-              : 0;
+              : metric === "maxPauseMs" || metric === "elapsedMs"
+                ? 17
+                : 0;
       if (
         value >
         Math.max(

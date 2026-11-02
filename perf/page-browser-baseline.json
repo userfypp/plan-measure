@@ -2,421 +2,421 @@
   "schema": 1,
   "samples": 5,
   "environment": {
-    "sourceCommit": "e137990b22599323ec40f12b9d2cd6dff562e6e4",
-    "sourceDirty": true,
-    "sourceDiffSha256": "63cb15e709311dd9914c400ba782bb1a2b4e76d31ca2ef08ce9cb4bba0de00d0",
+    "sourceCommit": "6fe54a11583e33e4ee8358fc3d8ed491edbb8511",
+    "sourceDirty": false,
+    "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "node": "v24.20.0",
     "platform": "darwin",
     "arch": "arm64",
     "osRelease": "27.0.0",
-    "indexHtmlSha256": "b7c42f498edd1f1e130085bbca69f0b27b3186218708ff6e73a4927ca58acf6f",
+    "indexHtmlSha256": "53f5b1205cb79ba1e40da59c8c5ffd912d8ebfee8e4eda3b38d6c23b107c9134",
     "startupFiles": [
       {
-        "file": "assets/index-AReL_tg2.js",
-        "sha256": "9e161fad36ef0635d60ce673b1947020411f2d84425168331793f7571fe1f0a4"
+        "file": "assets/index-BjMkCsOP.js",
+        "sha256": "cef0caf7e3ada95a0893780b919d64be1b1086de40765634da568758a25b5819"
       },
       {
-        "file": "assets/rolldown-runtime-hePW80VL.js",
-        "sha256": "580ad8c58061a4dde99bde0a56905e382f0568516ee2f5b84dbfb52085709021"
+        "file": "assets/rolldown-runtime-XKyaHtl9.js",
+        "sha256": "548d1dbf321e7d2ae804fcc158b588706a7c52f8ca175de1490c6ccb4dbe55b7"
       },
       {
-        "file": "assets/calibration-B12WrZXu.js",
-        "sha256": "439213273809bc1ad5d8f605138844cefb58ea80fb32263ef2071ffaf5b8f51b"
+        "file": "assets/geometry-BCeZeoWr.js",
+        "sha256": "f494e9f0781ab936bdc116b8719b71f9f7c465910cd1ef52ed5d47ea12832ffd"
       },
       {
-        "file": "assets/sessionState-CQEaDjFP.js",
-        "sha256": "4e23ded36990fb78f1d841dac18b75b2d7bf0686ce903ef8e66b0057af8be0f1"
+        "file": "assets/units-LAZzmGRl.js",
+        "sha256": "b2c1b3015397e0129832f81f0f7eb3cd365584ccc1603e70bd929afe11c1ee93"
       }
     ]
   },
-  "browser": "154.0.8037.99",
-  "createdAt": "2026-10-10T16:26:15.453Z",
+  "browser": "145.0.7632.6",
+  "createdAt": "2026-11-01T21:32:22.282Z",
   "scenarios": [
     {
       "name": "Pages/labels-120/1x/closed-pan",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 33.399999999999864,
-        "heapBytes": 8151812,
-        "elapsedMs": 3055.952833999996,
-        "fps": 60.13011763162568
+        "maxPauseMs": 30.58163266236122,
+        "heapBytes": 7231832,
+        "elapsedMs": 2966.5418749999953,
+        "fps": 60.10873602809576
       }
     },
     {
       "name": "Pages/labels-120/1x/closed-zoom",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000109,
-        "heapBytes": 7595332,
-        "elapsedMs": 4525.565125000008,
-        "fps": 60.26899470430524
+        "maxPauseMs": 17.700000000000728,
+        "heapBytes": 8047784,
+        "elapsedMs": 4481.302958,
+        "fps": 60.35056578651435
       }
     },
     {
       "name": "Pages/labels-120/1x/first-thumbnail",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
         "maxPauseMs": 16.700000000000728,
-        "heapBytes": 8900360,
-        "elapsedMs": 370.44229099998483
+        "heapBytes": 8261128,
+        "elapsedMs": 50.43198950512153
       }
     },
     {
       "name": "Pages/labels-120/1x/open-pan",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000109,
-        "heapBytes": 10145716,
-        "elapsedMs": 3037.0430840000045,
-        "fps": 60.58800158925326
+        "maxPauseMs": 17.30000000000109,
+        "heapBytes": 8320308,
+        "elapsedMs": 2959.1576670000213,
+        "fps": 60.61218304876239
       }
     },
     {
       "name": "Pages/labels-120/1x/open-zoom",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 18.6666666666699,
-        "heapBytes": 8133200,
-        "elapsedMs": 4527.981709000014,
-        "fps": 60.21695815806952
+        "maxPauseMs": 17.599999999998545,
+        "heapBytes": 8601368,
+        "elapsedMs": 4464.88837499998,
+        "fps": 60.346939229964136
       }
     },
     {
       "name": "Pages/labels-120/1x/traverse",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 8393576,
-        "elapsedMs": 7129.697374999989,
-        "maxMountedRows": 8
+        "maxPauseMs": 33.29999999999927,
+        "heapBytes": 9026824,
+        "elapsedMs": 7221.48883300001,
+        "maxMountedRows": 9
       }
     },
     {
       "name": "Pages/labels-120/1x/traverse-again",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.5,
+      "referenceCalibrationMs": 4.5,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 8443244,
-        "elapsedMs": 7285.9864580000285,
-        "maxMountedRows": 8
+        "maxPauseMs": 33.19999999999709,
+        "heapBytes": 9080816,
+        "elapsedMs": 7256.578167000029,
+        "maxMountedRows": 9
       }
     },
     {
       "name": "Pages/scan-A0/1x/closed-pan",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 17.14285714807056,
-        "heapBytes": 8070908,
-        "elapsedMs": 3068.6776669999963,
-        "fps": 60.024792849161976
+        "maxPauseMs": 33.30000000000018,
+        "heapBytes": 7141620,
+        "elapsedMs": 3002.93429200002,
+        "fps": 60.01200240046518
       }
     },
     {
       "name": "Pages/scan-A0/1x/closed-zoom",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 1,
-        "maxPauseMs": 62,
-        "heapBytes": 7636488,
-        "elapsedMs": 4524.573207999987,
-        "fps": 60.23162603240345
+        "maxPauseMs": 118,
+        "heapBytes": 7953024,
+        "elapsedMs": 4480.084999999992,
+        "fps": 60.11576195051182
       }
     },
     {
       "name": "Pages/scan-A0/1x/first-thumbnail",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
-        "longTasks": 1,
-        "maxPauseMs": 53.06122450593212,
-        "heapBytes": 7634880,
-        "elapsedMs": 404.051959000004
+        "longTasks": 0,
+        "maxPauseMs": 18.327272736323465,
+        "heapBytes": 8022228,
+        "elapsedMs": 52.21804199996404
       }
     },
     {
       "name": "Pages/scan-A0/1x/open-pan",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 17.142857148071492,
-        "heapBytes": 8899160,
-        "elapsedMs": 3075.391751955672,
-        "fps": 59.148354378595386
+        "maxPauseMs": 18.700000000000728,
+        "heapBytes": 8082872,
+        "elapsedMs": 3007.4819579999894,
+        "fps": 60.48387096772678
       }
     },
     {
       "name": "Pages/scan-A0/1x/open-zoom",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.88400000446927,
-        "heapBytes": 9633356,
-        "elapsedMs": 4524.436958999999,
-        "fps": 60.00088562186862
+        "maxPauseMs": 18.700000000000728,
+        "heapBytes": 8407768,
+        "elapsedMs": 4508.844209000003,
+        "fps": 60.357590251669514
       }
     },
     {
       "name": "Pages/scan-A0/1x/traverse",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 7828308,
-        "elapsedMs": 1044.7093340000065,
+        "maxPauseMs": 19.20000000948494,
+        "heapBytes": 8439824,
+        "elapsedMs": 1037.6907500000088,
         "maxMountedRows": 1
       }
     },
     {
       "name": "Pages/scan-A0/1x/traverse-again",
-      "calibrationMs": 5,
-      "referenceCalibrationMs": 5,
+      "calibrationMs": 4.800000000745058,
+      "referenceCalibrationMs": 4.800000000745058,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 7831948,
-        "elapsedMs": 1039.0338330001105,
+        "maxPauseMs": 33.29999999999927,
+        "heapBytes": 8443904,
+        "elapsedMs": 1037.2586669999873,
         "maxMountedRows": 1
       }
     },
     {
       "name": "Pages/labels-120/4x/closed-pan",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.800000000000182,
-        "heapBytes": 8168116,
-        "elapsedMs": 2757.7270419999986,
-        "fps": 60.53490846378156
+        "maxPauseMs": 48.40102040076569,
+        "heapBytes": 7243356,
+        "elapsedMs": 2221.1261239533924,
+        "fps": 58.713911305808075
       }
     },
     {
       "name": "Pages/labels-120/4x/closed-zoom",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.800000000000182,
-        "heapBytes": 7595948,
-        "elapsedMs": 4411.712617556112,
-        "fps": 60.438176781687694
+        "maxPauseMs": 18.700000000000728,
+        "heapBytes": 8051928,
+        "elapsedMs": 4201.116374999983,
+        "fps": 60.43014845830677
       }
     },
     {
       "name": "Pages/labels-120/4x/first-thumbnail",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.700000000000728,
-        "heapBytes": 8885608,
-        "elapsedMs": 369.2295250572904
+        "maxPauseMs": 17.23297872481316,
+        "heapBytes": 8270144,
+        "elapsedMs": 68.62238377159447
       }
     },
     {
       "name": "Pages/labels-120/4x/open-pan",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000109,
-        "heapBytes": 10123512,
-        "elapsedMs": 2708.535919854261,
-        "fps": 60.601351876240926
+        "maxPauseMs": 35.29999999999927,
+        "heapBytes": 8328224,
+        "elapsedMs": 2018.931812562746,
+        "fps": 57.18168861341525
       }
     },
     {
       "name": "Pages/labels-120/4x/open-zoom",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 8742236,
-        "elapsedMs": 4350.330477236868,
-        "fps": 60.407636263006104
+        "maxPauseMs": 18.700000000000728,
+        "heapBytes": 8608372,
+        "elapsedMs": 4238.520041444028,
+        "fps": 60.409468067581024
       }
     },
     {
       "name": "Pages/labels-120/4x/traverse",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 8362628,
-        "elapsedMs": 7000.758207999985,
-        "maxMountedRows": 8
+        "maxPauseMs": 18.894791662283232,
+        "heapBytes": 9036108,
+        "elapsedMs": 7180.742792000005,
+        "maxMountedRows": 9
       }
     },
     {
       "name": "Pages/labels-120/4x/traverse-again",
-      "calibrationMs": 9.600000001490116,
-      "referenceCalibrationMs": 9.600000001490116,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 254,
+        "domNodes": 358,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 8418984,
-        "elapsedMs": 7152.591000000015,
-        "maxMountedRows": 8
+        "maxPauseMs": 19.296808512215847,
+        "heapBytes": 9089724,
+        "elapsedMs": 7186.362291000027,
+        "maxMountedRows": 9
       }
     },
     {
       "name": "Pages/scan-A0/4x/closed-pan",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.800000000000182,
-        "heapBytes": 8079588,
-        "elapsedMs": 2702.4962499999965,
-        "fps": 60.62409342791633
+        "maxPauseMs": 50.479591829019576,
+        "heapBytes": 7140576,
+        "elapsedMs": 1952.0464025561257,
+        "fps": 53.68647100926476
       }
     },
     {
       "name": "Pages/scan-A0/4x/closed-zoom",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 205,
+        "domNodes": 299,
         "mountedShapes": 0,
-        "longTasks": 1,
-        "maxPauseMs": 121.28971964502732,
-        "heapBytes": 7650092,
-        "elapsedMs": 4340.989962140056,
-        "fps": 60.42992891650298
+        "longTasks": 0,
+        "maxPauseMs": 18.700000000000728,
+        "heapBytes": 7953196,
+        "elapsedMs": 4210.69036136666,
+        "fps": 60.45133787720792
       }
     },
     {
       "name": "Pages/scan-A0/4x/first-thumbnail",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
-        "longTasks": 1,
-        "maxPauseMs": 106.8504673063336,
-        "heapBytes": 7596680,
-        "elapsedMs": 467.79900033838493
+        "longTasks": 0,
+        "maxPauseMs": 17.899999999999636,
+        "heapBytes": 8022208,
+        "elapsedMs": 66.8854603483686
       }
     },
     {
       "name": "Pages/scan-A0/4x/open-pan",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000109,
-        "heapBytes": 8855884,
-        "elapsedMs": 2586.1980824302254,
-        "fps": 60.60840024703124
+        "maxPauseMs": 34.205263155267424,
+        "heapBytes": 8079176,
+        "elapsedMs": 1923.0878101754654,
+        "fps": 55.17641935814517
       }
     },
     {
       "name": "Pages/scan-A0/4x/open-zoom",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 9608680,
-        "elapsedMs": 4357.061279425177,
-        "fps": 60.40268452004481
+        "maxPauseMs": 18.700000000000728,
+        "heapBytes": 8407616,
+        "elapsedMs": 4244.622959161331,
+        "fps": 60.471871056807814
       }
     },
     {
       "name": "Pages/scan-A0/4x/traverse",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.799999999999272,
-        "heapBytes": 7806652,
-        "elapsedMs": 1037.652500750561,
+        "maxPauseMs": 18.600000000002183,
+        "heapBytes": 8439752,
+        "elapsedMs": 1031.8846670000348,
         "maxMountedRows": 1
       }
     },
     {
       "name": "Pages/scan-A0/4x/traverse-again",
-      "calibrationMs": 10.300000004470348,
-      "referenceCalibrationMs": 10.300000004470348,
+      "calibrationMs": 9.699999999254942,
+      "referenceCalibrationMs": 9.699999999254942,
       "metrics": {
-        "domNodes": 229,
+        "domNodes": 328,
         "mountedShapes": 0,
         "longTasks": 0,
-        "maxPauseMs": 16.80000000000291,
-        "heapBytes": 7810472,
-        "elapsedMs": 1031.2771257460042,
+        "maxPauseMs": 18.991578945911904,
+        "heapBytes": 8443856,
+        "elapsedMs": 1030.3960829999996,
         "maxMountedRows": 1
       }
     }
@@ -424,77 +424,77 @@
   "panelComparison": [
     {
       "name": "Pages/labels-120/1x/open-pan",
-      "closedFps": 60.13011763162568,
-      "openFps": 60.58800158925326,
-      "changePercent": 0.7614885446137087
+      "closedFps": 60.10873602809576,
+      "openFps": 60.61218304876239,
+      "changePercent": 0.8375604844382378
     },
     {
       "name": "Pages/labels-120/1x/open-zoom",
-      "closedFps": 60.26899470430524,
-      "openFps": 60.21695815806952,
-      "changePercent": -0.08634049147663303
+      "closedFps": 60.35056578651435,
+      "openFps": 60.346939229964136,
+      "changePercent": -0.006009150871999491
     },
     {
       "name": "Pages/scan-A0/1x/open-pan",
-      "closedFps": 60.024792849161976,
-      "openFps": 59.148354378595386,
-      "changePercent": -1.4601274389551278
+      "closedFps": 60.01200240046518,
+      "openFps": 60.48387096772678,
+      "changePercent": 0.7862903225804407
     },
     {
       "name": "Pages/scan-A0/1x/open-zoom",
-      "closedFps": 60.23162603240345,
-      "openFps": 60.00088562186862,
-      "changePercent": -0.3830884632114895
+      "closedFps": 60.11576195051182,
+      "openFps": 60.357590251669514,
+      "changePercent": 0.4022710405912733
     },
     {
       "name": "Pages/labels-120/4x/open-pan",
-      "closedFps": 60.53490846378156,
-      "openFps": 60.601351876240926,
-      "changePercent": 0.10976049050956949
+      "closedFps": 58.713911305808075,
+      "openFps": 57.18168861341525,
+      "changePercent": -2.609641664668416
     },
     {
       "name": "Pages/labels-120/4x/open-zoom",
-      "closedFps": 60.438176781687694,
-      "openFps": 60.407636263006104,
-      "changePercent": -0.05053183320189447
+      "closedFps": 60.43014845830677,
+      "openFps": 60.409468067581024,
+      "changePercent": -0.03422197570805974
     },
     {
       "name": "Pages/scan-A0/4x/open-pan",
-      "closedFps": 60.62409342791633,
-      "openFps": 60.60840024703124,
-      "changePercent": -0.025886046285783504
+      "closedFps": 53.68647100926476,
+      "openFps": 55.17641935814517,
+      "changePercent": 2.775277124516684
     },
     {
       "name": "Pages/scan-A0/4x/open-zoom",
-      "closedFps": 60.42992891650298,
-      "openFps": 60.40268452004481,
-      "changePercent": -0.04508427685859795
+      "closedFps": 60.45133787720792,
+      "openFps": 60.471871056807814,
+      "changePercent": 0.03396646016602389
     }
   ],
   "heapComparison": [
     {
       "name": "Pages/labels-120/1x/traverse-again",
-      "firstBytes": 8393576,
-      "secondBytes": 8443244,
-      "changeBytes": 49668
+      "firstBytes": 9026824,
+      "secondBytes": 9080816,
+      "changeBytes": 53992
     },
     {
       "name": "Pages/scan-A0/1x/traverse-again",
-      "firstBytes": 7828308,
-      "secondBytes": 7831948,
-      "changeBytes": 3640
+      "firstBytes": 8439824,
+      "secondBytes": 8443904,
+      "changeBytes": 4080
     },
     {
       "name": "Pages/labels-120/4x/traverse-again",
-      "firstBytes": 8362628,
-      "secondBytes": 8418984,
-      "changeBytes": 56356
+      "firstBytes": 9036108,
+      "secondBytes": 9089724,
+      "changeBytes": 53616
     },
     {
       "name": "Pages/scan-A0/4x/traverse-again",
-      "firstBytes": 7806652,
-      "secondBytes": 7810472,
-      "changeBytes": 3820
+      "firstBytes": 8439752,
+      "secondBytes": 8443856,
+      "changeBytes": 4104
     }
   ],
   "panelWarnings": []

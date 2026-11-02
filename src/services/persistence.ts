@@ -36,6 +36,8 @@ export interface SavedProjectSummary {
   pageCount: number;
   savedAt: number;
   isCurrent: boolean;
+  /** False once no copy of the PDF is left: the project can only be discarded. */
+  pdfAvailable: boolean;
 }
 
 interface PdfRecord {
@@ -176,15 +178,7 @@ async function ensureActiveProject(
     const existing = await sessions.get(projectRecordKey(state.activeProjectId));
     if (isProjectRecord(existing)) return state;
   }
-  if (
-    !sessionRecord ||
-    isPersistenceStateRecord(sessionRecord) ||
-    !pdfRecord ||
-    !sessionRecord.revision ||
-    pdfRecord.revision !== sessionRecord.revision
-  ) {
-    return state;
-  }
+  if (!sessionRecord || isPersistenceStateRecord(sessionRecord) || !pdfRecord) return state;
   const sessionPdf = readRecoverableSessionPdfMetadata(sessionRecord.serialized);
   if (sessionPdf && storedFileIdentityMatches(pdfRecord.blob, sessionPdf) === false) return state;
   const projectId = state.activeProjectId || crypto.randomUUID();
@@ -217,14 +211,16 @@ function readStoredFileMetadata(blob: Blob): PdfMetadata | null {
   return { name: blob.name, size: blob.size, lastModified: blob.lastModified };
 }
 
-function storedFileIdentityMatches(blob: Blob, sessionPdf: PdfMetadata): boolean | null {
-  const storedPdf = readStoredFileMetadata(blob);
-  if (!storedPdf) return null;
+function pdfMetadataMatches(left: PdfMetadata, right: PdfMetadata): boolean {
   return (
-    sessionPdf.name === storedPdf.name &&
-    sessionPdf.size === storedPdf.size &&
-    sessionPdf.lastModified === storedPdf.lastModified
+    left.name === right.name && left.size === right.size && left.lastModified === right.lastModified
   );
+}
+
+function storedFileIdentityMatches(blob: Blob, sessionPdf: PdfMetadata): boolean | null {
+  if (blob.size !== sessionPdf.size) return false;
+  const storedPdf = readStoredFileMetadata(blob);
+  return storedPdf && pdfMetadataMatches(sessionPdf, storedPdf);
 }
 
 export async function copyPdfBlob(blob: Blob): Promise<Blob> {
@@ -245,6 +241,25 @@ function canAdoptLegacyPair(sessionRecord: SessionRecord, pdfRecord: PdfRecord):
   return Boolean(sessionPdf && storedFileIdentityMatches(pdfRecord.blob, sessionPdf) === true);
 }
 
+/** The project of an index that lags behind the active session, if that session still is it. */
+async function readLaggingProjectId(
+  transaction: PersistenceTransaction,
+  state: SessionRecord | ProjectRecord | PersistenceStateRecord | undefined,
+  activeSerialized: string,
+): Promise<string | null> {
+  if (!isPersistenceStateRecord(state) || !state.activeProjectId) return null;
+  const project = await transaction
+    .objectStore("sessions")
+    .get(projectRecordKey(state.activeProjectId));
+  const projectPdf = isProjectRecord(project)
+    ? readRecoverableSessionPdfMetadata(project.serialized)
+    : null;
+  const activePdf = readRecoverableSessionPdfMetadata(activeSerialized);
+  return projectPdf && activePdf && pdfMetadataMatches(projectPdf, activePdf)
+    ? state.activeProjectId
+    : null;
+}
+
 async function readOrCreatePersistenceState(
   transaction: PersistenceTransaction,
 ): Promise<PersistenceStateRecord> {
@@ -260,7 +275,15 @@ async function readOrCreatePersistenceState(
     const nextState =
       isPersistenceStateRecord(existingState) && existingState.activeRevision === activeRevision
         ? existingState
-        : { key: STATE_KEY, activeRevision };
+        : {
+            key: STATE_KEY,
+            activeRevision,
+            activeProjectId: await readLaggingProjectId(
+              transaction,
+              existingState,
+              (activeSession as SessionRecord).serialized,
+            ),
+          };
     if (nextState !== existingState) await sessions.put(nextState);
     return ensureActiveProject(transaction, nextState, activeSession, activePdf);
   }
@@ -415,19 +438,21 @@ export async function listSavedProjects(): Promise<SavedProjectSummary[]> {
   const storedPdfKeys = new Set<string>(pdfKeys);
   const listedProjectIds = new Set<string>();
   const projects = records.flatMap((record) => {
-    if (!isProjectRecord(record) || !storedPdfKeys.has(projectRecordKey(record.projectId))) {
-      return [];
-    }
+    if (!isProjectRecord(record)) return [];
     listedProjectIds.add(record.projectId);
     const summary = readProjectSessionSummary(record);
     if (!summary) return [];
+    const isCurrent = record.projectId === state.activeProjectId;
     return [
       {
         id: record.projectId,
         name: summary.name,
         pageCount: summary.pageCount,
         savedAt: record.savedAt,
-        isCurrent: record.projectId === state.activeProjectId,
+        isCurrent,
+        pdfAvailable:
+          storedPdfKeys.has(projectRecordKey(record.projectId)) ||
+          (isCurrent && storedPdfKeys.has(ACTIVE_KEY)),
       },
     ];
   });
@@ -502,7 +527,7 @@ export async function activateSavedProject(
     return abort(transaction, new Error(message));
   }
   const writes: Array<Promise<unknown>> = [];
-  if (state.activeProjectId && serializedCurrentSession && activePdf) {
+  if (state.activeProjectId && activePdf) {
     writes.push(
       putProjectSessionSnapshot(
         transaction,
@@ -557,7 +582,7 @@ export async function replaceSavedSession(
   const state = await requireExpectedRevision(transaction, expectedRevision);
   const activePdf = await transaction.objectStore("pdfs").get(ACTIVE_KEY);
   const writes: Array<Promise<unknown>> = [];
-  if (state.activeProjectId && serializedCurrentSession && activePdf) {
+  if (state.activeProjectId && activePdf) {
     writes.push(
       putProjectSessionSnapshot(
         transaction,
@@ -614,7 +639,7 @@ async function putProjectSnapshot(
 async function putProjectSessionSnapshot(
   transaction: PersistenceTransaction,
   projectId: string,
-  serialized: string,
+  serialized: string | null,
   fallbackPdfBlob?: Blob,
   savedAt = Date.now(),
 ): Promise<void> {
@@ -623,6 +648,7 @@ async function putProjectSessionSnapshot(
   if (!existingPdf && fallbackPdfBlob) {
     await transaction.objectStore("pdfs").put({ key, blob: fallbackPdfBlob });
   }
+  if (serialized === null) return;
   await transaction.objectStore("sessions").put({
     key,
     projectId,
@@ -817,7 +843,7 @@ export async function closeActiveSession(
   const state = await requireExpectedRevision(transaction, expectedRevision);
   const activePdf = await transaction.objectStore("pdfs").get(ACTIVE_KEY);
   const writes: Array<Promise<unknown>> = [];
-  if (state.activeProjectId && serializedCurrentSession && activePdf) {
+  if (state.activeProjectId && activePdf) {
     writes.push(
       putProjectSessionSnapshot(
         transaction,
@@ -854,11 +880,8 @@ export async function discardSavedProject(
   void transaction.done.catch(() => undefined);
   const state = await requireExpectedRevision(transaction, expectedRevision);
   const key = projectRecordKey(projectId);
-  const [project, pdf] = await Promise.all([
-    transaction.objectStore("sessions").get(key),
-    transaction.objectStore("pdfs").get(key),
-  ]);
-  if (!isProjectRecord(project) || !pdf) {
+  const project = await transaction.objectStore("sessions").get(key);
+  if (!isProjectRecord(project)) {
     return abort(transaction, new Error("The selected project is no longer available."));
   }
   const isActive = state.activeProjectId === projectId;

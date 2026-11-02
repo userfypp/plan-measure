@@ -117,7 +117,8 @@ or split the code; ask for the label only when the growth is justified.
 It also rejects PDF chunks, the PDF worker, pdf-lib/annotatedPdf, and XLSX in that
 graph. The `es-*.js` chunk currently corresponds to the ESM entry of pdf-lib and
 is explicitly protected. It also includes `modulepreload` preloads declared in
-HTML. The third layer watches the real requests before a PDF is opened. Chunk
+HTML. The third layer watches the real requests of the first load, with the idle
+preloads held back until it passes: they fetch deferred chunks on purpose. Chunk
 names are an indicator; if the bundling strategy changes, both detectors must be
 reviewed. Dependencies bundled into the main chunk remain subject to the byte
 budget.
@@ -158,13 +159,13 @@ fallback allows measuring painting, but does not demonstrate recovery or CAS.
 Each of the five samples uses a new context, Chromium at 1440×900, DPR 2, CPU 1x
 and 4x. For M1000 and M5000 it measures wheel zoom, middle-button pan, vertex
 drag, the first CSV export after the drag, closing the CSV dialog, and opening the
-panel. CSV includes the initial download of the dialog chunk. It also opens C at
-both CPU rates and measures heap after loading. It checks that pan and drag change
+panel. CSV includes the initial download of the dialog chunk, not the dialog
+animation. It also opens C at both CPU rates and measures heap after loading. It checks that pan and drag change
 the visual session and that zoom has observed transformations; page errors make
 the run fail.
 
 It records DOM nodes, IDs of mounted shapes, number of long tasks, maximum pause,
-heap, duration, and rAF FPS. The shape count walks both React roots (DOM and
+heap after a forced collection, duration, and rAF FPS. The shape count walks both React roots (DOM and
 Konva) and the `measurement` prop IDs; a structural change must update the probe.
 Long tasks and maximum pause include 350 ms of post-gesture consolidation; FPS and
 duration end when the action completes. Pan also stores the raw acquisition
@@ -180,8 +181,9 @@ network, GC, OS, or automation overhead, and it should be treated as a secondary
 signal.
 
 Compares the medians of five samples with `perf/baseline.json`. Fails on a
-regression of more than 30% in any metric (for small counts, 2 long tasks, 10
-shapes, or 20 additional nodes are tolerated). FPS fails with a drop of more than
+regression of more than 30% in any metric (for small values, 2 long tasks, 10
+shapes, 20 additional nodes, or 17 ms of pause or duration, one frame, are
+tolerated). FPS fails with a drop of more than
 30%. In normal mode, the absolute zoom targets M1000/4x ≥30 FPS and M5000/1x ≥30
 FPS on the real unnormalized median (`rawMedianFps`) produce visible warnings in
 the console and in the GitHub Actions summary, without blocking the run. The

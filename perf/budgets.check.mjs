@@ -302,6 +302,16 @@ test("The comparison fails at +31 % and with incomplete samples; absolute FPS on
     mutant.scenarios[0].metrics[metric] *= 1.31;
     assert.ok(compareResults(mutant, baseline).some((failure) => failure.includes(metric)));
   }
+  const shortScenario = structuredClone(baseline);
+  Object.assign(shortScenario.scenarios[0].metrics, { maxPauseMs: 16.8, elapsedMs: 30 });
+  for (const metric of ["maxPauseMs", "elapsedMs"]) {
+    const oneFrame = structuredClone(shortScenario);
+    oneFrame.scenarios[0].metrics[metric] += 17;
+    assert.deepEqual(compareResults(oneFrame, shortScenario), []);
+    const twoFrames = structuredClone(shortScenario);
+    twoFrames.scenarios[0].metrics[metric] += 18;
+    assert.ok(compareResults(twoFrames, shortScenario).some((failure) => failure.includes(metric)));
+  }
   const fps = structuredClone(baseline);
   fps.scenarios[0].metrics.fps = 31;
   fps.scenarios[0].rawMedianFps = 29;

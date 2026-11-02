@@ -15,11 +15,18 @@ export function projectFileName(pdfName: string): string {
   return `${baseName || "project"}${PROJECT_FILE_EXTENSION}`;
 }
 
-export function createProjectFile(session: CurrentSession, pdfBlob: Blob): Blob {
+async function sha256(blob: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function createProjectFile(session: CurrentSession, pdfBlob: Blob): Promise<Blob> {
   if (pdfBlob.size !== session.pdf.size || pdfBlob.size > MAX_PDF_SIZE_BYTES) {
     throw new Error("The project PDF does not match its session metadata.");
   }
-  const metadata = encoder.encode(JSON.stringify({ session: serializeSession(session) }));
+  const metadata = encoder.encode(
+    JSON.stringify({ session: serializeSession(session), pdfSha256: await sha256(pdfBlob) }),
+  );
   if (metadata.byteLength > MAX_SESSION_SIZE_BYTES) {
     throw new Error("The project data is too large to export.");
   }
@@ -59,6 +66,10 @@ export async function readProjectFile(
     const session = deserializeSession(metadata.session);
     const pdfBlob = file.slice(HEADER_SIZE + sessionSize, undefined, "application/pdf");
     if (pdfBlob.size !== session.pdf.size || pdfBlob.size > MAX_PDF_SIZE_BYTES) {
+      throw new Error();
+    }
+    // Files exported before the checksum existed still open.
+    if ("pdfSha256" in metadata && metadata.pdfSha256 !== (await sha256(pdfBlob))) {
       throw new Error();
     }
     return { session, pdfBlob };

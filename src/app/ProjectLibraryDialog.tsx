@@ -24,6 +24,8 @@ interface ProjectLibraryDialogProps {
   onClose: () => void;
 }
 
+const PDF_UNAVAILABLE_REASON = "The PDF of this project is no longer on this device.";
+
 function Icon({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -166,8 +168,9 @@ export function ProjectLibraryDialog({
       ) : confirmingDiscard ? (
         <div className={styles.discardConfirmation}>
           <p>
-            Remove <strong>{pendingProject?.name ?? "this project"}</strong> and its PDF from this
-            device? Other projects stay saved.
+            Remove <strong>{pendingProject?.name ?? "this project"}</strong>
+            {pendingProject?.pdfAvailable === false ? "" : " and its PDF"} from this device? Other
+            projects stay saved.
           </p>
         </div>
       ) : (
@@ -193,10 +196,17 @@ export function ProjectLibraryDialog({
                     </div>
                     <div className={styles.projectActions}>
                       {isCurrent && <Badge variant="info">Current</Badge>}
+                      {!project.pdfAvailable && <Badge variant="warning">PDF unavailable</Badge>}
                       <IconButton
                         icon={openIcon}
-                        disabled={opening || isOpen}
-                        disabledReason={isOpen ? "This project is already open." : undefined}
+                        disabled={opening || isOpen || !project.pdfAvailable}
+                        disabledReason={
+                          isOpen
+                            ? "This project is already open."
+                            : project.pdfAvailable
+                              ? undefined
+                              : PDF_UNAVAILABLE_REASON
+                        }
                         tooltip={isCurrent && !isOpen ? "Continue" : "Open"}
                         aria-label={`${isOpen ? "Current project" : isCurrent ? "Continue project" : "Open project"} ${project.name}`}
                         onClick={() => {
@@ -207,7 +217,8 @@ export function ProjectLibraryDialog({
                       />
                       <IconButton
                         icon={exportIcon}
-                        disabled={opening}
+                        disabled={opening || !project.pdfAvailable}
+                        disabledReason={project.pdfAvailable ? undefined : PDF_UNAVAILABLE_REASON}
                         tooltip="Export"
                         aria-label={`Export project ${project.name}`}
                         onClick={() => onExportProject(project.id)}
