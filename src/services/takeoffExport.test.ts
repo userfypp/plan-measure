@@ -276,7 +276,8 @@ describe("Takeoff exports", () => {
       const workbook = read(bytes, { type: "array" });
       expect(workbook.SheetNames).toEqual(["Project totals", "Breakdown"]);
       const project = workbook.Sheets["Project totals"]!;
-      expect(project.J2).toMatchObject({ t: "n", v: tables.project.rows[0]![9] });
+      // 12.3456789 page units at 100 mm each, in metres.
+      expect(project.J2).toMatchObject({ t: "n", v: 1.23456789 });
       const breakdown = workbook.Sheets.Breakdown!;
       expect(breakdown.F2).toMatchObject({ t: "s", v: '=SUM(1,2)\n"Old"' });
       expect(breakdown.F2!.f).toBeUndefined();
@@ -287,10 +288,6 @@ describe("Takeoff exports", () => {
   );
   it("captures a stable snapshot before asynchronous workbook generation", async () => {
     const session = fixture();
-    const expected = buildTakeoffTables(session, {
-      breakdowns: [],
-      classificationDimensionIds: [],
-    });
     vi.mocked(downloadExportFile).mockClear();
     const pending = downloadTakeoff("xlsx", session, {
       breakdowns: [],
@@ -304,7 +301,7 @@ describe("Takeoff exports", () => {
     const workbook = read(contents, { type: "array" });
     expect(filename).toBe("Plan-takeoff.xlsx");
     expect(workbook.SheetNames).toEqual(["Project totals"]);
-    expect(workbook.Sheets["Project totals"]!.J2!.v).toBe(expected.project.rows[0]![9]);
+    expect(workbook.Sheets["Project totals"]!.J2!.v).toBe(1.23456789);
     expect(workbook.Sheets["Project totals"]!.N2!.v).toBe("m");
   });
   it.each(["csv", "xlsx", "ods"] as const)(
@@ -385,10 +382,7 @@ describe("Multiple Takeoff breakdowns", () => {
         expect(utils.sheet_to_json(combined.Sheets[name]!, { header: 1, defval: null })).toEqual(
           utils.sheet_to_json(original.Sheets[name]!, { header: 1, defval: null }),
         );
-      expect(combined.Sheets["Project totals"]!.J2).toMatchObject({
-        t: "n",
-        v: tables.project.rows[0]![9],
-      });
+      expect(combined.Sheets["Project totals"]!.J2).toMatchObject({ t: "n", v: 1.23456789 });
     },
   );
   it("writes a CSV with one project row and independent breakdown sections", async () => {
@@ -827,4 +821,166 @@ describe("Derived quantities in Takeoff exports", () => {
       expect(sheet.AA2).toMatchObject({ t: "s", v: "EUR" });
     });
   });
+});
+
+describe("Takeoff unit conversion underflow", () => {
+  const point = (x: number, y: number) => ({ x, y });
+  // A calibration that spans 1e100 page units for a reference distance of `referenceMm`, so one page
+  // unit is referenceMm / 1e100 mm.
+  function tinySession(referenceMm: number, type: "line" | "polygon") {
+    const session = createEmptySession({ name: "Tiny.pdf", size: 1, lastModified: 1 }, 1);
+    const page = session.pages[1]!;
+    page.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: point(0, 0),
+        end: point(1e100, 0),
+        referenceDistanceMm: referenceMm,
+      },
+    ];
+    page.measurements = [
+      {
+        id: "tiny",
+        name: "Tiny",
+        type,
+        calibrationId: "scale",
+        points:
+          type === "line" ? [point(0, 0), point(1, 0)] : [point(0, 0), point(1, 0), point(1, 1)],
+        classificationValueIds: [],
+        visible: true,
+      },
+    ];
+    return session;
+  }
+  const none: TakeoffSelection = { breakdowns: [], classificationDimensionIds: [] };
+
+  it("blanks a non-zero length that converts to zero feet and keeps it in millimetres", () => {
+    // 1 page unit = 1e-222 mm / 1e100... a line of 1e-322 mm (a subnormal): in ft that is
+    // 1e-322 / 304.8, below the smallest positive double (about 4.9e-324), so it rounds to 0.
+    const session = tinySession(1e-222, "line");
+    session.settings.displayUnit = "ft";
+    const feet = buildTakeoffTables(session, none);
+    expect(objects(feet.project)[0]).toMatchObject({
+      length: null,
+      length_status: "unavailable",
+      linear_unit: "ft",
+    });
+    expect(feet.hasUnavailable).toBe(true);
+
+    session.settings.displayUnit = "mm";
+    const millimetres = buildTakeoffTables(session, none);
+    const row = objects(millimetres.project)[0]!;
+    expect(row.length_status).toBe("value");
+    expect(row.length).toBeGreaterThan(0);
+    expect(millimetres.hasUnavailable).toBe(false);
+  });
+
+  it("blanks a non-zero area that converts to zero acres and keeps it in square millimetres", () => {
+    // 1 page unit = 1e-161 mm, so the unit triangle has about 5e-323 mm² (subnormal); an acre is
+    // about 4.05e9 mm², so the area in acres is below the smallest positive double.
+    const session = tinySession(1e-61, "polygon");
+    session.settings.areaDisplay = "ac";
+    const acres = buildTakeoffTables(session, none);
+    expect(objects(acres.project)[0]).toMatchObject({
+      area: null,
+      area_status: "unavailable",
+      area_unit: "ac",
+    });
+    expect(acres.hasUnavailable).toBe(true);
+
+    session.settings.areaDisplay = "auto";
+    session.settings.displayUnit = "mm";
+    const squareMillimetres = buildTakeoffTables(session, none);
+    const row = objects(squareMillimetres.project)[0]!;
+    expect(row.area_status).toBe("value");
+    expect(row.area).toBeGreaterThan(0);
+    expect(squareMillimetres.hasUnavailable).toBe(false);
+  });
+
+  it("keeps a real zero as 0 with status value", () => {
+    // A zero price is a genuine zero cost, not an underflow.
+    const session = createEmptySession({ name: "Zero.pdf", size: 1, lastModified: 1 }, 1);
+    session.classificationCatalog.dimensions = [
+      {
+        id: "d",
+        name: "D",
+        archived: false,
+        values: [{ id: "v", name: "V", archived: false }],
+      },
+    ];
+    session.pages[1]!.measurements = [
+      {
+        id: "count",
+        name: "Count",
+        type: "count",
+        calibrationId: null,
+        points: [point(1, 1)],
+        classificationValueIds: ["v"],
+        visible: true,
+      },
+    ];
+    session.classificationRates = [
+      { valueId: "v", derivation: null, price: { amount: 0, basis: "count", unit: "each" } },
+    ];
+    const tables = buildTakeoffTables(session, {
+      breakdowns: [],
+      classificationDimensionIds: ["d"],
+    });
+    expect(objects(tables.project)[0]).toMatchObject({ cost: 0, cost_status: "value" });
+    expect(tables.hasUnavailable).toBe(false);
+  });
+});
+
+describe("Takeoff export text that spreadsheets cannot store", () => {
+  const invalidText = [
+    ["U+FFFE", "Bad￾name"],
+    ["a control character", "Bad\u0001name"],
+  ] as const;
+  const cases = [
+    [
+      "dimension name",
+      (s: ReturnType<typeof fixture>, t: string) => {
+        s.classificationCatalog.dimensions[0]!.name = t;
+      },
+    ],
+    [
+      "value name",
+      (s: ReturnType<typeof fixture>, t: string) => {
+        s.classificationCatalog.dimensions[0]!.values[0]!.name = t;
+      },
+    ],
+    [
+      "page label",
+      (s: ReturnType<typeof fixture>, t: string) => {
+        s.pageLabelOverrides = { 1: t };
+      },
+    ],
+  ] as const;
+  const withPages: TakeoffSelection = {
+    breakdowns: ["page"],
+    classificationDimensionIds: ["trade"],
+  };
+
+  for (const [what, text] of invalidText) {
+    for (const [field, apply] of cases) {
+      it.each(["xlsx", "ods"] as const)(
+        `fails ${field} with ${what} in %s while CSV still writes it`,
+        async (format) => {
+          const session = fixture();
+          apply(session, text);
+          vi.mocked(downloadExportFile).mockClear();
+          await expect(downloadTakeoff(format, session, withPages)).rejects.toThrow(
+            /character that XLSX and ODS cannot store/,
+          );
+          expect(downloadExportFile).not.toHaveBeenCalled();
+
+          await downloadTakeoff("csv", session, withPages);
+          const [contents] = vi.mocked(downloadExportFile).mock.calls[0]!;
+          expect(String(contents)).toContain(text);
+        },
+      );
+    }
+  }
 });

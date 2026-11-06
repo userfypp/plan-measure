@@ -82,6 +82,60 @@ describe("writeXlsx", () => {
     },
   );
 
+  it.each(["Q&A <\"x\"> 'y'", "a".repeat(31), "Sheet 1", "Ünï"])(
+    "writes the valid sheet name %j escaped in the workbook",
+    (name) => {
+      const sheets = part(writeXlsx([[name, table]]), "/xl/workbook.xml").getElementsByTagName(
+        "sheet",
+      );
+      expect(sheets).toHaveLength(1);
+      expect(sheets[0]!.getAttribute("name")).toBe(name);
+    },
+  );
+
+  it.each(["a\\b", "a?b", "a*b", "a]b", "a:b"])("rejects the sheet name %j", (name) => {
+    expect(() => writeXlsx([[name, table]])).toThrow("Invalid spreadsheet sheet name");
+  });
+
+  it("stores formula-like text as shared strings, never as formulas", () => {
+    const texts = ["=1+1", "+1", "-1", "@SUM(A1)", " =1"];
+    const bytes = writeXlsx([
+      [
+        "Data",
+        sheet(
+          ["text"],
+          texts.map((text) => [text]),
+        ),
+      ],
+    ]);
+    const cells = Array.from(part(bytes, "/xl/worksheets/sheet1.xml").getElementsByTagName("c"));
+    expect(cells).toHaveLength(6);
+    for (const cell of cells) {
+      expect(cell.getAttribute("t")).toBe("s");
+      expect(cell.getElementsByTagName("f")).toHaveLength(0);
+    }
+    const strings = Array.from(
+      part(bytes, "/xl/sharedStrings.xml").getElementsByTagName("t"),
+      (node) => node.textContent,
+    );
+    expect(strings).toEqual(["text", ...texts]);
+  });
+
+  it("omits null cells so they read back blank, not 0, and keeps numbers untyped", () => {
+    const cells = Array.from(
+      part(
+        writeXlsx([["Data", sheet(["a", "b", "c"], [[1, null, 0]])]]),
+        "/xl/worksheets/sheet1.xml",
+      ).getElementsByTagName("c"),
+    );
+    expect(cells.map((cell) => cell.getAttribute("r"))).toEqual(["A1", "B1", "C1", "A2", "C2"]);
+    const [a, c] = cells.slice(3);
+    expect(a!.getAttribute("t")).toBeNull();
+    expect(a!.getElementsByTagName("v")[0]!.textContent).toBe("1");
+    // A real zero stays a 0 cell, unlike the blank between them.
+    expect(c!.getElementsByTagName("v")[0]!.textContent).toBe("0");
+  });
+
   it("rejects duplicate sheet names regardless of case", () => {
     expect(() =>
       writeXlsx([

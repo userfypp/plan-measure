@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from "fflate";
 import type { ExportCell, ExportTable } from "./csv";
+import { roundExportNumber } from "../utils/exportNumber";
 
 const MIME_TYPE = "application/vnd.oasis.opendocument.spreadsheet";
 
@@ -20,7 +21,8 @@ function xmlAttribute(value: string): string {
 function cellXml(value: ExportCell): string {
   if (value === null) return "<table:table-cell/>";
   if (typeof value === "number") {
-    return `<table:table-cell office:value-type="float" office:value="${value}"><text:p>${value}</text:p></table:table-cell>`;
+    const number = roundExportNumber(value);
+    return `<table:table-cell office:value-type="float" office:value="${number}"><text:p>${number}</text:p></table:table-cell>`;
   }
   // ODF has no OOXML _xHHHH_ escapes. Store the logical value explicitly and preserve
   // whitespace in the paragraph too, so consumers do not collapse notes or identifiers.

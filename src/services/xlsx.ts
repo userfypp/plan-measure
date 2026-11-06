@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from "fflate";
 import type { ExportCell, ExportTable } from "./csv";
+import { roundExportNumber } from "../utils/exportNumber";
 
 const MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -38,7 +39,11 @@ function columnName(index: number): string {
 function columnWidth(table: ExportTable, index: number): number {
   let characters = Math.max(12, table.headers[index]!.length + 2);
   for (const row of table.rows.slice(0, 100)) {
-    characters = Math.max(characters, String(row[index] ?? "").length + 2);
+    const value = row[index] ?? "";
+    characters = Math.max(
+      characters,
+      String(typeof value === "number" ? roundExportNumber(value) : value).length + 2,
+    );
   }
   characters = Math.min(40, characters);
   return Math.round(((characters * MAX_DIGIT_WIDTH + 5) / MAX_DIGIT_WIDTH) * 256) / 256;
@@ -60,7 +65,7 @@ function sheetXml(table: ExportTable, sharedString: (value: string) => number): 
       const reference = `${columns[columnIndex] ?? columnName(columnIndex)}${rowNumber}`;
       cells +=
         typeof value === "number"
-          ? `<c r="${reference}"><v>${value}</v></c>`
+          ? `<c r="${reference}"><v>${roundExportNumber(value)}</v></c>`
           : `<c r="${reference}" t="s"><v>${sharedString(value)}</v></c>`;
     });
     return `<row r="${rowNumber}">${cells}</row>`;

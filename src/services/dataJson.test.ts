@@ -834,3 +834,206 @@ describe("JSON derived quantities", () => {
       for (const item of breakdown.groups) expect(Object.keys(item)).toEqual(group);
   });
 });
+
+describe("JSON identifier namespaces", () => {
+  it("rejects a measurement ID reused on another page", () => {
+    const session = fixture();
+    const copy = structuredClone(session.pages[1]!.measurements[0]!);
+    session.pages[2]!.measurements = [copy];
+    session.pages[2]!.calibrations = structuredClone(session.pages[1]!.calibrations);
+    expect(() => buildDataJson(session)).toThrow(/duplicate measurement ID/);
+    // Once renamed the same session is valid, so only the cross-page clash made it fail.
+    copy.id = "other-page-line";
+    expect(
+      JSON.parse(buildDataJson(session)).pages[1].measurements.map((m: { id: string }) => m.id),
+    ).toEqual(["other-page-line"]);
+  });
+
+  it("allows the same calibration ID on different pages but not twice on one page", () => {
+    const session = fixture();
+    session.pages[2]!.calibrations = structuredClone(session.pages[1]!.calibrations);
+    const data = JSON.parse(buildDataJson(session));
+    expect(data.pages[1].calibrations.map((c: { id: string }) => c.id)).toEqual(["uniform", "xy"]);
+    session.pages[2]!.calibrations.push(structuredClone(session.pages[2]!.calibrations[0]!));
+    expect(() => buildDataJson(session)).toThrow(/duplicate calibration ID/);
+  });
+
+  it("shares one namespace between dimension and value IDs", () => {
+    const valueAsDimension = fixture();
+    valueAsDimension.classificationCatalog.dimensions.push({
+      id: "second",
+      name: "Second",
+      archived: false,
+      values: [{ id: "dimension", name: "Clash", archived: false }],
+    });
+    expect(() => buildDataJson(valueAsDimension)).toThrow(/duplicate classification ID/);
+
+    const sameValue = fixture();
+    sameValue.classificationCatalog.dimensions.push({
+      id: "second",
+      name: "Second",
+      archived: false,
+      values: [{ id: "value", name: "Clash", archived: false }],
+    });
+    expect(() => buildDataJson(sameValue)).toThrow(/duplicate classification ID/);
+
+    const distinct = fixture();
+    distinct.classificationCatalog.dimensions.push({
+      id: "second",
+      name: "Second",
+      archived: false,
+      values: [{ id: "other", name: "Fine", archived: false }],
+    });
+    expect(() => buildDataJson(distinct)).not.toThrow();
+  });
+});
+
+describe("JSON schema version precedence", () => {
+  const features = [2, 3, 4, 5, 6] as const;
+  type Feature = (typeof features)[number];
+  const point = (x: number, y: number) => ({ x, y });
+
+  function session(active: readonly Feature[]) {
+    const result = createEmptySession({ name: "v.pdf", size: 1, lastModified: 1 }, 1);
+    result.classificationCatalog.dimensions = [
+      { id: "d", name: "D", archived: false, values: [{ id: "v", name: "V", archived: false }] },
+    ];
+    const page = result.pages[1]!;
+    page.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: point(0, 0),
+        end: point(10, 0),
+        referenceDistanceMm: 10,
+      },
+    ];
+    const base = { name: "m", classificationValueIds: [], visible: true };
+    const kinds: Partial<Record<Feature, (typeof page.measurements)[number]>> = {
+      3: { ...base, id: "count", type: "count", calibrationId: null, points: [point(1, 1)] },
+      4: {
+        ...base,
+        id: "rect",
+        type: "rectangle",
+        calibrationId: "scale",
+        points: [point(0, 0), point(2, 0), point(2, 2), point(0, 2)],
+      },
+      5: {
+        ...base,
+        id: "cloud",
+        type: "cloud",
+        calibrationId: null,
+        points: [point(0, 0), point(4, 0), point(0, 2)],
+      },
+    };
+    page.measurements = active.flatMap((feature) => kinds[feature] ?? []);
+    if (active.includes(6)) {
+      result.classificationRates = [
+        { valueId: "v", derivation: null, price: { amount: 1, basis: "count", unit: "each" } },
+      ];
+    }
+    return result;
+  }
+  const version = (active: readonly Feature[]) =>
+    JSON.parse(
+      buildDataJson(
+        session(active),
+        null,
+        active.includes(2) ? { breakdowns: [], classificationDimensionIds: [] } : undefined,
+      ),
+    ).schemaVersion;
+
+  it("is 1 without any versioned feature and the feature's own version when alone", () => {
+    expect(version([])).toBe(1);
+    expect(features.map((feature) => version([feature]))).toEqual([2, 3, 4, 5, 6]);
+  });
+
+  // Doc: 2 Takeoff, 3 Count, 4 rectangle/ellipse, 5 cloud, 6 rates; the highest applicable wins.
+  it.each([
+    [[2, 3], 3],
+    [[2, 4], 4],
+    [[2, 5], 5],
+    [[2, 6], 6],
+    [[3, 4], 4],
+    [[3, 5], 5],
+    [[3, 6], 6],
+    [[4, 5], 5],
+    [[4, 6], 6],
+    [[5, 6], 6],
+    [[2, 3, 4, 5, 6], 6],
+  ] as const)("uses the highest version when features %j combine", (active, expected) => {
+    expect(version(active)).toBe(expected);
+  });
+});
+
+describe("JSON documented example", () => {
+  it("exports the line of docs/export-json.md exactly", () => {
+    const session = createEmptySession({ name: "Doc.pdf", size: 1, lastModified: 1 }, 1);
+    session.classificationCatalog.dimensions = [
+      {
+        id: "dimension-1",
+        name: "Trade",
+        archived: false,
+        values: [{ id: "value-1", name: "Walls", archived: false }],
+      },
+    ];
+    const page = session.pages[1]!;
+    // A 3-4-5 triangle: 5 page units span 10 mm, so 2 mm per page unit.
+    page.calibrations = [
+      {
+        id: "scale-1",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 3, y: 4 },
+        referenceDistanceMm: 10,
+      },
+    ];
+    page.measurements = [
+      {
+        id: "measurement-1",
+        name: "Wall",
+        type: "line",
+        visible: false,
+        calibrationId: "scale-1",
+        points: [
+          { x: 0, y: 0 },
+          { x: 3, y: 4 },
+        ],
+        classificationValueIds: ["value-1"],
+      },
+    ];
+    const exported = JSON.parse(buildDataJson(session)).pages[0].measurements[0];
+    expect(exported).toEqual({
+      id: "measurement-1",
+      name: "Wall",
+      note: null,
+      type: "line",
+      visible: false,
+      calibrationId: "scale-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 3, y: 4 },
+      ],
+      classificationValueIds: ["value-1"],
+      lengthMm: 10,
+      perimeterMm: null,
+      areaMm2: null,
+    });
+    // Field order as printed in the document.
+    expect(Object.keys(exported)).toEqual([
+      "id",
+      "name",
+      "note",
+      "type",
+      "visible",
+      "calibrationId",
+      "points",
+      "classificationValueIds",
+      "lengthMm",
+      "perimeterMm",
+      "areaMm2",
+    ]);
+  });
+});

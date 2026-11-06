@@ -109,7 +109,7 @@ describe("serialization budgets", () => {
     expect(visited).toBe(5000);
     expect(csv).toBe(buildCsv(session));
     expect(createHash("sha256").update(csv).digest("hex")).toBe(
-      "3888fbdba8061522c7e63c70c347f674d209cad2610d32d7400fbf8a79cbd228",
+      "99338694d152649c7d3775d7bce82b84d668458dfcc54341fed03ae07792e69c",
     );
   });
 });

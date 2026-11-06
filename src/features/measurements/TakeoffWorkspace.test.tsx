@@ -6,6 +6,7 @@ import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptySession } from "../../app/sessionState";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 import type { PageCalibration, PathMeasurement } from "../../types/domain";
 import { TakeoffWorkspace } from "./TakeoffWorkspace";
 
@@ -144,6 +145,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  resetAppPreferences();
 });
 
 describe("Takeoff source measurements", () => {
@@ -400,6 +402,25 @@ describe("Takeoff totals", () => {
       ["Area", "1.00 m²"],
       ["Count", "2"],
     ]);
+  });
+
+  it("groups the digits of Count with the app's thousands separator", () => {
+    const session = withShapes();
+    const plugs = session.pages[1]!.measurements.find((measurement) => measurement.id === "plugs")!;
+    plugs.points = Array.from({ length: 1234 }, (_, index) => ({ x: index, y: 0 }));
+    render(session);
+    expect(quantities(PROJECT)).toContainEqual(["Count", "1234"]);
+
+    act(() => setAppPreference("thousandsSeparator", "comma"));
+    expect(quantities(PROJECT)).toContainEqual(["Count", "1,234"]);
+    choose("type");
+    expect(groupTotals("Count")).toEqual([["Count", "1,234"]]);
+
+    act(() => {
+      setAppPreference("thousandsSeparator", "point");
+      setAppPreference("decimalSeparator", "comma");
+    });
+    expect(groupTotals("Count")).toEqual([["Count", "1.234"]]);
   });
 
   it("rounds the sum, not each group, so three thirds of a metre total 1.00 m", () => {
@@ -738,6 +759,18 @@ describe("Takeoff derived quantities", () => {
       renderCosts([wallRates, slabRates]);
 
       expect(projectTotals().at(-1)).toEqual(["Cost", "1173.75 EUR"]);
+    });
+
+    it("shows the cost with the app's separators and follows a change", () => {
+      setAppPreference("thousandsSeparator", "comma");
+      renderCosts([wallRates, slabRates]);
+      expect(projectTotals().at(-1)).toEqual(["Cost", "1,173.75 EUR"]);
+
+      act(() => {
+        setAppPreference("thousandsSeparator", "point");
+        setAppPreference("decimalSeparator", "comma");
+      });
+      expect(projectTotals().at(-1)).toEqual(["Cost", "1.173,75 EUR"]);
     });
 
     it("shows each group's own cost in a classification breakdown", () => {

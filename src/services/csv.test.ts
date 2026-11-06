@@ -16,6 +16,7 @@ import {
   getCsvColumnDescriptors,
   normalizeCsvExportSettings,
   NoMeasurementsError,
+  serializeExportTableCsv,
 } from "./csv";
 
 function measuredSession(): CurrentSession {
@@ -169,7 +170,8 @@ describe("quick shape CSV rows", () => {
     const csv = buildCsv(session);
 
     expect(csv).toContain("Ellipse 1");
-    expect(csv).toContain(`,${4 * Math.PI},${4 * Math.PI},mm,`);
+    // 4π = 12.566370614359172..., written with 15 significant digits.
+    expect(csv).toContain(",12.5663706143592,12.5663706143592,mm,");
   });
 });
 
@@ -527,12 +529,12 @@ describe("CSV export", () => {
     expect(cell(polygon, "measurement_visible")).toBe("true");
     expect(cell(line, "measurement_point_count")).toBe("2");
     expect(cell(polygon, "measurement_point_count")).toBe("4");
-    expect(cell(line, "length_mm")).toBe("1.3333333333333333");
+    expect(cell(line, "length_mm")).toBe("1.33333333333333");
     expect(cell(line, "perimeter_mm")).toBe("");
     expect(cell(line, "area_mm2")).toBe("");
     expect(cell(polygon, "length_mm")).toBe("");
-    expect(cell(polygon, "perimeter_mm")).toBe("2.6666666666666665");
-    expect(cell(polygon, "area_mm2")).toBe("0.4444444444444444");
+    expect(cell(polygon, "perimeter_mm")).toBe("2.66666666666667");
+    expect(cell(polygon, "area_mm2")).toBe("0.444444444444444");
   });
 
   it("exports the practical Uniform ratio denominator and leaves X/Y-only audit fields blank", () => {
@@ -1081,7 +1083,7 @@ describe("CSV export", () => {
     const firstRow = buildCsv(session, null, allColumns(session)).split("\r\n")[1];
 
     expect(firstRow).toContain(
-      ",scale-1,Scale 1,uniform,1000,3,333.3333333333333,333.3333333333333,333.3333333333333,",
+      ",scale-1,Scale 1,uniform,1000,3,333.333333333333,333.333333333333,333.333333333333,",
     );
   });
 
@@ -1165,8 +1167,8 @@ describe("CSV export", () => {
   });
 
   it.each([
-    ["ft", "8.202099737532809", "ft", "98.4251968503937", "538.1955208354861", "ft²"],
-    ["in", "98.4251968503937", "in", "1181.1023622047244", "77500.15500031", "in²"],
+    ["ft", "8.20209973753281", "ft", "98.4251968503937", "538.195520835486", "ft²"],
+    ["in", "98.4251968503937", "in", "1181.10236220472", "77500.15500031", "in²"],
   ] as const)(
     "exports decimal imperial measurements numerically in %s",
     (
@@ -1282,8 +1284,8 @@ describe("CSV export", () => {
     ["mm", "4.00", "8.00", "4.00"],
     ["cm", "0.40", "0.80", "0.04"],
     ["m", "0.004", "0.008", "0.000004"],
-    ["in", "0.15748031496062992", "0.31496062992125984", "0.0062000124000248"],
-    ["ft", "0.013123359580052493", "0.026246719160104987", "0.00004305564166683889"],
+    ["in", "0.15748031496063", "0.31496062992126", "0.0062000124000248"],
+    ["ft", "0.0131233595800525", "0.026246719160105", "0.0000430556416668389"],
   ] as const)(
     "does not round small length, perimeter, or area to zero in %s",
     (unit, length, perimeter, area) => {
@@ -1683,5 +1685,67 @@ describe("CSV batch export", () => {
       page.measurements = [];
     });
     await expect(buildCsvInBatches(session)).rejects.toBeInstanceOf(NoMeasurementsError);
+  });
+});
+
+describe("spreadsheet formula guard edge cases", () => {
+  const textColumn = (value: string) =>
+    serializeExportTableCsv({ headers: ["h"], columnTypes: ["text"], rows: [[value]] }).replace(
+      /^\uFEFFh\r\n/,
+      "",
+    );
+
+  it.each([
+    ["=", "'="],
+    ["+", "'+"],
+    ["-", "'-"],
+    ["@", "'@"],
+    ["-5", "'-5"],
+    ["--1", "'--1"],
+    ["  -", "'  -"],
+    ["\u0001@A1", "'\u0001@A1"],
+  ])("neutralizes the text %j", (value, expected) => {
+    expect(textColumn(value)).toBe(`${expected}\r\n`);
+  });
+
+  it.each(["a=1", "1-1", "x+y", "e@mail", "   ", "", "Δ=1"])(
+    "keeps the text %j unchanged when no formula character leads it",
+    (value) => {
+      expect(textColumn(value)).toBe(`${value}\r\n`);
+    },
+  );
+
+  it("neutralizes a guarded text that also needs quoting", () => {
+    expect(textColumn(" =a,b\n2")).toBe('"\' =a,b\n2"\r\n');
+  });
+
+  it("neutralizes header text like any other text column", () => {
+    const csv = serializeExportTableCsv({
+      headers: ["=1+1", "ok"],
+      columnTypes: ["number", "number"],
+      rows: [],
+    });
+    expect(csv).toBe("﻿'=1+1,ok\r\n");
+  });
+
+  it("does not neutralize number columns, including negative values", () => {
+    const csv = serializeExportTableCsv({
+      headers: ["a", "b"],
+      columnTypes: ["number", "number"],
+      rows: [
+        [-5, 2.5],
+        [-0.25, null],
+      ],
+    });
+    expect(csv).toBe("﻿a,b\r\n-5,2.5\r\n-0.25,\r\n");
+  });
+
+  it("guards each text column of a mixed row independently of its number columns", () => {
+    const csv = serializeExportTableCsv({
+      headers: ["t", "n", "u"],
+      columnTypes: ["text", "number", "text"],
+      rows: [["-x", -1, "=y"]],
+    });
+    expect(csv).toBe("﻿t,n,u\r\n'-x,-1,'=y\r\n");
   });
 });

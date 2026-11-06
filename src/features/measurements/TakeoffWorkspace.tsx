@@ -18,7 +18,12 @@ import type {
   PageState,
 } from "../../types/domain";
 import { formatCost } from "../../utils/currencies";
-import { formatAreaValue, formatLinearValue, formatVolumeValue } from "../../utils/format";
+import {
+  formatAreaValue,
+  formatLinearValue,
+  formatVolumeValue,
+  localizeNumberString,
+} from "../../utils/format";
 import {
   createMeasurementTotals,
   type MeasurementTotalGroup,
@@ -76,7 +81,11 @@ function geometryRows(group: MeasurementTotalGroup, formats: QuantityFormats): Q
       quantity: group.area,
       format: (value) => formatAreaValue(value, displayUnit, areaDisplay, decimalPlaces),
     },
-    { label: "Count", quantity: group.count, format: String },
+    {
+      label: "Count",
+      quantity: group.count,
+      format: (value) => localizeNumberString(String(value)),
+    },
   ];
 }
 
