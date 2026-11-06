@@ -16,6 +16,7 @@ import {
   getAppPreferences,
   subscribeAppPreferences,
 } from "../../utils/appPreferences";
+import { isKeyboardFocus } from "../../utils/inputModality";
 import styles from "./Tooltip.module.css";
 
 export type TooltipPosition = "top" | "right" | "bottom" | "left";
@@ -203,9 +204,10 @@ export function Tooltip({
       onMouseLeave={hideTooltip}
       onFocusCapture={(event) => {
         // Programmatic focus (e.g. a dialog's initial focus) must not pin the tooltip open; some
-        // browsers still report it as focus-visible, so the dialog marks its own focus move.
+        // browsers still report it as focus-visible, so the dialog marks its own focus move. The
+        // same goes for the focus Esc hands back to a trigger after a press opened its menu.
         if (event.target instanceof Element && event.target.closest("[data-initial-focus]")) return;
-        if (!matchesFocusVisible(event.target)) return;
+        if (!isKeyboardFocus() || !matchesFocusVisible(event.target)) return;
         showTooltip();
       }}
       onBlurCapture={hideTooltip}

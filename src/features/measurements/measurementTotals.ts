@@ -1,5 +1,8 @@
 import type {
   ClassificationCatalog,
+  ClassificationValuePrice,
+  ClassificationValueRates,
+  LinearUnit,
   Measurement,
   MeasurementType,
   PageState,
@@ -12,6 +15,13 @@ import {
   measurementPathSpecs,
   MEASUREMENT_TYPES,
 } from "../../utils/geometry";
+import { isValidPrice, ratesByValueId } from "../../utils/classificationRates";
+import {
+  fromCubicMillimetres,
+  fromMillimetres,
+  fromSquareMillimetres,
+  fromSquareMillimetresToAcres,
+} from "../../utils/units";
 import { effectivePageLabel } from "../../utils/pageLabels";
 import { createMeasurementGroups } from "./measurementGrouping";
 
@@ -28,6 +38,12 @@ export interface MeasurementTotalGroup {
   perimeter: TotalQuantity;
   area: TotalQuantity;
   count: TotalQuantity;
+  /** Area derived from the length or perimeter of values with a factor (height). */
+  derivedArea: TotalQuantity;
+  /** Volume derived from the area of values with a factor (thickness). */
+  derivedVolume: TotalQuantity;
+  /** Cost in units of the project currency: prices times quantities, not rounded. */
+  cost: TotalQuantity;
 }
 
 export type MeasurementTotalsGrouping = "overall" | "page" | "type" | "classification";
@@ -74,6 +90,96 @@ function sumQuantity(values: readonly (number | null)[]): TotalQuantity {
     if (!Number.isFinite(total)) return { kind: "unavailable" };
   }
   return { kind: "value", value: total };
+}
+
+/** Adds quantities; any unavailable makes the sum unavailable and all absent leaves it absent. */
+function combineQuantities(quantities: readonly TotalQuantity[]): TotalQuantity {
+  if (quantities.some((quantity) => quantity.kind === "unavailable"))
+    return { kind: "unavailable" };
+  const applicable = quantities.flatMap((quantity) =>
+    quantity.kind === "value" ? [quantity.value] : [],
+  );
+  return sumQuantity(applicable);
+}
+
+/**
+ * The calculated measurements of a group per classification value with rates, in catalog order.
+ * Each value's base is summed once, before any factor or price is applied.
+ */
+function groupByRatedValue(
+  measurements: readonly Measurement[],
+  calculated: readonly CalculatedMeasurement[],
+  rates: readonly ClassificationValueRates[],
+): { rates: ClassificationValueRates; results: CalculatedMeasurement[] }[] {
+  const byValue = ratesByValueId(rates);
+  const resultsByValue = new Map<string, CalculatedMeasurement[]>();
+  measurements.forEach((measurement, index) => {
+    for (const valueId of measurement.classificationValueIds) {
+      if (!byValue.has(valueId)) continue;
+      const results = resultsByValue.get(valueId) ?? [];
+      results.push(calculated[index]!);
+      resultsByValue.set(valueId, results);
+    }
+  });
+  return rates.flatMap((entry) => {
+    const results = resultsByValue.get(entry.valueId);
+    return results ? [{ rates: entry, results }] : [];
+  });
+}
+
+/** Converts mm, mm² or mm³ (or a count) into the unit a price is quoted in. */
+function toPriceUnit(value: number, unit: ClassificationValuePrice["unit"]): number {
+  if (unit === "each") return value;
+  if (unit === "ac") return fromSquareMillimetresToAcres(value);
+  const power = unit.endsWith("²") ? 2 : unit.endsWith("³") ? 3 : 1;
+  const linear = (power === 1 ? unit : unit.slice(0, -1)) as LinearUnit;
+  return (
+    power === 1 ? fromMillimetres : power === 2 ? fromSquareMillimetres : fromCubicMillimetres
+  )(value, linear);
+}
+
+/** Amount times the quantity in the price's unit; a price that cannot be applied is unavailable. */
+function priceCost(
+  rates: ClassificationValueRates,
+  results: readonly CalculatedMeasurement[],
+  derived: TotalQuantity,
+): TotalQuantity {
+  const { price } = rates;
+  if (!price) return absent();
+  if (!isValidPrice(price, rates.derivation)) return { kind: "unavailable" };
+  const { basis } = price;
+  const base = basis === "derived" ? derived : sumQuantity(results.map((result) => result[basis]));
+  if (base.kind !== "value") return base;
+  const cost = price.amount * toPriceUnit(base.value, price.unit);
+  return Number.isFinite(cost) ? { kind: "value", value: cost } : { kind: "unavailable" };
+}
+
+function deriveQuantities(
+  rated: readonly { rates: ClassificationValueRates; results: readonly CalculatedMeasurement[] }[],
+): Pick<MeasurementTotalGroup, "derivedArea" | "derivedVolume" | "cost"> {
+  const areas: TotalQuantity[] = [];
+  const volumes: TotalQuantity[] = [];
+  const costs: TotalQuantity[] = [];
+  for (const { rates, results } of rated) {
+    let derived = absent();
+    if (rates.derivation) {
+      const { source, factorMm } = rates.derivation;
+      const base = sumQuantity(results.map((result) => result[source]));
+      derived =
+        base.kind !== "value"
+          ? base
+          : Number.isFinite(factorMm * base.value)
+            ? { kind: "value", value: factorMm * base.value }
+            : { kind: "unavailable" };
+      (source === "area" ? volumes : areas).push(derived);
+    }
+    costs.push(priceCost(rates, results, derived));
+  }
+  return {
+    derivedArea: combineQuantities(areas),
+    derivedVolume: combineQuantities(volumes),
+    cost: combineQuantities(costs),
+  };
 }
 
 function calculateMeasurement(
@@ -166,11 +272,19 @@ function aggregateGroup(
   label: string,
   measurements: readonly LocatedMeasurement[],
   calculationsByMeasurement: ReadonlyMap<Measurement, CalculatedMeasurement>,
+  rates: readonly ClassificationValueRates[],
   archived = false,
 ): MeasurementTotalGroup {
   const calculated = measurements.map(({ measurement }) =>
     calculationsByMeasurement.get(measurement)!,
   );
+  const rated = rates.length
+    ? groupByRatedValue(
+        measurements.map(({ measurement }) => measurement),
+        calculated,
+        rates,
+      )
+    : [];
   return {
     key,
     label,
@@ -181,6 +295,7 @@ function aggregateGroup(
     perimeter: sumQuantity(calculated.map((result) => result.perimeter)),
     area: sumQuantity(calculated.map((result) => result.area)),
     count: sumQuantity(calculated.map((result) => result.count)),
+    ...deriveQuantities(rated),
   };
 }
 
@@ -200,6 +315,7 @@ export function createMeasurementTotals({
   pageLabelOverrides,
   sourcePageLabels,
   measureClouds = false,
+  rates = [],
 }: {
   pages: Readonly<Record<number, PageState>>;
   catalog: ClassificationCatalog;
@@ -209,6 +325,8 @@ export function createMeasurementTotals({
   sourcePageLabels: readonly string[] | null;
   /** Whether revision clouds contribute perimeter and area (a project setting). */
   measureClouds?: boolean;
+  /** Derivation factors and unit prices per classification value, in catalog order. */
+  rates?: readonly ClassificationValueRates[];
 }): MeasurementTotalsResult {
   const orderedPages = Object.values(pages).sort(
     (left, right) => left.pageNumber - right.pageNumber,
@@ -295,6 +413,7 @@ export function createMeasurementTotals({
       input.label,
       input.measurements,
       calculationsByMeasurement,
+      rates,
       input.archived,
     ),
   );

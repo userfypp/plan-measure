@@ -24,10 +24,16 @@ function HistoryHarness() {
       <button onClick={() => state.addClassificationDimension("trade", "Trade")}>Add</button>
       <button
         onClick={() =>
-          state.applyClassificationTemplate([
-            { name: "Trade", values: ["Electrical", "Plumbing"] },
-            { name: "Floor", values: ["Ground"] },
-          ])
+          state.applyClassificationTemplate(
+            {
+              currency: null,
+              dimensions: [
+                { name: "Trade", values: ["Electrical", "Plumbing"], rates: [] },
+                { name: "Floor", values: ["Ground"], rates: [] },
+              ],
+            },
+            "keep",
+          )
         }
       >
         Apply template
@@ -570,6 +576,111 @@ describe("session undo and redo history", () => {
     expect(state()).toBe("false:true:0");
     click("Redo");
     expect(state()).toBe("true:false:2");
+  });
+  it("undoes and redoes a template with rates as a single step, leaving the settings alone", () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+    session.classificationCatalog.dimensions = [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: false,
+        values: [{ id: "wall", name: "Wall", archived: false }],
+      },
+    ];
+    act(() => historyProbe.loadSession(session));
+    const before = structuredClone(historyProbe.session!);
+    const wall = {
+      value: "Wall",
+      derivation: { source: "length", factorMm: 2700 },
+      price: { amount: 25, basis: "derived", unit: "m²" },
+    } as const;
+    act(() => {
+      historyProbe.applyClassificationTemplate(
+        {
+          currency: "EUR",
+          dimensions: [{ name: "Trade", values: ["Wall", "Door"], rates: [wall] }],
+        },
+        "keep",
+      );
+    });
+    const applied = structuredClone(historyProbe.session!);
+    expect(applied.settings.currency).toBe("EUR");
+    expect(applied.classificationRates).toEqual([
+      { valueId: "wall", derivation: wall.derivation, price: wall.price },
+    ]);
+    expect(applied.classificationCatalog.dimensions[0]!.values).toHaveLength(2);
+    act(() => historyProbe.undo());
+    // Settings are never part of the history, so the adopted currency stays after Undo.
+    expect(historyProbe.session).toEqual({
+      ...before,
+      settings: { ...before.settings, currency: "EUR" },
+    });
+    expect(historyProbe.canUndo).toBe(false);
+    act(() => historyProbe.redo());
+    expect(historyProbe.session).toEqual(applied);
+  });
+  it("keeps the currency of restored prices when Undo meets a project without one", () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+    session.settings.currency = "EUR";
+    session.classificationCatalog.dimensions = [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: false,
+        values: [{ id: "wall", name: "Wall", archived: false }],
+      },
+    ];
+    session.classificationRates = [
+      { valueId: "wall", derivation: null, price: { amount: 5, basis: "length", unit: "m" } },
+    ];
+    act(() => historyProbe.loadSession(session));
+    act(() => historyProbe.setClassificationValueRates("wall", null, null));
+    act(() => historyProbe.updateSettings({ currency: null }));
+    expect(historyProbe.session!.settings.currency).toBeNull();
+
+    act(() => historyProbe.undo());
+    expect(historyProbe.session!.classificationRates).toEqual(session.classificationRates);
+    expect(historyProbe.session!.settings.currency).toBe("EUR");
+
+    // A currency the project has again is never replaced by the snapshot's.
+    act(() => historyProbe.redo());
+    act(() => historyProbe.updateSettings({ currency: "USD" }));
+    act(() => historyProbe.undo());
+    expect(historyProbe.session!.settings.currency).toBe("USD");
+  });
+  it("reports whether the rates of a value were stored and undoes them in one step", () => {
+    const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 1);
+    session.classificationCatalog.dimensions = [
+      {
+        id: "trade",
+        name: "Trade",
+        archived: false,
+        values: [{ id: "wall", name: "Wall", archived: false }],
+      },
+    ];
+    act(() => historyProbe.loadSession(session));
+    let stored: boolean | undefined;
+    const derivation = { source: "length", factorMm: 2700 } as const;
+    act(() => {
+      stored = historyProbe.setClassificationValueRates("wall", derivation, null);
+    });
+    expect(stored).toBe(true);
+    expect(historyProbe.session!.classificationRates).toEqual([
+      { valueId: "wall", derivation, price: null },
+    ]);
+
+    act(() => {
+      stored = historyProbe.setClassificationValueRates(
+        "wall",
+        { ...derivation, factorMm: 0 },
+        null,
+      );
+    });
+    expect(stored).toBe(false);
+    expect(historyProbe.session!.classificationRates[0]!.derivation).toEqual(derivation);
+
+    act(() => historyProbe.undo());
+    expect(historyProbe.session!.classificationRates).toEqual([]);
   });
   it("undoes and redoes edits, and drops the redo branch after a new edit", () => {
     const state = () => document.querySelector("[data-testid='history-state']")?.textContent;

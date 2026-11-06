@@ -1,5 +1,8 @@
 import { buildTakeoffSummary } from "./takeoffSummary";
-import type { TakeoffSelection } from "../features/measurements/measurementTotals";
+import type {
+  MeasurementTotalGroup,
+  TakeoffSelection,
+} from "../features/measurements/measurementTotals";
 import type { Calibration, CurrentSession, PageCalibration, Point } from "../types/domain";
 import { isCloudMeasured } from "../utils/calibration";
 import {
@@ -50,6 +53,15 @@ function calibrationData(calibration: PageCalibration) {
         xReference: referenceData(calibration.xReference),
         yReference: referenceData(calibration.yReference),
       };
+}
+
+/** Groups as exported before schema version 6, which added derived quantities and costs. */
+function withoutDerivedQuantities(group: MeasurementTotalGroup) {
+  const legacy: Partial<MeasurementTotalGroup> = { ...group };
+  delete legacy.derivedArea;
+  delete legacy.derivedVolume;
+  delete legacy.cost;
+  return legacy;
 }
 
 function addUniqueId(ids: Set<string>, id: string, kind: string): void {
@@ -172,23 +184,45 @@ export function buildDataJson(
     };
   });
 
+  const hasRates = session.classificationRates.length > 0;
+  const classificationRates = session.classificationRates.map((rates) => {
+    if (!valueDimensions.has(rates.valueId)) {
+      throw new Error("JSON export has classification rates for a missing value.");
+    }
+    return {
+      valueId: rates.valueId,
+      derivation: rates.derivation && {
+        source: rates.derivation.source,
+        factorMm: finiteNumber(rates.derivation.factorMm),
+      },
+      price: rates.price && {
+        amount: finiteNumber(rates.price.amount),
+        basis: rates.price.basis,
+        unit: rates.price.unit,
+      },
+    };
+  });
+  const takeoff = takeoffSelection && buildTakeoffSummary(session, takeoffSelection, pageLabels);
+
   return JSON.stringify(
     {
-      schemaVersion: Object.values(session.pages).some((page) =>
-        page.measurements.some((measurement) => measurement.type === "cloud"),
-      )
-        ? 5
+      schemaVersion: hasRates
+        ? 6
         : Object.values(session.pages).some((page) =>
-              page.measurements.some((measurement) => QUICK_SHAPE_TYPES.has(measurement.type)),
+              page.measurements.some((measurement) => measurement.type === "cloud"),
             )
-          ? 4
+          ? 5
           : Object.values(session.pages).some((page) =>
-                page.measurements.some((measurement) => measurement.type === "count"),
+                page.measurements.some((measurement) => QUICK_SHAPE_TYPES.has(measurement.type)),
               )
-            ? 3
-            : takeoffSelection
-              ? 2
-              : 1,
+            ? 4
+            : Object.values(session.pages).some((page) =>
+                  page.measurements.some((measurement) => measurement.type === "count"),
+                )
+              ? 3
+              : takeoffSelection
+                ? 2
+                : 1,
       pdf: {
         name: session.pdf.name,
         size: finiteNumber(session.pdf.size),
@@ -205,10 +239,20 @@ export function buildDataJson(
       },
       pages,
       classificationCatalog,
-      ...(takeoffSelection
+      ...(hasRates ? { currency: session.settings.currency, classificationRates } : {}),
+      ...(takeoff
         ? {
             takeoff: {
-              ...buildTakeoffSummary(session, takeoffSelection, pageLabels),
+              ...takeoff,
+              ...(hasRates
+                ? { volumeUnit: "mm³", currency: session.settings.currency }
+                : {
+                    projectTotals: withoutDerivedQuantities(takeoff.projectTotals),
+                    breakdowns: takeoff.breakdowns.map((breakdown) => ({
+                      ...breakdown,
+                      groups: breakdown.groups.map(withoutDerivedQuantities),
+                    })),
+                  }),
               ...(takeoffSelection.includeProjectTotals === false
                 ? { projectTotals: undefined }
                 : {}),

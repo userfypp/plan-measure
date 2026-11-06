@@ -53,7 +53,7 @@ let restoreDialogMethods = () => {};
 
 function sessionFixture(): CurrentSession {
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     pdf: { name: "sample.pdf", size: 10, lastModified: 1 },
     pageCount: 1,
     currentPage: 1,
@@ -84,6 +84,7 @@ function sessionFixture(): CurrentSession {
       labelClassificationDimensionId: null,
       measureClouds: false,
       defaultMeasurementFilters: null,
+      currency: null,
       csvExport: { columnOverrides: {} },
       measurementDecimalPlaces: 2,
       areaDisplay: "auto",
@@ -98,6 +99,7 @@ function sessionFixture(): CurrentSession {
         },
       ],
     },
+    classificationRates: [],
   };
 }
 
@@ -284,6 +286,118 @@ describe("ExportDialog", () => {
     act(() => button("Defaults")!.click());
     expect(measurementName.checked).toBe(true);
     expect(referenceDistance.checked).toBe(false);
+  });
+
+  it("groups the presets with a live count of the selected columns", () => {
+    renderDialog();
+    const columns = dialog().querySelector<HTMLElement>('[aria-label="Measurement columns"]')!;
+    const presets = columns.querySelector<HTMLElement>(
+      '[role="group"][aria-label="Column presets"]',
+    );
+    expect(Array.from(presets!.querySelectorAll("button"), (item) => item.textContent)).toEqual([
+      "Defaults",
+      "All columns",
+      "Required only",
+    ]);
+    const checked = () => columns.querySelectorAll('input[type="checkbox"]:checked').length;
+    const count = () => {
+      const label = Array.from(columns.querySelectorAll("span"), (item) => item.textContent).find(
+        (text) => /^\d+ selected$/.test(text ?? ""),
+      );
+      return Number(label?.split(" ")[0]);
+    };
+
+    const defaults = count();
+    expect(defaults).toBe(checked());
+    act(() => button("All columns")!.click());
+    expect(count()).toBe(checked());
+    expect(count()).toBeGreaterThan(defaults);
+    act(() => button("Required only")!.click());
+    expect(count()).toBe(checked());
+    expect(columns.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)')).toHaveLength(
+      0,
+    );
+  });
+
+  it("marks required columns with a text note on a locked, checked option", () => {
+    renderDialog();
+    const options = Array.from(
+      dialog().querySelectorAll<HTMLLabelElement>('[aria-label="Measurement columns"] label'),
+    );
+    const locked = options.filter((option) => option.querySelector("input")!.disabled);
+
+    expect(locked.length).toBeGreaterThan(0);
+    for (const option of locked) {
+      expect(option.querySelector("input")!.checked).toBe(true);
+      expect(option.textContent).toMatch(/Required$/);
+    }
+    for (const option of options.filter((item) => !locked.includes(item))) {
+      expect(option.textContent).not.toContain("Required");
+    }
+  });
+
+  it("wires each column tab to its labelled panel and shows the one that is clicked", () => {
+    renderDialog();
+    const tablist = dialog().querySelector('[role="tablist"]')!;
+    const tabs = Array.from(tablist.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    expect(tablist.getAttribute("aria-label")).toBe("Column groups");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Measurements",
+      "Classifications",
+      "Technical data",
+    ]);
+    const panels = tabs.map((tab) => document.getElementById(tab.getAttribute("aria-controls")!)!);
+    tabs.forEach((tab, index) => {
+      expect(panels[index]!.getAttribute("role")).toBe("tabpanel");
+      expect(panels[index]!.getAttribute("aria-labelledby")).toBe(tab.id);
+    });
+
+    act(() => tabs[1]!.click());
+    expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ]);
+    expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, 0, -1]);
+    expect(panels.map((panel) => panel.hidden)).toEqual([true, false, true]);
+  });
+
+  it.each(["csv", "xlsx", "ods", "json"])(
+    "keeps every %s summary choice in one Takeoff summaries section after the columns",
+    (format) => {
+      renderDialog();
+      choose("export-format", format);
+      const sections = Array.from(dialog().querySelectorAll("section")).filter(
+        (section) => section.querySelector(":scope > h3")?.textContent === "Takeoff summaries",
+      );
+      expect(sections).toHaveLength(1);
+      const summaries = sections[0]!;
+
+      expect(summaries.getAttribute("aria-labelledby")).toBe(summaries.querySelector("h3")!.id);
+      expect(
+        summaries.querySelector('[role="group"][aria-label="Takeoff breakdowns"]')?.textContent,
+      ).toMatch(/Project totals.*By page.*By type/);
+      expect(
+        summaries.querySelector('[role="group"][aria-label="Takeoff classifications"]')
+          ?.textContent,
+      ).toContain("Trade");
+      const columns = dialog().querySelector('[aria-label="Measurement columns"]');
+      if (format === "json") {
+        expect(columns).toBeNull();
+      } else {
+        expect(columns!.compareDocumentPosition(summaries)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      }
+    },
+  );
+
+  it("offers no summary section for the annotated PDF", () => {
+    renderDialog();
+    choose("export-format", "annotated-pdf");
+    expect(
+      Array.from(dialog().querySelectorAll("h3")).some(
+        (heading) => heading.textContent === "Takeoff summaries",
+      ),
+    ).toBe(false);
   });
 
   it("keeps everyday scale fields in Scale and groups optional audit fields in the Technical data tab", () => {

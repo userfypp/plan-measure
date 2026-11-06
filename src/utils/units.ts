@@ -58,6 +58,11 @@ export function fromSquareMillimetres(value: number, unit: LinearUnit): number {
   );
 }
 
+export function fromCubicMillimetres(value: number, unit: LinearUnit): number {
+  const ratio = UNIT_RATIOS[unit];
+  return scaleByRatio(value, ratio.denominator ** 3, ratio.numeratorMm ** 3);
+}
+
 export function fromSquareMillimetresToAcres(value: number): number {
   return scaleByRatio(value, 25, 43_560 * 1524 * 1524);
 }

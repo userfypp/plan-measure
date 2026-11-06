@@ -3,13 +3,14 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installInputModality } from "../../utils/inputModality";
 import { Select } from "./Select";
 
 type Unit = "m" | "cm" | "mm";
 
 const options = [
   { value: "m" as const, label: "Metres" },
-  { value: "cm" as const, label: "Centimetres" },
+  { value: "cm" as const, label: "Centimetres", tooltip: "One hundredth of a metre" },
   { value: "mm" as const, label: "Millimetres" },
 ];
 
@@ -96,6 +97,25 @@ describe("Select", () => {
     expect(menuItems()).toHaveLength(3);
   });
 
+  it("explains an option with a tooltip on keyboard focus and leaves its native title off", () => {
+    vi.useFakeTimers();
+    try {
+      render();
+      act(() => trigger().click());
+      expect(menuItems()[0]!.getAttribute("title")).toBe("Metres");
+      key(document.activeElement!, "ArrowDown");
+      act(() => vi.runAllTimers());
+
+      expect(document.activeElement).toBe(menuItems()[1]);
+      expect(menuItems()[1]!.hasAttribute("title")).toBe(false);
+      const tooltip = document.querySelector('[role="tooltip"]');
+      expect(tooltip?.textContent).toBe("One hundredth of a metre");
+      expect(menuItems()[1]!.getAttribute("aria-describedby")).toBe(tooltip?.id);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("moves with arrows, selects, calls onChange and closes", () => {
     render();
     act(() => trigger().click());
@@ -122,5 +142,36 @@ describe("Select", () => {
     expect(trigger().disabled).toBe(true);
     act(() => trigger().click());
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("explains an option on arrow focus although a press opened the menu", () => {
+    vi.useFakeTimers();
+    const uninstall = installInputModality();
+    // jsdom drops :focus-visible after the press; a browser reports it for focus an arrow moved.
+    const matches = Element.prototype.matches;
+    const focusVisible = vi.spyOn(Element.prototype, "matches").mockImplementation(function (
+      this: Element,
+      selector: string,
+    ) {
+      return selector === ":focus-visible" || matches.call(this, selector);
+    });
+    try {
+      render();
+      act(() => {
+        trigger().dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        trigger().click();
+      });
+      key(document.activeElement!, "ArrowDown");
+      act(() => vi.runAllTimers());
+
+      expect(document.activeElement).toBe(menuItems()[1]);
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+        "One hundredth of a metre",
+      );
+    } finally {
+      focusVisible.mockRestore();
+      uninstall();
+      vi.useRealTimers();
+    }
   });
 });

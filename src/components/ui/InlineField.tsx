@@ -9,7 +9,7 @@ export type InlineFieldProps = DistributiveOmit<InputProps, "onSubmit" | "traili
   actions: ReactNode;
   onSubmit: FormEventHandler<HTMLFormElement>;
   formLabel?: string;
-  /** `row` is the add-row that closes a list: padded to the list rows, with a top divider. */
+  /** `row` is a block of its own that closes a list: framed by hairlines like the list's items, the label as its title. */
   variant?: "inline" | "row";
 };
 

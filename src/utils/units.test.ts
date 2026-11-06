@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fromCubicMillimetres,
   fromMillimetres,
   fromSquareMillimetres,
   fromSquareMillimetresToAcres,
@@ -93,5 +94,13 @@ describe("unit conversions", () => {
   it("keeps finite extreme area conversions finite when the final value is representable", () => {
     expect(Number.isFinite(fromSquareMillimetres(Number.MAX_VALUE, "ft"))).toBe(true);
     expect(Number.isFinite(fromSquareMillimetresToAcres(Number.MAX_VALUE))).toBe(true);
+  });
+
+  it("converts cubic millimetres using the cubed linear factor", () => {
+    expect(fromCubicMillimetres(3e9, "m")).toBe(3);
+    expect(fromCubicMillimetres(1000, "cm")).toBe(1);
+    expect(fromCubicMillimetres(5, "mm")).toBe(5);
+    expect(fromCubicMillimetres(16_387.064, "in")).toBeCloseTo(1, 12);
+    expect(fromCubicMillimetres(28_316_846.592, "ft")).toBe(1);
   });
 });

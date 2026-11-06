@@ -1,6 +1,15 @@
 import { createPortal } from "react-dom";
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Button, Dialog, EyeIcon, Select, Switch, Tooltip } from "../components/ui";
+import { SearchSelect } from "../components/ui/SearchSelect";
 import type {
   ClassificationDimension,
   Measurement,
@@ -26,6 +35,7 @@ import {
   useAppPreferences,
   type AppPreferences,
 } from "../utils/appPreferences";
+import { currencyOptions, isKnownCurrency } from "../utils/currencies";
 import { DEFAULT_MEASUREMENT_DECIMAL_PLACES } from "../utils/format";
 import { MEASUREMENT_TYPES, measurementPathSpecs } from "../utils/geometry";
 import {
@@ -53,6 +63,7 @@ export type ProjectViewSettings = Pick<
   SessionSettings,
   | "displayUnit"
   | "areaDisplay"
+  | "currency"
   | "showLabels"
   | "showMeasurements"
   | "showCalibration"
@@ -580,6 +591,55 @@ function SwitchRow({
   );
 }
 
+/** The project's currency; None is only offered while no price depends on it. */
+function CurrencyRow({
+  currency,
+  hasPrices,
+  onChange,
+}: {
+  currency: string | null;
+  hasPrices: boolean;
+  onChange: (currency: string | null) => void;
+}) {
+  const known = useMemo(
+    () =>
+      currencyOptions().map(({ code, name }) => ({
+        value: code,
+        label: `${name} (${code})`,
+        shortLabel: code,
+      })),
+    [],
+  );
+  const unlisted = currency !== null && !isKnownCurrency(currency);
+  const options = [
+    ...(hasPrices && currency !== null ? [] : [{ value: "", label: "None" }]),
+    ...(unlisted ? [{ value: currency, label: `${currency} (not in list)` }] : []),
+    ...known,
+  ];
+  return (
+    <Row
+      label="Currency"
+      help={`${unlisted ? `${currency} is not in the currency list. ` : ""}Prices are not converted when the currency changes.`}
+    >
+      {({ controlId, labelId, helpId }) => (
+        <SearchSelect<string>
+          id={controlId}
+          className={styles.select}
+          label="Currency"
+          labelledBy={labelId}
+          describedBy={helpId}
+          value={currency ?? ""}
+          options={options}
+          placeholder="None"
+          searchLabel="Search currencies"
+          emptyLabel="No currency matches"
+          onChange={(code) => onChange(code || null)}
+        />
+      )}
+    </Row>
+  );
+}
+
 /** The classification choices of one project, labelled as the measurement filters label them. */
 function projectClassificationOptions(
   dimensions: readonly ClassificationDimension[],
@@ -632,35 +692,30 @@ function DefaultFilterRows({
     <>
       <SelectRow
         label={`Page${labelSuffix}`}
-        className={styles.wideSelect}
         value={filters.page}
         options={FILTER_PAGE_OPTIONS}
         onChange={change("page")}
       />
       <SelectRow
         label={`Type${labelSuffix}`}
-        className={styles.wideSelect}
         value={filters.type}
         options={FILTER_TYPE_OPTIONS}
         onChange={change("type")}
       />
       <SelectRow
         label={`Scale${labelSuffix}`}
-        className={styles.wideSelect}
         value={filters.scale}
         options={FILTER_SCALE_OPTIONS}
         onChange={change("scale")}
       />
       <SelectRow
         label={`Classification${labelSuffix}`}
-        className={styles.wideSelect}
         value={filters.classification}
         options={classificationOptions}
         onChange={change("classification")}
       />
       <SelectRow
         label={`Visibility${labelSuffix}`}
-        className={styles.wideSelect}
         value={filters.visibility}
         options={FILTER_VISIBILITY_OPTIONS}
         onChange={change("visibility")}
@@ -813,6 +868,8 @@ export interface SettingsDialogProps {
   viewSettings?: ProjectViewSettings | null;
   /** Classification dimensions offered by "Label classification". */
   classificationDimensions?: readonly ClassificationDimension[];
+  /** Whether any classification value has a price; the currency cannot be cleared then. */
+  projectHasPrices?: boolean;
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -836,6 +893,7 @@ export function SettingsDialog({
   measurementDecimalPlaces = null,
   viewSettings = null,
   classificationDimensions = [],
+  projectHasPrices = false,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -1289,7 +1347,6 @@ export function SettingsDialog({
                       <SelectRow<(typeof FILTER_SOURCE_OPTIONS)[number]["value"]>
                         label="Default filters"
                         help="Filters applied to the measurement list when this project opens. Clear filters still shows everything."
-                        className={styles.wideSelect}
                         value={viewSettings.defaultMeasurementFilters ? "project" : "app"}
                         options={FILTER_SOURCE_OPTIONS}
                         onChange={(source) =>
@@ -1337,7 +1394,7 @@ export function SettingsDialog({
                       {measurementDecimalPlaces !== null && onMeasurementDecimalPlacesChange && (
                         <SelectRow
                           label="Decimal places"
-                          className={styles.narrowSelect}
+                          className={styles.quantitySelect}
                           value={String(measurementDecimalPlaces)}
                           options={MEASUREMENT_DECIMAL_OPTIONS}
                           onChange={(value) =>
@@ -1353,6 +1410,11 @@ export function SettingsDialog({
                         value={viewSettings.areaDisplay}
                         options={AREA_DISPLAY_OPTIONS}
                         onChange={(areaDisplay) => onViewSettingsChange({ areaDisplay })}
+                      />
+                      <CurrencyRow
+                        currency={viewSettings.currency}
+                        hasPrices={projectHasPrices}
+                        onChange={(currency) => onViewSettingsChange({ currency })}
                       />
                       <SwitchRow
                         label="Measure clouds"

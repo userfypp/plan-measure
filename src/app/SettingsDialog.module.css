@@ -235,15 +235,10 @@ dialog.dialog {
 }
 
 .select {
-  width: var(--geometry-select-width-regular);
+  width: var(--geometry-select-width);
 }
 
-.wideSelect {
-  width: var(--geometry-select-width-wide);
-}
-
-.narrowSelect {
-  width: var(--geometry-select-width-narrow);
+.quantitySelect {
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
@@ -367,14 +362,12 @@ dialog.dialog {
     padding: 0;
   }
 
-  .settingRow:has(.select, .wideSelect, .narrowSelect) {
+  .settingRow:has(.select) {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-8);
   }
 
-  .select,
-  .wideSelect,
-  .narrowSelect {
+  .select {
     width: 100%;
   }
 }

@@ -30,6 +30,7 @@ export function buildTakeoffSummary(
     sourcePageLabels: pageLabels,
     classificationDimensionId: null,
     measureClouds: session.settings.measureClouds,
+    rates: session.classificationRates,
   };
   const dimensions = new Set(selection.classificationDimensionIds);
   for (const id of dimensions) {
@@ -48,6 +49,9 @@ export function buildTakeoffSummary(
     perimeter: { kind: "absent" as const },
     area: { kind: "absent" as const },
     count: { kind: "absent" as const },
+    derivedArea: { kind: "absent" as const },
+    derivedVolume: { kind: "absent" as const },
+    cost: { kind: "absent" as const },
   };
   const breakdowns: TakeoffSummary["breakdowns"] = [];
   for (const type of ["page", "type"] as const) {

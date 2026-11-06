@@ -5,13 +5,17 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { ClassificationTemplateLibrary } from "./ClassificationTemplateLibrary";
 import {
   CLASSIFICATION_TEMPLATES_STORAGE_KEY,
+  type ClassificationTemplate,
+  type TemplateConflictPolicy,
   readClassificationTemplates,
   writeClassificationTemplates,
 } from "./classificationTemplates";
-import type { ClassificationCatalog } from "../../types/domain";
+import type { ClassificationCatalog, ClassificationValueRates } from "../../types/domain";
+import { stubDialogMethods } from "../../test/domTestUtils";
 
 let root: Root;
 let container: HTMLDivElement;
+let restoreDialogMethods = () => {};
 const catalog: ClassificationCatalog = {
   dimensions: [
     {
@@ -22,11 +26,26 @@ const catalog: ClassificationCatalog = {
     },
   ],
 };
-const apply = vi.fn(() => true);
-function render(source = catalog, disabled = false) {
+const apply = vi.fn<(template: ClassificationTemplate, policy: TemplateConflictPolicy) => boolean>(
+  () => true,
+);
+function render(
+  source = catalog,
+  disabled = false,
+  rates: ClassificationValueRates[] = [],
+  currency: string | null = null,
+  search = "",
+) {
   act(() =>
     root.render(
-      <ClassificationTemplateLibrary catalog={source} disabled={disabled} onApply={apply} />,
+      <ClassificationTemplateLibrary
+        catalog={source}
+        rates={rates}
+        currency={currency}
+        disabled={disabled}
+        search={search}
+        onApply={apply}
+      />,
     ),
   );
 }
@@ -68,6 +87,7 @@ beforeEach(() => {
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
+  restoreDialogMethods = stubDialogMethods();
   apply.mockClear();
   container = document.createElement("div");
   document.body.append(container);
@@ -76,13 +96,69 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  restoreDialogMethods();
   vi.restoreAllMocks();
 });
 
 describe("template library interactions", () => {
+  describe("search", () => {
+    const templateNames = () =>
+      toggles().map((toggle) => toggle.querySelector("span[title]")?.getAttribute("title"));
+    function saveTemplates() {
+      writeClassificationTemplates([
+        {
+          id: "res",
+          name: "Residencial",
+          currency: null,
+          dimensions: [{ name: "Estructura", values: ["Cimentación", "Losa"], rates: [] }],
+        },
+        {
+          id: "off",
+          name: "Office",
+          currency: null,
+          dimensions: [{ name: "Finish", values: ["Paint"], rates: [] }],
+        },
+      ]);
+    }
+
+    it("filters by template, dimension or value name ignoring case and accents", () => {
+      saveTemplates();
+      render(catalog, false, [], null, "RESIDENCIAL");
+      expect(templateNames()).toEqual(["Residencial"]);
+      render(catalog, false, [], null, "finish");
+      expect(templateNames()).toEqual(["Office"]);
+      render(catalog, false, [], null, "cimentacion");
+      expect(templateNames()).toEqual(["Residencial"]);
+      render(catalog, false, [], null, "");
+      expect(templateNames()).toEqual(["Residencial", "Office"]);
+    });
+
+    it("says when no template matches", () => {
+      saveTemplates();
+      render(catalog, false, [], null, "zzz");
+      const status = [...container.querySelectorAll('[role="status"]')].find(
+        (node) => node.textContent === "No template matches",
+      );
+      expect(status).toBeDefined();
+      expect(toggles()).toHaveLength(0);
+      expect(container.querySelector("input")).not.toBeNull();
+    });
+
+    it("does not say so when no template is saved", () => {
+      render(catalog, false, [], null, "zzz");
+      expect(container.textContent).not.toContain("No template matches");
+      expect(container.textContent).toContain("No templates yet");
+    });
+  });
+
   it("keeps template details collapsed until requested and the save form always visible", () => {
     writeClassificationTemplates([
-      { id: "a", name: "Residential", dimensions: [{ name: "Trade", values: ["Electrical"] }] },
+      {
+        id: "a",
+        name: "Residential",
+        currency: null,
+        dimensions: [{ name: "Trade", values: ["Electrical"], rates: [] }],
+      },
     ]);
     render();
     const [toggle] = toggles();
@@ -100,7 +176,12 @@ describe("template library interactions", () => {
 
   it("applies from the closed row without opening it and clears the result on the next change", () => {
     writeClassificationTemplates([
-      { id: "a", name: "Residential", dimensions: [{ name: "Trade", values: ["Electrical"] }] },
+      {
+        id: "a",
+        name: "Residential",
+        currency: null,
+        dimensions: [{ name: "Trade", values: ["Electrical"], rates: [] }],
+      },
     ]);
     render();
     const apply = findButton("Apply template Residential")!;
@@ -126,7 +207,8 @@ describe("template library interactions", () => {
     const other = {
       id: "other",
       name: "Other window",
-      dimensions: [{ name: "Floor", values: [] }],
+      currency: null,
+      dimensions: [{ name: "Floor", values: [], rates: [] }],
     };
     writeClassificationTemplates([other]);
     save();
@@ -148,7 +230,8 @@ describe("template library interactions", () => {
     const other = {
       id: "other",
       name: "Other window",
-      dimensions: [{ name: "Floor", values: [] }],
+      currency: null,
+      dimensions: [{ name: "Floor", values: [], rates: [] }],
     };
     writeClassificationTemplates([...readClassificationTemplates().templates, other]);
     click("Delete template");
@@ -170,7 +253,13 @@ describe("template library interactions", () => {
     root = createRoot(container);
     render({ dimensions: [] });
     click("Apply template Residential");
-    expect(apply).toHaveBeenCalledWith([{ name: "Trade", values: ["Electrical"] }]);
+    expect(apply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currency: null,
+        dimensions: [{ name: "Trade", values: ["Electrical"], rates: [] }],
+      }),
+      "keep",
+    );
     expect(container.querySelector('[role="status"]')!.textContent).toContain("applied");
     click("Delete template Residential");
     expect(readClassificationTemplates().templates).toHaveLength(1);
@@ -232,5 +321,176 @@ describe("template library interactions", () => {
     apply.mockReturnValueOnce(false);
     click("Apply template Residential");
     expect(container.querySelector('[role="status"]')!.textContent).not.toContain("applied");
+  });
+
+  describe("rates", () => {
+    const wallCatalog: ClassificationCatalog = {
+      dimensions: [
+        {
+          id: "trade",
+          name: "Trade",
+          archived: false,
+          values: [{ id: "wall", name: "Wall", archived: false }],
+        },
+      ],
+    };
+    const wallRates = {
+      value: "Wall",
+      derivation: { source: "length", factorMm: 2700 },
+      price: { amount: 25, basis: "derived", unit: "m²" },
+    } as const;
+    const wallTemplate: ClassificationTemplate = {
+      id: "walls",
+      name: "Walls",
+      currency: "EUR",
+      dimensions: [{ name: "Trade", values: ["Wall"], rates: [wallRates] }],
+    };
+    const differing: ClassificationValueRates[] = [
+      { valueId: "wall", derivation: { source: "length", factorMm: 2400 }, price: null },
+    ];
+    const dialog = () => document.querySelector("dialog[open]");
+    const dialogButtons = () =>
+      [...dialog()!.querySelectorAll("button")].map((button) => button.textContent);
+    function dialogButton(label: string) {
+      const found = [...dialog()!.querySelectorAll("button")].find(
+        (button) => button.textContent === label,
+      );
+      if (!found) throw new Error(`Missing ${label}`);
+      return found;
+    }
+    function applyWalls() {
+      writeClassificationTemplates([wallTemplate]);
+      render(wallCatalog, false, differing, "EUR");
+      click("Apply template Walls");
+    }
+
+    it("saves the rates of active values and the project currency with the template", () => {
+      render(wallCatalog, false, [{ valueId: "wall", ...wallRates }], "EUR");
+      save("Walls");
+      expect(readClassificationTemplates().templates).toEqual([
+        expect.objectContaining({
+          name: "Walls",
+          currency: "EUR",
+          dimensions: [{ name: "Trade", values: ["Wall"], rates: [wallRates] }],
+        }),
+      ]);
+    });
+
+    it("applies at once, without asking, when nothing in the project differs", () => {
+      writeClassificationTemplates([wallTemplate]);
+      render(wallCatalog, false, [], "EUR");
+      click("Apply template Walls");
+      expect(dialog()).toBeNull();
+      expect(apply).toHaveBeenCalledTimes(1);
+      expect(apply).toHaveBeenCalledWith(wallTemplate, "keep");
+    });
+
+    it("asks before applying over different rates, with Cancel, Keep existing and Replace", () => {
+      applyWalls();
+      expect(apply).not.toHaveBeenCalled();
+      expect(dialogButtons()).toEqual(["Cancel", "Keep existing", "Replace"]);
+      expect(dialogButton("Cancel").className).toMatch(/ghost/);
+      expect(dialogButton("Keep existing").className).toMatch(/secondary/);
+      expect(dialogButton("Replace").className).toMatch(/primary/);
+      expect(dialog()!.textContent).toContain("Trade: Wall");
+      expect(dialog()!.getAttribute("aria-describedby")).toBeTruthy();
+    });
+
+    it("applies nothing when the question is cancelled with the button or Escape", () => {
+      applyWalls();
+      act(() => dialogButton("Cancel").click());
+      expect(dialog()).toBeNull();
+      expect(apply).not.toHaveBeenCalled();
+      click("Apply template Walls");
+      act(() =>
+        dialog()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      );
+      expect(dialog()).toBeNull();
+      expect(apply).not.toHaveBeenCalled();
+      expect(container.querySelector('[role="status"]')!.textContent).toBe("");
+    });
+
+    it("keeps the existing rates when asked to", () => {
+      applyWalls();
+      act(() => dialogButton("Keep existing").click());
+      expect(dialog()).toBeNull();
+      expect(apply).toHaveBeenCalledTimes(1);
+      expect(apply).toHaveBeenCalledWith(wallTemplate, "keep");
+      expect(container.querySelector('[role="status"]')!.textContent).toContain("applied");
+    });
+
+    it("replaces the existing rates when asked to", () => {
+      applyWalls();
+      act(() => dialogButton("Replace").click());
+      expect(dialog()).toBeNull();
+      expect(apply).toHaveBeenCalledTimes(1);
+      expect(apply).toHaveBeenCalledWith(wallTemplate, "replace");
+    });
+
+    it("lists at most five conflicts and counts the rest", () => {
+      const names = ["A", "B", "C", "D", "E", "F", "G"];
+      const manyCatalog: ClassificationCatalog = {
+        dimensions: [
+          {
+            id: "trade",
+            name: "Trade",
+            archived: false,
+            values: names.map((name) => ({ id: name, name, archived: false })),
+          },
+        ],
+      };
+      writeClassificationTemplates([
+        {
+          id: "many",
+          name: "Many",
+          currency: null,
+          dimensions: [
+            {
+              name: "Trade",
+              values: names,
+              rates: names.map((name) => ({
+                value: name,
+                derivation: { source: "length", factorMm: 2700 },
+                price: null,
+              })),
+            },
+          ],
+        },
+      ]);
+      render(
+        manyCatalog,
+        false,
+        names.map((name) => ({
+          valueId: name,
+          derivation: { source: "length", factorMm: 2400 },
+          price: null,
+        })),
+      );
+      click("Apply template Many");
+      const text = dialog()!.querySelector("p")!.textContent!;
+      expect(text).toContain("Trade: A; Trade: B; Trade: C; Trade: D; Trade: E and 2 more");
+      expect(text).not.toContain("Trade: F");
+    });
+
+    it("says that prices were not applied when the currencies differ", () => {
+      writeClassificationTemplates([wallTemplate]);
+      render(wallCatalog, false, [], "USD");
+      click("Apply template Walls");
+      expect(container.querySelector('[role="status"]')!.textContent).toContain(
+        "Prices were not applied",
+      );
+      act(() => root.unmount());
+      root = createRoot(container);
+      render(wallCatalog, false, differing, "USD");
+      click("Apply template Walls");
+      expect(dialog()!.textContent).toContain("Prices were not applied");
+    });
+
+    it("does not mention prices when the currencies match", () => {
+      writeClassificationTemplates([wallTemplate]);
+      render(wallCatalog, false, [], "EUR");
+      click("Apply template Walls");
+      expect(container.querySelector('[role="status"]')!.textContent).not.toContain("Prices");
+    });
   });
 });

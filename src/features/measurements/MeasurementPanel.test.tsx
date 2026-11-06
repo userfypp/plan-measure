@@ -528,12 +528,16 @@ describe("measurement grouping surfaces", () => {
     expect(measurementGroupCss).toMatch(
       /\.header\s*\{[^}]*padding-inline:\s*calc\(var\(--geometry-tree-inset-start\) \+ var\(--tree-depth, 0\) \* var\(--tree-indent\)\)\s*0;/s,
     );
+    // A root header opens its block inside its own (measured) top border: an 8px strip of the
+    // collection's tone, whose last pixel is the block's hairline.
     expect(measurementGroupCss).toMatch(
-      /\.header\[data-group-depth="0"\]\s*\{[^}]*border-top-color:\s*var\(--color-divider\);/s,
+      /\.header\[data-group-depth="0"\]\s*\{[^}]*border-top:\s*calc\(var\(--space-8\) \+ var\(--border-width\)\) solid var\(--color-surface-viewer\);/s,
     );
     expect(measurementGroupCss).toMatch(
-      /\.groups > \.group:first-of-type > \.header\s*\{[^}]*border-top-color:\s*transparent;/s,
+      /\.header\[data-group-depth="0"\]::before\s*\{[^}]*inset:\s*calc\(-1 \* var\(--border-width\)\) 0 auto;[^}]*height:\s*var\(--border-width\);[^}]*background:\s*var\(--color-divider\);[^}]*pointer-events:\s*none;/s,
     );
+    // Selectors across modules never match (class names are hashed per file).
+    expect(measurementGroupCss).not.toContain(".groups >");
     expect(measurementGroupCss).toMatch(/\.childGroups\s*\{[^}]*position:\s*relative;/s);
     expect(measurementGroupCss).not.toMatch(/\.childGroups\s*\{[^}]*(border|padding)/s);
     expect(measurementGroupCss).toMatch(
@@ -573,15 +577,36 @@ describe("measurement grouping surfaces", () => {
     );
     expect(measurementCollectionCss).not.toContain("edge-reserve");
     expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*border-left:/s);
+    // The body sits on the viewer tone and its blocks are the panel's surface, set apart by 8px of it.
+    expect(measurementCollectionCss).toMatch(
+      /\.collection\s*\{[^}]*background:\s*var\(--color-surface-viewer\);/s,
+    );
+    expect(measurementCollectionCss).toMatch(
+      /\.collection::after\s*\{[^}]*display:\s*block;[^}]*height:\s*var\(--space-8\);[^}]*content:\s*"";/s,
+    );
+    expect(measurementCollectionCss).toMatch(
+      /\.list\s*\{[^}]*margin-top:\s*var\(--space-8\);[^}]*border-top:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-panel\);/s,
+    );
+    expect(measurementCollectionCss).toMatch(
+      /\.empty\s*\{[^}]*margin:\s*var\(--space-8\) 0 0;[^}]*border-block:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-panel\);/s,
+    );
+    // A root group is one panel block; the groups' own lists are transparent and its closing
+    // hairline lies behind the rows (a row's own hairline is that line when a row ends the block).
+    expect(measurementGroupCss).toMatch(
+      /\.rootGroup\s*\{[^}]*position:\s*relative;[^}]*isolation:\s*isolate;[^}]*background:\s*var\(--color-surface-panel\);/s,
+    );
+    expect(measurementGroupCss).toMatch(
+      /\.rootGroup::after\s*\{[^}]*position:\s*absolute;[^}]*z-index:\s*-1;[^}]*inset:\s*auto 0 0;[^}]*height:\s*var\(--border-width\);[^}]*background:\s*var\(--color-divider\);[^}]*pointer-events:\s*none;/s,
+    );
+    expect(measurementGroupCss).not.toMatch(/\.list\s*\{[^}]*background:/s);
     expect(measurementRowCss).toMatch(
       /\.selectionMarker\s*\{[^}]*width:\s*var\(\s*--measurement-selection-marker-width,\s*var\(--geometry-measurement-selection-marker-width\)\s*\);/s,
     );
     expect(measurementRowCss).toMatch(
       /\.selection\s*\{[^}]*padding:[^;]*var\(--space-8\)[^;]*calc\(\s*var\(--geometry-tree-inset-start\) \+ var\(--measurement-row-content-indent, var\(--space-8\)\)\s*\);/s,
     );
-    expect(measurementRowCss).toMatch(
-      /\.selected \.name\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\);/s,
-    );
+    // The selection surface is the feedback; the name keeps its weight.
+    expect(measurementRowCss).not.toMatch(/\.selected \.name/);
   });
 
   it("keeps a collapsed group's controlled list mounted and hidden", () => {

@@ -13,6 +13,21 @@ describe("page browser visual contract", () => {
     expect(css).toContain("--geometry-workspace-drawer-width");
   });
 
+  it("lays the header out as a search beside Close and the error in the danger colour", () => {
+    const css = readFileSync(new URL("./PageBrowser.module.css", import.meta.url), "utf8");
+    const rule = (selector: string) =>
+      css.match(new RegExp(`(?:^|\\n)${selector.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
+    expect(rule(".header")).toContain("display: flex");
+    expect(rule(".header")).toContain("gap: var(--space-8)");
+    expect(rule(".header")).toContain(
+      "border-bottom: var(--border-width) solid var(--color-divider)",
+    );
+    expect(rule(".search")).toContain("flex: 1 1 auto");
+    expect(rule(".search")).toContain("min-width: 0");
+    expect(rule(".error")).toContain("color: var(--color-danger-semantic)");
+    expect(css).not.toContain(".heading");
+  });
+
   it("clamps portrait and landscape previews inside the fixed thumbnail slot", () => {
     const css = readFileSync(new URL("./PageBrowser.module.css", import.meta.url), "utf8");
     const rule = (selector: string) =>

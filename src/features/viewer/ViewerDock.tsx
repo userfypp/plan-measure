@@ -548,13 +548,12 @@ export function ViewerDock({
             <span>Control plan annotations and units.</span>
           </div>
           <div className={styles.settingBlock}>
-            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+            <div className={styles.unit}>
               <span id={displayUnitLabelId} className={styles.settingLabel}>
                 Display unit
               </span>
               <Select
                 id={displayUnitId}
-                className={styles.unitSelect}
                 label="Display unit"
                 labelledBy={displayUnitLabelId}
                 value={settings.displayUnit}
@@ -562,13 +561,12 @@ export function ViewerDock({
                 onChange={(displayUnit) => onSettingsChange({ displayUnit })}
               />
             </div>
-            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+            <div className={styles.unit}>
               <span id={areaDisplayLabelId} className={styles.settingLabel}>
                 Polygon area
               </span>
               <Select
                 id={areaDisplayId}
-                className={styles.unitSelect}
                 label="Polygon area"
                 labelledBy={areaDisplayLabelId}
                 value={settings.areaDisplay}
@@ -576,13 +574,12 @@ export function ViewerDock({
                 onChange={(areaDisplay) => onSettingsChange({ areaDisplay })}
               />
             </div>
-            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+            <div className={styles.unit}>
               <span id={lineThicknessLabelId} className={styles.settingLabel}>
                 Line thickness
               </span>
               <Select
                 id={lineThicknessId}
-                className={styles.unitSelect}
                 label="Line thickness"
                 labelledBy={lineThicknessLabelId}
                 value={appPreferences.lineThickness}
@@ -590,13 +587,12 @@ export function ViewerDock({
                 onChange={(value) => setAppPreference("lineThickness", value)}
               />
             </div>
-            <div className={`${styles.unit} ${styles.stackOnNarrow}`}>
+            <div className={styles.unit}>
               <span id={labelSizeLabelId} className={styles.settingLabel}>
                 Label size
               </span>
               <Select
                 id={labelSizeId}
-                className={styles.unitSelect}
                 label="Label size"
                 labelledBy={labelSizeLabelId}
                 value={appPreferences.labelSize}

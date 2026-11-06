@@ -1,32 +1,8 @@
+/* Hangs from a fixed top, so changing format or tab never moves the controls under the pointer. */
 dialog.dialog {
   width: min(var(--dialog-width-export), calc(100vw - var(--space-32)));
-}
-
-dialog.dialog[open] {
-  display: flex;
-  flex-direction: column;
-}
-
-.dialog > header,
-.dialog > div:last-child {
-  flex-shrink: 0;
-}
-
-.dialog .dialogBody {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  max-height: none;
-  overflow: hidden;
-}
-
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  max-height: calc(100dvh - var(--geometry-export-dialog-top) - var(--space-16));
+  margin-block: var(--geometry-export-dialog-top) auto;
 }
 
 /* Preserve native fieldset disabling without its anonymous layout box. */
@@ -37,13 +13,10 @@ dialog.dialog[open] {
 .controlsContent {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
   gap: var(--space-16);
 }
 
 .exportFields {
-  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-16);
@@ -54,12 +27,6 @@ dialog.dialog[open] {
   gap: var(--space-4);
 }
 
-.formatDescription {
-  padding-top: var(--space-4);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-}
-
 .fieldLabel {
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
@@ -67,94 +34,153 @@ dialog.dialog[open] {
   line-height: var(--line-height-base);
 }
 
-.columnSettings {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-}
-
-.columnToolbar {
-  flex-shrink: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-12);
-  border-bottom: var(--border-width) solid var(--color-divider);
-}
-
-.selectedCount {
-  color: var(--color-text-secondary);
+.formatDescription {
   font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-  font-variant-numeric: var(--font-variant-numeric-quantities);
-  text-align: center;
-  white-space: nowrap;
 }
 
-.bulkActions {
+/* The two boxes of the dialog: a band on top, then the content on the panel surface. */
+.columnSettings,
+.summaries {
+  min-width: 0;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-panel);
+}
+
+/* A compact control with --space-4 above and below, then the hairline: the chips and the
+   title keep equal gaps whatever the control height. */
+.columnToolbar,
+.boxTitle {
+  --band-height: calc(var(--control-height-compact) + 2 * var(--space-4));
+  min-height: calc(var(--band-height) + var(--border-width));
+  border-bottom: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+  background: var(--color-surface-shell);
+}
+
+.boxTitle {
   display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-8);
-  padding-bottom: var(--space-4);
+  margin: 0;
+  padding: 0 var(--space-16);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+/* Chips carry a 1px border outside their padding, so the band is inset a border less than --space-4:
+   the labels at both ends then land on the panel's 16px content edge. */
+.columnToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding-inline: calc(var(--space-4) - var(--border-width));
 }
 
 .sectionTabs {
   display: flex;
-  gap: var(--space-16);
+  min-width: 0;
+  min-height: var(--band-height);
+  align-items: center;
+  gap: var(--space-4);
 }
 
-.sectionTabs button {
-  min-height: var(--control-height-regular);
-  padding: var(--space-8) 0;
-  border: 0;
-  border-bottom: var(--geometry-selection-indicator-width) solid transparent;
-  border-radius: 0;
+/* A tab is a ghost chip like the presets beside it; hover and press never touch the selected one. */
+.tab {
+  composes: focusRing from global;
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: var(--control-height-compact);
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-12);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
+  cursor: pointer;
   transition: var(--transition-interactive);
 }
 
-.sectionTabs button[aria-selected="true"] {
-  border-bottom-color: var(--color-accent);
+.tabLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The selected tab's rule sits over the band's hairline, as wide as its chip: its bottom edge is the
+   band's, one border and the gap below the chip's padding edge. It is a border, so it survives forced
+   colours and fades with the other state colours. */
+.tab::after {
+  position: absolute;
+  inset-inline: calc(-1 * var(--border-width));
+  bottom: calc(-1 * (var(--space-4) + 2 * var(--border-width)));
+  border-bottom: var(--geometry-selection-indicator-width) solid transparent;
+  content: "";
+  pointer-events: none;
+  transition: var(--transition-interactive);
+}
+
+.tab[aria-selected="true"] {
   color: var(--color-text-primary);
 }
 
-.sectionTabs button:hover:not(:disabled) {
-  color: var(--color-accent);
+.tab[aria-selected="true"]::after {
+  border-bottom-color: var(--color-accent);
 }
 
-.sectionTabs button:active:not(:disabled) {
-  color: var(--color-accent-active-semantic);
+.tab:hover:not(:disabled):not([aria-selected="true"]) {
+  border-color: var(--color-control-hover-border);
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
 }
 
-.sectionTabs button:disabled {
+.tab:active:not(:disabled):not([aria-selected="true"]) {
+  border-color: var(--color-control-active-border);
+  background: var(--color-control-active-surface);
+}
+
+.tab:disabled {
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
-.sectionTabs button:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+.columnActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-12);
 }
 
+.selectedCount {
+  min-height: var(--control-height-compact);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  white-space: nowrap;
+}
+
+.bulkActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Every tab shares one height, sized for the longest list, so the box never resizes. */
 .panel {
   composes: scrollSurface overlayScroll from global;
-  flex: 0 1 auto;
-  min-height: 0;
-  height: auto;
-  max-height: none;
+  height: var(--geometry-export-panel-height);
+  padding: var(--space-8) var(--space-16);
   overflow-y: auto;
-  padding: var(--space-16);
-  background: var(--color-surface-panel);
-  border: var(--border-width) solid var(--color-divider);
-  border-top: 0;
   border-radius: 0 0 var(--radius-control) var(--radius-control);
 }
 
@@ -162,79 +188,116 @@ dialog.dialog[open] {
   display: none;
 }
 
-.form {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
+.panelFlush {
+  padding: 0;
 }
 
 .primarySections {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-24);
   align-items: start;
 }
 
 .section {
   display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
-.classificationSection {
-  display: grid;
-  gap: var(--space-4);
   min-width: 0;
 }
 
 .sectionTitle {
+  min-height: var(--target-current);
+  display: flex;
+  align-items: center;
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-base);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
 }
 
-.columnList,
-.additionalGrid,
-.classificationGrid {
+.columnList {
   display: grid;
-  gap: var(--space-4);
 }
 
 .additionalGrid {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: var(--space-12);
-  row-gap: 0;
+  column-gap: var(--space-24);
 }
 
-.classificationGrid {
-  grid-template-columns: repeat(
-    auto-fill,
-    minmax(min(100%, var(--geometry-export-classification-column-min-width)), 1fr)
-  );
-  gap: var(--space-12);
+/* One row per dimension: its name, then its columns, so each column lines up down the list. */
+.classificationRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  column-gap: var(--space-24);
+  padding: var(--space-4) var(--space-16);
 }
 
+.classificationRow + .classificationRow {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.classificationDimension {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
+.classificationDimension > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.compactBadge {
+  min-height: var(--geometry-count-badge-size);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
+}
+
+/* The row is the hit area; its surface reaches past the checkbox column so the tick keeps the grid edge. */
 .columnOption {
   min-height: var(--target-current);
   display: grid;
   grid-template-columns: var(--geometry-checkbox-size) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
-  border-radius: var(--radius-surface);
-  padding: 0;
+  margin-inline: calc(-1 * var(--space-8));
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-control);
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
   line-height: var(--line-height-base);
+  overflow-wrap: anywhere;
   cursor: pointer;
+  transition: var(--transition-interactive);
+}
+
+.columnOption:hover:not(.requiredOption) {
+  background: var(--color-control-hover-surface);
+}
+
+.columnOption:active:not(.requiredOption) {
+  background: var(--color-control-active-surface);
 }
 
 .requiredOption {
   grid-template-columns: var(--geometry-checkbox-size) minmax(0, 1fr) auto;
   cursor: default;
+}
+
+.requiredText {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
 }
 
 .columnOption input {
@@ -295,239 +358,64 @@ dialog.dialog[open] {
   min-width: 0;
 }
 
-.compactBadge {
-  min-height: var(--geometry-count-badge-size);
-  padding: 0 var(--space-4);
+/* One grid for the rows: the label column is as wide as its longest label, so the choices start together. */
+.summaryRows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: var(--space-24);
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: start;
+  padding: var(--space-4) var(--space-16);
+}
+
+.summaryRow + .summaryRow {
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.rowLabel {
+  min-height: var(--target-current);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-secondary);
 }
 
-.classificationRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  min-width: 0;
-  padding: var(--space-12) var(--space-12) var(--space-4);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-raised);
-}
-
-.classificationDimension {
-  grid-column: 1 / -1;
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-8);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-base);
-}
-
-.classificationDimension > span:first-child {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.classificationOption,
-.classificationColumnLabel {
-  min-width: 0;
-}
-
-@media (max-width: 600px) {
-  .primarySections {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-12);
-  }
-
-  .primarySections .section:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .additionalGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 520px) {
-  .exportFields {
-    grid-template-columns: 1fr;
-  }
-  .sectionTabs {
-    gap: var(--space-12);
-  }
-  .sectionTabs button {
-    font-size: var(--font-size-secondary);
-  }
-  .panel {
-    height: auto;
-    padding: var(--space-12);
-  }
-
-  .primarySections {
-    grid-template-columns: 1fr;
-    gap: var(--space-12);
-  }
-
-  .primarySections .section,
-  .primarySections .section:last-child {
-    grid-column: auto;
-    padding: var(--space-12) 0 0;
-    border-top: var(--border-width) solid var(--color-divider);
-  }
-
-  .primarySections .section:first-child {
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .additionalGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (forced-colors: active) {
-  .columnOption input {
-    appearance: auto;
-    border: 0;
-    background: initial;
-  }
-
-  .columnOption input::before {
-    display: none;
-  }
-}
-
-@media (max-height: 660px) and (min-width: 601px) {
-  .controlsContent {
-    gap: var(--space-12);
-  }
-  .panel {
-    padding: var(--space-12);
-  }
-}
-
-@media (max-width: 900px) {
-  .columnToolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-4) var(--space-12);
-  }
-  .selectedCount {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    padding-bottom: var(--space-8);
-  }
-}
-
-@media (max-width: 760px) {
-  .columnToolbar {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .bulkActions {
-    grid-row: 1;
-    justify-content: flex-start;
-  }
-  .sectionTabs {
-    grid-row: 2;
-  }
-  .selectedCount {
-    grid-row: 3;
-  }
-}
-
-.summaryScope {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-}
-
-.summaryNotice {
-  margin: 0;
-  color: var(--color-status-warning);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
-}
-
-.summaryOptions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-12);
-}
-
-.summaryChoiceGroup {
-  display: grid;
-  align-content: start;
-  gap: var(--space-8);
-  min-width: 0;
-  padding: var(--space-12);
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-panel);
-}
-
-.summaryChoiceGroup:only-child {
-  grid-column: 1 / -1;
-}
-
 .summaryChoices {
-  composes: scrollSurface overlayScroll from global;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4) var(--space-12);
-  max-height: var(--geometry-export-choice-list-max-height);
-  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  column-gap: var(--space-24);
 }
 
-.basicChoices {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
+/* A long list of dimensions scrolls inside its row; the padding keeps the row surfaces unclipped. */
 .dimensionChoices {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-  gap: 0 var(--space-12);
+  composes: scrollSurface overlayScroll from global;
+  max-height: var(--geometry-export-choice-list-max-height);
+  margin-inline: calc(-1 * var(--space-8));
+  padding-inline: var(--space-8);
+  overflow-y: auto;
 }
 
-.dimensionChoices .summaryChoice {
-  padding-block: 0;
+.summaryNotes {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-16);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
-.summaryChoice {
-  min-height: var(--control-height-compact);
-  padding: var(--space-4) var(--space-8);
-  overflow-wrap: anywhere;
+.noteText {
+  font-size: var(--font-size-secondary);
 }
 
-.classificationSection > .summaryOptions {
-  margin-bottom: var(--space-12);
-}
-
-@media (max-width: 760px) {
-  .summaryOptions {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 520px) {
-  .summaryChoices,
-  .basicChoices,
-  .dimensionChoices {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.dialog .standaloneBody {
-  overflow: auto;
-}
-
-.jsonMode .exportFields {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.panel > .summaryOptions {
-  margin-bottom: var(--space-16);
+.summaryNotes .notice {
+  color: var(--color-status-warning);
 }
 
 .exportFooter {
@@ -559,19 +447,138 @@ dialog.dialog[open] {
   gap: var(--space-8);
 }
 
-.classificationFields {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-4) var(--space-12);
-}
-
 @media (max-width: 760px) {
+  .columnToolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .columnActions {
+    order: -1;
+    justify-content: space-between;
+    padding-block: var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-divider);
+  }
+
+  /* The count has no chip around it: the chips' inner inset puts it level with their labels. */
+  .selectedCount {
+    padding-inline: calc(var(--space-12) + var(--border-width));
+  }
+
   .exportFooter {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-8);
   }
+
+  /* Stacked, an empty note would leave a blank row above the buttons. */
+  .footerInfo:empty {
+    display: none;
+  }
+
   .footerButtons > button {
     flex: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .panel {
+    height: auto;
+    min-height: var(--geometry-export-panel-height);
+  }
+
+  .primarySections,
+  .additionalGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .primarySections .section:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .classificationRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .classificationDimension {
+    grid-column: 1 / -1;
+    min-height: var(--target-current);
+  }
+
+  .summaryRows,
+  .summaryRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rowLabel {
+    min-height: 0;
+    padding-top: var(--space-8);
+  }
+}
+
+@media (max-width: 520px) {
+  .exportFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .columnToolbar {
+    padding-inline: 0;
+  }
+
+  .sectionTabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+
+  .tab {
+    padding-inline: var(--space-4);
+    font-size: var(--font-size-secondary);
+  }
+
+  .bulkActions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .boxTitle {
+    padding-inline: var(--space-12);
+  }
+
+  .panel {
+    padding: var(--space-8) var(--space-12);
+  }
+
+  .panelFlush {
+    padding: 0;
+  }
+
+  .classificationRow {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--space-12);
+  }
+
+  .summaryRow,
+  .summaryNotes {
+    padding-inline: var(--space-12);
+  }
+
+  .primarySections,
+  .additionalGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .primarySections .section:last-child {
+    grid-column: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .columnOption input {
+    appearance: auto;
+    border: 0;
+    background: initial;
+  }
+
+  .columnOption input::before {
+    display: none;
   }
 }

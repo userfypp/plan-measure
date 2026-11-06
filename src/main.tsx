@@ -4,6 +4,7 @@ import { App } from "./app/App";
 import { installOverlayScrollbars } from "./app/overlayScrollbars";
 import { installScrollHover } from "./app/scrollHover";
 import { ThemeProvider } from "./app/themeState";
+import { installInputModality } from "./utils/inputModality";
 import "./styles/global.css";
 
 const root = document.getElementById("root");
@@ -14,6 +15,7 @@ if (!root) {
 
 installOverlayScrollbars();
 installScrollHover();
+installInputModality();
 
 createRoot(root).render(
   <StrictMode>

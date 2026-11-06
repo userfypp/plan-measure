@@ -2,12 +2,17 @@
   min-width: 0;
 }
 
+/* A block of its own, framed like the items of the list it closes. */
 .row {
-  padding: var(--space-8) 0;
-  border-top: var(--border-width) solid var(--color-divider);
+  padding: var(--space-8);
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
-/* The label is text, so it sits on the 12px text edge while the field and its actions sit at 8. */
+/* The label titles the block like the title of a list item, on the 12px text edge while the field and its actions sit at 8. */
 .row label {
   padding-inline: var(--space-4);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }

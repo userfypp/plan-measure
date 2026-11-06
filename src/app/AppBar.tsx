@@ -48,6 +48,7 @@ interface AppBarProps {
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   viewSettings?: ProjectViewSettings | null;
   classificationDimensions?: readonly ClassificationDimension[];
+  projectHasPrices?: boolean;
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   confirmValueDeletion?: boolean;
@@ -144,6 +145,7 @@ export function AppBar({
   measurementDecimalPlaces = null,
   viewSettings = null,
   classificationDimensions,
+  projectHasPrices,
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
   confirmValueDeletion = true,
@@ -272,6 +274,7 @@ export function AppBar({
             measurementDecimalPlaces={measurementDecimalPlaces}
             viewSettings={viewSettings}
             classificationDimensions={classificationDimensions}
+            projectHasPrices={projectHasPrices}
             keyboardAuthoringEnabled={keyboardAuthoringEnabled}
             confirmMeasurementDeletion={confirmMeasurementDeletion}
             confirmValueDeletion={confirmValueDeletion}

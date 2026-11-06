@@ -629,3 +629,208 @@ it("omits unselected project totals from JSON while preserving requested breakdo
   expect(data.takeoff).not.toHaveProperty("projectTotals");
   expect(data.takeoff.breakdowns.map((view: { type: string }) => view.type)).toEqual(["page"]);
 });
+
+describe("JSON derived quantities", () => {
+  const point = (x: number, y: number) => ({ x, y });
+  const rect = { x: 40, y: 50 };
+  // Scale: 100 mm per unit. Wall: a 12 500 mm line, 2700 mm high (33 750 000 mm²). Slab: a
+  // 4000 × 5000 mm rectangle (20 000 000 mm²), 150 mm thick (3 000 000 000 mm³).
+  function ratedFixture(): CurrentSession {
+    const session = createEmptySession({ name: "Rated.pdf", size: 1, lastModified: 1 }, 1);
+    session.classificationCatalog.dimensions = [
+      {
+        id: "element",
+        name: "Element",
+        archived: false,
+        values: [
+          { id: "wall", name: "Wall", archived: false },
+          { id: "slab", name: "Slab", archived: false },
+        ],
+      },
+    ];
+    const page = session.pages[1]!;
+    page.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: point(0, 0),
+        end: point(10, 0),
+        referenceDistanceMm: 1000,
+      },
+    ];
+    page.measurements = [
+      {
+        id: "wall",
+        name: "Wall",
+        type: "line",
+        calibrationId: "scale",
+        points: [point(0, 0), point(125, 0)],
+        classificationValueIds: ["wall"],
+        visible: true,
+      },
+      {
+        id: "slab",
+        name: "Slab",
+        type: "rectangle",
+        calibrationId: "scale",
+        points: [point(0, 0), point(rect.x, 0), point(rect.x, rect.y), point(0, rect.y)],
+        classificationValueIds: ["slab"],
+        visible: true,
+      },
+    ];
+    session.settings.currency = "EUR";
+    session.classificationRates = [
+      {
+        valueId: "wall",
+        derivation: { source: "length", factorMm: 2700 },
+        price: { amount: 25, basis: "derived", unit: "m²" },
+      },
+      { valueId: "slab", derivation: { source: "area", factorMm: 150 }, price: null },
+    ];
+    return session;
+  }
+  const selection = { breakdowns: [] as const, classificationDimensionIds: ["element"] };
+
+  it("uses schema version 6 over every other version and exports the currency and rates", () => {
+    const session = ratedFixture();
+    expect(JSON.parse(buildDataJson(session)).schemaVersion).toBe(6);
+    const data = JSON.parse(buildDataJson(session, null, selection));
+    expect(data.schemaVersion).toBe(6);
+    expect(data.currency).toBe("EUR");
+    expect(data.classificationRates).toEqual([
+      {
+        valueId: "wall",
+        derivation: { source: "length", factorMm: 2700 },
+        price: { amount: 25, basis: "derived", unit: "m²" },
+      },
+      { valueId: "slab", derivation: { source: "area", factorMm: 150 }, price: null },
+    ]);
+    // Without rates the same project is version 4 (it has a rectangle) and has none of the fields.
+    session.classificationRates = [];
+    expect(JSON.parse(buildDataJson(session)).schemaVersion).toBe(4);
+  });
+
+  it("exports a null currency and the derived quantities per Takeoff group in millimetres", () => {
+    const session = ratedFixture();
+    session.settings.currency = null;
+    const data = JSON.parse(buildDataJson(session, null, selection));
+    expect(data.currency).toBeNull();
+    expect(data.takeoff).toMatchObject({ volumeUnit: "mm³", currency: null });
+    expect(data.takeoff.projectTotals).toMatchObject({
+      derivedArea: { kind: "value", value: 33_750_000 },
+      derivedVolume: { kind: "value", value: 3_000_000_000 },
+    });
+    expect(
+      data.takeoff.breakdowns[0].groups.map(
+        (group: { label: string; derivedArea: unknown; derivedVolume: unknown }) => [
+          group.label,
+          group.derivedArea,
+          group.derivedVolume,
+        ],
+      ),
+    ).toEqual([
+      ["Wall", { kind: "value", value: 33_750_000 }, { kind: "absent" }],
+      ["Slab", { kind: "absent" }, { kind: "value", value: 3_000_000_000 }],
+    ]);
+  });
+
+  it("exports the unrounded cost per Takeoff group in the project currency", () => {
+    // The 12 500 mm wall is 33.75 m² of derived area at 25 per m²; the slab has no price.
+    const data = JSON.parse(buildDataJson(ratedFixture(), null, selection));
+    expect(data.takeoff.currency).toBe("EUR");
+    expect(data.takeoff.projectTotals.cost).toEqual({ kind: "value", value: 843.75 });
+    expect(
+      data.takeoff.breakdowns[0].groups.map((group: { label: string; cost: unknown }) => [
+        group.label,
+        group.cost,
+      ]),
+    ).toEqual([
+      ["Wall", { kind: "value", value: 843.75 }],
+      ["Slab", { kind: "absent" }],
+    ]);
+  });
+
+  it("marks an overflowing cost as unavailable without nonfinite numbers", () => {
+    const session = ratedFixture();
+    session.classificationRates[0]!.price!.amount = 1e308;
+    const contents = buildDataJson(session, null, selection);
+    expect(JSON.parse(contents).takeoff.projectTotals.cost).toEqual({ kind: "unavailable" });
+    expect(contents).not.toContain("Infinity");
+  });
+
+  it("keeps the derived quantities of the breakdowns when the project totals are omitted", () => {
+    const data = JSON.parse(
+      buildDataJson(ratedFixture(), null, { ...selection, includeProjectTotals: false }),
+    );
+    expect(data.takeoff).not.toHaveProperty("projectTotals");
+    expect(data.takeoff.breakdowns[0].groups[0].derivedArea).toEqual({
+      kind: "value",
+      value: 33_750_000,
+    });
+  });
+
+  it("marks an overflowing derived quantity as unavailable without nonfinite numbers", () => {
+    const session = ratedFixture();
+    session.classificationRates[0]!.derivation!.factorMm = 1e308;
+    const contents = buildDataJson(session, null, selection);
+    expect(JSON.parse(contents).takeoff.projectTotals.derivedArea).toEqual({
+      kind: "unavailable",
+    });
+    expect(contents).not.toContain("Infinity");
+  });
+
+  it("rejects rates of unknown values and non-finite numbers", () => {
+    const orphan = ratedFixture();
+    orphan.classificationRates[0]!.valueId = "gone";
+    expect(() => buildDataJson(orphan)).toThrow("missing value");
+    const dimension = ratedFixture();
+    dimension.classificationRates[0]!.valueId = "element";
+    expect(() => buildDataJson(dimension)).toThrow("missing value");
+    const infiniteFactor = ratedFixture();
+    infiniteFactor.classificationRates[0]!.derivation!.factorMm = Infinity;
+    expect(() => buildDataJson(infiniteFactor)).toThrow(RangeError);
+    const infinitePrice = ratedFixture();
+    infinitePrice.classificationRates[0]!.price!.amount = Infinity;
+    expect(() => buildDataJson(infinitePrice)).toThrow(RangeError);
+  });
+
+  it("leaves the output without rates exactly as in versions 1 to 5", () => {
+    const session = ratedFixture();
+    session.classificationRates = [];
+    session.settings.currency = "EUR";
+    const group = [
+      "key",
+      "label",
+      "archived",
+      "measurementCount",
+      "excludedCount",
+      "length",
+      "perimeter",
+      "area",
+      "count",
+    ];
+    const plain = JSON.parse(buildDataJson(session));
+    expect(Object.keys(plain)).toEqual([
+      "schemaVersion",
+      "pdf",
+      "pageCount",
+      "coordinateSystem",
+      "pages",
+      "classificationCatalog",
+    ]);
+    const data = JSON.parse(buildDataJson(session, null, { ...selection, breakdowns: ["type"] }));
+    expect(Object.keys(data)).toEqual([...Object.keys(plain), "takeoff"]);
+    expect(Object.keys(data.takeoff)).toEqual([
+      "linearUnit",
+      "areaUnit",
+      "allPages",
+      "includesHidden",
+      "projectTotals",
+      "breakdowns",
+    ]);
+    expect(Object.keys(data.takeoff.projectTotals)).toEqual(group);
+    for (const breakdown of data.takeoff.breakdowns)
+      for (const item of breakdown.groups) expect(Object.keys(item)).toEqual(group);
+  });
+});

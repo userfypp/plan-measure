@@ -1,3 +1,4 @@
+/* The body sits on the viewer tone; its blocks are the panel's own surface, set apart by 8px of it. */
 .collection {
   --tree-indent: calc(var(--target-current) / 2);
   --tree-edge-end: var(--geometry-tree-inset-end);
@@ -8,16 +9,25 @@
   overflow-x: clip;
   overflow-y: auto;
   scrollbar-gutter: auto;
-  background: var(--color-surface-panel);
+  background: var(--color-surface-viewer);
 }
 
+/* The last block is followed by 8px of the body's tone, as every block is preceded by them. */
+.collection::after {
+  display: block;
+  height: var(--space-8);
+  content: "";
+}
+
+/* One block for the whole list, opened by the 8px margin and closed by the last row's hairline. */
 .list {
   --measurement-selection-marker-width: 0px;
 
   display: grid;
   min-width: 0;
   gap: 0;
-  padding: 0 0 var(--space-8);
+  margin-top: var(--space-8);
+  border-top: var(--border-width) solid var(--color-divider);
   background: var(--color-surface-panel);
 }
 
@@ -27,8 +37,10 @@
 }
 
 .empty {
-  margin: 0;
+  margin: var(--space-8) 0 0;
   padding: var(--space-16) calc(var(--geometry-panel-gutter) + var(--space-4));
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);

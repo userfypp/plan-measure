@@ -188,6 +188,29 @@ describe("page browser", () => {
     expect(list()).not.toBeNull();
     expect(input("Search labels").value).toBe("");
   });
+  it("puts the search beside Close pages in an untitled header and Go to page in its own band", async () => {
+    await mount(1, false, 12);
+    const panel = container.querySelector("aside")!;
+    expect(panel.querySelector("h2")).toBeNull();
+    const header = panel.querySelector("header")!;
+    expect(header.querySelector('input[type="search"]')).toBe(input("Search labels"));
+    expect(header.querySelector('[aria-label="Close pages"]')).not.toBeNull();
+    const field = panel.querySelector<HTMLInputElement>('input[type="number"]')!;
+    expect(header.contains(field)).toBe(false);
+    const goTo = field.closest("form")!;
+    expect(goTo.querySelector("label")?.textContent).toBe("Go to page");
+    expect(document.getElementById(field.getAttribute("aria-labelledby")!)).toBe(
+      goTo.querySelector("label"),
+    );
+    expect(goTo.textContent).toContain("of 12");
+    expect(panel.querySelector('[role="alert"]')).toBeNull();
+    await act(async () =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.getAttribute("aria-label") === "Close pages")!
+        .click(),
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
   it("validates physical page range separately from PDF labels", async () => {
     await mount();
     const field = container.querySelector<HTMLInputElement>('input[type="number"]')!;

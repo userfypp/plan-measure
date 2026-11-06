@@ -333,6 +333,8 @@ touches startup, the viewer, the canvas or the panels, check each point:
    `installScrollHover` (`src/app/scrollHover.ts`) without touching React state.
 7. **Motion only hides waits, never adds them.** Animate opacity only (never
    transform: it slows the e2e timings and makes automation wait for movement).
+   The one exception is the `Select` marquee, which slides an overflowing value
+   inside a trigger that never moves, and only while it is hovered or focused.
    One-time entrances use WAAPI through `src/utils/reveal.ts`; menus and
    popovers use the CSS `overlayEnter` fade. Loading overlays wait
    `--loading-reveal-delay` before appearing, so fast loads show nothing. Both

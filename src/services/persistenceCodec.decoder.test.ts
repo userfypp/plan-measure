@@ -277,7 +277,7 @@ describe("the oldest saved schemas", () => {
     const session = deserializeSession(JSON.stringify(raw()));
     const page = session.pages[1]!;
 
-    expect(session).toMatchObject({ schemaVersion: 16, pdf: header.pdf, pageCount: 1 });
+    expect(session).toMatchObject({ schemaVersion: 17, pdf: header.pdf, pageCount: 1 });
     expect(page.calibrations).toStrictEqual([
       {
         id: calibrationId,
@@ -448,5 +448,212 @@ describe("the oldest saved schemas", () => {
   ])("rejects a V4 page with %s", (_name, edit) => {
     const json = edited(v4(), (session) => edit(session.pages["1"].nextMeasurementNumber));
     expect(() => deserializeSession(json)).toThrow("The saved state for page 1 is invalid.");
+  });
+});
+
+describe("the saved currency and classification rates", () => {
+  const derivation = { source: "length", factorMm: 2700 };
+  const price = { amount: 25, basis: "derived", unit: "m²" };
+  const entry = { valueId: "electrical", derivation, price };
+  const INFINITY = "__infinity__";
+  const NEGATIVE_ZERO = "__negative-zero__";
+
+  function ratesSession(): CurrentSession {
+    const created = session();
+    created.classificationCatalog.dimensions[0]!.values.push({
+      id: "plumbing",
+      name: "Plumbing",
+      archived: false,
+    });
+    created.settings.currency = "EUR";
+    created.classificationRates = [
+      {
+        valueId: "electrical",
+        derivation: { source: "length", factorMm: 2700 },
+        price: { amount: 25, basis: "derived", unit: "m²" },
+      },
+    ];
+    return created;
+  }
+
+  /** Edits the V17 JSON; JSON.stringify cannot write infinity or -0, so placeholders become `1e309` and `-0`. */
+  function ratesJson(edit: (raw: Json) => void): string {
+    const raw = JSON.parse(serializeSession(ratesSession())) as Json;
+    edit(raw);
+    return JSON.stringify(raw)
+      .replace(`"${INFINITY}"`, "1e309")
+      .replace(`"${NEGATIVE_ZERO}"`, "-0");
+  }
+
+  const CURRENCY_ERROR = "The saved currency is invalid.";
+  const RATES_ERROR = "The saved classification rates are invalid.";
+
+  it("round trips a valid currency and rates", () => {
+    const original = ratesSession();
+    expect(deserializeSession(serializeSession(original))).toStrictEqual(original);
+  });
+
+  it("opens a recoverable catalog with its rates intact and still validates them", () => {
+    const conflicting = (raw: Json) => {
+      raw.classificationCatalog.dimensions[0].values[0].name = "Électrique";
+      raw.classificationCatalog.dimensions[0].values[1].name = "Électrique";
+    };
+    const decoded = deserializeSessionForRecovery(ratesJson(conflicting));
+    expect(decoded.compatibility).toBe("classification-repair-required");
+    expect(decoded.session.classificationRates).toStrictEqual(ratesSession().classificationRates);
+    expect(() =>
+      deserializeSessionForRecovery(
+        ratesJson((raw) => {
+          conflicting(raw);
+          raw.classificationRates[0].derivation.factorMm = 0;
+        }),
+      ),
+    ).toThrow(RATES_ERROR);
+  });
+
+  it.each<[string, (raw: Json) => void]>([
+    ["absent", (raw) => delete raw.settings.currency],
+    ["lowercase", (raw) => (raw.settings.currency = "eur")],
+    ["too long", (raw) => (raw.settings.currency = "EURO")],
+    ["empty", (raw) => (raw.settings.currency = "")],
+    ["a symbol", (raw) => (raw.settings.currency = "€")],
+    ["a number", (raw) => (raw.settings.currency = 123)],
+  ])("rejects a currency that is %s", (_name, edit) => {
+    expect(() => deserializeSession(ratesJson(edit))).toThrow(CURRENCY_ERROR);
+  });
+
+  it.each<[string, (raw: Json) => void]>([
+    ["absent", (raw) => delete raw.classificationRates],
+    ["an object", (raw) => (raw.classificationRates = {})],
+    ["an array of numbers", (raw) => (raw.classificationRates = [1])],
+    ["without a value", (raw) => delete raw.classificationRates[0].valueId],
+    ["for an unknown value", (raw) => (raw.classificationRates[0].valueId = "gone")],
+    ["for a dimension", (raw) => (raw.classificationRates[0].valueId = "trade")],
+    [
+      "duplicated for a value",
+      (raw) => raw.classificationRates.push(structuredClone(raw.classificationRates[0])),
+    ],
+    [
+      "with neither a derivation nor a price",
+      (raw) => {
+        raw.classificationRates[0].derivation = null;
+        raw.classificationRates[0].price = null;
+      },
+    ],
+    ["without a derivation key", (raw) => delete raw.classificationRates[0].derivation],
+    ["without a price key", (raw) => delete raw.classificationRates[0].price],
+    ["from a count", (raw) => (raw.classificationRates[0].derivation.source = "count")],
+    ["from a volume", (raw) => (raw.classificationRates[0].derivation.source = "volume")],
+    ["with a factor of zero", (raw) => (raw.classificationRates[0].derivation.factorMm = 0)],
+    ["with a negative factor", (raw) => (raw.classificationRates[0].derivation.factorMm = -1)],
+    ["with a text factor", (raw) => (raw.classificationRates[0].derivation.factorMm = "2700")],
+    [
+      "with an infinite factor",
+      (raw) => (raw.classificationRates[0].derivation.factorMm = INFINITY),
+    ],
+    ["with a negative amount", (raw) => (raw.classificationRates[0].price.amount = -0.01)],
+    ["with a text amount", (raw) => (raw.classificationRates[0].price.amount = "25")],
+    ["with an infinite amount", (raw) => (raw.classificationRates[0].price.amount = INFINITY)],
+    ["with a volume basis", (raw) => (raw.classificationRates[0].price.basis = "volume")],
+    [
+      "in a linear unit for an area basis",
+      (raw) => Object.assign(raw.classificationRates[0].price, { basis: "area", unit: "m" }),
+    ],
+    [
+      "in each for a length basis",
+      (raw) => Object.assign(raw.classificationRates[0].price, { basis: "length", unit: "each" }),
+    ],
+    [
+      "in cubic units for a derivation from length",
+      (raw) => (raw.classificationRates[0].price.unit = "m³"),
+    ],
+    [
+      "in acres for a length basis",
+      (raw) => Object.assign(raw.classificationRates[0].price, { basis: "length", unit: "ac" }),
+    ],
+    [
+      "in square units for a derivation from area",
+      (raw) => (raw.classificationRates[0].derivation.source = "area"),
+    ],
+    [
+      "on a derived basis without a derivation",
+      (raw) => (raw.classificationRates[0].derivation = null),
+    ],
+  ])("rejects rates %s", (_name, edit) => {
+    expect(() => deserializeSession(ratesJson(edit))).toThrow(RATES_ERROR);
+  });
+
+  it("accepts the units each basis allows", () => {
+    for (const [basis, unit] of [
+      ["length", "ft"],
+      ["perimeter", "mm"],
+      ["area", "ac"],
+      ["area", "in²"],
+      ["count", "each"],
+    ] as const) {
+      const decoded = deserializeSession(
+        ratesJson((raw) => Object.assign(raw.classificationRates[0].price, { basis, unit })),
+      );
+      expect(decoded.classificationRates[0]!.price).toStrictEqual({ amount: 25, basis, unit });
+    }
+    const volume = deserializeSession(
+      ratesJson((raw) => {
+        raw.classificationRates[0].derivation.source = "area";
+        raw.classificationRates[0].price.unit = "ft³";
+      }),
+    );
+    expect(volume.classificationRates[0]!.price?.unit).toBe("ft³");
+  });
+
+  it("puts out-of-order entries in catalogue order", () => {
+    const decoded = deserializeSession(
+      ratesJson((raw) => {
+        raw.classificationRates.unshift({ ...entry, valueId: "plumbing" });
+        raw.classificationRates.reverse();
+      }),
+    );
+    expect(decoded.classificationRates.map(({ valueId }) => valueId)).toStrictEqual([
+      "electrical",
+      "plumbing",
+    ]);
+  });
+
+  it("drops extra keys and a negative zero amount", () => {
+    const decoded = deserializeSession(
+      ratesJson((raw) => {
+        const [saved] = raw.classificationRates;
+        saved.note = "x";
+        saved.derivation.height = 1;
+        saved.price.currency = "USD";
+        saved.price.amount = NEGATIVE_ZERO;
+      }),
+    );
+    expect(decoded.classificationRates).toStrictEqual([
+      {
+        valueId: "electrical",
+        derivation: { source: "length", factorMm: 2700 },
+        price: { amount: 0, basis: "derived", unit: "m²" },
+      },
+    ]);
+    expect(Object.is(decoded.classificationRates[0]!.price!.amount, 0)).toBe(true);
+  });
+
+  it("migrates a V16 session with stray rates and currency to no rates and no currency", () => {
+    const raw = JSON.parse(serializeSession(ratesSession())) as Json;
+    raw.schemaVersion = 16;
+    raw.settings.currency = "X";
+    raw.classificationRates = [1, "junk"];
+    const migrated = deserializeSession(JSON.stringify(raw));
+    expect(migrated.schemaVersion).toBe(17);
+    expect(migrated.settings.currency).toBeNull();
+    expect(migrated.classificationRates).toStrictEqual([]);
+  });
+
+  it("does not open a newer schema", () => {
+    const raw = JSON.parse(serializeSession(ratesSession())) as Json;
+    raw.schemaVersion = 18;
+    expect(() => deserializeSession(JSON.stringify(raw))).toThrow(
+      "The saved session uses an unsupported schema.",
+    );
   });
 });

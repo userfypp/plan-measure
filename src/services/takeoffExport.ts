@@ -7,6 +7,7 @@ import {
 import { buildTakeoffSummary, type TakeoffSummary } from "./takeoffSummary";
 import { resolveLinearUnit } from "../utils/format";
 import {
+  fromCubicMillimetres,
   fromMillimetres,
   fromSquareMillimetres,
   fromSquareMillimetresToAcres,
@@ -71,16 +72,36 @@ export function buildTakeoffTables(
     "area_unit",
     "count",
     "count_status",
+    "derived_area",
+    "derived_area_status",
+    "derived_volume",
+    "derived_volume_status",
+    "volume_unit",
+    "cost",
+    "cost_status",
+    "currency",
   ];
+  const convertArea = (value: number) =>
+    session.settings.areaDisplay === "ac"
+      ? fromSquareMillimetresToAcres(value)
+      : fromSquareMillimetres(value, linearUnit);
   const table = (
     groups: readonly MeasurementTotalGroup[],
     breakdown: TakeoffSummary["breakdowns"][number] | null,
   ): ExportTable => ({
     headers: [...headers],
     columnTypes: headers.map((header) =>
-      ["measurement_count", "excluded_count", "length", "perimeter", "area", "count"].includes(
-        header,
-      )
+      [
+        "measurement_count",
+        "excluded_count",
+        "length",
+        "perimeter",
+        "area",
+        "count",
+        "derived_area",
+        "derived_volume",
+        "cost",
+      ].includes(header)
         ? "number"
         : "text",
     ),
@@ -97,13 +118,15 @@ export function buildTakeoffTables(
       ...convertQuantity(group.length, (value) => fromMillimetres(value, linearUnit)),
       ...convertQuantity(group.perimeter, (value) => fromMillimetres(value, linearUnit)),
       linearUnit,
-      ...convertQuantity(group.area, (value) =>
-        session.settings.areaDisplay === "ac"
-          ? fromSquareMillimetresToAcres(value)
-          : fromSquareMillimetres(value, linearUnit),
-      ),
+      ...convertQuantity(group.area, convertArea),
       areaUnit,
       ...convertQuantity(group.count, (value) => value),
+      ...convertQuantity(group.derivedArea, convertArea),
+      ...convertQuantity(group.derivedVolume, (value) => fromCubicMillimetres(value, linearUnit)),
+      // Volume stays in cubic linear units even when the area is shown in acres.
+      `${linearUnit}³`,
+      ...convertQuantity(group.cost, (value) => value),
+      session.settings.currency,
     ]),
   });
   const project = table(

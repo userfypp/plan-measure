@@ -140,7 +140,7 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return button;
 }
 
-// The disclosure toggle is the button titled with the scale name.
+// The disclosure toggle is the button titled with the scale or dimension name.
 function scaleToggle(name: string): HTMLButtonElement {
   const toggle = Array.from(
     document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"),
@@ -235,6 +235,8 @@ describe("Undo and Redo through the real panels", () => {
     renameClassification("Actions for dimension Trade", " Trade ");
     expect(text("history")).toBe("false:true");
 
+    // Dimensions start closed; the value's menu waits in the body.
+    click(scaleToggle("Trade"));
     renameClassification("Actions for value Electrical", "Electrical");
     expect(text("history")).toBe("false:true");
   });

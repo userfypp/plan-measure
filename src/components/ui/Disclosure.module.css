@@ -1,22 +1,23 @@
-/* A list of disclosures: the items sit in the panel gutter, split by hairlines. */
+/* A list of disclosures: each item is a full-width block of the panel, set apart from the next by the workspace tone. */
 .list {
   display: grid;
-  gap: 0;
+  gap: var(--space-8);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .item {
-  padding: var(--space-4) 0;
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
-.item + .item {
-  border-top: var(--border-width) solid var(--color-divider);
+/* The selected block is framed in the accent, so the active one reads at a glance. */
+.item:has(> .root[data-selected]) {
+  border-block-color: var(--color-accent);
 }
 
 .root {
-  border-radius: var(--radius-control);
   transition: var(--transition-interactive);
 }
 
@@ -37,13 +38,14 @@
   background-color: var(--color-selection-surface);
 }
 
-/* On a highlighted surface the header buttons need the stronger border; the body buttons rest without one. */
-.root[data-selected] .header button:not(.toggle),
-.root:has(> .header:hover) .header button:not(.toggle) {
+/* The selection surface is lit at rest, so its header buttons keep the stronger border. */
+.root[data-selected] .header button:not(.toggle) {
   border-color: var(--color-control-hover-border);
 }
 
-.root .body :where(button) {
+/* Buttons rest without an outline, in the header and the body; hover, press and focus add it. Submit buttons of a form keep theirs. */
+.root .header :where(button),
+.root .body :where(button:not([type="submit"])) {
   border-color: transparent;
 }
 
@@ -52,7 +54,7 @@
   min-width: 0;
   align-items: center;
   gap: var(--space-8);
-  padding-inline-end: var(--space-12);
+  padding-inline-end: var(--space-8);
 }
 
 .toggle {
@@ -63,7 +65,7 @@
   min-height: var(--target-current);
   align-items: center;
   gap: var(--space-8);
-  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  padding: var(--space-8);
   color: var(--color-text-primary);
   background: transparent;
   border: 0;
@@ -73,7 +75,8 @@
   cursor: pointer;
 }
 
-.toggle:focus-visible {
+/* Inset so the block's edges never clip the ring; the extra class outranks the shared ring in any sheet order. */
+.root .toggle:focus-visible {
   outline-offset: calc(-1 * var(--focus-offset));
 }
 
@@ -109,6 +112,18 @@
   white-space: nowrap;
 }
 
+/* The closed row's figure sits at the end, in tabular numerals; the title gives way to it, never the figure. */
+.summary {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
 .actions {
   display: flex;
   flex: 0 0 auto;
@@ -118,6 +133,11 @@
 
 .body {
   display: grid;
-  gap: var(--space-16);
-  padding: var(--space-4) var(--space-12) var(--space-12);
+  gap: var(--space-8);
+  padding: 0 var(--space-8) var(--space-8);
+}
+
+.body[data-flush] {
+  gap: 0;
+  padding: 0;
 }

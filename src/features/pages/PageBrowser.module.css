@@ -15,29 +15,18 @@
   font-family: var(--font-family-sans);
   font-size: var(--font-size-base);
 }
+/* One row, as in the classification catalog: the search takes what the close button leaves. */
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: var(--target-coarse);
+  gap: var(--space-8);
   flex: 0 0 auto;
-  padding: var(--space-4) var(--geometry-panel-gutter);
+  padding: var(--space-8) var(--geometry-panel-gutter);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
-.header h2 {
-  margin: 0;
-  font-size: var(--font-size-heading);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
-}
-.heading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-8);
+.search {
+  flex: 1 1 auto;
   min-width: 0;
-  /* The title sits on the 12px content edge: gutter + inner space. */
-  padding-inline: var(--space-4);
-  white-space: nowrap;
 }
 .meta {
   color: var(--color-text-secondary);
@@ -45,26 +34,27 @@
   line-height: var(--line-height-secondary);
 }
 .controls {
-  display: grid;
-  gap: var(--space-8);
-  /* Fields sit on the 12px content edge: gutter + inner space. */
-  padding: var(--space-8) calc(var(--geometry-panel-gutter) + var(--space-4));
+  flex: 0 0 auto;
+  border-bottom: var(--border-width) solid var(--color-divider);
 }
+/* Label on the 12px text edge, its field on the 8px control edge. */
 .goTo {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  justify-content: space-between;
+  gap: var(--space-8);
   min-width: 0;
+  padding: var(--space-8) var(--geometry-panel-gutter) var(--space-8)
+    calc(var(--geometry-panel-gutter) + var(--space-4));
+  white-space: nowrap;
+}
+.goTo label {
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
 }
 .list:focus-visible {
   outline: var(--focus-outline);
   outline-offset: calc(-1 * var(--focus-width));
-}
-.goTo {
-  justify-content: space-between;
-  gap: var(--space-8);
-  font-size: var(--font-size-secondary);
-  white-space: nowrap;
 }
 .numberField {
   display: flex;
@@ -83,8 +73,24 @@
   appearance: none;
   margin: 0;
 }
-.goTo span {
+.total {
   color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+}
+/* Messages under the field, on the same 12px text edge. */
+.feedback {
+  display: grid;
+  gap: var(--space-8);
+  padding: 0 var(--geometry-panel-gutter) var(--space-8)
+    calc(var(--geometry-panel-gutter) + var(--space-4));
+}
+.error {
+  color: var(--color-danger-semantic);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
 }
 .notice {
   color: var(--color-text-secondary);
@@ -218,6 +224,27 @@
 }
 
 .skeletonBar {
+  flex: 1 1 auto;
+  height: var(--control-height-compact);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+}
+.skeletonButton {
+  flex: 0 0 var(--control-height-compact);
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+}
+.skeletonLabel {
+  flex: 1 1 auto;
+  height: var(--line-height-base);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-field);
+}
+.skeletonField {
+  flex: 0 0 var(--geometry-page-goto-input-width);
+  width: var(--geometry-page-goto-input-width);
   height: var(--control-height-compact);
   border-radius: var(--radius-control);
   background: var(--color-surface-field);

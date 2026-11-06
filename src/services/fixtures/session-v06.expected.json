@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 16,
+  "schemaVersion": 17,
   "pdf": {
     "name": "Planta baja – obra ñ.pdf",
     "size": 46,
@@ -229,7 +229,8 @@
     "showMeasurements": true,
     "showCalibration": false,
     "measureClouds": false,
-    "defaultMeasurementFilters": null
+    "defaultMeasurementFilters": null,
+    "currency": null
   },
   "classificationCatalog": {
     "dimensions": [
@@ -264,5 +265,6 @@
       }
     ]
   },
-  "pageLabelOverrides": {}
+  "pageLabelOverrides": {},
+  "classificationRates": []
 }

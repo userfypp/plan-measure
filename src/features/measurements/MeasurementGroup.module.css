@@ -3,6 +3,31 @@
   background: transparent;
 }
 
+/* A root group is one block of the collection: the panel's surface from its header to its last row.
+   Its closing hairline lies behind the rows, so it only shows under a header that ends the block
+   (a collapsed group, or a collapsed last subgroup); under a row, the row's own hairline is that line. */
+.rootGroup {
+  position: relative;
+  isolation: isolate;
+  background: var(--color-surface-panel);
+}
+
+.rootGroup::after {
+  position: absolute;
+  z-index: -1;
+  inset: auto 0 0;
+  height: var(--border-width);
+  background: var(--color-divider);
+  content: "";
+  pointer-events: none;
+}
+
+/* The block holding the focus rises above the ones after it, so a focus ring that reaches past its
+   edge (a collapsed group's chevron or eye) is not cut by the strip that opens the next block. */
+.rootGroup:focus-within {
+  z-index: var(--z-raised);
+}
+
 .header {
   display: grid;
   min-width: 0;
@@ -22,12 +47,21 @@
   user-select: none;
 }
 
+/* A root header opens its block with 8px of the collection's tone and a hairline. Both live in the
+   header's own top border, which the virtual list measures: the strip is the border, the hairline
+   its last pixel. */
 .header[data-group-depth="0"] {
-  border-top-color: var(--color-divider);
+  position: relative;
+  border-top: calc(var(--space-8) + var(--border-width)) solid var(--color-surface-viewer);
 }
 
-.groups > .group:first-of-type > .header {
-  border-top-color: transparent;
+.header[data-group-depth="0"]::before {
+  position: absolute;
+  inset: calc(-1 * var(--border-width)) 0 auto;
+  height: var(--border-width);
+  background: var(--color-divider);
+  content: "";
+  pointer-events: none;
 }
 
 .toggle {
@@ -203,7 +237,6 @@
   display: grid;
   min-width: 0;
   padding: 0;
-  background: var(--color-surface-panel);
   gap: 0;
 }
 

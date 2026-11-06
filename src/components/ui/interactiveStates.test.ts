@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const globalCss = readFileSync(new URL("../../styles/global.css", import.meta.url), "utf8");
 const tokensCss = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
 const scrollSurfaceCss = readFileSync(new URL("./scrollSurface.css", import.meta.url), "utf8");
+const controlStatesCss = readFileSync(new URL("./controlStates.css", import.meta.url), "utf8");
 const selectCss = readFileSync(new URL("./Select.module.css", import.meta.url), "utf8");
 const popoverCss = readFileSync(new URL("./Popover.module.css", import.meta.url), "utf8");
 const buttonCss = readFileSync(new URL("./Button.module.css", import.meta.url), "utf8");
@@ -128,6 +129,41 @@ describe("shared interactive-state contract", () => {
     expect(disclosureCss).toMatch(/\.toggle\s*\{[^}]*min-height:\s*var\(--target-current\);/s);
   });
 
+  it("insets a disclosure toggle's focus ring with a selector that outranks the shared ring", () => {
+    expect(disclosureCss).toMatch(
+      /\.root \.toggle:focus-visible\s*\{[^}]*outline-offset:\s*calc\(-1 \* var\(--focus-offset\)\);/s,
+    );
+    expect(disclosureCss).not.toMatch(/(^|\n)\.toggle:focus-visible/);
+  });
+
+  it("lays disclosures out as full-width panel blocks framed by hairlines and set apart by the workspace tone", () => {
+    expect(disclosureCss).toMatch(/\.list\s*\{[^}]*gap:\s*var\(--space-8\);/s);
+    expect(disclosureCss).toMatch(
+      /\.item\s*\{[^}]*border-block:\s*var\(--border-width\) solid var\(--color-divider\);[^}]*background:\s*var\(--color-surface-panel\);/s,
+    );
+    expect(disclosureCss).not.toMatch(/\.root\s*\{[^}]*border-radius/s);
+    expect(disclosureCss).toMatch(/\.toggle\s*\{[^}]*padding:\s*var\(--space-8\);/s);
+    expect(disclosureCss).toMatch(
+      /\.body\s*\{[^}]*display:\s*grid;[^}]*gap:\s*var\(--space-8\);[^}]*padding:\s*0 var\(--space-8\) var\(--space-8\);/s,
+    );
+    // The open block is framed in the accent; the hairlines of the others stay neutral.
+    expect(disclosureCss).toMatch(
+      /\.item:has\(> \.root\[data-selected\]\)\s*\{[^}]*border-block-color:\s*var\(--color-accent\);/s,
+    );
+  });
+
+  it("lights a disclosure's header buttons only under the pointer, not with the header", () => {
+    expect(disclosureCss).toMatch(
+      /\.root\[data-selected\] \.header button:not\(\.toggle\)\s*\{[^}]*border-color:\s*var\(--color-control-hover-border\);/s,
+    );
+    expect(disclosureCss).not.toMatch(
+      /\.header:hover\)[^{]*\.header button[^{]*\{[^}]*border-color/s,
+    );
+    expect(disclosureCss).toMatch(
+      /\.root \.header :where\(button\),\s*\.root \.body :where\(button:not\(\[type="submit"\]\)\)\s*\{[^}]*border-color:\s*transparent;/s,
+    );
+  });
+
   it("keeps selection menus compact on fine pointers without reducing the coarse target", () => {
     expect(menuCss).toMatch(/\.item\s*\{[^}]*min-height:\s*var\(--target-current\);/s);
     expect(menuCss).toMatch(/\.selectionMenu \.items\s*\{[^}]*gap:\s*0;/s);
@@ -188,5 +224,65 @@ describe("shared interactive-state contract", () => {
     expect(switchCss).toMatch(
       /:global\(:root\[data-targets="large"\]\)\s+\.target\s*\{[^}]*width:\s*var\(--target-coarse\);[^}]*height:\s*var\(--target-coarse\);/s,
     );
+  });
+
+  it("slides a select value wider than its trigger only with motion allowed, and never moves a short one", () => {
+    const motion =
+      selectCss.match(/@media \(prefers-reduced-motion: no-preference\)\s*\{[\s\S]*?\n\}/)?.[0] ??
+      "";
+    expect(motion).toMatch(
+      /:not\(\[data-motion="reduce"\]\)[^{]*:hover[^{]*\.valueRun\s*\{[^}]*animation:\s*marquee-run var\(--select-marquee-duration\)/,
+    );
+    expect(motion).toMatch(
+      /:not\(\[data-motion="reduce"\]\)[^{]*:hover[^{]*\.valueText\s*\{[^}]*width:\s*max-content;[^}]*min-width:\s*100%;[^}]*animation:\s*marquee-text var\(--select-marquee-duration\)/,
+    );
+    expect(selectCss).toMatch(/@keyframes marquee-run\s*\{[^@]*translateX\(100%\)/);
+    expect(selectCss).toMatch(/@keyframes marquee-text\s*\{[^@]*translateX\(-100%\)/);
+    expect(selectCss).not.toMatch(/will-change|transition:\s*all/);
+  });
+
+  it("sizes a select from its value, so a trigger that hugs its content never collapses to the chevron", () => {
+    expect(selectCss).not.toMatch(/container-type|contain:/);
+    expect(selectCss).toMatch(/\.value\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s);
+  });
+
+  it("gives every select one width token, scaled with the text size", () => {
+    expect(tokensCss).not.toMatch(/--geometry-select-width-(narrow|regular|wide)/);
+    expect(tokensCss.match(/--geometry-select-width:/g)).toHaveLength(3);
+    expect(settingsCss).toMatch(/\.select\s*\{[^}]*width:\s*var\(--geometry-select-width\)/s);
+  });
+
+  it("draws no focus ring after a press, except in a text field that was pressed, and leaves dialogs their quiet focus", () => {
+    expect(tokensCss).toMatch(/--focus-outline:\s*var\(--focus-outline-visible\);/);
+    const pressed = String.raw`:root:is\(\[data-input-modality="pointer"\],\s*\[data-input-modality="text"\]\)`;
+    expect(controlStatesCss).toMatch(
+      new RegExp(`${pressed}\\s*\\{[^}]*--focus-outline:\\s*none;`, "s"),
+    );
+    expect(controlStatesCss).toMatch(
+      new RegExp(`${pressed}\\s+:focus-visible\\s*\\{[^}]*outline:\\s*none;`, "s"),
+    );
+    // Only a press inside a text field restores its ring; one script focused (an opened panel) waits for Tab.
+    expect(controlStatesCss).toMatch(
+      /:root\[data-input-modality="text"\]\s+:is\(\s*textarea,\s*input:is\([\s\S]*?\[type="search"\][\s\S]*?\)\s*\):focus-visible:not\(\[data-quiet-focus\]\)\s*\{[^}]*outline:\s*var\(--focus-outline-visible\);/,
+    );
+    expect(controlStatesCss).not.toMatch(
+      /:root\[data-input-modality="pointer"\]\s+:is\(\s*textarea/,
+    );
+    expect(controlStatesCss).toMatch(
+      /:root \[data-quiet-focus\]:focus-visible\s*\{[^}]*outline:\s*none;/s,
+    );
+  });
+
+  it("draws every ring from the focus token, so the keyboard-only rule reaches it", () => {
+    const srcDir = new URL("../../", import.meta.url);
+    const offenders = readdirSync(srcDir, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".css"))
+      .filter((file) => !["styles/tokens.css", "components/ui/controlStates.css"].includes(file))
+      .flatMap((file) =>
+        (readFileSync(new URL(file, srcDir), "utf8").match(/\boutline\s*:[^;]+;/g) ?? [])
+          .filter((declaration) => !/:\s*(none|var\(--focus-outline\));$/.test(declaration))
+          .map((declaration) => `${file}: ${declaration}`),
+      );
+    expect(offenders).toEqual([]);
   });
 });

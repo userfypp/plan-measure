@@ -15,7 +15,9 @@ it("renders the panel structure with placeholders and no visible loading text", 
   act(() => root.render(<PageBrowserSkeleton />));
   const panel = container.querySelector("aside")!;
   expect(panel.getAttribute("aria-busy")).toBe("true");
-  expect(panel.querySelector("h2")?.textContent).toBe("Pages");
+  expect(panel.getAttribute("aria-label")).toBe("Pages");
+  expect(panel.querySelector("h2")).toBeNull();
+  expect(panel.querySelector("header")?.children).toHaveLength(2);
   expect(panel.textContent).not.toContain("…");
   act(() => root.unmount());
   container.remove();

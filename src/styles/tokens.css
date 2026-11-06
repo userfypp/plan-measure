@@ -229,6 +229,7 @@
   --geometry-menu-max-width: 320px;
   --geometry-viewer-popover-width: 320px;
   --geometry-viewer-popover-width-compact: 280px;
+  --geometry-viewer-setting-label-width: 92px;
   --geometry-keyboard-feedback-width: 420px;
   --geometry-keyboard-cursor-size: 20px;
   --geometry-keyboard-cursor-stroke: 2px;
@@ -238,14 +239,17 @@
       var(--geometry-keyboard-cursor-reach)
   );
 
-  /* Focus */
+  /* Focus. Components draw `--focus-outline`; controlStates.css sets it to none while the last input was a press. */
   --focus-width: 2px;
   --focus-offset: 2px;
-  --focus-outline: var(--focus-width) solid var(--color-focus-semantic);
+  --focus-outline-visible: var(--focus-width) solid var(--color-focus-semantic);
+  --focus-outline: var(--focus-outline-visible);
 
   /* Shared button-like interaction motion. */
   --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
   --transition-transform: transform 120ms ease;
+  /* Round trip of a select value that is wider than its trigger (Select.module.css). */
+  --select-marquee-duration: 6s;
 
   /* Dialog enter/exit (Dialog.module.css): backdrop and panel share duration and curve. */
   --dialog-duration-enter: 180ms;
@@ -284,9 +288,7 @@
   --geometry-calibration-field-max-width: 180px;
   --geometry-calibration-fraction-min-width: 112px;
   --geometry-scale-add-menu-max-width: 224px;
-  --geometry-select-width-narrow: 72px;
-  --geometry-select-width-regular: 136px;
-  --geometry-select-width-wide: 208px;
+  --geometry-select-width: 180px;
   --geometry-settings-dialog-width: 720px;
   --geometry-settings-nav-width: 176px;
   --geometry-settings-panel-height: 580px;
@@ -297,7 +299,12 @@
   --geometry-page-thumbnail-width: 144px;
   --geometry-page-thumbnail-height: 104px;
   --geometry-export-choice-list-max-height: 200px;
-  --geometry-export-classification-column-min-width: 300px;
+  --geometry-export-panel-height: calc(var(--target-current) * 7 + var(--space-16));
+  --geometry-export-dialog-height: 680px;
+  --geometry-export-dialog-top: max(
+    var(--space-16),
+    calc((100dvh - var(--geometry-export-dialog-height)) / 2)
+  );
   --dialog-width-export: 1040px;
 
   /* Transitional V1 aliases. Remove as each surface migrates to V2 semantic roles. */
@@ -400,9 +407,8 @@
   --line-height-identity: 24px;
   --line-height-quantity: 26px;
   --line-height-result: 32px;
-  --geometry-select-width-regular: 150px;
-  --geometry-select-width-wide: 230px;
-  --geometry-select-width-narrow: 79px;
+  --geometry-select-width: 200px;
+  --geometry-viewer-setting-label-width: 98px;
   --geometry-settings-dialog-width: 792px;
   --geometry-settings-nav-width: 194px;
   --geometry-shortcut-key-min-width: 44px;
@@ -425,9 +431,8 @@
   --line-height-identity: 28px;
   --line-height-quantity: 30px;
   --line-height-result: 36px;
-  --geometry-select-width-regular: 170px;
-  --geometry-select-width-wide: 260px;
-  --geometry-select-width-narrow: 90px;
+  --geometry-select-width: 224px;
+  --geometry-viewer-setting-label-width: 112px;
   --geometry-settings-dialog-width: 900px;
   --geometry-settings-nav-width: 220px;
   --geometry-shortcut-key-min-width: 50px;

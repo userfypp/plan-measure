@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Button, CloseIcon, IconButton, Input } from "../../components/ui";
+import { Button, CloseIcon, IconButton, Input, SearchIcon } from "../../components/ui";
 import {
   filterPages,
   PAGE_OVERSCAN,
@@ -235,8 +235,30 @@ export function PageBrowser({
       onKeyUp={(event) => event.stopPropagation()}
     >
       <header className={styles.header}>
-        <div className={styles.heading}>
-          <h2>Pages</h2>
+        <div className={styles.search}>
+          <Input
+            ref={searchRef}
+            type="search"
+            aria-label="Search labels"
+            placeholder="Search labels"
+            leading={<SearchIcon />}
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              if (listRef.current) listRef.current.scrollTop = 0;
+              setGeometry((current) => ({ ...current, top: 0 }));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing && pages.length === 1) {
+                event.preventDefault();
+                navigate(pages[0]!);
+              }
+            }}
+            onClear={() => {
+              setSearch("");
+              searchRef.current?.focus();
+            }}
+          />
         </div>
         <IconButton
           icon={<CloseIcon />}
@@ -247,28 +269,6 @@ export function PageBrowser({
         />
       </header>
       <div className={styles.controls}>
-        <Input
-          ref={searchRef}
-          type="search"
-          aria-label="Search labels"
-          placeholder="Search labels"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            if (listRef.current) listRef.current.scrollTop = 0;
-            setGeometry((current) => ({ ...current, top: 0 }));
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing && pages.length === 1) {
-              event.preventDefault();
-              navigate(pages[0]!);
-            }
-          }}
-          onClear={() => {
-            setSearch("");
-            searchRef.current?.focus();
-          }}
-        />
         <form
           className={styles.goTo}
           noValidate
@@ -299,34 +299,38 @@ export function PageBrowser({
                 setGoError(false);
               }}
             />
-            <span>of {document.numPages}</span>
+            <span className={styles.total}>of {document.numPages}</span>
           </div>
         </form>
-        {goError && (
-          <span id={`${id}-error`} role="alert">
-            Enter a page from 1 to {document.numPages}.
-          </span>
-        )}
-        {navigationDisabled && (
-          <span className={styles.notice}>
-            Finish or cancel the current drawing or scale workflow before changing pages.
-          </span>
-        )}
-        {previews.deferred && (
-          <div className={styles.previewNotice}>
-            <span id={`${id}-previews`}>Previews are paused to save memory on this PDF.</span>
-            <Button
-              variant="secondary"
-              size="compact"
-              aria-describedby={`${id}-previews`}
-              onClick={() => {
-                queueRef.current?.loadDeferred();
-                // The button disappears once loading starts; keep focus inside the panel.
-                (listRef.current ?? searchRef.current)?.focus({ preventScroll: true });
-              }}
-            >
-              Load previews
-            </Button>
+        {(goError || navigationDisabled || previews.deferred) && (
+          <div className={styles.feedback}>
+            {goError && (
+              <span id={`${id}-error`} role="alert" className={styles.error}>
+                Enter a page from 1 to {document.numPages}.
+              </span>
+            )}
+            {navigationDisabled && (
+              <span className={styles.notice}>
+                Finish or cancel the current drawing or scale workflow before changing pages.
+              </span>
+            )}
+            {previews.deferred && (
+              <div className={styles.previewNotice}>
+                <span id={`${id}-previews`}>Previews are paused to save memory on this PDF.</span>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  aria-describedby={`${id}-previews`}
+                  onClick={() => {
+                    queueRef.current?.loadDeferred();
+                    // The button disappears once loading starts; keep focus inside the panel.
+                    (listRef.current ?? searchRef.current)?.focus({ preventScroll: true });
+                  }}
+                >
+                  Load previews
+                </Button>
+              </div>
+            )}
           </div>
         )}
         <span role="status" aria-live="polite" aria-atomic="true" className={styles.srOnly}>

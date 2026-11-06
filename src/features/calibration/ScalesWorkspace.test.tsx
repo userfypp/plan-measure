@@ -364,6 +364,40 @@ describe("ScalesWorkspace", () => {
     );
   });
 
+  it("closes the list with an Add scale block built like a scale header, not a loose button", () => {
+    renderScales(createProps());
+
+    const add = buttonByLabel("Add scale");
+    expect(add.parentElement?.className).toContain("addScale");
+    expect(scalesCss).toMatch(
+      /\.addScale\s*\{[^}]*composes:\s*item from "\.\.\/\.\.\/components\/ui\/Disclosure\.module\.css";/s,
+    );
+    expect(scalesCss).toMatch(
+      /\.addScaleTrigger\s*\{[^}]*width:\s*100%;[^}]*min-height:\s*var\(--target-current\);[^}]*gap:\s*var\(--space-8\);[^}]*border:\s*0;[^}]*padding:\s*0 var\(--space-8\);[^}]*background:\s*transparent;/s,
+    );
+    expect(scalesCss).toMatch(
+      /\.addScaleTrigger svg\s*\{[^}]*width:\s*var\(--geometry-icon-size-small\);[^}]*stroke-width:\s*var\(--icon-stroke-width\);/s,
+    );
+    // The block, not the button, takes the surfaces, as a scale's header does.
+    expect(scalesCss).toMatch(
+      /\.addScale:has\(> \.addScaleTrigger:hover:not\(\[aria-disabled="true"\]\)\)\s*\{[^}]*background-color:\s*var\(--color-control-hover-surface\);/s,
+    );
+    expect(scalesCss).toMatch(
+      /\.addScale:has\(> \.addScaleTrigger:active:not\(\[aria-disabled="true"\]\)\)\s*\{[^}]*background-color:\s*var\(--color-control-active-surface\);/s,
+    );
+    expect(scalesCss).toMatch(
+      /\.addScale:has\(> \.addScaleTrigger\[aria-expanded="true"\]:not\(\[aria-disabled="true"\]\)\)\s*\{[^}]*background-color:\s*var\(--color-selection-surface\);/s,
+    );
+    expect(scalesCss).toMatch(
+      /\.addScaleTrigger\[aria-disabled="true"\]\s*\{[^}]*color:\s*var\(--color-text-disabled\);[^}]*cursor:\s*not-allowed;/s,
+    );
+    // Inset like a scale's toggle, with a selector that outranks the shared ring in any sheet order.
+    expect(scalesCss).toMatch(
+      /\.addScale > \.addScaleTrigger:focus-visible\s*\{[^}]*outline-offset:\s*calc\(-1 \* var\(--focus-offset\)\);/s,
+    );
+    expect(scalesCss).not.toMatch(/(^|\n)\.addScaleTrigger:focus-visible/);
+  });
+
   it("keeps zero- and one-scale pages clear without suggesting a switch that is not available", () => {
     renderScales(
       createProps({
@@ -458,6 +492,9 @@ describe("ScalesWorkspace", () => {
       /\.rows\s*\{[^}]*grid-template-columns:\s*max-content minmax\(0, 1fr\) auto;/s,
     );
     expect(scalesCss).toMatch(/\.row\s*\{[^}]*grid-template-columns:\s*subgrid;/s);
+    // The labels sit on the 12px text edge of the panel's blocks; the row actions keep the 8px edge.
+    expect(scalesCss).toMatch(/\.label\s*\{[^}]*padding-inline-start:\s*var\(--space-4\);/s);
+    expect(scalesCss).not.toMatch(/\.rows\s*\{[^}]*padding/s);
     expect(scalesCss).not.toMatch(
       /\.(renameForm|renameActions|recalibrateControl|recalibrateButton|deleteScaleControl|detailRows?)\b/,
     );

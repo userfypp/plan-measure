@@ -13,11 +13,11 @@
 
 .header {
   min-width: 0;
-  min-height: var(--target-coarse);
   display: flex;
   align-items: center;
-  /* The divider takes 1px of the header; the same extra top padding keeps the title on whole pixels. */
-  padding: calc(var(--space-4) + var(--border-width)) var(--geometry-panel-gutter) var(--space-4);
+  gap: var(--space-8);
+  /* The 4px frame of the app bar above: the control sets the height, so every edge is a whole pixel. */
+  padding: var(--space-4);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 
@@ -25,10 +25,11 @@
   min-width: 0;
   min-height: var(--target-current);
   flex: 1 1 auto;
-  /* A panel title that opens the module menu: no box at rest; the hover box sits at the panel gutter. */
+  /* A panel title that opens the module menu: no box at rest; the hover box sits 4px from every header edge
+   * and the title keeps the x of the app name above it (4 + 12). */
   border: 0;
   border-radius: var(--radius-control);
-  padding: 0 var(--space-8);
+  padding: 0 var(--space-12);
   background: transparent;
   color: var(--color-text-primary);
   font-size: var(--font-size-identity);
@@ -54,10 +55,10 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, max-content) var(--geometry-icon-size);
-  justify-content: start;
+  /* Title on the left, chevron on the right, centred on the same axis as the toolbar actions below. */
+  grid-template-columns: minmax(0, 1fr) var(--geometry-icon-size-small);
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-8);
   text-align: left;
 }
 
