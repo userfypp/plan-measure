@@ -4,6 +4,15 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.12.1](https://github.com/userfypp/plan-measure/compare/v2.12.0...v2.12.1) (2026-11-06)
+
+
+### Fixed
+
+* **export:** validate ODS sheet names like XLSX ([7ab0dc1](https://github.com/userfypp/plan-measure/commit/7ab0dc1a26af5fb9a1ec0292750afd01732d5036))
+* **export:** write CSV, XLSX and ODS numbers with 15 significant digits ([7ab0dc1](https://github.com/userfypp/plan-measure/commit/7ab0dc1a26af5fb9a1ec0292750afd01732d5036))
+* **takeoff:** group Count digits with the app's thousands separator ([7ab0dc1](https://github.com/userfypp/plan-measure/commit/7ab0dc1a26af5fb9a1ec0292750afd01732d5036))
+
 ## [2.12.0](https://github.com/userfypp/plan-measure/compare/v2.11.4...v2.12.0) (2026-11-06)
 
 
