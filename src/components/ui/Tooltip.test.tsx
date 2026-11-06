@@ -4,6 +4,7 @@ import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
+import { INPUT_MODALITY_ATTRIBUTE } from "../../utils/inputModality";
 import { Tooltip, type TooltipPosition } from "./Tooltip";
 
 let root: Root;
@@ -258,6 +259,47 @@ describe("Tooltip fit to text", () => {
   });
 });
 
+describe("Tooltip on focus", () => {
+  const setModality = (modality: string | null) => {
+    if (modality === null) document.documentElement.removeAttribute(INPUT_MODALITY_ATTRIBUTE);
+    else document.documentElement.setAttribute(INPUT_MODALITY_ATTRIBUTE, modality);
+  };
+  const focusTrigger = () =>
+    act(() => container.querySelector<HTMLButtonElement>("button")!.focus());
+
+  afterEach(() => setModality(null));
+
+  it("shows for focus before any press and after Tab", () => {
+    renderTooltip("top", "Hide measurement", 400);
+    focusTrigger();
+    act(() => vi.advanceTimersByTime(400));
+    expect(tooltip()).not.toBeNull();
+
+    act(() => container.querySelector<HTMLButtonElement>("button")!.blur());
+    expect(tooltip()).toBeNull();
+    setModality("keyboard");
+    focusTrigger();
+    act(() => vi.advanceTimersByTime(400));
+    expect(tooltip()).not.toBeNull();
+  });
+
+  // Esc closes a menu or panel the pointer opened and the browser hands focus back to its trigger,
+  // calling it :focus-visible: the user did not Tab there, so no bubble may follow.
+  it.each(["pointer", "text"])(
+    "stays hidden for focus handed back after a %s press",
+    (modality) => {
+      setModality(modality);
+      renderTooltip("top", "Hide measurement", 400);
+      focusTrigger();
+      act(() => vi.advanceTimersByTime(1000));
+      expect(tooltip()).toBeNull();
+      expect(container.querySelector("button")!.getAttribute("aria-describedby")).toBe(
+        "existing-description",
+      );
+    },
+  );
+});
+
 // Last on purpose: after a key event jsdom no longer reports a script focus as :focus-visible.
 describe("Tooltip dismissal", () => {
   it("dismisses on Escape while the trigger keeps focus", () => {
@@ -280,5 +322,27 @@ describe("Tooltip dismissal", () => {
       "existing-description",
     );
     expect(document.activeElement).toBe(container.querySelector("button"));
+  });
+});
+
+// After the dismissal tests, for the same reason: dispatching a mouse event also stops jsdom from
+// reporting a script focus as :focus-visible, which the focus tests above rely on.
+describe("Tooltip on hover after a press", () => {
+  it("still shows on hover while the last input was a press", () => {
+    document.documentElement.setAttribute(INPUT_MODALITY_ATTRIBUTE, "pointer");
+    try {
+      renderTooltip("top", "Hide measurement", 400);
+      act(() => {
+        container
+          .querySelector("button")!
+          .dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      });
+      act(() => vi.advanceTimersByTime(399));
+      expect(tooltip()).toBeNull();
+      act(() => vi.advanceTimersByTime(1));
+      expect(tooltip()).not.toBeNull();
+    } finally {
+      document.documentElement.removeAttribute(INPUT_MODALITY_ATTRIBUTE);
+    }
   });
 });

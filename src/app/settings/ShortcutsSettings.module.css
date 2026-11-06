@@ -17,7 +17,7 @@
 }
 
 .presetSelect {
-  width: var(--geometry-select-width-regular);
+  width: var(--geometry-select-width);
 }
 
 .search {

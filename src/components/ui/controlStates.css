@@ -10,6 +10,39 @@
   outline: none;
 }
 
+/* The ring is for the keyboard. utils/inputModality.ts marks the root "pointer" on a press, "text" on a
+ * press inside a text field and "keyboard" on Tab or on a navigation key pressed on a control. While it
+ * says "pointer" or "text" nothing draws a ring: browsers differ on whether what script focuses after a
+ * click (the viewer, an opened menu or panel, the trigger a dialog hands focus back to) deserves one, and
+ * Safari says yes. Components draw theirs through `--focus-outline`, which also reaches a ring on a sibling
+ * or a descendant; the second rule covers the browser's own. */
+:root:is([data-input-modality="pointer"], [data-input-modality="text"]) {
+  --focus-outline: none;
+}
+
+:root:is([data-input-modality="pointer"], [data-input-modality="text"]) :focus-visible {
+  outline: none;
+}
+
+/* A text field the user pressed keeps its ring, as in every browser: nothing else shows where typing
+ * goes. One that script focused, such as the search of a panel that has just opened, waits for Tab. */
+:root[data-input-modality="text"]
+  :is(
+    textarea,
+    input:is(
+      :not([type]),
+      [type="text"],
+      [type="search"],
+      [type="number"],
+      [type="email"],
+      [type="password"],
+      [type="tel"],
+      [type="url"]
+    )
+  ):focus-visible:not([data-quiet-focus]) {
+  outline: var(--focus-outline-visible);
+}
+
 .disabledSurface:disabled,
 .disabledSurface[data-disabled="true"] {
   cursor: not-allowed;

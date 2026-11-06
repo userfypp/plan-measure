@@ -16,10 +16,16 @@ import {
 } from "../utils/appPreferences";
 import { THEME_STORAGE_KEY, ThemeProvider, type ThemePreference } from "./themeState";
 import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
+import {
+  chooseSearchSelectOption,
+  searchSelectOptions,
+} from "../components/ui/searchSelectTestUtils";
+import { CURRENCY_CODES } from "../utils/currencies";
 
 const VIEW_SETTINGS: ProjectViewSettings = {
   displayUnit: "m",
   areaDisplay: "auto",
+  currency: null,
   showLabels: true,
   showMeasurements: true,
   showCalibration: true,
@@ -41,6 +47,7 @@ interface RenderOptions {
   keyboardAuthoringEnabled?: boolean;
   confirmMeasurementDeletion?: boolean;
   classificationDimensions?: ClassificationDimension[];
+  projectHasPrices?: boolean;
   confirmValueDeletion?: boolean;
   confirmDimensionDeletion?: boolean;
   confirmScaleDeletion?: boolean;
@@ -60,6 +67,7 @@ function renderSettings({
   measurementDecimalPlaces = 2,
   viewSettings = null,
   classificationDimensions = [],
+  projectHasPrices = false,
   onViewSettingsChange = vi.fn(),
   keyboardAuthoringEnabled = false,
   confirmMeasurementDeletion = true,
@@ -85,6 +93,7 @@ function renderSettings({
           measurementDecimalPlaces={measurementDecimalPlaces}
           viewSettings={viewSettings}
           classificationDimensions={classificationDimensions}
+          projectHasPrices={projectHasPrices}
           onViewSettingsChange={onViewSettingsChange}
           keyboardAuthoringEnabled={keyboardAuthoringEnabled}
           confirmMeasurementDeletion={confirmMeasurementDeletion}
@@ -351,6 +360,7 @@ describe("SettingsDialog", () => {
       viewSettings: {
         displayUnit: "m",
         areaDisplay: "auto",
+        currency: null,
         showLabels: true,
         showMeasurements: true,
         showCalibration: false,
@@ -380,6 +390,7 @@ describe("SettingsDialog", () => {
     const viewSettings = {
       displayUnit: "m" as const,
       areaDisplay: "auto" as const,
+      currency: null,
       showLabels: true,
       showMeasurements: true,
       showCalibration: true,
@@ -429,6 +440,86 @@ describe("SettingsDialog", () => {
       openTab("View");
 
       expect(selectByLabel("Label classification").hasAttribute("disabled")).toBe(true);
+    });
+  });
+
+  describe("Currency", () => {
+    const viewSettings: ProjectViewSettings = { ...VIEW_SETTINGS, currency: "EUR" };
+    const optionLabels = () => searchSelectOptions().map((option) => option.textContent);
+
+    it("offers None, then every currency by name and code in alphabetical order", async () => {
+      renderSettings({ viewSettings: VIEW_SETTINGS });
+      await openSettings();
+      openTab("View");
+
+      expect(selectByLabel("Currency").textContent).toBe("None");
+      act(() => selectByLabel("Currency").click());
+      const labels = optionLabels();
+      expect(labels.slice(0, 3)).toEqual(["None", "Afghan Afghani (AFN)", "Albanian Lek (ALL)"]);
+      expect(labels).toHaveLength(1 + CURRENCY_CODES.length);
+      expect(labels).toContain("Euro (EUR)");
+      expect(labels.indexOf("Euro (EUR)")).toBeLessThan(labels.indexOf("Japanese Yen (JPY)"));
+      expect(labels.indexOf("Japanese Yen (JPY)")).toBeLessThan(labels.indexOf("US Dollar (USD)"));
+    });
+
+    it("shows the project's currency and writes the choice back", async () => {
+      const { onViewSettingsChange } = renderSettings({ viewSettings });
+      await openSettings();
+      openTab("View");
+
+      expect(selectByLabel("Currency").textContent).toBe("EUR");
+      chooseSearchSelectOption(selectByLabel("Currency"), "Japanese Yen (JPY)");
+      expect(onViewSettingsChange).toHaveBeenCalledTimes(1);
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({ currency: "JPY" });
+    });
+
+    it("clears the currency with None while no price depends on it", async () => {
+      const { onViewSettingsChange } = renderSettings({ viewSettings });
+      await openSettings();
+      openTab("View");
+
+      chooseSearchSelectOption(selectByLabel("Currency"), "None");
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({ currency: null });
+    });
+
+    it("does not offer None once any value has a price", async () => {
+      renderSettings({ viewSettings, projectHasPrices: true });
+      await openSettings();
+      openTab("View");
+
+      act(() => selectByLabel("Currency").click());
+      expect(optionLabels()).not.toContain("None");
+      expect(optionLabels()[0]).toBe("Afghan Afghani (AFN)");
+      expect(optionLabels()).toContain("Euro (EUR)");
+    });
+
+    it("keeps a currency missing from the list as its own option with a warning", async () => {
+      const { onViewSettingsChange } = renderSettings({
+        viewSettings: { ...VIEW_SETTINGS, currency: "XYZ" },
+        projectHasPrices: true,
+      });
+      await openSettings();
+      openTab("View");
+
+      expect(selectByLabel("Currency").textContent).toBe("XYZ (not in list)");
+      expect(dialog().textContent).toContain("XYZ is not in the currency list.");
+      act(() => selectByLabel("Currency").click());
+      expect(optionLabels()[0]).toBe("XYZ (not in list)");
+      act(() =>
+        searchSelectOptions()
+          .find((option) => option.textContent === "Euro (EUR)")!
+          .click(),
+      );
+      expect(onViewSettingsChange).toHaveBeenLastCalledWith({ currency: "EUR" });
+    });
+
+    it("explains that prices are not converted, without a warning for a listed currency", async () => {
+      renderSettings({ viewSettings });
+      await openSettings();
+      openTab("View");
+
+      expect(dialog().textContent).toContain("Prices are not converted when the currency changes.");
+      expect(dialog().textContent).not.toContain("not in the currency list");
     });
   });
 
@@ -845,6 +936,7 @@ describe("SettingsDialog", () => {
       viewSettings: {
         displayUnit: "ft",
         areaDisplay: "ac",
+        currency: null,
         showLabels: true,
         showMeasurements: true,
         showCalibration: true,
@@ -887,6 +979,7 @@ describe("SettingsDialog", () => {
     const viewSettings: ProjectViewSettings = {
       displayUnit: "cm",
       areaDisplay: "auto",
+      currency: null,
       showLabels: true,
       showMeasurements: true,
       showCalibration: true,
@@ -1188,6 +1281,7 @@ describe("SettingsDialog", () => {
       viewSettings: {
         displayUnit: "m",
         areaDisplay: "auto",
+        currency: null,
         showLabels: true,
         showMeasurements: true,
         showCalibration: true,
@@ -1209,6 +1303,7 @@ describe("SettingsDialog", () => {
     openTab("View");
     expect(helpLabels()).toEqual([
       "About Polygon area",
+      "About Currency",
       "About Measure clouds",
       "About Label classification",
       "About Labels",

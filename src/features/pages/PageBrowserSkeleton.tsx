@@ -15,13 +15,14 @@ export function PageBrowserSkeleton() {
       data-page-browser-skeleton
     >
       <header className={styles.header}>
-        <div className={styles.heading}>
-          <h2>Pages</h2>
-        </div>
+        <div className={styles.skeletonBar} />
+        <div className={styles.skeletonButton} />
       </header>
       <div className={styles.controls}>
-        <div className={styles.skeletonBar} />
-        <div className={styles.skeletonBar} />
+        <div className={styles.goTo}>
+          <div className={styles.skeletonLabel} />
+          <div className={styles.skeletonField} />
+        </div>
       </div>
       <div className={styles.skeletonList}>
         <div className={styles.skeletonThumbnail} />

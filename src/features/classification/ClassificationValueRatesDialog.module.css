@@ -1,0 +1,44 @@
+.form {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.context {
+  margin-left: var(--space-12);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.label {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
+.form > .error {
+  margin: 0;
+  color: var(--color-danger-semantic);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
+}
+
+.visuallyHidden {
+  composes: visuallyHidden from global;
+}

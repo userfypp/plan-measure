@@ -43,8 +43,63 @@
 .value {
   min-width: 0;
   overflow: hidden;
+}
+
+.valueRun {
+  display: block;
+}
+
+.valueText {
+  display: block;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A value wider than the trigger slides to its end and back while the pointer or keyboard is on it, with
+ * nothing to measure: the run is as wide as the value area and the text as wide as itself or the area,
+ * whichever is larger. The run moves right by its own width and the text left by its own, which leaves the
+ * text's end on the area's end; a text that fits is as wide as the area, so the two cancel and it stays
+ * still. Size containment would measure it too, but it also collapses a trigger that hugs its value. */
+@media (prefers-reduced-motion: no-preference) {
+  :global(:root:not([data-motion="reduce"]))
+    .trigger:is(:hover, :focus-visible):not(:disabled)
+    .valueRun {
+    animation: marquee-run var(--select-marquee-duration) linear infinite alternate;
+  }
+
+  :global(:root:not([data-motion="reduce"]))
+    .trigger:is(:hover, :focus-visible):not(:disabled)
+    .valueText {
+    width: max-content;
+    min-width: 100%;
+    overflow: visible;
+    animation: marquee-text var(--select-marquee-duration) linear infinite alternate;
+  }
+}
+
+@keyframes marquee-run {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+
+  85%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes marquee-text {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+
+  85%,
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .trigger[aria-expanded="true"] svg {

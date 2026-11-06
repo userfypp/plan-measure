@@ -5,7 +5,7 @@ import {
   type PopoverPlacement,
   type PopoverTriggerProps,
 } from "./Popover";
-import type { TooltipPosition } from "./Tooltip";
+import { Tooltip, type TooltipPosition } from "./Tooltip";
 import styles from "./AnchoredMenu.module.css";
 
 export type AnchoredMenuItemRole = "menuitem" | "menuitemcheckbox" | "menuitemradio";
@@ -18,6 +18,8 @@ interface AnchoredMenuItemBase {
   checked?: boolean;
   current?: boolean;
   disabled?: boolean;
+  /** Explains the item on hover or keyboard focus, beside the menu; ignored for links. */
+  tooltip?: ReactNode;
 }
 
 export type AnchoredMenuItem = AnchoredMenuItemBase &
@@ -236,8 +238,7 @@ export function AnchoredMenu({
               </a>,
             ];
           }
-          return [
-            sectionLabel,
+          const button = (
             <button
               key={item.id}
               ref={(element) => {
@@ -255,12 +256,22 @@ export function AnchoredMenu({
               tabIndex={index === tabbableIndex ? 0 : -1}
               data-popover-autofocus={index === initialFocusIndex ? "true" : undefined}
               className={styles.item}
-              title={typeof item.label === "string" ? item.label : undefined}
+              title={typeof item.label === "string" && !item.tooltip ? item.label : undefined}
               onFocus={() => setFocusIndex(index)}
               onClick={() => selectItem(index)}
             >
               {content}
-            </button>,
+            </button>
+          );
+          return [
+            sectionLabel,
+            item.tooltip ? (
+              <Tooltip key={item.id} content={item.tooltip} position="right">
+                {button}
+              </Tooltip>
+            ) : (
+              button
+            ),
           ];
         })}
       </div>

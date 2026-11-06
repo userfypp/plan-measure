@@ -4,6 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../app/themeState";
 import { App } from "../app/App";
+import type { useSessionState } from "../app/sessionState";
+import { chooseSearchSelectOption } from "../components/ui/searchSelectTestUtils";
+import { chooseSelectOption } from "../components/ui/selectTestUtils";
 import type { Measurement, PageState, ViewTransform } from "../types/domain";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { pageToScreen } from "../utils/coordinates";
@@ -41,6 +44,17 @@ vi.mock("react-konva", async () =>
 vi.mock("../features/viewer/PdfAnnotationLayer", async () =>
   (await import("../features/viewer/viewerTestUtils")).createAnnotationLayerMock(),
 );
+// The real session, read through the hook so a step can change a setting the UI does not offer yet.
+const sessionCommands = vi.hoisted(() => ({
+  current: null as ReturnType<typeof useSessionState> | null,
+}));
+vi.mock("../app/sessionState", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../app/sessionState")>();
+  return {
+    ...original,
+    useSessionState: () => (sessionCommands.current = original.useSessionState()),
+  };
+});
 vi.mock("../app/usePdfSessionLifecycle", async () =>
   (await import("../features/viewer/viewerTestUtils")).createSessionLifecycleMock(lifecycle),
 );
@@ -59,6 +73,16 @@ function measuredSession() {
     classificationValueIds: [],
     visible: true,
   }));
+  session.classificationCatalog = {
+    dimensions: [
+      {
+        id: "dimension-1",
+        name: "Element",
+        archived: false,
+        values: [{ id: "value-1", name: "Wall", archived: false }],
+      },
+    ],
+  };
   return session;
 }
 
@@ -152,6 +176,17 @@ describe("annotation layer prop stability in App", () => {
       );
     const rebind = (bindings: ShortcutBindings) =>
       act(async () => setAppPreference("shortcutBindings", bindings));
+    const typeNumber = (index: number, value: string) =>
+      act(async () => {
+        const input = document.querySelectorAll<HTMLInputElement>('dialog input[type="number"]')[
+          index
+        ]!;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
     const steps: Array<[name: string, run: () => Promise<unknown>, changes: string[]]> = [
       [
         "pasar el puntero",
@@ -244,6 +279,72 @@ describe("annotation layer prop stability in App", () => {
       ["mover Línea a otra tecla", () => rebind({ "view.zoomIn": ["Z"], "tool.line": ["Q"] }), []],
       ["elegir Línea con su nueva tecla", () => keydown("q"), ["activeTool"]],
       ["volver a Selección con la nueva tecla", () => keydown("Escape"), ["activeTool"]],
+      [
+        "ir a Clasificaciones",
+        async () => {
+          await press("Workspace module: Scales");
+          const entry = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
+            (candidate) => candidate.textContent?.trim() === "Classifications",
+          );
+          await act(async () => entry!.click());
+          // Dimensions start closed: open the one that holds the value.
+          await vi.waitFor(async () => {
+            await act(async () => undefined);
+            const dimension = [
+              ...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded="false"]'),
+            ].find((candidate) => candidate.textContent?.startsWith("Element"));
+            if (!dimension) throw new Error("Dimension Element was not rendered.");
+            await act(async () => dimension.click());
+          });
+          button("Actions for value Wall");
+        },
+        [],
+      ],
+      [
+        "editar la cantidad derivada y el precio de un valor",
+        async () => {
+          await press("Quantity and price for value Wall");
+          chooseSelectOption(
+            document.querySelector<HTMLElement>("dialog [data-select-trigger]")!,
+            "Area from length",
+          );
+          await typeNumber(0, "2.7");
+          await typeNumber(1, "25");
+          // The project has no currency yet: the dialog asks for one and sets it on save.
+          chooseSearchSelectOption(
+            [...document.querySelectorAll<HTMLElement>("dialog [data-select-trigger]")].find(
+              (trigger) => trigger.textContent === "Choose a currency",
+            )!,
+            "Euro (EUR)",
+          );
+          await press("Save");
+          expect(sessionCommands.current!.session!.settings.currency).toBe("EUR");
+        },
+        [],
+      ],
+      [
+        "cambiar la moneda en Ajustes",
+        async () => {
+          await press("Settings");
+          await vi.waitFor(() => {
+            if (!document.querySelector('[role="tab"]')) throw new Error("Settings not loaded.");
+          });
+          await act(async () =>
+            [...document.querySelectorAll<HTMLElement>('[role="tab"]')]
+              .find((tab) => tab.textContent === "View")!
+              .click(),
+          );
+          const label = [...document.querySelectorAll<HTMLElement>("span[id]")].find(
+            (candidate) => candidate.textContent === "Currency",
+          )!;
+          chooseSearchSelectOption(
+            document.querySelector<HTMLElement>(`button[aria-labelledby~="${label.id}"]`)!,
+            "US Dollar (USD)",
+          );
+          await press("Done");
+        },
+        [],
+      ],
     ];
 
     const observed: Array<[string, string[]]> = [];
@@ -268,6 +369,15 @@ describe("annotation layer prop stability in App", () => {
 
     expect(observed).toEqual(steps.map(([name, , changes]) => [name, changes]));
     expect(pageNumber(layer())).toBe(1);
+    // The two edits above did reach the session; only the layer never saw them.
+    expect(sessionCommands.current!.session!.classificationRates).toEqual([
+      {
+        valueId: "value-1",
+        derivation: { source: "length", factorMm: 2700 },
+        price: { amount: 25, basis: "derived", unit: "m²" },
+      },
+    ]);
+    expect(sessionCommands.current!.session!.settings.currency).toBe("USD");
 
     // No render of any page gets a new identity for a callback or a fixed value.
     const captures = konvaCapture.annotationLayers;

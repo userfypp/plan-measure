@@ -134,10 +134,6 @@
   line-height: var(--line-height-base);
 }
 
-.selected .name {
-  font-weight: var(--font-weight-semibold);
-}
-
 .metadata {
   grid-column: 1;
   grid-row: 2;

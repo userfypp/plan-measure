@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import {
   Button,
   CheckIcon,
+  Dialog,
   Disclosure,
   IconButton,
   ImportIcon,
@@ -9,29 +10,49 @@ import {
   SaveIcon,
   TrashIcon,
 } from "../../components/ui";
-import type { ClassificationCatalog } from "../../types/domain";
-import { classificationNameKey } from "../../utils/classificationNames";
+import type { ClassificationCatalog, ClassificationValueRates } from "../../types/domain";
+import { classificationNameKey, classificationSearchKey } from "../../utils/classificationNames";
 import {
+  applyTemplateDimensions,
   readClassificationTemplates,
   templateDimensions,
   validTemplateDimensions,
   writeClassificationTemplates,
   type ClassificationTemplate,
-  type ClassificationTemplateDimension,
+  type TemplateConflict,
+  type TemplateConflictPolicy,
 } from "./classificationTemplates";
 import styles from "./ClassificationWorkspace.module.css";
 
 const APPLY_NOTE = "Apply to project: adds missing entries and keeps existing assignments.";
-const SAVE_NOTE = "Save as template: active dimensions and values only.";
+const SAVE_NOTE = "Save as template: active dimensions, values, quantities and prices.";
+const SKIPPED_PRICES_NOTE =
+  "Prices were not applied because the template currency differs from the project currency.";
+const MAX_LISTED_CONFLICTS = 5;
+
+function conflictList(conflicts: TemplateConflict[]) {
+  const listed = conflicts
+    .slice(0, MAX_LISTED_CONFLICTS)
+    .map((item) => `${item.dimension}: ${item.value}`);
+  const more = conflicts.length - listed.length;
+  return more > 0 ? `${listed.join("; ")} and ${more} more` : listed.join("; ");
+}
 
 export function ClassificationTemplateLibrary({
   catalog,
+  rates,
+  currency,
   disabled,
+  search = "",
   onApply,
 }: {
   catalog: ClassificationCatalog;
+  /** The workspace header's search: templates are filtered by it. */
+  search?: string;
+  rates: ClassificationValueRates[];
+  currency: string | null;
   disabled: boolean;
-  onApply: (dimensions: ClassificationTemplateDimension[]) => boolean;
+  onApply: (template: ClassificationTemplate, policy: TemplateConflictPolicy) => boolean;
 }) {
   const [library, setLibrary] = useState(readClassificationTemplates);
   const [name, setName] = useState("");
@@ -40,8 +61,24 @@ export function ClassificationTemplateLibrary({
   const [status, setStatus] = useState("");
   const [applied, setApplied] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const dimensions = templateDimensions(catalog);
+  const [conflict, setConflict] = useState<{
+    template: ClassificationTemplate;
+    conflicts: TemplateConflict[];
+    pricesSkipped: boolean;
+  } | null>(null);
+  const descriptionId = useId();
+  const dimensions = templateDimensions(catalog, rates);
   const canSave = validTemplateDimensions(dimensions);
+  const searchTerm = classificationSearchKey(search).trim();
+  // A template matches by its own name or by the name of any of its dimensions and values.
+  const shownTemplates = searchTerm
+    ? library.templates.filter((template) =>
+        [
+          template.name,
+          ...template.dimensions.flatMap((dimension) => [dimension.name, ...dimension.values]),
+        ].some((text) => classificationSearchKey(text).includes(searchTerm)),
+      )
+    : library.templates;
 
   function clearErrors() {
     setSaveError(null);
@@ -75,6 +112,41 @@ export function ClassificationTemplateLibrary({
     return true;
   }
 
+  function apply(
+    template: ClassificationTemplate,
+    policy: TemplateConflictPolicy,
+    pricesSkipped = false,
+  ) {
+    setConflict(null);
+    if (disabled) return;
+    if (onApply(template, policy)) {
+      clearErrors();
+      setStatus(
+        `Template “${template.name}” applied.${pricesSkipped ? ` ${SKIPPED_PRICES_NOTE}` : ""}`,
+      );
+      setApplied(template.id);
+    } else {
+      setApplied(null);
+    }
+  }
+
+  function requestApply(template: ClassificationTemplate) {
+    if (disabled) return;
+    let preview: ReturnType<typeof applyTemplateDimensions> | null = null;
+    try {
+      preview = applyTemplateDimensions(catalog, rates, currency, template);
+    } catch {
+      // The session command reports why the template cannot be applied.
+    }
+    if (preview?.conflicts.length)
+      setConflict({
+        template,
+        conflicts: preview.conflicts,
+        pricesSkipped: preview.pricesSkipped,
+      });
+    else apply(template, "keep", preview?.pricesSkipped);
+  }
+
   function save(event: FormEvent) {
     event.preventDefault();
     if (disabled || library.error || !canSave || !name.trim()) return;
@@ -90,7 +162,7 @@ export function ClassificationTemplateLibrary({
     clearErrors();
     if (
       persist(
-        [...library.templates, { id: crypto.randomUUID(), name: trimmed, dimensions }],
+        [...library.templates, { id: crypto.randomUUID(), name: trimmed, currency, dimensions }],
         `Template “${trimmed}” saved.`,
         setSaveError,
       )
@@ -121,9 +193,14 @@ export function ClassificationTemplateLibrary({
           </p>
         </div>
       )}
-      {library.templates.length > 0 && (
+      {shownTemplates.length === 0 && library.templates.length > 0 && (
+        <p className={styles.noMatches} role="status">
+          No template matches
+        </p>
+      )}
+      {shownTemplates.length > 0 && (
         <ul className={styles.templates} aria-label="Saved classification templates">
-          {library.templates.map((template) => {
+          {shownTemplates.map((template) => {
             const valueCount = template.dimensions.reduce(
               (total, dimension) => total + dimension.values.length,
               0,
@@ -145,16 +222,7 @@ export function ClassificationTemplateLibrary({
                       tooltip={applied === template.id ? "Applied" : APPLY_NOTE}
                       disabled={disabled}
                       aria-label={`Apply template ${template.name}`}
-                      onClick={() => {
-                        if (disabled) return;
-                        if (onApply(template.dimensions)) {
-                          clearErrors();
-                          setStatus(`Template “${template.name}” applied.`);
-                          setApplied(template.id);
-                        } else {
-                          setApplied(null);
-                        }
-                      }}
+                      onClick={() => requestApply(template)}
                     />
                   }
                 >
@@ -237,6 +305,42 @@ export function ClassificationTemplateLibrary({
           />
         }
       />
+      {conflict && (
+        <Dialog
+          open
+          size="small"
+          title="Existing quantities and prices differ"
+          descriptionId={descriptionId}
+          onClose={() => setConflict(null)}
+          actions={
+            <>
+              <Button variant="ghost" size="compact" onClick={() => setConflict(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                size="compact"
+                onClick={() => apply(conflict.template, "keep", conflict.pricesSkipped)}
+              >
+                Keep existing
+              </Button>
+              <Button
+                size="compact"
+                onClick={() => apply(conflict.template, "replace", conflict.pricesSkipped)}
+              >
+                Replace
+              </Button>
+            </>
+          }
+        >
+          <p id={descriptionId}>
+            {conflictList(conflict.conflicts)} already have different quantity or price settings.
+            Keep existing applies the template without changing them. Replace overwrites them with
+            the template settings.
+            {conflict.pricesSkipped && ` ${SKIPPED_PRICES_NOTE}`}
+          </p>
+        </Dialog>
+      )}
     </section>
   );
 }

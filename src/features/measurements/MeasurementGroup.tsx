@@ -94,7 +94,7 @@ export function MeasurementGroup({
 
   return (
     <section
-      className={styles.group}
+      className={depth === 0 ? `${styles.group} ${styles.rootGroup}` : styles.group}
       style={{ "--tree-depth": depth } as CSSProperties}
       aria-label={`${groupName} measurement group`}
     >

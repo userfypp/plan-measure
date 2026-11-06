@@ -9,6 +9,7 @@ import type {
 import { effectiveThousandsSeparator, getAppPreferences } from "./appPreferences";
 import { hasValidMeasurementPoints, measurementPathSpecs, measurementResultsMm } from "./geometry";
 import {
+  fromCubicMillimetres,
   fromMillimetres,
   fromSquareMillimetres,
   fromSquareMillimetresToAcres,
@@ -166,6 +167,15 @@ export function formatAreaValue(
   }
   const linearUnit = resolveLinearUnit(displayUnit);
   return `${formatDisplayNumber(fromSquareMillimetres(squareMillimetres, linearUnit), decimalPlaces)} ${linearUnit}²`;
+}
+
+export function formatVolumeValue(
+  cubicMillimetres: number,
+  displayUnit: MeasurementDisplayUnit,
+  decimalPlaces: MeasurementDecimalPlaces = DEFAULT_MEASUREMENT_DECIMAL_PLACES,
+): string {
+  const linearUnit = resolveLinearUnit(displayUnit);
+  return `${formatDisplayNumber(fromCubicMillimetres(cubicMillimetres, linearUnit), decimalPlaces)} ${linearUnit}³`;
 }
 
 /** A positive result whose conversion to the display unit underflows to zero cannot be shown. */

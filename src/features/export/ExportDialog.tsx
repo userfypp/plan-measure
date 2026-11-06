@@ -230,13 +230,24 @@ export function ExportDialog({
   const sectionDescriptors = (section: CsvColumnSection) =>
     descriptors.filter((descriptor) => descriptor.section === section);
 
+  const showSummaries = format === "json" || isWorkbook || format === "csv";
+  const summaryScope = exportsTakeoff && (isWorkbook || format === "csv");
+  const summaryStatus =
+    exportsTakeoff && (excludedCount > 0 || hasUnavailable)
+      ? `${excludedCount > 0 ? `${excludedCount} measurement${excludedCount === 1 ? "" : "s"} excluded. ` : ""}${
+          format === "json"
+            ? "Non-calculable totals are identified in the summary."
+            : "Missing or non-calculable quantities export as blank cells with a status."
+        }`
+      : null;
+  const summaryAlert = exportsTakeoff ? summaryBlockedMessage || summaryError : null;
+
   return (
     <Dialog
       open
       title="Export"
       size="large"
-      className={`${styles.dialog} ${format === "json" ? styles.jsonMode : ""}`}
-      bodyClassName={`${styles.dialogBody} ${hasMeasurementColumns ? "" : styles.standaloneBody}`}
+      className={styles.dialog}
       descriptionId={formatDescription ? descriptionId : undefined}
       onClose={() => {
         if (!exportInProgressRef.current) onClose();
@@ -283,7 +294,7 @@ export function ExportDialog({
         </div>
       }
     >
-      <form id={formId} className={styles.form} onSubmit={submit}>
+      <form id={formId} onSubmit={submit}>
         <fieldset className={styles.controls} disabled={exportInProgress}>
           <div className={styles.controlsContent}>
             <div className={styles.exportFields}>
@@ -306,11 +317,6 @@ export function ExportDialog({
                     setFormat(nextFormat);
                   }}
                 />
-                {formatDescription && (
-                  <p id={descriptionId} className={styles.formatDescription}>
-                    {formatDescription}
-                  </p>
-                )}
               </div>
               {(format === "csv" || isWorkbook) && (
                 <div className={styles.field}>
@@ -346,40 +352,10 @@ export function ExportDialog({
                 </div>
               )}
             </div>
-            {(format === "json" ||
-              (format === "csv" && dataset === "classification-assignments")) && (
-              <SummaryOptions
-                session={session}
-                selection={selection}
-                section="all"
-                onChange={updateSummarySelection}
-              />
-            )}
-            {isSummary && (
-              <SummaryOptions
-                session={session}
-                selection={selection}
-                section="all"
-                onChange={updateSummarySelection}
-              />
-            )}
-            {exportsTakeoff && (
-              <>
-                {(excludedCount > 0 || hasUnavailable) && (
-                  <p className={styles.summaryNotice} role="status">
-                    {excludedCount > 0 &&
-                      `${excludedCount} measurement${excludedCount === 1 ? "" : "s"} excluded. `}
-                    {format === "json"
-                      ? "Non-calculable totals are identified in the summary."
-                      : "Missing or non-calculable quantities export as blank cells with a status."}
-                  </p>
-                )}
-                {(summaryBlockedMessage || summaryError) && (
-                  <p className={styles.summaryNotice} role="alert">
-                    {summaryBlockedMessage || summaryError}
-                  </p>
-                )}
-              </>
+            {formatDescription && (
+              <p id={descriptionId} className={styles.formatDescription}>
+                {formatDescription}
+              </p>
             )}
             {hasMeasurementColumns && (
               <section className={styles.columnSettings} aria-label="Measurement columns">
@@ -401,6 +377,7 @@ export function ExportDialog({
                           key={section}
                           type="button"
                           role="tab"
+                          className={styles.tab}
                           id={`${columnPanelId}-${section}-tab`}
                           aria-controls={`${columnPanelId}-${section}`}
                           aria-selected={columnSection === section}
@@ -429,31 +406,33 @@ export function ExportDialog({
                             tabs[next]!.focus();
                           }}
                         >
-                          {label}
+                          <span className={styles.tabLabel}>{label}</span>
                         </button>
                       ))}
                   </div>
-                  <span className={styles.selectedCount}>
-                    {descriptors.filter((column) => column.enabled).length} selected
-                  </span>
-                  <div className={styles.bulkActions} aria-label="Column presets">
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      onClick={() => applyPreset("defaults")}
-                    >
-                      Defaults
-                    </Button>
-                    <Button variant="secondary" size="compact" onClick={() => applyPreset("all")}>
-                      All columns
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      onClick={() => applyPreset("required-only")}
-                    >
-                      Required only
-                    </Button>
+                  <div className={styles.columnActions}>
+                    <span className={styles.selectedCount}>
+                      {descriptors.filter((column) => column.enabled).length} selected
+                    </span>
+                    <div className={styles.bulkActions} role="group" aria-label="Column presets">
+                      <Button
+                        variant="ghost"
+                        size="compact"
+                        onClick={() => applyPreset("defaults")}
+                      >
+                        Defaults
+                      </Button>
+                      <Button variant="ghost" size="compact" onClick={() => applyPreset("all")}>
+                        All columns
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="compact"
+                        onClick={() => applyPreset("required-only")}
+                      >
+                        Required only
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div
@@ -464,14 +443,6 @@ export function ExportDialog({
                   aria-labelledby={`${columnPanelId}-measurement-tab`}
                   hidden={columnSection !== "measurement"}
                 >
-                  {(isWorkbook || format === "csv") && (
-                    <SummaryOptions
-                      session={session}
-                      selection={selection}
-                      section="basic"
-                      onChange={updateSummarySelection}
-                    />
-                  )}
                   <div className={styles.primarySections}>
                     {PRIMARY_SECTION_ORDER.map((section) => (
                       <section
@@ -497,33 +468,17 @@ export function ExportDialog({
                 </div>
                 {sectionDescriptors("classification").length > 0 && (
                   <div
-                    className={styles.panel}
+                    className={`${styles.panel} ${styles.panelFlush}`}
                     role="tabpanel"
                     tabIndex={0}
                     id={`${columnPanelId}-classification`}
                     aria-labelledby={`${columnPanelId}-classification-tab`}
                     hidden={columnSection !== "classification"}
                   >
-                    <section
-                      className={styles.classificationSection}
-                      aria-labelledby={`${formId}-classification`}
-                    >
-                      <h3 id={`${formId}-classification`} className={styles.visuallyHidden}>
-                        {SECTION_TITLES.classification}
-                      </h3>
-                      {(isWorkbook || format === "csv") && (
-                        <SummaryOptions
-                          session={session}
-                          selection={selection}
-                          section="classification"
-                          onChange={updateSummarySelection}
-                        />
-                      )}
-                      <ClassificationGroups
-                        descriptors={sectionDescriptors("classification")}
-                        onChange={updateColumn}
-                      />
-                    </section>
+                    <ClassificationGroups
+                      descriptors={sectionDescriptors("classification")}
+                      onChange={updateColumn}
+                    />
                   </div>
                 )}
                 {sectionDescriptors("additional").length > 0 && (
@@ -535,12 +490,6 @@ export function ExportDialog({
                     aria-labelledby={`${columnPanelId}-additional-tab`}
                     hidden={columnSection !== "additional"}
                   >
-                    {(isWorkbook || format === "csv") && includeTakeoff && (
-                      <p className={styles.summaryScope}>
-                        Takeoff sheets include group and dimension IDs, excluded counts and quantity
-                        statuses.
-                      </p>
-                    )}
                     <div className={styles.additionalGrid}>
                       {sectionDescriptors("additional").map((descriptor) => (
                         <ColumnOption
@@ -553,6 +502,16 @@ export function ExportDialog({
                   </div>
                 )}
               </section>
+            )}
+            {showSummaries && (
+              <SummaryOptions
+                session={session}
+                selection={selection}
+                scope={summaryScope}
+                status={summaryStatus}
+                alert={summaryAlert}
+                onChange={updateSummarySelection}
+              />
             )}
           </div>
         </fieldset>
@@ -588,7 +547,7 @@ function ClassificationGroups({
   }
 
   return (
-    <div className={styles.classificationGrid}>
+    <>
       {[...groups.entries()].map(([dimensionId, group]) => (
         <section key={dimensionId} className={styles.classificationRow} aria-label={group.name}>
           <div className={styles.classificationDimension}>
@@ -599,55 +558,32 @@ function ClassificationGroups({
               </Badge>
             )}
           </div>
-          <div className={styles.classificationFields}>
-            {group.columns.map((descriptor) => (
-              <ColumnOption
-                key={descriptor.id}
-                descriptor={descriptor}
-                onChange={onChange}
-                classification
-              />
-            ))}
-          </div>
+          {group.columns.map((descriptor) => (
+            <ColumnOption key={descriptor.id} descriptor={descriptor} onChange={onChange} />
+          ))}
         </section>
       ))}
-    </div>
+    </>
   );
 }
 
 function ColumnOption({
   descriptor,
   onChange,
-  classification = false,
 }: {
   descriptor: CsvColumnDescriptor;
   onChange: (columnId: string, enabled: boolean) => void;
-  classification?: boolean;
 }) {
   return (
-    <label
-      className={[
-        styles.columnOption,
-        descriptor.required ? styles.requiredOption : "",
-        classification ? styles.classificationOption : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
+    <label className={`${styles.columnOption} ${descriptor.required ? styles.requiredOption : ""}`}>
       <input
         type="checkbox"
         checked={descriptor.enabled}
         disabled={descriptor.required}
         onChange={(event) => onChange(descriptor.id, event.target.checked)}
       />
-      <span
-        className={[styles.columnLabel, classification ? styles.classificationColumnLabel : ""]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {descriptor.label}
-      </span>
-      {descriptor.required && <Badge variant="neutral">Required</Badge>}
+      <span className={styles.columnLabel}>{descriptor.label}</span>
+      {descriptor.required && <span className={styles.requiredText}>Required</span>}
     </label>
   );
 }
@@ -655,21 +591,30 @@ function ColumnOption({
 function SummaryOptions({
   session,
   selection,
-  section,
+  scope,
+  status,
+  alert,
   onChange,
 }: {
   session: CurrentSession;
   selection: TakeoffSelection;
-  section: "basic" | "classification" | "all";
+  scope: boolean;
+  status: string | null;
+  alert: string | null | undefined;
   onChange: (selection: TakeoffSelection) => void;
 }) {
+  const titleId = useId();
+  const dimensions = session.classificationCatalog.dimensions;
   return (
-    <div className={styles.summaryOptions}>
-      {section !== "classification" && (
-        <div className={styles.summaryChoiceGroup} role="group" aria-label="Takeoff breakdowns">
-          <span className={styles.sectionTitle}>Takeoff summaries</span>
-          <div className={`${styles.summaryChoices} ${styles.basicChoices}`}>
-            <label className={`${styles.columnOption} ${styles.summaryChoice}`}>
+    <section className={styles.summaries} aria-labelledby={titleId}>
+      <h3 id={titleId} className={styles.boxTitle}>
+        Takeoff summaries
+      </h3>
+      <div className={styles.summaryRows}>
+        <div className={styles.summaryRow} role="group" aria-label="Takeoff breakdowns">
+          <span className={styles.rowLabel}>Quantities</span>
+          <div className={styles.summaryChoices}>
+            <label className={styles.columnOption}>
               <input
                 type="checkbox"
                 checked={selection.includeProjectTotals === true}
@@ -680,7 +625,7 @@ function SummaryOptions({
               Project totals
             </label>
             {(["page", "type"] as const).map((breakdown) => (
-              <label key={breakdown} className={`${styles.columnOption} ${styles.summaryChoice}`}>
+              <label key={breakdown} className={styles.columnOption}>
                 <input
                   type="checkbox"
                   checked={selection.breakdowns.includes(breakdown)}
@@ -698,39 +643,53 @@ function SummaryOptions({
             ))}
           </div>
         </div>
-      )}
-      {section !== "basic" && session.classificationCatalog.dimensions.length > 0 && (
-        <div
-          className={styles.summaryChoiceGroup}
-          role="group"
-          aria-label="Takeoff classifications"
-        >
-          <span className={styles.sectionTitle}>Classification breakdowns</span>
-          <div className={`${styles.summaryChoices} ${styles.dimensionChoices}`}>
-            {session.classificationCatalog.dimensions.map((dimension) => (
-              <label
-                key={dimension.id}
-                className={`${styles.columnOption} ${styles.summaryChoice}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selection.classificationDimensionIds.includes(dimension.id)}
-                  onChange={(event) =>
-                    onChange({
-                      ...selection,
-                      classificationDimensionIds: event.target.checked
-                        ? [...selection.classificationDimensionIds, dimension.id]
-                        : selection.classificationDimensionIds.filter((id) => id !== dimension.id),
-                    })
-                  }
-                />
-                {dimension.name}
-                {dimension.archived ? " (archived)" : ""}
-              </label>
-            ))}
+        {dimensions.length > 0 && (
+          <div className={styles.summaryRow} role="group" aria-label="Takeoff classifications">
+            <span className={styles.rowLabel}>By classification</span>
+            <div className={`${styles.summaryChoices} ${styles.dimensionChoices}`}>
+              {dimensions.map((dimension) => (
+                <label key={dimension.id} className={styles.columnOption}>
+                  <input
+                    type="checkbox"
+                    checked={selection.classificationDimensionIds.includes(dimension.id)}
+                    onChange={(event) =>
+                      onChange({
+                        ...selection,
+                        classificationDimensionIds: event.target.checked
+                          ? [...selection.classificationDimensionIds, dimension.id]
+                          : selection.classificationDimensionIds.filter(
+                              (id) => id !== dimension.id,
+                            ),
+                      })
+                    }
+                  />
+                  {dimension.name}
+                  {dimension.archived ? " (archived)" : ""}
+                </label>
+              ))}
+            </div>
           </div>
+        )}
+      </div>
+      {(scope || status || alert) && (
+        <div className={styles.summaryNotes}>
+          {scope && (
+            <p className={styles.noteText}>
+              Takeoff sheets include group and dimension IDs, excluded counts and quantity statuses.
+            </p>
+          )}
+          {status && (
+            <p className={`${styles.noteText} ${styles.notice}`} role="status">
+              {status}
+            </p>
+          )}
+          {alert && (
+            <p className={`${styles.noteText} ${styles.notice}`} role="alert">
+              {alert}
+            </p>
+          )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

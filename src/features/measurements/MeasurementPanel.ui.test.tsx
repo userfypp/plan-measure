@@ -70,7 +70,7 @@ function page(measurements: Measurement[]): PageState {
 
 function session(pages: Record<number, PageState>, withCatalog = true): CurrentSession {
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     pageCount: Object.keys(pages).length,
     currentPage: 1,
     pages,
@@ -673,6 +673,11 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     const typeBreakdown = container?.querySelector('[aria-label="Breakdown by type"]');
     expect(typeBreakdown).not.toBeNull();
     const lineGroup = typeBreakdown?.querySelector('[aria-label="Line totals"]');
+    // A group starts folded, its headline figure on the row; opening it lists the figures.
+    const lineToggle = lineGroup?.querySelector<HTMLButtonElement>("button[aria-expanded]");
+    expect(lineToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(lineGroup?.textContent).toBe("Line1.00 m");
+    act(() => lineToggle?.click());
     expect(lineGroup?.textContent).toContain("Length");
     expect(lineGroup?.textContent).not.toContain("Perimeter");
     expect(lineGroup?.textContent).not.toContain("Area");

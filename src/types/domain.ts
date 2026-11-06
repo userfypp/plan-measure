@@ -110,7 +110,7 @@ export interface SessionSettingsV15 extends SessionSettingsV14 {
   measureClouds: boolean;
 }
 
-export interface SessionSettings extends SessionSettingsV15 {
+export interface SessionSettingsV16 extends SessionSettingsV15 {
   /** Filters the measurement list starts with when the project opens; null follows the app-wide default. */
   defaultMeasurementFilters: DefaultMeasurementFilters | null;
 }
@@ -385,10 +385,48 @@ export interface SessionV15 extends Omit<SessionV14, "schemaVersion" | "settings
 
 export interface SessionV16 extends Omit<SessionV15, "schemaVersion" | "settings"> {
   schemaVersion: 16;
-  settings: SessionSettings;
+  settings: SessionSettingsV16;
 }
 
-export type CurrentSession = SessionV16;
+export interface SessionSettings extends SessionSettingsV16 {
+  /** ISO 4217 code of the single currency of the project's prices; null when none is set. */
+  currency: string | null;
+}
+
+/** Measure a derived quantity comes from: length and perimeter give area, area gives volume. */
+export type DerivedQuantitySource = "length" | "perimeter" | "area";
+
+export interface ClassificationValueDerivation {
+  source: DerivedQuantitySource;
+  /** Height or thickness in millimetres; finite and greater than zero. */
+  factorMm: number;
+}
+
+export type PriceBasis = "length" | "perimeter" | "area" | "count" | "derived";
+export type PriceUnit = LinearUnit | `${LinearUnit}²` | "ac" | `${LinearUnit}³` | "each";
+
+export interface ClassificationValuePrice {
+  /** Price per `unit`; finite and not negative. */
+  amount: number;
+  basis: PriceBasis;
+  unit: PriceUnit;
+}
+
+export interface ClassificationValueRates {
+  valueId: string;
+  derivation: ClassificationValueDerivation | null;
+  /** Never null together with `derivation`. */
+  price: ClassificationValuePrice | null;
+}
+
+export interface SessionV17 extends Omit<SessionV16, "schemaVersion" | "settings"> {
+  schemaVersion: 17;
+  settings: SessionSettings;
+  /** In catalogue order (dimension, then value). */
+  classificationRates: ClassificationValueRates[];
+}
+
+export type CurrentSession = SessionV17;
 
 export type Tool = "select" | "hand" | "calibrate" | MeasurementType;
 

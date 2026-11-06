@@ -24,25 +24,24 @@
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 
-.header h2 {
+.headerSearch {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.emptyState h3 {
   margin: 0;
-  padding-inline: var(--space-4);
   font-size: var(--font-size-heading);
   line-height: var(--line-height-heading);
   font-weight: var(--font-weight-semibold);
 }
 
-.emptyState h3 {
-  margin: 0;
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-  font-weight: var(--font-weight-semibold);
-}
-
 .library {
   composes: body from "./ClassificationManager.module.css";
+}
+
+.noMatches {
+  composes: noMatches from "./ClassificationManager.module.css";
 }
 
 .note {
@@ -55,7 +54,9 @@
 
 .feedback {
   margin: 0;
-  padding: var(--space-8) var(--space-4);
+  padding: var(--space-8) calc(var(--geometry-panel-gutter) + var(--space-4));
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
   overflow-wrap: anywhere;
@@ -72,7 +73,9 @@
 .emptyState {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-16) var(--space-4);
+  padding: var(--space-16) calc(var(--geometry-panel-gutter) + var(--space-4));
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
 .templates {
@@ -83,10 +86,12 @@
   composes: item from "../../components/ui/Disclosure.module.css";
 }
 
+/* Text sits on the 12px edge, like the text of the panel's other blocks; controls keep the 8px edge. */
 .preview {
   display: grid;
   gap: var(--space-12);
   margin: 0;
+  padding-inline: var(--space-4);
   overflow-wrap: anywhere;
 }
 
@@ -114,4 +119,5 @@
 
 .confirm > p {
   flex-basis: 100%;
+  padding-inline: var(--space-4);
 }

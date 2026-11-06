@@ -1,6 +1,6 @@
 # JSON data export
 
-**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected, version `3` when Count markers are present, version `4` when any rectangle or ellipse is present, or version `5` when any revision cloud is present. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
+**Export → Format → JSON data** downloads `<PDF name>-data.json` as UTF-8 JSON. This is a public data contract for analysis and integrations, with its own schema: version `1` by default, or version `2` when any Takeoff summary is selected, version `3` when Count markers are present, version `4` when any rectangle or ellipse is present, version `5` when any revision cloud is present, or version `6` when any classification value has a derived quantity or price. Recoverable `.planmeasure` project files use a separate format; this JSON does not embed the PDF or restore the application workspace.
 
 All pages, calibrations, measurements (including hidden measurements), and classification dimensions and values (including archived entries) are included. CSV column preferences and display units do not affect JSON. Numbers retain JavaScript's full numeric precision without display rounding. Strings, including notes, Unicode and formula-like text, are preserved exactly.
 
@@ -76,3 +76,12 @@ A cloud is markup unless the project setting **Measure revision clouds** is on a
 - `calibrationId` of a `"cloud"` measurement may be `null`: clouds can be drawn without a scale, as Count markers can. Every other path type still requires a valid calibration.
 - `lengthMm`, `perimeterMm` and `areaMm2` of a cloud are all `null` unless the project measures clouds and the cloud has a `calibrationId`. A cloud with a `calibrationId` is still exported with `null` results while the setting is off. When they are present, `perimeterMm` and `areaMm2` follow the control polygon (straight sides between the vertices, ignoring the scallops), so they are approximate.
 - With a Takeoff summary selected, unmeasured clouds count in `measurementCount` but add nothing to `length`, `perimeter` or `area`, and are not reported as excluded.
+
+## Schema version 6: derived quantities and prices
+
+Version `6` preserves the preceding fields and applies only when the project has classification rates (see [Classifications, lists and Takeoff](user-guide.md#classifications-lists-and-takeoff)); without them the output is identical to versions `1`–`5`. It adds two top-level fields:
+
+- `currency`: the project's ISO 4217 code, or `null` when none is set. Prices are never converted.
+- `classificationRates`: one entry per value with rates, in catalog order: `{valueId, derivation, price}`. `derivation` is `null` or `{source: "length" | "perimeter" | "area", factorMm}`, where `factorMm` is the height (length or perimeter source) or thickness (area source) in millimetres. `price` is `null` or `{amount, basis, unit}`, with `amount` of zero or more in `currency`, `basis` one of `"length"`, `"perimeter"`, `"area"`, `"count"` or `"derived"`, and `unit` the unit the amount is per (`mm`, `cm`, `m`, `in`, `ft`, their squares or cubes, `ac` or `each`).
+
+With a Takeoff summary selected, `takeoff` also has `volumeUnit` (`"mm³"`) and `currency`, and `projectTotals` and every group gain `derivedArea` (mm²), `derivedVolume` (mm³) and `cost` (in `currency`), each with the same quantity structure as above. Each value's base quantity is summed once and then multiplied by its factor or price; results from several values and dimensions are added together. A quantity is `unavailable` when it cannot be calculated and `absent` when the group has no value with that kind of rate or none of its measurements has the base quantity. Without rates, these fields are omitted.

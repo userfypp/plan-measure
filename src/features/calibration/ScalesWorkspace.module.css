@@ -8,13 +8,18 @@
   background: var(--color-surface-panel);
 }
 
+/* The workspace tone behind the list: its blocks are the panel's own surface, set apart by 8px of it. */
 .body {
   composes: scrollSurface overlayScroll from global;
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-block: var(--space-8);
   overflow-y: auto;
-  padding: 0 var(--geometry-panel-gutter) var(--space-8);
+  background: var(--color-surface-viewer);
 }
 
 .list {
@@ -49,7 +54,9 @@
   align-items: center;
 }
 
+/* Text sits on the 12px edge, like the text of the panel's other blocks; controls keep the 8px edge. */
 .label {
+  padding-inline-start: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);
@@ -80,34 +87,53 @@
   margin-inline-start: auto;
 }
 
-/* The add-row closes the list, like the add-row of a field: a hairline, then the trigger. */
+/* The add-row closes the list as a block of its own, built like a scale's header: the plus sits on the
+ * chevron's axis, and the whole block takes the hover, press and open surfaces. */
 .addScale {
-  padding: var(--space-8) 0;
-  border-top: var(--border-width) solid var(--color-divider);
+  composes: item from "../../components/ui/Disclosure.module.css";
+  transition: var(--transition-interactive);
+}
+
+.addScale:has(> .addScaleTrigger:hover:not([aria-disabled="true"])) {
+  background-color: var(--color-control-hover-surface);
+}
+
+.addScale:has(> .addScaleTrigger:active:not([aria-disabled="true"])) {
+  background-color: var(--color-control-active-surface);
+}
+
+.addScale:has(> .addScaleTrigger[aria-expanded="true"]:not([aria-disabled="true"])) {
+  background-color: var(--color-selection-surface);
 }
 
 .addScaleTrigger {
   composes: focusRing from global;
   width: 100%;
-  min-height: var(--control-height-compact);
+  min-height: var(--target-current);
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  border: var(--border-width) solid transparent;
+  border: 0;
   border-radius: var(--radius-control);
-  padding: 0 calc(var(--space-4) - var(--border-width));
+  padding: 0 var(--space-8);
   background: transparent;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
   text-align: left;
-  transition: var(--transition-interactive);
+  cursor: pointer;
+}
+
+/* Inset like a scale's toggle, and outranking the shared ring in any sheet order. */
+.addScale > .addScaleTrigger:focus-visible {
+  outline-offset: calc(-1 * var(--focus-offset));
 }
 
 .addScaleTrigger svg {
   flex: 0 0 auto;
-  width: var(--geometry-icon-size);
-  height: var(--geometry-icon-size);
+  width: var(--geometry-icon-size-small);
+  height: var(--geometry-icon-size-small);
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -115,34 +141,7 @@
   stroke-width: var(--icon-stroke-width);
 }
 
-.addScaleTrigger:hover:not([aria-disabled="true"]) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-control-hover-surface);
-}
-
-.addScaleTrigger:active:not([aria-disabled="true"]) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-control-active-surface);
-}
-
-.addScaleTrigger[aria-expanded="true"]:not([aria-disabled="true"]) {
-  border-color: var(--color-accent);
-  background: var(--color-selection-surface);
-}
-
-.addScaleTrigger[aria-expanded="true"]:hover:not([aria-disabled="true"]) {
-  border-color: var(--color-control-hover-border);
-  background: var(--color-selection-surface);
-}
-
-.addScaleTrigger[aria-expanded="true"]:active:not([aria-disabled="true"]) {
-  border-color: var(--color-control-active-border);
-  background: var(--color-selection-surface);
-}
-
 .addScaleTrigger[aria-disabled="true"] {
-  border-color: transparent;
-  background: var(--color-surface-panel);
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }
@@ -185,18 +184,17 @@
 .empty,
 .note {
   margin: 0;
-  padding-inline: var(--space-4);
+  padding-inline: calc(var(--geometry-panel-gutter) + var(--space-4));
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
 
+/* The message is a block of the panel; the note is a footer on the workspace tone. */
 .empty {
-  padding-block: var(--space-16) var(--space-8);
-}
-
-.note {
-  padding-block: 0 var(--space-4);
+  padding-block: var(--space-16);
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
 .visuallyHidden {

@@ -94,6 +94,42 @@ describe("Disclosure", () => {
     expect(container!.firstElementChild?.hasAttribute("data-selected")).toBe(true);
   });
 
+  it("keeps a summary on the closed row only, since the opened body repeats it", () => {
+    act(() =>
+      root?.render(
+        <Disclosure title="Walls" summary="12.40 m">
+          <p>Details</p>
+        </Disclosure>,
+      ),
+    );
+    expect(toggle().textContent).toBe("Walls12.40 m");
+    act(() => toggle().click());
+    expect(toggle().textContent).toBe("Walls");
+    expect(container?.textContent).toContain("Details");
+  });
+
+  it("runs the body edge to edge only when flush", () => {
+    function body() {
+      return document.getElementById(toggle().getAttribute("aria-controls")!)!;
+    }
+    act(() =>
+      root?.render(
+        <Disclosure title="Walls" defaultOpen>
+          <p>Details</p>
+        </Disclosure>,
+      ),
+    );
+    expect(body().hasAttribute("data-flush")).toBe(false);
+    act(() =>
+      root?.render(
+        <Disclosure title="Walls" defaultOpen flush>
+          <p>Details</p>
+        </Disclosure>,
+      ),
+    );
+    expect(body().hasAttribute("data-flush")).toBe(true);
+  });
+
   it("follows the open state its owner sets and reports every toggle", () => {
     const onOpenChange = vi.fn();
     function render(open: boolean) {

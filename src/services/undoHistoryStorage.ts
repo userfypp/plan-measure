@@ -4,7 +4,7 @@ import { isActiveRevision, openSessionsTransaction, STATE_KEY } from "./persiste
 const UNDO_HISTORY_KEY = "undo-history-v1";
 const UNDO_HISTORY_REVISION_KEY = "undo-history-revision-v1";
 const UNDO_HISTORY_FORMAT = 1;
-const UNDO_HISTORY_SCHEMA_VERSION: CurrentSession["schemaVersion"] = 16;
+const UNDO_HISTORY_SCHEMA_VERSION: CurrentSession["schemaVersion"] = 17;
 
 export interface UndoHistory {
   undo: readonly CurrentSession[];

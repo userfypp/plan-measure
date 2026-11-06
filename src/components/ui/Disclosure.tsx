@@ -5,6 +5,8 @@ import styles from "./Disclosure.module.css";
 export interface DisclosureProps {
   title: string;
   subtitle?: ReactNode;
+  /** A figure kept at the end of the closed row; the opened body repeats it, so it leaves. */
+  summary?: ReactNode;
   /** Icon buttons kept on the closed row, after the title. */
   actions?: ReactNode;
   /** Marks the item as the current choice with the selection surface. */
@@ -12,6 +14,8 @@ export interface DisclosureProps {
   defaultOpen?: boolean;
   /** Controls the open state from outside; leave it out and the item keeps its own. */
   open?: boolean;
+  /** The body runs edge to edge: its content brings its own padding. */
+  flush?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }
@@ -23,10 +27,12 @@ export interface DisclosureProps {
 export function Disclosure({
   title,
   subtitle,
+  summary,
   actions,
   selected = false,
   defaultOpen = false,
   open: controlledOpen,
+  flush = false,
   onOpenChange,
   children,
 }: DisclosureProps) {
@@ -54,11 +60,12 @@ export function Disclosure({
             </span>
             {subtitle && <span className={styles.subtitle}>{subtitle}</span>}
           </span>
+          {!open && summary && <span className={styles.summary}>{summary}</span>}
         </button>
         {actions && <div className={styles.actions}>{actions}</div>}
       </div>
       {open && (
-        <div id={bodyId} className={styles.body}>
+        <div id={bodyId} className={styles.body} data-flush={flush || undefined}>
           {children}
         </div>
       )}

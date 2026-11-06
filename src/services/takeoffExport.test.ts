@@ -500,3 +500,331 @@ it("omits the unselected project totals CSV and rejects an empty selection", asy
     }),
   ).toThrow("Select at least one summary");
 });
+
+describe("Derived quantities in Takeoff exports", () => {
+  const point = (x: number, y: number) => ({ x, y });
+  const base = {
+    classificationValueIds: [],
+    calibrationId: "scale",
+    visible: true,
+  };
+  // Scale: 100 mm per unit. Walls: a 12 500 mm line and a hidden 1000 mm line, 2700 mm high, so
+  // 13 500 × 2700 = 36 450 000 mm² (36.45 m²). Slab: 4000 × 5000 mm, 150 mm thick, so
+  // 20 000 000 × 150 = 3 000 000 000 mm³ (3 m³).
+  function derivedFixture() {
+    const session = fixture();
+    session.classificationCatalog.dimensions = [
+      {
+        id: "element",
+        name: "Element",
+        archived: false,
+        values: [
+          { id: "wall", name: "Wall", archived: false },
+          { id: "slab", name: "Slab", archived: false },
+        ],
+      },
+    ];
+    session.pages[1]!.measurements = [
+      {
+        ...base,
+        id: "wall",
+        name: "Wall",
+        type: "line",
+        points: [point(0, 0), point(125, 0)],
+        classificationValueIds: ["wall"],
+      },
+      {
+        ...base,
+        id: "hidden-wall",
+        name: "Hidden wall",
+        type: "line",
+        points: [point(0, 0), point(10, 0)],
+        classificationValueIds: ["wall"],
+        visible: false,
+      },
+      {
+        ...base,
+        id: "slab",
+        name: "Slab",
+        type: "polygon",
+        points: [point(0, 0), point(40, 0), point(40, 50), point(0, 50)],
+        classificationValueIds: ["slab"],
+      },
+    ];
+    session.classificationRates = [
+      { valueId: "wall", derivation: { source: "length", factorMm: 2700 }, price: null },
+      { valueId: "slab", derivation: { source: "area", factorMm: 150 }, price: null },
+    ];
+    return session;
+  }
+  const derivedSelection: TakeoffSelection = {
+    breakdowns: [],
+    classificationDimensionIds: ["element"],
+  };
+  const projectRow = (session: ReturnType<typeof derivedFixture>) =>
+    objects(buildTakeoffTables(session, derivedSelection).project)[0]!;
+
+  it("appends the derived columns after the 19 existing ones, with derived areas in the area unit", () => {
+    const { project } = buildTakeoffTables(derivedFixture(), derivedSelection);
+    expect(project.headers.slice(0, 19)).toEqual([
+      "section",
+      "breakdown",
+      "dimension",
+      "dimension_id",
+      "group_id",
+      "group",
+      "archived",
+      "measurement_count",
+      "excluded_count",
+      "length",
+      "length_status",
+      "perimeter",
+      "perimeter_status",
+      "linear_unit",
+      "area",
+      "area_status",
+      "area_unit",
+      "count",
+      "count_status",
+    ]);
+    expect(project.headers.slice(19)).toEqual([
+      "derived_area",
+      "derived_area_status",
+      "derived_volume",
+      "derived_volume_status",
+      "volume_unit",
+      "cost",
+      "cost_status",
+      "currency",
+    ]);
+    expect(project.columnTypes.slice(19)).toEqual([
+      "number",
+      "text",
+      "number",
+      "text",
+      "text",
+      "number",
+      "text",
+      "text",
+    ]);
+    expect(projectRow(derivedFixture())).toMatchObject({
+      derived_area: 36.45,
+      derived_area_status: "value",
+      derived_volume: 3,
+      derived_volume_status: "value",
+      area_unit: "m²",
+      volume_unit: "m³",
+      cost: null,
+      cost_status: "absent",
+      currency: null,
+    });
+  });
+
+  it("converts derived areas and volumes to the display unit", () => {
+    const feet = derivedFixture();
+    feet.settings.displayUnit = "ft-in";
+    // 36 450 000 mm² / 304.8² = 392.3445… ft²; 3 000 000 000 mm³ / 304.8³ = 105.9440… ft³.
+    const row = projectRow(feet);
+    expect(row.derived_area).toBeCloseTo(392.34453468906935, 9);
+    expect(row.derived_volume).toBeCloseTo(105.94400016446576, 9);
+    expect(row).toMatchObject({ area_unit: "ft²", volume_unit: "ft³" });
+
+    // Exactly one cubic foot: a 1 m² cloud-free polygon, 28.316846592 mm thick.
+    const cubicFoot = derivedFixture();
+    cubicFoot.settings.displayUnit = "ft";
+    cubicFoot.pages[1]!.measurements = [
+      {
+        ...base,
+        id: "slab",
+        name: "Slab",
+        type: "polygon",
+        points: [point(0, 0), point(10, 0), point(10, 10), point(0, 10)],
+        classificationValueIds: ["slab"],
+      },
+    ];
+    cubicFoot.classificationRates = [
+      { valueId: "slab", derivation: { source: "area", factorMm: 28.316846592 }, price: null },
+    ];
+    expect(projectRow(cubicFoot).derived_volume).toBeCloseTo(1, 12);
+  });
+
+  it("keeps the volume in cubic linear units when the area is shown in acres", () => {
+    const session = derivedFixture();
+    session.settings.areaDisplay = "ac";
+    // 36 450 000 mm² / 4 046 856 422.4 mm² per acre.
+    const row = projectRow(session);
+    expect(row.derived_area).toBeCloseTo(0.009006991154478176, 15);
+    expect(row).toMatchObject({ area_unit: "ac", volume_unit: "m³", derived_volume: 3 });
+  });
+
+  it("leaves absent and unavailable derived cells empty with their status", () => {
+    const none = derivedFixture();
+    none.classificationRates = [];
+    expect(buildTakeoffTables(none, derivedSelection).hasUnavailable).toBe(false);
+    expect(projectRow(none)).toMatchObject({
+      derived_area: null,
+      derived_area_status: "absent",
+      derived_volume: null,
+      derived_volume_status: "absent",
+      volume_unit: "m³",
+    });
+
+    const overflow = derivedFixture();
+    overflow.classificationRates = [
+      { valueId: "wall", derivation: { source: "length", factorMm: 1e308 }, price: null },
+      { valueId: "slab", derivation: { source: "area", factorMm: 150 }, price: null },
+    ];
+    expect(projectRow(overflow)).toMatchObject({
+      derived_area: null,
+      derived_area_status: "unavailable",
+      derived_volume: 3,
+      derived_volume_status: "value",
+    });
+    expect(buildTakeoffTables(overflow, derivedSelection).hasUnavailable).toBe(true);
+
+    // A result that rounds to zero on conversion is not a value (5e-324 mm × 13 500 mm).
+    const underflow = derivedFixture();
+    underflow.classificationRates = [
+      { valueId: "wall", derivation: { source: "length", factorMm: 5e-324 }, price: null },
+    ];
+    expect(projectRow(underflow)).toMatchObject({
+      derived_area: null,
+      derived_area_status: "unavailable",
+    });
+  });
+
+  it("reports the derived columns per breakdown row, each value in its own row", () => {
+    const tables = buildTakeoffTables(derivedFixture(), derivedSelection);
+    expect(
+      objects(tables.breakdowns[0]![1]).map((row) => [
+        row.group,
+        row.derived_area,
+        row.derived_area_status,
+        row.derived_volume,
+        row.derived_volume_status,
+      ]),
+    ).toEqual([
+      ["Wall", 36.45, "value", null, "absent"],
+      ["Slab", null, "absent", 3, "value"],
+    ]);
+  });
+
+  it("writes the derived columns as literal CSV text", () => {
+    const tables = buildTakeoffTables(derivedFixture(), derivedSelection);
+    const [header, row] = serializeExportTableCsv(tables.project).replace("﻿", "").split(/\r?\n/);
+    expect(
+      header!.endsWith(
+        ",count_status,derived_area,derived_area_status,derived_volume,derived_volume_status,volume_unit,cost,cost_status,currency",
+      ),
+    ).toBe(true);
+    expect(row!.endsWith(",36.45,value,3,value,m³,,absent,")).toBe(true);
+  });
+
+  it.each(["xlsx", "ods"] as const)(
+    "writes numeric derived %s cells and text statuses",
+    async (format) => {
+      const tables = buildTakeoffTables(derivedFixture(), derivedSelection);
+      const workbook = read(
+        await buildSpreadsheetTables(format, [["Project totals", tables.project]]),
+        {
+          type: "array",
+        },
+      );
+      const sheet = workbook.Sheets["Project totals"]!;
+      expect(sheet.T1).toMatchObject({ t: "s", v: "derived_area" });
+      expect(sheet.X1).toMatchObject({ t: "s", v: "volume_unit" });
+      expect(sheet.T2).toMatchObject({ t: "n", v: 36.45 });
+      expect(sheet.U2).toMatchObject({ t: "s", v: "value" });
+      expect(sheet.V2).toMatchObject({ t: "n", v: 3 });
+      expect(sheet.W2).toMatchObject({ t: "s", v: "value" });
+      expect(sheet.X2).toMatchObject({ t: "s", v: "m³" });
+    },
+  );
+
+  describe("cost columns", () => {
+    // Walls: 13 500 mm = 13.5 m at 4 per m = 54. Slab: 3 m³ at 110 per m³ = 330. Total 384.
+    function pricedFixture() {
+      const session = derivedFixture();
+      session.settings.currency = "EUR";
+      session.classificationRates = [
+        {
+          valueId: "wall",
+          derivation: { source: "length", factorMm: 2700 },
+          price: { amount: 4, basis: "length", unit: "m" },
+        },
+        {
+          valueId: "slab",
+          derivation: { source: "area", factorMm: 150 },
+          price: { amount: 110, basis: "derived", unit: "m³" },
+        },
+      ];
+      return session;
+    }
+
+    it("exports the unrounded cost, its status and the project currency", () => {
+      expect(projectRow(pricedFixture())).toMatchObject({
+        cost: 384,
+        cost_status: "value",
+        currency: "EUR",
+      });
+      const tables = buildTakeoffTables(pricedFixture(), derivedSelection);
+      expect(
+        objects(tables.breakdowns[0]![1]).map((row) => [row.group, row.cost, row.cost_status]),
+      ).toEqual([
+        ["Wall", 54, "value"],
+        ["Slab", 330, "value"],
+      ]);
+      expect(tables.hasUnavailable).toBe(false);
+
+      // Nothing is rounded: 13.5 m at 0.3333 per m is 4.49955.
+      const fractional = pricedFixture();
+      fractional.classificationRates[0]!.price!.amount = 0.3333;
+      expect(projectRow(fractional).cost).toBeCloseTo(334.49955, 9);
+    });
+
+    it("leaves the currency empty without one, and the cost does not depend on the display unit", () => {
+      const session = pricedFixture();
+      session.settings.currency = null;
+      session.settings.displayUnit = "ft-in";
+      expect(projectRow(session)).toMatchObject({
+        cost: 384,
+        cost_status: "value",
+        currency: null,
+      });
+    });
+
+    it("exports a zero price as a zero cost and an overflowing one as unavailable", () => {
+      const free = pricedFixture();
+      free.classificationRates[0]!.price!.amount = 0;
+      expect(projectRow(free)).toMatchObject({ cost: 330, cost_status: "value" });
+      const onlyFree = pricedFixture();
+      onlyFree.classificationRates = [{ ...free.classificationRates[0]! }];
+      expect(projectRow(onlyFree)).toMatchObject({ cost: 0, cost_status: "value" });
+
+      const overflow = pricedFixture();
+      overflow.classificationRates[0]!.price!.amount = 1e308;
+      expect(projectRow(overflow)).toMatchObject({ cost: null, cost_status: "unavailable" });
+      expect(buildTakeoffTables(overflow, derivedSelection).hasUnavailable).toBe(true);
+    });
+
+    it("writes the cost columns as CSV text", () => {
+      const tables = buildTakeoffTables(pricedFixture(), derivedSelection);
+      const [, row] = serializeExportTableCsv(tables.project).replace("﻿", "").split(/\r?\n/);
+      expect(row!.endsWith(",36.45,value,3,value,m³,384,value,EUR")).toBe(true);
+    });
+
+    it.each(["xlsx", "ods"] as const)("writes a numeric cost cell in %s", async (format) => {
+      const tables = buildTakeoffTables(pricedFixture(), derivedSelection);
+      const workbook = read(
+        await buildSpreadsheetTables(format, [["Project totals", tables.project]]),
+        { type: "array" },
+      );
+      const sheet = workbook.Sheets["Project totals"]!;
+      expect(sheet.Y1).toMatchObject({ t: "s", v: "cost" });
+      expect(sheet.AA1).toMatchObject({ t: "s", v: "currency" });
+      expect(sheet.Y2).toMatchObject({ t: "n", v: 384 });
+      expect(sheet.Z2).toMatchObject({ t: "s", v: "value" });
+      expect(sheet.AA2).toMatchObject({ t: "s", v: "EUR" });
+    });
+  });
+});

@@ -29,12 +29,13 @@ afterEach(() => {
   container = null;
 });
 
-function renderGroup() {
+function renderGroup(depth?: number) {
   const onToggleCollapsed = vi.fn();
   const onSetMeasurementsVisibility = vi.fn();
   act(() =>
     root!.render(
       <MeasurementGroup
+        depth={depth}
         group={{
           key: "dimension:trade:value:electrical",
           dimensionLabel: "Trade",
@@ -54,7 +55,8 @@ function renderGroup() {
     ),
   );
   const header = container!.querySelector("header")!;
-  return { header, onToggleCollapsed, onSetMeasurementsVisibility };
+  const section = container!.querySelector("section")!;
+  return { header, section, onToggleCollapsed, onSetMeasurementsVisibility };
 }
 
 function click(element: Element) {
@@ -64,6 +66,20 @@ function click(element: Element) {
 }
 
 describe("MeasurementGroup header", () => {
+  it("makes only a root group a block of its own", () => {
+    // A root group takes the block class beside the group class; a subgroup stays inside its block.
+    expect(renderGroup().section.classList).toHaveLength(2);
+    expect(renderGroup(0).section.classList).toHaveLength(2);
+    expect(renderGroup(1).section.classList).toHaveLength(1);
+  });
+
+  it("raises the block holding the focus above the ones after it", () => {
+    // The next block opens with an opaque strip that would cut the focus ring of a collapsed group.
+    expect(measurementGroupCss).toMatch(
+      /\.rootGroup:focus-within\s*\{[^}]*z-index:\s*var\(--z-raised\);/s,
+    );
+  });
+
   it("toggles from its title, count and empty space", () => {
     const { header, onToggleCollapsed } = renderGroup();
 

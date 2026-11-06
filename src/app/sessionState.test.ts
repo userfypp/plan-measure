@@ -28,10 +28,10 @@ describe("SessionState", () => {
     expect(deleted.session?.settings.labelClassificationDimensionId).toBeNull();
   });
 
-  it("creates a schema 16 session with empty page-label overrides and existing defaults", () => {
+  it("creates a schema 17 session with empty page-label overrides and existing defaults", () => {
     const created = session();
 
-    expect(created.schemaVersion).toBe(16);
+    expect(created.schemaVersion).toBe(17);
     expect(created.pageLabelOverrides).toEqual({});
     expect(created.settings.measurementDecimalPlaces).toBe(2);
     expect(created.settings.areaDisplay).toBe("auto");
@@ -48,7 +48,7 @@ describe("SessionState", () => {
       { type: "LOAD_SESSION", session: session() },
     );
 
-    expect(loaded.session?.schemaVersion).toBe(16);
+    expect(loaded.session?.schemaVersion).toBe(17);
     expect(loaded.session?.pageCount).toBe(2);
     expect(loaded.error).toBeNull();
   });
@@ -114,7 +114,7 @@ describe("SessionState", () => {
     ]);
     expect(state.session).not.toHaveProperty("selectedMeasurementId");
     expect(state.session).not.toHaveProperty("activeTool");
-    expect(state.session?.schemaVersion).toBe(16);
+    expect(state.session?.schemaVersion).toBe(17);
     expect(state.session?.settings.csvExport).toEqual({
       columnOverrides: { name: false },
     });
@@ -1532,6 +1532,171 @@ describe("SessionState", () => {
         calibrationId: "scale-1",
       });
       expect(blocked.error).toContain("used by measurements");
+    });
+  });
+
+  describe("classification rates and currency", () => {
+    const wall = { source: "length", factorMm: 2700 } as const;
+    const slab = { source: "area", factorMm: 150 } as const;
+    const wallPrice = { amount: 25, basis: "derived", unit: "m²" } as const;
+
+    function ratesState(): SessionCommandResult {
+      const created = session();
+      created.classificationCatalog.dimensions = [
+        {
+          id: "element",
+          name: "Element",
+          archived: false,
+          values: [
+            { id: "wall", name: "Wall", archived: false },
+            { id: "slab", name: "Slab", archived: false },
+          ],
+        },
+        {
+          id: "finish",
+          name: "Finish",
+          archived: false,
+          values: [{ id: "paint", name: "Paint", archived: false }],
+        },
+      ];
+      return { session: created, error: null };
+    }
+
+    function withRates(
+      state: SessionCommandResult,
+      valueId: string,
+      derivation: CurrentSession["classificationRates"][number]["derivation"],
+      price: CurrentSession["classificationRates"][number]["price"],
+    ) {
+      return sessionReducer(state, {
+        type: "SET_CLASSIFICATION_VALUE_RATES",
+        valueId,
+        derivation,
+        price,
+      });
+    }
+
+    it("starts without a currency or rates", () => {
+      expect(session().settings.currency).toBeNull();
+      expect(session().classificationRates).toEqual([]);
+    });
+
+    it("stores rates in catalogue order whatever the order they were set in", () => {
+      let state = withRates(ratesState(), "paint", null, { ...wallPrice, basis: "area" });
+      state = withRates(state, "slab", slab, null);
+      state = withRates(state, "wall", wall, wallPrice);
+
+      expect(state.error).toBeNull();
+      expect(state.session!.classificationRates).toStrictEqual([
+        { valueId: "wall", derivation: wall, price: wallPrice },
+        { valueId: "slab", derivation: slab, price: null },
+        { valueId: "paint", derivation: null, price: { ...wallPrice, basis: "area" } },
+      ]);
+    });
+
+    it("keeps the same state when the rates do not change and removes them when both are null", () => {
+      const state = withRates(ratesState(), "wall", wall, wallPrice);
+
+      const same = withRates(state, "wall", { ...wall }, { ...wallPrice });
+      expect(same.session).toBe(state.session);
+      expect(same.error).toBeNull();
+
+      const changed = withRates(state, "wall", { ...wall, factorMm: 2800 }, wallPrice);
+      expect(changed.session!.classificationRates[0]!.derivation!.factorMm).toBe(2800);
+
+      const removed = withRates(state, "wall", null, null);
+      expect(removed.session!.classificationRates).toEqual([]);
+      expect(withRates(removed, "wall", null, null).session).toBe(removed.session);
+    });
+
+    it.each([
+      ["an unknown value", "gone", wall, null],
+      ["a dimension", "element", wall, null],
+      ["a zero factor", "wall", { ...wall, factorMm: 0 }, null],
+      ["a negative price", "wall", null, { ...wallPrice, amount: -1 }],
+      ["a derived price without a derivation", "wall", null, wallPrice],
+      ["a unit that does not fit the basis", "wall", null, { ...wallPrice, basis: "count" }],
+    ] as const)("rejects rates with %s", (_name, valueId, derivation, price) => {
+      const state = ratesState();
+      const result = withRates(state, valueId, derivation as never, price as never);
+      expect(result.session).toBe(state.session);
+      expect(result.error).toBe("The classification rates are invalid.");
+    });
+
+    it("drops a value's rates when the value is deleted and keeps the array otherwise", () => {
+      let state = withRates(ratesState(), "wall", wall, wallPrice);
+      state = withRates(state, "paint", null, { ...wallPrice, basis: "area" });
+      const rates = state.session!.classificationRates;
+
+      const unrelated = sessionReducer(state, {
+        type: "DELETE_CLASSIFICATION_VALUE",
+        dimensionId: "element",
+        id: "slab",
+      });
+      expect(unrelated.session!.classificationRates).toBe(rates);
+
+      const deleted = sessionReducer(state, {
+        type: "DELETE_CLASSIFICATION_VALUE",
+        dimensionId: "element",
+        id: "wall",
+      });
+      expect(deleted.session!.classificationRates.map(({ valueId }) => valueId)).toEqual(["paint"]);
+    });
+
+    it("drops the rates of every value of a deleted dimension", () => {
+      let state = withRates(ratesState(), "wall", wall, wallPrice);
+      state = withRates(state, "slab", slab, null);
+      state = withRates(state, "paint", null, { ...wallPrice, basis: "area" });
+
+      const deleted = sessionReducer(state, {
+        type: "DELETE_CLASSIFICATION_DIMENSION",
+        id: "element",
+      });
+
+      expect(deleted.session!.classificationRates.map(({ valueId }) => valueId)).toEqual(["paint"]);
+    });
+
+    it("keeps archived values' rates", () => {
+      const state = withRates(ratesState(), "wall", wall, wallPrice);
+      const archived = sessionReducer(state, {
+        type: "ARCHIVE_CLASSIFICATION_VALUE",
+        dimensionId: "element",
+        id: "wall",
+      });
+      expect(archived.session!.classificationRates).toBe(state.session!.classificationRates);
+    });
+
+    it.each(["EUR", null])("sets the currency to %s", (currency) => {
+      const state = sessionReducer(ratesState(), {
+        type: "UPDATE_SETTINGS",
+        settings: { currency },
+      });
+      expect(state.error).toBeNull();
+      expect(state.session!.settings.currency).toBe(currency);
+    });
+
+    it.each(["eur", "EURO", "", "€", "E1R"])("rejects the currency %j", (currency) => {
+      const state = ratesState();
+      const result = sessionReducer(state, { type: "UPDATE_SETTINGS", settings: { currency } });
+      expect(result.session).toBe(state.session);
+      expect(result.error).toBe("The currency is invalid.");
+    });
+
+    it("rejects an undefined currency and leaves other settings updates alone", () => {
+      const state = ratesState();
+      const result = sessionReducer(state, {
+        type: "UPDATE_SETTINGS",
+        settings: { currency: undefined },
+      });
+      expect(result.session).toBe(state.session);
+      expect(result.error).toBe("The currency is invalid.");
+
+      const other = sessionReducer(state, {
+        type: "UPDATE_SETTINGS",
+        settings: { showLabels: false },
+      });
+      expect(other.error).toBeNull();
+      expect(other.session!.settings.currency).toBeNull();
     });
   });
 });

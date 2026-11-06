@@ -1,4 +1,12 @@
-import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { MODULE_RELOAD_REQUIRED, retryableImport } from "./retryableImport";
 import { recoverableLazy } from "./recoverableLazy";
 import { preloadWhenIdle } from "./idlePreload";
@@ -163,6 +171,7 @@ function PlanMeasureApp() {
     editMeasurements,
     addClassificationDimension,
     applyClassificationTemplate,
+    setClassificationValueRates,
     renameClassificationDimension,
     deleteClassificationDimension,
     archiveClassificationDimension,
@@ -275,6 +284,12 @@ function PlanMeasureApp() {
   const [calibrationUnit, setCalibrationUnit] = useState<CalibrationInputUnit>("m");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [ExportDialog, setExportDialog] = useState<ExportDialogComponent | null>(null);
+  const classificationRates = session?.classificationRates;
+  // The currency can only be cleared while no price depends on it.
+  const projectHasPrices = useMemo(
+    () => classificationRates?.some((entry) => entry.price !== null) ?? false,
+    [classificationRates],
+  );
   const openExportDialog = useCallback(() => {
     if (ExportDialog) {
       setExportDialogOpen(true);
@@ -1028,10 +1043,12 @@ function PlanMeasureApp() {
                 labelClassificationDimensionId: session.settings.labelClassificationDimensionId,
                 measureClouds: session.settings.measureClouds,
                 defaultMeasurementFilters: session.settings.defaultMeasurementFilters,
+                currency: session.settings.currency,
               }
             : null
         }
         classificationDimensions={session?.classificationCatalog.dimensions}
+        projectHasPrices={projectHasPrices}
         keyboardAuthoringEnabled={keyboardAuthoringEnabled}
         confirmMeasurementDeletion={confirmMeasurementDeletion}
         confirmValueDeletion={confirmValueDeletion}
@@ -1186,6 +1203,8 @@ function PlanMeasureApp() {
                         key={workspaceVersion}
                         pages={previewPages ?? session.pages}
                         catalog={session.classificationCatalog}
+                        classificationRates={session.classificationRates}
+                        currency={session.settings.currency}
                         onOpenMeasurement={openTakeoffMeasurement}
                         navigationBlocked={summaryExportBlocked}
                         displayUnit={session.settings.displayUnit}
@@ -1202,6 +1221,16 @@ function PlanMeasureApp() {
                       <ClassificationWorkspace
                         key={workspaceVersion}
                         catalog={session.classificationCatalog}
+                        rates={session.classificationRates}
+                        currency={session.settings.currency}
+                        displayUnit={session.settings.displayUnit}
+                        decimalPlaces={session.settings.measurementDecimalPlaces}
+                        onSetValueRates={(valueId, derivation, price, newCurrency) => {
+                          if (!setClassificationValueRates(valueId, derivation, price))
+                            return false;
+                          if (newCurrency) updateSettings({ currency: newCurrency });
+                          return true;
+                        }}
                         disabled={Boolean(
                           calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
                         )}

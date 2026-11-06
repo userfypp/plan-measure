@@ -351,9 +351,10 @@ function VirtualCollectionContents({
       const start = entries.length;
       entries.push({
         key: `header:${group.key}`,
-        // Rendered height: min-height --target-fine (32) plus the 1 px top border on the root.
+        // Rendered height: the 32 px control plus the top border: 9 px on a root header (an 8 px
+        // strip of the collection's tone and the block's hairline), 1 px on a nested one.
         // The title is a single line and fits in the control.
-        estimate: depth === 0 ? 33 : 32,
+        estimate: depth === 0 ? 41 : 33,
         tabStops: 2,
       });
       const rowsStart = entries.length;

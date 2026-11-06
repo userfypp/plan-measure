@@ -11,6 +11,7 @@ import {
   formatCsvNumber,
   formatDisplayNumber,
   formatMeasurement,
+  formatVolumeValue,
 } from "./format";
 import { toMillimetres } from "./units";
 
@@ -204,6 +205,13 @@ describe("measurement formatting", () => {
     const acreMm2 = (43_560 * 1524 * 1524) / 25;
     expect(formatAreaValue(acreMm2, "m", "ac", 2)).toBe("1.00 ac");
     expect(formatAreaValue(acreMm2, "ft-in", "auto", 2)).toBe("43560.00 ft²");
+  });
+
+  it("formats volume in the cubed linear display unit, with feet for ft-in", () => {
+    expect(formatVolumeValue(3e9, "m", 2)).toBe("3.00 m³");
+    expect(formatVolumeValue(3e9, "cm", 0)).toBe("3000000 cm³");
+    expect(formatVolumeValue(28_316_846.592, "ft", 2)).toBe("1.00 ft³");
+    expect(formatVolumeValue(28_316_846.592, "ft-in", 2)).toBe("1.00 ft³");
   });
 });
 

@@ -28,6 +28,7 @@ Tests live next to the code (`*.test.ts(x)`).
 - **Length/area/scale math**: `utils/calibration.ts`, `utils/geometry.ts`, `utils/units.ts`.
 - **New export format**: `services/` (`takeoffExport.ts`, `spreadsheetExport.ts`) and `features/export/ExportDialog.tsx`; if the JSON changes, update `docs/export-json.md`.
 - **Saving/recovering projects**: `services/persistence*.ts`, `services/projectFile.ts`, `app/autosave.ts`.
+- **Derived quantities and prices**: rules and validation in `utils/classificationRates.ts`, currencies in `utils/currencies.ts`, totals in `features/measurements/measurementTotals.ts` and `services/takeoffSummary.ts`, editor in `features/classification/ClassificationValueRatesDialog.tsx`. Saved fields need a migration in `services/persistenceCodec.ts`.
 - **State and undo/redo**: `app/sessionState.tsx`, `app/state.tsx`. Persisting the history across reloads is lazy: `app/undoHistoryPersistence.ts` (idle writer, size cap) and `services/undoHistoryStorage.ts` (two records in the `sessions` store, tied to the saved revision and deleted wherever the active session is replaced).
 - **Panels and dialogs**: `app/` and `features/<area>/`.
 - **Keyboard shortcuts**: actions, bindings and the single key dispatcher live in `utils/shortcuts/` (stable action ids are the storage contract); the Settings panel, catalog, presets and conflict rules are lazy in `features/shortcuts/`. Components read labels through `useShortcutLabel`; new actions register a handler with `useShortcutHandlers`.

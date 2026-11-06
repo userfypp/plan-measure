@@ -294,8 +294,15 @@
   gap: var(--space-4);
 }
 
+/* The label column, the gap, the select column and both side paddings: the select keeps its token width. */
 .viewPopover {
-  width: min(var(--geometry-viewer-popover-width-compact), calc(100vw - var(--space-24)));
+  width: min(
+    calc(
+      var(--geometry-viewer-setting-label-width) + var(--space-16) + var(--geometry-select-width) +
+        var(--space-32)
+    ),
+    calc(100vw - var(--space-24))
+  );
   padding: 0;
 }
 
@@ -334,10 +341,17 @@
 .toggle {
   min-height: var(--control-height-regular);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-16);
   padding-block: var(--space-4);
+}
+
+.unit {
+  grid-template-columns: minmax(0, 1fr) var(--geometry-select-width);
+}
+
+.toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .settingLabel {
@@ -345,10 +359,6 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-base);
-}
-
-.unitSelect {
-  width: var(--geometry-select-width-regular);
 }
 
 .toggleText {
@@ -363,13 +373,9 @@
 }
 
 @media (max-width: 420px) {
-  .stackOnNarrow {
+  .unit {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-8);
-  }
-
-  .unitSelect {
-    width: 100%;
   }
 }
 

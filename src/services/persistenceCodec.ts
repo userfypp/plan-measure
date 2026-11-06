@@ -23,6 +23,7 @@ import type {
   SessionV14,
   SessionV15,
   SessionV16,
+  SessionV17,
   PageState,
   CurrentSession,
 } from "../types/domain";
@@ -36,6 +37,7 @@ import {
 import { isCloudColor } from "../utils/cloudColors";
 import { placeholderPointsFor } from "../utils/quickShapesCore";
 import { classificationNameKey } from "../utils/classificationNames";
+import { canonicalRates, hasValidRates, isCurrencyCode } from "../utils/classificationRates";
 import { isValidCustomPageLabel } from "../utils/pageLabels";
 import {
   isDefaultMeasurementFilters,
@@ -750,6 +752,38 @@ function assertValidSessionV16(
   assertValidSessionV15({ ...value, schemaVersion: 15 }, allowClassificationNameConflicts);
 }
 
+/** V17 = V16 + the project currency + derived quantity factors and unit prices per classification value. */
+function assertValidSessionV17(
+  value: Record<string, unknown>,
+  allowClassificationNameConflicts = false,
+): void {
+  if (value.schemaVersion !== 17) throw new Error("The saved session is invalid.");
+  assertValidSessionV16({ ...value, schemaVersion: 16 }, allowClassificationNameConflicts);
+  const { currency } = value.settings as Record<string, unknown>;
+  if (currency !== null && !isCurrencyCode(currency)) {
+    throw new Error("The saved currency is invalid.");
+  }
+  const valueIds = new Set(
+    (value.classificationCatalog as SessionV17["classificationCatalog"]).dimensions.flatMap(
+      (dimension) => dimension.values.map((classificationValue) => classificationValue.id),
+    ),
+  );
+  const rates = value.classificationRates;
+  if (!Array.isArray(rates)) throw new Error("The saved classification rates are invalid.");
+  const seen = new Set<unknown>();
+  for (const entry of rates) {
+    if (
+      !isRecord(entry) ||
+      !valueIds.has(entry.valueId as string) ||
+      seen.has(entry.valueId) ||
+      !hasValidRates(entry.derivation, entry.price)
+    ) {
+      throw new Error("The saved classification rates are invalid.");
+    }
+    seen.add(entry.valueId);
+  }
+}
+
 /** Rectangle, ellipse and cloud measurements (and cloud colors) only exist from schema V13 onwards. */
 function assertLegacyMeasurementTypes(value: Record<string, unknown>): void {
   if (!isObject(value.pages)) return;
@@ -809,6 +843,15 @@ function migrateSessionV15(session: SessionV15): SessionV16 {
     ...session,
     schemaVersion: 16,
     settings: { ...session.settings, defaultMeasurementFilters: null },
+  };
+}
+
+function migrateSessionV16(session: SessionV16): SessionV17 {
+  return {
+    ...session,
+    schemaVersion: 17,
+    settings: { ...session.settings, currency: null },
+    classificationRates: [],
   };
 }
 
@@ -1116,12 +1159,28 @@ function canonicalizeSessionV16(session: SessionV16): SessionV16 {
   };
 }
 
+function canonicalizeSessionV17(session: SessionV17): SessionV17 {
+  const canonical = canonicalizeSessionV16({ ...session, schemaVersion: 16 });
+  const ratesById = new Map(session.classificationRates.map((entry) => [entry.valueId, entry]));
+  return {
+    ...canonical,
+    schemaVersion: 17,
+    settings: { ...canonical.settings, currency: session.settings.currency },
+    classificationRates: session.classificationCatalog.dimensions.flatMap((dimension) =>
+      dimension.values.flatMap((classificationValue) => {
+        const entry = ratesById.get(classificationValue.id);
+        return entry ? [canonicalRates(entry.valueId, entry.derivation, entry.price)] : [];
+      }),
+    ),
+  };
+}
+
 function migrateAndCanonicalizeSessionV9(session: SessionV9): SessionV11 {
   return canonicalizeSessionV11(migrateSessionV10(migrateSessionV9(session)));
 }
 
 export function serializeSession(session: CurrentSession): string {
-  assertValidSessionV16(session as unknown as Record<string, unknown>);
+  assertValidSessionV17(session as unknown as Record<string, unknown>);
   return JSON.stringify(session);
 }
 
@@ -1241,14 +1300,16 @@ function requiresClassificationNameRepair(value: unknown): boolean {
 }
 
 function finalizeDecodedSession(
-  source: SessionV11 | SessionV12 | SessionV13 | SessionV14 | SessionV15 | CurrentSession,
+  source:
+    SessionV11 | SessionV12 | SessionV13 | SessionV14 | SessionV15 | SessionV16 | CurrentSession,
   classificationRepairRequired = false,
 ): DecodedSession {
   const sessionV12 = source.schemaVersion === 11 ? migrateSessionV11(source) : source;
   const sessionV13 = sessionV12.schemaVersion === 12 ? migrateSessionV12(sessionV12) : sessionV12;
   const sessionV14 = sessionV13.schemaVersion === 13 ? migrateSessionV13(sessionV13) : sessionV13;
   const sessionV15 = sessionV14.schemaVersion === 14 ? migrateSessionV14(sessionV14) : sessionV14;
-  const session = sessionV15.schemaVersion === 15 ? migrateSessionV15(sessionV15) : sessionV15;
+  const sessionV16 = sessionV15.schemaVersion === 15 ? migrateSessionV15(sessionV15) : sessionV15;
+  const session = sessionV16.schemaVersion === 16 ? migrateSessionV16(sessionV16) : sessionV16;
   const incompatibleMeasurementIds = Object.values(session.pages).flatMap((page) =>
     page.measurements
       .filter((measurement) => !hasValidMeasurementPoints(measurement.type, measurement.points))
@@ -1256,12 +1317,12 @@ function finalizeDecodedSession(
   );
   const historicalGeometryRepairRequired = incompatibleMeasurementIds.length > 0;
   if (!historicalGeometryRepairRequired && !classificationRepairRequired) {
-    assertValidSessionV16(session as unknown as Record<string, unknown>);
+    assertValidSessionV17(session as unknown as Record<string, unknown>);
     return { session, compatibility: "current", incompatibleMeasurementIds: [] };
   }
 
   // Validate every other migrated field without changing the repairable snapshot returned below.
-  const validationProbe = canonicalizeSessionV16(session);
+  const validationProbe = canonicalizeSessionV17(session);
   for (const page of Object.values(validationProbe.pages)) {
     page.measurements = page.measurements.map((measurement) =>
       hasValidMeasurementPoints(measurement.type, measurement.points)
@@ -1272,7 +1333,7 @@ function finalizeDecodedSession(
           },
     );
   }
-  assertValidSessionV16(
+  assertValidSessionV17(
     validationProbe as unknown as Record<string, unknown>,
     classificationRepairRequired,
   );
@@ -1494,6 +1555,16 @@ export function deserializeSessionForRecovery(serialized: string): DecodedSessio
     assertValidSessionV16(value, classificationRepairRequired);
     return finalizeDecodedSession(
       canonicalizeSessionV16(value as unknown as SessionV16),
+      classificationRepairRequired,
+    );
+  }
+  if (value.schemaVersion === 17) {
+    const classificationRepairRequired = requiresClassificationNameRepair(
+      value.classificationCatalog,
+    );
+    assertValidSessionV17(value, classificationRepairRequired);
+    return finalizeDecodedSession(
+      canonicalizeSessionV17(value as unknown as SessionV17),
       classificationRepairRequired,
     );
   }

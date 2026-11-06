@@ -740,6 +740,20 @@ describe("ViewerDock", () => {
     expect(props.onSettingsChange).toHaveBeenCalledWith({ showLabels: false });
   });
 
+  it("gives the View settings selects a defined column and sizes the popover around it", () => {
+    const tokensCss = readFileSync(resolve(import.meta.dirname, "../../styles/tokens.css"), "utf8");
+    // The select column is a grid track, so no value or stylesheet order can make a trigger hug its text.
+    expect(dockCss).toMatch(
+      /\.unit\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+var\(--geometry-select-width\);/s,
+    );
+    expect(dockCss).not.toMatch(/unitSelect|stackOnNarrow/);
+    // The popover is the label column, the select column, the gap and the side padding, at every text size.
+    expect(dockCss).toMatch(
+      /\.viewPopover\s*\{[^}]*var\(--geometry-viewer-setting-label-width\)[^}]*var\(--geometry-select-width\)/s,
+    );
+    expect(tokensCss.match(/--geometry-viewer-setting-label-width:/g)).toHaveLength(3);
+  });
+
   it("closes View when focus moves to another Dock control and preserves that focus", () => {
     renderDock(createProps());
     const view = buttonByLabel("View options");

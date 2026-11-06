@@ -12,6 +12,8 @@ import { getAppPreferences, subscribeAppPreferences } from "../utils/appPreferen
 import { useAppState } from "./state";
 import type {
   CalibrationReferenceKey,
+  ClassificationValueDerivation,
+  ClassificationValuePrice,
   CurrentSession,
   Measurement,
   MeasurementType,
@@ -33,9 +35,16 @@ import {
 } from "../utils/calibration";
 import {
   applyTemplateDimensions,
-  type ClassificationTemplateDimension,
+  type ClassificationTemplate,
+  type TemplateConflictPolicy,
 } from "../features/classification/classificationTemplates";
 import { classificationNameKey } from "../utils/classificationNames";
+import {
+  canonicalRates,
+  hasValidRates,
+  isCurrencyCode,
+  ratesByValueId,
+} from "../utils/classificationRates";
 import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils/measurementName";
 import { normalizeCustomPageLabel } from "../utils/pageLabels";
 
@@ -168,7 +177,11 @@ export type SessionAction =
       visible: boolean;
     }
   | { type: "DELETE_MEASUREMENT"; pageNumber: number; id: string }
-  | { type: "APPLY_CLASSIFICATION_TEMPLATE"; dimensions: ClassificationTemplateDimension[] }
+  | {
+      type: "APPLY_CLASSIFICATION_TEMPLATE";
+      template: Pick<ClassificationTemplate, "currency" | "dimensions">;
+      policy: TemplateConflictPolicy;
+    }
   | { type: "ADD_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "RENAME_CLASSIFICATION_DIMENSION"; id: string; name: string }
   | { type: "DELETE_CLASSIFICATION_DIMENSION"; id: string }
@@ -181,6 +194,12 @@ export type SessionAction =
   | { type: "RESTORE_CLASSIFICATION_VALUE"; dimensionId: string; id: string }
   | ({ type: "ASSIGN_CLASSIFICATION_VALUE" } & AssignClassificationValueCommand)
   | ({ type: "REMOVE_CLASSIFICATION_VALUE" } & AssignClassificationValueCommand)
+  | {
+      type: "SET_CLASSIFICATION_VALUE_RATES";
+      valueId: string;
+      derivation: ClassificationValueDerivation | null;
+      price: ClassificationValuePrice | null;
+    }
   | { type: "UPDATE_SETTINGS"; settings: Partial<SessionSettings> };
 
 export const initialSessionState: SessionCommandResult = {
@@ -224,7 +243,7 @@ export function createEmptySession(
     pages[pageNumber] = createPageState(pageNumber);
   }
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     pdf,
     pageCount,
     currentPage: 1,
@@ -241,9 +260,11 @@ export function createEmptySession(
       labelClassificationDimensionId: null,
       measureClouds: false,
       defaultMeasurementFilters: null,
+      currency: null,
       ...settings,
     },
     classificationCatalog: { dimensions: [] },
+    classificationRates: [],
   };
 }
 
@@ -879,16 +900,32 @@ export function sessionReducer(
     case "APPLY_CLASSIFICATION_TEMPLATE": {
       if (!state.session) return state;
       try {
-        const catalog = applyTemplateDimensions(
-          state.session.classificationCatalog,
-          action.dimensions,
+        const { classificationCatalog, classificationRates, settings } = state.session;
+        const result = applyTemplateDimensions(
+          classificationCatalog,
+          classificationRates,
+          settings.currency,
+          action.template,
+          undefined,
+          action.policy,
         );
+        if (
+          result.catalog === classificationCatalog &&
+          result.rates === classificationRates &&
+          result.currency === settings.currency
+        )
+          return { ...state, error: null };
         return {
           ...state,
-          session:
-            catalog === state.session.classificationCatalog
-              ? state.session
-              : { ...state.session, classificationCatalog: catalog },
+          session: {
+            ...state.session,
+            classificationCatalog: result.catalog,
+            classificationRates: result.rates,
+            settings:
+              result.currency === settings.currency
+                ? settings
+                : { ...settings, currency: result.currency },
+          },
           error: null,
         };
       } catch (error) {
@@ -951,6 +988,13 @@ export function sessionReducer(
             state.session.settings.labelClassificationDimensionId === dimensionId
               ? { ...state.session.settings, labelClassificationDimensionId: null }
               : state.session.settings,
+          classificationRates: state.session.classificationRates.some((entry) =>
+            deletedValueIds.has(entry.valueId),
+          )
+            ? state.session.classificationRates.filter(
+                (entry) => !deletedValueIds.has(entry.valueId),
+              )
+            : state.session.classificationRates,
           classificationCatalog: {
             dimensions: deletingDimension
               ? dimensions.filter((candidate) => candidate.id !== dimensionId)
@@ -1223,8 +1267,47 @@ export function sessionReducer(
       }));
       return { ...state, session, error: null };
     }
+    case "SET_CLASSIFICATION_VALUE_RATES": {
+      if (!state.session) return state;
+      const { valueId, derivation, price } = action;
+      const { classificationRates, classificationCatalog } = state.session;
+      const remove = derivation === null && price === null;
+      if (
+        !classificationCatalog.dimensions.some((dimension) =>
+          dimension.values.some((value) => value.id === valueId),
+        ) ||
+        (!remove && !hasValidRates(derivation, price))
+      ) {
+        return { ...state, error: "The classification rates are invalid." };
+      }
+      const byId = ratesByValueId(classificationRates);
+      const previous = byId.get(valueId);
+      const entry = remove ? undefined : canonicalRates(valueId, derivation, price);
+      if (
+        JSON.stringify(previous && canonicalRates(valueId, previous.derivation, previous.price)) ===
+        JSON.stringify(entry)
+      ) {
+        return { ...state, error: null };
+      }
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          classificationRates: classificationCatalog.dimensions.flatMap((dimension) =>
+            dimension.values.flatMap((value) =>
+              value.id === valueId ? (entry ?? []) : (byId.get(value.id) ?? []),
+            ),
+          ),
+        },
+        error: null,
+      };
+    }
     case "UPDATE_SETTINGS": {
       if (!state.session) return state;
+      const { currency } = action.settings;
+      if ("currency" in action.settings && currency !== null && !isCurrencyCode(currency)) {
+        return { ...state, error: "The currency is invalid." };
+      }
       return {
         ...state,
         session: { ...state.session, settings: { ...state.session.settings, ...action.settings } },
@@ -1363,7 +1446,15 @@ interface SessionContextValue extends SessionState {
   ) => void;
   deleteMeasurement: (pageNumber: number, id: string) => void;
   editMeasurements: (command: BulkMeasurementCommand) => boolean;
-  applyClassificationTemplate: (dimensions: ClassificationTemplateDimension[]) => boolean;
+  applyClassificationTemplate: (
+    template: Pick<ClassificationTemplate, "currency" | "dimensions">,
+    policy: TemplateConflictPolicy,
+  ) => boolean;
+  setClassificationValueRates: (
+    valueId: string,
+    derivation: ClassificationValueDerivation | null,
+    price: ClassificationValuePrice | null,
+  ) => boolean;
   addClassificationDimension: (id: string, name: string) => void;
   renameClassificationDimension: (id: string, name: string) => void;
   deleteClassificationDimension: (id: string) => void;
@@ -1389,14 +1480,19 @@ function restoreSnapshot(snapshot: CurrentSession, current: CurrentSession): Cur
   const labelDimensionExists = snapshot.classificationCatalog.dimensions.some(
     (dimension) => dimension.id === labelDimensionId,
   );
-  return {
-    ...snapshot,
-    currentPage: current.currentPage,
-    settings:
-      labelDimensionId === null || labelDimensionExists
-        ? current.settings
-        : { ...current.settings, labelClassificationDimensionId: null },
-  };
+  let settings =
+    labelDimensionId === null || labelDimensionExists
+      ? current.settings
+      : { ...current.settings, labelClassificationDimensionId: null };
+  // Settings stay as they are, except that restored prices must not end up without a currency.
+  if (
+    settings.currency === null &&
+    snapshot.settings.currency !== null &&
+    snapshot.classificationRates.some((entry) => entry.price)
+  ) {
+    settings = { ...settings, currency: snapshot.settings.currency };
+  }
+  return { ...snapshot, currentPage: current.currentPage, settings };
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -1599,8 +1695,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "EDIT_MEASUREMENTS", ...command }).error === null,
       deleteMeasurement: (pageNumber, id) =>
         applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
-      applyClassificationTemplate: (dimensions) =>
-        applyAction({ type: "APPLY_CLASSIFICATION_TEMPLATE", dimensions }).error === null,
+      applyClassificationTemplate: (template, policy) =>
+        applyAction({ type: "APPLY_CLASSIFICATION_TEMPLATE", template, policy }).error === null,
+      setClassificationValueRates: (valueId, derivation, price) =>
+        applyAction({ type: "SET_CLASSIFICATION_VALUE_RATES", valueId, derivation, price })
+          .error === null,
       addClassificationDimension: (id, name) =>
         applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
       renameClassificationDimension: (id, name) =>

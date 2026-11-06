@@ -324,6 +324,9 @@ describe("buildTakeoffSummary", () => {
       perimeter: absent,
       area: absent,
       count: absent,
+      derivedArea: absent,
+      derivedVolume: absent,
+      cost: absent,
     });
     expect(summary.breakdowns).toEqual([
       { type: "page", dimension: null, groups: [] },
@@ -334,6 +337,42 @@ describe("buildTakeoffSummary", () => {
         groups: [],
       },
     ]);
+  });
+
+  it("passes the session's classification rates to the totals, hidden and archived values included", () => {
+    const session = project();
+    session.classificationRates = [
+      // Only the 5000 mm electrical line has a length: 5000 × 2700 = 13 500 000 mm² = 13.5 m²,
+      // priced at 25 per m².
+      {
+        valueId: "electrical",
+        derivation: { source: "length", factorMm: 2700 },
+        price: { amount: 25, basis: "derived", unit: "m²" },
+      },
+      // The archived Plumbing rectangle is 3000 × 4000 mm = 12 000 000 mm²; × 150 = 1 800 000 000 mm³.
+      { valueId: "plumbing", derivation: { source: "area", factorMm: 150 }, price: null },
+    ];
+
+    const summary = buildTakeoffSummary(session, {
+      breakdowns: ["page"],
+      classificationDimensionIds: ["trade"],
+    });
+
+    expect(summary.projectTotals).toMatchObject({
+      derivedArea: value(13_500_000),
+      derivedVolume: value(1_800_000_000),
+      cost: value(337.5),
+    });
+    const [page, trade] = summary.breakdowns;
+    expect(page!.groups.map((group) => group.derivedArea)).toEqual([value(13_500_000), absent]);
+    expect(
+      trade!.groups.map((group) => [group.label, group.derivedArea, group.derivedVolume]),
+    ).toEqual([
+      ["Electrical", value(13_500_000), absent],
+      ["Plumbing", absent, value(1_800_000_000)],
+      ["Unclassified", absent, absent],
+    ]);
+    expect(trade!.groups.map((group) => group.cost)).toEqual([value(337.5), absent, absent]);
   });
 
   it("uses source page labels when no override names the page", () => {

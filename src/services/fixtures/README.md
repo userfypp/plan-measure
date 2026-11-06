@@ -15,9 +15,10 @@ Files written by the real `serializeSession` and `createProjectFile` of the last
 | V12    | `5b19126` | `session-v12.*`                  |
 | V13    | `9f47ebb` | `session-v13.*`                  |
 | V14    | `a65f8c6` | `session-v14.*`                  |
+| V16    | `906d89a` | `session-v16.*`                  |
 
 - `.serialized`: the text stored in IndexedDB, byte for byte.
 - `.planmeasure`: the project file exported by that build (V11 onwards), embedding `plan-bytes.bin`.
-- `.expected.json`: the complete V16 session each one must migrate to. It is the saved session plus explicit defaults for later fields, not the output of the migration code.
+- `.expected.json`: the complete V17 session each one must migrate to. It is the saved session plus explicit defaults for later fields, not the output of the migration code.
 
 `session-v08-invalid-polygons` comes from the commit just before polygons had to be simple, so its polygons on page 3 can only be opened in recovery.

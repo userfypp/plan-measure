@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AnchoredMenu, type AnchoredMenuItem } from "./AnchoredMenu";
 import { ChevronDownIcon } from "./ChevronDownIcon";
 import type { PopoverTriggerProps } from "./Popover";
@@ -7,6 +8,8 @@ export interface SelectOption<T extends string> {
   value: T;
   label: string;
   disabled?: boolean;
+  /** Explains the option on hover or keyboard focus while the list is open. */
+  tooltip?: ReactNode;
 }
 
 export interface SelectProps<T extends string> {
@@ -47,6 +50,7 @@ export function Select<T extends string>({
     role: "menuitemradio",
     checked: option.value === value,
     disabled: option.disabled,
+    tooltip: option.tooltip,
     onSelect: () => onChange(option.value),
   }));
   const { className: triggerClassName, ...restTriggerProps } = triggerProps ?? {};
@@ -55,7 +59,11 @@ export function Select<T extends string>({
     <AnchoredMenu
       trigger={
         <>
-          <span className={styles.value}>{selected?.label ?? ""}</span>
+          <span className={styles.value}>
+            <span className={styles.valueRun}>
+              <span className={styles.valueText}>{selected?.label ?? ""}</span>
+            </span>
+          </span>
           <ChevronDownIcon />
         </>
       }

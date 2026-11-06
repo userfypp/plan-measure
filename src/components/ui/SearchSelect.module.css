@@ -1,0 +1,68 @@
+.trigger {
+  composes: trigger from "./Select.module.css";
+}
+
+.value {
+  composes: value from "./Select.module.css";
+}
+
+.valueRun {
+  composes: valueRun from "./Select.module.css";
+}
+
+.valueText {
+  composes: valueText from "./Select.module.css";
+}
+
+.placeholder {
+  composes: value from "./Select.module.css";
+  color: var(--color-text-secondary);
+}
+
+.panel {
+  display: grid;
+  width: var(--geometry-menu-max-width);
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+/* Room for eight rows at the current target size; longer lists scroll. */
+.list {
+  composes: scrollSurface overlayScroll from global;
+  max-height: calc(var(--target-current) * 8);
+  overflow-y: auto;
+}
+
+.option {
+  composes: item from "./AnchoredMenu.module.css";
+  cursor: pointer;
+}
+
+.optionLabel {
+  composes: label from "./AnchoredMenu.module.css";
+}
+
+.option[aria-selected="true"] {
+  background: var(--color-selection-surface);
+}
+
+.option[aria-selected="true"] .optionLabel {
+  font-weight: var(--font-weight-medium);
+}
+
+/* Last, so the keyboard position stays visible on the chosen option too. */
+.option[data-active] {
+  background: var(--color-control-hover-surface);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+.visuallyHidden {
+  composes: visuallyHidden from global;
+}

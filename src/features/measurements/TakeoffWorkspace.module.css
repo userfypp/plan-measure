@@ -1,68 +1,43 @@
+/* The workspace tone behind the blocks: they are the panel's own surface, set apart by 8px of it.
+   Text sits on the 12px edge, like the text of the panel's other blocks; controls keep the 8px edge. */
 .workspace {
+  --text-edge: calc(var(--geometry-panel-gutter) + var(--space-4));
+
   composes: scrollSurface overlayScroll from global;
   display: flex;
   flex-direction: column;
+  gap: var(--space-8);
   min-width: 0;
   min-height: 0;
   height: 100%;
   overflow: auto;
-  padding: var(--space-8) var(--geometry-panel-gutter);
-  background: var(--color-surface-panel);
+  padding-block: var(--space-8);
+  background: var(--color-surface-viewer);
 }
 
 .workspace > * {
   flex-shrink: 0;
 }
 
-.projectTotals {
+/* Every section is a full-width block of the panel: a fold (Disclosure) or the breakdown controls. */
+.block,
+.breakdownControls {
   min-width: 0;
-}
-
-.sectionHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
-  padding-inline: var(--space-4);
-}
-
-.sectionHeading h2 {
-  margin: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-heading);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
-}
-
-.scope {
-  margin: auto 0 0;
-  padding: var(--space-16) var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height-secondary);
+  border-block: var(--border-width) solid var(--color-divider);
+  background: var(--color-surface-panel);
 }
 
 .summaryQuantities {
-  margin: var(--space-8) 0 0;
-  overflow: hidden;
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-field);
+  margin: 0;
 }
 
-.summaryQuantities:empty {
-  display: none;
-}
-
+/* Rows run edge to edge; each one opens with a hairline, the first one under the heading. */
 .summaryQuantities .quantity {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8);
-  padding: var(--space-8) calc(var(--space-12) - var(--border-width));
-}
-
-.summaryQuantities .quantity + .quantity {
+  padding: var(--space-8) var(--text-edge);
   border-top: var(--border-width) solid var(--color-divider);
 }
 
@@ -91,11 +66,13 @@
   line-height: var(--line-height-base);
 }
 
+/* A fold's figures: what was measured, then what the rates add to it, each list under its own hairline. */
 .quantities {
   display: grid;
   gap: var(--space-4);
-  margin: var(--space-8) 0 0;
-  padding-inline: var(--space-4);
+  margin: 0;
+  padding: var(--space-8) var(--text-edge);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
 .quantities .quantity {
@@ -128,21 +105,36 @@
 
 .message,
 .breakdownHint {
-  margin: var(--space-8) 0 0;
-  padding-inline: var(--space-4);
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
 
+/* On the workspace tone a note sits on the text edge; inside a fold it runs under a hairline. */
+.breakdownHint,
+.breakdownResults > .message {
+  padding-inline: var(--text-edge);
+}
+
+.bodyMessage {
+  margin: 0;
+  padding: var(--space-8) var(--text-edge);
+  border-top: var(--border-width) solid var(--color-divider);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
+
+/* A banner across the block: the bar sits on the block's edge, the text on the 12px edge. */
 .notice {
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  margin: var(--space-8) 0 0;
-  padding: var(--space-8) var(--space-4);
+  margin: 0;
+  padding: var(--space-4) var(--geometry-panel-gutter) var(--space-4)
+    calc(var(--text-edge) - var(--geometry-measurement-notice-bar-width));
   border-left: var(--geometry-measurement-notice-bar-width) solid var(--color-status-warning);
-  border-radius: var(--radius-control);
   background: var(--color-status-warning-surface);
   color: var(--color-status-warning);
   font-size: var(--font-size-secondary);
@@ -157,9 +149,7 @@
     );
   align-items: center;
   gap: var(--space-8);
-  margin-top: var(--space-16);
-  padding-top: var(--space-12);
-  border-top: var(--border-width) solid var(--color-divider);
+  padding: var(--space-8) var(--geometry-panel-gutter);
 }
 
 .breakdownLabel,
@@ -183,47 +173,18 @@
 }
 
 .breakdownResults {
-  margin-top: var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
 }
 
 .resultsMeta {
-  margin: 0 0 var(--space-4);
-  padding-inline: var(--space-4);
+  margin: 0;
+  padding-inline: var(--text-edge);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
-}
-
-.group {
-  min-width: 0;
-  padding: var(--space-8) 0;
-}
-
-.group + .group {
-  border-top: var(--border-width) solid var(--color-divider);
-}
-
-.groupHeading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: var(--space-4) var(--space-8);
-  padding-inline: var(--space-4);
-}
-
-.group h3 {
-  min-width: 0;
-  margin: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-base);
-  overflow-wrap: anywhere;
-}
-
-.archivedBadge {
-  grid-column: 1 / -1;
-  justify-self: start;
 }
 
 .emptyState {
@@ -232,10 +193,8 @@
   align-items: center;
   column-gap: var(--space-12);
   row-gap: var(--space-4);
-  margin-top: var(--space-8);
-  padding: var(--space-12) var(--space-4);
-  border: var(--border-width) dashed var(--color-divider);
-  border-radius: var(--radius-control);
+  padding: var(--space-12) var(--text-edge);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
 .emptyMark {
@@ -258,35 +217,37 @@
   line-height: var(--line-height-base);
 }
 
-.emptyState .message {
-  margin: 0;
-  padding-inline: 0;
+/* The row that opens a fold's measurements: full width, its count on the text edge, the chevron at the end. */
+.sourceRow {
+  border-top: var(--border-width) solid var(--color-divider);
 }
 
 .sourceToggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-4);
+  justify-content: space-between;
+  gap: var(--space-8);
+  width: 100%;
   min-height: var(--control-height-compact);
-  padding: 0 var(--space-4);
+  padding: 0 var(--geometry-panel-gutter) 0 var(--text-edge);
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-regular);
   line-height: var(--line-height-secondary);
-  white-space: nowrap;
+  text-align: left;
   transition: var(--transition-interactive);
 }
 
 .sourceToggle:hover:not(:disabled) {
-  color: var(--color-accent-hover-semantic);
-  background: transparent;
+  background: var(--color-control-hover-surface);
+  color: var(--color-text-primary);
 }
 
 .sourceToggle:active:not(:disabled) {
-  color: var(--color-accent-active-semantic);
-  background: transparent;
+  background: var(--color-control-active-surface);
 }
 
 .sourceToggle:disabled {
@@ -297,7 +258,7 @@
 .sourceToggle:focus-visible,
 .sourceMeasurement:focus-visible {
   outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+  outline-offset: calc(-1 * var(--focus-offset));
 }
 
 .sourceToggle .chevron {
@@ -314,13 +275,11 @@
 .sourceList {
   composes: scrollSurface overlayScroll from global;
   list-style: none;
-  margin: var(--space-8) 0 0;
+  margin: 0;
   padding: 0;
   max-height: min(var(--geometry-measurement-list-max-height), 50dvh);
   overflow: auto;
-  border: var(--border-width) solid var(--color-divider);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-field);
+  border-top: var(--border-width) solid var(--color-divider);
 }
 .sourceList li + li {
   border-top: var(--border-width) solid var(--color-divider);
@@ -332,7 +291,7 @@
   align-items: center;
   width: 100%;
   min-height: var(--target-current);
-  padding: var(--space-4) calc(var(--space-12) - var(--border-width));
+  padding: var(--space-4) var(--text-edge);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -394,17 +353,14 @@
   stroke-linejoin: round;
 }
 
-.sourceMeasurement:focus-visible {
-  outline-offset: calc(-1 * var(--focus-offset));
-}
-
 .sourcePagination {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  margin-top: var(--space-8);
+  padding: var(--space-4) var(--geometry-panel-gutter);
+  border-top: var(--border-width) solid var(--color-divider);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);

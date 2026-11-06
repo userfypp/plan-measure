@@ -20,7 +20,7 @@ import { readProjectFile } from "./projectFile";
 beforeEach(resetPersistenceForTests);
 afterEach(resetPersistenceForTests);
 
-const SCHEMA_VERSIONS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+const SCHEMA_VERSIONS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16];
 const PROJECT_FILE_VERSIONS = SCHEMA_VERSIONS.filter((version) => version >= 11);
 
 const fixtureUrl = (name: string) => new URL(`./fixtures/${name}`, import.meta.url);
