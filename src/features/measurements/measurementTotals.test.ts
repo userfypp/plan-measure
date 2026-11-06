@@ -555,6 +555,53 @@ describe("exclusions and mixed inputs", () => {
       "invalid-geometry",
     ]);
   });
+
+  it("excludes a Count with a non-finite marker and counts stacked markers one by one", () => {
+    const count = (id: string, points: Measurement["points"]): Measurement => ({
+      id,
+      name: id,
+      type: "count",
+      points,
+      calibrationId: null,
+      classificationValueIds: [],
+      visible: true,
+    });
+    const result = totals({
+      1: page(1, [
+        // Three markers on the same spot are three items.
+        count("stacked", [
+          { x: 5, y: 5 },
+          { x: 5, y: 5 },
+          { x: 5, y: 5 },
+        ]),
+        count("nan", [
+          { x: 1, y: 1 },
+          { x: Number.NaN, y: 2 },
+        ]),
+        count("infinite", [
+          { x: 1, y: 1 },
+          { x: 2, y: Number.POSITIVE_INFINITY },
+          { x: 3, y: 3 },
+        ]),
+      ]),
+    });
+
+    // Only the stacked Count adds items: 3, not 3 + 2 + 3 = 8.
+    expect(result.groups[0]).toMatchObject({
+      measurementCount: 3,
+      excludedCount: 2,
+      count: { kind: "value", value: 3 },
+    });
+    expect(
+      result.excludedMeasurements.map(({ measurement, exclusionReason }) => [
+        measurement.id,
+        exclusionReason,
+      ]),
+    ).toEqual([
+      ["nan", "invalid-geometry"],
+      ["infinite", "invalid-geometry"],
+    ]);
+  });
 });
 
 describe("revision clouds in totals", () => {

@@ -80,6 +80,33 @@ describe("writeOds", () => {
     expect(tables).toEqual(names);
   });
 
+  it.each(["", "a".repeat(32), "a\\b", "a/b", "a?b", "a*b", "a[b", "a]b", "a:b"])(
+    "rejects the sheet name %j that Excel and LibreOffice refuse",
+    (name) => {
+      expect(() => writeOds([[name, sheet(["x"])]])).toThrow(
+        `Invalid spreadsheet sheet name: ${JSON.stringify(name)}.`,
+      );
+    },
+  );
+
+  it("accepts a sheet name of exactly 31 characters", () => {
+    const name = "a".repeat(31);
+    const table = content(writeOds([[name, sheet(["x"])]])).getElementsByTagNameNS(
+      TABLE,
+      "table",
+    )[0]!;
+    expect(table.getAttributeNS(TABLE, "name")).toBe(name);
+  });
+
+  it("rejects duplicate sheet names regardless of case", () => {
+    expect(() =>
+      writeOds([
+        ["Data", sheet(["x"])],
+        ["data", sheet(["x"])],
+      ]),
+    ).toThrow("Spreadsheet sheet names must be unique.");
+  });
+
   it("declares one column per header", () => {
     const column = content(
       writeOds([["Data", sheet(["a", "b", "c", "d"])]]),

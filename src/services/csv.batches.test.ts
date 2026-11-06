@@ -170,3 +170,47 @@ describe("CSV batches with non-finite scales", () => {
     expect(rows(contents as string)).toHaveLength(250);
   });
 });
+
+describe("CSV batches of 200 rows with a remainder", () => {
+  // Freeze the clock so only the 200-row limit closes a batch, never the 8 ms budget.
+  function frozenClock() {
+    return vi.spyOn(performance, "now").mockReturnValue(0);
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    [199, 0],
+    [200, 1],
+    [201, 1],
+    [400, 2],
+    [401, 2],
+  ])("writes all %i rows like the single pass, yielding %i times", async (count, yields) => {
+    frozenClock();
+    const session = sessionWith(1, { 1: many("r", count) });
+    const yieldToMain = vi.fn(fast);
+
+    const batched = await buildCsvInBatches(session, null, undefined, yieldToMain);
+
+    expect(yieldToMain).toHaveBeenCalledTimes(yields);
+    expect(batched).toBe(buildCsv(session));
+    const written = rows(batched);
+    expect(written).toHaveLength(count);
+    expect(written.map((row) => row.measurement_id)).toEqual(
+      Array.from({ length: count }, (_, index) => `r-${index}`),
+    );
+    expect(written.at(-1)).toMatchObject({ measurement_id: `r-${count - 1}`, length: "2.00" });
+  });
+
+  it("keeps the remainder row of the second page after a full batch on the first", async () => {
+    frozenClock();
+    const session = sessionWith(2, { 1: many("a", 200), 2: many("b", 1) });
+    const yieldToMain = vi.fn(fast);
+
+    const batched = await buildCsvInBatches(session, null, undefined, yieldToMain);
+
+    expect(yieldToMain).toHaveBeenCalledTimes(1);
+    expect(rows(batched).at(-1)).toMatchObject({ page: "2", measurement_id: "b-0" });
+    expect(batched).toBe(buildCsv(session));
+  });
+});

@@ -1,6 +1,7 @@
 import { strToU8, zipSync } from "fflate";
 import type { ExportCell, ExportTable } from "./csv";
 import { roundExportNumber } from "../utils/exportNumber";
+import { validateSheetNames } from "./spreadsheetSheetNames";
 
 const MIME_TYPE = "application/vnd.oasis.opendocument.spreadsheet";
 
@@ -37,6 +38,7 @@ function cellXml(value: ExportCell): string {
 export function writeOds(
   tables: readonly (readonly [string, ExportTable])[],
 ): Uint8Array<ArrayBuffer> {
+  validateSheetNames(tables.map(([name]) => name));
   const sheets = tables
     .map(([name, table]) => {
       const rows = [table.headers, ...table.rows]
