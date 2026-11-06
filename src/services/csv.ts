@@ -22,6 +22,7 @@ import {
   millimetresPerPageUnit,
 } from "../utils/geometry";
 import { formatCsvNumber, resolveLinearUnit } from "../utils/format";
+import { roundExportNumber } from "../utils/exportNumber";
 import {
   practicalScaleRatioDenominator,
   scaleRatioDenominatorFromMillimetresPerPageUnit,
@@ -643,8 +644,10 @@ function serializeCsv(
       serializeCsvCell(
         value === null
           ? ""
-          : typeof value === "number" && formattedNumberColumns.has(headers[index]!)
-            ? formatCsvNumber(value)
+          : typeof value === "number"
+            ? formattedNumberColumns.has(headers[index]!)
+              ? formatCsvNumber(roundExportNumber(value))
+              : roundExportNumber(value)
             : value,
         columnTypes[index]!,
       ),

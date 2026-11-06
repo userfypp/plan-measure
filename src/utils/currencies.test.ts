@@ -121,6 +121,9 @@ describe("formatCost", () => {
     expect(formatCost(0.0005, "KWD")).toBe("0.001 KWD");
     // 1.005 is stored as 1.00499999999999989..., so it shows 1.00 like toFixed everywhere else.
     expect(formatCost(1.005, "EUR")).toBe("1.00 EUR");
+    // 0.005 is stored as 0.00500000000000000010... and 0.015 as 0.01499999999999999944...
+    expect(formatCost(0.005, "EUR")).toBe("0.01 EUR");
+    expect(formatCost(0.015, "EUR")).toBe("0.01 EUR");
   });
 
   it("keeps the decimals of the currency for tiny values instead of revealing more", () => {
@@ -162,6 +165,8 @@ describe("formatUnitPrice", () => {
     expect(formatUnitPrice(0.5, "JPY")).toBe("0.5 JPY");
     expect(formatUnitPrice(12.3456, "EUR")).toBe("12.3456 EUR");
     expect(formatUnitPrice(0.00123, null)).toBe("0.00123");
+    expect(formatUnitPrice(1234.56789012, "EUR")).toBe("1234.56789012 EUR");
+    expect(formatUnitPrice(0.000001, "KWD")).toBe("0.000001 KWD");
   });
 
   it("reads exponent notation as the decimals it stands for", () => {

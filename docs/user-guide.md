@@ -85,11 +85,11 @@ Older data is migrated when possible. If repair is required, autosave stays paus
 | Annotated PDF  | Original pages with visible measurements; labels follow the Labels setting. The source PDF is unchanged.                                        |
 | `.planmeasure` | PDF and editable project data, via **Projects → Export**.                                                                                       |
 
-**Takeoff summaries:** select project totals, page/type breakdowns, or classification dimensions in Export. Use **Data → Takeoff summary** for a standalone CSV/XLSX/ODS; otherwise add them to the dataset. CSV bundles separate files in a ZIP; workbooks add sheets. Summaries include hidden measurements, full precision, excluded counts and quantity statuses. JSON uses mm/mm²/mm³; other formats use display units (decimal feet for ft-in). Derived area follows the area unit, derived volume uses cubic linear units (`volume_unit`), and cost is in the project `currency`; their columns (`derived_area`, `derived_volume`, `cost` and their statuses) come last and are blank when not applicable.
+**Takeoff summaries:** select project totals, page/type breakdowns, or classification dimensions in Export. Use **Data → Takeoff summary** for a standalone CSV/XLSX/ODS; otherwise add them to the dataset. CSV bundles separate files in a ZIP; workbooks add sheets. Summaries include hidden measurements, excluded counts and quantity statuses. JSON uses mm/mm²/mm³; other formats use display units (decimal feet for ft-in). Derived area follows the area unit, derived volume uses cubic linear units (`volume_unit`), and cost is in the project `currency`; their columns (`derived_area`, `derived_volume`, `cost` and their statuses) come last and are blank when not applicable.
 
 The `count` column appears when Count markers are present; each count exports its number of points as a numeric quantity, with scale and physical quantities left blank. CSV measurement and workbook columns are configurable; required columns stay enabled. Successful exports remember the selection. JSON ignores column preferences and display units.
 
-Spreadsheet exports reject unsupported text or values exceeding format limits. Spreadsheet applications can reduce numeric precision; use JSON for the original numeric representation.
+Spreadsheet exports reject unsupported text or values exceeding format limits. CSV, XLSX and ODS write numbers with 15 significant digits, the precision spreadsheet applications keep, whatever the displayed decimal places; JSON keeps every digit.
 
 Encrypted PDFs cannot be exported as annotated PDFs, even if they open without a password. Save an unencrypted copy in a PDF editor and open that copy to export annotations.
 

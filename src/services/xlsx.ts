@@ -1,11 +1,12 @@
 import { strToU8, zipSync } from "fflate";
 import type { ExportCell, ExportTable } from "./csv";
+import { roundExportNumber } from "../utils/exportNumber";
+import { validateSheetNames } from "./spreadsheetSheetNames";
 
 const MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const PACKAGE_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships";
 const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
-const MAX_SHEET_NAME_LENGTH = 31;
 // Excel's default maximum digit width for Calibri 11, as used by its column-width formula.
 const MAX_DIGIT_WIDTH = 6;
 
@@ -38,16 +39,14 @@ function columnName(index: number): string {
 function columnWidth(table: ExportTable, index: number): number {
   let characters = Math.max(12, table.headers[index]!.length + 2);
   for (const row of table.rows.slice(0, 100)) {
-    characters = Math.max(characters, String(row[index] ?? "").length + 2);
+    const value = row[index] ?? "";
+    characters = Math.max(
+      characters,
+      String(typeof value === "number" ? roundExportNumber(value) : value).length + 2,
+    );
   }
   characters = Math.min(40, characters);
   return Math.round(((characters * MAX_DIGIT_WIDTH + 5) / MAX_DIGIT_WIDTH) * 256) / 256;
-}
-
-function validateSheetName(name: string): void {
-  if (!name || name.length > MAX_SHEET_NAME_LENGTH || /[\\/?*[\]:]/.test(name)) {
-    throw new Error(`Invalid spreadsheet sheet name: ${JSON.stringify(name)}.`);
-  }
 }
 
 function sheetXml(table: ExportTable, sharedString: (value: string) => number): string {
@@ -60,7 +59,7 @@ function sheetXml(table: ExportTable, sharedString: (value: string) => number): 
       const reference = `${columns[columnIndex] ?? columnName(columnIndex)}${rowNumber}`;
       cells +=
         typeof value === "number"
-          ? `<c r="${reference}"><v>${value}</v></c>`
+          ? `<c r="${reference}"><v>${roundExportNumber(value)}</v></c>`
           : `<c r="${reference}" t="s"><v>${sharedString(value)}</v></c>`;
     });
     return `<row r="${rowNumber}">${cells}</row>`;
@@ -80,6 +79,7 @@ function sheetXml(table: ExportTable, sharedString: (value: string) => number): 
 export function writeXlsx(
   tables: readonly (readonly [string, ExportTable])[],
 ): Uint8Array<ArrayBuffer> {
+  validateSheetNames(tables.map(([name]) => name));
   const sharedStrings = new Map<string, number>();
   let stringCellCount = 0;
   const sharedString = (value: string): number => {
@@ -94,14 +94,10 @@ export function writeXlsx(
 
   const files: Record<string, Uint8Array> = {};
   const sheetEntries = tables.map(([name, table], index) => {
-    validateSheetName(name);
     const sheetNumber = index + 1;
     files[`xl/worksheets/sheet${sheetNumber}.xml`] = strToU8(sheetXml(table, sharedString));
     return { name, sheetNumber };
   });
-  if (new Set(sheetEntries.map(({ name }) => name.toLowerCase())).size !== sheetEntries.length) {
-    throw new Error("Spreadsheet sheet names must be unique.");
-  }
   const stylesId = `rId${sheetEntries.length + 1}`;
   const sharedStringsId = `rId${sheetEntries.length + 2}`;
 
