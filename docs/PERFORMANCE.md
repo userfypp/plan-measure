@@ -54,7 +54,12 @@ npm run perf:selftest
 
 `perf/size.mjs` reads the JS in `dist/index.html`, walks its static imports
 (excluding `import()`) and measures four metrics in decimal bytes, not KiB. CSS
-and demo resources are not counted.
+and demo resources are not counted, nor is `dist/pdfjs/` (pdf.js decoders, CMaps and
+fonts, about 3.5 MB), which loads on demand when a PDF needs it. Adding that
+folder and the Content-Security-Policy meta grew `viewerBytes` by 173 B
+(809,770 to 809,943, ceiling 810,169) and left `mainBytes`, `mainGzipBytes` and
+`startupBytes` unchanged. Startup stayed within noise (median of 7, `vite
+preview`: FCP 52 ms at 1x and 116 to 124 ms at 4x, 20 requests, 453 KB).
 
 - `mainBytes` and `mainGzipBytes`: the main chunk, raw and gzip.
 - `startupBytes`: the initial JS set, the main chunk plus its static imports and

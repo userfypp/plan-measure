@@ -5,6 +5,7 @@ import {
   type PDFDocumentProxy,
 } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { pdfResourceOptions } from "./pdfResources";
 import { PdfUserError } from "./pdfValidation";
 
 export { MAX_PDF_SIZE_BYTES, PdfUserError, validatePdfFile } from "./pdfValidation";
@@ -48,7 +49,7 @@ export async function readPdfPageLabels(document: PDFDocumentProxy): Promise<str
 
 export async function loadPdf(blob: Blob): Promise<LoadedPdf> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  const loadingTask = getDocument({ data: bytes });
+  const loadingTask = getDocument({ data: bytes, ...pdfResourceOptions(__PDFJS_ASSETS__) });
   const passwordRequested = new Promise<never>((_resolve, reject) => {
     loadingTask.onPassword = () => {
       reject(new PdfUserError("Password-protected PDFs are not supported in this version."));

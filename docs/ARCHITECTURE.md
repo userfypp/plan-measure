@@ -37,6 +37,11 @@ Tests live next to the code (`*.test.ts(x)`).
 
 Heavy, on-demand UI loads with `import()` through `app/recoverableLazy` + `app/retryableImport`: the viewer, Takeoff, classifications, scale check, export, page browser, and the Settings, project library and scale dialogs (`SettingsButton` is the eager trigger of `SettingsDialog`). Keep new dialogs and workspaces out of the static startup graph; `npm run perf:size` enforces the budget (see `docs/PERFORMANCE.md`).
 
+## Build output
+
+- **pdf.js resources**: pdf.js decodes CCITT, JBIG2 and JPEG 2000 images (WASM), predefined CMaps, the standard fonts and ICC profiles from files it requests at run time; without them, scanned plans lose their images. `vite.config.ts` copies them to `dist/pdfjs/<pdfjs-version>/` (same origin, version in the path) and `services/pdfResources.ts` points `getDocument` at them; in dev they come from `node_modules/pdfjs-dist/`. They load on demand and are not part of the JS budget.
+- **Content-Security-Policy**: the production build adds a `<meta>` policy (`scripts/contentSecurityPolicy.ts`), because GitHub Pages cannot send headers. Inline scripts are allowed by hash; `'wasm-unsafe-eval'` is for the pdf.js WASM decoders, never `'unsafe-eval'`. Anything that loads from another origin, or starts an inline script, needs the policy updated; `npm run test:smoke` fails on a violation.
+
 ## Coordinate model
 
 See `utils/coordinates.ts` and `types/domain.ts`.

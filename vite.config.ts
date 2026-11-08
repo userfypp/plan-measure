@@ -1,9 +1,55 @@
-import { defineConfig } from "vite";
+import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { withContentSecurityPolicy } from "./scripts/contentSecurityPolicy";
+
+const pdfjsDirectory = `${import.meta.dirname}/node_modules/pdfjs-dist`;
+const pdfjsVersion = (
+  JSON.parse(readFileSync(`${pdfjsDirectory}/package.json`, "utf8")) as { version: string }
+).version;
+
+/**
+ * pdf.js reads its decoders, CMaps, fonts and ICC data by fixed file names at run time. Copying
+ * them next to the build keeps every request on the same origin; the version in the path stops a
+ * cache from pairing the worker with the files of another release.
+ */
+function pdfjsResources(): Plugin {
+  return {
+    name: "plan-measure:pdfjs-resources",
+    apply: "build",
+    writeBundle({ dir }) {
+      const target = `${dir}/pdfjs/${pdfjsVersion}`;
+      for (const folder of ["cmaps", "standard_fonts", "iccs", "wasm"]) {
+        if (!existsSync(`${pdfjsDirectory}/${folder}`)) {
+          throw new Error(`pdfjs-dist ${pdfjsVersion} has no ${folder} folder to copy`);
+        }
+        cpSync(`${pdfjsDirectory}/${folder}`, `${target}/${folder}`, { recursive: true });
+      }
+      // Only the PDF scripting sandbox loads this interpreter, and the viewer never runs scripts.
+      for (const file of ["quickjs-eval.js", "quickjs-eval.wasm"]) {
+        rmSync(`${target}/wasm/${file}`, { force: true });
+      }
+    },
+  };
+}
+
+/** Build only: the dev server injects an inline script that a strict policy would block. */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: "plan-measure:content-security-policy",
+    apply: "build",
+    transformIndexHtml: { order: "post", handler: withContentSecurityPolicy },
+  };
+}
 
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/plan-measure/" : "/",
-  plugins: [react()],
+  plugins: [react(), pdfjsResources(), contentSecurityPolicy()],
+  define: {
+    __PDFJS_ASSETS__: JSON.stringify(
+      mode === "production" ? `/plan-measure/pdfjs/${pdfjsVersion}/` : "/node_modules/pdfjs-dist/",
+    ),
+  },
   css: {
     postcss: {
       plugins: [
