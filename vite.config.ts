@@ -1,6 +1,7 @@
 import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { withContentSecurityPolicy } from "./scripts/contentSecurityPolicy";
 
 const pdfjsDirectory = `${import.meta.dirname}/node_modules/pdfjs-dist`;
 const pdfjsVersion = (
@@ -32,9 +33,18 @@ function pdfjsResources(): Plugin {
   };
 }
 
+/** Build only: the dev server injects an inline script that a strict policy would block. */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: "plan-measure:content-security-policy",
+    apply: "build",
+    transformIndexHtml: { order: "post", handler: withContentSecurityPolicy },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/plan-measure/" : "/",
-  plugins: [react(), pdfjsResources()],
+  plugins: [react(), pdfjsResources(), contentSecurityPolicy()],
   define: {
     __PDFJS_ASSETS__: JSON.stringify(
       mode === "production" ? `/plan-measure/pdfjs/${pdfjsVersion}/` : "/node_modules/pdfjs-dist/",
