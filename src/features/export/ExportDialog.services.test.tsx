@@ -200,6 +200,11 @@ afterEach(() => {
 });
 
 describe("ExportDialog with the real CSV exporters", () => {
+  beforeEach(() => {
+    // Freeze the clock so only the 200-row limit closes a batch, never the 8 ms budget.
+    vi.spyOn(performance, "now").mockReturnValue(0);
+  });
+
   it("exports 500 measurements in a single pass", async () => {
     const { onClose } = renderDialog(sessionWith(500));
     batchYields = 0;

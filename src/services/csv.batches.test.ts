@@ -136,6 +136,8 @@ describe("CSV batches with non-finite scales", () => {
     sessionWith(2, { 1: many("ok", 250), 2: [line("bad", 1, "infinite")] }, { 2: INFINITE_SCALE });
 
   it("rejects the batched build like the single pass, with the same error", async () => {
+    // Freeze the clock so only the 200-row limit closes a batch, never the 8 ms budget.
+    vi.spyOn(performance, "now").mockReturnValue(0);
     const yieldToMain = vi.fn(fast);
     let single: unknown;
     try {
