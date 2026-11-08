@@ -36,7 +36,6 @@ Taken by a contributor; leave these to them. Want another issue? Comment on it a
 | [#323](https://github.com/userfypp/plan-measure/issues/323) | Compare two versions of a plan           |
 | [#216](https://github.com/userfypp/plan-measure/issues/216) | Visual walkthrough page                  |
 | [#257](https://github.com/userfypp/plan-measure/issues/257) | Installable PWA, tested on Windows in CI |
-| [#466](https://github.com/userfypp/plan-measure/issues/466) | What's new section on the start screen   |
 
 ## Test coverage
 

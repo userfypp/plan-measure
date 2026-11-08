@@ -8,8 +8,9 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { Button, Dialog, EyeIcon, Select, Switch, Tooltip } from "../components/ui";
+import { Button, Dialog, EyeIcon, HelpTip, Select, Switch } from "../components/ui";
 import { SearchSelect } from "../components/ui/SearchSelect";
+import type { SelectOption } from "../components/ui/Select";
 import type {
   ClassificationDimension,
   Measurement,
@@ -477,15 +478,6 @@ const SECTIONS: Array<{
   },
 ];
 
-function HelpIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="10" r="7.25" />
-      <path d="M7.9 8c0-1.2.9-2 2.1-2s2.1.8 2.1 1.9c0 1.5-2.1 1.7-2.1 3.2M10 14.1v.1" />
-    </svg>
-  );
-}
-
 interface RowProps {
   label: string;
   /** Explanation shown from a keyboard-reachable "?" button; keeps rows single-line. */
@@ -506,23 +498,7 @@ function Row({ label, help, children }: RowProps) {
         <span id={labelId} className={styles.settingLabel}>
           {label}
         </span>
-        {help && (
-          <>
-            <Tooltip content={help} position="top" describeTrigger={false}>
-              <button
-                type="button"
-                className={styles.helpButton}
-                aria-label={`About ${label}`}
-                aria-describedby={helpId}
-              >
-                <HelpIcon />
-              </button>
-            </Tooltip>
-            <span id={helpId} className={styles.visuallyHidden}>
-              {help}
-            </span>
-          </>
-        )}
+        {help && <HelpTip label={label} help={help} helpId={helpId} />}
       </div>
       {children({ controlId, labelId, helpId: help ? helpId : undefined })}
     </div>
@@ -541,7 +517,7 @@ function SelectRow<T extends string>({
   label: string;
   help?: string;
   value: T;
-  options: readonly { value: T; label: string }[];
+  options: readonly SelectOption<T>[];
   onChange: (value: T) => void;
   className?: string;
   disabled?: boolean;
@@ -1247,14 +1223,32 @@ export function SettingsDialog({
                 <div className={styles.settingList}>
                   <SelectRow
                     label="Thousands separator"
+                    help="Cannot match the decimal separator."
                     value={preferences.thousandsSeparator}
-                    options={THOUSANDS_OPTIONS}
+                    options={THOUSANDS_OPTIONS.map((option) =>
+                      option.value === preferences.decimalSeparator
+                        ? {
+                            ...option,
+                            disabled: true,
+                            tooltip: "Already used as the decimal separator",
+                          }
+                        : option,
+                    )}
                     onChange={set("thousandsSeparator")}
                   />
                   <SelectRow
                     label="Decimal separator"
+                    help="Cannot match the thousands separator."
                     value={preferences.decimalSeparator}
-                    options={DECIMAL_SEPARATOR_OPTIONS}
+                    options={DECIMAL_SEPARATOR_OPTIONS.map((option) =>
+                      option.value === preferences.thousandsSeparator
+                        ? {
+                            ...option,
+                            disabled: true,
+                            tooltip: "Already used as the thousands separator",
+                          }
+                        : option,
+                    )}
                     onChange={set("decimalSeparator")}
                   />
                   <SelectRow

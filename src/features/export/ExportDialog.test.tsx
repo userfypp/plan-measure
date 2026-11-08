@@ -222,6 +222,37 @@ describe("ExportDialog", () => {
     }
   });
 
+  it("explains the confusing settings with keyboard-reachable help tips", () => {
+    renderDialog(measuredFixture());
+    const tips = () =>
+      Array.from(dialog().querySelectorAll<HTMLButtonElement>("button[aria-label^='About ']")).map(
+        (tip) => tip.getAttribute("aria-label"),
+      );
+    expect(tips()).toEqual([
+      "About Format",
+      "About Data",
+      "About columns",
+      "About Takeoff summaries",
+      "About Quantities",
+      "About By classification",
+    ]);
+    for (const tip of dialog().querySelectorAll<HTMLButtonElement>(
+      "button[aria-label^='About ']",
+    )) {
+      const help = document.getElementById(tip.getAttribute("aria-describedby")!);
+      expect(help?.textContent?.length).toBeGreaterThan(20);
+    }
+    choose("csv-data", "takeoff");
+    checkSummary("Project totals");
+    expect(tips()).toEqual([
+      "About Format",
+      "About Data",
+      "About Takeoff summaries",
+      "About Quantities",
+      "About By classification",
+    ]);
+  });
+
   it("defaults to CSV measurements with labeled selectors and compact column groups", () => {
     renderDialog();
 
@@ -368,7 +399,8 @@ describe("ExportDialog", () => {
       renderDialog();
       choose("export-format", format);
       const sections = Array.from(dialog().querySelectorAll("section")).filter(
-        (section) => section.querySelector(":scope > h3")?.textContent === "Takeoff summaries",
+        (section) =>
+          section.querySelector(":scope > div > h3")?.textContent === "Takeoff summaries",
       );
       expect(sections).toHaveLength(1);
       const summaries = sections[0]!;

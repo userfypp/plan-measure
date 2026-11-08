@@ -4,6 +4,7 @@ import { App } from "./app/App";
 import { installOverlayScrollbars } from "./app/overlayScrollbars";
 import { installScrollHover } from "./app/scrollHover";
 import { ThemeProvider } from "./app/themeState";
+import { installClickFocus } from "./utils/clickFocus";
 import { installInputModality } from "./utils/inputModality";
 import "./styles/global.css";
 
@@ -16,6 +17,7 @@ if (!root) {
 installOverlayScrollbars();
 installScrollHover();
 installInputModality();
+installClickFocus();
 
 createRoot(root).render(
   <StrictMode>

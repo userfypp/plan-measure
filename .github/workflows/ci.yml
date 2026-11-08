@@ -68,7 +68,8 @@ jobs:
         run: npm run build
 
   # Opens the built app in Chromium: the start screen and the sample project must load without
-  # page or console errors.
+  # page or console errors. Then drives it with the keyboard in Chromium and WebKit (Safari's
+  # engine): Tab must behave the same in both.
   smoke:
     name: smoke
     runs-on: ubuntu-24.04
@@ -94,14 +95,17 @@ jobs:
           npm ci --ignore-scripts
           npm ci --ignore-scripts --prefix perf
 
-      - name: Install Chromium
-        run: ./perf/node_modules/.bin/playwright install --with-deps chromium
+      - name: Install Chromium and WebKit
+        run: ./perf/node_modules/.bin/playwright install --with-deps chromium webkit
 
       - name: Build
         run: npm run build
 
       - name: Smoke test
         run: npm run test:smoke
+
+      - name: Keyboard navigation test
+        run: npm run test:keyboard
 
   pages:
     needs: verify

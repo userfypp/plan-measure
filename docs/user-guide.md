@@ -40,7 +40,8 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 ### Editing and selecting
 
 - **Snap** aligns points with visible measurement geometry. **Ortho** keeps segments horizontal or vertical.
-- **Select** moves measurements or drags single vertices. **Details** holds the notes and classification assignments. Rename a selected measurement from the context bar.
+- **Select** moves measurements or drags single vertices. **Details** holds the notes and classification assignments. Rename a selected measurement from the context bar. In **Details**, rename each item of a count; its name appears as a label at the item's point.
+- `Escape` steps back one level per press: cancel the drawing or calibration, leave the tool, close **Details**, then clear the selection.
 - `Shift`/`Ctrl`/`Cmd`-click adds or removes measurements from the selection. Bulk classification, visibility and deletion work across pages.
 - Moving, duplicating and copying a group need a selection on a single page. Pasting onto another page uses that page's active scale for paths, and all the geometry must fit.
 - **Undo/Redo** covers measurements, scales, classifications and page labels. The history of the open project also survives a reload, returning shortly after the plan opens and capped for very large plans; opening another project or PDF starts it empty. Navigation and display settings are not part of it.
@@ -60,6 +61,8 @@ In **Classifications**, create dimensions such as Trade with values such as Elec
 Use the controls below the plan for previous/next pages, zoom, **Fit**, active scale, and **View**. Open **Pages**, search a label (Enter opens a single match), or enter a physical number in **Go to page** and press Enter. Thumbnails load only for visible rows and nearby pages; for large or slow-to-render PDFs, the current page still gets its thumbnail, and **Load previews** loads the others at a higher memory cost. Click the label below the plan to rename it; the browser also shows existing custom labels. **View** sets display units and annotation visibility; polygon area can also use acres. In **Settings > View**, **Label classification** adds the measurement's value from a chosen classification to its on-screen label (exports and the annotated PDF are unchanged). Projects saved with this version do not open in earlier versions of the app.
 
 **Settings** opens on its first tab: **View** with a project open, **Interface** without one. **View** is the only tab that belongs to the project: its settings, including **Currency**, are saved with the plan and unavailable until one is open. The other tabs (Interface, Accessibility, Measurements, Drawing, Filters, Canvas, Confirmations, Shortcuts, Performance) are saved per device. The footer holds **Export settings**, **Import settings** and **Reset…**, which restores every device setting; projects are not changed. Displayed decimal places do not change CSV precision or feet-and-inches fractions. In **Filters**, choose the filters the Measurements list starts with. With a project open, the **Project** box at the end of the tab offers **Default filters > Custom**, which gives that project its own, saved with the plan. **Clear filters** still shows everything.
+
+**What's new** on the start screen lists the latest releases: version, date, the main additions and fixes, and a link to the release on GitHub. A **New** badge stays on the button until you open it for the current version. The notes are bundled with the app, so they also work offline.
 
 ## Projects and recovery
 

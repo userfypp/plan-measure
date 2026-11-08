@@ -41,7 +41,18 @@ export function shouldIgnoreMeasurementClipboardShortcutTarget(
 }
 
 export type DrawingKeyboardAction =
-  "cancel-calibration" | "cancel-draft" | "complete-path" | "exit-tool";
+  | "cancel-calibration"
+  | "cancel-draft"
+  | "complete-path"
+  | "exit-tool"
+  | "close-details"
+  | "clear-selection";
+
+/** What is open in the workspace when Escape reaches the ladder past the drawing steps. */
+export interface EscapeContext {
+  detailsOpen: boolean;
+  hasSelection: boolean;
+}
 
 export type ToolShortcut = Exclude<Tool, "calibrate">;
 
@@ -62,12 +73,17 @@ export function getDrawingKeyboardAction(
   key: string,
   tool: Tool,
   draft: DrawingDraft | null,
+  escape?: EscapeContext,
 ): DrawingKeyboardAction | null {
   if (key === "Escape") {
+    // Escape ladder, one step per press: calibration, draft, tool, Details, selection.
     if (tool === "calibrate") return "cancel-calibration";
     if (isMeasurementType(tool)) {
       return draft ? "cancel-draft" : "exit-tool";
     }
+    if (tool === "hand") return "exit-tool";
+    if (escape?.detailsOpen) return "close-details";
+    if (escape?.hasSelection) return "clear-selection";
     return null;
   }
 
@@ -94,7 +110,7 @@ export function shouldIgnoreViewerKeyboardShortcut(event: KeyboardShortcutEvent)
     target.isContentEditable ||
     target.matches("input, textarea, select") ||
     target.closest(
-      "input, textarea, select, [data-select-trigger], [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']",
+      "input, textarea, select, [contenteditable], dialog, [role='dialog'], [role='menu'], [role='listbox']",
     )
   )
     return true;
@@ -116,8 +132,9 @@ export function getFixedViewerKeyboardAction(
   event: KeyboardShortcutEvent,
   tool: Tool,
   draft: DrawingDraft | null,
+  escape?: EscapeContext,
 ): DrawingKeyboardAction | "start-pan" | null {
   if (shouldIgnoreViewerKeyboardShortcut(event)) return null;
   if (event.key === " ") return "start-pan";
-  return getDrawingKeyboardAction(event.key, tool, draft);
+  return getDrawingKeyboardAction(event.key, tool, draft, escape);
 }

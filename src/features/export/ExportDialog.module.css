@@ -27,6 +27,12 @@ dialog.dialog {
   gap: var(--space-4);
 }
 
+.fieldLabelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .fieldLabel {
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
@@ -61,8 +67,12 @@ dialog.dialog {
 .boxTitle {
   display: flex;
   align-items: center;
-  margin: 0;
+  gap: var(--space-8);
   padding: 0 var(--space-16);
+}
+
+.boxHeading {
+  margin: 0;
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
@@ -161,6 +171,7 @@ dialog.dialog {
   min-height: var(--control-height-compact);
   display: flex;
   align-items: center;
+  gap: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
@@ -381,6 +392,7 @@ dialog.dialog {
   min-height: var(--target-current);
   display: flex;
   align-items: center;
+  gap: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-medium);

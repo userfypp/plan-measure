@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState, type FormEvent } from "react";
-import { Badge, Button, Dialog, Select } from "../../components/ui";
+import { Badge, Button, Dialog, HelpTip, Select } from "../../components/ui";
 import { useAppState } from "../../app/state";
 import { useSessionState } from "../../app/sessionState";
 import type { CsvExportSettings, CurrentSession } from "../../types/domain";
@@ -62,6 +62,18 @@ const EXPORT_LABELS: Record<ExportFormat, string> = {
 };
 type CsvDataset = "measurements" | "classification-assignments" | "takeoff";
 
+const HELP = {
+  format:
+    "CSV, Excel and OpenDocument export tables for spreadsheets. JSON keeps all the data for other tools. Annotated PDF draws the visible measurements on the original plan.",
+  data: "Measurements: one row per measurement. Classification assignments: one row per assigned classification value (CSV only). Takeoff summary: quantity totals instead of measurement rows.",
+  columns:
+    "Choose the columns of the measurement table. Required columns identify each row and its units, so they cannot be turned off.",
+  summaries:
+    "Adds quantity totals for all pages, hidden measurements included. CSV writes each summary as a separate file in a ZIP, workbooks add sheets, and JSON adds a summary section.",
+  quantities: "Totals for the whole project, or grouped by page or by measurement type.",
+  classifications: "Totals grouped by the values of each selected classification dimension.",
+} as const;
+
 export function ExportDialog({
   session,
   pageLabels,
@@ -94,6 +106,9 @@ export function ExportDialog({
   const formatId = useId();
   const datasetId = useId();
   const descriptionId = useId();
+  const formatHelpId = useId();
+  const dataHelpId = useId();
+  const columnsHelpId = useId();
   const exportInProgressRef = useRef(false);
   const descriptors = getCsvColumnDescriptors(session, draft);
   const isWorkbook = format === "xlsx" || format === "ods";
@@ -299,7 +314,10 @@ export function ExportDialog({
           <div className={styles.controlsContent}>
             <div className={styles.exportFields}>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Format</span>
+                <span className={styles.fieldLabelRow}>
+                  <span className={styles.fieldLabel}>Format</span>
+                  <HelpTip label="Format" help={HELP.format} helpId={formatHelpId} />
+                </span>
                 <Select<ExportFormat>
                   id={formatId}
                   label="Format"
@@ -310,6 +328,10 @@ export function ExportDialog({
                       value,
                       label,
                       disabled: value === "annotated-pdf" && !onExportAnnotatedPdf,
+                      tooltip:
+                        value === "annotated-pdf" && !onExportAnnotatedPdf
+                          ? "Wait for the PDF to finish loading"
+                          : undefined,
                     }),
                   )}
                   onChange={(nextFormat) => {
@@ -320,7 +342,10 @@ export function ExportDialog({
               </div>
               {(format === "csv" || isWorkbook) && (
                 <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Data</span>
+                  <span className={styles.fieldLabelRow}>
+                    <span className={styles.fieldLabel}>Data</span>
+                    <HelpTip label="Data" help={HELP.data} helpId={dataHelpId} />
+                  </span>
                   <Select<CsvDataset>
                     id={datasetId}
                     label="Data"
@@ -412,7 +437,8 @@ export function ExportDialog({
                   </div>
                   <div className={styles.columnActions}>
                     <span className={styles.selectedCount}>
-                      {descriptors.filter((column) => column.enabled).length} selected
+                      <span>{descriptors.filter((column) => column.enabled).length} selected</span>
+                      <HelpTip label="columns" help={HELP.columns} helpId={columnsHelpId} />
                     </span>
                     <div className={styles.bulkActions} role="group" aria-label="Column presets">
                       <Button
@@ -604,15 +630,24 @@ function SummaryOptions({
   onChange: (selection: TakeoffSelection) => void;
 }) {
   const titleId = useId();
+  const helpId = useId();
+  const quantitiesHelpId = useId();
+  const classificationsHelpId = useId();
   const dimensions = session.classificationCatalog.dimensions;
   return (
     <section className={styles.summaries} aria-labelledby={titleId}>
-      <h3 id={titleId} className={styles.boxTitle}>
-        Takeoff summaries
-      </h3>
+      <div className={styles.boxTitle}>
+        <h3 id={titleId} className={styles.boxHeading}>
+          Takeoff summaries
+        </h3>
+        <HelpTip label="Takeoff summaries" help={HELP.summaries} helpId={helpId} />
+      </div>
       <div className={styles.summaryRows}>
         <div className={styles.summaryRow} role="group" aria-label="Takeoff breakdowns">
-          <span className={styles.rowLabel}>Quantities</span>
+          <span className={styles.rowLabel}>
+            Quantities
+            <HelpTip label="Quantities" help={HELP.quantities} helpId={quantitiesHelpId} />
+          </span>
           <div className={styles.summaryChoices}>
             <label className={styles.columnOption}>
               <input
@@ -645,7 +680,14 @@ function SummaryOptions({
         </div>
         {dimensions.length > 0 && (
           <div className={styles.summaryRow} role="group" aria-label="Takeoff classifications">
-            <span className={styles.rowLabel}>By classification</span>
+            <span className={styles.rowLabel}>
+              By classification
+              <HelpTip
+                label="By classification"
+                help={HELP.classifications}
+                helpId={classificationsHelpId}
+              />
+            </span>
             <div className={`${styles.summaryChoices} ${styles.dimensionChoices}`}>
               {dimensions.map((dimension) => (
                 <label key={dimension.id} className={styles.columnOption}>

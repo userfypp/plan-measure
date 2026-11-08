@@ -290,6 +290,8 @@ export interface CountMeasurement extends Omit<
 > {
   type: "count";
   calibrationId: null;
+  /** Optional names of the items, by position in `points`; shorter than `points` when the last items are unnamed. */
+  itemNames?: string[];
 }
 
 export type Measurement = PathMeasurement | CountMeasurement;

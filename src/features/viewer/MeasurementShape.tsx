@@ -1,3 +1,5 @@
+import { countItemLabel, countItemName } from "../../utils/countItems";
+import { useFocusedCountItemIndex } from "../measurements/countItemFocus";
 import { measurementLabelText } from "./labelContent";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
@@ -239,6 +241,7 @@ export const MeasurementShape = memo(function MeasurementShape({
     labelDimensions: LabelDimensions | null;
     handles: KonvaCircleNode[];
     sideHandles: KonvaCircleNode[];
+    itemLabels: KonvaLabelNode[];
   } | null>(null);
   const pinnedDragNodeRef = useRef<{
     node: KonvaNode;
@@ -296,6 +299,31 @@ export const MeasurementShape = memo(function MeasurementShape({
     () => averagePoint(visibleMeasurement.points),
     [visibleMeasurement.points],
   );
+  const focusedItemIndex = useFocusedCountItemIndex(measurement.id);
+  const itemLabels = useMemo(() => {
+    if (visibleMeasurement.type !== "count") return [];
+    const radius = CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx;
+    const gap = (radius + CANVAS_VISUAL_METRICS.handleStrokeScreenPx + 2) / zoom;
+    const labels: {
+      index: number;
+      text: string;
+      x: number;
+      y: number;
+      dx: number;
+      dy: number;
+    }[] = [];
+    visibleMeasurement.points.forEach((point, index) => {
+      const focused = index === focusedItemIndex;
+      if (!focused && (!showLabel || !countItemName(visibleMeasurement, index))) return;
+      const text = countItemLabel(visibleMeasurement, index);
+      const { width, height } = measureLabelText(text, labelFontSize, zoom);
+      // Right of the marker, flipped to its left when the label would leave the page.
+      const dx = point.x + gap + width > bounds.width ? -(gap + width) : gap;
+      const dy = -height / 2;
+      labels.push({ index, text, x: point.x + dx, y: point.y + dy, dx, dy });
+    });
+    return labels;
+  }, [bounds.width, focusedItemIndex, labelFontSize, showLabel, visibleMeasurement, zoom]);
   const labelText = useMemo(
     () =>
       measurementLabelText(
@@ -440,6 +468,7 @@ export const MeasurementShape = memo(function MeasurementShape({
         labelDimensions: null,
         handles,
         sideHandles,
+        itemLabels: clone.find<KonvaLabelNode>(".count-item-label"),
       };
       try {
         renderInitial();
@@ -479,6 +508,15 @@ export const MeasurementShape = memo(function MeasurementShape({
     }
     preview.line.points(pointsToFlat(points));
     points.forEach((point, index) => preview.handles[index]?.position(point));
+    preview.itemLabels.forEach((label) => {
+      const point = points[label.getAttr("countItemIndex") as number];
+      if (point) {
+        label.position({
+          x: point.x + (label.getAttr("labelDx") as number),
+          y: point.y + (label.getAttr("labelDy") as number),
+        });
+      }
+    });
     preview.sideHandles.forEach((handle) => {
       const point = measurementEditTargetPoint(
         measurement.type,
@@ -1278,6 +1316,21 @@ export const MeasurementShape = memo(function MeasurementShape({
           onDragEnd={(event) => handleVertexDragEnd(event, index)}
         />
       ))}
+      {measurement.type === "count" && visibleMeasurement.points[focusedItemIndex] && (
+        <Circle
+          name="count-item-focus-ring"
+          x={visibleMeasurement.points[focusedItemIndex]!.x}
+          y={visibleMeasurement.points[focusedItemIndex]!.y}
+          radius={
+            (CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx +
+              CANVAS_VISUAL_METRICS.countFocusRingGapScreenPx) /
+            zoom
+          }
+          stroke={visualRoles.measurementSelectedStroke}
+          strokeWidth={CANVAS_VISUAL_METRICS.countFocusRingStrokeScreenPx / zoom}
+          listening={false}
+        />
+      )}
       {(measurement.type === "count" || vertexHandlesShown) &&
         visibleMeasurement.points.map((point, index) => (
           <Circle
@@ -1330,6 +1383,39 @@ export const MeasurementShape = memo(function MeasurementShape({
             }}
           />
         ))}
+      {itemLabels.map((item) => (
+        <Label
+          key={`item-label-${item.index}`}
+          name="count-item-label"
+          countItemIndex={item.index}
+          labelDx={item.dx}
+          labelDy={item.dy}
+          x={item.x}
+          y={item.y}
+          listening={false}
+        >
+          <Tag
+            fill={labelColors.background}
+            opacity={
+              (item.index === focusedItemIndex || selected ? 1 : 0.88) * labelBackgroundOpacity
+            }
+            stroke={
+              item.index === focusedItemIndex || selected
+                ? visualRoles.measurementSelectedStroke
+                : undefined
+            }
+            strokeWidth={item.index === focusedItemIndex || selected ? 1 / zoom : 0}
+            cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / zoom}
+          />
+          <Text
+            text={item.text}
+            {...labelTextPaint(labelColors, labelBackgroundOpacity, zoom)}
+            fontFamily={CANVAS_VISUAL_METRICS.fontFamily}
+            fontSize={labelFontSize / zoom}
+            padding={LABEL_PADDING_SCREEN_PX / zoom}
+          />
+        </Label>
+      ))}
     </Group>
   );
 }, measurementShapePropsEqual);

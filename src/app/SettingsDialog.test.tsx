@@ -912,9 +912,17 @@ describe("SettingsDialog", () => {
     expect(previewLabels()).toEqual(["1234.57 m", "P 142.30 m · A 1234.57 m²"]);
     choose("Thousands separator", "Comma");
     expect(previewLabels()).toEqual(["1,234.57 m", "P 142.30 m · A 1,234.57 m²"]);
+    // The same glyph in both roles is ambiguous, so the clashing option cannot be picked.
+    act(() => selectByLabel("Decimal separator").click());
+    const clash = selectItems().find((item) => item.textContent === "Comma")!;
+    expect(clash.hasAttribute("disabled") || clash.getAttribute("aria-disabled") === "true").toBe(
+      true,
+    );
+    act(() => clash.click());
+    expect(previewLabels()[0]).toBe("1,234.57 m");
+    choose("Thousands separator", "Space");
     choose("Decimal separator", "Comma");
-    // Same glyph for both roles is ambiguous, so grouping is dropped.
-    expect(previewLabels()[0]).toBe("1234,57 m");
+    expect(previewLabels()[0]!.replace(/\s/g, " ")).toBe("1 234,57 m");
     choose("Thousands separator", "Point");
     expect(previewLabels()[0]).toBe("1.234,57 m");
     choose("Label content", "Name and value");

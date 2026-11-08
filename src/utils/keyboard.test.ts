@@ -242,6 +242,19 @@ describe("drawing keyboard actions", () => {
     expect(getDrawingKeyboardAction("Enter", "polyline", null)).toBe("exit-tool");
   });
 
+  it("walks the Escape ladder one step per press: tool, then Details, then selection", () => {
+    const open = { detailsOpen: true, hasSelection: true };
+    const selected = { detailsOpen: false, hasSelection: true };
+    const idle = { detailsOpen: false, hasSelection: false };
+    expect(getDrawingKeyboardAction("Escape", "line", lineDraft, open)).toBe("cancel-draft");
+    expect(getDrawingKeyboardAction("Escape", "line", null, open)).toBe("exit-tool");
+    expect(getDrawingKeyboardAction("Escape", "hand", null, open)).toBe("exit-tool");
+    expect(getDrawingKeyboardAction("Escape", "select", null, open)).toBe("close-details");
+    expect(getDrawingKeyboardAction("Escape", "select", null, selected)).toBe("clear-selection");
+    expect(getDrawingKeyboardAction("Escape", "select", null, idle)).toBeNull();
+    expect(getDrawingKeyboardAction("Escape", "select", null)).toBeNull();
+  });
+
   it("routes calibration Escape to the existing calibration cancellation flow", () => {
     expect(getDrawingKeyboardAction("Escape", "calibrate", lineDraft)).toBe("cancel-calibration");
     expect(getDrawingKeyboardAction("Escape", "calibrate", null)).toBe("cancel-calibration");

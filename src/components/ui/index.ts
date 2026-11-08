@@ -9,6 +9,8 @@ export { Dialog } from "./Dialog";
 export type { DialogProps, DialogSize } from "./Dialog";
 export { Disclosure } from "./Disclosure";
 export type { DisclosureProps } from "./Disclosure";
+export { HelpTip } from "./HelpTip";
+export type { HelpTipProps } from "./HelpTip";
 export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
 export {
@@ -21,6 +23,7 @@ export {
   EditPointsIcon,
   EyeIcon,
   ImportIcon,
+  MoveToIcon,
   PencilIcon,
   PlusIcon,
   RatioIcon,

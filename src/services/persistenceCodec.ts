@@ -195,7 +195,18 @@ function isCountMeasurement(value: unknown): value is Measurement {
     hasValidMeasurementPoints("count", value.points as Point[]) &&
     hasValidClassificationValueIds(value) &&
     typeof value.visible === "boolean" &&
-    (value.note === undefined || typeof value.note === "string")
+    (value.note === undefined || typeof value.note === "string") &&
+    hasValidCountItemNames(value)
+  );
+}
+function hasValidCountItemNames(value: Record<string, unknown>): boolean {
+  const { itemNames, points } = value;
+  return (
+    itemNames === undefined ||
+    (Array.isArray(itemNames) &&
+      Array.isArray(points) &&
+      itemNames.length <= points.length &&
+      itemNames.every((name) => typeof name === "string"))
   );
 }
 /** A revision cloud drawn without a scale (schema V15 onwards): the only path with a null calibration. */
@@ -1070,6 +1081,9 @@ function canonicalizeSessionV10(session: SessionV10 | SessionV12 | SessionV13): 
         ...(measurement.type === "count" || measurement.color === undefined
           ? {}
           : { color: measurement.color }),
+        ...(measurement.type === "count" && measurement.itemNames
+          ? { itemNames: [...measurement.itemNames] }
+          : {}),
       })),
       nextMeasurementNumber: { ...page.nextMeasurementNumber },
     };

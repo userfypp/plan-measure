@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNumberFormatKey } from "../../utils/appPreferences";
 import {
   AnchoredMenu,
@@ -6,6 +6,9 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   IconButton,
+  Input,
+  MoveToIcon,
+  PencilIcon,
   PlusIcon,
   SaveIcon,
   Textarea,
@@ -20,9 +23,11 @@ import type {
   PageState,
 } from "../../types/domain";
 import { getMeasurementCalibration, isCloudMeasured } from "../../utils/calibration";
+import { countItemLabel, countItemName } from "../../utils/countItems";
 import { measurementPathSpecs } from "../../utils/geometry";
 import { ClassificationAssignment } from "../classification/ClassificationAssignment";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
+import { setFocusedCountItem } from "./countItemFocus";
 import { createMeasurementViewModel } from "./measurementViewModels";
 import type { WorkspaceModule } from "../../app/workspaceState";
 import { workspaceModuleLabel } from "../../app/WorkspacePanel";
@@ -50,6 +55,7 @@ export interface MeasurementDetailsProps {
     valueId: string | null,
   ) => void;
   onRemoveCountItem?: (index: number) => void;
+  onRenameCountItem?: (index: number, name: string) => void;
   onMoveCountItem?: (index: number, targetId: string) => void;
   onAddCountItems?: () => void;
   addCountItemsDisabledReason?: string;
@@ -57,6 +63,60 @@ export interface MeasurementDetailsProps {
 }
 
 const COUNT_ITEMS_PER_PAGE = 50;
+
+function CountItemNameEditor({
+  index,
+  name,
+  onCommit,
+  onCancel,
+}: {
+  index: number;
+  name: string;
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const finishedRef = useRef(false);
+
+  useLayoutEffect(() => {
+    inputRef.current?.focus({ preventScroll: true });
+    inputRef.current?.select();
+  }, []);
+
+  function finish(commit: boolean) {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    if (commit) onCommit(draft);
+    else onCancel();
+  }
+
+  return (
+    <form
+      className={styles.itemNameForm}
+      aria-label={`Rename item ${index + 1}`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        finish(true);
+      }}
+    >
+      <Input
+        ref={inputRef}
+        value={draft}
+        placeholder={`Item ${index + 1}`}
+        aria-label={`Name of item ${index + 1}`}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => finish(true)}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          finish(false);
+        }}
+      />
+    </form>
+  );
+}
 
 export function MeasurementDetails({
   page,
@@ -73,6 +133,7 @@ export function MeasurementDetails({
   onChangeColor,
   onAssignClassification,
   onRemoveCountItem,
+  onRenameCountItem,
   onMoveCountItem,
   onAddCountItems,
   addCountItemsDisabledReason,
@@ -123,6 +184,30 @@ export function MeasurementDetails({
   if (itemPage !== visibleItemPage) setItemPage(visibleItemPage);
   const itemsStart = visibleItemPage * COUNT_ITEMS_PER_PAGE;
   const itemsListRef = useRef<HTMLUListElement>(null);
+  const [renamingItem, setRenamingItem] = useState<number | null>(null);
+  const renameFocusIndexRef = useRef<number | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<number | null>(null);
+  const [focusedItem, setFocusedItem] = useState<number | null>(null);
+  // The row being renamed wins, then the hovered one, then the one holding keyboard focus.
+  const activeItem = renamingItem ?? hoveredItem ?? focusedItem;
+  const activeItemOnPage = measurement.type === "count" ? activeItem : null;
+  useEffect(() => {
+    if (activeItemOnPage === null) return;
+    setFocusedCountItem({ measurementId: measurement.id, index: activeItemOnPage });
+    return () => setFocusedCountItem(null);
+  }, [activeItemOnPage, measurement.id]);
+  useLayoutEffect(() => {
+    const index = renameFocusIndexRef.current;
+    if (renamingItem !== null || index === null) return;
+    renameFocusIndexRef.current = null;
+    itemsListRef.current
+      ?.querySelector<HTMLElement>(`[data-count-item-rename="${index}"]`)
+      ?.focus({ preventScroll: true });
+  }, [renamingItem]);
+  function finishRenaming(index: number) {
+    renameFocusIndexRef.current = index;
+    setRenamingItem(null);
+  }
   function changeItemPage(next: number) {
     setItemPage(next);
     if (itemsListRef.current) itemsListRef.current.scrollTop = 0;
@@ -219,12 +304,53 @@ export function MeasurementDetails({
                 .map((_, localIndex) => {
                   const index = itemsStart + localIndex;
                   return (
-                    <li className={styles.itemRow} key={index}>
-                      <span>Item {index + 1}</span>
+                    <li
+                      className={styles.itemRow}
+                      key={index}
+                      data-active={activeItem === index ? "true" : undefined}
+                      data-renaming={renamingItem === index ? "true" : undefined}
+                      onPointerEnter={() => setHoveredItem(index)}
+                      onPointerLeave={() => setHoveredItem(null)}
+                      onFocus={() => setFocusedItem(index)}
+                      onBlur={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                          setFocusedItem(null);
+                        }
+                      }}
+                    >
+                      {renamingItem === index && onRenameCountItem ? (
+                        <CountItemNameEditor
+                          index={index}
+                          name={countItemName(measurement, index)}
+                          onCommit={(name) => {
+                            onRenameCountItem(index, name);
+                            finishRenaming(index);
+                          }}
+                          onCancel={() => finishRenaming(index)}
+                        />
+                      ) : (
+                        <span
+                          className={styles.itemName}
+                          data-named={countItemName(measurement, index) ? "true" : undefined}
+                        >
+                          {countItemLabel(measurement, index)}
+                        </span>
+                      )}
                       <div className={styles.itemActions}>
+                        {onRenameCountItem && (
+                          <IconButton
+                            icon={<PencilIcon />}
+                            aria-label={`Rename item ${index + 1}`}
+                            tooltip={`Rename item ${index + 1}`}
+                            tooltipPosition="left"
+                            disabled={assignmentDisabled}
+                            data-count-item-rename={index}
+                            onClick={() => setRenamingItem(index)}
+                          />
+                        )}
                         {onMoveCountItem && (
                           <AnchoredMenu
-                            trigger="Move to…"
+                            trigger={<MoveToIcon />}
                             triggerProps={{
                               className: styles.itemMove,
                               "aria-label": `Move item ${index + 1} to another count`,
@@ -234,6 +360,8 @@ export function MeasurementDetails({
                                   ? "Create another count on this page first"
                                   : undefined,
                             }}
+                            tooltip={otherCounts.length === 0 ? undefined : "Move to…"}
+                            tooltipPosition="left"
                             label={`Move item ${index + 1} to count`}
                             placement="bottom-end"
                             items={() =>

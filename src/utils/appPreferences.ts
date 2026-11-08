@@ -281,6 +281,11 @@ function sanitize(raw: unknown): AppPreferences {
   }
   // One corrupt shortcut must not reset the others, so this map is read entry by entry.
   result.shortcutBindings = sanitizeShortcutBindings(source.shortcutBindings);
+  // Stored or imported pairs from before the settings blocked a clash resolve the same way as formatting.
+  result.thousandsSeparator = effectiveThousandsSeparator(
+    result.thousandsSeparator as ThousandsSeparator,
+    result.decimalSeparator as DecimalSeparator,
+  );
   return result as unknown as AppPreferences;
 }
 

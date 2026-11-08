@@ -87,6 +87,15 @@ export function Tooltip({
     };
   }, []);
 
+  // A pending show timer must not outlive the suppression (e.g. a click that opens the trigger's
+  // popover within the delay): it would mark the tooltip hovered and pop it up, with the pointer
+  // elsewhere, as soon as the popover closes.
+  useEffect(() => {
+    if (!suppressed || timerRef.current === null) return;
+    window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, [suppressed]);
+
   // WCAG 1.4.13: a bubble covering content can be dismissed without moving the pointer or focus.
   useEffect(() => {
     if (!visible) return;
