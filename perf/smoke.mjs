@@ -1,6 +1,7 @@
 // Opens the production build in Chromium and fails on any page error: the start screen, then the
 // sample project with its PDF drawn and its measurements listed. Run `npm run build` first.
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -64,6 +65,14 @@ try {
   await check("Start screen", async () => {
     await page.goto(url);
     await page.getByRole("heading", { name: "Open a plan to start measuring" }).waitFor();
+  });
+
+  await check("pdf.js resources", async () => {
+    const { version } = JSON.parse(
+      readFileSync(path.join(repo, "node_modules/pdfjs-dist/package.json"), "utf8"),
+    );
+    const response = await fetch(`${url}pdfjs/${version}/wasm/jbig2.wasm`);
+    if (!response.ok) throw new Error(`pdf.js WASM decoder not served (${response.status})`);
   });
 
   await check("Sample project", async () => {

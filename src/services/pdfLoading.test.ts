@@ -63,6 +63,23 @@ afterEach(() => {
   mocked.getDocument.mockReset();
 });
 
+describe("PDF loading options", () => {
+  it("gives PDF.js the folders with its decoders, CMaps, fonts and ICC data", async () => {
+    mocked.getDocument.mockReturnValue(pendingTask());
+
+    void loadPdf(new Blob(["%PDF-1.7"]));
+    await vi.waitFor(() => expect(mocked.getDocument).toHaveBeenCalledTimes(1));
+
+    expect(mocked.getDocument).toHaveBeenCalledWith({
+      data: expect.any(Uint8Array),
+      cMapUrl: "/node_modules/pdfjs-dist/cmaps/",
+      standardFontDataUrl: "/node_modules/pdfjs-dist/standard_fonts/",
+      wasmUrl: "/node_modules/pdfjs-dist/wasm/",
+      iccUrl: "/node_modules/pdfjs-dist/iccs/",
+    });
+  });
+});
+
 describe("PDF loading failures", () => {
   it("rejects a password-protected PDF as soon as PDF.js asks for a password and destroys its task", async () => {
     const task = pendingTask();
