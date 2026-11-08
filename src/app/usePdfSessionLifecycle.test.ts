@@ -103,7 +103,9 @@ describe("confirmed save status and persistence requests", () => {
     await act(async () => {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
       document.dispatchEvent(new Event("visibilitychange"));
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await vi.waitFor(() => expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved"), {
+        timeout: 5_000,
+      });
     });
     expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
     expect((await loadSavedSession())!.session).toEqual(edited);
@@ -153,7 +155,9 @@ describe("confirmed save status and persistence requests", () => {
     expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saving");
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await vi.waitFor(() => expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved"), {
+        timeout: 5_000,
+      });
     });
     expect(lifecycle!.saveStatusStore.getSnapshot().state).toBe("saved");
     const saved = (await loadSavedSession())!;
