@@ -2,6 +2,7 @@ import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { withContentSecurityPolicy } from "./scripts/contentSecurityPolicy";
+import { releaseNotes } from "./scripts/releaseNotes";
 
 const pdfjsDirectory = `${import.meta.dirname}/node_modules/pdfjs-dist`;
 const pdfjsVersion = (
@@ -44,7 +45,12 @@ function contentSecurityPolicy(): Plugin {
 
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/plan-measure/" : "/",
-  plugins: [react(), pdfjsResources(), contentSecurityPolicy()],
+  plugins: [
+    react(),
+    pdfjsResources(),
+    contentSecurityPolicy(),
+    releaseNotes(`${import.meta.dirname}/CHANGELOG.md`),
+  ],
   define: {
     __PDFJS_ASSETS__: JSON.stringify(
       mode === "production" ? `/plan-measure/pdfjs/${pdfjsVersion}/` : "/node_modules/pdfjs-dist/",

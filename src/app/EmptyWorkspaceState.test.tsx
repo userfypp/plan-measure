@@ -30,6 +30,28 @@ function button(label: string): HTMLButtonElement {
 }
 
 describe("EmptyWorkspaceState", () => {
+  it("adds the lazy What's new button to the action row without moving the cards", async () => {
+    act(() =>
+      root.render(
+        <EmptyWorkspaceState onOpenPdf={vi.fn()} onOpenSample={vi.fn()} disabled={false} />,
+      ),
+    );
+    const actions = button("Open PDF").parentElement!;
+    expect(actions.children).toHaveLength(2);
+
+    await vi.waitFor(
+      async () => {
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        });
+        expect(actions.querySelector("dialog")).not.toBeNull();
+      },
+      { timeout: 4000 },
+    );
+    expect(actions.children[2]?.textContent).toMatch(/^What's new/);
+    expect(container.querySelector("section")?.children).toHaveLength(1);
+  });
+
   it("names the screen and offers opening a PDF or the sample", () => {
     const onOpenPdf = vi.fn();
     const onOpenSample = vi.fn();

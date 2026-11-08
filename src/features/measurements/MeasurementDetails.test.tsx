@@ -264,6 +264,50 @@ describe("MeasurementDetails", () => {
     expect(container!.querySelector('[aria-label="Delete item 2"] svg')).not.toBeNull();
   });
 
+  it("renames a count item inline: Enter commits, Escape cancels, names replace the Item N label", () => {
+    const onRenameCountItem = vi.fn();
+    const count: Measurement = {
+      ...firstMeasurement,
+      id: "count",
+      name: "Plug",
+      type: "count",
+      calibrationId: null,
+      itemNames: ["North wall"],
+    };
+    renderDetails(
+      createProps({ measurement: count, onRenameCountItem, onRemoveCountItem: vi.fn() }),
+    );
+    const rows = () => container!.querySelectorAll('ul[aria-label="Items in Plug"] li');
+    expect(rows()[0]!.textContent).toContain("North wall");
+    expect(rows()[1]!.textContent).toContain("Item 2");
+
+    const type = (input: HTMLInputElement, value: string) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      act(() => {
+        setter.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+    const editor = () =>
+      container!.querySelector<HTMLInputElement>('input[aria-label="Name of item 2"]');
+
+    act(() => buttonByLabel("Rename item 2").click());
+    expect(editor()).not.toBeNull();
+    expect(document.activeElement).toBe(editor());
+    type(editor()!, "Kitchen");
+    act(() =>
+      editor()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
+    expect(onRenameCountItem).not.toHaveBeenCalled();
+    expect(editor()).toBeNull();
+
+    act(() => buttonByLabel("Rename item 2").click());
+    type(editor()!, "Kitchen");
+    act(() => editor()!.form!.requestSubmit());
+    expect(onRenameCountItem).toHaveBeenCalledExactlyOnceWith(1, "Kitchen");
+    expect(editor()).toBeNull();
+  });
+
   it("disables transfers when no other count is available and respects blocked editing", () => {
     const count: Measurement = { ...firstMeasurement, type: "count", calibrationId: null };
     const onAddCountItems = vi.fn();

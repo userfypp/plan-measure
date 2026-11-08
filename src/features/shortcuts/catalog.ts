@@ -224,7 +224,8 @@ export const FIXED_KEYS: readonly FixedKeyRow[] = Object.freeze([
     id: "cancel",
     label: "Cancel",
     keys: ["Esc"],
-    description: "Cancel the drawing, calibration or keyboard edit in progress, or leave the tool",
+    description:
+      "Step back one level per press: cancel the drawing, calibration or keyboard edit in progress, leave the tool, close the measurement details, then clear the selection",
     combos: ["Escape"],
   },
   {

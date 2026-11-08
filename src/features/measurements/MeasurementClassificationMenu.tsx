@@ -51,8 +51,10 @@ export function MeasurementClassificationMenu({
       triggerProps={{
         className: [iconOnly ? "" : styles.trigger, triggerClassName].filter(Boolean).join(" "),
         disabled: catalog.dimensions.length === 0,
-        ...(iconOnly ? { "aria-label": "Classify", title: "Classify" } : {}),
+        ...(iconOnly ? { "aria-label": "Classify" } : {}),
       }}
+      tooltip={iconOnly ? "Classify" : undefined}
+      tooltipPosition="bottom"
       role="dialog"
       aria-label="Classify selected measurements"
       placement="bottom-start"

@@ -85,10 +85,11 @@ function button(label: string): HTMLButtonElement {
   return result;
 }
 
-function pressTab(shiftKey = false): KeyboardEvent {
+function pressTab(shiftKey = false, modifiers: KeyboardEventInit = {}): KeyboardEvent {
   const event = new KeyboardEvent("keydown", {
     key: "Tab",
     shiftKey,
+    ...modifiers,
     bubbles: true,
     cancelable: true,
   });
@@ -119,6 +120,22 @@ describe("managed application Tab navigation", () => {
   it("starts forward navigation at the first app stop when Safari leaves focus on body", () => {
     expect(document.activeElement).toBe(document.body);
     expect(pressTab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(button("Before"));
+  });
+
+  it("starts at the first stop after a press that left Safari's focus on body", () => {
+    button("Before").focus();
+    button("Before").blur();
+    expect(document.activeElement).toBe(document.body);
+    expect(pressTab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(button("Before"));
+  });
+
+  it("follows the same sequence for Option+Tab and leaves Ctrl+Tab and Cmd+Tab to the browser", () => {
+    expect(pressTab(false, { altKey: true }).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(button("Before"));
+    expect(pressTab(false, { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(pressTab(true, { metaKey: true }).defaultPrevented).toBe(false);
     expect(document.activeElement).toBe(button("Before"));
   });
 

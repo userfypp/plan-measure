@@ -14,6 +14,116 @@ function session(): CurrentSession {
 }
 
 describe("SessionState", () => {
+  describe("count item names", () => {
+    function countState(): SessionCommandResult {
+      const state: SessionCommandResult = { session: session(), error: null };
+      const base = {
+        type: "count" as const,
+        calibrationId: null,
+        classificationValueIds: [],
+        visible: true,
+      };
+      state.session!.pages[1]!.measurements = [
+        {
+          ...base,
+          id: "source",
+          name: "Doors",
+          points: [
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+            { x: 2, y: 2 },
+          ],
+          itemNames: ["Entrance", "", "Back"],
+        },
+        { ...base, id: "target", name: "Windows", points: [{ x: 9, y: 9 }] },
+      ];
+      return state;
+    }
+    const names = (state: SessionCommandResult, id: string) => {
+      const measurement = state.session!.pages[1]!.measurements.find((item) => item.id === id)!;
+      return "itemNames" in measurement ? measurement.itemNames : undefined;
+    };
+
+    it("renames an item, clears it with a blank name, and drops the field when none is left", () => {
+      const renamed = sessionReducer(countState(), {
+        type: "RENAME_COUNT_ITEM",
+        pageNumber: 1,
+        id: "source",
+        itemIndex: 1,
+        name: "  Side  ",
+      });
+      expect(renamed.error).toBeNull();
+      expect(names(renamed, "source")).toEqual(["Entrance", "Side", "Back"]);
+
+      let cleared = renamed;
+      for (const itemIndex of [0, 1, 2]) {
+        cleared = sessionReducer(cleared, {
+          type: "RENAME_COUNT_ITEM",
+          pageNumber: 1,
+          id: "source",
+          itemIndex,
+          name: " ",
+        });
+      }
+      expect(names(cleared, "source")).toBeUndefined();
+    });
+
+    it("keeps the same session when the name does not change and rejects a missing item", () => {
+      const state = countState();
+      const same = sessionReducer(state, {
+        type: "RENAME_COUNT_ITEM",
+        pageNumber: 1,
+        id: "source",
+        itemIndex: 0,
+        name: "Entrance",
+      });
+      expect(same.session).toBe(state.session);
+      const missing = sessionReducer(state, {
+        type: "RENAME_COUNT_ITEM",
+        pageNumber: 1,
+        id: "source",
+        itemIndex: 3,
+        name: "Nope",
+      });
+      expect(missing.error).toBe("The selected count item is no longer available.");
+    });
+
+    it("removes an item together with its name and keeps the last item", () => {
+      const removed = sessionReducer(countState(), {
+        type: "REMOVE_COUNT_ITEM",
+        pageNumber: 1,
+        id: "source",
+        itemIndex: 0,
+      });
+      expect(removed.session!.pages[1]!.measurements[0]!.points).toEqual([
+        { x: 1, y: 1 },
+        { x: 2, y: 2 },
+      ]);
+      expect(names(removed, "source")).toEqual(["", "Back"]);
+
+      const last = sessionReducer(countState(), {
+        type: "REMOVE_COUNT_ITEM",
+        pageNumber: 1,
+        id: "target",
+        itemIndex: 0,
+      });
+      expect(last.error).toBe("A count needs at least one item.");
+    });
+
+    it("carries the name along when the item moves to another count", () => {
+      const moved = sessionReducer(countState(), {
+        type: "MOVE_COUNT_ITEM",
+        pageNumber: 1,
+        sourceId: "source",
+        targetId: "target",
+        itemIndex: 2,
+      });
+      expect(moved.error).toBeNull();
+      expect(names(moved, "source")).toEqual(["Entrance"]);
+      expect(names(moved, "target")).toEqual(["", "Back"]);
+    });
+  });
+
   it("resets the label classification when its dimension is deleted", () => {
     const state: SessionCommandResult = { session: session(), error: null };
     state.session!.classificationCatalog.dimensions = [

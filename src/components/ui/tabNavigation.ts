@@ -159,11 +159,14 @@ function activeFocusTrap(root: HTMLElement): HTMLElement | null {
  */
 type ManagedTabKeyboardEvent = Pick<
   KeyboardEvent,
-  "key" | "shiftKey" | "defaultPrevented" | "preventDefault"
+  "key" | "shiftKey" | "ctrlKey" | "metaKey" | "defaultPrevented" | "preventDefault"
 >;
 
 export function handleManagedTabNavigation(event: ManagedTabKeyboardEvent, root: HTMLElement) {
   if (event.key !== "Tab" || event.defaultPrevented) return;
+  // Ctrl+Tab and Cmd+Tab belong to the browser or the OS (switching tabs or apps). Option+Tab is
+  // Safari's "include buttons and links" Tab, so it follows the same managed sequence as Tab.
+  if (event.ctrlKey || event.metaKey) return;
 
   const active = root.ownerDocument.activeElement;
   const activeElement = active instanceof HTMLElement ? active : null;

@@ -379,27 +379,16 @@ function MeasurementNameEditor({
           }
         }}
         trailing={
-          <>
-            <IconButton
-              className={styles.selectionControlSize}
-              type="submit"
-              icon={<SaveIcon />}
-              aria-label="Save"
-              tooltip="Save"
-              tooltipPosition="bottom"
-              tone="primary"
-              tabIndex={-1}
-            />
-            <IconButton
-              className={styles.selectionIconButton}
-              icon={<CloseIcon />}
-              aria-label="Cancel"
-              tooltip="Cancel"
-              tooltipPosition="bottom"
-              tabIndex={-1}
-              onClick={cancelEditing}
-            />
-          </>
+          <IconButton
+            className={styles.selectionControlSize}
+            type="submit"
+            icon={<SaveIcon />}
+            aria-label="Save"
+            tooltip="Save"
+            tooltipPosition="bottom"
+            tone="primary"
+            tabIndex={-1}
+          />
         }
       />
       {nameError && (

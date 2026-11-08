@@ -261,6 +261,18 @@ describe("appPreferences", () => {
     expect(document.documentElement.hasAttribute("data-contrast")).toBe(false);
   });
 
+  it("resolves a stored thousands mark that equals the decimal mark when loading", () => {
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ thousandsSeparator: "point", decimalSeparator: "point" }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences()).toMatchObject({
+      thousandsSeparator: "none",
+      decimalSeparator: "point",
+    });
+  });
+
   it("drops a thousands mark that equals the decimal mark", () => {
     expect(effectiveThousandsSeparator("comma", "comma")).toBe("none");
     expect(effectiveThousandsSeparator("point", "point")).toBe("none");

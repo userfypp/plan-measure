@@ -1,8 +1,40 @@
+import { useEffect, useState } from "react";
 import { Badge, Button } from "../components/ui";
 import type { SavedProjectSummary } from "../services/persistence";
 import { useAppPreferences } from "../utils/appPreferences";
 import { formatSavedDate } from "../utils/dateFormat";
+import { preloadWhenIdle } from "./idlePreload";
+import { recoverableLazy } from "./recoverableLazy";
+import { retryableImport } from "./retryableImport";
 import styles from "./EmptyWorkspaceState.module.css";
+
+const LazyWhatsNew = recoverableLazy(
+  retryableImport(() => import("./WhatsNew")),
+  "What's new",
+);
+
+/**
+ * The release notes are a small chunk fetched while the browser is idle. The "What's new" button
+ * renders only once it has arrived, at the end of the action row, so a slow or failed download never
+ * shows a loading state or an error on the start screen, and nothing the screen already shows moves.
+ */
+function useWhatsNewReady(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const cancel = preloadWhenIdle([
+      () =>
+        LazyWhatsNew.preload().then(() => {
+          if (mounted) setReady(true);
+        }),
+    ]);
+    return () => {
+      mounted = false;
+      cancel();
+    };
+  }, []);
+  return ready;
+}
 
 interface EmptyWorkspaceStateProps {
   onOpenPdf: () => void;
@@ -22,6 +54,7 @@ export function EmptyWorkspaceState({
   onShowAllProjects,
 }: EmptyWorkspaceStateProps) {
   const { dateFormat } = useAppPreferences();
+  const whatsNewReady = useWhatsNewReady();
   return (
     <section className={styles.start} aria-labelledby="start-title">
       <div className={styles.open}>
@@ -38,6 +71,7 @@ export function EmptyWorkspaceState({
           <Button variant="ghost" size="compact" onClick={onOpenSample} disabled={disabled}>
             Try a sample
           </Button>
+          {whatsNewReady && <LazyWhatsNew />}
         </div>
       </div>
       {projects.length > 0 && (

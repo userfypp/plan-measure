@@ -542,6 +542,18 @@ describe("PdfViewer behavior", () => {
       expect(measurements()).toHaveLength(1);
     });
 
+    it("steps back one level per Escape: Details first, then the selection", async () => {
+      const id = await mountWithLine();
+      await act(async () => workspaceProbe!.openMeasurementDetails());
+      expect(workspaceProbe!.measurementDetailsOpen).toBe(true);
+      await key("Escape");
+      expect(workspaceProbe!.measurementDetailsOpen).toBe(false);
+      expect(workspaceProbe!.selectedMeasurementId).toBe(id);
+      await key("Escape");
+      expect(workspaceProbe!.selectedMeasurementId).toBeNull();
+      expect(measurements()).toHaveLength(1);
+    });
+
     it("does not deselect when a click lands on a shape instead of the background", async () => {
       const id = await mountWithLine();
       expect(workspaceProbe!.selectedMeasurementId).toBe(id);

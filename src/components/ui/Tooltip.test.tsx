@@ -345,4 +345,27 @@ describe("Tooltip on hover after a press", () => {
       document.documentElement.removeAttribute(INPUT_MODALITY_ATTRIBUTE);
     }
   });
+
+  it("does not pop up after suppression ends when the delay ran out while suppressed", () => {
+    function render(suppressed: boolean) {
+      act(() =>
+        root.render(
+          <Tooltip content="Feedback" delay={300} suppressed={suppressed}>
+            <button>Feedback</button>
+          </Tooltip>,
+        ),
+      );
+    }
+    render(false);
+    act(() => {
+      container
+        .querySelector("button")!
+        .dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    });
+    act(() => vi.advanceTimersByTime(100));
+    render(true);
+    act(() => vi.advanceTimersByTime(400));
+    render(false);
+    expect(tooltip()).toBeNull();
+  });
 });

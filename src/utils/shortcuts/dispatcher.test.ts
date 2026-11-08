@@ -245,6 +245,8 @@ describe("target policy", () => {
     ["a button", () => element("button")],
     ["a link", () => element("a", { href: "#" })],
     ["a role=button", () => element("div", { role: "button" })],
+    // Picking a value hands focus back to the closed trigger; shortcuts must keep working there.
+    ["a closed select trigger", () => element("button", { "data-select-trigger": "true" })],
     ["the body", () => document.body],
   ])("takes plain keys from %s", (_name, build) => {
     const { actions, handler } = recorder();

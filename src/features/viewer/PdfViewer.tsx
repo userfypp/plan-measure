@@ -261,6 +261,8 @@ export function PdfViewer({
     chooseTool: chooseWorkspaceTool,
     selectedMeasurementId,
     selectedMeasurementIds,
+    measurementDetailsOpen,
+    closeMeasurementDetails,
     selectMeasurement: selectWorkspaceMeasurement,
     clearSelection: clearWorkspaceSelection,
     startDraft,
@@ -1176,6 +1178,10 @@ export function PdfViewer({
         clearDraftRef.current();
       } else if (action === "exit-tool") {
         onChooseToolRef.current("select");
+      } else if (action === "close-details") {
+        closeMeasurementDetails();
+      } else if (action === "clear-selection") {
+        clearWorkspaceSelection();
       } else if (action === "toggle-orthogonal") {
         toggleOrthogonal();
       } else if (action === "toggle-snap") {
@@ -1187,6 +1193,8 @@ export function PdfViewer({
     },
     [
       clearSnapFeedback,
+      clearWorkspaceSelection,
+      closeMeasurementDetails,
       completeCurrentDraft,
       fitView,
       precisionAuthoringBlocked,
@@ -1272,6 +1280,10 @@ export function PdfViewer({
       event,
       activeToolRef.current,
       workspaceDraftRef.current,
+      {
+        detailsOpen: measurementDetailsOpen,
+        hasSelection: selectedMeasurementIds.length > 0,
+      },
     );
     if (!action) return;
 

@@ -14,6 +14,7 @@ import type {
   CalibrationReferenceKey,
   ClassificationValueDerivation,
   ClassificationValuePrice,
+  CountMeasurement,
   CurrentSession,
   Measurement,
   MeasurementType,
@@ -45,6 +46,7 @@ import {
   isCurrencyCode,
   ratesByValueId,
 } from "../utils/classificationRates";
+import { alignedCountItemNames, countItemName, withCountItemNames } from "../utils/countItems";
 import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils/measurementName";
 import { normalizeCustomPageLabel } from "../utils/pageLabels";
 
@@ -124,6 +126,12 @@ export interface MoveCountItemCommand {
   itemIndex: number;
 }
 
+export interface CountItemCommand {
+  pageNumber: number;
+  id: string;
+  itemIndex: number;
+}
+
 export interface PasteMeasurementCommand {
   pageNumber: number;
   id: string;
@@ -148,6 +156,8 @@ export interface BulkMeasurementCommand {
 
 export type SessionAction =
   | ({ type: "MOVE_COUNT_ITEM" } & MoveCountItemCommand)
+  | ({ type: "REMOVE_COUNT_ITEM" } & CountItemCommand)
+  | ({ type: "RENAME_COUNT_ITEM" } & CountItemCommand & { name: string })
   | { type: "PASTE_MEASUREMENTS"; commands: readonly PasteMeasurementCommand[] }
   | { type: "UPDATE_MEASUREMENTS"; commands: readonly UpdateMeasurementCommand[] }
   | ({ type: "EDIT_MEASUREMENTS" } & BulkMeasurementCommand)
@@ -579,10 +589,18 @@ export function sessionReducer(
       const measurements = page.measurements.flatMap((measurement) => {
         if (measurement.id === source.id) {
           const points = source.points.filter((_, index) => index !== action.itemIndex);
-          return points.length ? [{ ...source, points }] : [];
+          const names = alignedCountItemNames(source).filter(
+            (_, index) => index !== action.itemIndex,
+          );
+          return points.length ? [withCountItemNames({ ...source, points }, names)] : [];
         }
         if (measurement.id === target.id) {
-          return [{ ...target, points: [...target.points, { ...point }] }];
+          return [
+            withCountItemNames({ ...target, points: [...target.points, { ...point }] }, [
+              ...alignedCountItemNames(target),
+              countItemName(source, action.itemIndex),
+            ]),
+          ];
         }
         return [measurement];
       });
@@ -591,6 +609,49 @@ export function sessionReducer(
         session: updatePageState(state.session, action.pageNumber, (currentPage) => ({
           ...currentPage,
           measurements,
+        })),
+        error: null,
+      };
+    }
+    case "REMOVE_COUNT_ITEM":
+    case "RENAME_COUNT_ITEM": {
+      if (!state.session) return state;
+      const page = state.session.pages[action.pageNumber];
+      const count = page?.measurements.find((measurement) => measurement.id === action.id);
+      if (
+        count?.type !== "count" ||
+        !Number.isInteger(action.itemIndex) ||
+        action.itemIndex < 0 ||
+        action.itemIndex >= count.points.length
+      ) {
+        return { ...state, error: "The selected count item is no longer available." };
+      }
+      let updated: CountMeasurement;
+      if (action.type === "REMOVE_COUNT_ITEM") {
+        if (count.points.length === 1) {
+          return { ...state, error: "A count needs at least one item." };
+        }
+        updated = withCountItemNames(
+          { ...count, points: count.points.filter((_, index) => index !== action.itemIndex) },
+          alignedCountItemNames(count).filter((_, index) => index !== action.itemIndex),
+        );
+      } else {
+        const name = normalizeMeasurementName(action.name) ?? "";
+        if (countItemName(count, action.itemIndex) === name) return { ...state, error: null };
+        updated = withCountItemNames(
+          count,
+          alignedCountItemNames(count).map((current, index) =>
+            index === action.itemIndex ? name : current,
+          ),
+        );
+      }
+      return {
+        ...state,
+        session: updatePageState(state.session, action.pageNumber, (currentPage) => ({
+          ...currentPage,
+          measurements: currentPage.measurements.map((measurement) =>
+            measurement.id === action.id ? updated : measurement,
+          ),
         })),
         error: null,
       };
@@ -1435,6 +1496,8 @@ interface SessionContextValue extends SessionState {
   updateMeasurements: (commands: readonly UpdateMeasurementCommand[]) => boolean;
   updateMeasurement: (command: UpdateMeasurementCommand) => boolean;
   moveCountItem: (command: MoveCountItemCommand) => boolean;
+  removeCountItem: (command: CountItemCommand) => boolean;
+  renameCountItem: (command: CountItemCommand & { name: string }) => boolean;
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementNote: (pageNumber: number, id: string, note: string) => void;
   setMeasurementColor: (pageNumber: number, id: string, color: string) => void;
@@ -1679,6 +1742,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...measurementCommands,
       moveCountItem: (command) => {
         const result = applyAction({ type: "MOVE_COUNT_ITEM", ...command });
+        return result.error === null && Boolean(result.session);
+      },
+      removeCountItem: (command) => {
+        const result = applyAction({ type: "REMOVE_COUNT_ITEM", ...command });
+        return result.error === null && Boolean(result.session);
+      },
+      renameCountItem: (command) => {
+        const result = applyAction({ type: "RENAME_COUNT_ITEM", ...command });
         return result.error === null && Boolean(result.session);
       },
       renameMeasurement: (pageNumber, id, name) =>

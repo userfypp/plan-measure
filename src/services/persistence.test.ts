@@ -1604,6 +1604,32 @@ describe("session persistence", () => {
       expect(restored.pages[1]!.measurements[0]!.calibrationId).toBeNull();
     });
 
+    it("round trips the names of count items and rejects malformed ones", () => {
+      const withNames = (itemNames: unknown) => {
+        const session = cloudSession();
+        session.pages[1]!.measurements.push({
+          id: "named-count",
+          type: "count",
+          name: "Count 1",
+          calibrationId: null,
+          points: [
+            { x: 3, y: 3 },
+            { x: 4, y: 4 },
+          ],
+          classificationValueIds: [],
+          visible: true,
+          itemNames: itemNames as string[],
+        });
+        return session;
+      };
+
+      const valid = withNames(["Entrance"]);
+      expect(deserializeSession(serializeSession(valid))).toEqual(valid);
+      for (const itemNames of [["a", "b", "c"], [1], "Entrance", null]) {
+        expect(() => serializeSession(withNames(itemNames))).toThrow();
+      }
+    });
+
     it("keeps the null calibration and color of a cloud next to calibrated measurements", () => {
       const session = cloudSession();
       const cloud = session.pages[1]!.measurements[0]!;

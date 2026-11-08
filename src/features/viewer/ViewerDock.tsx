@@ -344,13 +344,21 @@ export function ViewerDock({
           <form className={styles.pageLabelEditor} onSubmit={handlePageLabelSubmit}>
             <strong className={styles.pageLabelHeading}>Page label</strong>
             <Input
-              label="Label"
+              aria-label="Page label"
               ref={pageLabelInputRef}
               id={pageLabelInputId}
               data-popover-autofocus="true"
               type="text"
               value={pageLabelDraft}
-              aria-invalid={pageLabelError ? true : undefined}
+              error={pageLabelError}
+              description={
+                <>
+                  PDF label:{" "}
+                  <span title={sourcePageLabel ?? undefined}>
+                    {sourcePageLabel === null ? "None" : sourcePageLabel}
+                  </span>
+                </>
+              }
               onChange={(event) => {
                 setPageLabelDraft(event.target.value);
                 if (pageLabelError) setPageLabelError(null);
@@ -361,17 +369,6 @@ export function ViewerDock({
                 event.currentTarget.form?.requestSubmit();
               }}
             />
-            <div className={styles.pageLabelSource}>
-              PDF label:{" "}
-              <span title={sourcePageLabel ?? undefined}>
-                {sourcePageLabel === null ? "None" : sourcePageLabel}
-              </span>
-            </div>
-            {pageLabelError && (
-              <div className={styles.pageLabelError} role="alert">
-                {pageLabelError}
-              </div>
-            )}
             <div className={styles.pageLabelActions}>
               {customPageLabel !== null && (
                 <Button

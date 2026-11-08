@@ -15,13 +15,14 @@
   font-family: var(--font-family-sans);
   font-size: var(--font-size-base);
 }
-/* One row, as in the classification catalog: the search takes what the close button leaves. */
+/* One row: the search takes what the close button leaves. Its 4px frame matches the workspace panel's
+   title row, so the dividers of both panels line up across the seam. */
 .header {
   display: flex;
   align-items: center;
   gap: var(--space-8);
   flex: 0 0 auto;
-  padding: var(--space-8) var(--geometry-panel-gutter);
+  padding: var(--space-4) var(--geometry-panel-gutter);
   border-bottom: var(--border-width) solid var(--color-divider);
 }
 .search {

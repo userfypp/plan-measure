@@ -43,7 +43,6 @@ import {
   preloadMeasurementFilters,
   type MeasurementDeleteRequest,
 } from "../features/measurements/MeasurementPanel";
-import { MeasurementDetails } from "../features/measurements/MeasurementDetails";
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import { confirmCalibration, selectCalibrationReference } from "./calibrationFlow";
 import type { LogicalPageBounds } from "../types/domain";
@@ -110,6 +109,14 @@ const TakeoffWorkspace = recoverableLazy(
   "takeoff",
 );
 
+const loadMeasurementDetails = retryableImport(
+  () => import("../features/measurements/MeasurementDetails"),
+);
+const MeasurementDetails = recoverableLazy(
+  () => loadMeasurementDetails().then((module) => ({ default: module.MeasurementDetails })),
+  "measurement details",
+);
+
 const loadProjectLibrary = retryableImport(() => import("./ProjectLibraryDialog"));
 const ProjectLibraryDialog = recoverableLazy(
   () => loadProjectLibrary().then((module) => ({ default: module.ProjectLibraryDialog })),
@@ -161,8 +168,9 @@ function PlanMeasureApp() {
     deleteCalibration,
     updateCalibration,
     pasteMeasurements,
-    updateMeasurements,
     moveCountItem,
+    removeCountItem,
+    renameCountItem,
     renameMeasurement,
     setMeasurementNote,
     setMeasurementColor,
@@ -382,11 +390,17 @@ function PlanMeasureApp() {
   }, []);
 
   const focusMeasurementDetails = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>("[data-measurement-details-back]")
-        ?.focus({ preventScroll: true });
-    });
+    // The panel is a lazy chunk, normally fetched while idle; wait for it if it is not here yet.
+    void MeasurementDetails.preload().then(
+      () => {
+        window.requestAnimationFrame(() => {
+          document
+            .querySelector<HTMLElement>("[data-measurement-details-back]")
+            ?.focus({ preventScroll: true });
+        });
+      },
+      () => undefined,
+    );
   }, []);
 
   const [confirmAutosaveReload, setConfirmAutosaveReload] = useState(false);
@@ -463,6 +477,7 @@ function PlanMeasureApp() {
     // Fetch the small on-demand panels once a plan is open so their first open is instant.
     if (!planOpen || import.meta.env.MODE === "test") return;
     return preloadWhenIdle([
+      MeasurementDetails.preload,
       preloadMeasurementFilters,
       preloadPageBrowser,
       TakeoffWorkspace.preload,
@@ -1319,67 +1334,77 @@ function PlanMeasureApp() {
                   }
                   details={
                     selectedMeasurement ? (
-                      <MeasurementDetails
-                        key={selectedMeasurement.id}
-                        page={previewPage}
-                        measurement={selectedMeasurement}
-                        displayUnit={session.settings.displayUnit}
-                        areaDisplay={session.settings.areaDisplay}
-                        measureClouds={session.settings.measureClouds}
-                        measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
-                        catalog={session.classificationCatalog}
-                        returnModule={workspaceModule}
-                        assignmentDisabled={Boolean(
-                          calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
-                        )}
-                        onBack={() => {
-                          closeMeasurementDetails();
-                          focusMeasurementRow(selectedMeasurement.id);
-                        }}
-                        onSaveNote={(note) =>
-                          setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
-                        }
-                        onChangeColor={(color) =>
-                          setMeasurementColor(currentPage.pageNumber, selectedMeasurement.id, color)
-                        }
-                        onAssignClassification={assignClassification}
-                        onAddCountItems={beginAddingCountItems}
-                        addCountItemsDisabledReason={addCountItemsDisabledReason}
-                        onMoveCountItem={(itemIndex, targetId) => {
-                          if (
-                            !moveCountItem({
-                              pageNumber: currentPage.pageNumber,
-                              sourceId: selectedMeasurement.id,
-                              targetId,
-                              itemIndex,
-                            })
-                          )
-                            return;
-                          if (selectedMeasurement.points.length === 1) {
-                            chooseTool("select");
-                            selectWorkspaceMeasurement(targetId);
-                            focusMeasurementDetails();
+                      <Suspense fallback={null}>
+                        <MeasurementDetails
+                          key={selectedMeasurement.id}
+                          page={previewPage}
+                          measurement={selectedMeasurement}
+                          displayUnit={session.settings.displayUnit}
+                          areaDisplay={session.settings.areaDisplay}
+                          measureClouds={session.settings.measureClouds}
+                          measurementDecimalPlaces={session.settings.measurementDecimalPlaces}
+                          catalog={session.classificationCatalog}
+                          returnModule={workspaceModule}
+                          assignmentDisabled={Boolean(
+                            calibrationFlow || calibrationCandidate || calibrationReferenceEdit,
+                          )}
+                          onBack={() => {
+                            closeMeasurementDetails();
+                            focusMeasurementRow(selectedMeasurement.id);
+                          }}
+                          onSaveNote={(note) =>
+                            setMeasurementNote(currentPage.pageNumber, selectedMeasurement.id, note)
                           }
-                        }}
-                        onRemoveCountItem={(index) => {
-                          updateMeasurements([
-                            {
+                          onChangeColor={(color) =>
+                            setMeasurementColor(
+                              currentPage.pageNumber,
+                              selectedMeasurement.id,
+                              color,
+                            )
+                          }
+                          onAssignClassification={assignClassification}
+                          onAddCountItems={beginAddingCountItems}
+                          addCountItemsDisabledReason={addCountItemsDisabledReason}
+                          onMoveCountItem={(itemIndex, targetId) => {
+                            if (
+                              !moveCountItem({
+                                pageNumber: currentPage.pageNumber,
+                                sourceId: selectedMeasurement.id,
+                                targetId,
+                                itemIndex,
+                              })
+                            )
+                              return;
+                            if (selectedMeasurement.points.length === 1) {
+                              chooseTool("select");
+                              selectWorkspaceMeasurement(targetId);
+                              focusMeasurementDetails();
+                            }
+                          }}
+                          onRemoveCountItem={(index) => {
+                            removeCountItem({
                               pageNumber: currentPage.pageNumber,
                               id: selectedMeasurement.id,
-                              points: selectedMeasurement.points.filter(
-                                (_, pointIndex) => pointIndex !== index,
-                              ),
-                            },
-                          ]);
-                        }}
-                        onDelete={() =>
-                          requestMeasurementDelete({
-                            pageNumber: currentPage.pageNumber,
-                            measurementId: selectedMeasurement.id,
-                            measurementName: selectedMeasurement.name,
-                          })
-                        }
-                      />
+                              itemIndex: index,
+                            });
+                          }}
+                          onRenameCountItem={(index, name) =>
+                            renameCountItem({
+                              pageNumber: currentPage.pageNumber,
+                              id: selectedMeasurement.id,
+                              itemIndex: index,
+                              name,
+                            })
+                          }
+                          onDelete={() =>
+                            requestMeasurementDelete({
+                              pageNumber: currentPage.pageNumber,
+                              measurementId: selectedMeasurement.id,
+                              measurementName: selectedMeasurement.name,
+                            })
+                          }
+                        />
+                      </Suspense>
                     ) : null
                   }
                 />

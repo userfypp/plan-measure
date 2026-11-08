@@ -1,0 +1,106 @@
+/* Sits at the end of the start card's action row, after Open PDF and Try a sample. */
+.trigger {
+  margin-inline-start: auto;
+}
+
+/* Releases read as one continuous column; a hairline, not a box, tells them apart. */
+.releases {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.release {
+  display: grid;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.release + .release {
+  padding-block-start: var(--space-16);
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+/* The version leads in a larger regular weight; size and colour carry the hierarchy, not bold. */
+.releaseHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--line-height-identity);
+}
+
+.version {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-identity);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-identity);
+}
+
+.date {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-variant-numeric: var(--font-variant-numeric-quantities);
+  line-height: var(--line-height-secondary);
+}
+
+.link {
+  composes: focusRing from global;
+  flex: none;
+  border-radius: var(--radius-control);
+  color: var(--color-accent);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.group {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
+}
+
+.entries {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  list-style: none;
+}
+
+/* A dash in the margin keeps wrapped lines flush with the first and needs no bullet glyph size. */
+.entries > li {
+  position: relative;
+  padding-inline-start: var(--space-16);
+  overflow-wrap: anywhere;
+}
+
+.entries > li::before {
+  content: "–";
+  position: absolute;
+  inset-inline-start: 0;
+  color: var(--color-text-secondary);
+}
+
+.more {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-secondary);
+}
