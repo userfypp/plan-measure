@@ -35,6 +35,12 @@ describe("withContentSecurityPolicy", () => {
     expect(policy).toContain("base-uri 'none'");
   });
 
+  it("lets the page load its manifest and service worker from its own origin only", () => {
+    const directives = (policyOf(withContentSecurityPolicy(page("a();"))) ?? "").split("; ");
+    expect(directives).toContain("manifest-src 'self'");
+    expect(directives).toContain("worker-src 'self'");
+  });
+
   it("works for a page with no inline script", () => {
     const html = withContentSecurityPolicy("<html><head></head><body></body></html>");
     expect(policyOf(html)).toContain("script-src 'self' 'wasm-unsafe-eval'; ");

@@ -29,6 +29,13 @@ export default defineConfig([
     },
   },
   {
+    // Runs in a service worker, not in Node or the page.
+    files: ["scripts/service-worker.js"],
+    languageOptions: {
+      globals: { self: "readonly", caches: "readonly", Request: "readonly" },
+    },
+  },
+  {
     // The benchmarks pass these functions to Playwright, which runs them in the page.
     files: ["perf/browser.mjs", "perf/page-browser.mjs", "perf/run.mjs"],
     languageOptions: {
