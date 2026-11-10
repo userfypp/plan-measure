@@ -93,7 +93,11 @@ export default function WhatsNew() {
         }}
       >
         What&apos;s new
-        {unseen && <Badge variant="info">New</Badge>}
+        {unseen && (
+          <Badge variant="info" className={styles.newBadge}>
+            New
+          </Badge>
+        )}
       </Button>
       <Dialog
         open={open}
