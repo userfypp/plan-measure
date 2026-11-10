@@ -43,7 +43,10 @@ export function useRovingFocusGroup<T extends HTMLElement>(
   }
 
   function focusableItems(): HTMLElement[] {
-    return allItems().filter((item) => !item.matches(":disabled"));
+    // A control a narrow layout hides (`display: none`) cannot take focus either.
+    return allItems().filter(
+      (item) => !item.matches(":disabled") && getComputedStyle(item).display !== "none",
+    );
   }
 
   function setRovingItem(item: HTMLElement | null) {
