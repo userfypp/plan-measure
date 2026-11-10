@@ -1,0 +1,51 @@
+/* The bar scrolls sideways when it does not fit; its controls keep their width. */
+.fixed {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.page {
+  width: var(--geometry-select-width);
+  flex: 0 0 auto;
+}
+
+.legend {
+  min-height: var(--control-height-compact);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-8);
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.swatch {
+  width: var(--geometry-swatch-size);
+  height: var(--geometry-swatch-size);
+  border: var(--border-width) solid var(--color-swatch-edge);
+  border-radius: var(--radius-control);
+}
+
+.removed {
+  background: var(--color-danger);
+}
+
+.added {
+  background: var(--color-success);
+}
+
+@media (any-pointer: coarse) {
+  .legend {
+    min-height: var(--target-coarse);
+  }
+}

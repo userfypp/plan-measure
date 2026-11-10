@@ -18,6 +18,7 @@ import { useRovingFocusGroup } from "../../components/ui/rovingFocus";
 import { decidePageLabelOverride } from "../../utils/pageLabels";
 import type { ViewerNavigationModel } from "./ViewerNavigation";
 import { scaleDisplayMetadata } from "./scaleDisplay";
+import { startPlanCompare } from "../planCompare/planCompareStore";
 import { setAppPreference, useAppPreferences } from "../../utils/appPreferences";
 import type { ActionId } from "../../utils/shortcuts/bindings";
 import { isBlockingOverlayOpen, useShortcutHandlers } from "../../utils/shortcuts/dispatcher";
@@ -144,6 +145,7 @@ export function ViewerDock({
   onSettingsChange,
 }: ViewerDockProps) {
   const pageLabelInputId = useId();
+  const compareInputRef = useRef<HTMLInputElement>(null);
   const displayUnitId = useId();
   const displayUnitLabelId = useId();
   const areaDisplayId = useId();
@@ -619,8 +621,28 @@ export function ViewerDock({
               onChange={(checked) => onSettingsChange({ showCalibration: checked })}
             />
           </div>
+          <div className={styles.settingBlock}>
+            <Button
+              variant="secondary"
+              size="compact"
+              onClick={() => compareInputRef.current?.click()}
+            >
+              Compare with another PDF…
+            </Button>
+          </div>
         </div>
       </Popover>
+      <input
+        ref={compareInputRef}
+        type="file"
+        hidden
+        accept="application/pdf,.pdf"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) startPlanCompare(file);
+          event.target.value = "";
+        }}
+      />
     </nav>
   );
 }

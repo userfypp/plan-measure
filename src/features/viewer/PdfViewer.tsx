@@ -120,6 +120,7 @@ import { DraftPointMarkers } from "./DraftPointMarkers";
 import { BoxDraftGuides } from "./BoxDraftGuides";
 import { SOFTWARE_CURSORS } from "./softwareCursor";
 import { useSymbolCount } from "../symbolCount/symbolCountStore";
+import { usePlanCompare } from "../planCompare/planCompareStore";
 import { PageGridLines } from "./PageGridLines";
 import { LiveLengthLabel } from "./LiveLengthLabel";
 import { useSoftwareCursor } from "./useSoftwareCursor";
@@ -251,6 +252,7 @@ export function PdfViewer({
   const precisionAuthoringBlocked = !authoringCapability.available;
   const { session, addMeasurement, updateMeasurement, updateMeasurements } = useSessionState();
   const symbolCount = useSymbolCount();
+  const planCompare = usePlanCompare();
   const keyboardHelpId = useId();
   const keyboardHelpRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -2178,6 +2180,12 @@ export function PdfViewer({
               : { visibility: "hidden" }
           }
         />
+        {planCompare.overlay && canvasPageData && (
+          <planCompare.overlay
+            data={canvasPageData}
+            transform={activeWheelGesture?.transform ?? viewTransform}
+          />
+        )}
         {stagePages.map((stage) => (
           <Stage
             key={stage.slot}
