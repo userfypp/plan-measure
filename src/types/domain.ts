@@ -282,6 +282,8 @@ export interface PathMeasurement extends Omit<MeasurementBase, "calibrationId"> 
   note?: string;
   /** Palette color (`#rrggbb`); only valid on revision clouds. */
   color?: string;
+  /** Where the user dragged the label, relative to its default position (page units); absent = default. */
+  labelOffset?: Point;
 }
 
 export interface CountMeasurement extends Omit<

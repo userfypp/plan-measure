@@ -165,6 +165,22 @@ describe("annotated PDF export", () => {
     expect(plans[0]?.label?.placement.y).toBeGreaterThanOrEqual(0);
   });
 
+  it("places a moved label at its offset from the default position", () => {
+    const session = sessionFixture();
+    const page = session.pages[1]!;
+    const plan = () =>
+      planAnnotatedPdfMeasurements(
+        page,
+        { width: 200, height: 120, rotation: 0 },
+        session.settings,
+        (text) => ({ width: text.length * 6 + 8, height: 20 }),
+      )[0]!.label!.placement;
+    const before = plan();
+    page.measurements.find((item) => item.id === "line-visible")!.labelOffset = { x: 7, y: -3 };
+
+    expect(plan()).toEqual({ x: before.x + 7, y: before.y - 3 });
+  });
+
   it("labels a recovered Line whose endpoints coincide as needing repair", () => {
     const session = sessionFixture();
     const page = session.pages[1]!;

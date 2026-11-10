@@ -179,6 +179,7 @@ export type SessionAction =
   | { type: "RENAME_MEASUREMENT"; pageNumber: number; id: string; name: string }
   | { type: "SET_MEASUREMENT_NOTE"; pageNumber: number; id: string; note: string }
   | { type: "SET_MEASUREMENT_COLOR"; pageNumber: number; id: string; color: string }
+  | { type: "SET_MEASUREMENT_LABEL_OFFSET"; pageNumber: number; id: string; offset: Point | null }
   | { type: "SET_MEASUREMENT_VISIBILITY"; pageNumber: number; id: string; visible: boolean }
   | {
       type: "SET_MEASUREMENTS_VISIBILITY";
@@ -837,6 +838,18 @@ export function sessionReducer(
         ...currentPage,
         measurements: currentPage.measurements.map((item) =>
           item.id === action.id ? { ...item, color: action.color } : item,
+        ),
+      }));
+      return { ...state, session, error: null };
+    }
+    case "SET_MEASUREMENT_LABEL_OFFSET": {
+      if (!state.session) return state;
+      // A zero offset is the default position, so it is stored as no offset.
+      const labelOffset = action.offset?.x || action.offset?.y ? action.offset : undefined;
+      const session = updatePageState(state.session, action.pageNumber, (currentPage) => ({
+        ...currentPage,
+        measurements: currentPage.measurements.map((item) =>
+          item.id === action.id ? { ...item, labelOffset } : item,
         ),
       }));
       return { ...state, session, error: null };
@@ -1501,6 +1514,7 @@ interface SessionContextValue extends SessionState {
   renameMeasurement: (pageNumber: number, id: string, name: string) => void;
   setMeasurementNote: (pageNumber: number, id: string, note: string) => void;
   setMeasurementColor: (pageNumber: number, id: string, color: string) => void;
+  setMeasurementLabelOffset: (pageNumber: number, id: string, offset: Point | null) => boolean;
   setMeasurementVisibility: (pageNumber: number, id: string, visible: boolean) => void;
   setMeasurementsVisibility: (
     pageNumber: number,
@@ -1534,7 +1548,10 @@ interface SessionContextValue extends SessionState {
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
-type MeasurementCommands = Pick<SessionContextValue, "updateMeasurement" | "updateMeasurements">;
+type MeasurementCommands = Pick<
+  SessionContextValue,
+  "updateMeasurement" | "updateMeasurements" | "setMeasurementLabelOffset"
+>;
 const MeasurementCommandsContext = createContext<MeasurementCommands | null>(null);
 
 /** Undo and Redo keep the current settings, so they must not point at a dimension the restored catalog lacks. */
@@ -1675,6 +1692,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           (candidate) => candidate.id === command.id,
         );
         return measurement ? pointsEqual(measurement.points, command.points) : false;
+      },
+      setMeasurementLabelOffset: (pageNumber, id, offset) => {
+        const result = applyAction({
+          type: "SET_MEASUREMENT_LABEL_OFFSET",
+          pageNumber,
+          id,
+          offset,
+        });
+        return result.error === null && Boolean(result.session);
       },
     }),
     [applyAction],

@@ -15,6 +15,7 @@ import { formatMeasurement } from "../../utils/format";
 import { measurementPathSpecs, measurementTypeRequiresScale } from "../../utils/geometry";
 import { measurementOutlinePoints } from "../../utils/quickShapesOutline";
 import {
+  applyLabelOffset,
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelAvoidingOverlaps,
@@ -231,7 +232,7 @@ export function planAnnotatedPdfMeasurements(
               );
         const text = winAnsiLabelText(rawText);
         const dimensions = measureLabel(text);
-        const placement =
+        const defaultPlacement =
           placeLabelInsideMeasurementGeometry(
             measurement.type,
             measurement.points,
@@ -249,6 +250,7 @@ export function planAnnotatedPdfMeasurements(
             occupied,
             LABEL_EDGE_MARGIN_SCREEN_PX,
           );
+        const placement = applyLabelOffset(defaultPlacement, measurement.labelOffset);
         occupied.insert({ ...placement, ...dimensions });
         label = { text, placement, dimensions };
       }

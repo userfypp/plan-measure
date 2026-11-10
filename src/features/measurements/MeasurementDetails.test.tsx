@@ -600,6 +600,27 @@ describe("MeasurementDetails", () => {
     expect(container?.querySelector('section[aria-label="Details for Lobby"]')).not.toBeNull();
   });
 
+  describe("label position", () => {
+    const resetButton = () =>
+      Array.from(container!.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Reset label position",
+      );
+
+    it("offers a reset only for a moved label and reports it", () => {
+      const onResetLabelPosition = vi.fn();
+      renderDetails(createProps({ onResetLabelPosition }));
+      expect(resetButton()).toBeUndefined();
+      renderDetails(
+        createProps({
+          measurement: { ...firstMeasurement, labelOffset: { x: 3, y: -2 } },
+          onResetLabelPosition,
+        }),
+      );
+      act(() => resetButton()!.click());
+      expect(onResetLabelPosition).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("cloud color", () => {
     const cloud: Measurement = {
       id: "cloud-1",

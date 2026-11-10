@@ -174,6 +174,7 @@ function PlanMeasureApp() {
     renameMeasurement,
     setMeasurementNote,
     setMeasurementColor,
+    setMeasurementLabelOffset,
     setMeasurementVisibility,
     deleteMeasurement,
     editMeasurements,
@@ -1360,6 +1361,13 @@ function PlanMeasureApp() {
                               currentPage.pageNumber,
                               selectedMeasurement.id,
                               color,
+                            )
+                          }
+                          onResetLabelPosition={() =>
+                            setMeasurementLabelOffset(
+                              currentPage.pageNumber,
+                              selectedMeasurement.id,
+                              null,
                             )
                           }
                           onAssignClassification={assignClassification}

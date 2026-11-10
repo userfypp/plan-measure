@@ -493,6 +493,29 @@ describe("session undo and redo history", () => {
     expect(historyProbe.session).toEqual(changed);
   });
 
+  it("undoes a label move and its reset as single steps, and stores a zero offset as none", () => {
+    click("Load geometry batch");
+    const initial = historyProbe.session;
+    act(() => {
+      historyProbe.setMeasurementLabelOffset(1, "a", { x: 5, y: -2 });
+    });
+    const moved = historyProbe.session;
+    expect(moved!.pages[1]!.measurements[0]!.labelOffset).toEqual({ x: 5, y: -2 });
+    act(() => {
+      historyProbe.setMeasurementLabelOffset(1, "a", null);
+    });
+    expect(historyProbe.session!.pages[1]!.measurements[0]!.labelOffset).toBeUndefined();
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(moved);
+    act(() => historyProbe.undo());
+    expect(historyProbe.session).toEqual(initial);
+    expect(historyProbe.canUndo).toBe(false);
+    act(() => {
+      historyProbe.setMeasurementLabelOffset(1, "a", { x: 0, y: 0 });
+    });
+    expect(historyProbe.session!.pages[1]!.measurements[0]!.labelOffset).toBeUndefined();
+  });
+
   it.each([
     [
       "geometry",

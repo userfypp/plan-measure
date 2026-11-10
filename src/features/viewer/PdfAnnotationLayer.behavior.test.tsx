@@ -26,10 +26,12 @@ const captured = vi.hoisted(() => ({
     position: ReturnType<typeof vi.fn>;
   }[],
   lines: [] as Props[],
+  labels: [] as Props[],
   circles: [] as Props[],
   texts: [] as Props[],
   updateMeasurement: vi.fn(() => true),
   updateMeasurements: vi.fn(() => true),
+  setMeasurementLabelOffset: vi.fn(() => true),
 }));
 
 vi.mock("react-konva", () => ({
@@ -59,7 +61,10 @@ vi.mock("react-konva", () => ({
       };
     return children ?? null;
   },
-  Label: (props: Props & { children?: React.ReactNode }) => props.children ?? null,
+  Label: (props: Props & { children?: React.ReactNode }) => {
+    captured.labels.push(props);
+    return props.children ?? null;
+  },
   Line: (props: Props) => {
     captured.lines.push(props);
     return null;
@@ -103,6 +108,7 @@ vi.mock("../../app/sessionState", () => ({
   useMeasurementCommands: () => ({
     updateMeasurement: captured.updateMeasurement,
     updateMeasurements: captured.updateMeasurements,
+    setMeasurementLabelOffset: captured.setMeasurementLabelOffset,
   }),
 }));
 
@@ -184,8 +190,10 @@ describe("PdfAnnotationLayer behavior", () => {
     captured.previewPoints = [];
     captured.previewSideHandles = [];
     captured.lines.length = 0;
+    captured.labels.length = 0;
     captured.circles.length = 0;
     captured.texts.length = 0;
+    captured.setMeasurementLabelOffset.mockClear();
     captured.updateMeasurement.mockClear();
     captured.updateMeasurements.mockClear();
     container = document.createElement("div");
@@ -211,6 +219,7 @@ describe("PdfAnnotationLayer behavior", () => {
     onMeasurementEditActiveChange = noop,
   }: LayerOptions = {}) {
     captured.lines.length = 0;
+    captured.labels.length = 0;
     captured.circles.length = 0;
     captured.texts.length = 0;
     act(() => {
@@ -827,6 +836,131 @@ describe("PdfAnnotationLayer behavior", () => {
       page.measurements.push({ ...page.measurements[0]!, id: "m-2" });
       renderLayer({ page, selected: ["m-1", "m-2"] });
       expect(captured.circles).toHaveLength(0);
+    });
+  });
+
+  describe("label drag", () => {
+    const LINE: Point[] = [
+      { x: 50, y: 50 },
+      { x: 150, y: 50 },
+    ];
+    /** The drag code is loaded on demand: wait for it to attach to the label. */
+    const dragLoaded = () =>
+      act(async () => {
+        await import("./labelDrag");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    const label = () =>
+      captured.labels.filter((item) => item.name === "measurement-preview-label").at(-1)!;
+
+    /** A fake Konva label at its resting position; the test controls the pointer. */
+    function labelNode(resting: Props) {
+      const pointer = { x: 0, y: 0 };
+      const preview = { position: vi.fn() };
+      const node = {
+        getStage: () => ({ getPointerPosition: () => ({ ...pointer }), add: vi.fn() }),
+        position: vi.fn(
+          (next?: Point) => next ?? { x: resting.x as number, y: resting.y as number },
+        ),
+        width: () => 40,
+        height: () => 12,
+        clone: () => preview,
+        visible: vi.fn(),
+        dragBoundFunc: vi.fn(),
+        getAbsolutePosition: () => ({ x: 0, y: 0 }),
+        setAttr: vi.fn(),
+        stopDrag: vi.fn(),
+      };
+      const event = { target: node, currentTarget: node, evt: { button: 0 }, cancelBubble: false };
+      return { node, preview, event, moveTo: (screen: Point) => Object.assign(pointer, screen) };
+    }
+
+    it("is draggable only for a selected measurement under the select tool", async () => {
+      renderLayer({ page: pageWith("line", LINE) });
+      expect(label()).toMatchObject({ listening: false });
+      expect(label().draggable).toBe(false);
+      renderLayer({ page: pageWith("line", LINE), selected: ["m-1"], activeTool: "line" });
+      expect(label().draggable).toBe(false);
+      renderLayer({ page: pageWith("line", LINE), selected: ["m-1"] });
+      await dragLoaded();
+      expect(label()).toMatchObject({ listening: true, draggable: true });
+    });
+
+    it("commits the drag as one offset relative to the default position", async () => {
+      const onEditActive = vi.fn();
+      renderLayer({
+        page: pageWith("line", LINE),
+        selected: ["m-1"],
+        onMeasurementEditActiveChange: onEditActive,
+      });
+      await dragLoaded();
+      const { node, preview, event, moveTo } = labelNode(label());
+      moveTo({ x: 100, y: 100 });
+      fire(label(), "onMouseDown", event);
+      fire(label(), "onDragStart", event);
+      moveTo({ x: 120, y: 90 });
+      fire(label(), "onDragMove", event);
+      expect(preview.position).toHaveBeenLastCalledWith({
+        x: (label().x as number) + 10,
+        y: (label().y as number) - 5,
+      });
+      fire(label(), "onDragEnd", event);
+      expect(captured.setMeasurementLabelOffset).toHaveBeenCalledExactlyOnceWith(1, "m-1", {
+        x: 10,
+        y: -5,
+      });
+      expect(node.visible).toHaveBeenLastCalledWith(true);
+      expect(onEditActive.mock.calls).toEqual([
+        ["m-1", true],
+        ["m-1", false],
+      ]);
+    });
+
+    it("adds the drag to an existing offset", async () => {
+      const page = pageWith("line", LINE);
+      page.measurements[0]!.labelOffset = { x: 3, y: 3 };
+      renderLayer({ page, selected: ["m-1"] });
+      await dragLoaded();
+      const { event, moveTo } = labelNode(label());
+      moveTo({ x: 100, y: 100 });
+      fire(label(), "onMouseDown", event);
+      fire(label(), "onDragStart", event);
+      moveTo({ x: 120, y: 90 });
+      fire(label(), "onDragEnd", event);
+      expect(captured.setMeasurementLabelOffset).toHaveBeenCalledExactlyOnceWith(1, "m-1", {
+        x: 13,
+        y: -2,
+      });
+    });
+
+    it("commits nothing when the drag is cancelled", async () => {
+      let cancel: (() => void) | null = null;
+      renderLayer({
+        page: pageWith("line", LINE),
+        selected: ["m-1"],
+        onWholeMeasurementDragCancellationChange: (_id, next) => {
+          if (next) cancel = next;
+        },
+      });
+      await dragLoaded();
+      const { node, event, moveTo } = labelNode(label());
+      node.stopDrag.mockImplementation(() => fire(label(), "onDragEnd", event));
+      moveTo({ x: 100, y: 100 });
+      fire(label(), "onMouseDown", event);
+      fire(label(), "onDragStart", event);
+      moveTo({ x: 160, y: 140 });
+      act(() => (cancel as unknown as () => void)());
+      expect(captured.setMeasurementLabelOffset).not.toHaveBeenCalled();
+      expect(node.visible).toHaveBeenLastCalledWith(true);
+    });
+
+    it("keeps a click without drag selecting as before", async () => {
+      const onSelectMeasurement = vi.fn();
+      renderLayer({ page: pageWith("line", LINE), selected: ["m-1"], onSelectMeasurement });
+      await dragLoaded();
+      fire(label(), "onClick", mouseEvent({}));
+      expect(onSelectMeasurement).toHaveBeenCalledExactlyOnceWith("m-1", undefined);
+      expect(captured.setMeasurementLabelOffset).not.toHaveBeenCalled();
     });
   });
 

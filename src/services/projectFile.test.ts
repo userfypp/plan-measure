@@ -64,6 +64,15 @@ describe("portable project files", () => {
     expect(result.session.settings.labelClassificationDimensionId).toBe("trade");
   });
 
+  it("keeps a moved measurement label", async () => {
+    const session = measuredSession();
+    session.pages[2]!.measurements[0]!.labelOffset = { x: 6, y: -3 };
+
+    const result = await readProjectFile(await createProjectFile(session, new Blob(["%PDF-1.7"])));
+
+    expect(result.session.pages[2]!.measurements[0]!.labelOffset).toEqual({ x: 6, y: -3 });
+  });
+
   it("round trips a large polygon without changing or truncating its vertices", async () => {
     const session = measuredSession();
     const measurement = session.pages[2]!.measurements[0]!;

@@ -679,3 +679,8 @@ export function placeLabelAvoidingOverlaps(
 
   return centered ?? placeLabelWithinBounds(anchor, dimensions, page, zoom, marginScreenPx);
 }
+
+/** A label the user moved sits at its default placement plus their offset; no offset keeps it. */
+export function applyLabelOffset(placement: LabelPlacement, offset?: Point): LabelPlacement {
+  return offset ? { x: placement.x + offset.x, y: placement.y + offset.y } : placement;
+}
