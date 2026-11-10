@@ -1,5 +1,7 @@
 # Plan Measure Performance
 
+Contributor rules for changing startup, the viewer, the canvas or the panels are in [CONTRIBUTING.md](../CONTRIBUTING.md#pull-requests); the module map is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 Protection is split into three layers. Deterministic counts and size are checked
 in CI. The browser benchmark runs separately: it takes several minutes and its
 results depend on the machine, temperature, browser, and background load. A

@@ -7,6 +7,7 @@ import type {
   Tool,
   ViewTransform,
 } from "../../types/domain";
+import { keyboardStepScale } from "../../utils/appPreferences";
 import { clampPointToPage, pageToScreen, screenToPage } from "../../utils/coordinates";
 import { hasValidMeasurementPoints, isMeasurementType } from "../../utils/geometry";
 import { measurementEditTargetCount } from "../../utils/quickShapesCore";
@@ -261,7 +262,15 @@ export function useKeyboardGeometry(options: KeyboardGeometryOptions) {
         ? previous.repeats + 1
         : 0;
     movementRef.current = { key: event.key, fast: event.shiftKey, repeats };
-    return moveKeyboardCursor(point, event.key, transform.zoom, event.shiftKey, bounds!, repeats);
+    return moveKeyboardCursor(
+      point,
+      event.key,
+      transform.zoom,
+      event.shiftKey,
+      bounds!,
+      repeats,
+      keyboardStepScale(),
+    );
   }
 
   function resumePoint(pageBounds: LogicalPageBounds) {

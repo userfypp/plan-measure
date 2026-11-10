@@ -31,6 +31,8 @@ More checks, when they apply:
 - Changed dependencies, startup or the viewer? Run `npm run build && npm run perf:size`. The required `size` check fails when a size budget is exceeded.
 - Changed startup, loading or the app shell? Run `npm run build && npm run test:smoke`, which opens the start screen and the sample project in Chromium and fails on any page error. It needs `npm ci --prefix perf` and `./perf/node_modules/.bin/playwright install chromium webkit` once.
 - Changed focus, dialogs, popovers or anything that affects Tab? Run `npm run build && npm run test:keyboard`, which compares the Tab sequence in Chromium and WebKit (Safari's engine).
+- Changed the service worker, the manifest or caching? Run `npm run build && npm run test:pwa`, which loads the build, goes offline and reloads. See [Architecture](docs/ARCHITECTURE.md#build-output) and [Install the app and use it offline](docs/user-guide.md#install-the-app-and-use-it-offline).
+- Added a setting or a shortcut? Add the Settings row or the action (default, catalog entry, handler) as described in [Architecture](docs/ARCHITECTURE.md#where-to-change-what), make tooltips read the live key, and document it in the [user guide](docs/user-guide.md).
 
 `npm run test:coverage` runs the tests with coverage and writes an HTML report to `coverage/`. CI shows the totals in the job summary; there is no threshold.
 

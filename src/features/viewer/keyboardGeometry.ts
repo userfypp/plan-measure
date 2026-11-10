@@ -55,9 +55,10 @@ export function moveKeyboardCursor(
   fast: boolean,
   bounds: LogicalPageBounds,
   repeats = 0,
+  stepScale = 1,
 ): Point {
   const acceleration = fast ? 1 + Math.min(repeats, 15) / 5 : 1 + Math.min(repeats, 15);
-  const step = ((fast ? 50 : 1) * acceleration) / zoom;
+  const step = ((fast ? 50 : 1) * acceleration * stepScale) / zoom;
   return clampPointToPage(
     {
       x: point.x + (key === "ArrowRight" ? step : key === "ArrowLeft" ? -step : 0),

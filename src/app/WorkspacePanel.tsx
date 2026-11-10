@@ -3,6 +3,7 @@ import { AnchoredMenu, ChevronDownIcon, CloseIcon, IconButton } from "../compone
 import { useWorkspaceState, type WorkspaceModule } from "./workspaceState";
 import { WORKSPACE_MODULES } from "./workspaceModules";
 import { useWorkspaceDrawerPresentation } from "./WorkspaceDrawerContext";
+import { useShortcutLabels } from "../utils/shortcuts/store";
 import styles from "./WorkspacePanel.module.css";
 
 export function workspaceModuleLabel(module: WorkspaceModule): string {
@@ -40,6 +41,7 @@ export function WorkspacePanel({
   const drawer = useWorkspaceDrawerPresentation();
   const { workspaceModule, measurementDetailsOpen, setWorkspaceModule } = useWorkspaceState();
   const activeLabel = workspaceModuleLabel(workspaceModule);
+  const shortcuts = useShortcutLabels();
 
   return (
     <aside className={styles.panel} aria-label="Workspace panel" data-layout-slot="workspace-panel">
@@ -56,13 +58,17 @@ export function WorkspacePanel({
             "aria-label": `Workspace module: ${activeLabel}`,
           }}
           label="Workspace modules"
-          items={WORKSPACE_MODULES.map((module) => ({
-            id: module.id,
-            label: module.label,
-            role: "menuitemradio" as const,
-            checked: workspaceModule === module.id,
-            onSelect: () => setWorkspaceModule(module.id),
-          }))}
+          items={WORKSPACE_MODULES.map((module) => {
+            const shortcut = shortcuts[`workspace.${module.id}`];
+            return {
+              id: module.id,
+              label: module.label,
+              role: "menuitemradio" as const,
+              checked: workspaceModule === module.id,
+              tooltip: shortcut ? `${module.label} (${shortcut})` : undefined,
+              onSelect: () => setWorkspaceModule(module.id),
+            };
+          })}
           placement="bottom-start"
           matchTriggerWidth
         />

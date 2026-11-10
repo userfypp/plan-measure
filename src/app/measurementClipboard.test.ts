@@ -1,5 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Measurement } from "../types/domain";
+import {
+  DUPLICATE_OFFSET_PX,
+  reloadAppPreferencesFromStorage,
+  resetAppPreferences,
+  setAppPreference,
+} from "../utils/appPreferences";
 import {
   canDuplicateMeasurement,
   isMeasurementClipboardActionBlocked,
@@ -233,6 +239,22 @@ describe("measurement clipboard orchestration", () => {
       ],
     };
     expect(samePageDuplicateOffset([spanningPage], bounds, 1)).toBe(0);
+  });
+
+  it("offsets by the given screen distance and defaults to the standard one", () => {
+    const bounds = { width: 100, height: 100, rotation: 0 } as const;
+    const source: Measurement = {
+      ...measurement,
+      points: [
+        { x: 30, y: 30 },
+        { x: 40, y: 40 },
+      ],
+    };
+    expect(samePageDuplicateOffset([source], bounds, 2, 24)).toBe(12);
+    expect(samePageDuplicateOffset([source], bounds, 2)).toBe(
+      MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / 2,
+    );
+    expect(DUPLICATE_OFFSET_PX.normal).toBe(MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX);
   });
 
   it("keeps the visual offset constant across zoom levels and accepts exact page boundaries", () => {
@@ -576,4 +598,37 @@ describe("multiple measurement clipboard", () => {
       pasteMeasurements.mock.calls[0]![0].map((command) => command.measurement.points),
     ).toEqual([measurement.points, second.points]);
   });
+});
+
+describe("paste offset setting", () => {
+  afterEach(() => {
+    resetAppPreferences();
+    reloadAppPreferencesFromStorage();
+  });
+
+  const bounds = { width: 1000, height: 1000, rotation: 0 } as const;
+  const pastedShift = () => {
+    const pasteMeasurements = vi.fn<(commands: readonly PasteMeasurementCommand[]) => boolean>(
+      () => true,
+    );
+    pasteMeasurementsClipboard({
+      clipboard: { sourcePageNumber: 1, measurement, measurements: [measurement] },
+      pageNumber: 1,
+      destinationBounds: bounds,
+      destinationZoom: 1,
+      pasteMeasurements,
+      selectMeasurements: vi.fn(),
+    });
+    return (
+      pasteMeasurements.mock.calls[0]![0][0]!.measurement.points[0]!.x - measurement.points[0]!.x
+    );
+  };
+
+  it.each(["small", "normal", "large"] as const)(
+    "shifts a same-page paste by the %s distance",
+    (offset) => {
+      setAppPreference("duplicateOffset", offset);
+      expect(pastedShift()).toBe(DUPLICATE_OFFSET_PX[offset]);
+    },
+  );
 });

@@ -91,6 +91,16 @@ const DEFINITIONS: Readonly<Record<ActionId, Omit<ActionCatalogEntry, "id">>> = 
     group: "Measurement",
     description: "Hide or show the selected measurements on the plan",
   },
+  "count.findSimilar": {
+    label: "Find similar",
+    group: "Measurement",
+    description: "Box a symbol and count every similar one on the page",
+  },
+  "count.addItems": {
+    label: "Add items",
+    group: "Measurement",
+    description: "Add items to the selected count",
+  },
   "view.zoomIn": { label: "Zoom in", group: "View", description: "Zoom in on the page" },
   "view.zoomOut": { label: "Zoom out", group: "View", description: "Zoom out of the page" },
   "view.fitPage": {

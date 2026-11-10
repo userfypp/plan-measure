@@ -774,6 +774,38 @@ describe("ContextToolbar V2", () => {
     expect(container?.textContent).toContain("Calibrating scale · Select two points");
   });
 
+  it("names the fixed Esc and Enter keys on Cancel, Done and Finish", () => {
+    act(() => setAppPreference("tooltipDelay", "instant"));
+    const tooltipOf = (button: HTMLElement) => {
+      act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+      const text = document.querySelector('[role="tooltip"]')?.textContent;
+      act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+      return text;
+    };
+    renderToolbar();
+    act(() => workspace!.startCalibration(beginCalibrationFlow(1, null, "uniform")));
+    expect(tooltipOf(buttonByLabel("Cancel"))).toBe("Cancel (Esc)");
+    expect(buttonByLabel("Cancel").getAttribute("aria-keyshortcuts")).toBe("Escape");
+    act(() => workspace!.cancelCalibration());
+
+    act(() => workspace!.chooseTool("count"));
+    expect(tooltipOf(buttonByLabel("Done"))).toBe("Done (Enter)");
+    expect(buttonByLabel("Done").getAttribute("aria-keyshortcuts")).toBe("Enter");
+    act(() => workspace!.chooseTool("polyline"));
+    act(() =>
+      workspace!.startDraft({
+        type: "path",
+        measurementType: "polyline",
+        points: [
+          { x: 1, y: 1 },
+          { x: 10, y: 1 },
+        ],
+      }),
+    );
+    expect(tooltipOf(buttonByLabel("Finish"))).toBe("Finish (Enter)");
+    expect(buttonByLabel("Finish").getAttribute("aria-keyshortcuts")).toBe("Enter");
+  });
+
   it("distinguishes reference-edit ownership and exposes Save/Cancel without collapsing X/Y", () => {
     const save = vi.fn();
     const cancel = vi.fn();
@@ -1125,6 +1157,112 @@ describe("selection shortcuts", () => {
       expect(buttonByLabel("Hide selected measurements").getAttribute("aria-keyshortcuts")).toBe(
         "J",
       );
+    });
+  });
+
+  describe("count.addItems", () => {
+    const count = {
+      id: "count",
+      name: "Plug",
+      type: "count" as const,
+      calibrationId: null,
+      points: [{ x: 1, y: 2 }],
+      classificationValueIds: [],
+      visible: true,
+    };
+    const countProps = (overrides: Partial<ContextToolbarProps> = {}) =>
+      props({
+        selectedMeasurements: [count],
+        selectedMeasurementId: count.id,
+        selectedMeasurementName: count.name,
+        onAddCountItems: vi.fn(),
+        ...overrides,
+      });
+
+    it("adds items like the Add items button and follows rebinding", () => {
+      const onAddCountItems = vi.fn();
+      renderToolbar(countProps({ onAddCountItems }));
+
+      expect(pressKey("a").defaultPrevented).toBe(true);
+      expect(onAddCountItems).toHaveBeenCalledOnce();
+
+      bind({ "count.addItems": ["J"] });
+      expect(pressKey("a").defaultPrevented).toBe(false);
+      pressKey("j");
+      expect(onAddCountItems).toHaveBeenCalledTimes(2);
+    });
+
+    it("does nothing while the button is disabled or absent, or an overlay is open", () => {
+      const onAddCountItems = vi.fn();
+      renderToolbar(
+        countProps({ onAddCountItems, addCountItemsDisabledReason: "Show this count first" }),
+      );
+      expect(pressKey("a").defaultPrevented).toBe(false);
+
+      renderToolbar(countProps({ onAddCountItems }));
+      withOverlay(() => {
+        expect(pressKey("a").defaultPrevented).toBe(false);
+      });
+
+      renderToolbar(props({ selectedMeasurements: pair, onAddCountItems }));
+      expect(pressKey("a").defaultPrevented).toBe(false);
+      expect(onAddCountItems).not.toHaveBeenCalled();
+    });
+
+    it("shows its key on the button and drops it when unbound", () => {
+      renderToolbar(countProps());
+      expect(tooltipOf(buttonByLabel("Add items"))).toBe("Add items (A)");
+      expect(buttonByLabel("Add items").getAttribute("aria-keyshortcuts")).toBe("A");
+
+      bind({ "count.addItems": [] });
+      expect(tooltipOf(buttonByLabel("Add items"))).toBe("Add items");
+      expect(buttonByLabel("Add items").hasAttribute("aria-keyshortcuts")).toBe(false);
+    });
+  });
+
+  describe("count.findSimilar", () => {
+    it("starts Find similar from the Count tool and follows rebinding", () => {
+      renderToolbar();
+      act(() => workspace!.chooseTool("count"));
+
+      expect(pressKey("y").defaultPrevented).toBe(true);
+      expect(getSymbolCount().active).toBe(true);
+      act(() => stopSymbolCount());
+
+      bind({ "count.findSimilar": ["J"] });
+      expect(pressKey("y").defaultPrevented).toBe(false);
+      expect(getSymbolCount().active).toBe(false);
+      pressKey("j");
+      expect(getSymbolCount().active).toBe(true);
+    });
+
+    it("does nothing outside the Count tool or while an overlay is open", () => {
+      renderToolbar();
+      expect(pressKey("y").defaultPrevented).toBe(false);
+
+      act(() => workspace!.chooseTool("count"));
+      withOverlay(() => {
+        expect(pressKey("y").defaultPrevented).toBe(false);
+      });
+      expect(getSymbolCount().active).toBe(false);
+    });
+
+    it("shows its key on the button and drops it when unbound", () => {
+      renderToolbar();
+      act(() => workspace!.chooseTool("count"));
+      expect(tooltipOf(buttonByLabel("Find similar"))).toBe("Find similar (Y)");
+      expect(buttonByLabel("Find similar").getAttribute("aria-keyshortcuts")).toBe("Y");
+
+      bind({ "count.findSimilar": [] });
+      expect(tooltipOf(buttonByLabel("Find similar"))).toBe("Find similar");
+      expect(buttonByLabel("Find similar").hasAttribute("aria-keyshortcuts")).toBe(false);
+    });
+
+    it("hints the fixed Enter key on Done", () => {
+      renderToolbar();
+      act(() => workspace!.chooseTool("count"));
+      expect(tooltipOf(buttonByLabel("Done"))).toBe("Done (Enter)");
+      expect(buttonByLabel("Done").getAttribute("aria-keyshortcuts")).toBe("Enter");
     });
   });
 

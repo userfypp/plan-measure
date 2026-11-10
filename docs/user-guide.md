@@ -2,6 +2,8 @@
 
 [Open Plan Measure](https://userfypp.github.io/plan-measure/) · [Quick start](../README.md#quick-start)
 
+On this page: [Scales](#scales) · [Measurements and totals](#measurements-and-totals) · [View and settings](#view-and-settings) · [Install and offline](#install-the-app-and-use-it-offline) · [Projects and recovery](#projects-and-recovery) · [Exports](#exports) · [Keyboard controls](#keyboard-controls)
+
 ## Scales
 
 Each page supports multiple named scales. In **Scales → Add scale**, choose:
@@ -35,9 +37,9 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 **Cloud.** It is drawn in review red with a thicker stroke and a faint fill, in the app and in the annotated PDF. To pick another color, select it, open **Details** and choose from the short palette; the color is saved with the project and included in the JSON export. Its area and perimeter are those of its control polygon, not of the scalloped outline, and very large outlines are simplified to that polygon to keep drawing responsive.
 
-**Count.** **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or in **Details**. A count shares one name, note and set of classifications, and you move its markers with Select. In **Details → Items**, **Move to…** transfers an item to another count on the same page and the trash button removes it. Lists over 50 items use **Previous items** and **Next items**. Moving the last item removes the empty source count, and Undo brings both back.
+**Count.** **New count** starts a separate count. To add items later, select the count and choose **Add items** (`A` by default) in its toolbar or in **Details**. A count shares one name, note and set of classifications, and you move its markers with Select. In **Details → Items**, **Move to…** transfers an item to another count on the same page and the trash button removes it. Lists over 50 items use **Previous items** and **Next items**. Moving the last item removes the empty source count, and Undo brings both back.
 
-**Find similar symbols.** With a count selected (or none), choose **Find similar** in the Count toolbar and drag a box around one symbol. The app searches the current page on your device, nothing is uploaded, and outlines every similar symbol it finds. Choose a **Similarity** level (Exact, High, Balanced, Loose) to show fewer or more matches, turn **Any orientation** off to ignore rotated and mirrored copies, and click an outline to exclude it or include it again. **Add N items** adds the accepted matches to the selected count, or starts a new one, as a single undo step. Escape or **Cancel** leaves without adding anything.
+**Find similar symbols.** With a count selected (or none), choose **Find similar** (`Y` by default) in the Count toolbar and drag a box around one symbol. The app searches the current page on your device, nothing is uploaded, and outlines every similar symbol it finds. Choose a **Similarity** level (Exact, High, Balanced, Loose) to show fewer or more matches, turn **Any orientation** off to ignore rotated and mirrored copies (both start from your choices in **Settings > Drawing**), and click an outline to exclude it or include it again. **Add N items** adds the accepted matches to the selected count, or starts a new one, as a single undo step. Escape or **Cancel** leaves without adding anything.
 
 **Compare two versions.** Choose **View → Compare with another PDF…** and pick a second revision of the plan. The app overlays one of its pages on the current page on your device, nothing is uploaded, and the file is not saved with the project. Ink in both versions is gray, ink only in the current version is **Added** and ink only in the other one is **Removed**. By default the other PDF's page with the same number is used (change it with the page selector), and pages of the same format line up at their origin. If they do not, choose **Align**, click a reference point on the other version and then the same point on the current one; **Reset alignment** undoes it. Your measurements stay on the current version. Escape or **Close** ends the comparison.
 
@@ -47,7 +49,7 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 - **Select** moves measurements or drags single vertices. **Details** holds the notes and classification assignments. Rename a selected measurement from the context bar. In **Details**, rename each item of a count; its name appears as a label at the item's point. Drag the label of a selected measurement to move it off the plan text (the annotated PDF keeps the position); **Reset label position** in **Details** puts it back.
 - `Escape` steps back one level per press: cancel the drawing or calibration, leave the tool, close **Details**, then clear the selection.
 - `Shift`/`Ctrl`/`Cmd`-click adds or removes measurements from the selection. Bulk classification, visibility and deletion work across pages.
-- Moving, duplicating and copying a group need a selection on a single page. Pasting onto another page uses that page's active scale for paths, and all the geometry must fit.
+- Moving, duplicating and copying a group need a selection on a single page. Pasting onto another page uses that page's active scale for paths, and all the geometry must fit. A duplicate, or a paste on the same page, sits a little away from the original; set how far with **Settings > Drawing → Duplicate offset**.
 - **Undo/Redo** covers measurements, scales, classifications and page labels. The history of the open project also survives a reload, returning shortly after the plan opens and capped for very large plans; opening another project or PDF starts it empty. Navigation and display settings are not part of it.
 
 ### Classifications, lists and Takeoff
@@ -64,13 +66,15 @@ In **Classifications**, create dimensions such as Trade with values such as Elec
 
 Use the controls below the plan for previous/next pages, zoom, **Fit**, active scale, and **View**. Open **Pages**, search a label (Enter opens a single match), or enter a physical number in **Go to page** and press Enter. Thumbnails load only for visible rows and nearby pages; for large or slow-to-render PDFs, the current page still gets its thumbnail, and **Load previews** loads the others at a higher memory cost. Click the label below the plan to rename it; the browser also shows existing custom labels. **View** sets display units and annotation visibility; polygon area can also use acres. In **Settings > View**, **Label classification** adds the measurement's value from a chosen classification to its on-screen label (exports and the annotated PDF are unchanged). Projects saved with this version do not open in earlier versions of the app.
 
-**Settings** opens on its first tab: **View** with a project open, **Interface** without one. **View** is the only tab that belongs to the project: its settings, including **Currency**, are saved with the plan and unavailable until one is open. The other tabs (Interface, Accessibility, Measurements, Drawing, Filters, Canvas, Confirmations, Shortcuts, Performance) are saved per device. The footer holds **Export settings**, **Import settings** and **Reset…**, which restores every device setting; projects are not changed. Displayed decimal places do not change CSV precision or feet-and-inches fractions. In **Filters**, choose the filters the Measurements list starts with. With a project open, the **Project** box at the end of the tab offers **Default filters > Custom**, which gives that project its own, saved with the plan. **Clear filters** still shows everything.
+**Settings** opens on its first tab: **View** with a project open, **Interface** without one. **View** is the only tab that belongs to the project: its settings, including **Currency**, are saved with the plan and unavailable until one is open. The other tabs (Interface, Accessibility, Measurements, Drawing, Filters, Canvas, Confirmations, Shortcuts, Performance) are saved per device. **Drawing** holds, besides the drawing behavior, **Duplicate offset** (Small, Normal or Large), **Keyboard cursor step** (Fine, Normal or Coarse), and the starting point of Find similar: **Find similar match** and **Find similar rotated symbols**. The footer holds **Export settings**, **Import settings** and **Reset…**, which restores every device setting; projects are not changed. Displayed decimal places do not change CSV precision or feet-and-inches fractions. In **Filters**, choose the filters the Measurements list starts with. With a project open, the **Project** box at the end of the tab offers **Default filters > Custom**, which gives that project its own, saved with the plan. **Clear filters** still shows everything.
 
 **What's new** on the start screen lists the latest releases: version, date, the main additions and fixes, and a link to the release on GitHub. A **New** badge stays on the button until you open it for the current version. The notes are bundled with the app, so they also work offline.
 
 ## Install the app and use it offline
 
 Plan Measure can be installed from the browser (the install icon in the address bar of Chrome and Edge, **Add to Dock** or **Add to Home Screen** in Safari) and then opens in its own window. After one visit online, the app also starts without a connection, including the sample project; projects are stored in the browser either way. When you are online, a reload loads the latest version; offline, you get the last version your browser fully downloaded. Some PDF decoders (scanned plans, extra fonts) download the first time a plan needs them, so open such a plan once online before relying on it offline. Private windows and browsers without service worker support skip offline use and work as before.
+
+To check it, open the app once online, turn the connection off and reload: the start screen and **Try a sample** still open. Edits made offline autosave in the browser like any other, so keep exporting backups as described in [Projects and recovery](#projects-and-recovery). Contributors: the caching rules are in [Architecture](ARCHITECTURE.md#build-output).
 
 ## Projects and recovery
 
@@ -106,7 +110,7 @@ Encrypted PDFs cannot be exported as annotated PDFs, even if they open without a
 
 ## Keyboard controls
 
-Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native control actions retain their own keys. Tooltips, the toolbar, and menus always show the keys currently in use.
+Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native control actions retain their own keys. Tooltips, the toolbar, and menus always show the keys currently in use and update as soon as you change a shortcut; the hints on **Cancel** (`Esc`) and **Done** or **Finish** (`Enter`) show those fixed keys.
 
 | Default shortcut                                  | Action                                              |
 | ------------------------------------------------- | --------------------------------------------------- |
@@ -114,6 +118,7 @@ Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native
 | `L` / `M` / `P`                                   | Line / Polyline / Polygon                           |
 | `R` / `I` / `K`                                   | Rectangle / Ellipse / Cloud                         |
 | `C`                                               | Count                                               |
+| `Y` / `A`                                         | Find similar / Add items (Count)                    |
 | `S` / `O`                                         | Toggle Snap / Ortho                                 |
 | `Enter` / `Escape`                                | Finish / cancel drawing; leave an idle drawing tool |
 | Hold `Space`                                      | Pan                                                 |
@@ -129,7 +134,7 @@ Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native
 | `Delete` or `Backspace`                           | Delete selected measurements                        |
 | `Cmd/Ctrl+O` / `Cmd/Ctrl+E` / `Cmd/Ctrl+,`        | Projects / Export / Settings                        |
 
-**Settings → Shortcuts** lets you change any of these, and also bind actions that have no key by default (Calibrate, Details, Show or hide, workspace and theme switching). Click a key, press the new combination, and the app reflects it everywhere. Each action can have up to two keys.
+**Settings → Shortcuts** lets you change any of these, and also bind actions that have no key by default (Calibrate, Details, Show or hide, next and previous workspace, and theme switching). The **Keyboard first** preset binds Find similar and Add items to `Y` and `A` too; **Left hand**, **Right hand** and **Essentials** leave them unbound. Click a key, press the new combination, and the app reflects it everywhere. Each action can have up to two keys.
 
 - If a combination is already used, you can reassign it from the other action. Keys the app or browser reserves (such as `Space`, `Enter`, `Escape`, arrows, `Cmd/Ctrl+W`, `Cmd/Ctrl+T`) cannot be used, and combinations that may also trigger a browser shortcut are flagged.
 - Each row's restore button returns it to its preset (disabled while unchanged); the restore button beside the search (**Reset all shortcuts**) discards every change. The **Preset** menu switches the whole set at once: **Default**, **Legacy** (the keys from before shortcuts were customizable), **Keyboard first** (a key for every action), **Left hand** and **Right hand** (tool keys on one side of the keyboard), and **Essentials** (no single-letter keys). Switching presets while you have custom keys asks before discarding them.
@@ -137,7 +142,7 @@ Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native
 
 For keyboard authoring, enable **Settings → Keyboard drawing and editing** and focus the PDF viewer:
 
-- Arrows move the cursor; Shift moves faster. Space places a point; Enter finishes a path. In Hand, arrows pan.
+- Arrows move the cursor; Shift moves faster; **Settings > Drawing → Keyboard cursor step** makes each step finer or coarser. Space places a point; Enter finishes a path. In Hand, arrows pan.
 - In Select, Space selects at the cursor; Shift+Space adds or removes a selection.
 - `E` previews an edit. Choose the whole measurement or a vertex in the help card; `N` / `Shift+N` cycles targets. Arrows adjust, Enter saves, and Escape cancels.
 - While editing a scale reference, choose an endpoint with the selector or `N`, adjust with arrows, and press Enter to use the Save workflow.

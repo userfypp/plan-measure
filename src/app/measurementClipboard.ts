@@ -2,6 +2,7 @@ import type { PasteMeasurementCommand } from "./sessionState";
 import type { MeasurementClipboard } from "./workspaceState";
 import type { LogicalPageBounds, Measurement, PageState } from "../types/domain";
 import { getMeasurementCalibration } from "../utils/calibration";
+import { DUPLICATE_OFFSET_PX, getAppPreferences } from "../utils/appPreferences";
 import { isPointInPage } from "../utils/coordinates";
 import { hasValidMeasurementPoints, measurementTypeRequiresScale } from "../utils/geometry";
 
@@ -12,9 +13,10 @@ export function samePageDuplicateOffset(
   measurements: readonly Measurement[],
   bounds: LogicalPageBounds | null,
   zoom: number | null,
+  offsetScreenPx = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX,
 ): number {
   if (!bounds || !zoom || !Number.isFinite(zoom) || zoom <= 0) return 0;
-  const offset = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / zoom;
+  const offset = offsetScreenPx / zoom;
   for (const candidate of [offset, -offset]) {
     if (
       measurements.every((measurement) =>
@@ -128,7 +130,12 @@ export function pasteMeasurementsClipboard({
   if (sources.length === 0) return null;
   const delta =
     clipboard.sourcePageNumber === pageNumber
-      ? samePageDuplicateOffset(sources, destinationBounds, destinationZoom)
+      ? samePageDuplicateOffset(
+          sources,
+          destinationBounds,
+          destinationZoom,
+          DUPLICATE_OFFSET_PX[getAppPreferences().duplicateOffset],
+        )
       : 0;
   const commands = sources.map((measurement) => ({
     pageNumber,

@@ -27,9 +27,9 @@ function press(key: string, overrides: Partial<ComboEvent> = {}): ComboEvent {
 }
 
 describe("action and preset ids", () => {
-  it("lists the 41 stable action ids once each", () => {
-    expect(ACTION_IDS).toHaveLength(41);
-    expect(new Set(ACTION_IDS).size).toBe(41);
+  it("lists the 43 stable action ids once each", () => {
+    expect(ACTION_IDS).toHaveLength(43);
+    expect(new Set(ACTION_IDS).size).toBe(43);
     for (const id of ACTION_IDS) expect(id).toMatch(/^[a-z]+\.[A-Za-z]+$/);
   });
 
