@@ -20,6 +20,7 @@ export function withContentSecurityPolicy(html: string): string {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
+    "manifest-src 'self'",
     "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",

@@ -1,8 +1,9 @@
-import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { withContentSecurityPolicy } from "./scripts/contentSecurityPolicy";
 import { releaseNotes } from "./scripts/releaseNotes";
+import { listPrecacheFiles, serviceWorkerSource } from "./scripts/serviceWorker";
 
 const pdfjsDirectory = `${import.meta.dirname}/node_modules/pdfjs-dist`;
 const pdfjsVersion = (
@@ -43,12 +44,37 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
+/**
+ * Emits `sw.js` once everything else is in the output folder, so its precache list covers the
+ * page, the hashed assets, the pdf.js worker, the icons and the manifest.
+ */
+function serviceWorker(): Plugin {
+  return {
+    name: "plan-measure:service-worker",
+    apply: "build",
+    enforce: "post",
+    writeBundle: {
+      order: "post",
+      handler({ dir }) {
+        const template = readFileSync(`${import.meta.dirname}/scripts/service-worker.js`, "utf8");
+        const source = serviceWorkerSource(
+          template,
+          listPrecacheFiles(dir!),
+          `pdfjs/${pdfjsVersion}/`,
+        );
+        writeFileSync(`${dir}/sw.js`, source);
+      },
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   base: mode === "production" ? "/plan-measure/" : "/",
   plugins: [
     react(),
     pdfjsResources(),
     contentSecurityPolicy(),
+    serviceWorker(),
     releaseNotes(`${import.meta.dirname}/CHANGELOG.md`),
   ],
   define: {

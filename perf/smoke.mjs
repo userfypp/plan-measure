@@ -55,7 +55,11 @@ try {
   browser = await chromium.launch(
     process.env.SMOKE_CHROMIUM_PATH ? { executablePath: process.env.SMOKE_CHROMIUM_PATH } : {},
   );
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  // Blocked: the offline worker has its own check (`perf/pwa.mjs`).
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 900 },
+    serviceWorkers: "block",
+  });
   page.setDefaultTimeout(60_000);
   page.on("pageerror", (error) => problems.push(`Page error: ${error.message}`));
   page.on("console", (message) => {

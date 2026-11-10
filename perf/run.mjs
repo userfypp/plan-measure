@@ -122,6 +122,7 @@ async function context(cpu) {
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 2,
     acceptDownloads: true,
+    serviceWorkers: "block",
   });
   await result.addInitScript(instrument);
   await result.addInitScript(holdIdleCallbacks);

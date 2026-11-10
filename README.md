@@ -12,7 +12,7 @@
 
 </div>
 
-Measure distances, perimeters, and areas on architectural PDF plans, then export takeoff totals. Free and MIT licensed, with no account or install: it runs in your browser and plans are never uploaded. Missing something? [Open an issue](https://github.com/userfypp/plan-measure/issues/new/choose).
+Measure distances, perimeters, and areas on architectural PDF plans, then export takeoff totals. Free and MIT licensed, with no account: it runs in your browser and plans are never uploaded. You can also install it as an app and use it offline after the first visit. Missing something? [Open an issue](https://github.com/userfypp/plan-measure/issues/new/choose).
 
 ![Plan Measure workspace](assets/screenshots/plan-measure-overview.webp)
 

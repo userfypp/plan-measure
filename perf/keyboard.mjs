@@ -82,6 +82,7 @@ async function runEngine(name) {
   const profile = mkdtempSync(path.join(tmpdir(), `keyboard-${name}-`));
   const browser = await engines[name].launchPersistentContext(profile, {
     viewport: { width: 1440, height: 900 },
+    serviceWorkers: "block",
   });
   const results = {};
   try {

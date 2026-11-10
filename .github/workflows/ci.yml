@@ -68,8 +68,8 @@ jobs:
         run: npm run build
 
   # Opens the built app in Chromium: the start screen and the sample project must load without
-  # page or console errors. Then drives it with the keyboard in Chromium and WebKit (Safari's
-  # engine): Tab must behave the same in both.
+  # page or console errors, and again offline through the service worker. Then drives it with the
+  # keyboard in Chromium and WebKit (Safari's engine): Tab must behave the same in both.
   smoke:
     name: smoke
     runs-on: ubuntu-24.04
@@ -106,6 +106,9 @@ jobs:
 
       - name: Keyboard navigation test
         run: npm run test:keyboard
+
+      - name: Offline and install test
+        run: npm run test:pwa
 
   pages:
     needs: verify

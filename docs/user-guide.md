@@ -68,6 +68,10 @@ Use the controls below the plan for previous/next pages, zoom, **Fit**, active s
 
 **What's new** on the start screen lists the latest releases: version, date, the main additions and fixes, and a link to the release on GitHub. A **New** badge stays on the button until you open it for the current version. The notes are bundled with the app, so they also work offline.
 
+## Install the app and use it offline
+
+Plan Measure can be installed from the browser (the install icon in the address bar of Chrome and Edge, **Add to Dock** or **Add to Home Screen** in Safari) and then opens in its own window. After one visit online, the app also starts without a connection, including the sample project; projects are stored in the browser either way. When you are online, a reload loads the latest version; offline, you get the last version your browser fully downloaded. Some PDF decoders (scanned plans, extra fonts) download the first time a plan needs them, so open such a plan once online before relying on it offline. Private windows and browsers without service worker support skip offline use and work as before.
+
 ## Projects and recovery
 
 **Projects** opens, imports, exports, and deletes local projects. Opening another PDF or importing a project keeps existing saved projects. Editing is temporarily blocked while a project loads. If the current project exists only in memory, cancel and export it first, or confirm **Discard and open** to open another PDF. Click the save status in the application bar → **Export backup (.planmeasure)**, or use **Projects → Export**, to download a file with the PDF and editable data. A project marked **PDF unavailable** lost its copy of the PDF and can only be discarded.

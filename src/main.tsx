@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
+import { preloadWhenIdle } from "./app/idlePreload";
 import { installOverlayScrollbars } from "./app/overlayScrollbars";
 import { installScrollHover } from "./app/scrollHover";
 import { ThemeProvider } from "./app/themeState";
@@ -18,6 +19,15 @@ installOverlayScrollbars();
 installScrollHover();
 installInputModality();
 installClickFocus();
+
+if (import.meta.env.PROD) {
+  window.addEventListener("load", () =>
+    preloadWhenIdle([
+      () =>
+        import("./app/serviceWorkerRegistration").then((module) => module.registerServiceWorker()),
+    ]),
+  );
+}
 
 createRoot(root).render(
   <StrictMode>
