@@ -408,6 +408,10 @@ describe("ViewerDock", () => {
     expect(dockCss).toContain("@container (max-width: 500px)");
     expect(dockCss).toContain("@container (max-width: 460px)");
     expect(dockCss).toContain("@container (max-width: 400px)");
+    expect(dockCss).toMatch(
+      /@container \(max-width: 400px\) \{.*\.scaleTrigger \{\s*max-width: none;\s*flex: 1 1 auto;.*\.scaleMetadata \{\s*display: flex;/s,
+    );
+    expect(dockCss).toMatch(/@container \(max-width: 220px\) \{\s*\.dock \{\s*display: none;/s);
     expect(dockCss).toMatch(/\.pageTriggerText strong\s*\{[^}]*text-overflow:\s*ellipsis;/s);
     expect(dockCss).not.toMatch(/\.pageTrigger[^}]*display:\s*none/s);
   });
