@@ -4,6 +4,37 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.13.0](https://github.com/userfypp/plan-measure/compare/v2.12.0...v2.13.0) (2026-11-10)
+
+
+### Added
+
+* **app:** add a "What's new" button with the latest release notes to the start screen ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **count:** find and count similar symbols on a page ([#476](https://github.com/userfypp/plan-measure/issues/476)) ([85f9add](https://github.com/userfypp/plan-measure/commit/85f9add4e8f34ee257665a2b83f12b4975045113)), closes [#322](https://github.com/userfypp/plan-measure/issues/322)
+* **export:** explain confusing export settings with help tooltips ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* make the app installable and usable offline ([#480](https://github.com/userfypp/plan-measure/issues/480)) ([faaa585](https://github.com/userfypp/plan-measure/commit/faaa58583c0afc30e6074d1455d026c7c23d20ad)), closes [#257](https://github.com/userfypp/plan-measure/issues/257)
+* **settings:** add drawing settings and Find similar shortcuts, with live tooltips ([#482](https://github.com/userfypp/plan-measure/issues/482)) ([7206277](https://github.com/userfypp/plan-measure/commit/720627773d0ed8873d75f9cb4e3def4f98007c5b))
+* **viewer:** let users move measurement labels ([#478](https://github.com/userfypp/plan-measure/issues/478)) ([c60e250](https://github.com/userfypp/plan-measure/commit/c60e25074d9b0d32a5faab73d379791c411bf363)), closes [#289](https://github.com/userfypp/plan-measure/issues/289)
+
+
+### Fixed
+
+* **export:** validate ODS sheet names like XLSX ([7ab0dc1](https://github.com/userfypp/plan-measure/commit/7ab0dc1a26af5fb9a1ec0292750afd01732d5036))
+* **export:** write CSV, XLSX and ODS numbers with 15 significant digits ([7ab0dc1](https://github.com/userfypp/plan-measure/commit/7ab0dc1a26af5fb9a1ec0292750afd01732d5036))
+* **measurements:** redesign the details panel and add a Move to… icon with a matching outline ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **measurements:** rename items in a count list and show their names as labels on the plan ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **pages:** align the Pages menu with the side menu and polish page renaming ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **settings:** prevent the thousands and decimal separators from matching ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **shortcuts:** make Esc step back one level at a time ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **takeoff:** group Count digits with the app's thousands separator ([7ab0dc1](https://github.com/userfypp/plan-measure/commit/7ab0dc1a26af5fb9a1ec0292750afd01732d5036))
+* **takeoff:** keep shortcuts working after changing the breakdown ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **ui:** align the Classify and feedback tooltips with the rest of the app ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **ui:** keep full hitboxes and even spacing on What's new and Items actions ([#481](https://github.com/userfypp/plan-measure/issues/481)) ([e86e99b](https://github.com/userfypp/plan-measure/commit/e86e99b5ddccf5b101dbead6d435c6fe09f1eac7))
+* **ui:** keep the app bar, dock and Settings usable on phones ([#477](https://github.com/userfypp/plan-measure/issues/477)) ([8f54afd](https://github.com/userfypp/plan-measure/commit/8f54afded60d75f323dfcdd476edc0b04721e5bc))
+* **ui:** make Tab navigation work in Safari as it does in Chrome ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+* **viewer:** render scanned plans with CCITT, JBIG2 or JPEG 2000 images ([#470](https://github.com/userfypp/plan-measure/issues/470)) ([dfdddc5](https://github.com/userfypp/plan-measure/commit/dfdddc5695d99bd62b423f9c37c6ff79a9d707b2))
+* **viewer:** stop clipping the ring of the cloud colour swatch ([9e12a7e](https://github.com/userfypp/plan-measure/commit/9e12a7e4a03903e7ec59720b367996ced15fb2e5))
+
 ## [2.12.0](https://github.com/userfypp/plan-measure/compare/v2.11.4...v2.12.0) (2026-11-06)
 
 
