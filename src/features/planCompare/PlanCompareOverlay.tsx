@@ -55,7 +55,7 @@ export function PlanCompareOverlay({ data, transform }: PlanCompareOverlayProps)
     if (documentRef.current !== document) stopPlanCompare();
   }, [document]);
 
-  useEffect(() => () => planCompareSession.reset(), []);
+  useEffect(() => () => planCompareSession.forgetPage(), []);
   useEffect(() => {
     planCompareSession.setPalette(readPalette());
   }, [resolvedTheme]);

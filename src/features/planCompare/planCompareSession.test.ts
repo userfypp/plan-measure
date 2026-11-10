@@ -103,6 +103,20 @@ describe("plan compare session", () => {
     expect(state.result).toMatchObject({ width: 2, height: 2, pageNumber: 2 });
   });
 
+  it("keeps loading when the page is forgotten and shown again", async () => {
+    const { session, createDiff } = setup();
+    session.setPalette(palette);
+    session.setCurrentPage(currentPage(2));
+    const opening = session.open(pdfFile());
+    session.forgetPage();
+    session.setPalette(palette);
+    session.setCurrentPage(currentPage(2));
+    await opening;
+    await flush();
+    expect(session.getState().phase).toBe("loading");
+    expect(createDiff).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for the page and the colours before comparing", async () => {
     const { session, createDiff } = setup();
     await session.open(pdfFile());

@@ -173,12 +173,13 @@ export function createPlanCompareSession(dependencies: Partial<PlanCompareDepend
       release();
       toInitial();
     },
-    /** Like `close`, and forgets the page and colours too. */
-    reset() {
-      release();
+    /**
+     * Forgets the page and colours, as the overlay unmounts. The other PDF and its loading stay:
+     * the bar owns them, and a remount (StrictMode, a page change) must not cancel the comparison.
+     */
+    forgetPage() {
       current = null;
       palette = null;
-      toInitial();
     },
     /** Loads the other version; it is only kept in memory. */
     async open(file: File) {
