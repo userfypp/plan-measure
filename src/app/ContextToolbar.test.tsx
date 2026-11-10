@@ -10,6 +10,13 @@ import {
   ViewerInteractionCommandsProvider,
 } from "../features/viewer/ViewerInteractionCommands";
 import { useWorkspaceState, WorkspaceProvider } from "./workspaceState";
+import { stopSymbolCount } from "../features/symbolCount/symbolCountSession";
+import { getSymbolCount } from "../features/symbolCount/symbolCountStore";
+import {
+  getPlanCompare,
+  startPlanCompare,
+  stopPlanCompare,
+} from "../features/planCompare/planCompareStore";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 
 let root: Root | null = null;
@@ -123,6 +130,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopSymbolCount();
+  stopPlanCompare();
   resetAppPreferences();
   if (root) act(() => root?.unmount());
   container?.remove();
@@ -170,7 +179,47 @@ describe("ContextToolbar V2", () => {
       toolbarButtons().map(
         (button) => button.getAttribute("aria-label") ?? button.textContent?.trim(),
       ),
-    ).toEqual(["New count", "Done"]);
+    ).toEqual(["Find similar", "New count", "Done"]);
+  });
+
+  it("swaps the Count controls for Find similar symbols until it is cancelled", async () => {
+    renderToolbar();
+    act(() => workspace!.chooseTool("count"));
+    await act(async () => buttonByLabel("Find similar").click());
+    expect(getSymbolCount().active).toBe(true);
+    await vi.waitFor(() =>
+      expect(container!.textContent).toContain("Drag a box around one symbol"),
+    );
+    expect(container!.querySelector('[role="toolbar"]')?.getAttribute("aria-label")).toBe(
+      "Find similar symbols controls",
+    );
+    expect(container!.querySelector('button[aria-label="New count"]')).toBeNull();
+    await act(async () => {
+      Array.from(container!.querySelectorAll("button"))
+        .find((button) => button.textContent === "Cancel")
+        ?.click();
+    });
+    expect(getSymbolCount().active).toBe(false);
+    expect(container!.textContent).toContain("Click to start a count");
+  });
+
+  it("swaps the contextual controls for the plan comparison until it is closed", async () => {
+    renderToolbar();
+    act(() => workspace!.chooseTool("count"));
+    await act(async () => startPlanCompare(new File(["x"], "notes.txt", { type: "text/plain" })));
+    await vi.waitFor(() =>
+      expect(container!.querySelector('[role="toolbar"]')?.getAttribute("aria-label")).toBe(
+        "Compare plans controls",
+      ),
+    );
+    expect(container!.querySelector('button[aria-label="New count"]')).toBeNull();
+    await act(async () => {
+      Array.from(container!.querySelectorAll("button"))
+        .find((button) => button.textContent === "Close")
+        ?.click();
+    });
+    expect(getPlanCompare().active).toBe(false);
+    expect(container!.textContent).toContain("Click to start a count");
   });
 
   it("starts another count explicitly and finishes adding items", () => {

@@ -1,0 +1,33 @@
+/* The bar scrolls sideways when it does not fit; its controls keep their width. */
+.fixed {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.similarity {
+  width: var(--geometry-select-width);
+  flex: 0 0 auto;
+}
+
+.option {
+  min-height: var(--control-height-compact);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-8);
+  flex: 0 0 auto;
+}
+
+.optionLabel {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+  white-space: nowrap;
+}
+
+@media (any-pointer: coarse) {
+  .option {
+    min-height: var(--target-coarse);
+  }
+}

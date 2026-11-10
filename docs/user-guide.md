@@ -37,6 +37,10 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 **Count.** **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or in **Details**. A count shares one name, note and set of classifications, and you move its markers with Select. In **Details → Items**, **Move to…** transfers an item to another count on the same page and the trash button removes it. Lists over 50 items use **Previous items** and **Next items**. Moving the last item removes the empty source count, and Undo brings both back.
 
+**Find similar symbols.** With a count selected (or none), choose **Find similar** in the Count toolbar and drag a box around one symbol. The app searches the current page on your device, nothing is uploaded, and outlines every similar symbol it finds. Choose a **Similarity** level (Exact, High, Balanced, Loose) to show fewer or more matches, turn **Any orientation** off to ignore rotated and mirrored copies, and click an outline to exclude it or include it again. **Add N items** adds the accepted matches to the selected count, or starts a new one, as a single undo step. Escape or **Cancel** leaves without adding anything.
+
+**Compare two versions.** Choose **View → Compare with another PDF…** and pick a second revision of the plan. The app overlays one of its pages on the current page on your device, nothing is uploaded, and the file is not saved with the project. Ink in both versions is gray, ink only in the current version is **Added** and ink only in the other one is **Removed**. By default the other PDF's page with the same number is used (change it with the page selector), and pages of the same format line up at their origin. If they do not, choose **Align**, click a reference point on the other version and then the same point on the current one; **Reset alignment** undoes it. Your measurements stay on the current version. Escape or **Close** ends the comparison.
+
 ### Editing and selecting
 
 - **Snap** aligns points with visible measurement geometry. **Ortho** keeps segments horizontal or vertical.
