@@ -465,18 +465,25 @@
     padding-inline: var(--space-4);
   }
 
+  /* The wrapped second row belongs to the scale: its name and ratio stay readable beside View. */
   .scaleTrigger {
-    max-width: var(--target-current);
-    gap: 0;
-    padding-inline: calc((var(--target-current) - var(--geometry-icon-size)) / 2);
+    max-width: none;
+    flex: 1 1 auto;
+    justify-content: space-between;
   }
 
-  .scaleTriggerText {
-    width: 0;
-    overflow: hidden;
+  .scaleMetadata {
+    display: flex;
   }
 }
 
 :global(:root[data-targets="large"]) .dock {
   min-height: var(--geometry-viewer-dock-height-coarse);
+}
+
+/* Beside an open workspace drawer on a phone no row of controls fits: step aside until it closes. */
+@container (max-width: 220px) {
+  .dock {
+    display: none;
+  }
 }

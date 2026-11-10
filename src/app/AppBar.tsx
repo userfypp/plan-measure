@@ -175,7 +175,7 @@ export function AppBar({
 
   return (
     <header className={styles.appBar} aria-label="Application bar">
-      <div className={styles.identityGroup}>
+      <div className={styles.identityGroup} data-document={documentName ? "" : undefined}>
         <div className={styles.brand}>Plan Measure</div>
         <span className={styles.identityDivider} aria-hidden="true" />
         <div className={styles.documentName} title={documentName ?? undefined}>
@@ -257,7 +257,7 @@ export function AppBar({
           <AnchoredMenu
             trigger={<FeedbackIcon />}
             triggerProps={{
-              className: styles.iconTrigger,
+              className: `${styles.iconTrigger} ${styles.feedbackTrigger}`,
               "aria-label": "Feedback",
             }}
             tooltip="Feedback"

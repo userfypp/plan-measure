@@ -338,6 +338,14 @@ dialog.dialog {
   }
 }
 
+/* Phones: ten tabs in one row would be 25 px wide, so they take two rows of full targets. */
+@media (max-width: 480px) {
+  .nav {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
 :global(:root[data-targets="large"]) dialog.dialog {
   --target-current: var(--target-coarse);
   --control-height-compact: var(--target-coarse);
