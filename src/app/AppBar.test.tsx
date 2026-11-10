@@ -1,5 +1,7 @@
 /* @vitest-environment jsdom */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +11,8 @@ import { AppBar } from "./AppBar";
 import { stubDialogMethods, stubMatchMedia } from "../test/domTestUtils";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 import { requestSettingsDialog } from "./settingsDialogRequest";
+
+const appBarCss = readFileSync(resolve(import.meta.dirname, "AppBar.module.css"), "utf8");
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -190,6 +194,37 @@ describe("AppBar", () => {
     press("ArrowRight");
     expect(document.activeElement).toBe(actions[0]);
     expect(actions.filter((action) => action.tabIndex === 0)).toEqual([actions[0]]);
+  });
+
+  it("skips an action a narrow layout hides when moving with the arrow keys", () => {
+    renderAppBar();
+    const feedback = buttonByLabel("Feedback");
+    feedback.style.display = "none";
+
+    act(() => buttonByLabel("Settings").focus());
+    press("ArrowLeft");
+    expect(document.activeElement?.textContent).toContain("Projects");
+    press("ArrowRight");
+    expect(document.activeElement).toBe(buttonByLabel("Settings"));
+    press("End");
+    expect(document.activeElement).toBe(buttonByLabel("Settings"));
+    expect(feedback.tabIndex).toBe(-1);
+  });
+
+  it("marks the identity group while a plan is open so narrow layouts keep one identity", () => {
+    renderAppBar();
+    const identity = container?.querySelector("header > div");
+    expect(identity?.hasAttribute("data-document")).toBe(true);
+
+    renderAppBar({ documentName: null, canExport: false });
+    expect(identity?.hasAttribute("data-document")).toBe(false);
+
+    expect(appBarCss).toMatch(
+      /@media \(max-width: 620px\) \{[^@]*\.identityGroup\[data-document\] \.brand,\s*\.identityGroup:not\(\[data-document\]\) \.documentName \{\s*display: none;/s,
+    );
+    expect(appBarCss).toMatch(
+      /@media \(max-width: 420px\) \{\s*\.documentName,\s*\.actions \.feedbackTrigger \{\s*display: none;/s,
+    );
   });
 
   it("does not route portal Home/End keys back through the AppBar toolbar", async () => {

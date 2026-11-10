@@ -176,16 +176,35 @@
   .identityGroup {
     gap: var(--space-8);
   }
+
+  /* One identity is enough here: the plan's name while one is open, the brand otherwise. */
+  .identityDivider,
+  .identityGroup[data-document] .brand,
+  .identityGroup:not([data-document]) .documentName {
+    display: none;
+  }
 }
 
-@media (max-width: 380px) {
-  .identityGroup {
+@media (max-width: 480px) {
+  .actions {
     gap: var(--space-4);
+  }
+
+  .groupDivider {
+    display: none;
   }
 
   .actions .exportAction,
   .actions .projectsAction {
     padding-inline: var(--space-8);
+  }
+}
+
+/* Phones: "Close project" and the core actions keep their full targets; the rest steps aside. */
+@media (max-width: 420px) {
+  .documentName,
+  .actions .feedbackTrigger {
+    display: none;
   }
 }
 
