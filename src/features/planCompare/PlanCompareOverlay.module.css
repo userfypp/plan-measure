@@ -1,0 +1,19 @@
+/* Between the PDF and the measurements, so it never takes the pointer. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transform-origin: 0 0;
+}
+
+.image[hidden] {
+  display: none;
+}

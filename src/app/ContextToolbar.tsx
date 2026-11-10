@@ -32,6 +32,8 @@ import type { ClassificationCatalog, Measurement } from "../types/domain";
 import type { BulkMeasurementCommand } from "./sessionState";
 import { SymbolCountBar } from "../features/symbolCount/symbolCountLazy";
 import { startSymbolCount, useSymbolCount } from "../features/symbolCount/symbolCountStore";
+import { PlanCompareBar } from "../features/planCompare/planCompareLazy";
+import { usePlanCompare } from "../features/planCompare/planCompareStore";
 import { MeasurementClassificationMenu } from "../features/measurements/MeasurementClassificationMenu";
 import styles from "./ContextToolbar.module.css";
 
@@ -441,6 +443,15 @@ export function ContextToolbar({
   } = useWorkspaceState();
   const { completeCurrentDraft } = useViewerInteractionCommands();
   const symbolCountActive = useSymbolCount().active;
+  const planCompareActive = usePlanCompare().active;
+
+  if (planCompareActive) {
+    return (
+      <Suspense>
+        <PlanCompareBar />
+      </Suspense>
+    );
+  }
 
   if (calibrationReferenceEdit) {
     const referenceLabel =

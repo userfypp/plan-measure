@@ -13,6 +13,7 @@ import {
 } from "../../app/sessionState";
 import type { PageCalibration } from "../../types/domain";
 import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
+import { getPlanCompare, stopPlanCompare } from "../planCompare/planCompareStore";
 import { ViewerDock, type ViewerDockProps } from "./ViewerDock";
 
 const dockCss = readFileSync(resolve(import.meta.dirname, "ViewerDock.module.css"), "utf8");
@@ -164,6 +165,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopPlanCompare();
   resetAppPreferences();
   if (root) act(() => root?.unmount());
   container?.remove();
@@ -677,6 +679,29 @@ describe("ViewerDock", () => {
 
     act(() => pageLabelTrigger().click());
     expect(pageLabelInput().value).toBe("B-2");
+  });
+
+  it("starts comparing with the PDF chosen from the View options", () => {
+    renderDock(createProps());
+    act(() => buttonByLabel("View options").click());
+    const dialogElement = document.querySelector('[role="dialog"][aria-label="View options"]')!;
+    const entry = Array.from(dialogElement.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent === "Compare with another PDF…",
+    );
+    if (!entry) throw new Error("The compare entry was not rendered.");
+    const input = container!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(input.accept).toBe("application/pdf,.pdf");
+    const picker = vi.spyOn(input, "click").mockImplementation(() => undefined);
+    act(() => entry.click());
+    expect(picker).toHaveBeenCalledTimes(1);
+    expect(getPlanCompare().active).toBe(false);
+
+    const file = new File(["%PDF"], "rev-b.pdf", { type: "application/pdf" });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    act(() => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(getPlanCompare()).toMatchObject({ active: true, file });
   });
 
   it("moves the existing View settings into a Popover without changing their commands", () => {

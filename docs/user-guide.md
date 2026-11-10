@@ -39,6 +39,8 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 **Find similar symbols.** With a count selected (or none), choose **Find similar** in the Count toolbar and drag a box around one symbol. The app searches the current page on your device, nothing is uploaded, and outlines every similar symbol it finds. Choose a **Similarity** level (Exact, High, Balanced, Loose) to show fewer or more matches, turn **Any orientation** off to ignore rotated and mirrored copies, and click an outline to exclude it or include it again. **Add N items** adds the accepted matches to the selected count, or starts a new one, as a single undo step. Escape or **Cancel** leaves without adding anything.
 
+**Compare two versions.** Choose **View → Compare with another PDF…** and pick a second revision of the plan. The app overlays one of its pages on the current page on your device, nothing is uploaded, and the file is not saved with the project. Ink in both versions is gray, ink only in the current version is **Added** and ink only in the other one is **Removed**. By default the other PDF's page with the same number is used (change it with the page selector), and pages of the same format line up at their origin. If they do not, choose **Align**, click a reference point on the other version and then the same point on the current one; **Reset alignment** undoes it. Your measurements stay on the current version. Escape or **Close** ends the comparison.
+
 ### Editing and selecting
 
 - **Snap** aligns points with visible measurement geometry. **Ortho** keeps segments horizontal or vertical.
