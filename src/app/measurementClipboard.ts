@@ -2,6 +2,7 @@ import type { PasteMeasurementCommand } from "./sessionState";
 import type { MeasurementClipboard } from "./workspaceState";
 import type { LogicalPageBounds, Measurement, PageState } from "../types/domain";
 import { getMeasurementCalibration } from "../utils/calibration";
+import { duplicateOffsetPx } from "../utils/appPreferences";
 import { isPointInPage } from "../utils/coordinates";
 import { hasValidMeasurementPoints, measurementTypeRequiresScale } from "../utils/geometry";
 
@@ -14,7 +15,7 @@ export function samePageDuplicateOffset(
   zoom: number | null,
 ): number {
   if (!bounds || !zoom || !Number.isFinite(zoom) || zoom <= 0) return 0;
-  const offset = MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / zoom;
+  const offset = duplicateOffsetPx() / zoom;
   for (const candidate of [offset, -offset]) {
     if (
       measurements.every((measurement) =>

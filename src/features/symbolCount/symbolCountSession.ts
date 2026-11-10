@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { Point } from "../../types/domain";
+import { getAppPreferences, type SimilarMatch } from "../../utils/appPreferences";
 import { setSymbolCount } from "./symbolCountStore";
 import {
   SYMBOL_SEARCH_UNAVAILABLE,
@@ -10,7 +11,7 @@ import {
 import type { GrayImage, PixelRect, SymbolMatch, SymbolMatchFailure } from "./templateMatch";
 
 export type SymbolCountPhase = "pick" | "scanning" | "review" | "error";
-export type SimilarityPreset = "exact" | "high" | "balanced" | "loose";
+export type SimilarityPreset = SimilarMatch;
 export type MatchStatus = "accepted" | "excluded" | "below" | "duplicate";
 
 export const SIMILARITY_PRESETS: readonly {
@@ -91,16 +92,20 @@ export function hitMatch(
   return best;
 }
 
-const INITIAL_STATE: SymbolCountState = {
-  phase: "pick",
-  progress: 0,
-  matches: [],
-  excluded: new Set(),
-  similarity: "balanced",
-  orientations: true,
-  message: null,
-  existing: [],
-};
+/** A fresh session starts from the similarity and rotation the user set in Settings. */
+function initialState(): SymbolCountState {
+  const { similarMatch, similarRotated } = getAppPreferences();
+  return {
+    phase: "pick",
+    progress: 0,
+    matches: [],
+    excluded: new Set(),
+    similarity: similarMatch,
+    orientations: similarRotated,
+    message: null,
+    existing: [],
+  };
+}
 
 export interface SymbolSearchStart {
   image: GrayImage;
@@ -112,7 +117,7 @@ export interface SymbolSearchStart {
 }
 
 export function createSymbolCountSession(createSearch: CreateSymbolSearch = createSymbolSearch) {
-  let state = INITIAL_STATE;
+  let state = initialState();
   let search: SymbolSearch | null = null;
   let scale = 1;
   let box: PixelRect = { x: 0, y: 0, width: 0, height: 0 };
@@ -155,10 +160,8 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
     reset() {
       endSearch();
       commitHandler = null;
-      if (state !== INITIAL_STATE) {
-        state = INITIAL_STATE;
-        for (const listener of [...listeners]) listener();
-      }
+      state = initialState();
+      for (const listener of [...listeners]) listener();
     },
     /** The box is released and the page is being rendered. */
     beginScan() {

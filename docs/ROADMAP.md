@@ -19,23 +19,20 @@ Taken by a contributor; leave these to them. Want another issue? Comment on it a
 
 ## Next (P2)
 
-| Order | Issue                                                       | Work                                   | Notes                            |
-| ----- | ----------------------------------------------------------- | -------------------------------------- | -------------------------------- |
-| 1     | [#322](https://github.com/userfypp/plan-measure/issues/322) | Count symbols in one pass              |                                  |
-| 2     | [#235](https://github.com/userfypp/plan-measure/issues/235) | Text, callout and arrow markups        |                                  |
-| 3     | [#236](https://github.com/userfypp/plan-measure/issues/236) | Highlight and stamp markups            | After #235; schema migration     |
-| –     | [#234](https://github.com/userfypp/plan-measure/issues/234) | Small-screen and touch layout          | Layout only; touch drawing later |
-| –     | [#251](https://github.com/userfypp/plan-measure/issues/251) | Pages exceeds pause and memory budgets | Cause still unknown              |
+| Order | Issue                                                       | Work                                   | Notes                                                      |
+| ----- | ----------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| 1     | [#235](https://github.com/userfypp/plan-measure/issues/235) | Text, callout and arrow markups        |                                                            |
+| 2     | [#236](https://github.com/userfypp/plan-measure/issues/236) | Highlight and stamp markups            | After #235; schema migration                               |
+| –     | [#234](https://github.com/userfypp/plan-measure/issues/234) | Small-screen and touch layout          | Layout only; touch drawing later; part done (phone layout) |
+| –     | [#251](https://github.com/userfypp/plan-measure/issues/251) | Pages exceeds pause and memory budgets | Cause still unknown                                        |
 
 ## Later (P3)
 
-| Issue                                                       | Work                                     |
-| ----------------------------------------------------------- | ---------------------------------------- |
-| [#231](https://github.com/userfypp/plan-measure/issues/231) | UI translations, Spanish first           |
-| [#289](https://github.com/userfypp/plan-measure/issues/289) | Movable measurement labels               |
-| [#323](https://github.com/userfypp/plan-measure/issues/323) | Compare two versions of a plan           |
-| [#216](https://github.com/userfypp/plan-measure/issues/216) | Visual walkthrough page                  |
-| [#257](https://github.com/userfypp/plan-measure/issues/257) | Installable PWA, tested on Windows in CI |
+| Issue                                                       | Work                                                                              |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [#231](https://github.com/userfypp/plan-measure/issues/231) | UI translations, Spanish first                                                    |
+| [#216](https://github.com/userfypp/plan-measure/issues/216) | Visual walkthrough page                                                           |
+| [#257](https://github.com/userfypp/plan-measure/issues/257) | Windows CI job for the installable app (the app installs and works offline today) |
 
 ## Test coverage
 

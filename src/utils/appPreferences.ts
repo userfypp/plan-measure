@@ -46,6 +46,10 @@ export type RenderQuality = "balanced" | "sharp" | "fast";
 export type RasterCache = "small" | "normal" | "large";
 export type HitTolerance = "tight" | "normal" | "wide";
 export type TooltipDelay = "instant" | "fast" | "normal" | "slow";
+export type DuplicateOffset = "small" | "normal" | "large";
+export type KeyboardStep = "fine" | "normal" | "coarse";
+/** How alike a region must be to the boxed symbol for "Find similar" to count it. */
+export type SimilarMatch = "exact" | "high" | "balanced" | "loose";
 
 export interface AppPreferences {
   motion: MotionPreference;
@@ -88,6 +92,10 @@ export interface AppPreferences {
   renderQuality: RenderQuality;
   rasterCache: RasterCache;
   hitTolerance: HitTolerance;
+  duplicateOffset: DuplicateOffset;
+  keyboardStep: KeyboardStep;
+  similarMatch: SimilarMatch;
+  similarRotated: boolean;
   debugOverlay: boolean;
   /** The preset last applied; the effective keys are Default plus `shortcutBindings`. */
   shortcutPreset: PresetId;
@@ -140,6 +148,10 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   renderQuality: "balanced",
   rasterCache: "normal",
   hitTolerance: "normal",
+  duplicateOffset: "normal",
+  keyboardStep: "normal",
+  similarMatch: "balanced",
+  similarRotated: true,
   debugOverlay: false,
   shortcutPreset: "default",
   shortcutBindings: EMPTY_SHORTCUT_BINDINGS,
@@ -195,6 +207,10 @@ const VALIDATORS: { [K in keyof AppPreferences]: (value: unknown) => value is Ap
     renderQuality: oneOf("balanced", "sharp", "fast"),
     rasterCache: oneOf("small", "normal", "large"),
     hitTolerance: oneOf("tight", "normal", "wide"),
+    duplicateOffset: oneOf("small", "normal", "large"),
+    keyboardStep: oneOf("fine", "normal", "coarse"),
+    similarMatch: oneOf("exact", "high", "balanced", "loose"),
+    similarRotated: isBoolean,
     debugOverlay: isBoolean,
     shortcutPreset: oneOf<PresetId>(...PRESET_IDS),
     shortcutBindings: isShortcutBindings,
@@ -262,6 +278,20 @@ export const RASTER_CACHE_LIMITS: Record<RasterCache, { maxEntries: number; maxP
 
 /** On-screen hit stroke width of measurements (normal matches the previous fixed 12 px). */
 export const HIT_TOLERANCE_PX: Record<HitTolerance, number> = { tight: 8, normal: 12, wide: 16 };
+
+/** Screen pixels a same-page duplicate or paste sits from its source (normal matches the previous fixed 12 px). */
+export const DUPLICATE_OFFSET_PX: Record<DuplicateOffset, number> = {
+  small: 6,
+  normal: 12,
+  large: 24,
+};
+
+/** Multiplier for the keyboard cursor's arrow-key step (normal matches the previous fixed 1 px / 50 px with Shift). */
+export const KEYBOARD_STEP_SCALE: Record<KeyboardStep, number> = {
+  fine: 0.5,
+  normal: 1,
+  coarse: 2,
+};
 
 /** Keeps a separator pair readable: a thousands mark may never equal the decimal mark. */
 export function effectiveThousandsSeparator(
@@ -336,6 +366,16 @@ function commit(next: AppPreferences): void {
   writeStored(next);
   applyToDocument(next);
   listeners.forEach((listener) => listener());
+}
+
+/** The arrow-key step multiplier for the current preference. */
+export function keyboardStepScale(): number {
+  return KEYBOARD_STEP_SCALE[getAppPreferences().keyboardStep];
+}
+
+/** The same-page duplicate and paste offset, in screen pixels, for the current preference. */
+export function duplicateOffsetPx(): number {
+  return DUPLICATE_OFFSET_PX[getAppPreferences().duplicateOffset];
 }
 
 export function getAppPreferences(): AppPreferences {

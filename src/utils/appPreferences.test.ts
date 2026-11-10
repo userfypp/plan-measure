@@ -10,6 +10,8 @@ import {
   FILL_OPACITY_SCALE,
   HANDLE_SIZE_SCALE,
   HIT_TOLERANCE_PX,
+  DUPLICATE_OFFSET_PX,
+  KEYBOARD_STEP_SCALE,
   RASTER_CACHE_LIMITS,
   LABEL_BACKGROUND_OPACITY,
   LABEL_SIZE_SCALE,
@@ -333,6 +335,55 @@ describe("performance preferences", () => {
       rasterCache: "large",
       hitTolerance: "wide",
       debugOverlay: true,
+    });
+  });
+});
+
+describe("drawing and counting preferences", () => {
+  it("default to today's behaviour", () => {
+    expect(DEFAULT_APP_PREFERENCES).toMatchObject({
+      duplicateOffset: "normal",
+      keyboardStep: "normal",
+      similarMatch: "balanced",
+      similarRotated: true,
+    });
+    expect(DUPLICATE_OFFSET_PX).toEqual({ small: 6, normal: 12, large: 24 });
+    expect(KEYBOARD_STEP_SCALE).toEqual({ fine: 0.5, normal: 1, coarse: 2 });
+  });
+
+  it("rejects invalid values and keeps valid ones through the settings file", () => {
+    setAppPreference("duplicateOffset", "huge" as never);
+    setAppPreference("keyboardStep", 2 as never);
+    setAppPreference("similarMatch", "fuzzy" as never);
+    setAppPreference("similarRotated", "yes" as never);
+    expect(getAppPreferences()).toEqual(DEFAULT_APP_PREFERENCES);
+    setAppPreference("duplicateOffset", "large");
+    setAppPreference("keyboardStep", "fine");
+    setAppPreference("similarMatch", "exact");
+    setAppPreference("similarRotated", false);
+    const json = exportAppPreferencesJson();
+    resetAppPreferences();
+    expect(importAppPreferencesJson(json)).toBe(true);
+    expect(getAppPreferences()).toMatchObject({
+      duplicateOffset: "large",
+      keyboardStep: "fine",
+      similarMatch: "exact",
+      similarRotated: false,
+    });
+  });
+
+  it("fills the new keys with defaults when an older settings file lacks them", () => {
+    window.localStorage.setItem(
+      APP_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ tooltipDelay: "fast" }),
+    );
+    reloadAppPreferencesFromStorage();
+    expect(getAppPreferences()).toMatchObject({
+      tooltipDelay: "fast",
+      duplicateOffset: "normal",
+      keyboardStep: "normal",
+      similarMatch: "balanced",
+      similarRotated: true,
     });
   });
 });

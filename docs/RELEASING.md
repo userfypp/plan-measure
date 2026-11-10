@@ -21,7 +21,7 @@ Ordinary changes to `main` also deploy to Pages. Pushing a tag does not deploy t
 
 To choose the bump yourself, open **Actions → Release Please → Run workflow** on `main` and pick **patch**, **minor**, or **major**. The draft release PR is rebuilt with that version, and its `release: <bump>` label keeps the choice on later updates until the release ships. Pick **auto** to return to the table above; the default, **keep**, leaves the current choice. If no release PR exists yet (no releasable commits), nothing is saved and the run warns. Conflicting labels stop the run.
 
-Use Conventional Commit PR titles. Maintenance types are hidden from notes, and `ci:` alone does not create a release.
+Use Conventional Commit PR titles. Maintenance types are hidden from notes, and `ci:` alone does not create a release. The newest notes also appear in the app's **What's new** (see the [user guide](user-guide.md#view-and-settings) and [Architecture](ARCHITECTURE.md#build-output)).
 
 The first **Summary** bullet of the PR, including continuation lines, is the release description, so keep it accurate. Use inline code for commands, paths, identifiers, flags, and literal values; use plain text for UI labels. Notes preserve Markdown and link the source PR and explicit closing references. Missing summaries fall back to generated descriptions, and distinct entries from one commit keep their specific descriptions. Breaking changes have their own section; `docs:` appears under **Documentation**.
 

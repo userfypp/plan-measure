@@ -24,6 +24,7 @@ import {
   parkedThumbnails,
   type ThumbnailQueue,
 } from "./thumbnailQueue";
+import { useShortcutAria, useShortcutLabel } from "../../utils/shortcuts/store";
 import styles from "./PageBrowser.module.css";
 
 interface PageBrowserProps {
@@ -91,6 +92,8 @@ export function PageBrowser({
   const queueRef = useRef<ThumbnailQueue | null>(null);
   const wantedRef = useRef<number[]>([]);
   const id = useId();
+  const pagesShortcut = useShortcutLabel("page.panel");
+  const pagesKeys = useShortcutAria("page.panel");
   const pages = useMemo(
     () => filterPages(document.numPages, labels, search),
     [document.numPages, labels, search],
@@ -263,7 +266,8 @@ export function PageBrowser({
         <IconButton
           icon={<CloseIcon />}
           aria-label="Close pages"
-          tooltip="Close pages"
+          aria-keyshortcuts={pagesKeys || undefined}
+          tooltip={pagesShortcut ? `Close pages (${pagesShortcut})` : "Close pages"}
           tooltipPosition="bottom"
           onClick={onClose}
         />

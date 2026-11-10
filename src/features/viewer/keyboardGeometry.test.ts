@@ -83,6 +83,24 @@ describe("keyboard cursor", () => {
     }
   });
 
+  it("scales the step by the keyboard step setting, precise and fast", () => {
+    const large = { width: 2000, height: 2000, rotation: 0 as const };
+    const origin = { x: 500, y: 500 };
+    for (const [stepScale, precise, fast] of [
+      [0.5, 0.5, 25],
+      [1, 1, 50],
+      [2, 2, 100],
+    ] as const) {
+      expect(moveKeyboardCursor(origin, "ArrowRight", 1, false, large, 0, stepScale).x - 500).toBe(
+        precise,
+      );
+      expect(moveKeyboardCursor(origin, "ArrowRight", 1, true, large, 0, stepScale).x - 500).toBe(
+        fast,
+      );
+    }
+    expect(moveKeyboardCursor(origin, "ArrowDown", 2, false, large, 0, 2).y - 500).toBe(1);
+  });
+
   it("clamps each page edge including rotation-aware bounds", () => {
     expect(moveKeyboardCursor({ x: 0, y: 0 }, "ArrowLeft", 1, true, bounds)).toEqual({
       x: 0,

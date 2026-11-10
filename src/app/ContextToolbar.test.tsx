@@ -1128,6 +1128,105 @@ describe("selection shortcuts", () => {
     });
   });
 
+  describe("count.addItems", () => {
+    const count = {
+      id: "count",
+      name: "Plug",
+      type: "count" as const,
+      calibrationId: null,
+      points: [{ x: 1, y: 2 }],
+      classificationValueIds: [],
+      visible: true,
+    };
+    const countProps = (overrides: Partial<ContextToolbarProps> = {}) =>
+      props({
+        selectedMeasurements: [count],
+        selectedMeasurementId: count.id,
+        selectedMeasurementName: count.name,
+        onAddCountItems: vi.fn(),
+        ...overrides,
+      });
+
+    it("adds items like the Add items button and follows rebinding", () => {
+      const onAddCountItems = vi.fn();
+      renderToolbar(countProps({ onAddCountItems }));
+
+      expect(pressKey("a").defaultPrevented).toBe(true);
+      expect(onAddCountItems).toHaveBeenCalledOnce();
+
+      bind({ "count.addItems": ["J"] });
+      expect(pressKey("a").defaultPrevented).toBe(false);
+      pressKey("j");
+      expect(onAddCountItems).toHaveBeenCalledTimes(2);
+    });
+
+    it("does nothing while the button is disabled or absent, or an overlay is open", () => {
+      const onAddCountItems = vi.fn();
+      renderToolbar(
+        countProps({ onAddCountItems, addCountItemsDisabledReason: "Show this count first" }),
+      );
+      expect(pressKey("a").defaultPrevented).toBe(false);
+
+      renderToolbar(countProps({ onAddCountItems }));
+      withOverlay(() => {
+        expect(pressKey("a").defaultPrevented).toBe(false);
+      });
+
+      renderToolbar(props({ selectedMeasurements: pair, onAddCountItems }));
+      expect(pressKey("a").defaultPrevented).toBe(false);
+      expect(onAddCountItems).not.toHaveBeenCalled();
+    });
+
+    it("shows its key on the button and drops it when unbound", () => {
+      renderToolbar(countProps());
+      expect(tooltipOf(buttonByLabel("Add items"))).toBe("Add items (A)");
+      expect(buttonByLabel("Add items").getAttribute("aria-keyshortcuts")).toBe("A");
+
+      bind({ "count.addItems": [] });
+      expect(tooltipOf(buttonByLabel("Add items"))).toBe("Add items");
+      expect(buttonByLabel("Add items").hasAttribute("aria-keyshortcuts")).toBe(false);
+    });
+  });
+
+  describe("count.findSimilar", () => {
+    it("starts Find similar from the Count tool and follows rebinding", () => {
+      renderToolbar();
+      act(() => workspace!.chooseTool("count"));
+
+      expect(pressKey("y").defaultPrevented).toBe(true);
+      expect(getSymbolCount().active).toBe(true);
+      act(() => stopSymbolCount());
+
+      bind({ "count.findSimilar": ["J"] });
+      expect(pressKey("y").defaultPrevented).toBe(false);
+      expect(getSymbolCount().active).toBe(false);
+      pressKey("j");
+      expect(getSymbolCount().active).toBe(true);
+    });
+
+    it("does nothing outside the Count tool or while an overlay is open", () => {
+      renderToolbar();
+      expect(pressKey("y").defaultPrevented).toBe(false);
+
+      act(() => workspace!.chooseTool("count"));
+      withOverlay(() => {
+        expect(pressKey("y").defaultPrevented).toBe(false);
+      });
+      expect(getSymbolCount().active).toBe(false);
+    });
+
+    it("shows its key on the button and drops it when unbound", () => {
+      renderToolbar();
+      act(() => workspace!.chooseTool("count"));
+      expect(tooltipOf(buttonByLabel("Find similar"))).toBe("Find similar (Y)");
+      expect(buttonByLabel("Find similar").getAttribute("aria-keyshortcuts")).toBe("Y");
+
+      bind({ "count.findSimilar": [] });
+      expect(tooltipOf(buttonByLabel("Find similar"))).toBe("Find similar");
+      expect(buttonByLabel("Find similar").hasAttribute("aria-keyshortcuts")).toBe(false);
+    });
+  });
+
   describe("edit.rename", () => {
     it("starts renaming the single selected measurement with focus in the field", () => {
       renderSingle();

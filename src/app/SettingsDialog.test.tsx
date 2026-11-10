@@ -794,6 +794,34 @@ describe("SettingsDialog", () => {
     });
   });
 
+  it("stores the duplicate offset, keyboard step and Find similar options under Drawing", async () => {
+    renderSettings();
+    await openSettings();
+    openTab("Drawing");
+    expect(selectByLabel("Duplicate offset").textContent).toBe("Normal");
+    expect(selectByLabel("Keyboard cursor step").textContent).toBe("Normal");
+    expect(selectByLabel("Find similar match").textContent).toBe("Balanced");
+    expect(switchControl("Find similar rotated symbols").checked).toBe(true);
+    choose("Duplicate offset", "Large");
+    choose("Keyboard cursor step", "Fine");
+    choose("Find similar match", "Exact");
+    act(() => switchControl("Find similar rotated symbols").click());
+    expect(
+      JSON.parse(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY) ?? "{}"),
+    ).toMatchObject({
+      duplicateOffset: "large",
+      keyboardStep: "fine",
+      similarMatch: "exact",
+      similarRotated: false,
+    });
+    expect(getAppPreferences()).toMatchObject({
+      duplicateOffset: "large",
+      keyboardStep: "fine",
+      similarMatch: "exact",
+      similarRotated: false,
+    });
+  });
+
   it("renders Appearance as a Select and persists the change while keeping Settings open", async () => {
     renderSettings({ theme: "dark" });
     await openSettings();

@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  reloadAppPreferencesFromStorage,
+  resetAppPreferences,
+  setAppPreference,
+} from "../../utils/appPreferences";
 import {
   EMPTY_BOX_MESSAGE,
   SMALL_BOX_MESSAGE,
@@ -37,6 +42,10 @@ function setup() {
 }
 
 beforeEach(() => stopSymbolCount());
+afterEach(() => {
+  resetAppPreferences();
+  reloadAppPreferencesFromStorage();
+});
 
 describe("symbol count session", () => {
   it("searches the box and returns matches in page units", () => {
@@ -159,5 +168,31 @@ describe("symbol count session", () => {
     session.reset();
     expect(terminate).toHaveBeenCalled();
     expect(session.getState().phase).toBe("pick");
+  });
+});
+
+describe("symbol count defaults from Settings", () => {
+  it("starts from the default similarity and rotation", () => {
+    const { session } = setup();
+    expect(session.getState()).toMatchObject({ similarity: "balanced", orientations: true });
+  });
+
+  it("starts a new session from the saved similarity and rotation", () => {
+    setAppPreference("similarMatch", "high");
+    setAppPreference("similarRotated", false);
+    const { session, search, start } = setup();
+    expect(session.getState()).toMatchObject({ similarity: "high", orientations: false });
+    start();
+    expect(search).toHaveBeenCalledWith({ x: 0, y: 0, width: 2, height: 2 }, false);
+  });
+
+  it("applies a changed setting on reset and drops the previous run's choices", () => {
+    const { session, start, callbacks } = setup();
+    start();
+    callbacks().onResult({ matches: [match(20, 20, 1)] });
+    session.setSimilarity("loose");
+    setAppPreference("similarMatch", "exact");
+    session.reset();
+    expect(session.getState()).toMatchObject({ phase: "pick", similarity: "exact", matches: [] });
   });
 });

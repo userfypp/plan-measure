@@ -166,12 +166,14 @@ function ShortcutButton({
   disabled,
   danger,
   actionId,
+  disabledReason,
   onClick,
 }: {
   label: string;
   icon: ReactNode;
   pressed?: boolean;
   disabled?: boolean;
+  disabledReason?: string;
   danger?: boolean;
   actionId: ActionId;
   onClick: () => void;
@@ -193,33 +195,23 @@ function ShortcutButton({
       tooltipPosition="bottom"
       pressed={pressed}
       disabled={disabled}
+      disabledReason={disabledReason}
       onClick={onClick}
     />
   );
 }
 
 /**
- * Renders nothing. It is mounted with the selection toolbar and given only the commands whose
- * buttons are currently shown and enabled, so each key is live exactly while its button is.
+ * Renders nothing. It is mounted with a toolbar and given only the commands whose buttons are
+ * currently shown and enabled, so each key is live exactly while its button is.
  */
-function SelectionShortcuts({
-  duplicate,
-  details,
-  visibility,
+function ToolbarShortcuts({
+  handlers,
 }: {
-  duplicate: (() => void) | null;
-  details: (() => void) | null;
-  visibility: (() => void) | null;
+  handlers: Partial<Record<ActionId, (() => void) | null>>;
 }) {
   useShortcutHandlers((action, event) => {
-    const run =
-      action === "edit.duplicate"
-        ? duplicate
-        : action === "measurement.toggleDetails"
-          ? details
-          : action === "measurement.toggleVisibility"
-            ? visibility
-            : null;
+    const run = handlers[action];
     if (!run || isBlockingOverlayOpen()) return false;
     event.preventDefault();
     run();
@@ -546,6 +538,7 @@ export function ContextToolbar({
     }
     return (
       <ToolbarComposite label="Count drawing controls" contextKind="drawing" drawingTool="count">
+        <ToolbarShortcuts handlers={{ "count.findSimilar": startSymbolCount }} />
         <span className={styles.toolIdentity} role="status">
           {count ? "Click to add items" : "Click to start a count"}
         </span>
@@ -557,12 +550,10 @@ export function ContextToolbar({
           />
         )}
         <Divider />
-        <IconButton
-          className={styles.selectionIconButton}
+        <ShortcutButton
+          label="Find similar"
           icon={<SearchIcon />}
-          aria-label="Find similar"
-          tooltip="Find similar"
-          tooltipPosition="bottom"
+          actionId="count.findSimilar"
           onClick={startSymbolCount}
         />
         <IconButton
@@ -691,16 +682,22 @@ export function ContextToolbar({
 
   return (
     <ToolbarComposite label="Selected measurement controls" contextKind="selection">
-      <SelectionShortcuts
-        duplicate={duplicateDisabled ? null : onDuplicateSelectedMeasurement}
-        details={
-          singleSelection
+      <ToolbarShortcuts
+        handlers={{
+          "edit.duplicate": duplicateDisabled ? null : onDuplicateSelectedMeasurement,
+          "measurement.toggleDetails": singleSelection
             ? measurementDetailsOpen
               ? onCloseMeasurementDetails
               : onOpenMeasurementDetails
-            : null
-        }
-        visibility={toggleSelectedVisibility}
+            : null,
+          "measurement.toggleVisibility": toggleSelectedVisibility,
+          "count.addItems":
+            singleSelection &&
+            selectedMeasurements?.[0]?.type === "count" &&
+            !addCountItemsDisabledReason
+              ? (onAddCountItems ?? null)
+              : null,
+        }}
       />
       {singleSelection ? (
         <MeasurementNameEditor
@@ -715,12 +712,10 @@ export function ContextToolbar({
       )}
       <Divider />
       {singleSelection && selectedMeasurements?.[0]?.type === "count" && onAddCountItems && (
-        <IconButton
-          className={styles.selectionIconButton}
-          aria-label="Add items"
-          tooltip="Add items"
-          tooltipPosition="bottom"
+        <ShortcutButton
+          label="Add items"
           icon={<AddItemsIcon />}
+          actionId="count.addItems"
           disabled={Boolean(addCountItemsDisabledReason)}
           disabledReason={addCountItemsDisabledReason}
           onClick={onAddCountItems}

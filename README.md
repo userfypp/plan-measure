@@ -19,9 +19,12 @@ Measure distances, perimeters, and areas on architectural PDF plans, then export
 ## Features
 
 - Calibrate each page with a reference distance, separate X/Y scales, or a known ratio.
-- Draw and edit lines, polylines, and polygons with Snap, Ortho, and undo/redo.
+- Draw and edit lines, polylines, polygons, rectangles, ellipses, and clouds with Snap, Ortho, and undo/redo.
+- Count items, or box one symbol to find every similar one.
 - Organize measurements with classifications, groups, notes, and reusable templates.
-- Review totals across pages in Takeoff.
+- Review totals across pages in Takeoff, with optional prices.
+- Compare two versions of a plan.
+- Rebind any keyboard shortcut and tune drawing in Settings.
 - Export CSV, XLSX, ODS, JSON, annotated PDFs, or editable project backups.
 
 ## Quick start
@@ -31,7 +34,7 @@ Measure distances, perimeters, and areas on architectural PDF plans, then export
 3. Choose **Line**, **Polyline**, or **Polygon**, click to place points, and press `Enter` to finish.
 4. Open **Takeoff** for totals or **Export** to download results.
 
-See the [user guide](docs/user-guide.md) for scales, editing, exports, recovery, and keyboard controls.
+See the [user guide](docs/user-guide.md) for scales, editing, settings, keyboard controls, exports, recovery, and [offline use](docs/user-guide.md#install-the-app-and-use-it-offline).
 
 ## Storage and limits
 
@@ -40,7 +43,7 @@ Projects autosave in this browser, with no cloud sync; clearing site data remove
 - PDFs up to 100 MiB (104.9 MB); password-protected PDFs cannot be opened.
 - Drawing needs at least 480 × 360 px of viewer space and a fine pointer, or keyboard authoring enabled in Settings.
 - X/Y calibration corrects axis scale differences, not skew or perspective.
-- Offline use depends on the browser cache; it is not yet an installable PWA.
+- Offline use needs one online visit first; private windows skip it.
 
 ## Development
 
@@ -51,4 +54,4 @@ npm ci
 npm run dev
 ```
 
-[Contributing](CONTRIBUTING.md) · [Credits](CREDITS.md) · [Roadmap](docs/ROADMAP.md) · [Releasing](docs/RELEASING.md) · [JSON export contract](docs/export-json.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+[User guide](docs/user-guide.md) · [Contributing](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md) · [Performance](docs/PERFORMANCE.md) · [Roadmap](docs/ROADMAP.md) · [Releasing](docs/RELEASING.md) · [JSON export contract](docs/export-json.md) · [Changelog](CHANGELOG.md) · [Credits](CREDITS.md) · [Security](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)

@@ -123,6 +123,21 @@ const ZOOM_STEP_OPTIONS = [
   { value: "coarse", label: "Coarse" },
 ] as const;
 
+const DUPLICATE_OFFSET_OPTIONS = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+] as const;
+
+const KEYBOARD_STEP_OPTIONS = ZOOM_STEP_OPTIONS;
+
+const SIMILAR_MATCH_OPTIONS = [
+  { value: "exact", label: "Exact" },
+  { value: "high", label: "High" },
+  { value: "balanced", label: "Balanced" },
+  { value: "loose", label: "Loose" },
+] as const;
+
 const DEFAULT_ZOOM_OPTIONS = [
   { value: "fit-page", label: "Fit page" },
   { value: "fit-width", label: "Fit width" },
@@ -1325,6 +1340,33 @@ export function SettingsDialog({
                     label="Live segment length"
                     checked={preferences.liveLength}
                     onChange={set("liveLength")}
+                  />
+                  <SelectRow
+                    label="Duplicate offset"
+                    help="How far a duplicate or a paste on the same page sits from the original."
+                    value={preferences.duplicateOffset}
+                    options={DUPLICATE_OFFSET_OPTIONS}
+                    onChange={set("duplicateOffset")}
+                  />
+                  <SelectRow
+                    label="Keyboard cursor step"
+                    help="Distance the arrow keys move the keyboard cursor. Shift moves it faster."
+                    value={preferences.keyboardStep}
+                    options={KEYBOARD_STEP_OPTIONS}
+                    onChange={set("keyboardStep")}
+                  />
+                  <SelectRow
+                    label="Find similar match"
+                    help="How alike a region must be to the boxed symbol to count. Adjustable while reviewing."
+                    value={preferences.similarMatch}
+                    options={SIMILAR_MATCH_OPTIONS}
+                    onChange={set("similarMatch")}
+                  />
+                  <SwitchRow
+                    label="Find similar rotated symbols"
+                    help="Also finds rotated and mirrored copies of the boxed symbol."
+                    checked={preferences.similarRotated}
+                    onChange={set("similarRotated")}
                   />
                 </div>
               )}

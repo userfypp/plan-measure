@@ -14,6 +14,7 @@ import {
 } from "./pageBrowserModel";
 import { DEFERRED_PREVIEW_FILE_BYTES, prefetchThumbnails } from "./thumbnailQueue";
 import { releaseRetainedThumbnails } from "./thumbnailRetention";
+import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 
 let root: Root, container: HTMLDivElement;
 let pdf: PDFDocumentProxy;
@@ -90,6 +91,7 @@ beforeEach(() => {
   root = createRoot(container);
 });
 afterEach(async () => {
+  resetAppPreferences();
   await act(async () => root.unmount());
   releaseRetainedThumbnails();
   container.remove();
@@ -211,6 +213,26 @@ describe("page browser", () => {
     );
     expect(close).toHaveBeenCalledTimes(1);
   });
+  it("shows the Pages shortcut on Close pages and follows a rebinding", async () => {
+    await mount(1, false, 12);
+    const button = () => container.querySelector<HTMLElement>('[aria-label="Close pages"]')!;
+    const tooltipOf = async () => {
+      await act(async () => setAppPreference("tooltipDelay", "instant"));
+      await act(async () => button().dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+      const text = document.querySelector('[role="tooltip"]')?.textContent;
+      await act(async () => button().dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+      return text;
+    };
+    expect(await tooltipOf()).toBe("Close pages (T)");
+    expect(button().getAttribute("aria-keyshortcuts")).toBe("T");
+    await act(async () => setAppPreference("shortcutBindings", { "page.panel": ["Y"] }));
+    expect(await tooltipOf()).toBe("Close pages (Y)");
+    expect(button().getAttribute("aria-keyshortcuts")).toBe("Y");
+    await act(async () => setAppPreference("shortcutBindings", { "page.panel": [] }));
+    expect(await tooltipOf()).toBe("Close pages");
+    expect(button().hasAttribute("aria-keyshortcuts")).toBe(false);
+  });
+
   it("validates physical page range separately from PDF labels", async () => {
     await mount();
     const field = container.querySelector<HTMLInputElement>('input[type="number"]')!;
