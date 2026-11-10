@@ -3,6 +3,7 @@ import { useNumberFormatKey } from "../../utils/appPreferences";
 import {
   AnchoredMenu,
   ArrowLeftIcon,
+  Button,
   ChevronLeftIcon,
   ChevronRightIcon,
   IconButton,
@@ -49,6 +50,7 @@ export interface MeasurementDetailsProps {
   onSaveNote: (note: string) => void;
   /** Present only where cloud colors can be edited. */
   onChangeColor?: (color: string) => void;
+  onResetLabelPosition?: () => void;
   onAssignClassification: (
     measurementId: string,
     dimensionId: string,
@@ -131,6 +133,7 @@ export function MeasurementDetails({
   onBack,
   onSaveNote,
   onChangeColor,
+  onResetLabelPosition,
   onAssignClassification,
   onRemoveCountItem,
   onRenameCountItem,
@@ -274,6 +277,21 @@ export function MeasurementDetails({
                   disabled={assignmentDisabled}
                   onChange={onChangeColor}
                 />
+              </dd>
+            </div>
+          )}
+          {measurement.labelOffset && onResetLabelPosition && (
+            <div className={[styles.cell, styles.wideCell].join(" ")}>
+              <dt>Label</dt>
+              <dd>
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  disabled={assignmentDisabled}
+                  onClick={onResetLabelPosition}
+                >
+                  Reset label position
+                </Button>
               </dd>
             </div>
           )}

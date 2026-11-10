@@ -2018,6 +2018,19 @@ describe("session persistence", () => {
     ).not.toHaveProperty("note");
   });
 
+  it("round trips a label offset and rejects an invalid one", () => {
+    const session = currentMeasuredSession();
+    session.pages[2]!.measurements[0]!.labelOffset = { x: 12.5, y: -4 };
+    const restored = deserializeSession(serializeSession(session));
+    expect(restored.pages[2]?.measurements[0]?.labelOffset).toEqual({ x: 12.5, y: -4 });
+
+    const saved = JSON.parse(serializeSession(currentMeasuredSession())) as {
+      pages: Record<string, { measurements: Record<string, unknown>[] }>;
+    };
+    saved.pages["2"]!.measurements[0]!.labelOffset = { x: "1", y: 2 };
+    expect(() => deserializeSession(JSON.stringify(saved))).toThrow();
+  });
+
   it("rejects invalid V11 page-label override records instead of repairing them", () => {
     const base = JSON.parse(serializeSession(currentMeasuredSession())) as Record<string, unknown>;
     const invalidOverrides: unknown[] = [

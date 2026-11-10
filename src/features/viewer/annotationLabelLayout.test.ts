@@ -112,6 +112,16 @@ describe("planLabelLayout", () => {
     );
   });
 
+  it("shifts a moved label by its offset from the default placement", () => {
+    const moved = { ...horizontal, labelOffset: { x: 30, y: -40 } } as Measurement;
+    const defaultPlacement = plan([horizontal]).get("measurement:horizontal")!;
+
+    expect(plan([moved]).get("measurement:horizontal")).toEqual({
+      x: defaultPlacement.x + 30,
+      y: defaultPlacement.y - 40,
+    });
+  });
+
   it("keeps existing labels in place when a measurement is added", () => {
     const before = plan([horizontal, vertical]);
     const after = plan([horizontal, vertical, diagonal]);

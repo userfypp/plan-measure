@@ -40,6 +40,7 @@ import {
 import { CLOUD_FILL_OPACITY, resolveCloudColor, withHexAlpha } from "../../utils/cloudColors";
 import { clampPointToPage, screenToPage } from "../../utils/coordinates";
 import {
+  applyLabelOffset,
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelInsideMeasurementGeometry,
   placeLabelWithinBounds,
@@ -87,6 +88,7 @@ import {
   type CanvasVisualRoles,
 } from "./canvasVisualRoles";
 import { pointsToFlat } from "./geometry";
+import type { LabelDrag, LabelDragContext } from "./labelDrag";
 import { isPrimaryViewerClick } from "./navigation";
 import {
   drawMeasurementHit,
@@ -226,8 +228,11 @@ export const MeasurementShape = memo(function MeasurementShape({
   );
   const strokeScale = LINE_THICKNESS_SCALE[lineThickness];
   const labelFontSize = MEASUREMENT_LABEL_FONT_SIZE_SCREEN_PX * LABEL_SIZE_SCALE[labelSize];
-  const { updateMeasurement: updateSessionMeasurement, updateMeasurements } =
-    useMeasurementCommands();
+  const {
+    updateMeasurement: updateSessionMeasurement,
+    updateMeasurements,
+    setMeasurementLabelOffset,
+  } = useMeasurementCommands();
   const measurementGroupRef = useRef<KonvaGroup>(null);
   const wholeDragNodeRef = useRef<KonvaNode>(null);
   const wholeDragNodeOriginRef = useRef<Point>({ x: 0, y: 0 });
@@ -370,9 +375,16 @@ export const MeasurementShape = memo(function MeasurementShape({
       4,
       plannedOccupiedLabelRect,
     );
-    return (
+    return applyLabelOffset(
       insidePlacement ??
-      placeLabelWithinBounds(labelPoint, labelDimensions, bounds, zoom, LABEL_EDGE_MARGIN_SCREEN_PX)
+        placeLabelWithinBounds(
+          labelPoint,
+          labelDimensions,
+          bounds,
+          zoom,
+          LABEL_EDGE_MARGIN_SCREEN_PX,
+        ),
+      measurement.labelOffset,
     );
   }, [
     bounds,
@@ -381,6 +393,7 @@ export const MeasurementShape = memo(function MeasurementShape({
     labelCollisionIndex,
     labelDimensions,
     labelPoint,
+    measurement.labelOffset,
     plannedLabelPlacement,
     plannedOccupiedLabelRect,
     visibleMeasurement,
@@ -391,6 +404,8 @@ export const MeasurementShape = memo(function MeasurementShape({
     selected || wholeDragPrepared,
     wholeDragEditable,
   );
+  // Only a lone selected measurement under the select tool: its label can be dragged.
+  const labelDraggable = wholeMeasurementDraggable && (groupMeasurements?.length ?? 0) <= 1;
   const countUsesWholeDrag =
     measurement.type === "count" &&
     (measurement.points.length === 1 || (groupMeasurements?.length ?? 0) > 1);
@@ -560,7 +575,7 @@ export const MeasurementShape = memo(function MeasurementShape({
           zoom,
           LABEL_EDGE_MARGIN_SCREEN_PX,
         );
-      preview.label.position(placement);
+      preview.label.position(applyLabelOffset(placement, measurement.labelOffset));
     }
   }
 
@@ -602,10 +617,8 @@ export const MeasurementShape = memo(function MeasurementShape({
           zoom,
           LABEL_EDGE_MARGIN_SCREEN_PX,
         );
-      preview.label.position({
-        x: placement.x - result.delta.x,
-        y: placement.y - result.delta.y,
-      });
+      const { x, y } = applyLabelOffset(placement, measurement.labelOffset);
+      preview.label.position({ x: x - result.delta.x, y: y - result.delta.y });
     }
   }
 
@@ -1068,6 +1081,37 @@ export const MeasurementShape = memo(function MeasurementShape({
     );
   }
 
+  // The label drag is loaded on demand: only a selected measurement's label can be dragged.
+  const labelDragContext = useRef<LabelDragContext | null>(null);
+  labelDragContext.current = [
+    measurement,
+    pageNumber,
+    transform,
+    zoom,
+    bounds,
+    setMeasurementLabelOffset,
+    onMeasurementEditActiveChange,
+    onWholeMeasurementDragCancellationChange,
+  ];
+  const [labelDrag, setLabelDrag] = useState<LabelDrag | null>(null);
+  useEffect(() => {
+    if (!labelDraggable) return;
+    let drag: LabelDrag | undefined;
+    let active = true;
+    void import("./labelDrag")
+      .then(({ createLabelDrag }) => {
+        if (!active) return;
+        drag = createLabelDrag(() => labelDragContext.current!);
+        setLabelDrag(drag);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      drag?.dispose();
+      setLabelDrag(null);
+    };
+  }, [labelDraggable]);
+
   const lineHandlers = {
     prepareWholeMouseDrag,
     prepareWholeTouchDrag,
@@ -1273,7 +1317,10 @@ export const MeasurementShape = memo(function MeasurementShape({
           name="measurement-preview-label"
           x={labelPlacement.x}
           y={labelPlacement.y}
-          listening={false}
+          listening={labelDrag !== null}
+          draggable={labelDrag !== null}
+          onClick={select}
+          {...labelDrag?.listeners}
         >
           <Tag
             fill={labelColors.background}

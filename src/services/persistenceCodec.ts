@@ -178,11 +178,15 @@ function isMeasurementV5(value: unknown): value is MeasurementV5 {
   if (!isMeasurementV4(value) || !isObject(value)) return false;
   return hasValidClassificationValueIds(value);
 }
+function hasValidLabelOffset(value: Record<string, unknown>): boolean {
+  return value.labelOffset === undefined || isPoint(value.labelOffset);
+}
 function isMeasurement(value: unknown): value is Measurement {
   return (
     isObject(value) &&
     typeof value.visible === "boolean" &&
     (value.note === undefined || typeof value.note === "string") &&
+    hasValidLabelOffset(value) &&
     isMeasurementV5(value)
   );
 }
@@ -196,6 +200,7 @@ function isCountMeasurement(value: unknown): value is Measurement {
     hasValidClassificationValueIds(value) &&
     typeof value.visible === "boolean" &&
     (value.note === undefined || typeof value.note === "string") &&
+    hasValidLabelOffset(value) &&
     hasValidCountItemNames(value)
   );
 }
@@ -219,7 +224,8 @@ function isUncalibratedCloudMeasurement(value: unknown): value is Measurement {
     hasValidMeasurementPoints("cloud", value.points as Point[]) &&
     hasValidClassificationValueIds(value) &&
     typeof value.visible === "boolean" &&
-    (value.note === undefined || typeof value.note === "string")
+    (value.note === undefined || typeof value.note === "string") &&
+    hasValidLabelOffset(value)
   );
 }
 
@@ -1081,6 +1087,9 @@ function canonicalizeSessionV10(session: SessionV10 | SessionV12 | SessionV13): 
         ...(measurement.type === "count" || measurement.color === undefined
           ? {}
           : { color: measurement.color }),
+        ...(measurement.labelOffset
+          ? { labelOffset: { x: measurement.labelOffset.x, y: measurement.labelOffset.y } }
+          : {}),
         ...(measurement.type === "count" && measurement.itemNames
           ? { itemNames: [...measurement.itemNames] }
           : {}),

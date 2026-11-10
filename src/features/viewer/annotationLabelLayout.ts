@@ -8,6 +8,7 @@ import type {
   Point,
 } from "../../types/domain";
 import {
+  applyLabelOffset,
   createLabelCollisionIndex,
   LABEL_EDGE_MARGIN_SCREEN_PX,
   placeLabelInsideMeasurementGeometry,
@@ -324,14 +325,17 @@ export function planLabelLayout(
       if (data!.text === null) return;
       const key = `measurement:${measurement.id}`;
       const dimensions = measurementDimensions(data!.text);
-      const placement = placeMeasurementLabel(
-        measurement.type,
-        measurement.points,
-        data!.anchor,
-        dimensions,
-        bounds,
-        zoom,
-        occupied,
+      const placement = applyLabelOffset(
+        placeMeasurementLabel(
+          measurement.type,
+          measurement.points,
+          data!.anchor,
+          dimensions,
+          bounds,
+          zoom,
+          occupied,
+        ),
+        measurement.labelOffset,
       );
       reuse.measurementLabels[index]!.placed = store(key, placement, dimensions);
     });
