@@ -144,8 +144,9 @@
   min-height: var(--control-height-regular);
   align-items: center;
   justify-content: space-between;
-  /* "Add items" sits over the column of row actions. */
-  padding-inline: var(--space-4) calc(var(--space-4) + var(--border-width));
+  /* "Add items" is a bordered control: it ends on the same edge as the list, the cards and the note's
+     save button. */
+  padding-inline: var(--space-4) 0;
 }
 
 .itemsList {

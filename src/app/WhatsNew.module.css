@@ -1,4 +1,6 @@
-/* Sits at the end of the start card's action row, after Open PDF and Try a sample. */
+/* Sits at the end of the start card's action row, after Open PDF and Try a sample. The button keeps its
+   full compact box (12 of padding each side), so its hover box ends on the card's content edge like the
+   sibling buttons'. */
 .trigger {
   margin-inline-start: auto;
 }
