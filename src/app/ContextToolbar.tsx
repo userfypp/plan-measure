@@ -476,8 +476,7 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           icon={<CloseIcon />}
           aria-label="Cancel"
-          aria-keyshortcuts="Escape"
-          tooltip="Cancel (Esc)"
+          tooltip="Cancel"
           tooltipPosition="bottom"
           onClick={onCancelReferenceEdit}
         />
@@ -502,8 +501,7 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           icon={<CloseIcon />}
           aria-label="Cancel"
-          aria-keyshortcuts="Escape"
-          tooltip="Cancel (Esc)"
+          tooltip="Cancel"
           tooltipPosition="bottom"
           onClick={onCancelCalibration}
         />
@@ -571,8 +569,7 @@ export function ContextToolbar({
           className={styles.selectionIconButton}
           icon={<CheckIcon />}
           aria-label="Done"
-          aria-keyshortcuts="Enter"
-          tooltip="Done (Enter)"
+          tooltip="Done"
           tooltipPosition="bottom"
           onClick={onExitDrawingTool}
         />
@@ -627,8 +624,7 @@ export function ContextToolbar({
               className={styles.selectionControlSize}
               icon={<CheckIcon />}
               aria-label="Finish"
-              aria-keyshortcuts="Enter"
-              tooltip="Finish (Enter)"
+              tooltip="Finish"
               tooltipPosition="bottom"
               tone="primary"
               disabled={!canFinish}

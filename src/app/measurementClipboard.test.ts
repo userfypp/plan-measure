@@ -241,7 +241,7 @@ describe("measurement clipboard orchestration", () => {
     expect(samePageDuplicateOffset([spanningPage], bounds, 1)).toBe(0);
   });
 
-  it("offsets by the given screen distance and defaults to the standard one", () => {
+  it("offsets by the preferred screen distance and defaults to the standard one", () => {
     const bounds = { width: 100, height: 100, rotation: 0 } as const;
     const source: Measurement = {
       ...measurement,
@@ -250,7 +250,9 @@ describe("measurement clipboard orchestration", () => {
         { x: 40, y: 40 },
       ],
     };
-    expect(samePageDuplicateOffset([source], bounds, 2, 24)).toBe(12);
+    setAppPreference("duplicateOffset", "large");
+    expect(samePageDuplicateOffset([source], bounds, 2)).toBe(12);
+    resetAppPreferences();
     expect(samePageDuplicateOffset([source], bounds, 2)).toBe(
       MEASUREMENT_DUPLICATE_OFFSET_SCREEN_PX / 2,
     );

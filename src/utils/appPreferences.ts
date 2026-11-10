@@ -373,6 +373,11 @@ export function keyboardStepScale(): number {
   return KEYBOARD_STEP_SCALE[getAppPreferences().keyboardStep];
 }
 
+/** The same-page duplicate and paste offset, in screen pixels, for the current preference. */
+export function duplicateOffsetPx(): number {
+  return DUPLICATE_OFFSET_PX[getAppPreferences().duplicateOffset];
+}
+
 export function getAppPreferences(): AppPreferences {
   return current;
 }

@@ -774,38 +774,6 @@ describe("ContextToolbar V2", () => {
     expect(container?.textContent).toContain("Calibrating scale · Select two points");
   });
 
-  it("names the fixed Esc and Enter keys on Cancel, Done and Finish", () => {
-    act(() => setAppPreference("tooltipDelay", "instant"));
-    const tooltipOf = (button: HTMLElement) => {
-      act(() => button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-      const text = document.querySelector('[role="tooltip"]')?.textContent;
-      act(() => button.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
-      return text;
-    };
-    renderToolbar();
-    act(() => workspace!.startCalibration(beginCalibrationFlow(1, null, "uniform")));
-    expect(tooltipOf(buttonByLabel("Cancel"))).toBe("Cancel (Esc)");
-    expect(buttonByLabel("Cancel").getAttribute("aria-keyshortcuts")).toBe("Escape");
-    act(() => workspace!.cancelCalibration());
-
-    act(() => workspace!.chooseTool("count"));
-    expect(tooltipOf(buttonByLabel("Done"))).toBe("Done (Enter)");
-    expect(buttonByLabel("Done").getAttribute("aria-keyshortcuts")).toBe("Enter");
-    act(() => workspace!.chooseTool("polyline"));
-    act(() =>
-      workspace!.startDraft({
-        type: "path",
-        measurementType: "polyline",
-        points: [
-          { x: 1, y: 1 },
-          { x: 10, y: 1 },
-        ],
-      }),
-    );
-    expect(tooltipOf(buttonByLabel("Finish"))).toBe("Finish (Enter)");
-    expect(buttonByLabel("Finish").getAttribute("aria-keyshortcuts")).toBe("Enter");
-  });
-
   it("distinguishes reference-edit ownership and exposes Save/Cancel without collapsing X/Y", () => {
     const save = vi.fn();
     const cancel = vi.fn();
@@ -1256,13 +1224,6 @@ describe("selection shortcuts", () => {
       bind({ "count.findSimilar": [] });
       expect(tooltipOf(buttonByLabel("Find similar"))).toBe("Find similar");
       expect(buttonByLabel("Find similar").hasAttribute("aria-keyshortcuts")).toBe(false);
-    });
-
-    it("hints the fixed Enter key on Done", () => {
-      renderToolbar();
-      act(() => workspace!.chooseTool("count"));
-      expect(tooltipOf(buttonByLabel("Done"))).toBe("Done (Enter)");
-      expect(buttonByLabel("Done").getAttribute("aria-keyshortcuts")).toBe("Enter");
     });
   });
 

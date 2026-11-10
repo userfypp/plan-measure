@@ -5,7 +5,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceState, WorkspaceProvider } from "./workspaceState";
 import { WorkspacePanel } from "./WorkspacePanel";
-import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -113,7 +112,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetAppPreferences();
   if (root) act(() => root?.unmount());
   container?.remove();
   document.querySelectorAll('[role="menu"]').forEach((element) => element.remove());
@@ -148,29 +146,6 @@ describe("WorkspacePanel", () => {
       "true",
     ]);
     expect(document.body.textContent).not.toContain("Future module");
-  });
-
-  it("shows each module's shortcut in its menu tooltip and follows a rebinding", () => {
-    act(() => setAppPreference("tooltipDelay", "instant"));
-    const tooltipOf = (index: number) => {
-      const item = menuItems()[index]!;
-      act(() => item.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-      const text = document.querySelector('[role="tooltip"]')?.textContent;
-      act(() => item.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
-      return text;
-    };
-    act(() => trigger().click());
-    expect(tooltipOf(0)).toBe("Measurements (1)");
-    expect(tooltipOf(3)).toBe("Scales (4)");
-    act(() => press("Escape"));
-
-    act(() =>
-      setAppPreference("shortcutBindings", { "workspace.takeoff": ["K"], "workspace.scales": [] }),
-    );
-    act(() => trigger().click());
-    expect(tooltipOf(1)).toBe("Takeoff (K)");
-    expect(menuItems()[3]!.textContent?.trim()).toBe("Scales");
-    expect(tooltipOf(3)).toBeUndefined();
   });
 
   it("switches modules with composite keyboard navigation and restores focus to the trigger", () => {

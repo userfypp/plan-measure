@@ -110,7 +110,7 @@ Encrypted PDFs cannot be exported as annotated PDFs, even if they open without a
 
 ## Keyboard controls
 
-Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native control actions retain their own keys. Tooltips, the toolbar, and menus always show the keys currently in use and update as soon as you change a shortcut; the hints on **Cancel** (`Esc`) and **Done** or **Finish** (`Enter`) show those fixed keys.
+Use `Cmd` on macOS and `Ctrl` on Windows/Linux. Text fields, dialogs, and native control actions retain their own keys. Tooltips, the toolbar, and menus always show the keys currently in use and update as soon as you change a shortcut.
 
 | Default shortcut                                  | Action                                              |
 | ------------------------------------------------- | --------------------------------------------------- |
