@@ -1,4 +1,5 @@
 import {
+  Suspense,
   useEffect,
   useId,
   useLayoutEffect,
@@ -15,6 +16,7 @@ import {
   Input,
   PlusIcon,
   SaveIcon,
+  SearchIcon,
   Tooltip,
   TrashIcon,
 } from "../components/ui";
@@ -28,6 +30,8 @@ import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils
 import { useWorkspaceState } from "./workspaceState";
 import type { ClassificationCatalog, Measurement } from "../types/domain";
 import type { BulkMeasurementCommand } from "./sessionState";
+import { SymbolCountBar } from "../features/symbolCount/symbolCountLazy";
+import { startSymbolCount, useSymbolCount } from "../features/symbolCount/symbolCountStore";
 import { MeasurementClassificationMenu } from "../features/measurements/MeasurementClassificationMenu";
 import styles from "./ContextToolbar.module.css";
 
@@ -94,7 +98,7 @@ function Divider() {
   return <span className={styles.divider} aria-hidden="true" />;
 }
 
-function ToolbarComposite({
+export function ToolbarComposite({
   label,
   contextKind,
   drawingTool,
@@ -436,6 +440,7 @@ export function ContextToolbar({
     clearDraft,
   } = useWorkspaceState();
   const { completeCurrentDraft } = useViewerInteractionCommands();
+  const symbolCountActive = useSymbolCount().active;
 
   if (calibrationReferenceEdit) {
     const referenceLabel =
@@ -521,6 +526,13 @@ export function ContextToolbar({
       selectedMeasurements[0].visible
         ? selectedMeasurements[0]
         : null;
+    if (symbolCountActive) {
+      return (
+        <Suspense>
+          <SymbolCountBar />
+        </Suspense>
+      );
+    }
     return (
       <ToolbarComposite label="Count drawing controls" contextKind="drawing" drawingTool="count">
         <span className={styles.toolIdentity} role="status">
@@ -534,6 +546,14 @@ export function ContextToolbar({
           />
         )}
         <Divider />
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<SearchIcon />}
+          aria-label="Find similar"
+          tooltip="Find similar"
+          tooltipPosition="bottom"
+          onClick={startSymbolCount}
+        />
         <IconButton
           className={styles.selectionIconButton}
           icon={<PlusIcon />}

@@ -67,6 +67,7 @@ import { readScaleDeleteConfirmationPreference } from "./scaleDeletePreference";
 import { readRecoveredPlanStartupWorkspacePreference } from "./recoveredPlanStartupPreference";
 import { readKeyboardAuthoringPreference } from "./keyboardAuthoringPreference";
 import { createScaleCheckStore } from "../features/calibration/scaleCheckState";
+import { SymbolCountBar } from "../features/symbolCount/symbolCountLazy";
 import {
   calibrationReferenceEditPreview,
   getAddCountItemsDisabledReason,
@@ -486,6 +487,7 @@ function PlanMeasureApp() {
       CalibrationDialog.preload,
       preloadCustomRatioDialog,
       loadExportDialog,
+      SymbolCountBar.preload,
     ]);
   }, [planOpen]);
 

@@ -37,6 +37,8 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 **Count.** **New count** starts a separate count. To add items later, select the count and choose **Add items** in its toolbar or in **Details**. A count shares one name, note and set of classifications, and you move its markers with Select. In **Details → Items**, **Move to…** transfers an item to another count on the same page and the trash button removes it. Lists over 50 items use **Previous items** and **Next items**. Moving the last item removes the empty source count, and Undo brings both back.
 
+**Find similar symbols.** With a count selected (or none), choose **Find similar** in the Count toolbar and drag a box around one symbol. The app searches the current page on your device, nothing is uploaded, and outlines every similar symbol it finds. Choose a **Similarity** level (Exact, High, Balanced, Loose) to show fewer or more matches, turn **Any orientation** off to ignore rotated and mirrored copies, and click an outline to exclude it or include it again. **Add N items** adds the accepted matches to the selected count, or starts a new one, as a single undo step. Escape or **Cancel** leaves without adding anything.
+
 ### Editing and selecting
 
 - **Snap** aligns points with visible measurement geometry. **Ortho** keeps segments horizontal or vertical.
