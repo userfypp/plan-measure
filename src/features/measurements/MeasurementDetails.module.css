@@ -144,7 +144,8 @@
   min-height: var(--control-height-regular);
   align-items: center;
   justify-content: space-between;
-  padding-inline: var(--space-4);
+  /* "Add items" sits over the column of row actions. */
+  padding-inline: var(--space-4) calc(var(--space-4) + var(--border-width));
 }
 
 .itemsList {
@@ -153,6 +154,8 @@
   overflow: auto;
   margin: 0;
   padding: 0;
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-control);
   list-style: none;
 }
 
@@ -162,9 +165,16 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding-inline: var(--space-4);
+  /* The name starts where the cards above start their text; the actions keep 4 px all round. */
+  padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--space-12) - var(--border-width));
   border-bottom: var(--border-width) solid var(--color-divider);
   color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+.itemRow:last-child {
+  border-bottom: 0;
 }
 
 /* The row whose point the viewer is pointing out (hovered, focused or being renamed). */
@@ -175,6 +185,7 @@
 .itemRow[data-renaming] {
   background: var(--color-selection-surface);
   box-shadow: inset var(--halo-width) 0 0 var(--color-accent);
+  padding-inline-start: var(--space-4);
 }
 
 .itemName {
@@ -207,12 +218,18 @@
   display: inline-grid;
   place-items: center;
   padding: 0;
-  border: var(--border-width) solid var(--color-divider);
+  /* Rests like the quiet icon buttons beside it; hover and press add the border. */
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: var(--transition-interactive);
+}
+
+.itemRow .itemMove:disabled {
+  border-color: transparent;
+  background: transparent;
 }
 
 .itemMove > svg {
@@ -236,10 +253,6 @@
   background: var(--color-control-active-surface);
   border-color: var(--color-control-active-border);
   color: var(--color-text-primary);
-}
-
-.itemRemove {
-  border-color: transparent;
 }
 
 .noteForm {

@@ -357,6 +357,7 @@ export function MeasurementDetails({
                       <div className={styles.itemActions}>
                         {onRenameCountItem && (
                           <IconButton
+                            quiet
                             icon={<PencilIcon />}
                             aria-label={`Rename item ${index + 1}`}
                             tooltip={`Rename item ${index + 1}`}
@@ -392,7 +393,7 @@ export function MeasurementDetails({
                           />
                         )}
                         <IconButton
-                          className={styles.itemRemove}
+                          quiet
                           aria-label={`Delete item ${index + 1}`}
                           tooltip={`Delete item ${index + 1}`}
                           tooltipPosition="left"

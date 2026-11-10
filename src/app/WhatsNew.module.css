@@ -3,6 +3,10 @@
   margin-inline-start: auto;
 }
 
+.newBadge {
+  margin-inline-start: var(--space-8);
+}
+
 /* Releases read as one continuous column; a hairline, not a box, tells them apart. */
 .releases {
   display: grid;
