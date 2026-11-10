@@ -119,6 +119,7 @@ import { revealElements } from "../../utils/reveal";
 import { DraftPointMarkers } from "./DraftPointMarkers";
 import { BoxDraftGuides } from "./BoxDraftGuides";
 import { SOFTWARE_CURSORS } from "./softwareCursor";
+import { useSymbolCount } from "../symbolCount/symbolCountStore";
 import { PageGridLines } from "./PageGridLines";
 import { LiveLengthLabel } from "./LiveLengthLabel";
 import { useSoftwareCursor } from "./useSoftwareCursor";
@@ -249,6 +250,7 @@ export function PdfViewer({
   const canvasInteractionTarget = useCanvasInteractionTargetScreenPx();
   const precisionAuthoringBlocked = !authoringCapability.available;
   const { session, addMeasurement, updateMeasurement, updateMeasurements } = useSessionState();
+  const symbolCount = useSymbolCount();
   const keyboardHelpId = useId();
   const keyboardHelpRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -1549,6 +1551,7 @@ export function PdfViewer({
         return;
       }
       if (activeTool === "count") {
+        if (symbolCount.active) return;
         const point = clampPointToPage(screenToPage(pointer, viewTransform), bounds);
         const count =
           selectedMeasurementIds.length === 1
@@ -2491,6 +2494,15 @@ export function PdfViewer({
           <div className={styles.loading} role={pageLoadFailed ? "alert" : "status"}>
             {pageLoadFailed ? "Could not load this page." : "Rendering page…"}
           </div>
+        )}
+        {symbolCount.active && symbolCount.overlay && canvasPageData && (
+          <symbolCount.overlay
+            data={canvasPageData}
+            page={page}
+            transform={activeWheelGesture?.transform ?? viewTransform}
+            viewport={viewerSize}
+            completePath={completePath}
+          />
         )}
         {debugOverlay && <DebugOverlay getStats={getDebugStats} />}
       </div>
