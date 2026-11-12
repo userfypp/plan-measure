@@ -263,8 +263,8 @@ export function Popover({
           : anchor.left;
       // An anchor that already sits closer to the edge than the margin (the 4px frame of a panel
       // header) is not pushed further in: the popover keeps its edges.
-      const marginStart = Math.min(VIEWPORT_MARGIN_PX, Math.max(anchor.left, 0));
-      const marginEnd = Math.min(VIEWPORT_MARGIN_PX, Math.max(window.innerWidth - anchor.right, 0));
+      const marginStart = clamp(anchor.left, 0, VIEWPORT_MARGIN_PX);
+      const marginEnd = clamp(window.innerWidth - anchor.right, 0, VIEWPORT_MARGIN_PX);
       const left = clamp(preferredLeft, marginStart, window.innerWidth - contentWidth - marginEnd);
       const below = anchor.bottom + POPOVER_GAP_PX;
       const above = anchor.top - content.height - POPOVER_GAP_PX;

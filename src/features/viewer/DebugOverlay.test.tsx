@@ -2,7 +2,9 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DebugOverlay } from "./DebugOverlay";
+import type Konva from "konva";
+import { RASTER_CACHE_LIMITS, getAppPreferences } from "../../utils/appPreferences";
+import DebugOverlay, { type DebugStats } from "./DebugOverlay";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -39,15 +41,18 @@ function frame(time: number) {
   act(() => callbacks.forEach((callback) => callback(time)));
 }
 
-const STATS = {
+/** Two shapes and a group that holds two more: four nodes to walk. */
+const LAYER = {
+  getChildren: () => [{}, { getChildren: () => [{}, {}] }],
+} as unknown as Konva.Container;
+
+const STATS: DebugStats = {
   zoomPercent: 96.6,
   raster: { width: 2480, height: 1754 },
   cacheEntries: 1,
-  cacheMaxEntries: 2,
   cachePixels: 3_700_000,
-  cacheMaxPixels: 8_388_608,
   lastRenderMs: 41.6,
-  canvasNodes: 1234,
+  annotationLayer: LAYER,
 };
 
 function rows(): Record<string, string | undefined> {
@@ -85,8 +90,11 @@ describe("DebugOverlay", () => {
     expect(shown["Slowest frame"]).toBe("384 ms");
     expect(shown["Page render"]).toBe("42 ms");
     expect(shown["Page bitmap"]).toBe("2,480 × 1,754 px");
-    expect(shown["Raster cache"]).toBe("1/2 · 3.7/8.4 Mpx");
-    expect(shown["Canvas nodes"]).toBe("1,234");
+    const limits = RASTER_CACHE_LIMITS[getAppPreferences().rasterCache];
+    expect(shown["Raster cache"]).toBe(
+      `1/${limits.maxEntries} · 3.7/${(limits.maxPixels / 1_000_000).toFixed(1)} Mpx`,
+    );
+    expect(shown["Canvas nodes"]).toBe("4");
     expect(shown["Zoom"]).toBe("97%");
   });
 

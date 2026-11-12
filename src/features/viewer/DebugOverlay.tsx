@@ -1,4 +1,6 @@
+import type Konva from "konva";
 import { useEffect, useId, useState } from "react";
+import { RASTER_CACHE_LIMITS, getAppPreferences } from "../../utils/appPreferences";
 import styles from "./DebugOverlay.module.css";
 
 /** What only the viewer knows; the overlay adds the frame timings and the browser's own numbers. */
@@ -7,13 +9,11 @@ export interface DebugStats {
   /** The page bitmap on screen, in device pixels; null before the first render. */
   raster: { width: number; height: number } | null;
   cacheEntries: number;
-  cacheMaxEntries: number;
   cachePixels: number;
-  cacheMaxPixels: number;
   /** How long the last page render took; null until one has finished. */
   lastRenderMs: number | null;
-  /** Konva nodes drawn on the annotation layer: what each redraw has to walk. */
-  canvasNodes: number;
+  /** The annotation layer: its nodes are what each redraw has to walk. */
+  annotationLayer: Konva.Container | null;
 }
 
 interface DebugOverlayProps {
@@ -36,6 +36,18 @@ function usedHeapBytes(): number | null {
   return typeof memory?.usedJSHeapSize === "number" ? memory.usedJSHeapSize : null;
 }
 
+/** Every node under a Konva container. */
+function countCanvasNodes(container: Konva.Container | null): number {
+  if (!container) return 0;
+  let count = 0;
+  for (const child of container.getChildren()) {
+    count += 1;
+    // Groups hold children of their own; Konva is a type-only import here, so test by shape.
+    if ("getChildren" in child) count += countCanvasNodes(child as Konva.Container);
+  }
+  return count;
+}
+
 function megapixels(pixels: number): string {
   return (pixels / 1_000_000).toFixed(1);
 }
@@ -53,7 +65,7 @@ interface Reading {
  * while a pan, zoom or redraw is too heavy, and the slowest frame of each half second shows the stutter
  * an average hides.
  */
-export function DebugOverlay({ getStats }: DebugOverlayProps) {
+export default function DebugOverlay({ getStats }: DebugOverlayProps) {
   const titleId = useId();
   const [reading, setReading] = useState<Reading>(() => ({
     frames: null,
@@ -89,6 +101,7 @@ export function DebugOverlay({ getStats }: DebugOverlayProps) {
   }, [getStats]);
 
   const { frames, heapBytes, stats } = reading;
+  const limits = RASTER_CACHE_LIMITS[getAppPreferences().rasterCache];
   const rows: Array<[label: string, value: string]> = [
     ["Frame rate", frames ? `${frames.fps} fps` : "–"],
     ["Slowest frame", frames ? `${Math.round(frames.slowestMs)} ms` : "–"],
@@ -101,9 +114,9 @@ export function DebugOverlay({ getStats }: DebugOverlayProps) {
     ],
     [
       "Raster cache",
-      `${stats.cacheEntries}/${stats.cacheMaxEntries} · ${megapixels(stats.cachePixels)}/${megapixels(stats.cacheMaxPixels)} Mpx`,
+      `${stats.cacheEntries}/${limits.maxEntries} · ${megapixels(stats.cachePixels)}/${megapixels(limits.maxPixels)} Mpx`,
     ],
-    ["Canvas nodes", COUNT_FORMAT.format(stats.canvasNodes)],
+    ["Canvas nodes", COUNT_FORMAT.format(countCanvasNodes(stats.annotationLayer))],
     ["Zoom", `${Math.round(stats.zoomPercent)}%`],
     ["Pixel ratio", `${Math.round(window.devicePixelRatio * 100) / 100}×`],
   ];

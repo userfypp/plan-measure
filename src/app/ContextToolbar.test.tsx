@@ -18,7 +18,27 @@ import {
   stopPlanCompare,
 } from "../features/planCompare/planCompareStore";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
-import { setSelectedCountItem } from "../features/measurements/countItemFocus";
+import { CountItemToolbar } from "./countItemToolbarLazy";
+import {
+  getSelectedCountItem,
+  setSelectedCountItem,
+} from "../features/measurements/countItemFocus";
+
+// The item toolbar edits through the session: these stand in for its two commands.
+const session = vi.hoisted(() => ({
+  session: null as unknown,
+  renameCountItem: vi.fn(),
+  removeCountItem: vi.fn(),
+}));
+vi.mock("./sessionState", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./sessionState")>()),
+  useSessionState: () => session,
+}));
+
+/** A session whose current page holds these measurements. */
+function pageOf(measurements: unknown[]) {
+  return { currentPage: 0, pages: [{ pageNumber: 1, measurements }] };
+}
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -53,6 +73,7 @@ function props(overrides: Partial<ContextToolbarProps> = {}): ContextToolbarProp
     onDeleteSelectedMeasurement: vi.fn(),
     onDuplicateSelectedMeasurement: vi.fn(),
     onRenameSelectedMeasurement: vi.fn(),
+    onMoveItem: vi.fn(),
     onOpenMeasurementDetails: () => workspace?.openMeasurementDetails(),
     onCloseMeasurementDetails: () => workspace?.closeMeasurementDetails(),
     onExitDrawingTool: () => workspace?.chooseTool("select"),
@@ -121,6 +142,8 @@ function setInputValue(input: HTMLInputElement, value: string) {
 }
 
 beforeEach(() => {
+  session.renameCountItem.mockClear();
+  session.removeCountItem.mockClear();
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -171,7 +194,8 @@ describe("ContextToolbar V2", () => {
     expect(onAddCountItems).toHaveBeenCalledOnce();
   });
 
-  it("swaps the count's controls for the picked item's rename, move and delete", () => {
+  it("swaps the count's controls for the picked item's rename, move and delete", async () => {
+    await CountItemToolbar.preload();
     const count = {
       id: "count",
       name: "Plug",
@@ -186,19 +210,17 @@ describe("ContextToolbar V2", () => {
       classificationValueIds: [],
       visible: true,
     };
-    const onRenameCountItem = vi.fn();
-    const onMoveCountItem = vi.fn();
-    const onDeleteCountItem = vi.fn(() => true);
+    session.session = pageOf([count, { ...count, id: "windows", name: "Windows" }]);
+    const onMoveItem = vi.fn();
+    const onDeleteSelectedMeasurement = vi.fn();
     renderToolbar(
       props({
         selectedMeasurements: [count],
         selectedMeasurementId: count.id,
         selectedMeasurementName: count.name,
         onAddCountItems: vi.fn(),
-        countMoveTargets: [{ id: "windows", label: "Windows" }],
-        onRenameCountItem,
-        onMoveCountItem,
-        onDeleteCountItem,
+        onMoveItem,
+        onDeleteSelectedMeasurement,
       }),
     );
     expect(container?.querySelector('button[aria-label="Add items"]')).not.toBeNull();
@@ -217,23 +239,48 @@ describe("ContextToolbar V2", () => {
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
       ),
     );
-    expect(onRenameCountItem).toHaveBeenCalledWith(1, "Main gate");
+    expect(session.renameCountItem).toHaveBeenCalledWith({
+      pageNumber: 1,
+      id: "count",
+      itemIndex: 1,
+      name: "Main gate",
+    });
 
+    act(() => buttonByLabel("Delete item 2").click());
+    expect(session.removeCountItem).toHaveBeenCalledExactlyOnceWith({
+      pageNumber: 1,
+      id: "count",
+      itemIndex: 1,
+    });
+    expect(onDeleteSelectedMeasurement).not.toHaveBeenCalled();
+    // The item after the removed one is picked in its place.
+    expect(getSelectedCountItem()).toEqual({ measurementId: "count", index: 1 });
+    // Delete on the keyboard removes the item too, never the count.
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(session.removeCountItem).toHaveBeenCalledTimes(2);
+    expect(onDeleteSelectedMeasurement).not.toHaveBeenCalled();
+
+    act(() => buttonByLabel("Back to Plug").click());
+    expect(container?.querySelector('button[aria-label="Add items"]')).not.toBeNull();
+
+    // Moving the item hands it over and returns to the count's own controls.
+    act(() => setSelectedCountItem({ measurementId: "count", index: 1 }));
     act(() => buttonByLabel("Move item 2 to another count").click());
     const target = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
       (item) => item.textContent === "Windows",
     )!;
     act(() => target.click());
-    expect(onMoveCountItem).toHaveBeenCalledWith(1, "windows");
+    expect(onMoveItem).toHaveBeenCalledWith(1, "windows");
 
-    act(() => buttonByLabel("Delete item 2").click());
-    expect(onDeleteCountItem).toHaveBeenCalledOnce();
-
-    act(() => buttonByLabel("Back to Plug").click());
-    expect(container?.querySelector('button[aria-label="Add items"]')).not.toBeNull();
+    expect(getSelectedCountItem()).toBeNull();
   });
 
-  it("restores the default item name when the rename is emptied", () => {
+  it("restores the default item name when the rename is emptied", async () => {
+    await CountItemToolbar.preload();
     const count = {
       id: "count",
       name: "Plug",
@@ -244,16 +291,14 @@ describe("ContextToolbar V2", () => {
       classificationValueIds: [],
       visible: true,
     };
-    const onRenameCountItem = vi.fn();
+    session.session = pageOf([count]);
     act(() => setSelectedCountItem({ measurementId: "count", index: 0 }));
     renderToolbar(
       props({
         selectedMeasurements: [count],
         selectedMeasurementId: count.id,
         selectedMeasurementName: count.name,
-        onRenameCountItem,
-        onMoveCountItem: vi.fn(),
-        onDeleteCountItem: vi.fn(() => true),
+        onMoveItem: vi.fn(),
       }),
     );
     act(() => buttonByLabel("Rename item 1").click());
@@ -267,7 +312,12 @@ describe("ContextToolbar V2", () => {
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
       ),
     );
-    expect(onRenameCountItem).toHaveBeenCalledWith(0, "");
+    expect(session.renameCountItem).toHaveBeenCalledWith({
+      pageNumber: 1,
+      id: "count",
+      itemIndex: 0,
+      name: "",
+    });
   });
 
   it("shows explicit Count creation and completion controls without path drawing aids", () => {

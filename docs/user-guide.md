@@ -47,7 +47,7 @@ Expand a scale to rename it or edit its calibration. Choose the **Check scale** 
 
 - **Snap** aligns points with visible measurement geometry. **Ortho** keeps segments horizontal or vertical.
 - **Select** moves measurements or drags single vertices. **Details** holds the notes and classification assignments. Rename a selected measurement from the context bar. In **Details**, rename each item of a count; its name appears as a label at the item's point. Drag the label of a selected measurement to move it off the plan text (the annotated PDF keeps the position); **Reset label position** in **Details** puts it back.
-- `Escape` steps back one level per press: cancel the drawing or calibration, leave the tool, close **Details**, then clear the selection.
+- `Escape` steps back one level per press: cancel the drawing or calibration, leave the tool, go back from a selected count item, close **Details**, then clear the selection.
 - `Shift`/`Ctrl`/`Cmd`-click adds or removes measurements from the selection. Bulk classification, visibility and deletion work across pages.
 - Moving, duplicating and copying a group need a selection on a single page. Pasting onto another page uses that page's active scale for paths, and all the geometry must fit. A duplicate, or a paste on the same page, sits a little away from the original; set how far with **Settings > Drawing → Duplicate offset**.
 - **Undo/Redo** covers measurements, scales, classifications and page labels. The history of the open project also survives a reload, returning shortly after the plan opens and capped for very large plans; opening another project or PDF starts it empty. Navigation and display settings are not part of it.

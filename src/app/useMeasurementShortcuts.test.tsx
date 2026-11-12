@@ -41,7 +41,6 @@ function setup(overrides: Partial<Record<keyof Deps, unknown>> = {}) {
     pasteMeasurements: vi.fn((commands: readonly unknown[]) => commands.length > 0),
     requestMeasurementDelete: vi.fn(),
     requestSelectedMeasurementsDelete: vi.fn(),
-    deleteSelectedCountItem: vi.fn(() => false),
     selectWorkspaceMeasurements: vi.fn(),
     setError: vi.fn(),
   };

@@ -311,10 +311,9 @@ export const MeasurementShape = memo(function MeasurementShape({
     const markerGap = radius + CANVAS_VISUAL_METRICS.handleStrokeScreenPx + 2;
     // The pointed-out item wears a ring: its label sits clear of it instead of touching it.
     const ringGap =
-      radius +
+      markerGap +
       CANVAS_VISUAL_METRICS.countFocusRingGapScreenPx +
-      CANVAS_VISUAL_METRICS.countFocusRingStrokeScreenPx +
-      CANVAS_VISUAL_METRICS.countFocusRingLabelGapScreenPx;
+      CANVAS_VISUAL_METRICS.countFocusRingStrokeScreenPx;
     const labels: {
       index: number;
       text: string;

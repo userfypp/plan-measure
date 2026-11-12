@@ -32,11 +32,8 @@ import { preloadPdfRuntime, usePdfSessionLifecycle } from "./usePdfSessionLifecy
 import { usePdfPageLabels } from "./usePdfPageLabels";
 import { useFileDropZone } from "./useFileDropZone";
 import { useAppPreferenceSetters } from "./useAppPreferenceSetters";
+import { CountItemToolbar } from "./countItemToolbarLazy";
 import { useMeasurementShortcuts } from "./useMeasurementShortcuts";
-import {
-  getSelectedCountItem,
-  setSelectedCountItem,
-} from "../features/measurements/countItemFocus";
 import { useAppShortcuts } from "./useAppShortcuts";
 import { useCalibrationActions } from "./useCalibrationActions";
 import { Modal } from "../components/Modal";
@@ -493,6 +490,7 @@ function PlanMeasureApp() {
       loadExportDialog,
       SymbolCountBar.preload,
       PlanCompareBar.preload,
+      CountItemToolbar.preload,
     ]);
   }, [planOpen]);
 
@@ -707,7 +705,6 @@ function PlanMeasureApp() {
     pasteMeasurements,
     requestMeasurementDelete,
     requestSelectedMeasurementsDelete,
-    deleteSelectedCountItem,
     selectWorkspaceMeasurements,
     selectedMeasurementId,
     selectedMeasurementIds,
@@ -945,35 +942,7 @@ function PlanMeasureApp() {
     chooseTool("count");
     focusViewer();
   }
-  // The count item the user picked is only meaningful while its count is the single selection.
-  useEffect(() => {
-    const item = getSelectedCountItem();
-    if (!item) return;
-    if (
-      activeTool !== "select" ||
-      selectedMeasurement?.type !== "count" ||
-      selectedMeasurement.id !== item.measurementId ||
-      selectedMeasurementIds.length !== 1 ||
-      item.index >= selectedMeasurement.points.length
-    ) {
-      setSelectedCountItem(null);
-    }
-  }, [activeTool, selectedMeasurement, selectedMeasurementIds.length]);
-  // The other counts on the page: where a selected item can move to.
-  const countMoveTargets = useMemo(
-    () =>
-      selectedMeasurement?.type === "count"
-        ? (currentPage?.measurements ?? [])
-            .filter(
-              (candidate) => candidate.type === "count" && candidate.id !== selectedMeasurement.id,
-            )
-            .map((count) => ({
-              id: count.id,
-              label: `${count.name}${count.visible ? "" : " (hidden)"}`,
-            }))
-        : [],
-    [currentPage?.measurements, selectedMeasurement],
-  );
+  // Shared by Details and the toolbar of a picked count item.
   function moveCountItemTo(itemIndex: number, targetId: string) {
     if (!currentPage || selectedMeasurement?.type !== "count") return;
     if (
@@ -985,7 +954,6 @@ function PlanMeasureApp() {
       })
     )
       return;
-    setSelectedCountItem(null);
     if (selectedMeasurement.points.length === 1) {
       chooseTool("select");
       selectWorkspaceMeasurement(targetId);
@@ -999,28 +967,15 @@ function PlanMeasureApp() {
       id: selectedMeasurement.id,
       itemIndex: index,
     });
-    // The item after the removed one takes its place, or the last one when it was the last.
-    if (getSelectedCountItem()?.index === index) {
-      setSelectedCountItem({
-        measurementId: selectedMeasurement.id,
-        index: Math.min(index, selectedMeasurement.points.length - 2),
-      });
-    }
   }
-  /** Delete on a selected count item removes the item, never the whole count; false without one. */
-  function deleteSelectedCountItem(): boolean {
-    const item = getSelectedCountItem();
-    if (!currentPage || !item || selectedMeasurement?.id !== item.measurementId) return false;
-    if (selectedMeasurement.points.length === 1) {
-      requestMeasurementDelete({
-        pageNumber: currentPage.pageNumber,
-        measurementId: selectedMeasurement.id,
-        measurementName: selectedMeasurement.name,
-      });
-    } else {
-      removeCountItemAt(item.index);
-    }
-    return true;
+  function renameCountItemAt(index: number, name: string) {
+    if (!currentPage || selectedMeasurement?.type !== "count") return;
+    renameCountItem({
+      pageNumber: currentPage.pageNumber,
+      id: selectedMeasurement.id,
+      itemIndex: index,
+      name,
+    });
   }
   const calibrationDialog =
     calibrationCandidate && session && calibrationCandidatePage ? (
@@ -1448,14 +1403,7 @@ function PlanMeasureApp() {
                           addCountItemsDisabledReason={addCountItemsDisabledReason}
                           onMoveCountItem={moveCountItemTo}
                           onRemoveCountItem={removeCountItemAt}
-                          onRenameCountItem={(index, name) =>
-                            renameCountItem({
-                              pageNumber: currentPage.pageNumber,
-                              id: selectedMeasurement.id,
-                              itemIndex: index,
-                              name,
-                            })
-                          }
+                          onRenameCountItem={renameCountItemAt}
                           onDelete={() =>
                             requestMeasurementDelete({
                               pageNumber: currentPage.pageNumber,
@@ -1481,19 +1429,7 @@ function PlanMeasureApp() {
                 onEditSelectedMeasurements={editMeasurements}
                 onAddCountItems={beginAddingCountItems}
                 addCountItemsDisabledReason={addCountItemsDisabledReason}
-                countMoveTargets={countMoveTargets}
-                onRenameCountItem={(index, name) => {
-                  if (selectedMeasurement) {
-                    renameCountItem({
-                      pageNumber: currentPage.pageNumber,
-                      id: selectedMeasurement.id,
-                      itemIndex: index,
-                      name,
-                    });
-                  }
-                }}
-                onMoveCountItem={moveCountItemTo}
-                onDeleteCountItem={deleteSelectedCountItem}
+                onMoveItem={moveCountItemTo}
                 onClearMeasurementSelection={() => {
                   clearSelection();
                   focusViewer();

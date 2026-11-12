@@ -14,28 +14,24 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function same(a: CountItemRef | null, b: CountItemRef | null): boolean {
-  return a?.measurementId === b?.measurementId && a?.index === b?.index;
-}
-
 /**
  * Marks the count item a list row is hovering, focusing or renaming so the viewer can point it
  * out. Pass `null` to release it. Kept outside the workspace state: hovering rows must not
  * re-render the viewer, only the one count shape that shows the item.
  */
 export function setFocusedCountItem(next: CountItemRef | null): void {
-  if (same(focus, next)) return;
+  if (focus?.measurementId === next?.measurementId && focus?.index === next?.index) return;
   focus = next;
   listeners.forEach((listener) => listener());
 }
 
 /**
  * The count item the user picked, by clicking its point or its row: the context toolbar offers
- * its rename, move and delete. The app drops it as soon as it no longer belongs to the single
+ * its rename, move and delete. The viewer drops it as soon as it no longer belongs to the single
  * selected count.
  */
 export function setSelectedCountItem(next: CountItemRef | null): void {
-  if (same(selected, next)) return;
+  if (selected === next) return;
   selected = next;
   listeners.forEach((listener) => listener());
 }
@@ -46,11 +42,7 @@ export function getSelectedCountItem(): CountItemRef | null {
 
 /** The selected count item; re-renders only when it changes. */
 export function useSelectedCountItem(): CountItemRef | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => selected,
-    () => null,
-  );
+  return useSyncExternalStore(subscribe, getSelectedCountItem);
 }
 
 /**
