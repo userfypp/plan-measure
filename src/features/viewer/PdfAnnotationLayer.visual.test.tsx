@@ -13,6 +13,7 @@ import type {
 import * as labelLayout from "../../utils/labelLayout";
 import { isAxisAlignedRectStrictlyInsidePolygon } from "../../utils/geometry";
 import { PdfAnnotationLayer, type CalibrationReferenceEditPreview } from "./PdfAnnotationLayer";
+import { getSelectedCountItem, setSelectedCountItem } from "../measurements/countItemFocus";
 import { resolveCanvasVisualRoles } from "./canvasVisualRoles";
 import { resetAppPreferences, setAppPreference } from "../../utils/appPreferences";
 
@@ -268,6 +269,12 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
     const click = captured.circles[0]!.onClick as (event: unknown) => void;
     click({ evt: { button: 0 }, cancelBubble: false });
     expect(select).toHaveBeenCalledWith("count", undefined);
+    // Clicking a point also picks that item, for the toolbar to rename, move or delete.
+    expect(getSelectedCountItem()).toEqual({ measurementId: "count", index: 0 });
+    setSelectedCountItem(null);
+    click({ evt: { button: 0, shiftKey: true }, cancelBubble: false });
+    expect(select).toHaveBeenLastCalledWith("count", true);
+    expect(getSelectedCountItem()).toBeNull();
     page.measurements[0]!.visible = false;
     captured.circles.length = 0;
     renderLayer({ page });
@@ -555,6 +562,7 @@ describe("PdfAnnotationLayer V2 visual semantics", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    setSelectedCountItem(null);
   });
 
   function renderLayer({

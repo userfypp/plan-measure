@@ -18,6 +18,7 @@ import {
   stopPlanCompare,
 } from "../features/planCompare/planCompareStore";
 import { resetAppPreferences, setAppPreference } from "../utils/appPreferences";
+import { setSelectedCountItem } from "../features/measurements/countItemFocus";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -130,6 +131,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setSelectedCountItem(null);
   stopSymbolCount();
   stopPlanCompare();
   resetAppPreferences();
@@ -167,6 +169,105 @@ describe("ContextToolbar V2", () => {
     });
     act(() => buttonByLabel("Add items").click());
     expect(onAddCountItems).toHaveBeenCalledOnce();
+  });
+
+  it("swaps the count's controls for the picked item's rename, move and delete", () => {
+    const count = {
+      id: "count",
+      name: "Plug",
+      type: "count" as const,
+      calibrationId: null,
+      points: [
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+        { x: 5, y: 6 },
+      ],
+      itemNames: ["", "Gate", ""],
+      classificationValueIds: [],
+      visible: true,
+    };
+    const onRenameCountItem = vi.fn();
+    const onMoveCountItem = vi.fn();
+    const onDeleteCountItem = vi.fn(() => true);
+    renderToolbar(
+      props({
+        selectedMeasurements: [count],
+        selectedMeasurementId: count.id,
+        selectedMeasurementName: count.name,
+        onAddCountItems: vi.fn(),
+        countMoveTargets: [{ id: "windows", label: "Windows" }],
+        onRenameCountItem,
+        onMoveCountItem,
+        onDeleteCountItem,
+      }),
+    );
+    expect(container?.querySelector('button[aria-label="Add items"]')).not.toBeNull();
+
+    act(() => setSelectedCountItem({ measurementId: "count", index: 1 }));
+    expect(container?.querySelector('button[aria-label="Add items"]')).toBeNull();
+    expect(buttonByLabel("Rename item 2").textContent).toBe("Gate");
+
+    act(() => buttonByLabel("Rename item 2").click());
+    const input = container!.querySelector<HTMLInputElement>(
+      'input[aria-label="Name for item 2"]',
+    )!;
+    setInputValue(input, "  Main gate ");
+    act(() =>
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(onRenameCountItem).toHaveBeenCalledWith(1, "Main gate");
+
+    act(() => buttonByLabel("Move item 2 to another count").click());
+    const target = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      (item) => item.textContent === "Windows",
+    )!;
+    act(() => target.click());
+    expect(onMoveCountItem).toHaveBeenCalledWith(1, "windows");
+
+    act(() => buttonByLabel("Delete item 2").click());
+    expect(onDeleteCountItem).toHaveBeenCalledOnce();
+
+    act(() => buttonByLabel("Back to Plug").click());
+    expect(container?.querySelector('button[aria-label="Add items"]')).not.toBeNull();
+  });
+
+  it("restores the default item name when the rename is emptied", () => {
+    const count = {
+      id: "count",
+      name: "Plug",
+      type: "count" as const,
+      calibrationId: null,
+      points: [{ x: 1, y: 2 }],
+      itemNames: ["Gate"],
+      classificationValueIds: [],
+      visible: true,
+    };
+    const onRenameCountItem = vi.fn();
+    act(() => setSelectedCountItem({ measurementId: "count", index: 0 }));
+    renderToolbar(
+      props({
+        selectedMeasurements: [count],
+        selectedMeasurementId: count.id,
+        selectedMeasurementName: count.name,
+        onRenameCountItem,
+        onMoveCountItem: vi.fn(),
+        onDeleteCountItem: vi.fn(() => true),
+      }),
+    );
+    act(() => buttonByLabel("Rename item 1").click());
+    const input = container!.querySelector<HTMLInputElement>(
+      'input[aria-label="Name for item 1"]',
+    )!;
+    expect(input.placeholder).toBe("Item 1");
+    setInputValue(input, "   ");
+    act(() =>
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(onRenameCountItem).toHaveBeenCalledWith(0, "");
   });
 
   it("shows explicit Count creation and completion controls without path drawing aids", () => {

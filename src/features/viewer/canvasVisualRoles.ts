@@ -74,6 +74,8 @@ export const CANVAS_VISUAL_METRICS = Object.freeze({
   countMarkerRadiusScreenPx: 6,
   countFocusRingGapScreenPx: 3,
   countFocusRingStrokeScreenPx: 2,
+  /** Clear space between the focus ring and the item's label. */
+  countFocusRingLabelGapScreenPx: 4,
   handleRadiusScreenPx: 3,
   handleStrokeScreenPx: 2,
   interactionTargetFineScreenPx: 32,

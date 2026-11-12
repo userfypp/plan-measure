@@ -9,11 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AnchoredMenu,
+  ArrowLeftIcon,
   CheckIcon,
   CloseIcon,
   EyeIcon,
   IconButton,
   Input,
+  MoveToIcon,
   PlusIcon,
   SaveIcon,
   SearchIcon,
@@ -27,6 +30,11 @@ import type { ActionId } from "../utils/shortcuts/bindings";
 import { isBlockingOverlayOpen, useShortcutHandlers } from "../utils/shortcuts/dispatcher";
 import { useShortcutAria, useShortcutLabel } from "../utils/shortcuts/store";
 import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils/measurementName";
+import { countItemLabel, countItemName } from "../utils/countItems";
+import {
+  setSelectedCountItem,
+  useSelectedCountItem,
+} from "../features/measurements/countItemFocus";
 import { useWorkspaceState } from "./workspaceState";
 import type { ClassificationCatalog, Measurement } from "../types/domain";
 import type { BulkMeasurementCommand } from "./sessionState";
@@ -46,6 +54,12 @@ export interface ContextToolbarProps {
   onClearMeasurementSelection?: () => void;
   onAddCountItems?: () => void;
   addCountItemsDisabledReason?: string;
+  /** The other counts on the page, where a selected item can move to. */
+  countMoveTargets?: readonly { id: string; label: string }[];
+  onRenameCountItem?: (index: number, name: string) => void;
+  onMoveCountItem?: (index: number, targetId: string) => void;
+  /** Deletes the selected count item (the whole count when it is the last one). */
+  onDeleteCountItem?: () => boolean;
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
@@ -256,13 +270,23 @@ function ShiftConstrainHint({ constraint }: { constraint: "square" | "circle" })
   );
 }
 
+/** A count item renames like a measurement, except that an empty name restores "Item N". */
+interface ItemNaming {
+  number: number;
+  label: string;
+}
+
 function MeasurementNameEditor({
   name,
   onRename,
+  item,
 }: {
   name: string;
   onRename: (name: string) => void;
+  item?: ItemNaming;
 }) {
+  const subject = item ? `item ${item.number}` : name;
+  const shownName = item ? item.label : name;
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -302,8 +326,8 @@ function MeasurementNameEditor({
   }
 
   function commitRename() {
-    const normalized = normalizeMeasurementName(draftName);
-    if (!normalized) {
+    const normalized = item ? draftName.trim() : normalizeMeasurementName(draftName);
+    if (normalized === null || (!normalized && !item)) {
       setNameError(MEASUREMENT_NAME_EMPTY_ERROR);
       return false;
     }
@@ -330,18 +354,18 @@ function MeasurementNameEditor({
   if (!editing) {
     return (
       <Tooltip
-        content={shortcut ? `Rename ${name} (${shortcut})` : `Rename ${name}`}
+        content={shortcut ? `Rename ${subject} (${shortcut})` : `Rename ${subject}`}
         position="bottom"
       >
         <button
           ref={triggerRef}
           type="button"
           className={styles.measurementNameTrigger}
-          aria-label={`Rename selected measurement ${name}`}
+          aria-label={item ? `Rename ${subject}` : `Rename selected measurement ${name}`}
           aria-keyshortcuts={keyShortcuts || undefined}
           onClick={startEditing}
         >
-          <span>{name}</span>
+          <span>{shownName}</span>
         </button>
       </Tooltip>
     );
@@ -350,7 +374,7 @@ function MeasurementNameEditor({
   return (
     <form
       className={styles.renameForm}
-      aria-label={`Rename ${name}`}
+      aria-label={`Rename ${subject}`}
       data-toolbar-inline-editor
       onSubmit={submitRename}
     >
@@ -358,7 +382,8 @@ function MeasurementNameEditor({
         ref={inputRef}
         className={styles.renameInput}
         value={draftName}
-        aria-label={`Name for ${name}`}
+        aria-label={`Name for ${subject}`}
+        placeholder={item ? `Item ${item.number}` : undefined}
         aria-invalid={nameError ? true : undefined}
         aria-describedby={nameError ? errorId : undefined}
         onChange={(event) => {
@@ -407,6 +432,10 @@ export function ContextToolbar({
   onClearMeasurementSelection,
   onAddCountItems,
   addCountItemsDisabledReason,
+  countMoveTargets = [],
+  onRenameCountItem,
+  onMoveCountItem,
+  onDeleteCountItem,
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
@@ -421,6 +450,7 @@ export function ContextToolbar({
   onCancelReferenceEdit,
   onSaveReferenceEdit,
 }: ContextToolbarProps) {
+  const selectedCountItem = useSelectedCountItem();
   const {
     activeTool,
     draft,
@@ -671,6 +701,67 @@ export function ContextToolbar({
   const allSelectedVisible =
     selectedMeasurements?.every((measurement) => measurement.visible) ?? false;
   const singleSelection = selectionCount === 1 && selectedMeasurementName !== null;
+  const countItemMeasurement = selectedMeasurements?.[0];
+  if (
+    singleSelection &&
+    countItemMeasurement?.type === "count" &&
+    selectedCountItem?.measurementId === countItemMeasurement.id &&
+    selectedCountItem.index < countItemMeasurement.points.length &&
+    onRenameCountItem &&
+    onMoveCountItem &&
+    onDeleteCountItem
+  ) {
+    const index = selectedCountItem.index;
+    const number = index + 1;
+    return (
+      <ToolbarComposite label="Selected count item controls" contextKind="selection">
+        <IconButton
+          className={styles.selectionIconButton}
+          icon={<ArrowLeftIcon />}
+          aria-label={`Back to ${countItemMeasurement.name}`}
+          tooltip={`Back to ${countItemMeasurement.name} (Esc)`}
+          tooltipPosition="bottom"
+          onClick={() => setSelectedCountItem(null)}
+        />
+        <MeasurementNameEditor
+          key={`${countItemMeasurement.id}:${index}`}
+          name={countItemName(countItemMeasurement, index)}
+          item={{ number, label: countItemLabel(countItemMeasurement, index) }}
+          onRename={(name) => onRenameCountItem(index, name)}
+        />
+        <Divider />
+        <AnchoredMenu
+          trigger={<MoveToIcon className={styles.selectionIcon} />}
+          triggerProps={{
+            className: styles.selectionIconButton,
+            "aria-label": `Move item ${number} to another count`,
+            disabled: countMoveTargets.length === 0,
+          }}
+          tooltip={
+            countMoveTargets.length === 0 ? "Create another count on this page first" : "Move to…"
+          }
+          tooltipPosition="bottom"
+          label={`Move item ${number} to count`}
+          placement="bottom-start"
+          items={() =>
+            countMoveTargets.map((target) => ({
+              id: target.id,
+              label: target.label,
+              onSelect: () => onMoveCountItem(index, target.id),
+            }))
+          }
+        />
+        <Divider />
+        <ShortcutButton
+          danger
+          label={`Delete item ${number}`}
+          actionId="edit.delete"
+          icon={<TrashIcon />}
+          onClick={() => onDeleteCountItem()}
+        />
+      </ToolbarComposite>
+    );
+  }
   const toggleSelectedVisibility =
     selectionCount >= 2 && selectedMeasurements && onEditSelectedMeasurements
       ? () =>

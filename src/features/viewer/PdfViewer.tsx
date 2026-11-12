@@ -85,7 +85,8 @@ import { ScaleCheckLine } from "./ScaleCheckLine";
 import type { ScaleCheckStore } from "../calibration/scaleCheckState";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
-import { DebugOverlay } from "./DebugOverlay";
+import { getSelectedCountItem, setSelectedCountItem } from "../measurements/countItemFocus";
+import { DebugOverlay, type DebugStats } from "./DebugOverlay";
 import {
   setMainPdfBusy,
   setMainPdfPage,
@@ -144,6 +145,18 @@ const WHEEL_ZOOM_MAX_SETTLE_MS = 600;
 const WHEEL_ZOOM_MIN_MEASUREMENTS = 200;
 
 /** The viewer behaviour behind a customizable shortcut, or null when the viewer does not own it. */
+/** Every node under a Konva container: what a redraw of that layer has to walk. */
+function countCanvasNodes(container: Konva.Container | null): number {
+  if (!container) return 0;
+  let count = 0;
+  for (const child of container.getChildren()) {
+    count += 1;
+    // Groups hold children of their own; Konva is a type-only import here, so test by shape.
+    if ("getChildren" in child) count += countCanvasNodes(child as Konva.Container);
+  }
+  return count;
+}
+
 function viewerKeyboardActionFor(action: ActionId): ViewerKeyboardAction | null {
   if (action === "view.zoomIn") return "zoom-in";
   if (action === "view.zoomOut") return "zoom-out";
@@ -303,17 +316,29 @@ export function PdfViewer({
   } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
   const lastRenderMsRef = useRef<number | null>(null);
-  const getDebugStats = useCallback(
-    () => ({
+  // What the diagnostics read, kept in a ref so showing them never re-renders the viewer.
+  const debugSourceRef = useRef<{
+    zoom: number;
+    raster: HTMLCanvasElement | null;
+    cacheLimits: { maxEntries: number; maxPixels: number };
+  }>({ zoom: 1, raster: null, cacheLimits: RASTER_CACHE_LIMITS[rasterCache] });
+  const getDebugStats = useCallback((): DebugStats => {
+    const source = debugSourceRef.current;
+    return {
+      zoomPercent: source.zoom * 100,
+      raster: source.raster ? { width: source.raster.width, height: source.raster.height } : null,
       cacheEntries: renderCacheRef.current.size,
+      cacheMaxEntries: source.cacheLimits.maxEntries,
       cachePixels: renderCacheRef.current.pixels,
+      cacheMaxPixels: source.cacheLimits.maxPixels,
       lastRenderMs: lastRenderMsRef.current,
-    }),
-    [],
-  );
+      canvasNodes: countCanvasNodes(annotationLayerRef.current),
+    };
+  }, []);
   useEffect(() => {
     const limits = RASTER_CACHE_LIMITS[rasterCache];
     renderCacheRef.current.setLimits(limits.maxEntries, limits.maxPixels);
+    debugSourceRef.current.cacheLimits = limits;
   }, [rasterCache]);
   const activeMeasurementEditIdRef = useRef(activeMeasurementEditId);
   const cachedDocumentRef = useRef<PDFDocumentProxy | null>(null);
@@ -698,6 +723,11 @@ export function PdfViewer({
         : transform,
     [bounds, defaultZoom, fitMode, maxZoom, safeViewer.size, transform],
   );
+
+  useEffect(() => {
+    debugSourceRef.current.zoom = viewTransform.zoom;
+    debugSourceRef.current.raster = readyRaster?.canvas ?? null;
+  }, [viewTransform.zoom, readyRaster]);
 
   // The page grid covers the visible area plus one viewport on each side, so a pan shows grid
   // lines before the view settles and the transform updates.
@@ -1182,6 +1212,8 @@ export function PdfViewer({
         clearDraftRef.current();
       } else if (action === "exit-tool") {
         onChooseToolRef.current("select");
+      } else if (action === "clear-item") {
+        setSelectedCountItem(null);
       } else if (action === "close-details") {
         closeMeasurementDetails();
       } else if (action === "clear-selection") {
@@ -1285,6 +1317,7 @@ export function PdfViewer({
       activeToolRef.current,
       workspaceDraftRef.current,
       {
+        itemSelected: getSelectedCountItem() !== null,
         detailsOpen: measurementDetailsOpen,
         hasSelection: selectedMeasurementIds.length > 0,
       },

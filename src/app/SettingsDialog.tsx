@@ -651,16 +651,33 @@ function projectClassificationOptions(
     : options;
 }
 
-/** Frames the settings stored with the open plan, apart from the app-wide ones around it. */
-function ProjectGroup({ children }: { children: ReactNode }) {
+/** Frames settings that belong together, apart from the app-wide rows around them. */
+function SettingsGroup({
+  label,
+  caption,
+  children,
+}: {
+  label: string;
+  caption: string;
+  children: ReactNode;
+}) {
   return (
-    <div className={styles.projectGroup} role="group" aria-label="Project">
+    <div className={styles.projectGroup} role="group" aria-label={label}>
       <div className={styles.projectGroupHeader} aria-hidden="true">
-        <span className={styles.projectGroupTitle}>Project</span>
-        <span className={styles.projectGroupCaption}>Saved with this plan</span>
+        <span className={styles.projectGroupTitle}>{label}</span>
+        <span className={styles.projectGroupCaption}>{caption}</span>
       </div>
       {children}
     </div>
+  );
+}
+
+/** Frames the settings stored with the open plan, apart from the app-wide ones around them. */
+function ProjectGroup({ children }: { children: ReactNode }) {
+  return (
+    <SettingsGroup label="Project" caption="Saved with this plan">
+      {children}
+    </SettingsGroup>
   );
 }
 
@@ -715,12 +732,6 @@ function DefaultFilterRows({
   );
 }
 
-/** The selected measurement and the scale it is measured with, previewed in Measurements. */
-export interface LabelPreviewMeasurement {
-  measurement: Pick<Measurement, "type" | "points" | "name" | "classificationValueIds">;
-  calibration: PageCalibration | null;
-}
-
 // One drawing unit is one millimetre, so the samples read as round, grouped values in every unit.
 const SAMPLE_CALIBRATION: PageCalibration = {
   id: "label-preview",
@@ -731,9 +742,10 @@ const SAMPLE_CALIBRATION: PageCalibration = {
   referenceDistanceMm: 1,
 };
 
+// One sample per label shape, so every number and label setting shows its effect whatever is selected.
 const SAMPLE_MEASUREMENTS = [
   {
-    kind: "Sample length",
+    kind: "Length",
     measurement: {
       type: "line",
       name: "Wall",
@@ -744,7 +756,7 @@ const SAMPLE_MEASUREMENTS = [
     },
   },
   {
-    kind: "Sample area",
+    kind: "Perimeter and area",
     measurement: {
       type: "polygon",
       name: "Room",
@@ -756,95 +768,64 @@ const SAMPLE_MEASUREMENTS = [
       ],
     },
   },
+  {
+    kind: "Count",
+    measurement: {
+      type: "count",
+      name: "Doors",
+      points: Array.from({ length: 12 }, (_, index) => ({ x: index, y: 0 })),
+    },
+  },
 ] as const satisfies readonly {
   kind: string;
   measurement: Pick<Measurement, "type" | "points" | "name">;
 }[];
 
-function classificationNameFor(
-  dimension: ClassificationDimension | undefined,
-  valueIds: readonly string[] | undefined,
-): string | undefined {
-  if (!dimension) return undefined;
-  // A sample shows the dimension's first value; a measurement shows its own, as the canvas does.
-  if (!valueIds) return dimension.values.find((value) => !value.archived)?.name;
-  for (const id of valueIds) {
-    const name = dimension.values.find((value) => value.id === id)?.name;
-    if (name) return name;
-  }
-  return undefined;
+/** A sample shows the dimension's first value, as a measurement with that value would on the canvas. */
+function sampleClassificationName(dimension: ClassificationDimension | undefined) {
+  return dimension?.values.find((value) => !value.archived)?.name;
 }
 
 /**
- * The on-screen label exactly as the canvas composes it from every number and label setting: the
- * selected measurement when there is one, otherwise a sample length and area.
+ * The on-screen labels exactly as the canvas composes them from every number and label setting, on
+ * fixed samples of each shape: the preview never depends on what is selected.
  */
 function LabelPreview({
-  selected,
   displayUnit,
   decimalPlaces,
   areaDisplay,
   labelContent,
   classificationDimension,
 }: {
-  selected: LabelPreviewMeasurement | null;
   displayUnit: MeasurementDisplayUnit;
   decimalPlaces: MeasurementDecimalPlaces;
   areaDisplay: ProjectViewSettings["areaDisplay"];
   labelContent: AppPreferences["labelContent"];
   classificationDimension: ClassificationDimension | undefined;
 }) {
-  const titleId = useId();
-  const rows = selected
-    ? [
-        {
-          kind: selected.measurement.name.trim() || "Unnamed",
-          text:
-            measurementLabelText(
-              selected.measurement,
-              selected.calibration,
-              displayUnit,
-              decimalPlaces,
-              areaDisplay,
-              labelContent,
-              classificationNameFor(
-                classificationDimension,
-                selected.measurement.classificationValueIds,
-              ),
-            ) ?? "No label until it has a scale",
-        },
-      ]
-    : SAMPLE_MEASUREMENTS.map(({ kind, measurement }) => ({
-        kind,
-        text:
-          measurementLabelText(
-            measurement,
-            SAMPLE_CALIBRATION,
-            displayUnit,
-            decimalPlaces,
-            areaDisplay,
-            labelContent,
-            classificationNameFor(classificationDimension, undefined),
-          ) ?? "",
-      }));
   return (
-    <section className={styles.labelPreview} aria-labelledby={titleId}>
-      <h3 id={titleId} className={styles.visuallyHidden}>
-        Label preview
-      </h3>
+    <SettingsGroup label="Preview" caption="Labels on the plan">
       <dl className={styles.labelPreviewList}>
-        {rows.map(({ kind, text }) => (
+        {SAMPLE_MEASUREMENTS.map(({ kind, measurement }) => (
           <div key={kind} className={styles.labelPreviewRow}>
             <dt>{kind}</dt>
             <dd>
               <output className={styles.labelPreviewValue} aria-live="polite">
-                {text}
+                {measurementLabelText(
+                  measurement,
+                  SAMPLE_CALIBRATION,
+                  displayUnit,
+                  decimalPlaces,
+                  areaDisplay,
+                  labelContent,
+                  sampleClassificationName(classificationDimension),
+                )}
               </output>
             </dd>
           </div>
         ))}
       </dl>
-    </section>
+    </SettingsGroup>
   );
 }
 
@@ -852,8 +833,6 @@ export interface SettingsDialogProps {
   onClose: () => void;
   /** The section shown when the dialog opens; the first available one when omitted. */
   initialSection?: SettingsSectionId;
-  /** Previewed in Measurements instead of the sample measurements. */
-  labelPreviewMeasurement?: LabelPreviewMeasurement | null;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   /** Null when no project is open: project view settings are then shown disabled. */
   viewSettings?: ProjectViewSettings | null;
@@ -880,7 +859,6 @@ export interface SettingsDialogProps {
 export function SettingsDialog({
   onClose,
   initialSection,
-  labelPreviewMeasurement = null,
   measurementDecimalPlaces = null,
   viewSettings = null,
   classificationDimensions = [],
@@ -1279,7 +1257,6 @@ export function SettingsDialog({
                     onChange={set("defaultDisplayUnit")}
                   />
                   <LabelPreview
-                    selected={viewSettings ? labelPreviewMeasurement : null}
                     displayUnit={viewSettings?.displayUnit ?? preferences.defaultDisplayUnit}
                     decimalPlaces={measurementDecimalPlaces ?? DEFAULT_MEASUREMENT_DECIMAL_PLACES}
                     areaDisplay={viewSettings?.areaDisplay ?? "auto"}
@@ -1643,7 +1620,7 @@ export function SettingsDialog({
                   />
                   <SwitchRow
                     label="Debug overlay"
-                    help="Shows FPS, cache use and the last render time over the plan."
+                    help="Shows frame rate, render time, cache use and canvas size over the plan."
                     checked={preferences.debugOverlay}
                     onChange={set("debugOverlay")}
                   />

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClassificationCatalog, Measurement, PageState } from "../../types/domain";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
 import { MeasurementDetails, type MeasurementDetailsProps } from "./MeasurementDetails";
+import { getSelectedCountItem, setSelectedCountItem } from "./countItemFocus";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -120,6 +121,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setSelectedCountItem(null);
   if (root) act(() => root?.unmount());
   container?.remove();
   root = null;
@@ -306,6 +308,39 @@ describe("MeasurementDetails", () => {
     act(() => editor()!.form!.requestSubmit());
     expect(onRenameCountItem).toHaveBeenCalledExactlyOnceWith(1, "Kitchen");
     expect(editor()).toBeNull();
+  });
+
+  it("picks a count item when its row is clicked and marks the item picked on the plan", () => {
+    const count: Measurement = {
+      ...firstMeasurement,
+      id: "count",
+      name: "Plug",
+      type: "count",
+      calibrationId: null,
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    };
+    renderDetails(
+      createProps({
+        measurement: count,
+        onRemoveCountItem: vi.fn(),
+        onRenameCountItem: vi.fn(),
+      }),
+    );
+    const rows = () =>
+      container!.querySelectorAll<HTMLElement>('ul[aria-label="Items in Plug"] li');
+    expect(rows()[1]!.dataset.selected).toBeUndefined();
+
+    act(() => rows()[1]!.click());
+    expect(getSelectedCountItem()).toEqual({ measurementId: "count", index: 1 });
+    expect(rows()[1]!.dataset.selected).toBe("true");
+    expect(rows()[0]!.dataset.selected).toBeUndefined();
+
+    // A button inside the row keeps its own job and does not re-pick another item.
+    act(() => buttonByLabel("Rename item 1").click());
+    expect(getSelectedCountItem()).toEqual({ measurementId: "count", index: 1 });
   });
 
   it("disables transfers when no other count is available and respects blocked editing", () => {

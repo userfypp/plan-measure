@@ -621,4 +621,34 @@ describe("Popover", () => {
     expect(parseFloat(content.style.top)).toBeLessThan(700);
     expect(parseFloat(content.style.left) + 300).toBeCloseTo(980, 0);
   });
+  it("keeps the popover edges on an anchor that sits closer to the viewport edge than the margin", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        <Popover trigger="Framed trigger" matchTriggerWidth role="dialog" aria-label="Framed">
+          <button type="button">Inside action</button>
+        </Popover>,
+      );
+    });
+    const button = container.querySelector("button")!;
+    button.getBoundingClientRect = () => ({
+      width: 279,
+      height: 32,
+      top: 4,
+      left: 4,
+      right: 283,
+      bottom: 36,
+      x: 4,
+      y: 4,
+      toJSON: () => ({}),
+    });
+    act(() => button.click());
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(content.style.left).toBe("4px");
+  });
 });

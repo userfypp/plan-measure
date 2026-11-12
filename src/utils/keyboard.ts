@@ -45,11 +45,14 @@ export type DrawingKeyboardAction =
   | "cancel-draft"
   | "complete-path"
   | "exit-tool"
+  | "clear-item"
   | "close-details"
   | "clear-selection";
 
 /** What is open in the workspace when Escape reaches the ladder past the drawing steps. */
 export interface EscapeContext {
+  /** A count item is picked: the innermost state, left before Details and the selection. */
+  itemSelected?: boolean;
   detailsOpen: boolean;
   hasSelection: boolean;
 }
@@ -76,12 +79,13 @@ export function getDrawingKeyboardAction(
   escape?: EscapeContext,
 ): DrawingKeyboardAction | null {
   if (key === "Escape") {
-    // Escape ladder, one step per press: calibration, draft, tool, Details, selection.
+    // Escape ladder, one step per press: calibration, draft, tool, item, Details, selection.
     if (tool === "calibrate") return "cancel-calibration";
     if (isMeasurementType(tool)) {
       return draft ? "cancel-draft" : "exit-tool";
     }
     if (tool === "hand") return "exit-tool";
+    if (escape?.itemSelected) return "clear-item";
     if (escape?.detailsOpen) return "close-details";
     if (escape?.hasSelection) return "clear-selection";
     return null;

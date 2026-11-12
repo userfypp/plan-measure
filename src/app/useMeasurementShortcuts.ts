@@ -32,6 +32,8 @@ interface MeasurementShortcutsDeps {
   pasteMeasurements: SessionState["pasteMeasurements"];
   requestMeasurementDelete: (request: MeasurementDeleteRequest) => void;
   requestSelectedMeasurementsDelete: () => void;
+  /** Removes the selected count item when there is one; false when Delete should act on measurements. */
+  deleteSelectedCountItem: () => boolean;
   selectWorkspaceMeasurements: WorkspaceState["selectMeasurements"];
   selectedMeasurementId: WorkspaceState["selectedMeasurementId"];
   selectedMeasurementIds: WorkspaceState["selectedMeasurementIds"];
@@ -53,6 +55,7 @@ export function useMeasurementShortcuts({
   pasteMeasurements,
   requestMeasurementDelete,
   requestSelectedMeasurementsDelete,
+  deleteSelectedCountItem,
   selectWorkspaceMeasurements,
   selectedMeasurementId,
   selectedMeasurementIds,
@@ -115,6 +118,10 @@ export function useMeasurementShortcuts({
       return true;
     }
 
+    if (action === "delete-measurement" && deleteSelectedCountItem()) {
+      event.preventDefault();
+      return true;
+    }
     if (
       action === "delete-measurement" &&
       (selectedMeasurementIds.length > 1 ||
