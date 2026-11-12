@@ -2,7 +2,7 @@ name: Performance
 
 on:
   pull_request:
-    # labeled/unlabeled re-run the size check when the "size: approved" label changes; edited covers a new base.
+    # labeled/unlabeled re-run the size check when a label changes; edited covers a new base.
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
   push:
     branches: [main]
@@ -21,6 +21,10 @@ jobs:
   size:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # Reads the pull request's current labels, so a re-run sees the label as it is now.
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -32,25 +36,29 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
-      - id: build
-        run: npm run build
-      - run: npm run perf:size
-      - name: Compare with the base
-        # Also after a ceiling failure, so the report shows what grew.
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.build.outcome == 'success' }}
+      - run: npm run build
+      - name: Check size
+        if: ${{ github.event_name != 'pull_request' }}
+        run: npm run perf:size
+      - name: Check size against the base
+        # Includes the checks of perf:size and adds the growth allowance and the approval label.
+        if: ${{ github.event_name == 'pull_request' }}
         env:
-          # Quoted: the label's ": " would otherwise end the YAML scalar.
-          APPROVED: "${{ contains(github.event.pull_request.labels.*.name, 'size: approved') }}"
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           parents="$(git rev-list --parents -n 1 HEAD)"
           if [ "$(wc -w <<<"$parents")" -ne 3 ]; then
             echo "Expected the pull request merge commit; got: $parents" >&2
             exit 1
           fi
+          # Not the event payload: a re-run replays the labels the pull request had when it was triggered.
+          labels="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.labels[].name')"
           approval=()
-          if [ "$APPROVED" = "true" ]; then approval=(--approved); fi
+          if grep -qxF 'size: approved' <<<"$labels"; then approval=(--approved); fi
           npm run perf:size:diff -- --base HEAD^1 "${approval[@]}"
-      - run: npm run perf:selftest
+      - if: ${{ !cancelled() }}
+        run: npm run perf:selftest
 
   e2e:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}

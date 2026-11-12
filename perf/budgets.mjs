@@ -1,20 +1,23 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-// The budget numbers live in size-budget.json: CI compares them with the base's, so lowering them
-// needs no approval and raising or removing them does. All are decimal bytes.
-const budget = JSON.parse(fs.readFileSync(new URL("./size-budget.json", import.meta.url), "utf8"));
-// Absolute ceilings: every build must fit. Each is the measured size plus `ceilingHeadroom.target`
-// allowances; raising one requires approval, and lowering it is mandatory once the build falls more than
-// `ceilingHeadroom.maximum` allowances below it.
-export const sizeLimits = budget.sizeLimits;
-// Growth a pull request may add to each metric without approval. In main's history every feature
-// exceeds it (from 541 B gzip) and almost no fix does (20 of 22, up to 91 B gzip).
-export const sizeGrowthAllowance = budget.sizeGrowthAllowance;
-// Headroom of the ceilings over the build, in multiples of `sizeGrowthAllowance`.
-export const ceilingHeadroom = budget.ceilingHeadroom;
+// Bundle size. The numbers live in size-budget.json; how they are enforced is explained in
+// docs/PERFORMANCE.md ("JavaScript size"). All sizes are decimal bytes.
+export const sizeBudget = JSON.parse(
+  fs.readFileSync(new URL("./size-budget.json", import.meta.url), "utf8"),
+);
 // The maintainer adds it to a pull request after reviewing a justified increase; never an agent.
 export const SIZE_APPROVAL_LABEL = "size: approved";
+// Every metric in the report, in order. Only those with a ceiling in size-budget.json are enforced;
+// raw bytes are informational (they move with chunk layout and minifier naming, not with what users download).
+export const sizeMetrics = {
+  startupGzipBytes: "Startup JS (gzip)",
+  viewerGzipBytes: "Plan-open JS (gzip)",
+  startupBytes: "Startup JS (raw, info)",
+  viewerBytes: "Plan-open JS (raw, info)",
+};
+// A ceiling is set this far above the build, so it only stops long-term drift, never one pull request.
+export const CEILING_HEADROOM = 0.1;
 export const forbiddenStartup =
   /(?:pdfjs|pdf(?:[.-]|\.worker)|pdf-lib|annotatedPdf|xlsx|pdfjs-dist|pdfLib|(?:^|\/)es-[^/]+\.js(?:[?#]|$))/i;
 export function checkStartup(requests, workers = []) {
@@ -22,74 +25,109 @@ export function checkStartup(requests, workers = []) {
     assert.ok(!forbiddenStartup.test(request), `Deferred dependency loaded at startup: ${request}`);
   assert.equal(workers.length, 0, `Worker during startup: ${workers.join(", ")}`);
 }
-/** Ceiling for a measured size: the size plus `ceilingHeadroom.target` allowances. */
-export function sizeCeiling(metric, value, allowance = sizeGrowthAllowance) {
-  return value + ceilingHeadroom.target * allowance[metric];
+/** The ceiling to write for a measured size: 10 % above it, rounded up to a whole KiB. */
+export function suggestedCeiling(value) {
+  return Math.ceil((value * (1 + CEILING_HEADROOM)) / 1024) * 1024;
 }
-export function checkSize(metrics, limits = sizeLimits, allowance = sizeGrowthAllowance) {
-  for (const key of Object.keys(limits)) {
-    assert.ok(Number.isFinite(metrics[key]), `Missing size for ${key}`);
+/** Growth a pull request may add to a metric without approval: a share of the base, with a floor. */
+export function growthAllowance(baseValue, tolerance = sizeBudget.growthTolerance) {
+  return Math.max(tolerance.minimumBytes, Math.ceil(baseValue * tolerance.ratio));
+}
+export function validateSizeBudget(budget) {
+  const ceilings = Object.entries(budget?.ceilings ?? {});
+  assert.ok(ceilings.length > 0, "size-budget.json: no ceilings");
+  for (const [metric, ceiling] of ceilings) {
+    assert.ok(metric in sizeMetrics, `size-budget.json: unknown metric ${metric}`);
     assert.ok(
-      Number.isInteger(allowance[key]) && allowance[key] > 0,
-      `Missing per-PR allowance for ${key}`,
-    );
-    assert.ok(
-      metrics[key] <= limits[key],
-      `${key}: ${metrics[key]} > ${limits[key]}. Split the code; if the growth is justified, raise the ceiling to ${sizeCeiling(key, metrics[key], allowance)} with the "${SIZE_APPROVAL_LABEL}" label`,
-    );
-    // Ratchet: a large saving lowers the ceiling so that the freed headroom is not spent without a decision.
-    assert.ok(
-      limits[key] <= metrics[key] + ceilingHeadroom.maximum * allowance[key],
-      `${key}: the ceiling ${limits[key]} leaves more than ${ceilingHeadroom.maximum} allowances over ${metrics[key]}; lower it to ${sizeCeiling(key, metrics[key], allowance)}`,
+      Number.isInteger(ceiling) && ceiling > 0,
+      `size-budget.json: invalid ceiling ${metric}`,
     );
   }
-  checkStartup(metrics.startupFiles);
+  const { ratio, minimumBytes } = budget.growthTolerance ?? {};
+  assert.ok(ratio > 0 && ratio < 1, "size-budget.json: growthTolerance.ratio must be in (0, 1)");
+  assert.ok(
+    Number.isInteger(minimumBytes) && minimumBytes > 0,
+    "size-budget.json: growthTolerance.minimumBytes must be a positive integer",
+  );
+}
+/** Ways the pull request loosens the base's budget. A base without this format contributes none. */
+export function budgetRelaxations(base, head) {
+  if (!base?.ceilings) return [];
+  const relaxations = [];
+  for (const [metric, previous] of Object.entries(base.ceilings)) {
+    const next = head.ceilings[metric];
+    if (next === undefined) relaxations.push(`ceilings.${metric} is removed`);
+    else if (next > previous)
+      relaxations.push(`ceilings.${metric} rises from ${previous} to ${next}`);
+  }
+  for (const [key, previous] of Object.entries(base.growthTolerance ?? {})) {
+    const next = head.growthTolerance[key];
+    if (next > previous)
+      relaxations.push(`growthTolerance.${key} rises from ${previous} to ${next}`);
+  }
+  return relaxations;
 }
 /**
- * Compares the base's budget and build with those of a pull request. Returns the report rows and what
- * requires the approval label: growth above the allowance and any relaxation of the budget (a ceiling,
- * allowance or headroom that rises or disappears, or a change to the list of dependencies forbidden
- * at startup).
+ * Applies the size rules to a build (`head`) and, when given, the base it is compared with (measured
+ * on the same machine). Returns the report rows and three lists: `failures` (a ceiling or a deferred
+ * dependency at startup; the label does not override them), `needsApproval` (growth over the
+ * allowance, a looser budget or changed size tooling; the label accepts them) and `notices`, which
+ * never fail.
  */
-export function compareSizeBudgets(base, head) {
-  const rows = Object.keys(head.budgets.sizeLimits).map((metric) => ({
-    metric,
-    base: base.metrics[metric],
-    head: head.metrics[metric],
-    delta: head.metrics[metric] - base.metrics[metric],
-    allowance: head.budgets.sizeGrowthAllowance[metric],
-    limit: head.budgets.sizeLimits[metric],
-  }));
+export function evaluateSize({
+  head,
+  base,
+  budget = sizeBudget,
+  baseBudget,
+  approved = false,
+  changedMachinery = [],
+}) {
+  validateSizeBudget(budget);
+  const failures = [];
   const needsApproval = [];
-  for (const row of rows) {
-    assert.ok(
-      Number.isFinite(row.base) && Number.isFinite(row.head),
-      `Missing size for ${row.metric}`,
-    );
-    assert.ok(
-      Number.isInteger(row.allowance) && row.allowance > 0,
-      `Missing per-PR allowance for ${row.metric}`,
-    );
-    if (row.delta > row.allowance)
-      needsApproval.push(
-        `${row.metric} grows ${row.delta} B (per-PR allowance: ${row.allowance} B)`,
+  const notices = [];
+  for (const file of head.startupFiles ?? [])
+    if (forbiddenStartup.test(file))
+      failures.push(
+        `Deferred dependency loaded at startup: ${file}. Load it with \`import()\` (\`recoverableLazy\`) instead of a static import.`,
       );
-  }
-  for (const group of ["sizeLimits", "sizeGrowthAllowance", "ceilingHeadroom"]) {
-    for (const [key, previous] of Object.entries(base.budgets[group] ?? {})) {
-      const next = head.budgets[group]?.[key];
-      if (next === undefined) needsApproval.push(`${group}.${key} is removed`);
-      else if (next > previous)
-        needsApproval.push(`${group}.${key} rises from ${previous} to ${next}`);
-    }
-  }
-  if (
-    base.budgets.forbiddenStartup !== undefined &&
-    String(base.budgets.forbiddenStartup) !== String(head.budgets.forbiddenStartup)
-  ) {
-    needsApproval.push("forbiddenStartup changes");
-  }
-  return { rows, needsApproval };
+  const rows = Object.entries(sizeMetrics).map(([metric, label]) => {
+    const value = head[metric];
+    assert.ok(Number.isFinite(value), `Missing size for ${metric}`);
+    const ceiling = budget.ceilings[metric];
+    const baseValue = base?.[metric];
+    if (base) assert.ok(Number.isFinite(baseValue), `Missing base size for ${metric}`);
+    const delta = base ? value - baseValue : undefined;
+    const allowance =
+      ceiling !== undefined && base
+        ? growthAllowance(baseValue, budget.growthTolerance)
+        : undefined;
+    if (ceiling !== undefined && value > ceiling)
+      failures.push(
+        `${label}: ${value} B is over its ${ceiling} B ceiling. Load new code lazily or split it. If the growth is justified, set \`ceilings.${metric}\` to ${suggestedCeiling(value)} in \`perf/size-budget.json\`; raising a ceiling needs the "${SIZE_APPROVAL_LABEL}" label.`,
+      );
+    if (allowance !== undefined && delta > allowance)
+      needsApproval.push(
+        `${label} grows ${delta} B (${percent(delta, baseValue)}), over the ${allowance} B allowed without approval`,
+      );
+    if (ceiling !== undefined && ceiling > value * (1 + 2 * CEILING_HEADROOM))
+      notices.push(
+        `${label}: the ${ceiling} B ceiling is more than ${200 * CEILING_HEADROOM} % above the build; you may lower \`ceilings.${metric}\` to ${suggestedCeiling(value)} (no label needed).`,
+      );
+    return { metric, label, base: baseValue, head: value, delta, allowance, ceiling };
+  });
+  if (baseBudget) needsApproval.push(...budgetRelaxations(baseBudget, budget));
+  needsApproval.push(
+    ...changedMachinery.map((file) => `${file} changes how size is measured or enforced`),
+  );
+  if (approved && !needsApproval.length)
+    notices.push(`The "${SIZE_APPROVAL_LABEL}" label is not needed: nothing requires approval.`);
+  const pass = !failures.length && (approved || !needsApproval.length);
+  return { rows, failures, needsApproval, notices, approved, pass };
+}
+export function percent(delta, base) {
+  const value = (100 * delta) / base;
+  return `${value > 0 ? "+" : ""}${value.toFixed(2)} %`;
 }
 export function median(values) {
   assert.ok(values.length > 0 && values.every(Number.isFinite), "Invalid samples");

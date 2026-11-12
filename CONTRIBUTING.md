@@ -28,7 +28,7 @@ CI fails on unformatted files; `npm run format` fixes them.
 More checks, when they apply:
 
 - Changed `.github/scripts`? Run `node --test .github/scripts/*.test-node.mjs`.
-- Changed dependencies, startup or the viewer? Run `npm run build && npm run perf:size`. The required `size` check fails when a size budget is exceeded.
+- Changed dependencies, startup or the viewer? Run `npm run build && npm run perf:size:diff -- --base origin/main`, the same check as the required `size` check in CI. It fails when the gzip size of startup or of opening a plan grows more than the allowance or exceeds a ceiling, and says what to do.
 - Changed startup, loading or the app shell? Run `npm run build && npm run test:smoke`, which opens the start screen and the sample project in Chromium and fails on any page error. It needs `npm ci --prefix perf` and `./perf/node_modules/.bin/playwright install chromium webkit` once.
 - Changed focus, dialogs, popovers or anything that affects Tab? Run `npm run build && npm run test:keyboard`, which compares the Tab sequence in Chromium and WebKit (Safari's engine).
 - Changed the service worker, the manifest or caching? Run `npm run build && npm run test:pwa`, which loads the build, goes offline and reloads. See [Architecture](docs/ARCHITECTURE.md#build-output) and [Install the app and use it offline](docs/user-guide.md#install-the-app-and-use-it-offline).
@@ -46,7 +46,7 @@ More checks, when they apply:
 - Link the relevant issue with `Closes #123` when fully resolved.
 - Update the relevant documentation when behavior or setup changes.
 - Changes to startup, the viewer, the canvas or the panels follow [Adding features without losing performance](docs/PERFORMANCE.md#adding-features-without-losing-performance). A failing test in `src/performance/` is a regression to fix, not an expectation to update.
-- Keep the JavaScript size budget: a pull request may grow each size metric only by a small allowance, and more growth or a higher ceiling needs the maintainer's `size: approved` label after review. Never add that label yourself. See [JavaScript size](docs/PERFORMANCE.md#2-javascript-size).
+- Keep the JavaScript size budget: a pull request may grow the startup and plan-open JavaScript only by a small allowance, and more growth or a higher ceiling needs the maintainer's `size: approved` label after review. Never add that label yourself. See [JavaScript size](docs/PERFORMANCE.md#2-javascript-size).
 
 ## Credits
 
