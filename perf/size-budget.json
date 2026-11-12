@@ -1,18 +1,10 @@
 {
-  "sizeLimits": {
-    "mainBytes": 494567,
-    "mainGzipBytes": 145806,
-    "startupBytes": 527748,
-    "viewerBytes": 813865
+  "ceilings": {
+    "startupGzipBytes": 175104,
+    "viewerGzipBytes": 279552
   },
-  "sizeGrowthAllowance": {
-    "mainBytes": 750,
-    "mainGzipBytes": 250,
-    "startupBytes": 750,
-    "viewerBytes": 500
-  },
-  "ceilingHeadroom": {
-    "target": 4,
-    "maximum": 6
+  "growthTolerance": {
+    "ratio": 0.0025,
+    "minimumBytes": 256
   }
 }

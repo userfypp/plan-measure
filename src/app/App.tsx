@@ -32,6 +32,7 @@ import { preloadPdfRuntime, usePdfSessionLifecycle } from "./usePdfSessionLifecy
 import { usePdfPageLabels } from "./usePdfPageLabels";
 import { useFileDropZone } from "./useFileDropZone";
 import { useAppPreferenceSetters } from "./useAppPreferenceSetters";
+import { CountItemToolbar } from "./countItemToolbarLazy";
 import { useMeasurementShortcuts } from "./useMeasurementShortcuts";
 import { useAppShortcuts } from "./useAppShortcuts";
 import { useCalibrationActions } from "./useCalibrationActions";
@@ -51,7 +52,6 @@ import {
   defaultCalibrationName,
   findPageCalibration,
   getActiveCalibration,
-  getMeasuringCalibration,
   isValidCalibrationReferenceEdit,
 } from "../utils/calibration";
 import {
@@ -490,6 +490,7 @@ function PlanMeasureApp() {
       loadExportDialog,
       SymbolCountBar.preload,
       PlanCompareBar.preload,
+      CountItemToolbar.preload,
     ]);
   }, [planOpen]);
 
@@ -941,6 +942,41 @@ function PlanMeasureApp() {
     chooseTool("count");
     focusViewer();
   }
+  // Shared by Details and the toolbar of a picked count item.
+  function moveCountItemTo(itemIndex: number, targetId: string) {
+    if (!currentPage || selectedMeasurement?.type !== "count") return;
+    if (
+      !moveCountItem({
+        pageNumber: currentPage.pageNumber,
+        sourceId: selectedMeasurement.id,
+        targetId,
+        itemIndex,
+      })
+    )
+      return;
+    if (selectedMeasurement.points.length === 1) {
+      chooseTool("select");
+      selectWorkspaceMeasurement(targetId);
+      focusMeasurementDetails();
+    }
+  }
+  function removeCountItemAt(index: number) {
+    if (!currentPage || selectedMeasurement?.type !== "count") return;
+    removeCountItem({
+      pageNumber: currentPage.pageNumber,
+      id: selectedMeasurement.id,
+      itemIndex: index,
+    });
+  }
+  function renameCountItemAt(index: number, name: string) {
+    if (!currentPage || selectedMeasurement?.type !== "count") return;
+    renameCountItem({
+      pageNumber: currentPage.pageNumber,
+      id: selectedMeasurement.id,
+      itemIndex: index,
+      name,
+    });
+  }
   const calibrationDialog =
     calibrationCandidate && session && calibrationCandidatePage ? (
       <Suspense fallback={null}>
@@ -1039,18 +1075,6 @@ function PlanMeasureApp() {
         savedProjectCount={savedProjects.length}
         canUndo={canUndo}
         canRedo={canRedo}
-        labelPreviewMeasurement={
-          session && currentPage && selectedMeasurement
-            ? {
-                measurement: selectedMeasurement,
-                calibration: getMeasuringCalibration(
-                  currentPage,
-                  selectedMeasurement,
-                  session.settings.measureClouds,
-                ),
-              }
-            : null
-        }
         measurementDecimalPlaces={session?.settings.measurementDecimalPlaces ?? null}
         viewSettings={
           session
@@ -1377,37 +1401,9 @@ function PlanMeasureApp() {
                           onAssignClassification={assignClassification}
                           onAddCountItems={beginAddingCountItems}
                           addCountItemsDisabledReason={addCountItemsDisabledReason}
-                          onMoveCountItem={(itemIndex, targetId) => {
-                            if (
-                              !moveCountItem({
-                                pageNumber: currentPage.pageNumber,
-                                sourceId: selectedMeasurement.id,
-                                targetId,
-                                itemIndex,
-                              })
-                            )
-                              return;
-                            if (selectedMeasurement.points.length === 1) {
-                              chooseTool("select");
-                              selectWorkspaceMeasurement(targetId);
-                              focusMeasurementDetails();
-                            }
-                          }}
-                          onRemoveCountItem={(index) => {
-                            removeCountItem({
-                              pageNumber: currentPage.pageNumber,
-                              id: selectedMeasurement.id,
-                              itemIndex: index,
-                            });
-                          }}
-                          onRenameCountItem={(index, name) =>
-                            renameCountItem({
-                              pageNumber: currentPage.pageNumber,
-                              id: selectedMeasurement.id,
-                              itemIndex: index,
-                              name,
-                            })
-                          }
+                          onMoveCountItem={moveCountItemTo}
+                          onRemoveCountItem={removeCountItemAt}
+                          onRenameCountItem={renameCountItemAt}
                           onDelete={() =>
                             requestMeasurementDelete({
                               pageNumber: currentPage.pageNumber,
@@ -1433,6 +1429,7 @@ function PlanMeasureApp() {
                 onEditSelectedMeasurements={editMeasurements}
                 onAddCountItems={beginAddingCountItems}
                 addCountItemsDisabledReason={addCountItemsDisabledReason}
+                onMoveItem={moveCountItemTo}
                 onClearMeasurementSelection={() => {
                   clearSelection();
                   focusViewer();

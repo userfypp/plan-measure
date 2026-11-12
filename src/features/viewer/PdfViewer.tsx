@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  Suspense,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -85,7 +86,9 @@ import { ScaleCheckLine } from "./ScaleCheckLine";
 import type { ScaleCheckStore } from "../calibration/scaleCheckState";
 import styles from "./PdfViewer.module.css";
 import { LruRenderCache } from "./renderCache";
-import { DebugOverlay } from "./DebugOverlay";
+import { getSelectedCountItem, setSelectedCountItem } from "../measurements/countItemFocus";
+import type { DebugStats } from "./DebugOverlay";
+import { DebugOverlay } from "./debugOverlayLazy";
 import {
   setMainPdfBusy,
   setMainPdfPage,
@@ -303,14 +306,6 @@ export function PdfViewer({
   } | null>(null);
   const renderCacheRef = useRef(new LruRenderCache<HTMLCanvasElement>());
   const lastRenderMsRef = useRef<number | null>(null);
-  const getDebugStats = useCallback(
-    () => ({
-      cacheEntries: renderCacheRef.current.size,
-      cachePixels: renderCacheRef.current.pixels,
-      lastRenderMs: lastRenderMsRef.current,
-    }),
-    [],
-  );
   useEffect(() => {
     const limits = RASTER_CACHE_LIMITS[rasterCache];
     renderCacheRef.current.setLimits(limits.maxEntries, limits.maxPixels);
@@ -337,6 +332,17 @@ export function PdfViewer({
   const [devicePixelRatio, setDevicePixelRatio] = useState(() => window.devicePixelRatio || 1);
   const [transform, setTransform] = useState<ViewTransform>({ zoom: 1, panX: 0, panY: 0 });
   const transformRef = useRef<ViewTransform>(transform);
+  const getDebugStats = useCallback((): DebugStats => {
+    const raster = recentRasterRef.current?.canvas;
+    return {
+      zoomPercent: transformRef.current.zoom * 100,
+      raster: raster ? { width: raster.width, height: raster.height } : null,
+      cacheEntries: renderCacheRef.current.size,
+      cachePixels: renderCacheRef.current.pixels,
+      lastRenderMs: lastRenderMsRef.current,
+      annotationLayer: annotationLayerRef.current,
+    };
+  }, []);
   const [presentedState, setPresentedState] = useState({ page, transform });
   // "initial" follows the default-zoom preference; the others are the manual fit actions.
   const [fitMode, setFitModeState] = useState<false | "initial" | DefaultZoom>("initial");
@@ -698,6 +704,21 @@ export function PdfViewer({
         : transform,
     [bounds, defaultZoom, fitMode, maxZoom, safeViewer.size, transform],
   );
+
+  // A picked count item only lasts while its count is the single selection in Select.
+  useEffect(() => {
+    const item = getSelectedCountItem();
+    if (
+      item &&
+      (activeTool !== "select" ||
+        selectedMeasurementIds.join() !== item.measurementId ||
+        !page.measurements.some(
+          (count) =>
+            count.id === item.measurementId && count.type === "count" && count.points[item.index],
+        ))
+    )
+      setSelectedCountItem(null);
+  }, [activeTool, page.measurements, selectedMeasurementIds]);
 
   // The page grid covers the visible area plus one viewport on each side, so a pan shows grid
   // lines before the view settles and the transform updates.
@@ -1278,6 +1299,12 @@ export function PdfViewer({
     if (event.key === "Escape" && calibrationReferenceEditRef.current) {
       event.preventDefault();
       onCalibrationReferenceEditCancelRef.current();
+      return;
+    }
+    // Escape leaves a picked count item first, then Details, then the selection.
+    if (event.key === "Escape" && getSelectedCountItem()) {
+      event.preventDefault();
+      setSelectedCountItem(null);
       return;
     }
     const action = getFixedViewerKeyboardAction(
@@ -2512,7 +2539,11 @@ export function PdfViewer({
             completePath={completePath}
           />
         )}
-        {debugOverlay && <DebugOverlay getStats={getDebugStats} />}
+        {debugOverlay && (
+          <Suspense>
+            <DebugOverlay getStats={getDebugStats} />
+          </Suspense>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { countItemLabel, countItemName } from "../../utils/countItems";
-import { useFocusedCountItemIndex } from "../measurements/countItemFocus";
+import { setSelectedCountItem, useFocusedCountItemIndex } from "../measurements/countItemFocus";
 import { measurementLabelText } from "./labelContent";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
@@ -308,7 +308,12 @@ export const MeasurementShape = memo(function MeasurementShape({
   const itemLabels = useMemo(() => {
     if (visibleMeasurement.type !== "count") return [];
     const radius = CANVAS_VISUAL_METRICS.countMarkerRadiusScreenPx;
-    const gap = (radius + CANVAS_VISUAL_METRICS.handleStrokeScreenPx + 2) / zoom;
+    const markerGap = radius + CANVAS_VISUAL_METRICS.handleStrokeScreenPx + 2;
+    // The pointed-out item wears a ring: its label sits clear of it instead of touching it.
+    const ringGap =
+      markerGap +
+      CANVAS_VISUAL_METRICS.countFocusRingGapScreenPx +
+      CANVAS_VISUAL_METRICS.countFocusRingStrokeScreenPx;
     const labels: {
       index: number;
       text: string;
@@ -320,6 +325,7 @@ export const MeasurementShape = memo(function MeasurementShape({
     visibleMeasurement.points.forEach((point, index) => {
       const focused = index === focusedItemIndex;
       if (!focused && (!showLabel || !countItemName(visibleMeasurement, index))) return;
+      const gap = (focused ? ringGap : markerGap) / zoom;
       const text = countItemLabel(visibleMeasurement, index);
       const { width, height } = measureLabelText(text, labelFontSize, zoom);
       // Right of the marker, flipped to its left when the label would leave the page.
@@ -1149,14 +1155,17 @@ export const MeasurementShape = memo(function MeasurementShape({
     [measurement.type],
   );
 
-  function handleVertexClick(event: KonvaEventObject<MouseEvent>) {
-    if (
-      measurement.type === "count" ||
-      event.evt.shiftKey ||
-      event.evt.ctrlKey ||
-      event.evt.metaKey
-    )
-      select(event);
+  function handleVertexClick(event: KonvaEventObject<MouseEvent>, index: number) {
+    const additive = event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey;
+    if (measurement.type !== "count") {
+      if (additive) select(event);
+      return;
+    }
+    select(event);
+    // A plain click on a count's point picks that item too, for the toolbar to act on.
+    if (!additive && isSelectable() && isPrimaryViewerClick(event.evt.button)) {
+      setSelectedCountItem({ measurementId: measurement.id, index });
+    }
   }
 
   function handleVertexMouseDown(event: KonvaEventObject<MouseEvent>, index: number) {
@@ -1355,7 +1364,7 @@ export const MeasurementShape = memo(function MeasurementShape({
             zoom
           }
           draggable={editable}
-          onClick={handleVertexClick}
+          onClick={(event) => handleVertexClick(event, index)}
           onMouseDown={(event) => handleVertexMouseDown(event, index)}
           onTouchStart={(event) => handleVertexTouchStart(event, index)}
           onDragStart={(event) => handleVertexDragStart(event, index)}
@@ -1407,7 +1416,7 @@ export const MeasurementShape = memo(function MeasurementShape({
             dragDistance={
               countUsesWholeDrag ? MEASUREMENT_WHOLE_DRAG_DISTANCE_SCREEN_PX : undefined
             }
-            onClick={handleVertexClick}
+            onClick={(event) => handleVertexClick(event, index)}
             onMouseDown={(event) => {
               if (countUsesWholeDrag) prepareWholeMouseDrag(event, index);
               else handleVertexMouseDown(event, index);
@@ -1443,15 +1452,7 @@ export const MeasurementShape = memo(function MeasurementShape({
         >
           <Tag
             fill={labelColors.background}
-            opacity={
-              (item.index === focusedItemIndex || selected ? 1 : 0.88) * labelBackgroundOpacity
-            }
-            stroke={
-              item.index === focusedItemIndex || selected
-                ? visualRoles.measurementSelectedStroke
-                : undefined
-            }
-            strokeWidth={item.index === focusedItemIndex || selected ? 1 / zoom : 0}
+            opacity={(item.index === focusedItemIndex ? 1 : 0.88) * labelBackgroundOpacity}
             cornerRadius={CANVAS_VISUAL_METRICS.labelCornerRadiusScreenPx / zoom}
           />
           <Text

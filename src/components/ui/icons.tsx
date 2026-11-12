@@ -125,12 +125,12 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
-/** Move an item to another list: the item, an arrow and the destination bar. */
+/** Move an item to another list: an arrow that starts at the item and ends at the destination bar. */
 export function MoveToIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <circle cx="5" cy="10" r="2.25" />
-      <path d="M9.5 10h6M13 7.25 15.75 10 13 12.75M17.5 4.5v11" />
+      <circle cx="4.5" cy="10" r="2" />
+      <path d="M6.5 10h8M11.75 7.5 14.25 10l-2.5 2.5M17 5.5v9" />
     </Icon>
   );
 }

@@ -2,7 +2,9 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DebugOverlay } from "./DebugOverlay";
+import type Konva from "konva";
+import { RASTER_CACHE_LIMITS, getAppPreferences } from "../../utils/appPreferences";
+import DebugOverlay, { type DebugStats } from "./DebugOverlay";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -39,20 +41,71 @@ function frame(time: number) {
   act(() => callbacks.forEach((callback) => callback(time)));
 }
 
+/** Two shapes and a group that holds two more: four nodes to walk. */
+const LAYER = {
+  getChildren: () => [{}, { getChildren: () => [{}, {}] }],
+} as unknown as Konva.Container;
+
+const STATS: DebugStats = {
+  zoomPercent: 96.6,
+  raster: { width: 2480, height: 1754 },
+  cacheEntries: 1,
+  cachePixels: 3_700_000,
+  lastRenderMs: 41.6,
+  annotationLayer: LAYER,
+};
+
+function rows(): Record<string, string | undefined> {
+  return Object.fromEntries(
+    Array.from(container.querySelectorAll("dt"), (term) => [
+      term.textContent,
+      term.nextElementSibling?.textContent,
+    ]),
+  );
+}
+
 describe("DebugOverlay", () => {
-  it("is hidden from assistive tech and shows FPS, cache and render time at most twice a second", () => {
-    const getStats = vi.fn(() => ({ cacheEntries: 2, cachePixels: 3_500_000, lastRenderMs: 41.6 }));
+  it("is hidden from assistive tech and refreshes at most twice a second", () => {
+    const getStats = vi.fn(() => STATS);
     act(() => root.render(<DebugOverlay getStats={getStats} />));
     const overlay = container.querySelector('[data-testid="debug-overlay"]')!;
     expect(overlay.getAttribute("aria-hidden")).toBe("true");
-    expect(overlay.textContent).toContain("Cache 2 · 3.5 Mpx");
-    expect(overlay.textContent).toContain("Render 42 ms");
+    // No frame rate is claimed before a half second has been measured.
+    expect(rows()["Frame rate"]).toBe("–");
 
     const callsBefore = getStats.mock.calls.length;
     for (let time = 100; time < 500; time += 100) frame(time);
     expect(getStats.mock.calls.length).toBe(callsBefore);
     frame(500);
     expect(getStats.mock.calls.length).toBe(callsBefore + 1);
-    expect(overlay.textContent).toContain("10 FPS");
+    expect(rows()["Frame rate"]).toBe("10 fps");
+  });
+
+  it("reports the slowest frame, the page, the cache and the canvas", () => {
+    act(() => root.render(<DebugOverlay getStats={() => STATS} />));
+    frame(16);
+    frame(116);
+    frame(500);
+    const shown = rows();
+    expect(shown["Slowest frame"]).toBe("384 ms");
+    expect(shown["Page render"]).toBe("42 ms");
+    expect(shown["Page bitmap"]).toBe("2,480 × 1,754 px");
+    const limits = RASTER_CACHE_LIMITS[getAppPreferences().rasterCache];
+    expect(shown["Raster cache"]).toBe(
+      `1/${limits.maxEntries} · 3.7/${(limits.maxPixels / 1_000_000).toFixed(1)} Mpx`,
+    );
+    expect(shown["Canvas nodes"]).toBe("4");
+    expect(shown["Zoom"]).toBe("97%");
+  });
+
+  it("shows dashes before the first render and omits memory where the browser hides it", () => {
+    act(() =>
+      root.render(
+        <DebugOverlay getStats={() => ({ ...STATS, raster: null, lastRenderMs: null })} />,
+      ),
+    );
+    expect(rows()["Page render"]).toBe("–");
+    expect(rows()["Page bitmap"]).toBe("–");
+    expect(rows()["JS memory"]).toBeUndefined();
   });
 });

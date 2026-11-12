@@ -28,7 +28,7 @@ import { countItemLabel, countItemName } from "../../utils/countItems";
 import { measurementPathSpecs } from "../../utils/geometry";
 import { ClassificationAssignment } from "../classification/ClassificationAssignment";
 import { scaleDisplayMetadata } from "../viewer/scaleDisplay";
-import { setFocusedCountItem } from "./countItemFocus";
+import { setFocusedCountItem, setSelectedCountItem, useSelectedCountItem } from "./countItemFocus";
 import { createMeasurementViewModel } from "./measurementViewModels";
 import type { WorkspaceModule } from "../../app/workspaceState";
 import { workspaceModuleLabel } from "../../app/WorkspacePanel";
@@ -194,6 +194,9 @@ export function MeasurementDetails({
   // The row being renamed wins, then the hovered one, then the one holding keyboard focus.
   const activeItem = renamingItem ?? hoveredItem ?? focusedItem;
   const activeItemOnPage = measurement.type === "count" ? activeItem : null;
+  const selectedItem = useSelectedCountItem();
+  const selectedItemIndex =
+    selectedItem?.measurementId === measurement.id ? selectedItem.index : -1;
   useEffect(() => {
     if (activeItemOnPage === null) return;
     setFocusedCountItem({ measurementId: measurement.id, index: activeItemOnPage });
@@ -326,7 +329,13 @@ export function MeasurementDetails({
                       className={styles.itemRow}
                       key={index}
                       data-active={activeItem === index ? "true" : undefined}
+                      data-selected={selectedItemIndex === index ? "true" : undefined}
                       data-renaming={renamingItem === index ? "true" : undefined}
+                      onClick={(event) => {
+                        // A click on the row (not on one of its buttons) picks the item, as its point does.
+                        if ((event.target as HTMLElement).closest("button, input")) return;
+                        setSelectedCountItem({ measurementId: measurement.id, index });
+                      }}
                       onPointerEnter={() => setHoveredItem(index)}
                       onPointerLeave={() => setHoveredItem(null)}
                       onFocus={() => setFocusedItem(index)}

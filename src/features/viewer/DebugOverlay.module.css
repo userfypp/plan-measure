@@ -1,15 +1,49 @@
+/* Bottom-right of the viewer, above the dock row: the left side belongs to the tool rail and the
+   Pages panel, which used to cover it. Like the authoring notice, it never takes the pointer. */
 .overlay {
   composes: overlaySurface from global;
   position: absolute;
   z-index: var(--z-feedback);
-  left: var(--space-12);
+  right: calc(var(--viewer-right-obstruction, 0px) + var(--space-12));
   bottom: calc(var(--viewer-dock-bottom-exclusion, 0px) + var(--space-12));
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-8) var(--space-12);
   pointer-events: none;
   color: var(--color-text-primary);
   font-size: var(--font-size-secondary);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   line-height: var(--line-height-secondary);
+}
+
+[data-workspace-drawer-open="true"] .overlay {
+  display: none;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-secondary);
+}
+
+.list {
+  margin: 0;
+  display: grid;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.row dt {
+  color: var(--color-text-secondary);
+}
+
+.row dd {
+  margin: 0;
+  text-align: right;
 }

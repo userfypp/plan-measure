@@ -50,93 +50,91 @@ not accepting a new snapshot without explanation.
 
 ```sh
 npm run build
-npm run perf:size
+npm run perf:size                                # fast: ceilings and startup rules
+npm run perf:size:diff -- --base origin/main     # the full pull request check
 npm run perf:selftest
 ```
 
 `perf/size.mjs` reads the JS in `dist/index.html`, walks its static imports
-(excluding `import()`) and measures four metrics in decimal bytes, not KiB. CSS
-and demo resources are not counted, nor is `dist/pdfjs/` (pdf.js decoders, CMaps and
-fonts, about 3.5 MB), which loads on demand when a PDF needs it. Adding that
-folder and the Content-Security-Policy meta grew `viewerBytes` by 173 B
-(809,770 to 809,943, ceiling 810,169) and left `mainBytes`, `mainGzipBytes` and
-`startupBytes` unchanged. Startup stayed within noise (median of 7, `vite
-preview`: FCP 52 ms at 1x and 116 to 124 ms at 4x, 20 requests, 453 KB).
+(excluding `import()`) and measures two graphs in decimal bytes, not KiB:
 
-- `mainBytes` and `mainGzipBytes`: the main chunk, raw and gzip.
-- `startupBytes`: the initial JS set, the main chunk plus its static imports and
-  `modulepreload` preloads.
-- `viewerBytes`: what opening a plan loads on top of startup, the
-  `PdfViewer-*.js` chunk plus its static imports that are not already in the
-  initial set (PDF.js, canvas roles). A full Konva import or a heavy dependency
-  pulled into the viewer shows up here.
+- **Startup**: the main chunk plus its static imports and `modulepreload`
+  preloads.
+- **Plan open**: the `PdfViewer-*.js` chunk plus its static imports that are not
+  already in startup (PDF.js, canvas roles). A full Konva import or a heavy
+  dependency pulled into the viewer shows up here.
 
-The numbers live in `perf/size-budget.json` and work in three parts:
+Each file is gzipped on its own, as the server sends it, and summed:
+`startupGzipBytes` and `viewerGzipBytes` are the enforced metrics, because they
+are what users download. Raw sums (`startupBytes`, `viewerBytes`) are reported
+for information only. There is no separate main-chunk metric: it is part of
+startup, and moving code between startup chunks is not growth. Rolldown may, for
+example, split `react` into its own chunk when a new lazy chunk changes the
+import graph; raw startup grows by about 100 B of import glue with no code
+change, while the gzip sum barely moves. CSS, demo resources and `dist/pdfjs/`
+(decoders, CMaps and fonts loaded on demand) are not counted.
 
-1. **Growth per pull request** (`sizeGrowthAllowance`): 250 B gzip and 750 B raw
-   for the main chunk, 750 B for startup and 500 B for the viewer. On `main`'s
-   history every feature grew more (from 541 B gzip) and 20 of 22 fixes grew
-   less (at most 91 B gzip). More growth needs the `size: approved` label.
-2. **Ceilings** (`sizeLimits`): every build must fit. A ceiling is set to the
-   measured size plus four allowances (`ceilingHeadroom.target`), so small
-   unapproved growth accumulates until it reaches the ceiling. Raising a ceiling
-   is a deliberate decision that needs the label.
-3. **Ratchet**: when a build is more than six allowances
-   (`ceilingHeadroom.maximum`) below a ceiling, `perf:size` fails until the
-   ceiling is lowered to the new size plus four allowances, in the same pull
-   request. Savings of more than two allowances are kept; smaller ones need no edit.
+### Rules
 
-Gzip moves by a few bytes when other chunks change their hashed names; the
-per-pull-request comparison and the headroom absorb that noise, so no check turns
-on a handful of bytes.
+The numbers live in `perf/size-budget.json`:
 
-On pull requests, CI also builds the base (the first parent of the merge commit it
-checks out) in a temporary worktree, measures it with the same code and runs
-`npm run perf:size:diff`. The job summary shows base, pull request, difference,
-allowance and ceiling for each metric. Without the `size: approved` label it
-fails when:
+1. **Growth per pull request** (`growthTolerance`): CI builds the base (the first
+   parent of the merge commit it checks out) on the same runner, measures both
+   builds with the pull request's code and allows each enforced metric to grow by
+   `max(minimumBytes, ratio × base)`: 0.25 % with a 256 B floor, about 400 B for
+   startup and 630 B for plan open. That absorbs chunk-layout and minifier noise
+   and fix-sized changes (on `main`'s history, fixes grew at most 91 B gzip);
+   features (from 541 B gzip) get a deliberate review. More growth needs the
+   `size: approved` label. Getting smaller never fails.
+2. **Ceilings** (`ceilings`): a coarse safety net against slow drift, set about
+   10 % above the build and rounded up to a KiB, so no pull request needs
+   byte-golf. A build over a ceiling fails even with the label: the message gives
+   the exact value to write in `size-budget.json`, and raising a ceiling needs
+   the label. When a ceiling is more than 20 % above the build, the report
+   suggests a lower value; it never fails for that.
+3. **Startup stays free of deferred dependencies**: PDF chunks, the PDF worker,
+   pdf-lib/annotatedPdf and XLSX in the startup graph fail with no override (see
+   below).
 
-- a metric grows by more than its allowance;
-- a ceiling, allowance or headroom value goes up or disappears, or
-  `forbiddenStartup` changes;
-- the budget code changes: `perf/budgets.mjs`, `perf/size.mjs`,
-  `perf/size-diff.mjs` or `.github/workflows/performance.yml`.
+The label approves, for the pull request as it currently stands, everything the
+report lists under "Needs the label": growth over the allowance, a ceiling or
+tolerance that rises or disappears, and changes to the size tooling
+(`perf/budgets.mjs`, `perf/size.mjs`, `perf/size-diff.mjs`,
+`.github/workflows/performance.yml`). Lowering ceilings or the tolerance needs
+no label. Each run reads the pull request's labels from the API, not from the
+event payload, so adding or removing the label re-runs the check and re-running
+an old run sees the label as it is now. The label stays across new pushes; the
+maintainer removes it if they need to review the new size again. Only
+collaborators with triage access can add labels; the maintainer adds it after
+reviewing that the growth is worth it, and agents and contributors never add it
+themselves.
 
-Lowering ceilings, allowances or headroom and adding a metric need no label. The
-maintainer adds the label after reviewing that the growth is worth it; agents and
-contributors never add it themselves. Adding or removing the label re-runs the
-check.
-
-The same comparison runs locally against any revision:
-
-```sh
-npm run build
-npm run perf:size:diff -- --base origin/main
-```
-
-It reuses `node_modules` when `package-lock.json` matches the base and otherwise
-runs `npm ci` in the worktree. CI is the reference: gzip can differ by a few bytes
-between Node versions.
+The CI job summary and the annotations show a table with base, pull request,
+change, allowed growth and ceiling per metric, the chunks whose gzip size
+changed, the verdict and what to do next. `perf:size:diff` runs the same check
+locally against any revision: it reuses `node_modules` when `package-lock.json`
+matches the base and otherwise runs `npm ci` in the worktree. Both builds are
+measured on the same machine, so the verdict matches CI. Absolute numbers do not:
+the zlib build and Rolldown's chunk order differ between macOS and Linux, which
+moves gzip by about 0.2 %. That is why ceilings are compared with real headroom
+and growth is always measured against a base built in the same place.
 
 If a check fails, first load the new heavy component lazily (`recoverableLazy`)
 or split the code; ask for the label only when the growth is justified.
 
-It also rejects PDF chunks, the PDF worker, pdf-lib/annotatedPdf, and XLSX in that
-graph. The `es-*.js` chunk currently corresponds to the ESM entry of pdf-lib and
-is explicitly protected. It also includes `modulepreload` preloads declared in
-HTML. The third layer watches the real requests of the first load, with the idle
-preloads held back until it passes: they fetch deferred chunks on purpose. Chunk
-names are an indicator; if the bundling strategy changes, both detectors must be
-reviewed. Dependencies bundled into the main chunk remain subject to the byte
-budget.
+The `es-*.js` chunk currently corresponds to the ESM entry of pdf-lib and is
+explicitly protected. The third layer watches the real requests of the first
+load, with the idle preloads held back until it passes: they fetch deferred
+chunks on purpose. Chunk names are an indicator; if the bundling strategy
+changes, both detectors must be reviewed.
 
-`perf:selftest` tests the verifiers against violated budgets: +1 byte over a
-ceiling, a ceiling one byte too high for the ratchet, growth one byte over an
-allowance, every way of loosening the budget, a static pdf-lib import, +31%
-pauses/long tasks, incomplete samples, and FPS below the minimum (normal warning
-and strict failure). It also checks that the workflow reads the same label and
-compares with the merge base. It runs with Node, outside Vitest, and does not need
-Playwright.
+`perf:selftest` tests the verifiers: smaller builds, noise-level growth and
+growth one byte over the allowance, with and without the label; one byte over a
+ceiling; a ceiling far above the build; every way of loosening the budget; a
+static pdf-lib import; the report; that the workflow reads the current label and
+compares with the merge base; and the e2e comparison (+31% pauses/long tasks,
+incomplete samples, FPS below the minimum in normal and strict mode). It runs
+with Node, outside Vitest, and does not need Playwright.
 
 ## 3. Separate e2e benchmark
 
@@ -297,16 +295,15 @@ attribute change; with thousands of measurements one redraw costs a visible fram
 The counts above only protect what they cover. Before merging a feature that
 touches startup, the viewer, the canvas or the panels, check each point:
 
-1. **Startup stays small.** Every pull request has a small growth allowance and
-   the ceilings only leave a few allowances of headroom (see section 2). A new
+1. **Startup stays small.** Every pull request has a small growth allowance (see
+   section 2). A new
    panel, dialog, workspace or dependency goes behind
    `retryableImport` + `recoverableLazy` and is preloaded on intent (hover or
    focus of its trigger) or with `preloadWhenIdle`, so it opens without a
    Suspense fallback. UI that only renders once the viewer is up ships in the
    viewer chunk (the dock is re-exported from `PdfViewer` and preloaded with it
-   through `viewerModule.ts`). If a size check fails, split the code; raising a
-   ceiling or going over an allowance needs the maintainer's `size: approved`
-   label.
+   through `viewerModule.ts`). If a size check fails, split the code; going over the
+   allowance or raising a ceiling needs the maintainer's `size: approved` label.
 2. **Props of `PdfAnnotationLayer` keep their identity.** It is `memo` and
    compares thousands of shapes when any prop changes. Callbacks use
    `useCallback` with ref-backed getters for changing state; arrays and objects

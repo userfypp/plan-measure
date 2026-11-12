@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types/domain";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsButton } from "./SettingsButton";
-import type { LabelPreviewMeasurement, ProjectViewSettings } from "./SettingsDialog";
+import type { ProjectViewSettings } from "./SettingsDialog";
 import {
   APP_PREFERENCES_STORAGE_KEY,
   getAppPreferences,
@@ -40,7 +40,6 @@ let restoreDialogMethods = () => {};
 
 interface RenderOptions {
   theme?: ThemePreference;
-  labelPreviewMeasurement?: LabelPreviewMeasurement | null;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   viewSettings?: ProjectViewSettings | null;
   onViewSettingsChange?: (settings: Partial<ProjectViewSettings>) => void;
@@ -63,7 +62,6 @@ interface RenderOptions {
 
 function renderSettings({
   theme = "system",
-  labelPreviewMeasurement = null,
   measurementDecimalPlaces = 2,
   viewSettings = null,
   classificationDimensions = [],
@@ -89,7 +87,6 @@ function renderSettings({
       <ThemeProvider>
         <SettingsButton
           trigger={<span>gear</span>}
-          labelPreviewMeasurement={labelPreviewMeasurement}
           measurementDecimalPlaces={measurementDecimalPlaces}
           viewSettings={viewSettings}
           classificationDimensions={classificationDimensions}
@@ -937,9 +934,9 @@ describe("SettingsDialog", () => {
 
     const lastRow = Array.from(dialog().querySelectorAll("[class*='settingRow']")).at(-1);
     expect(lastRow?.textContent).toContain("Default unit for new plans");
-    expect(previewLabels()).toEqual(["1234.57 m", "P 142.30 m · A 1234.57 m²"]);
+    expect(previewLabels()).toEqual(["1234.57 m", "P 142.30 m · A 1234.57 m²", "12 items"]);
     choose("Thousands separator", "Comma");
-    expect(previewLabels()).toEqual(["1,234.57 m", "P 142.30 m · A 1,234.57 m²"]);
+    expect(previewLabels()).toEqual(["1,234.57 m", "P 142.30 m · A 1,234.57 m²", "12 items"]);
     // The same glyph in both roles is ambiguous, so the clashing option cannot be picked.
     act(() => selectByLabel("Decimal separator").click());
     const clash = selectItems().find((item) => item.textContent === "Comma")!;
@@ -954,7 +951,11 @@ describe("SettingsDialog", () => {
     choose("Thousands separator", "Point");
     expect(previewLabels()[0]).toBe("1.234,57 m");
     choose("Label content", "Name and value");
-    expect(previewLabels()).toEqual(["Wall · 1.234,57 m", "Room · P 142,30 m · A 1.234,57 m²"]);
+    expect(previewLabels()).toEqual([
+      "Wall · 1.234,57 m",
+      "Room · P 142,30 m · A 1.234,57 m²",
+      "Doors · 12 items",
+    ]);
     // Without a plan the samples use the unit new plans start with.
     choose("Default unit for new plans", "Millimetres");
     expect(previewLabels()[0]).toBe("Wall · 1.234.567,89 mm");
@@ -996,74 +997,15 @@ describe("SettingsDialog", () => {
     openTab("Measurements");
 
     expect(Array.from(dialog().querySelectorAll("dt"), (term) => term.textContent)).toEqual([
-      "Sample length",
-      "Sample area",
+      "Length",
+      "Perimeter and area",
+      "Count",
     ]);
-    expect(previewLabels()).toEqual(["New · 4050.4 ft", "New · P 466.9 ft · A 0.3 ac"]);
-  });
-
-  it("previews the selected measurement's own label", async () => {
-    const measurement: LabelPreviewMeasurement["measurement"] = {
-      type: "line",
-      name: "Beam",
-      points: [
-        { x: 0, y: 0 },
-        { x: 100, y: 0 },
-      ],
-      classificationValueIds: ["old"],
-    };
-    const viewSettings: ProjectViewSettings = {
-      displayUnit: "cm",
-      areaDisplay: "auto",
-      currency: null,
-      showLabels: true,
-      showMeasurements: true,
-      showCalibration: true,
-      labelClassificationDimensionId: "phase",
-      measureClouds: false,
-      defaultMeasurementFilters: null,
-    };
-    const classificationDimensions: ClassificationDimension[] = [
-      {
-        id: "phase",
-        name: "Phase",
-        archived: false,
-        values: [{ id: "old", name: "Old", archived: true }],
-      },
-    ];
-    renderSettings({
-      viewSettings,
-      classificationDimensions,
-      labelPreviewMeasurement: {
-        measurement,
-        calibration: {
-          id: "scale",
-          name: "1:50",
-          mode: "uniform",
-          start: { x: 0, y: 0 },
-          end: { x: 10, y: 0 },
-          referenceDistanceMm: 500,
-        },
-      },
-    });
-    await openSettings();
-    openTab("Measurements");
-
-    expect(dialog().querySelector("dt")?.textContent).toBe("Beam");
-    // An archived value still labels the measurement that has it, as on the canvas.
-    expect(previewLabels()).toEqual(["Old · 500.00 cm"]);
-    choose("Label content", "Name and value");
-    expect(previewLabels()).toEqual(["Beam · Old · 500.00 cm"]);
-
-    act(() => root!.unmount());
-    root = createRoot(container!);
-    renderSettings({
-      viewSettings,
-      labelPreviewMeasurement: { measurement, calibration: null },
-    });
-    await openSettings();
-    openTab("Measurements");
-    expect(previewLabels()).toEqual(["No label until it has a scale"]);
+    expect(previewLabels()).toEqual([
+      "New · 4050.4 ft",
+      "New · P 466.9 ft · A 0.3 ac",
+      "New · 12 items",
+    ]);
   });
 
   it("toggles reduce motion and tooltips through document attributes", async () => {

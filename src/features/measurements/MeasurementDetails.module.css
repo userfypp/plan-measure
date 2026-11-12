@@ -183,9 +183,13 @@
   background: var(--color-control-hover-surface);
 }
 
+/* The item the user picked (on the plan or here) or is renaming: the selection surface, as everywhere. */
+.itemRow[data-selected],
 .itemRow[data-renaming] {
   background: var(--color-selection-surface);
-  box-shadow: inset var(--halo-width) 0 0 var(--color-accent);
+}
+
+.itemRow[data-renaming] {
   padding-inline-start: var(--space-4);
 }
 

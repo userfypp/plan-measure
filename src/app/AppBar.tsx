@@ -11,7 +11,7 @@ import type { ClassificationDimension, MeasurementDecimalPlaces } from "../types
 import { useShortcutAria, useShortcutLabel } from "../utils/shortcuts/store";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
 import { SettingsButton } from "./SettingsButton";
-import type { LabelPreviewMeasurement, ProjectViewSettings } from "./SettingsDialog";
+import type { ProjectViewSettings } from "./SettingsDialog";
 import styles from "./AppBar.module.css";
 
 const FEEDBACK_ITEMS: readonly AnchoredMenuItem[] = [
@@ -44,7 +44,6 @@ interface AppBarProps {
   savedProjectCount?: number;
   canUndo?: boolean;
   canRedo?: boolean;
-  labelPreviewMeasurement?: LabelPreviewMeasurement | null;
   measurementDecimalPlaces?: MeasurementDecimalPlaces | null;
   viewSettings?: ProjectViewSettings | null;
   classificationDimensions?: readonly ClassificationDimension[];
@@ -141,7 +140,6 @@ export function AppBar({
   savedProjectCount = 0,
   canUndo = false,
   canRedo = false,
-  labelPreviewMeasurement = null,
   measurementDecimalPlaces = null,
   viewSettings = null,
   classificationDimensions,
@@ -270,7 +268,6 @@ export function AppBar({
             trigger={<SettingsIcon />}
             triggerClassName={styles.iconAction}
             triggerQuiet
-            labelPreviewMeasurement={labelPreviewMeasurement}
             measurementDecimalPlaces={measurementDecimalPlaces}
             viewSettings={viewSettings}
             classificationDimensions={classificationDimensions}

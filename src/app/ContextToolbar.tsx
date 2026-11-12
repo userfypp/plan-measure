@@ -30,6 +30,7 @@ import { MEASUREMENT_NAME_EMPTY_ERROR, normalizeMeasurementName } from "../utils
 import { useWorkspaceState } from "./workspaceState";
 import type { ClassificationCatalog, Measurement } from "../types/domain";
 import type { BulkMeasurementCommand } from "./sessionState";
+import { CountItemToolbar } from "./countItemToolbarLazy";
 import { SymbolCountBar } from "../features/symbolCount/symbolCountLazy";
 import { startSymbolCount, useSymbolCount } from "../features/symbolCount/symbolCountStore";
 import { PlanCompareBar } from "../features/planCompare/planCompareLazy";
@@ -46,6 +47,7 @@ export interface ContextToolbarProps {
   onClearMeasurementSelection?: () => void;
   onAddCountItems?: () => void;
   addCountItemsDisabledReason?: string;
+  onMoveItem: (index: number, targetId: string) => void;
   duplicateDisabled: boolean;
   referenceEditValid: boolean;
   measurementEditActive: boolean;
@@ -407,6 +409,7 @@ export function ContextToolbar({
   onClearMeasurementSelection,
   onAddCountItems,
   addCountItemsDisabledReason,
+  onMoveItem,
   duplicateDisabled,
   referenceEditValid,
   measurementEditActive,
@@ -421,6 +424,7 @@ export function ContextToolbar({
   onCancelReferenceEdit,
   onSaveReferenceEdit,
 }: ContextToolbarProps) {
+  const selectedCount = selectedMeasurements?.length === 1 ? selectedMeasurements[0] : undefined;
   const {
     activeTool,
     draft,
@@ -680,7 +684,7 @@ export function ContextToolbar({
           })
       : null;
 
-  return (
+  const toolbar = (
     <ToolbarComposite label="Selected measurement controls" contextKind="selection">
       <ToolbarShortcuts
         handlers={{
@@ -777,5 +781,19 @@ export function ContextToolbar({
         />
       )}
     </ToolbarComposite>
+  );
+  // A single count swaps its controls for those of the item the user picked, when there is one.
+  return selectedCount?.type === "count" ? (
+    <Suspense fallback={toolbar}>
+      <CountItemToolbar
+        measurement={selectedCount}
+        onMove={onMoveItem}
+        onDeleteCount={onDeleteSelectedMeasurement}
+      >
+        {toolbar}
+      </CountItemToolbar>
+    </Suspense>
+  ) : (
+    toolbar
   );
 }

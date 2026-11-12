@@ -208,10 +208,6 @@ dialog.dialog {
   font-variant-numeric: var(--font-variant-numeric-quantities);
 }
 
-.labelPreview {
-  min-width: 0;
-}
-
 .labelPreviewList {
   margin: 0;
   display: grid;
@@ -236,19 +232,14 @@ dialog.dialog {
   text-align: right;
 }
 
+/* Plain text on the box's own content edge (the same x as its caption), not a chip. */
 .labelPreviewValue {
-  display: inline-block;
-  max-width: 100%;
-  box-sizing: border-box;
-  border-radius: var(--radius-control);
-  padding: var(--space-4) var(--space-8);
-  background: var(--color-surface-field);
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   font-variant-numeric: var(--font-variant-numeric-quantities);
   line-height: var(--line-height-base);
   overflow-wrap: anywhere;
-  text-align: left;
 }
 
 .storageUsage {
