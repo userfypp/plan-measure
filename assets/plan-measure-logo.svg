@@ -1,24 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="88 88 336 336">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <title>Plan Measure</title>
-
-  <g
-    fill="none"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <path
-      d="M120 120V392H392"
-      stroke="#334155"
-      stroke-width="44"
-    />
-
-    <path
-      d="M120 240L272 392"
-      stroke="#6E9F91"
-      stroke-width="24"
-    />
-  </g>
-
-  <circle cx="120" cy="240" r="24" fill="#6E9F91" />
-  <circle cx="272" cy="392" r="24" fill="#6E9F91" />
+  <polyline points="96,396 96,116 256,276 416,116 416,396" fill="none" stroke="#258A88" stroke-width="12.5" stroke-linejoin="round"/>
+  <circle cx="96" cy="396" r="18.75" fill="#FFFFFF" stroke="#258A88" stroke-width="12.5"/>
+  <circle cx="96" cy="116" r="18.75" fill="#FFFFFF" stroke="#258A88" stroke-width="12.5"/>
+  <circle cx="256" cy="276" r="18.75" fill="#FFFFFF" stroke="#258A88" stroke-width="12.5"/>
+  <circle cx="416" cy="116" r="18.75" fill="#FFFFFF" stroke="#258A88" stroke-width="12.5"/>
+  <circle cx="416" cy="396" r="18.75" fill="#FFFFFF" stroke="#258A88" stroke-width="12.5"/>
 </svg>
