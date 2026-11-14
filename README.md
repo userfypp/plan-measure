@@ -10,7 +10,6 @@
     </a>
   </p>
   <p><a href="https://userfypp.github.io/plan-measure/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/button-open-dark.svg"><img src="assets/readme/button-open-light.svg" alt="Open the app" height="32"></picture></a><a href="https://userfypp.github.io/plan-measure/?sample=1"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/button-sample-dark.svg"><img src="assets/readme/button-sample-light.svg" alt="Try the sample project" height="32"></picture></a></p>
-  <p><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/meta-dark.svg"><img src="assets/readme/meta-light.svg" alt="Free and open source. No account. Works offline." height="20"></picture></p>
 </div>
 
 ![Plan Measure with a ground floor plan open: rooms measured as polygons, rectangles and an ellipse, doors and windows counted, and every measurement listed with its perimeter and area](assets/screenshots/plan-measure-overview.webp)
