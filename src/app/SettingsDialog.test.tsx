@@ -11,6 +11,7 @@ import { SettingsButton } from "./SettingsButton";
 import type { ProjectViewSettings } from "./SettingsDialog";
 import {
   APP_PREFERENCES_STORAGE_KEY,
+  MAX_SETTINGS_FILE_SIZE_BYTES,
   getAppPreferences,
   reloadAppPreferencesFromStorage,
 } from "../utils/appPreferences";
@@ -1381,6 +1382,35 @@ describe("SettingsDialog", () => {
     ).toMatchObject({
       lineThickness: "thick",
     });
+  });
+
+  it("rejects an oversized settings file before reading it", async () => {
+    renderSettings();
+    await openSettings();
+    const input = dialog().querySelector<HTMLInputElement>('input[type="file"]')!;
+    const status = () => dialog().querySelector('[role="status"]')!.textContent;
+    const read = vi.fn(() => Promise.resolve("{}"));
+    const oversized = new File([""], "settings.json", { type: "application/json" });
+    Object.defineProperty(oversized, "size", { value: MAX_SETTINGS_FILE_SIZE_BYTES + 1 });
+    Object.defineProperty(oversized, "text", { value: read });
+    Object.defineProperty(input, "files", { configurable: true, value: [oversized] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(status()).toBe("Couldn't import: the settings file is larger than the 1 MiB limit");
+    expect(read).not.toHaveBeenCalled();
+
+    const small = new File(
+      [JSON.stringify({ version: 1, preferences: { lineThickness: "thick" } })],
+      "settings.json",
+      { type: "application/json" },
+    );
+    Object.defineProperty(input, "files", { configurable: true, value: [small] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(status()).toBe("Settings imported");
+    expect(getAppPreferences().lineThickness).toBe("thick");
   });
 
   it("exports and restores the settings stored outside the preferences", async () => {

@@ -396,6 +396,9 @@ export function resetAppPreferences(): void {
 
 export const PREFERENCES_FILE_VERSION = 1;
 
+/** Settings files hold a few KB; a larger file is rejected before it is read. */
+export const MAX_SETTINGS_FILE_SIZE_BYTES = 1024 * 1024;
+
 /**
  * Versioned JSON of every device preference, for moving settings between browsers.
  * `extras` carries the device settings stored outside `AppPreferences`.
