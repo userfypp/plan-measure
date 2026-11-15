@@ -119,6 +119,7 @@ export interface SymbolSearchStart {
 export function createSymbolCountSession(createSearch: CreateSymbolSearch = createSymbolSearch) {
   let state = initialState();
   let search: SymbolSearch | null = null;
+  let searchId = 0;
   let scale = 1;
   let box: PixelRect = { x: 0, y: 0, width: 0, height: 0 };
   let commitHandler: ((points: Point[]) => void) | null = null;
@@ -130,6 +131,7 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
   }
 
   function endSearch() {
+    searchId += 1;
     search?.terminate();
     search = null;
   }
@@ -145,7 +147,7 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
 
   function fail(message: string) {
     endSearch();
-    set({ phase: "error", message });
+    set({ phase: "error", progress: 0, message, matches: [], excluded: new Set() });
   }
 
   return {
@@ -165,6 +167,7 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
     },
     /** The box is released and the page is being rendered. */
     beginScan() {
+      endSearch();
       set({ phase: "scanning", progress: 0, message: null, matches: [], excluded: new Set() });
     },
     /** Rendering failed or was not possible. */
@@ -173,16 +176,26 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
     backToPick,
     startSearch(request: SymbolSearchStart) {
       endSearch();
+      const id = searchId;
       scale = request.scale;
       box = request.box;
-      set({ phase: "scanning", progress: 0, existing: request.existing });
+      set({
+        phase: "scanning",
+        progress: 0,
+        message: null,
+        matches: [],
+        excluded: new Set(),
+        existing: request.existing,
+      });
       try {
-        search = createSearch(request.image, {
+        const created = createSearch(request.image, {
           onProgress: (fraction) => {
+            if (id !== searchId) return;
             const progress = Math.min(100, Math.max(0, Math.floor(fraction * 100)));
             if (state.phase === "scanning" && progress !== state.progress) set({ progress });
           },
           onResult: (result) => {
+            if (id !== searchId) return;
             if (result.failure) {
               backToPick(failureMessage(result.failure));
               return;
@@ -201,11 +214,18 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
               })),
             });
           },
-          onError: fail,
+          onError: (message) => {
+            if (id === searchId) fail(message);
+          },
         });
+        if (id !== searchId) {
+          created.terminate();
+          return;
+        }
+        search = created;
         search.search(box, state.orientations);
       } catch {
-        fail(SYMBOL_SEARCH_UNAVAILABLE);
+        if (id === searchId) fail(SYMBOL_SEARCH_UNAVAILABLE);
       }
     },
     setSimilarity(similarity: SimilarityPreset) {
@@ -219,7 +239,11 @@ export function createSymbolCountSession(createSearch: CreateSymbolSearch = crea
         return;
       }
       set({ orientations, phase: "scanning", progress: 0, excluded: new Set() });
-      search.search(box, orientations);
+      try {
+        search.search(box, orientations);
+      } catch {
+        fail(SYMBOL_SEARCH_UNAVAILABLE);
+      }
     },
     toggleExcluded(index: number) {
       if (!state.matches[index]) return;

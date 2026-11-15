@@ -136,4 +136,20 @@ describe("SymbolCountBar", () => {
     );
     expect(container.querySelector('[role="switch"]')).toBeNull();
   });
+
+  it("shows an error and updates when a retry starts and succeeds", () => {
+    renderBar();
+    act(() => session.fail("The page could not be searched."));
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      "The page could not be searched.",
+    );
+    expect(container.querySelector('[role="switch"]')).toBeNull();
+
+    act(() => session.beginScan());
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Searching the page… 0%");
+
+    startReview([{ x: 10, y: 10, score: 0.95 }]);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("1 match");
+    expect(button("Add 1 item").disabled).toBe(false);
+  });
 });

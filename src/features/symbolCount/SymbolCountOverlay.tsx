@@ -52,7 +52,8 @@ function rectBetween(a: Point, b: Point): ScreenRect {
 
 /**
  * Draws the box and the matches of "Find similar symbols" over the page. While a box is being
- * picked it takes the pointer from the canvas; while reviewing, only clicks on a match.
+ * picked (including after an error) it takes the pointer from the canvas; while reviewing, only
+ * clicks on a match.
  */
 export function SymbolCountOverlay({
   data,
@@ -120,7 +121,7 @@ export function SymbolCountOverlay({
     };
   }, []);
 
-  const picking = state.phase === "pick";
+  const picking = state.phase === "pick" || state.phase === "error";
   const reviewing = state.phase === "review";
 
   useEffect(() => {
@@ -151,6 +152,7 @@ export function SymbolCountOverlay({
         pageBounds.height,
       );
       symbolCountSession.beginScan();
+      abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       try {
