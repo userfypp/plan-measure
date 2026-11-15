@@ -65,6 +65,6 @@ npm ci
 npm run dev
 ```
 
-[Contributing](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md) · [Performance](docs/PERFORMANCE.md) · [Roadmap](docs/ROADMAP.md) · [Releasing](docs/RELEASING.md) · [JSON export contract](docs/export-json.md) · [Changelog](CHANGELOG.md) · [Credits](CREDITS.md) · [Security](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+[Contributing](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md) · [Performance](docs/PERFORMANCE.md) · [Roadmap](docs/ROADMAP.md) · [Issues](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue%20state%3Aopen%20no%3Aparent-issue) · [Releasing](docs/RELEASING.md) · [JSON export contract](docs/export-json.md) · [Changelog](CHANGELOG.md) · [Credits](CREDITS.md) · [Security](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
 
 <p align="center"><a href="https://userfypp.github.io/plan-measure/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/footer-dark.svg"><img src="assets/readme/footer-light.svg" alt="Open Plan Measure" height="36"></picture></a></p>
