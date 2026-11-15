@@ -29,6 +29,7 @@ import { pickDefaultMeasurementFilters } from "../features/measurements/defaultM
 import { measurementLabelText } from "../features/viewer/labelContent";
 import { downloadExportFile } from "../services/exportDownload";
 import {
+  MAX_SETTINGS_FILE_SIZE_BYTES,
   exportAppPreferencesJson,
   importAppPreferencesJson,
   resetAppPreferences,
@@ -951,6 +952,10 @@ export function SettingsDialog({
   }
 
   async function importSettingsFile(file: File) {
+    if (file.size > MAX_SETTINGS_FILE_SIZE_BYTES) {
+      setImportStatus("Couldn't import: the settings file is larger than the 1 MiB limit");
+      return;
+    }
     const text = await file.text().catch(() => null);
     setImportStatus(
       text !== null && importAppPreferencesJson(text, applyImportedExtras)
