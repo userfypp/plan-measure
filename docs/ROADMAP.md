@@ -36,7 +36,7 @@ Taken by a contributor; leave these to them. Want another issue? Comment on it a
 
 ## Test coverage
 
-A review of the whole test suite (October 2026) is grouped into the issues below, each a checklist that several pull requests can share. Filter them with the [`test`](https://github.com/userfypp/plan-measure/labels/test) label. Other open test issues: [#277](https://github.com/userfypp/plan-measure/issues/277) numerical conservation (remaining: 16–17-digit and subnormal ratios) and [#278](https://github.com/userfypp/plan-measure/issues/278) IME and auxiliary mouse buttons.
+Test work is tracked in [#487](https://github.com/userfypp/plan-measure/issues/487), with one sub-issue per area. Each is a checklist that several pull requests can share. Filter them with the [`test`](https://github.com/userfypp/plan-measure/labels/test) label. Also in #487: [#277](https://github.com/userfypp/plan-measure/issues/277) numerical conservation (remaining: 16–17-digit and subnormal ratios) and [#278](https://github.com/userfypp/plan-measure/issues/278) IME and auxiliary mouse buttons.
 
 | Priority | Issue                                                       | Work                                                                   | Notes                                                        |
 | -------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
@@ -60,10 +60,15 @@ A review of the whole test suite (October 2026) is grouped into the issues below
 | P2       | [#393](https://github.com/userfypp/plan-measure/issues/393) | Cover classification manager, templates and name rules                 | Part done (#434)                                             |
 | P2       | [#394](https://github.com/userfypp/plan-measure/issues/394) | Cover Dialog, Popover, Tooltip, menus and keyboard policy              |                                                              |
 | P2       | [#395](https://github.com/userfypp/plan-measure/issues/395) | Cover UI controls and theme contrast gates                             | Good first issue                                             |
+| P2       | [#516](https://github.com/userfypp/plan-measure/issues/516) | Cover Find similar overlay and session                                 |                                                              |
+| P2       | [#517](https://github.com/userfypp/plan-measure/issues/517) | Cover Compare overlay and diff session                                 |                                                              |
+| P2       | [#519](https://github.com/userfypp/plan-measure/issues/519) | Cover the viewer dock container, Count item toolbar and overlay host   |                                                              |
 | P3       | [#396](https://github.com/userfypp/plan-measure/issues/396) | Tighten tests for toolbars, status and workspace shells                |                                                              |
 | P3       | [#397](https://github.com/userfypp/plan-measure/issues/397) | Cover small viewer components, hooks and runtime helpers               | Assigned; part done (#459)                                   |
 | P3       | [#398](https://github.com/userfypp/plan-measure/issues/398) | Cover label layout, quick shapes and cloud outlines                    |                                                              |
 | P3       | [#400](https://github.com/userfypp/plan-measure/issues/400) | Test performance budgets and release automation scripts                |                                                              |
+| P3       | [#518](https://github.com/userfypp/plan-measure/issues/518) | Cover page raster and worker clients                                   |                                                              |
+| P3       | [#520](https://github.com/userfypp/plan-measure/issues/520) | Cover persistence codec validation branches                            |                                                              |
 
 ## Open to contributors
 
