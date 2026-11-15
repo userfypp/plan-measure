@@ -122,7 +122,7 @@ describe("symbol count session", () => {
     expect(session.getState().message).toBe(SMALL_BOX_MESSAGE);
   });
 
-  it("reports a search that cannot start or fails", () => {
+  it("reports a search that cannot start or fails, clears prior matches, and retries", () => {
     const session = createSymbolCountSession(() => {
       throw new Error("no worker");
     });
@@ -134,10 +134,53 @@ describe("symbol count session", () => {
     });
     expect(session.getState().phase).toBe("error");
     expect(session.getState().message).toBeTruthy();
-    const { session: other, start, callbacks } = setup();
+
+    const { session: other, terminate, start, callbacks } = setup();
     start();
+    callbacks().onResult({ matches: [match(20, 20, 1)] });
+    other.toggleExcluded(0);
+    other.setOrientations(false);
+    callbacks().onProgress(0.6);
     callbacks().onError("It broke.");
-    expect(other.getState()).toMatchObject({ phase: "error", message: "It broke." });
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(other.getState()).toMatchObject({
+      phase: "error",
+      progress: 0,
+      message: "It broke.",
+      matches: [],
+    });
+    expect(other.getState().excluded.size).toBe(0);
+
+    start();
+    expect(other.getState()).toMatchObject({ phase: "scanning", progress: 0, message: null });
+    callbacks().onResult({ matches: [match(40, 20, 0.95)] });
+    expect(other.getState()).toMatchObject({
+      phase: "review",
+      progress: 100,
+      message: null,
+      matches: [{ x: 20, y: 10, width: 10, height: 10, score: 0.95 }],
+    });
+  });
+
+  it("ignores late worker callbacks from a terminated search after retrying", () => {
+    const { session, start, callbacks } = setup();
+    start();
+    const firstAttempt = callbacks();
+    firstAttempt.onError("First failure.");
+    expect(session.getState()).toMatchObject({ phase: "error", message: "First failure." });
+
+    start();
+    const secondAttempt = callbacks();
+    firstAttempt.onProgress(0.9);
+    firstAttempt.onError("Stale failure.");
+    firstAttempt.onResult({ matches: [match(10, 10, 1)] });
+    expect(session.getState()).toMatchObject({ phase: "scanning", progress: 0, message: null });
+
+    secondAttempt.onResult({ matches: [match(60, 20, 0.9)] });
+    expect(session.getState()).toMatchObject({
+      phase: "review",
+      matches: [{ x: 30, y: 10, width: 10, height: 10, score: 0.9 }],
+    });
   });
 
   it("commits the accepted points once and stops", () => {
