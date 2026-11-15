@@ -55,6 +55,6 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
-    "minimatch": "^11.0.4"
+    "minimatch": "11.0.4"
   }
 }
