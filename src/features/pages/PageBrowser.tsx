@@ -76,6 +76,12 @@ export function PageBrowser({
   const goTo = goToDraft.page === currentPage ? goToDraft.value : String(currentPage);
   const [goError, setGoError] = useState(false);
   const [activeNumber, setActiveNumber] = useState(currentPage);
+  const [previousPage, setPreviousPage] = useState(currentPage);
+  if (previousPage !== currentPage) {
+    // Follow navigation outside the list without resetting pending arrow-key selection.
+    setPreviousPage(currentPage);
+    setActiveNumber(currentPage);
+  }
   const [geometry, setGeometry] = useState({
     top: Math.max(0, (currentPage - 1) * PAGE_ROW_HEIGHT),
     height: 320,

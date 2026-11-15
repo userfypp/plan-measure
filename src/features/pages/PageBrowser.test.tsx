@@ -273,6 +273,31 @@ describe("page browser", () => {
     expect(globalKey).not.toHaveBeenCalled();
     window.removeEventListener("keydown", globalKey);
   });
+  it.each([4, 400])(
+    "follows external navigation to page %i while the panel stays open",
+    async (page) => {
+      await mount(3);
+      await key(list(), "ArrowDown");
+      await key(list(), "ArrowDown");
+      // A rerender without navigation preserves the pending keyboard selection.
+      await mount(3);
+      expect(list().getAttribute("aria-activedescendant")).toContain("page-5");
+
+      for (const currentPage of [page, 3]) {
+        await mount(currentPage);
+        const selected = container.querySelector<HTMLElement>('[aria-selected="true"]')!;
+        expect(selected.getAttribute("data-page-number")).toBe(String(currentPage));
+        expect(selected.getAttribute("data-active")).toBe("true");
+        expect(list().getAttribute("aria-activedescendant")).toBe(selected.id);
+        navigate.mockClear();
+        await key(list(), "Enter");
+        expect(navigate).not.toHaveBeenCalled();
+        await key(list(), "ArrowDown");
+        await key(list(), "Enter");
+        expect(navigate).toHaveBeenLastCalledWith(currentPage + 1);
+      }
+    },
+  );
   it("preserves the drawing/scale workflow navigation guard and does not navigate the current page", async () => {
     await mount(1, true);
     await key(list(), "ArrowDown");
