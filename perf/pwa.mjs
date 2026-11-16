@@ -88,6 +88,11 @@ try {
   const sameOrigin = (request) => request.url().startsWith(new URL(url).origin);
   let offline = false;
   page.on("requestfailed", (request) => {
+    // The app preloads its lazy chunks while idle (`preloadWhenIdle`) and retries any preload that
+    // fails. The reload that goes offline cancels the previous document's preloads still in flight;
+    // newer Playwright versions report that cancellation. A chunk the worker cannot serve fails
+    // with another error (net::ERR_FAILED), so only cancellations are skipped.
+    if (request.failure()?.errorText === "net::ERR_ABORTED") return;
     if (offline && sameOrigin(request)) {
       problems.push(`Failed offline request: ${request.url()} (${request.failure()?.errorText})`);
     }
