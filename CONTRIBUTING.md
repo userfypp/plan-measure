@@ -20,6 +20,14 @@ Every issue belongs to exactly one group: an epic issue that holds it as a sub-i
 
 Pick the group by what the change touches, not by its type: a test for the viewer goes to #487, not #490. When two groups fit, take the one whose code has to change and mention the other in the issue. A new issue gets its labels and its group when it is triaged. Closed issues stay in their group, so a group also shows what was done. Do not open a new group for one issue: if nothing fits, say so in the issue and the maintainer decides.
 
+### Where to start
+
+- [`good first issue`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): small and self-contained. Start here.
+- [`help wanted`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22): well specified; most are test-coverage checklists in [Test coverage](https://github.com/userfypp/plan-measure/issues/487). Pick one item per pull request and prefer `priority: P1` and `P2`.
+- Anything else: comment before you start, because the answer is not settled yet.
+
+Comment on the issue you pick and wait for the assignment. Issues listed as assigned in the [roadmap](docs/ROADMAP.md) are taken.
+
 ## Development
 
 Requires Node.js 24, pinned in `.nvmrc` (`nvm use` picks it up), and npm:
