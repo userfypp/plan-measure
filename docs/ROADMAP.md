@@ -2,9 +2,9 @@
 
 Direction, not a promise: no dates, and priorities may change. The [issue tracker](https://github.com/userfypp/plan-measure/issues) is the source of truth; labels `priority: P0`–`P3` set the order.
 
-## How issues are organised
+## How to read this
 
-Issues carry a type, an area and, once planned, a priority, as [CONTRIBUTING.md](../CONTRIBUTING.md#how-issues-are-classified) explains. There are no parent issues, except [#487](https://github.com/userfypp/plan-measure/issues/487) for test coverage. To see a slice, filter on the labels, for example [open bugs](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3Abug) or [issues for newcomers](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+Every issue has a type, an area and, once planned, a priority; [CONTRIBUTING.md](../CONTRIBUTING.md#labels) explains them. This page lists the work by priority. For any other slice, filter the [issue tracker](https://github.com/userfypp/plan-measure/issues) by label.
 
 ## Assigned
 
@@ -15,28 +15,43 @@ Taken by a contributor; leave these to them. Want another issue? Comment on it a
 | [#382](https://github.com/userfypp/plan-measure/issues/382) | Cover rejection paths and no-op identity in session commands | [AnushreeKasturi](https://github.com/AnushreeKasturi) | P2       |
 | [#397](https://github.com/userfypp/plan-measure/issues/397) | Cover small viewer components, hooks and runtime helpers     | [AnushreeKasturi](https://github.com/AnushreeKasturi) | P3       |
 
-## Now: open bugs
+## Bugs
 
-| Issue                                                       | Bug                               | Area   | Priority |
-| ----------------------------------------------------------- | --------------------------------- | ------ | -------- |
-| [#295](https://github.com/userfypp/plan-measure/issues/295) | Drag previews drop label prefixes | Viewer | P3       |
+The P2 bugs come first. All of them are in the [open bugs](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3Abug), with the P3 ones.
+
+| Issue                                                       | Bug                                                  | Area         |
+| ----------------------------------------------------------- | ---------------------------------------------------- | ------------ |
+| [#502](https://github.com/userfypp/plan-measure/issues/502) | Wheel zoom is nearly unusable with line-based wheels | Viewer       |
+| [#511](https://github.com/userfypp/plan-measure/issues/511) | The smoke job does not gate Pages or releases        | CI           |
+| [#514](https://github.com/userfypp/plan-measure/issues/514) | Count item names are missing from exports            | Measurements |
+| [#530](https://github.com/userfypp/plan-measure/issues/530) | Undo and Redo shortcuts run behind open dialogs      | UI           |
 
 ## Next (P2)
 
-| Order | Issue                                                       | Work                                   | Notes                                                      |
-| ----- | ----------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
-| 1     | [#235](https://github.com/userfypp/plan-measure/issues/235) | Text, callout and arrow markups        |                                                            |
-| 2     | [#236](https://github.com/userfypp/plan-measure/issues/236) | Highlight and stamp markups            | After #235; schema migration                               |
-| –     | [#234](https://github.com/userfypp/plan-measure/issues/234) | Small-screen and touch layout          | Layout only; touch drawing later; part done (phone layout) |
-| –     | [#251](https://github.com/userfypp/plan-measure/issues/251) | Pages exceeds pause and memory budgets | Cause still unknown                                        |
+| Order | Issue                                                       | Work                                               | Notes                                                      |
+| ----- | ----------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| 1     | [#235](https://github.com/userfypp/plan-measure/issues/235) | Text, callout and arrow markups                    |                                                            |
+| 2     | [#236](https://github.com/userfypp/plan-measure/issues/236) | Highlight and stamp markups                        | After #235; schema migration                               |
+| –     | [#234](https://github.com/userfypp/plan-measure/issues/234) | Small-screen and touch layout                      | Layout only; touch drawing later; part done (phone layout) |
+| –     | [#503](https://github.com/userfypp/plan-measure/issues/503) | Snap and constrain to Ortho when dragging vertices |                                                            |
+| –     | [#504](https://github.com/userfypp/plan-measure/issues/504) | Pan and pinch-zoom on touch and Safari trackpads   |                                                            |
+| –     | [#251](https://github.com/userfypp/plan-measure/issues/251) | Pages exceeds pause and memory budgets             | Cause still unknown                                        |
 
 ## Later (P3)
 
-| Issue                                                       | Work                                                                              |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [#231](https://github.com/userfypp/plan-measure/issues/231) | UI translations, Spanish first                                                    |
-| [#216](https://github.com/userfypp/plan-measure/issues/216) | Visual walkthrough page                                                           |
-| [#257](https://github.com/userfypp/plan-measure/issues/257) | Windows CI job for the installable app (the app installs and works offline today) |
+| Issue                                                       | Work                                                        |
+| ----------------------------------------------------------- | ----------------------------------------------------------- |
+| [#231](https://github.com/userfypp/plan-measure/issues/231) | UI translations, Spanish first                              |
+| [#216](https://github.com/userfypp/plan-measure/issues/216) | Visual walkthrough page                                     |
+| [#497](https://github.com/userfypp/plan-measure/issues/497) | Warn when Compare pages differ in size                      |
+| [#506](https://github.com/userfypp/plan-measure/issues/506) | Shortcuts on non-Latin keyboard layouts                     |
+| [#507](https://github.com/userfypp/plan-measure/issues/507) | Keep high zoom sharp on large plans                         |
+| [#508](https://github.com/userfypp/plan-measure/issues/508) | Import a `.planmeasure` file by dropping it                 |
+| [#509](https://github.com/userfypp/plan-measure/issues/509) | Offer a reload when a new version is ready                  |
+| [#510](https://github.com/userfypp/plan-measure/issues/510) | Warn about conflicting tabs before editing                  |
+| [#513](https://github.com/userfypp/plan-measure/issues/513) | Document which versions `perf` and `revert` commits produce |
+| [#515](https://github.com/userfypp/plan-measure/issues/515) | CSV export errors name the invalid measurement              |
+| [#524](https://github.com/userfypp/plan-measure/issues/524) | Hover-style background on the focused page in Pages         |
 
 ## Test coverage
 
@@ -47,8 +62,6 @@ Test work is tracked in [#487](https://github.com/userfypp/plan-measure/issues/4
 | P1       | [#375](https://github.com/userfypp/plan-measure/issues/375) | Cover Undo and Redo semantics for every session command                | Part done (#413)                                             |
 | P1       | [#376](https://github.com/userfypp/plan-measure/issues/376) | Cover project open, close, discard and recovery failures               | Part done (#416)                                             |
 | P1       | [#377](https://github.com/userfypp/plan-measure/issues/377) | Pin geometry, coordinate, unit and format math with independent values | Part done (#410–#412)                                        |
-| P1       | [#379](https://github.com/userfypp/plan-measure/issues/379) | Cover CSV, spreadsheet, JSON and export dialog correctness             | Part done (#433, #438)                                       |
-| P1       | [#380](https://github.com/userfypp/plan-measure/issues/380) | Assert Takeoff totals and groups in the model and the UI               | Part done (#433, #437)                                       |
 | P2       | [#381](https://github.com/userfypp/plan-measure/issues/381) | Set up test infrastructure, coverage and CI gates                      | Do first; part done (#422–#426, #439, #441, #442, #445–#447) |
 | P2       | [#382](https://github.com/userfypp/plan-measure/issues/382) | Cover rejection paths and no-op identity in session commands           | Assigned; part done (#460)                                   |
 | P2       | [#383](https://github.com/userfypp/plan-measure/issues/383) | Cover workspace, clipboard, overlay and theme state                    | Good first issue                                             |
@@ -76,10 +89,7 @@ Test work is tracked in [#487](https://github.com/userfypp/plan-measure/issues/4
 
 ## Open to contributors
 
-| Type                        | Issues                                                                                                                                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Good first issue            | [#295](https://github.com/userfypp/plan-measure/issues/295) (bug), [#383](https://github.com/userfypp/plan-measure/issues/383), [#395](https://github.com/userfypp/plan-measure/issues/395) (tests) |
-| Test coverage (help wanted) | The unassigned P2 and P3 issues in [Test coverage](#test-coverage)                                                                                                                                  |
+Start with the [`good first issue`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) ones. The rest of the [`help wanted`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) issues are mostly the test checklists below; the ones in the Assigned table are taken.
 
 ## Principles
 

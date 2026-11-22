@@ -2,27 +2,21 @@
 
 ## Issues
 
-Search existing issues, then use the bug or feature request template. Keep each issue focused and provide reproduction steps for bugs. Report vulnerabilities through the [security policy](SECURITY.md); never attach private plans or credentials.
+Search first, then use the bug or feature request template. Keep each issue to one thing, and for a bug say how to reproduce it. Report vulnerabilities through the [security policy](SECURITY.md); never attach private plans or credentials.
 
-### How issues are classified
+### Labels
 
-Issues are described by labels on three independent axes, and by nothing else:
+Each issue has one type (`bug`, `enhancement`, `documentation` or `test`), at least one `area:` label and, once planned, a priority from `P0` to `P3`. The areas follow the code: `viewer` (pan, zoom, Pages, Find similar, Compare), `drawing` (tools, markups, snapping), `measurements` (values, units, Takeoff, exports), `classifications`, `ui` (design, accessibility, dialogs, shortcuts, layout, translations), `projects` (project files, autosave, tabs, updates, offline), `ci` and `docs`. An issue that touches two areas gets both.
 
-| Axis     | Labels                                                                                       | Rule         |
-| -------- | -------------------------------------------------------------------------------------------- | ------------ |
-| Type     | `bug`, `enhancement`, `documentation`, `test`                                                | exactly one  |
-| Area     | `area: viewer`, `drawing`, `measurements`, `classifications`, `ui`, `projects`, `ci`, `docs` | at least one |
-| Priority | `priority: P0` to `P3`                                                                       | once planned |
-
-There are no parent issues or epics: a parent can only express one axis, so it ends up contradicting the labels. The one exception is [#487 Test coverage](https://github.com/userfypp/plan-measure/issues/487), a finite checklist of test work. To see a slice, filter on the labels, for example [open bugs in the viewer](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3Abug+label%3A%22area%3A+viewer%22). An issue that spans two areas carries both. The areas follow the code: `viewer` pan, zoom, input, Pages, Find similar and Compare; `drawing` tools, markups and snapping; `measurements` values, units, Takeoff and exports; `classifications` classifications and prices; `ui` design contract, accessibility, dialogs, shortcuts, layout and translations; `projects` project files, autosave, tabs, updates and offline; `ci` workflows and release tooling; `docs` documentation.
+There are no parent issues, except [#487](https://github.com/userfypp/plan-measure/issues/487), which tracks the test work. To see a slice, filter by label, for example [open bugs in the viewer](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3Abug+label%3A%22area%3A+viewer%22).
 
 ### Where to start
 
 - [`good first issue`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): small and self-contained. Start here.
-- [`help wanted`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22): well specified; most are test-coverage checklists in [Test coverage](https://github.com/userfypp/plan-measure/issues/487). Pick one item per pull request and prefer `priority: P1` and `P2`.
-- Anything else: comment before you start, because the answer is not settled yet.
+- [`help wanted`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22): well specified. Most are test checklists under #487: pick an item or two per pull request, `P1` and `P2` first.
+- Anything else: say so on the issue before you start, because the approach may not be settled.
 
-Comment on the issue you pick and wait for the assignment. Issues listed as assigned in the [roadmap](docs/ROADMAP.md) are taken.
+Comment on the issue you pick and wait for the assignment. The [roadmap](docs/ROADMAP.md) lists the ones already taken.
 
 ## Development
 
