@@ -4,17 +4,7 @@ Direction, not a promise: no dates, and priorities may change. The [issue tracke
 
 ## How issues are organised
 
-Every issue belongs to one of seven groups, the epic issue that holds it as a sub-issue; GitHub shows how many of its issues are done. The rules for choosing a group are in [CONTRIBUTING.md](../CONTRIBUTING.md#groups). The tables below order the work by priority, whatever the group.
-
-| Group                                                                                                 | Holds                                                                     |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [#487 Test coverage](https://github.com/userfypp/plan-measure/issues/487)                             | all test work, one sub-issue per area                                     |
-| [#490 Viewer and navigation](https://github.com/userfypp/plan-measure/issues/490)                     | pan, zoom, input, Pages panel, Find similar and Compare                   |
-| [#537 Drawing and markups](https://github.com/userfypp/plan-measure/issues/537)                       | drawing tools, markups, snapping, drag previews                           |
-| [#538 Measurements, classifications and exports](https://github.com/userfypp/plan-measure/issues/538) | scale and units, the Measurements list, classifications, Takeoff, exports |
-| [#489 Design system, accessibility and UI](https://github.com/userfypp/plan-measure/issues/489)       | design contract, WCAG, dialogs, layout, translations                      |
-| [#491 Projects, storage and offline](https://github.com/userfypp/plan-measure/issues/491)             | project files, autosave, tabs, updates, offline                           |
-| [#492 CI, releases and documentation](https://github.com/userfypp/plan-measure/issues/492)            | workflows, release tooling, performance checks, docs                      |
+Issues carry a type, an area and, once planned, a priority, as [CONTRIBUTING.md](../CONTRIBUTING.md#how-issues-are-classified) explains. There are no parent issues, except [#487](https://github.com/userfypp/plan-measure/issues/487) for test coverage. To see a slice, filter on the labels, for example [open bugs](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3Abug) or [issues for newcomers](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 
 ## Assigned
 

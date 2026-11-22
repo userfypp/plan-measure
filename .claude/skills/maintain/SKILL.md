@@ -73,7 +73,7 @@ Fetch open issues, and recently closed ones to avoid duplicates. For each:
 - Duplicate of another: close as `duplicate` with the link.
 - Test-coverage tracker and its sub-issues (see "Test coverage" in docs/ROADMAP.md): tick or remove checklist items that now have tests; close a sub-issue only when every item is covered.
 - Wrong or missing labels (`priority: P0`–`P3`, `area:`, `bug`, `test`, …): fix them.
-- Missing or wrong group: every issue has exactly one parent epic (CONTRIBUTING, "Groups"). Attach an orphan with the sub-issue tool and `replace_parent`; never create a new group.
+- Inconsistent labels: every open issue has exactly one type (`bug`, `enhancement`, `documentation` or `test`), at least one `area:` and, once planned, one `priority:` (CONTRIBUTING, "How issues are classified"). Fix gaps and contradictions; never add parent issues or epics.
 - Missing information you cannot get from the code: comment once.
 - Never close because it is old; only because it is verifiably done, duplicated or contradicted.
 
