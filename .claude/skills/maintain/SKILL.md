@@ -106,8 +106,11 @@ labels. Style preferences are not findings.
 
 ## Report
 
-GitHub text (issues, comments, PRs, commits) is in English. Finish with a
-short report to the maintainer, in Spanish:
+GitHub text (issues, comments, PRs, commits) is in English and reads like a
+person wrote it: short, direct, natural. Say what changed or what is wrong and
+why, give the evidence, and stop. No filler, no pleasantries, no headings or
+bullet lists in comments, and keep the PR template's headings short. Finish
+with a short report to the maintainer, in Spanish:
 
 - **Hecho:** what you did, with links.
 - **Listo para mergear:** PRs that passed every check.
