@@ -1064,6 +1064,33 @@ describe("App scale check", () => {
   });
 });
 
+describe("App undo and redo during dialogs", () => {
+  it("does nothing to the session while the export dialog is open", async () => {
+    await renderApp(buildSession(uniformScale()));
+    openSetRatio("Ground floor");
+    saveUniformRatio(60);
+    const ratioAfterSave = currentSession().pages[1]!.calibrations[0];
+    expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("true:false");
+
+    await act(async () => {
+      buttonByText("Open export").click();
+      await vi.dynamicImportSettled();
+    });
+    expect(document.querySelector("dialog")?.open).toBe(true);
+
+    const undo = new KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(false);
+    expect(currentSession().pages[1]!.calibrations[0]).toEqual(ratioAfterSave);
+    expect(container!.querySelector('[data-testid="history"]')!.textContent).toBe("true:false");
+  });
+});
+
 describe("App page browser navigation purity", () => {
   beforeEach(() =>
     vi.stubGlobal(

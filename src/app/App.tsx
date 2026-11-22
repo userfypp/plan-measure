@@ -47,7 +47,7 @@ import {
 import type { AuthoringCapability } from "../features/viewer/AuthoringCapability";
 import { confirmCalibration, selectCalibrationReference } from "./calibrationFlow";
 import type { LogicalPageBounds } from "../types/domain";
-import { useShortcutHandlers } from "../utils/shortcuts/dispatcher";
+import { isBlockingOverlayOpen, useShortcutHandlers } from "../utils/shortcuts/dispatcher";
 import {
   defaultCalibrationName,
   findPageCalibration,
@@ -358,6 +358,7 @@ function PlanMeasureApp() {
 
   useShortcutHandlers((action, event) => {
     if (action !== "edit.undo" && action !== "edit.redo") return false;
+    if (isBlockingOverlayOpen()) return false;
     event.preventDefault();
     if (action === "edit.redo") redo();
     else undo();
