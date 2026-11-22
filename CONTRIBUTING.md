@@ -4,21 +4,25 @@
 
 Search existing issues, then use the bug or feature request template. Keep each issue focused and provide reproduction steps for bugs. Report vulnerabilities through the [security policy](SECURITY.md); never attach private plans or credentials.
 
-### Groups
+### How issues are classified
 
-Every issue belongs to exactly one group: an epic issue that holds it as a sub-issue, so GitHub shows the progress of each group. A group is long-lived and general; it is not closed because its issues are done, since new ones keep arriving.
+Issues are described by labels on three independent axes, and by nothing else:
 
-| Group                                                                                                 | Holds                                                                   |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [#487 Test coverage](https://github.com/userfypp/plan-measure/issues/487)                             | every issue labeled `test`                                              |
-| [#490 Viewer and navigation](https://github.com/userfypp/plan-measure/issues/490)                     | `area: viewer`: pan, zoom, input, Pages panel, Find similar and Compare |
-| [#537 Drawing and markups](https://github.com/userfypp/plan-measure/issues/537)                       | `area: drawing`: tools, markups, snapping, drag previews                |
-| [#538 Measurements, classifications and exports](https://github.com/userfypp/plan-measure/issues/538) | `area: measurements`, `area: classifications`: values, Takeoff, exports |
-| [#489 Design system, accessibility and UI](https://github.com/userfypp/plan-measure/issues/489)       | design contract, WCAG, dialogs, shortcuts policy, layout, translations  |
-| [#491 Projects, storage and offline](https://github.com/userfypp/plan-measure/issues/491)             | project files, autosave and recovery, tabs, app updates, offline        |
-| [#492 CI, releases and documentation](https://github.com/userfypp/plan-measure/issues/492)            | workflows, release tooling, performance checks, docs                    |
+| Axis     | Labels                                                                                       | Rule         |
+| -------- | -------------------------------------------------------------------------------------------- | ------------ |
+| Type     | `bug`, `enhancement`, `documentation`, `test`                                                | exactly one  |
+| Area     | `area: viewer`, `drawing`, `measurements`, `classifications`, `ui`, `projects`, `ci`, `docs` | at least one |
+| Priority | `priority: P0` to `P3`                                                                       | once planned |
 
-Pick the group by what the change touches, not by its type: a test for the viewer goes to #487, not #490. When two groups fit, take the one whose code has to change and mention the other in the issue. A new issue gets its labels and its group when it is triaged. Closed issues stay in their group, so a group also shows what was done. Do not open a new group for one issue: if nothing fits, say so in the issue and the maintainer decides.
+There are no parent issues or epics: a parent can only express one axis, so it ends up contradicting the labels. The one exception is [#487 Test coverage](https://github.com/userfypp/plan-measure/issues/487), a finite checklist of test work. To see a slice, filter on the labels, for example [open bugs in the viewer](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3Abug+label%3A%22area%3A+viewer%22). An issue that spans two areas carries both. The areas follow the code: `viewer` pan, zoom, input, Pages, Find similar and Compare; `drawing` tools, markups and snapping; `measurements` values, units, Takeoff and exports; `classifications` classifications and prices; `ui` design contract, accessibility, dialogs, shortcuts, layout and translations; `projects` project files, autosave, tabs, updates and offline; `ci` workflows and release tooling; `docs` documentation.
+
+### Where to start
+
+- [`good first issue`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): small and self-contained. Start here.
+- [`help wanted`](https://github.com/userfypp/plan-measure/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22): well specified; most are test-coverage checklists in [Test coverage](https://github.com/userfypp/plan-measure/issues/487). Pick one item per pull request and prefer `priority: P1` and `P2`.
+- Anything else: comment before you start, because the answer is not settled yet.
+
+Comment on the issue you pick and wait for the assignment. Issues listed as assigned in the [roadmap](docs/ROADMAP.md) are taken.
 
 ## Development
 
