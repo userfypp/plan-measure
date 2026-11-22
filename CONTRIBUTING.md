@@ -4,6 +4,22 @@
 
 Search existing issues, then use the bug or feature request template. Keep each issue focused and provide reproduction steps for bugs. Report vulnerabilities through the [security policy](SECURITY.md); never attach private plans or credentials.
 
+### Groups
+
+Every issue belongs to exactly one group: an epic issue that holds it as a sub-issue, so GitHub shows the progress of each group. A group is long-lived and general; it is not closed because its issues are done, since new ones keep arriving.
+
+| Group                                                                                                 | Holds                                                                   |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [#487 Test coverage](https://github.com/userfypp/plan-measure/issues/487)                             | every issue labeled `test`                                              |
+| [#490 Viewer and navigation](https://github.com/userfypp/plan-measure/issues/490)                     | `area: viewer`: pan, zoom, input, Pages panel, Find similar and Compare |
+| [#537 Drawing and markups](https://github.com/userfypp/plan-measure/issues/537)                       | `area: drawing`: tools, markups, snapping, drag previews                |
+| [#538 Measurements, classifications and exports](https://github.com/userfypp/plan-measure/issues/538) | `area: measurements`, `area: classifications`: values, Takeoff, exports |
+| [#489 Design system, accessibility and UI](https://github.com/userfypp/plan-measure/issues/489)       | design contract, WCAG, dialogs, shortcuts policy, layout, translations  |
+| [#491 Projects, storage and offline](https://github.com/userfypp/plan-measure/issues/491)             | project files, autosave and recovery, tabs, app updates, offline        |
+| [#492 CI, releases and documentation](https://github.com/userfypp/plan-measure/issues/492)            | workflows, release tooling, performance checks, docs                    |
+
+Pick the group by what the change touches, not by its type: a test for the viewer goes to #487, not #490. When two groups fit, take the one whose code has to change and mention the other in the issue. A new issue gets its labels and its group when it is triaged. Closed issues stay in their group, so a group also shows what was done. Do not open a new group for one issue: if nothing fits, say so in the issue and the maintainer decides.
+
 ## Development
 
 Requires Node.js 24, pinned in `.nvmrc` (`nvm use` picks it up), and npm:
