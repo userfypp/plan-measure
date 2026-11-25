@@ -4,6 +4,50 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.14.0](https://github.com/userfypp/plan-measure/compare/v2.13.0...v2.14.0) (2026-11-25)
+
+
+### Added
+
+* **count:** select a single count item from the plan and act on it from the toolbar ([11d9ba1](https://github.com/userfypp/plan-measure/commit/11d9ba1b02cbbc3845b2584047824940cb47eb17))
+* refresh the brand with a new logo, app icon and README ([#486](https://github.com/userfypp/plan-measure/issues/486)) ([503c7d8](https://github.com/userfypp/plan-measure/commit/503c7d88b2d17fba4557875e4689c7c1a4adc9d7))
+* **settings:** show a fixed label preview in Measurements ([11d9ba1](https://github.com/userfypp/plan-measure/commit/11d9ba1b02cbbc3845b2584047824940cb47eb17))
+* **viewer:** turn the debug overlay into a diagnostics panel at the bottom right ([11d9ba1](https://github.com/userfypp/plan-measure/commit/11d9ba1b02cbbc3845b2584047824940cb47eb17))
+
+
+### Fixed
+
+* **count:** allow retrying Find similar after an error ([#526](https://github.com/userfypp/plan-measure/issues/526)) ([44bd9c9](https://github.com/userfypp/plan-measure/commit/44bd9c95d36c7d55fa898c191307b3a8561a13ee))
+* **deps:** pin the minimatch overrides to exact versions ([#525](https://github.com/userfypp/plan-measure/issues/525)) ([40f5671](https://github.com/userfypp/plan-measure/commit/40f56715e967783fe66948bc614a671b66fcecfa))
+* end Find similar and Compare when the plan closes or changes ([#548](https://github.com/userfypp/plan-measure/issues/548)) ([c191235](https://github.com/userfypp/plan-measure/commit/c191235c18ef5f34740d6453266bee3ca11bd7fb))
+* ignore accents when searching measurement names ([#565](https://github.com/userfypp/plan-measure/issues/565)) ([3559fcd](https://github.com/userfypp/plan-measure/commit/3559fcdf7dd835fd1514896aa18c1b5d7f4eddc4))
+* ignore undo and redo shortcuts while a dialog is open ([#542](https://github.com/userfypp/plan-measure/issues/542)) ([6afb831](https://github.com/userfypp/plan-measure/commit/6afb831e215172445607ade048123cdec98b1544))
+* keep dialogs and popovers open when Escape ends an IME composition ([#561](https://github.com/userfypp/plan-measure/issues/561)) ([4840f26](https://github.com/userfypp/plan-measure/commit/4840f268ea037a6b428415aa02ac14d7875a0930))
+* keep Save note disabled when only surrounding spaces change ([#557](https://github.com/userfypp/plan-measure/issues/557)) ([0d2ec6a](https://github.com/userfypp/plan-measure/commit/0d2ec6a319691b1e4dd79c2bc4e7b3e0b6a5f5a0))
+* let Alt, Ctrl and Cmd arrow keys pass through the measurement list ([#567](https://github.com/userfypp/plan-measure/issues/567)) ([aa67c85](https://github.com/userfypp/plan-measure/commit/aa67c85e50adf1f5c4b40276c03d341a49b299f3))
+* name the invalid measurements that block a spreadsheet export ([#551](https://github.com/userfypp/plan-measure/issues/551)) ([40a5d40](https://github.com/userfypp/plan-measure/commit/40a5d407cc72d69d37a9098dac26d9e2522fa967))
+* report failure for template, rate and bulk edits without a project ([#554](https://github.com/userfypp/plan-measure/issues/554)) ([2d19db1](https://github.com/userfypp/plan-measure/commit/2d19db1a548b83a94721c81e77f4a2dd02b30f72))
+* reposition a popover when its content changes size ([#549](https://github.com/userfypp/plan-measure/issues/549)) ([6566f1d](https://github.com/userfypp/plan-measure/commit/6566f1da64e95ac469c0a82e91a99024b6e1677d))
+* **settings:** reject oversized settings files on import ([#529](https://github.com/userfypp/plan-measure/issues/529)) ([4c49547](https://github.com/userfypp/plan-measure/commit/4c49547ba3ad47624a377f87a343a2dd69b2680d))
+* stop Compare alignment when the comparison reloads ([#547](https://github.com/userfypp/plan-measure/issues/547)) ([0a44fb2](https://github.com/userfypp/plan-measure/commit/0a44fb2b0ab261755958ed3cd082a5b8619cf7bb))
+* synchronize Pages selection after external navigation ([#522](https://github.com/userfypp/plan-measure/issues/522)) ([4340a69](https://github.com/userfypp/plan-measure/commit/4340a6973740354f4a01a8a8ccd88f9179719171))
+* **ui:** align the workspace module menu with its trigger ([11d9ba1](https://github.com/userfypp/plan-measure/commit/11d9ba1b02cbbc3845b2584047824940cb47eb17))
+
+
+### Improved
+
+* **size:** lazy-load the count item toolbar and diagnostics, and rework the size check ([11d9ba1](https://github.com/userfypp/plan-measure/commit/11d9ba1b02cbbc3845b2584047824940cb47eb17))
+
+
+### Documentation
+
+* classify issues by labels only and add a Where to start section ([#540](https://github.com/userfypp/plan-measure/issues/540)) ([7dcbabf](https://github.com/userfypp/plan-measure/commit/7dcbabfa896ad757875f12f1d476ceea694390a0))
+* describe the seven issue groups and add them to the roadmap ([#539](https://github.com/userfypp/plan-measure/issues/539)) ([ad1972a](https://github.com/userfypp/plan-measure/commit/ad1972af0ed35c9740945ab32463504100d696df))
+* **readme:** link to the issue list without sub-issues ([#523](https://github.com/userfypp/plan-measure/issues/523)) ([303ac77](https://github.com/userfypp/plan-measure/commit/303ac77ed14b69cfb67a09cb662e4ad61e2398bc))
+* refresh CONTRIBUTING and the roadmap ([#541](https://github.com/userfypp/plan-measure/issues/541)) ([2c178bd](https://github.com/userfypp/plan-measure/commit/2c178bd2dd8ced3ae505ee6d678ca13d7eb68799))
+* refresh README screenshot and rewrite its copy ([#485](https://github.com/userfypp/plan-measure/issues/485)) ([6e31e21](https://github.com/userfypp/plan-measure/commit/6e31e21294ebaab2a862b19fbebd5714b4fb0e64))
+* **roadmap:** point the test coverage section to the parent issue ([#521](https://github.com/userfypp/plan-measure/issues/521)) ([11508c8](https://github.com/userfypp/plan-measure/commit/11508c8c9463242a8c8c5c11cd3e123b46925518))
+
 ## [2.13.0](https://github.com/userfypp/plan-measure/compare/v2.12.0...v2.13.0) (2026-11-10)
 
 
