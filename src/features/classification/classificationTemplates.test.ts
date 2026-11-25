@@ -247,6 +247,47 @@ describe("classification templates", () => {
         library
       ),
     ],
+    [
+      "missing version",
+      (library) => (delete (library as Record<string, unknown>).version, library),
+    ],
+    ["blank template name", (library) => ((library.templates[0]!.name = "  "), library)],
+    [
+      "template name with outer spaces",
+      (library) => ((library.templates[0]!.name = " A "), library),
+    ],
+    [
+      "two templates whose names differ only in case",
+      (library) => (
+        library.templates.push({
+          ...structuredClone(library.templates[0]!),
+          id: "b",
+          name: "RESIDENTIAL",
+        }),
+        library
+      ),
+    ],
+    [
+      "two templates with the same id",
+      (library) => (
+        library.templates.push({ ...structuredClone(library.templates[0]!), name: "Other" }),
+        library
+      ),
+    ],
+    ["empty template id", (library) => ((library.templates[0]!.id = ""), library)],
+    ["no dimensions", (library) => ((library.templates[0]!.dimensions = []), library)],
+    ["blank dimension name", (library) => ((firstDimension(library).name = " "), library)],
+    [
+      "two dimensions with the same name",
+      (library) => (
+        library.templates[0]!.dimensions.push({ name: "trade", values: ["Door"], rates: [] }),
+        library
+      ),
+    ],
+    [
+      "two values with the same name",
+      (library) => ((firstDimension(library).values = ["Wall", "WALL"]), library),
+    ],
   ])("reports invalid rates without overwriting the storage: %s", (_label, mutate) => {
     const raw = JSON.stringify(mutate(validLibrary()));
     window.localStorage.setItem(CLASSIFICATION_TEMPLATES_STORAGE_KEY, raw);
