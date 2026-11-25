@@ -287,9 +287,14 @@ export function Popover({
     }
 
     updatePosition();
+    // Content that grows or shrinks while open (a filtered list, late content) moves it again.
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePosition);
+    if (contentRef.current) observer?.observe(contentRef.current);
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     return () => {
+      observer?.disconnect();
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
