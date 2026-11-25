@@ -380,7 +380,9 @@ describe("CSV export", () => {
       { x: 4, y: 0 },
     ];
 
-    expect(() => buildCsv(session)).toThrow("Repair invalid Polygon measurements");
+    expect(() => buildCsv(session)).toThrow(
+      'Repair the invalid Polygon "Room A" on page 1 before exporting.',
+    );
   });
 
   it("refuses a recovered Line whose endpoints coincide instead of exporting zero", () => {
@@ -390,8 +392,40 @@ describe("CSV export", () => {
       { x: 4, y: 4 },
     ];
 
-    expect(() => buildCsv(session)).toThrow("Repair invalid Line measurements");
-    expect(() => buildMeasurementTable(session)).toThrow("Repair invalid Line measurements");
+    const message = 'Repair the invalid Line "Lobby, "north"" on page 1 before exporting.';
+    expect(() => buildCsv(session)).toThrow(message);
+    expect(() => buildMeasurementTable(session)).toThrow(message);
+  });
+
+  it("names every invalid measurement up to three, with its page label", () => {
+    const session = measuredSession();
+    const collapsed = [
+      { x: 4, y: 4 },
+      { x: 4, y: 4 },
+    ];
+    session.pages[1]!.measurements[0]!.points = collapsed;
+    session.pages[1]!.measurements[1]!.points = [];
+    session.pages[2]!.measurements[0]!.points = collapsed;
+    session.pageLabelOverrides = { 2: "A-101" };
+
+    expect(() => buildMeasurementTable(session)).toThrow(
+      'Repair 3 invalid measurements before exporting: Line "Lobby, "north"" on page 1, ' +
+        'Polygon "Room A" on page 1 and Line "Second measurement" on page 2 (A-101).',
+    );
+    session.pages[2]!.measurements.push({
+      ...session.pages[2]!.measurements[0]!,
+      id: "unnamed",
+      name: " ",
+    });
+    expect(() => buildMeasurementTable(session)).toThrow(
+      'Repair 4 invalid measurements before exporting: Line "Lobby, "north"" on page 1, ' +
+        'Polygon "Room A" on page 1, Line "Second measurement" on page 2 (A-101) and 1 more.',
+    );
+    session.pages[1]!.measurements = [];
+    session.pages[2]!.measurements = [session.pages[2]!.measurements[1]!];
+    expect(() => buildMeasurementTable(session)).toThrow(
+      "Repair the invalid Line on page 2 (A-101) before exporting.",
+    );
   });
 
   it("exports all columns with the established order and calibration metadata", () => {
@@ -1675,7 +1709,7 @@ describe("CSV batch export", () => {
       points: [],
     };
     await expect(buildCsvInBatches(session, null, undefined, async () => {})).rejects.toThrow(
-      "Repair invalid Polygon",
+      "Repair the invalid Polygon",
     );
   });
 

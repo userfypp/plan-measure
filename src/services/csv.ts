@@ -780,6 +780,38 @@ export interface ExportTable {
   rows: ExportCell[][];
 }
 
+const NAMED_INVALID_MEASUREMENTS = 3;
+
+/** Names the measurements that block a CSV, XLSX or ODS export, so they can be found. */
+function invalidMeasurementsMessage(
+  session: CurrentSession,
+  pageLabels: readonly string[] | null,
+): string {
+  const invalid: string[] = [];
+  for (let pageNumber = 1; pageNumber <= session.pageCount; pageNumber += 1) {
+    for (const measurement of session.pages[pageNumber]?.measurements ?? []) {
+      if (hasValidMeasurementPoints(measurement.type, measurement.points)) continue;
+      const label = effectivePageLabel(pageNumber, session.pageLabelOverrides, pageLabels);
+      const page =
+        label && label !== String(pageNumber)
+          ? `page ${pageNumber} (${label})`
+          : `page ${pageNumber}`;
+      const name = measurement.name.replace(/\s+/g, " ").trim();
+      invalid.push(
+        `${measurementPathSpecs[measurement.type].label}${name ? ` "${name}"` : ""} on ${page}`,
+      );
+    }
+  }
+  if (invalid.length === 1) return `Repair the invalid ${invalid[0]} before exporting.`;
+  const named = invalid.slice(0, NAMED_INVALID_MEASUREMENTS);
+  const rest = invalid.length - named.length;
+  const list =
+    rest > 0
+      ? `${named.join(", ")} and ${rest} more`
+      : `${named.slice(0, -1).join(", ")} and ${named.at(-1)}`;
+  return `Repair ${invalid.length} invalid measurements before exporting: ${list}.`;
+}
+
 function* measurementRows(
   session: CurrentSession,
   pageLabels: readonly string[] | null,
@@ -790,9 +822,7 @@ function* measurementRows(
     if (!page) continue;
     for (const measurement of page.measurements) {
       if (!hasValidMeasurementPoints(measurement.type, measurement.points)) {
-        throw new Error(
-          `Repair invalid ${measurementPathSpecs[measurement.type].label} measurements before exporting CSV.`,
-        );
+        throw new Error(invalidMeasurementsMessage(session, pageLabels));
       }
       const context = createCsvRowContext(
         pageNumber,
