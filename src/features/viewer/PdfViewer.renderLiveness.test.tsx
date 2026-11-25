@@ -1285,10 +1285,10 @@ describe("PdfViewer render liveness", () => {
     expect(cursor.style.visibility).not.toBe("visible");
     await act(async () => move(120, 150));
     expect(cursor.style.visibility).toBe("visible");
-    expect(cursor.style.transform).toBe("translate3d(120px, 150px, 0)");
+    expect(cursor.style.transform).toBe("translate3d(120px, 150px, 0px)");
     await act(async () => move(125, 155, "pen"));
     expect(cursor.style.visibility).toBe("visible");
-    expect(cursor.style.transform).toBe("translate3d(125px, 155px, 0)");
+    expect(cursor.style.transform).toBe("translate3d(125px, 155px, 0px)");
     await act(async () => move(120, 150));
 
     // Controls use the native cursor even while a drawing tool remains active.
@@ -1334,7 +1334,7 @@ describe("PdfViewer render liveness", () => {
     await act(async () => key("s"));
     await act(async () => key("o"));
     expect(cursor.dataset.cursor).toBe("crosshair");
-    expect(cursor.style.transform).toBe("translate3d(120px, 150px, 0)");
+    expect(cursor.style.transform).toBe("translate3d(120px, 150px, 0px)");
 
     await act(async () => navigation?.onZoomIn());
     expect(cursor.style.visibility).toBe("visible");
@@ -1363,13 +1363,13 @@ describe("PdfViewer render liveness", () => {
     await act(async () => key(" ", { repeat: true }));
     expect(cursor.dataset.cursor).toBe("grabbing");
     expect(cursor.style.visibility).toBe("visible");
-    expect(cursor.style.transform).toBe("translate3d(140px, 160px, 0)");
+    expect(cursor.style.transform).toBe("translate3d(140px, 160px, 0px)");
 
     await act(async () => window.dispatchEvent(new Event("blur")));
     expect(cursor.style.visibility).toBe("hidden");
     await act(async () => window.dispatchEvent(new Event("focus")));
     expect(cursor.style.visibility).toBe("visible");
-    expect(cursor.style.transform).toBe("translate3d(140px, 160px, 0)");
+    expect(cursor.style.transform).toBe("translate3d(140px, 160px, 0px)");
     // A dialog covering the remembered location must not restore a second cursor.
     hitTest.mockReturnValue(document.body);
     await act(async () => document.dispatchEvent(new FocusEvent("focusin")));
