@@ -624,6 +624,27 @@ describe("MeasurementDetails", () => {
     expect(props.onSaveNote).toHaveBeenCalledWith("Check the ceiling height.");
   });
 
+  it("keeps Save note disabled when only spaces around the saved note change", () => {
+    const props = createProps({ measurement: { ...firstMeasurement, note: "Existing note" } });
+    renderDetails(props);
+    const textarea = container!.querySelector<HTMLTextAreaElement>("textarea")!;
+    const type = (value: string) =>
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+          textarea,
+          value,
+        );
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+    type("Existing note  ");
+    expect(buttonByLabel("Save note").disabled).toBe(true);
+    type("  ");
+    expect(buttonByLabel("Save note").disabled).toBe(false);
+    type("Existing note!");
+    expect(buttonByLabel("Save note").disabled).toBe(false);
+  });
+
   it("shows the new measurement when canonical selection changes while Details stays open", () => {
     const props = createProps();
     renderDetails(props);

@@ -72,7 +72,6 @@ function HistoryHarness() {
       <button onClick={() => state.deleteClassificationValue("trade", "electrical")}>
         Delete value
       </button>
-      <output data-testid="session">{JSON.stringify(state.session)}</output>
       <button
         onClick={() => {
           const session = createEmptySession({ name: "plan.pdf", size: 1, lastModified: 1 }, 2);
@@ -559,34 +558,34 @@ describe("session undo and redo history", () => {
 
   it.each(["Paste batch", "Move batch"])("undoes and redoes %s in a single step", (operation) => {
     click("Load geometry batch");
-    const before = document.querySelector('[data-testid="session"]')!.textContent;
+    const before = historyProbe.session;
     click(operation);
-    const after = document.querySelector('[data-testid="session"]')!.textContent;
-    expect(after).not.toBe(before);
+    const after = historyProbe.session;
+    expect(after).not.toEqual(before);
     click("Undo");
-    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(before);
+    expect(historyProbe.session).toEqual(before);
     expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe(
       "false:true:0",
     );
     click("Redo");
-    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(after);
+    expect(historyProbe.session).toEqual(after);
   });
 
   it.each(["dimension", "value"])(
     "undoes and redoes %s deletion together with assignments",
     (target) => {
       click("Load assigned session");
-      const before = document.querySelector('[data-testid="session"]')!.textContent;
+      const before = historyProbe.session;
       click(`Delete ${target}`);
-      const deleted = document.querySelector('[data-testid="session"]')!.textContent;
-      expect(JSON.parse(deleted!).pages[1].measurements[0].classificationValueIds).toEqual([]);
+      const deleted = historyProbe.session;
+      expect(deleted!.pages[1]!.measurements[0]!.classificationValueIds).toEqual([]);
       click("Undo");
-      expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(before);
+      expect(historyProbe.session).toEqual(before);
       expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe(
         "false:true:1",
       );
       click("Redo");
-      expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(deleted);
+      expect(historyProbe.session).toEqual(deleted);
     },
   );
 
@@ -721,9 +720,7 @@ describe("session undo and redo history", () => {
   });
 
   it("clears the label dimension when Undo restores a catalog without it", () => {
-    const labelDimension = () =>
-      JSON.parse(document.querySelector("[data-testid='session']")!.textContent!).settings
-        .labelClassificationDimensionId;
+    const labelDimension = () => historyProbe.session!.settings.labelClassificationDimensionId;
     click("Add");
     click("Label by Trade");
     expect(labelDimension()).toBe("trade");
@@ -771,17 +768,17 @@ it.each(["Hide selected", "Delete selected"])(
   "undoes and redoes %s across pages in a single step",
   (action) => {
     click("Load bulk session");
-    const before = document.querySelector('[data-testid="session"]')!.textContent;
+    const before = historyProbe.session;
     click(action);
-    const after = document.querySelector('[data-testid="session"]')!.textContent;
-    expect(after).not.toBe(before);
+    const after = historyProbe.session;
+    expect(after).not.toEqual(before);
     click("Undo");
-    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(before);
+    expect(historyProbe.session).toEqual(before);
     expect(document.querySelector('[data-testid="history-state"]')!.textContent).toBe(
       "false:true:0",
     );
     click("Redo");
-    expect(document.querySelector('[data-testid="session"]')!.textContent).toBe(after);
+    expect(historyProbe.session).toEqual(after);
   },
 );
 
