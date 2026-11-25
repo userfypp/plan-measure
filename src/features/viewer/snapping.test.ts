@@ -592,6 +592,37 @@ describe("snap candidate geometry", () => {
     }
   });
 
+  it.each([
+    ["low", 6],
+    ["normal", 10],
+    ["high", 16],
+  ] as const)("closes a Polygon within the %s close sensitivity, in screen pixels", (level, px) => {
+    setAppPreference("closeSensitivity", level);
+    try {
+      const confirmedPoints = [
+        { x: 100, y: 100 },
+        { x: 300, y: 100 },
+        { x: 300, y: 300 },
+      ];
+      for (const zoom of [1, 2]) {
+        const closes = (screenDistance: number) =>
+          resolveAtPagePoint(
+            { x: 100 - screenDistance / zoom, y: 100 },
+            {
+              measurementType: "polygon",
+              confirmedPoints,
+              snapEnabled: false,
+              transform: transform(zoom),
+            },
+          )?.closesPolygon;
+        expect(closes(px), `zoom ${zoom}`).toBe(true);
+        expect(closes(px + 0.5), `zoom ${zoom}`).toBe(false);
+      }
+    } finally {
+      resetAppPreferences();
+    }
+  });
+
   it.each([0.1, 1, 8])("uses an inclusive 10 CSS px tolerance at zoom %s", (zoom) => {
     const raw = { x: 200, y: 100 };
     const exact: SnapTarget = {
