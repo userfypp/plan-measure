@@ -22,6 +22,7 @@ import {
   type MeasurementValueLabelCache,
 } from "./measurementViewModels";
 import styles from "./MeasurementPanel.module.css";
+import { classificationSearchKey } from "../../utils/classificationNames";
 
 const emptyClassificationCatalog: ClassificationCatalog = { dimensions: [] };
 
@@ -164,7 +165,8 @@ export const MeasurementPanel = memo(function MeasurementPanel({
       valueLabels,
     ],
   );
-  const normalizedQuery = query.trim().toLocaleLowerCase();
+  // Case and accent insensitive, like the classification search: "cafe" finds "Café".
+  const normalizedQuery = classificationSearchKey(query.trim());
   const currentPageNumber = page.pageNumber;
   const activeCalibrationId = page.activeCalibrationId;
   const activeCalibration = page.calibrations.find(
@@ -175,7 +177,8 @@ export const MeasurementPanel = memo(function MeasurementPanel({
     () =>
       allMeasurements.filter(
         (measurement) =>
-          (!normalizedQuery || measurement.name.toLocaleLowerCase().includes(normalizedQuery)) &&
+          (!normalizedQuery ||
+            classificationSearchKey(measurement.name).includes(normalizedQuery)) &&
           (!pageFilter ||
             measurement.pageNumber ===
               (pageFilter === CURRENT_PAGE_FILTER ? currentPageNumber : Number(pageFilter))) &&
