@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { performance } from "node:perf_hooks";
 import {
   parseChangelog,
   renderNotes,
@@ -321,4 +322,18 @@ test("text that only resembles a closes footer stays in the entry", () => {
   );
   assert.equal(kept.text, "handle the word closes [#5](https://example.com/5)");
   assert.deepEqual(kept.references, []);
+});
+
+test("compare link parsing rejects malformed headings in linear time", () => {
+  const heading = (url) => `## [3.0.0](${url}) (2026-01-01)\n`;
+  const base = `https://github.com/${repository}/compare/`;
+  for (const url of [
+    `${base}main...v3.0.0`,
+    `${base}v2.9.0..v3.0.0`,
+    `https://example.com/compare/v1.0.0...v3.0.0`,
+  ])
+    assert.equal(compareUrl(heading(url), "3.0.0"), null, url);
+  const started = performance.now();
+  assert.equal(compareUrl(heading(base + ".".repeat(100_000)), "3.0.0"), null);
+  assert.ok(performance.now() - started < 100);
 });

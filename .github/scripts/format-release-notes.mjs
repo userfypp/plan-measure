@@ -147,14 +147,19 @@ export function sentence(value) {
 
 /** The compare link Release Please puts in a version's heading, if any. */
 export function compareUrl(changelog, version) {
-  const escaped = version.replaceAll(".", "\\.");
-  const match = changelog.match(
-    new RegExp(
-      `^## \\[${escaped}\\]\\((https:\\/\\/github\\.com\\/[\\w.-]+\\/[\\w.-]+\\/compare\\/[\\w.-]+\\.\\.\\.[\\w.-]+)\\)`,
-      "m",
-    ),
-  );
-  return match?.[1] ?? null;
+  if (!isVersion(version)) throw new Error(`Expected an X.Y.Z version; received "${version}".`);
+  const prefix = `## [${version}](`;
+  const line = changelog.split(/\r?\n/).find((candidate) => candidate.startsWith(prefix));
+  if (!line) return null;
+  const end = line.indexOf(")", prefix.length);
+  if (end < 0) return null;
+  const url = line.slice(prefix.length, end);
+  // Every part is delimited by a character the previous part cannot match, so this is linear.
+  return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/compare\/v\d+\.\d+\.\d+\.\.\.v\d+\.\d+\.\d+$/.test(
+    url,
+  )
+    ? url
+    : null;
 }
 
 function footer({ repository, compare }) {
