@@ -228,6 +228,108 @@ describe("AnchoredMenu", () => {
     expect(document.querySelector('[role="menu"]')).not.toBeNull();
   });
 
+  it("wraps ArrowUp from the first item to the last, and ArrowDown back", () => {
+    openMenu();
+    press("ArrowUp");
+    expect(document.activeElement).toBe(buttons()[2]);
+    press("ArrowDown");
+    expect(document.activeElement).toBe(buttons()[0]);
+  });
+
+  it("selects an item with the mouse and ignores a click on a disabled one", () => {
+    act(() => {
+      root!.render(
+        <AnchoredMenu
+          trigger="Workspace"
+          label="Workspace module"
+          items={menuItemsWithDisabledMiddle()}
+        />,
+      );
+    });
+    openMenu();
+    act(() => buttons()[1]!.click());
+    expect(selections[1]).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+
+    act(() => buttons()[2]!.click());
+    expect(selections[2]).toHaveBeenCalledOnce();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("renders links as anchors that close the menu, unless disabled", () => {
+    act(() => {
+      root!.render(
+        <AnchoredMenu
+          trigger="Help"
+          label="Help"
+          items={[
+            {
+              id: "guide",
+              label: "User guide",
+              href: "#guide",
+              target: "_blank",
+              rel: "noreferrer",
+            },
+            { id: "old", label: "Old guide", href: "#old", disabled: true },
+          ]}
+        />,
+      );
+    });
+    openMenu();
+    const [guide, old] = Array.from(
+      document.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]'),
+    );
+    expect(guide!.getAttribute("href")).toBe("#guide");
+    expect(guide!.target).toBe("_blank");
+    expect(guide!.rel).toBe("noreferrer");
+    expect(old!.getAttribute("aria-disabled")).toBe("true");
+
+    const disabledClick = new MouseEvent("click", { bubbles: true, cancelable: true });
+    act(() => {
+      old!.dispatchEvent(disabledClick);
+    });
+    expect(disabledClick.defaultPrevented).toBe(true);
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+
+    // Enter on a link follows it through a click, which closes the menu.
+    const click = vi.fn((event: MouseEvent) => event.preventDefault());
+    guide!.addEventListener("click", click);
+    act(() => guide!.focus());
+    press("Enter");
+    expect(click).toHaveBeenCalledOnce();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("leaves opening and closing to the owner in controlled mode", () => {
+    const onOpenChange = vi.fn();
+    const render = (open: boolean) =>
+      act(() => {
+        root!.render(
+          <AnchoredMenu
+            trigger="Workspace"
+            label="Workspace module"
+            items={menuItems()}
+            open={open}
+            onOpenChange={onOpenChange}
+          />,
+        );
+      });
+    render(false);
+    act(() => trigger().click());
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+
+    render(true);
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    act(() => buttons()[1]!.click());
+    expect(selections[1]).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    // Still open until the owner passes open={false}.
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    render(false);
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
   it("moves focus to the first and last item with Home and End", () => {
     openMenu();
     press("End");
