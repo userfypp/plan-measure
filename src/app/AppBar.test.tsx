@@ -161,6 +161,44 @@ describe("AppBar", () => {
     ]);
   });
 
+  it("starts with Undo and Redo disabled and runs each only when it is available", () => {
+    // Without canUndo or canRedo, as at startup before any edit.
+    act(() => {
+      root!.render(
+        <ThemeProvider>
+          <AppBar
+            documentName={null}
+            canExport={false}
+            savedProjectCount={0}
+            measurementDecimalPlaces={2}
+            confirmMeasurementDeletion
+            recoveredPlanStartupWorkspace="scales"
+            onExport={vi.fn()}
+            onOpenProjects={vi.fn()}
+            onCloseProject={vi.fn()}
+            onMeasurementDecimalPlacesChange={vi.fn()}
+            onConfirmMeasurementDeletionChange={vi.fn()}
+            onRecoveredPlanStartupWorkspaceChange={vi.fn()}
+          />
+        </ThemeProvider>,
+      );
+    });
+    expect(buttonByLabel("Undo").disabled).toBe(true);
+    expect(buttonByLabel("Redo").disabled).toBe(true);
+
+    const blocked = renderAppBar({ canUndo: false, canRedo: true });
+    act(() => buttonByLabel("Undo").click());
+    act(() => buttonByLabel("Redo").click());
+    expect(blocked.onUndo).not.toHaveBeenCalled();
+    expect(blocked.onRedo).toHaveBeenCalledOnce();
+
+    const ready = renderAppBar({ canUndo: true, canRedo: false });
+    act(() => buttonByLabel("Undo").click());
+    act(() => buttonByLabel("Redo").click());
+    expect(ready.onUndo).toHaveBeenCalledOnce();
+    expect(ready.onRedo).not.toHaveBeenCalled();
+  });
+
   it("uses the primary variant for Export", () => {
     renderAppBar();
     const actions = Array.from(container!.querySelectorAll<HTMLButtonElement>("header button"));
