@@ -1788,15 +1788,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applyAction({ type: "SET_MEASUREMENT_VISIBILITY", pageNumber, id, visible }),
       setMeasurementsVisibility: (pageNumber, measurementIds, visible) =>
         applyAction({ type: "SET_MEASUREMENTS_VISIBILITY", pageNumber, measurementIds, visible }),
-      editMeasurements: (command) =>
-        applyAction({ type: "EDIT_MEASUREMENTS", ...command }).error === null,
+      editMeasurements: (command) => {
+        const result = applyAction({ type: "EDIT_MEASUREMENTS", ...command });
+        return result.error === null && Boolean(result.session);
+      },
       deleteMeasurement: (pageNumber, id) =>
         applyAction({ type: "DELETE_MEASUREMENT", pageNumber, id }),
-      applyClassificationTemplate: (template, policy) =>
-        applyAction({ type: "APPLY_CLASSIFICATION_TEMPLATE", template, policy }).error === null,
-      setClassificationValueRates: (valueId, derivation, price) =>
-        applyAction({ type: "SET_CLASSIFICATION_VALUE_RATES", valueId, derivation, price })
-          .error === null,
+      // Without a project the reducer changes nothing and reports no error: that is not success.
+      applyClassificationTemplate: (template, policy) => {
+        const result = applyAction({ type: "APPLY_CLASSIFICATION_TEMPLATE", template, policy });
+        return result.error === null && Boolean(result.session);
+      },
+      setClassificationValueRates: (valueId, derivation, price) => {
+        const result = applyAction({
+          type: "SET_CLASSIFICATION_VALUE_RATES",
+          valueId,
+          derivation,
+          price,
+        });
+        return result.error === null && Boolean(result.session);
+      },
       addClassificationDimension: (id, name) =>
         applyAction({ type: "ADD_CLASSIFICATION_DIMENSION", id, name }),
       renameClassificationDimension: (id, name) =>
