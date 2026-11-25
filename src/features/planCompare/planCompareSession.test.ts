@@ -169,6 +169,29 @@ describe("plan compare session", () => {
     expect(session.getState().offset).toEqual({ x: 5, y: -2 });
   });
 
+  it("stops a half-finished alignment when the comparison reloads, keeping the offset", async () => {
+    const { session, diff, callbacks, image } = await ready();
+    session.beginAlign();
+    session.pickAlignPoint({ x: 0, y: 0 });
+    session.pickAlignPoint({ x: 4, y: 3 });
+    session.beginAlign();
+    session.pickAlignPoint({ x: 10, y: 20 });
+    expect(session.getState().align).toBe("current");
+    session.setCurrentPage(currentPage(3));
+    expect(session.getState()).toMatchObject({ align: "off", offset: { x: 4, y: 3 } });
+    await flush();
+    callbacks().onResult(image());
+    diff.mockClear();
+    // The second click of the old alignment no longer moves anything.
+    session.pickAlignPoint({ x: 50, y: 50 });
+    expect(session.getState().offset).toEqual({ x: 4, y: 3 });
+    expect(diff).not.toHaveBeenCalled();
+    session.beginAlign();
+    expect(session.getState().align).toBe("other");
+    session.selectPage(1);
+    expect(session.getState().align).toBe("off");
+  });
+
   it("cancels an alignment without moving anything", async () => {
     const { session, diff } = await ready();
     diff.mockClear();
