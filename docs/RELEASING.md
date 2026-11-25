@@ -23,9 +23,20 @@ To choose the bump yourself, open **Actions → Release Please → Run workflow*
 
 Use Conventional Commit PR titles. Maintenance types are hidden from notes, and `ci:` alone does not create a release. The newest notes also appear in the app's **What's new** (see the [user guide](user-guide.md#view-and-settings) and [Architecture](ARCHITECTURE.md#build-output)).
 
-The first **Summary** bullet of the PR, including continuation lines, is the release description, so keep it accurate. Use inline code for commands, paths, identifiers, flags, and literal values; use plain text for UI labels. Notes preserve Markdown and link the source PR and explicit closing references. Missing summaries fall back to generated descriptions, and distinct entries from one commit keep their specific descriptions. Breaking changes have their own section; `docs:` appears under **Documentation**.
+Release notes are the changelog entries as Release Please writes them, which for a squash-merged PR is its title. The publisher only normalizes the format: it drops the scope, capitalizes the first letter and ends with a period, so `fix(viewer): keep labels readable` becomes "Keep labels readable." Each note links its PR and the issues the PR closes (`Closes #123`), or the commit when there is no PR. Breaking changes have their own section; `docs:` appears under **Documentation**. Inline code in a title is kept. The notes end with a link to the app and its install guide and the full changelog for the version.
 
-CI previews notes from the local changelog. To include PR summaries, set `GH_TOKEN` and run this read-only preview:
+To publish more than one note from a PR, or to fix a note after merging, put a `BEGIN_COMMIT_OVERRIDE` block in the PR description with one Conventional Commit per line:
+
+```text
+BEGIN_COMMIT_OVERRIDE
+feat(viewer): let users move measurement labels
+fix(export): keep CSV numbers exact
+END_COMMIT_OVERRIDE
+```
+
+Release Please reads the block when it rebuilds the release PR, so after editing a merged PR, run **Actions → Release Please → Run workflow** (or wait for the next merge to `main`) before merging the release PR.
+
+CI previews notes from the local changelog. To link source PRs and their closed issues, set `GH_TOKEN` and run this read-only preview:
 
 ```bash
 node .github/scripts/preview-release-notes.mjs --with-pull-requests

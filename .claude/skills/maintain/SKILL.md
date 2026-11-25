@@ -90,7 +90,7 @@ an open PR or assignee, and anything that grows startup or plan-open JavaScript.
 2. Bug: write the failing test first. Make the smallest change that fixes it; no drive-by edits.
 3. Update docs (user guide, `docs/export-json.md`, ARCHITECTURE) when behaviour changes.
 4. Run the checks from CONTRIBUTING: `npm run lint`, `npm run format:check`, `npm test`, `npm run build`, `git diff --check`, plus the extra ones that apply to what you changed (size diff, smoke, keyboard, PWA, `.github/scripts` tests). If any fails and you cannot fix it, do not open the PR: comment on the issue with what you found.
-5. Commit and PR with a Conventional Commit title; fill `.github/PULL_REQUEST_TEMPLATE.md` honestly (the first Summary bullet is the release note; say what you ran and what you did not). Use `Closes #N` only if fully resolved, otherwise `Refs #N`.
+5. Commit and PR with a Conventional Commit title; fill `.github/PULL_REQUEST_TEMPLATE.md` honestly (the PR title is the release note; say what you ran and what you did not). Use `Closes #N` only if fully resolved, otherwise `Refs #N`.
 6. After pushing, check CI once. If it is red, fix it (at most 2 attempts) or close the PR with the reason.
 
 ## review

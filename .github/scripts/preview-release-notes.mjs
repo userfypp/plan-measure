@@ -3,8 +3,8 @@ import { releaseMetadata, collectSources } from "./publish-release.mjs";
 import { githubApi } from "./github-api.mjs";
 import { renderNotes } from "./format-release-notes.mjs";
 
-// CI runs offline by default. Local authenticated previews may opt in to PR
-// enrichment; this entry point performs no GitHub writes.
+// CI runs offline by default. Local authenticated previews may opt in to PR links
+// and closing references; this entry point performs no GitHub writes.
 const args = process.argv.slice(2);
 if (args.some((arg) => arg !== "--with-pull-requests"))
   throw new Error("Only --with-pull-requests is supported.");
@@ -14,18 +14,15 @@ const [manifest, pkg, lock] = await Promise.all(
   ),
 );
 const changelog = await readFile("CHANGELOG.md", "utf8");
-const { entries } = releaseMetadata(
+const repository = process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure";
+const { entries, compare } = releaseMetadata(
   { manifest, pkg, lock, changelog },
   { title: `chore(main): release ${manifest["."]}` },
 );
 const sources = args.includes("--with-pull-requests")
-  ? await collectSources(
-      githubApi(),
-      process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure",
-      entries,
-    )
+  ? await collectSources(githubApi(), repository, entries)
   : new Map();
-const notes = renderNotes(entries, sources);
+const notes = renderNotes(entries, sources, undefined, { repository, compare });
 console.log(notes);
 if (process.env.GITHUB_STEP_SUMMARY)
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `# Release notes preview\n\n${notes}`);

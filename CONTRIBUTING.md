@@ -53,9 +53,9 @@ More checks, when they apply:
 ## Pull requests
 
 - Keep changes focused; exclude generated or unrelated edits.
-- Use a Conventional Commit title, such as `feat:`, `fix:`, or `docs:`; add `!` for a breaking change. The squash commit title drives releases.
+- Use a Conventional Commit title, such as `feat:`, `fix:`, or `docs:`; add `!` for a breaking change. The squash commit title drives releases and becomes the release note, so describe the change for users: `fix: keep labels readable when zoomed out`.
 - The first pull request from a new contributor needs a maintainer to approve the checks before they run. This is a GitHub safety rule, not a judgement on your change.
-- Follow the PR template. Describe the change and its effect in the first **Summary** bullet; it supplies the release-note description.
+- Follow the PR template.
 - Record validation and known limitations. Include screenshots when useful.
 - Link the relevant issue with `Closes #123` when fully resolved.
 - Update the relevant documentation when behavior or setup changes.

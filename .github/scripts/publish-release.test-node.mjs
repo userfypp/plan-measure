@@ -35,7 +35,7 @@ const metadata = {
   manifest: { ".": "3.0.0" },
   pkg: { version: "3.0.0" },
   lock: { version: "3.0.0", packages: { "": { version: "3.0.0" } } },
-  changelog: `## [3.0.0]\n\n### Added\n\n* export PDF ([bbbbbbb](https://github.com/${repository}/commit/${sourceSha}))\n`,
+  changelog: `## [3.0.0](https://github.com/${repository}/compare/v2.9.0...v3.0.0) (2026-01-01)\n\n### Added\n\n* **export:** export PDF with visible measurements ([bbbbbbb](https://github.com/${repository}/commit/${sourceSha}))\n`,
 };
 
 function fixture() {
@@ -66,7 +66,7 @@ function fixture() {
           ...pr,
           number: 40,
           merge_commit_sha: sourceSha,
-          body: "## Summary\n- Add PDF export with visible measurements.\n\n## Related Issue\n- Closes #12",
+          body: "## Summary\n- Summary text is not used in notes.\n\n## Related Issue\n- Closes #12",
         },
       ];
     else if (path === `${root}/releases?per_page=100&page=1`)
@@ -118,10 +118,19 @@ function assertPublished(state) {
   assert.equal(state.release.draft, false);
   assert.equal(state.release.target_commitish, sha);
   assert.equal(state.release.name, "Plan Measure v3.0.0");
-  assert.match(state.release.body, /Added PDF export with visible measurements/);
+  assert.match(state.release.body, /^- Export PDF with visible measurements\. \(/m);
+  assert.doesNotMatch(state.release.body, /Summary text/);
   assert.match(state.release.body, /\/pull\/40/);
   assert.match(state.release.body, /\/issues\/12/);
   assert.match(state.release.body, /actions\/runs\/123\/attempts\/1/);
+  assert.match(
+    state.release.body,
+    /\*\*Open Plan Measure:\*\* https:\/\/userfypp\.github\.io\/plan-measure\//,
+  );
+  assert.match(
+    state.release.body,
+    /\*\*Full changelog:\*\* \[v2\.9\.0\.\.\.v3\.0\.0\]\(https:\/\/github\.com\/userfypp\/plan-measure\/compare\/v2\.9\.0\.\.\.v3\.0\.0\)\n$/,
+  );
   assert.deepEqual(state.labels.map(({ name }) => name).sort(), [tagged, "unrelated"].sort());
 }
 
