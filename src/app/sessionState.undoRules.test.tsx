@@ -348,3 +348,134 @@ describe("Undo and the label classification dimension", () => {
     expect(session.session!.settings.labelClassificationDimensionId).toBeNull();
   });
 });
+
+describe("what add, paste, update and apply-template report", () => {
+  const line = (id: string) => ({
+    ...structuredClone(baseSession().pages[1]!.measurements[0]!),
+    id,
+    name: id,
+  });
+  const segment = [
+    { x: 1, y: 1 },
+    { x: 5, y: 1 },
+  ];
+  /** Runs a command and returns its result, checking a rejected one leaves no Undo step. */
+  function run(command: () => boolean): boolean {
+    const before = session.session;
+    const couldUndo = session.canUndo;
+    let result = false;
+    act(() => {
+      result = command();
+    });
+    if (!result) {
+      expect(session.session).toBe(before);
+      expect(session.canUndo).toBe(couldUndo);
+    }
+    return result;
+  }
+
+  it("addMeasurement is true only for a measurement it added", () => {
+    load();
+    const add = (overrides: Partial<Parameters<typeof session.addMeasurement>[0]>) =>
+      run(() =>
+        session.addMeasurement({
+          pageNumber: 1,
+          id: "new",
+          measurementType: "line",
+          points: segment,
+          ...overrides,
+        }),
+      );
+    expect(add({ id: "a" })).toBe(false);
+    expect(app.state.error).toBe("Measurement IDs must be unique across the session.");
+    expect(add({ id: "  " })).toBe(false);
+    expect(add({ points: [{ x: 1, y: 1 }] })).toBe(false);
+    expect(add({ pageNumber: 2 })).toBe(false);
+    expect(app.state.error).toBe("Select a valid scale before creating measurements.");
+    expect(add({ pageNumber: 9 })).toBe(false);
+    expect(add({ pageNumber: 2, measurementType: "count", points: [{ x: 1, y: 1 }] })).toBe(true);
+    expect(add({})).toBe(false);
+    expect(add({ id: "other" })).toBe(true);
+    expect(session.session!.pages[1]!.measurements.map(({ id }) => id)).toEqual(["a", "other"]);
+  });
+
+  it("pasteMeasurements is true only when every measurement was pasted", () => {
+    load();
+    const paste = (ids: string[], pageNumber = 1) =>
+      run(() =>
+        session.pasteMeasurements(
+          ids.map((id) => ({ pageNumber, id, sourcePageNumber: 1, measurement: line("a") })),
+        ),
+      );
+    expect(paste([])).toBe(false);
+    expect(paste(["a"])).toBe(false);
+    expect(paste(["b", "a"])).toBe(false);
+    expect(session.session!.pages[1]!.measurements.map(({ id }) => id)).toEqual(["a"]);
+    expect(paste(["b", "c"])).toBe(true);
+    expect(session.session!.pages[1]!.measurements.map(({ id }) => id)).toEqual(["a", "b", "c"]);
+    expect(
+      run(() =>
+        session.pasteMeasurement({
+          pageNumber: 1,
+          id: "c",
+          sourcePageNumber: 1,
+          measurement: line("a"),
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      run(() =>
+        session.pasteMeasurement({
+          pageNumber: 1,
+          id: "d",
+          sourcePageNumber: 1,
+          measurement: line("a"),
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("updateMeasurement and updateMeasurements are true only when the points changed as asked", () => {
+    load();
+    expect(
+      run(() => session.updateMeasurement({ pageNumber: 1, id: "missing", points: segment })),
+    ).toBe(false);
+    expect(
+      run(() => session.updateMeasurement({ pageNumber: 1, id: "a", points: [{ x: 1, y: 1 }] })),
+    ).toBe(false);
+    expect(run(() => session.updateMeasurements([]))).toBe(false);
+    expect(
+      run(() => session.updateMeasurements([{ pageNumber: 1, id: "missing", points: segment }])),
+    ).toBe(false);
+    expect(run(() => session.updateMeasurement({ pageNumber: 1, id: "a", points: segment }))).toBe(
+      true,
+    );
+    expect(session.session!.pages[1]!.measurements[0]!.points).toEqual(segment);
+    const moved = segment.map(({ x, y }) => ({ x: x + 1, y }));
+    expect(run(() => session.updateMeasurements([{ pageNumber: 1, id: "a", points: moved }]))).toBe(
+      true,
+    );
+    expect(session.session!.pages[1]!.measurements[0]!.points).toEqual(moved);
+  });
+
+  it("apply-template, rates and bulk edits are false without a project", () => {
+    expect(run(() => session.setClassificationValueRates("missing", null, null))).toBe(false);
+    expect(
+      run(() => session.editMeasurements({ measurementIds: ["a"], operation: { type: "delete" } })),
+    ).toBe(false);
+  });
+
+  it("applyClassificationTemplate is true when the template applies, false without a project", () => {
+    const template = {
+      currency: null,
+      dimensions: [{ name: "Trade", values: ["Concrete"], rates: [] }],
+    };
+    expect(run(() => session.applyClassificationTemplate(template, "keep"))).toBe(false);
+    load();
+    expect(run(() => session.applyClassificationTemplate(template, "keep"))).toBe(true);
+    expect(session.session!.classificationCatalog.dimensions.map(({ name }) => name)).toEqual([
+      "Trade",
+    ]);
+    expect(session.canUndo).toBe(true);
+  });
+});

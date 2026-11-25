@@ -730,6 +730,42 @@ describe("workspace initialization", () => {
     expect((await loadSavedProject("project-a")).session).toEqual(next);
   });
 
+  it("discards another saved project without touching the open one or its autosave", async () => {
+    setAppPreference("autosaveDelayMs", 300);
+    onTestFinished(() => resetAppPreferences());
+    await seedTwoProjects();
+    await renderLifecycleHarness();
+    await act(async () => {
+      await lifecycle!.continueRecovery();
+    });
+    const edited = {
+      ...harnessSession!,
+      settings: { ...harnessSession!.settings, showLabels: false },
+    };
+    act(() => setHarnessSession!(edited));
+    const pdf = lifecycle!.activePdf;
+
+    await act(async () => {
+      await lifecycle!.discardProject("project-b");
+    });
+
+    expect(harnessSession).toBe(edited);
+    expect(lifecycle!.activePdf).toBe(pdf);
+    expect(lifecycle!.activeProjectId).toBe("project-a");
+    expect(lifecycleErrors).toEqual([]);
+    expect(lifecycle!.savedProjects.map(({ id }) => id)).toEqual(["project-a"]);
+    expect((await loadSavedSession())?.projectId).toBe("project-a");
+    expect(lifecycle!.saveStatusStore.getSnapshot().state).not.toBe("unavailable");
+
+    // The edit made before the discard and one made after it both reach the open project.
+    const next = { ...edited, settings: { ...edited.settings, showMeasurements: false } };
+    act(() => setHarnessSession!(next));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+    });
+    expect((await loadSavedProject("project-a")).session).toEqual(next);
+  });
+
   it("keeps the protected saved project active when another is opened after continuing without recovery", async () => {
     await seedTwoProjects();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
