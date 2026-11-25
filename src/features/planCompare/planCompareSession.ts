@@ -120,7 +120,9 @@ export function createPlanCompareSession(dependencies: Partial<PlanCompareDepend
     const { pdfPage, bounds, pageNumber } = current;
     const document = other.document;
     const otherPage = state.otherPage;
-    set({ phase: "loading", message: null, result: null });
+    // A half-finished alignment belongs to the pages it started on; the offset is kept.
+    alignReference = null;
+    set({ phase: "loading", message: null, result: null, align: "off" });
     try {
       scale = chooseRasterScale(DETAIL_FEATURE_SIZE, bounds.width, bounds.height);
       const now: GrayImage = await renderGray(pdfPage, bounds, scale, job.signal);
