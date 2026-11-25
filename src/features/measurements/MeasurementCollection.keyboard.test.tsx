@@ -178,6 +178,26 @@ describe("MeasurementCollection keyboard model", () => {
     ]);
   });
 
+  it("leaves arrows and Home/End with Alt, Ctrl or Cmd to the browser", () => {
+    renderCollection();
+    act(() => control("line-2", "selection").focus());
+    for (const modifier of ["altKey", "ctrlKey", "metaKey"] as const) {
+      for (const key of ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "Home", "End"]) {
+        const event = new KeyboardEvent("keydown", {
+          key,
+          [modifier]: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        act(() => document.activeElement?.dispatchEvent(event));
+        expect(event.defaultPrevented, `${modifier} ${key}`).toBe(false);
+        expect(document.activeElement).toBe(control("line-2", "selection"));
+      }
+    }
+    press("ArrowRight");
+    expect(document.activeElement).toBe(control("line-2", "visibility"));
+  });
+
   it("keeps Enter/Space native activation semantics for selection and visibility", () => {
     const callbacks = renderCollection();
     act(() => control("line-2", "selection").click());
