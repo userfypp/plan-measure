@@ -38,6 +38,8 @@ import type { UndoHistory } from "../services/undoHistoryStorage";
 import type { UndoHistoryWriter } from "./undoHistoryPersistence";
 import { prepareSessionSnapshot, type PreparedSessionSnapshot } from "../services/persistenceCodec";
 import type { LoadedPdf } from "../services/pdf";
+import { stopPlanCompare } from "../features/planCompare/planCompareStore";
+import { setSymbolCount } from "../features/symbolCount/symbolCountStore";
 import { PdfUserError, validatePdfFile } from "../services/pdfValidation";
 import { createProjectFile, projectFileName, readProjectFile } from "../services/projectFile";
 import type { RecoveredPlanStartupWorkspace } from "./recoveredPlanStartupPreference";
@@ -342,6 +344,12 @@ export function usePdfSessionLifecycle({
     },
     [destroyPdf],
   );
+
+  // Find similar and Compare belong to the plan they started on: another PDF or none ends both.
+  useEffect(() => {
+    setSymbolCount({ active: false });
+    stopPlanCompare();
+  }, [activePdf]);
 
   useEffect(() => {
     disposedRef.current = false;
