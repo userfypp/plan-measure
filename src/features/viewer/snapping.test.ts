@@ -1321,6 +1321,50 @@ describe("Snap + Ortho", () => {
     });
   });
 
+  it("snaps on the vertical axis: to an aligned vertex and to a crossing segment", () => {
+    const vertex: SnapTarget = {
+      kind: "vertex",
+      measurementId: "vertex",
+      measurementIndex: 0,
+      primitiveIndex: 0,
+      point: { x: 10, y: 30 },
+    };
+    expect(resolveSnapWithOrtho(anchor, { x: 13, y: 32 }, 1, [vertex])?.point).toEqual({
+      x: 10,
+      y: 30,
+    });
+    const segment: SnapTarget = {
+      kind: "segment",
+      measurementId: "crossing",
+      measurementIndex: 0,
+      primitiveIndex: 0,
+      endVertexIndex: 1,
+      start: { x: 0, y: 28 },
+      end: { x: 20, y: 28 },
+    };
+    expect(resolveSnapWithOrtho(anchor, { x: 13, y: 30 }, 1, [segment])?.point).toEqual({
+      x: 10,
+      y: 28,
+    });
+  });
+
+  it("keeps the vertical axis with Ortho alone and the horizontal one at an exact 45° tie", () => {
+    const ortho = (raw: Point, snapEnabled: boolean) =>
+      resolveAtPagePoint(raw, { confirmedPoints: [anchor], orthogonal: true, snapEnabled })?.point;
+    for (const snapEnabled of [false, true]) {
+      expect(ortho({ x: 14, y: 40 }, snapEnabled)).toEqual({ x: 10, y: 40 });
+      expect(ortho({ x: 6, y: 2 }, snapEnabled)).toEqual({ x: 10, y: 2 });
+      expect(ortho({ x: 30, y: 30 }, snapEnabled)).toEqual({ x: 30, y: 10 });
+      expect(ortho({ x: 0, y: 20 }, snapEnabled)).toEqual({ x: 0, y: 10 });
+    }
+  });
+
+  it("does not constrain the first point of a segment, which has no anchor", () => {
+    const raw = { x: 37, y: 52 };
+    expect(resolveAtPagePoint(raw, { orthogonal: true, snapEnabled: false })?.point).toEqual(raw);
+    expect(resolveAtPagePoint(raw, { orthogonal: true })?.point).toEqual(raw);
+  });
+
   it("uses the nearest valid point on a collinear segment", () => {
     const segment: SnapTarget = {
       kind: "segment",
