@@ -490,7 +490,8 @@ export function MeasurementDetails({
               icon={<SaveIcon />}
               aria-label="Save note"
               tooltip="Save note"
-              disabled={note === savedNote}
+              // The saved note is trimmed, so spaces around it are not a change to save.
+              disabled={note.trim() === savedNote}
             />
           </div>
         </section>
