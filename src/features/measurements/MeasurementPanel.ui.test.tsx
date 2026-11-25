@@ -500,6 +500,34 @@ describe("MeasurementPanel and TakeoffWorkspace", () => {
     expect(document.querySelector('[role="dialog"][aria-label="Measurement grouping"]')).toBeNull();
   });
 
+  it("finds measurement names whatever their case and accents", () => {
+    const firstPage = page([
+      measurement({ id: "cafe", name: "Café terrace" }),
+      measurement({ id: "dorm", name: "DORMITORIO Ñandú" }),
+      measurement({ id: "hall", name: "Hall" }),
+    ]);
+    renderPanel(session({ 1: firstPage }), firstPage, vi.fn());
+    const search = container!.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const shown = (query: string) => {
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+          search,
+          query,
+        );
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      return Array.from(
+        container!.querySelectorAll<HTMLElement>('[aria-label^="Select measurement "]'),
+      ).map((element) => element.getAttribute("aria-label")!.slice("Select measurement ".length));
+    };
+
+    expect(shown("cafe")).toEqual(["Café terrace"]);
+    expect(shown("CAFÉ")).toEqual(["Café terrace"]);
+    expect(shown("nandu")).toEqual(["DORMITORIO Ñandú"]);
+    expect(shown("  dormitorio ")).toEqual(["DORMITORIO Ñandú"]);
+    expect(shown("xyz")).toEqual([]);
+  });
+
   it("filters measurements across pages and selects the result on its source page", () => {
     const firstPage = page([measurement({ name: "Hallway" })]);
     const secondPage = {

@@ -118,6 +118,8 @@ export function MeasurementCollection({
     const measurementId = target?.dataset.measurementId;
     const control = target?.dataset.measurementControl as MeasurementControl | undefined;
     if (!measurementId || (control !== "selection" && control !== "visibility")) return;
+    // Alt+Left (Back), Cmd+Arrow and the like belong to the browser and the app, not the list.
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
       return;
 
