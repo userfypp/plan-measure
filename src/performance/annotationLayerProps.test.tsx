@@ -282,7 +282,10 @@ describe("annotation layer prop stability in App", () => {
       [
         "ir a Clasificaciones",
         async () => {
-          await press("Workspace module: Scales");
+          // "cambiar de módulo" left the menu open; whether it is still open depends on how the
+          // DOM moves focus, so open it only if it is closed.
+          if (button("Workspace module: Scales").getAttribute("aria-expanded") !== "true")
+            await press("Workspace module: Scales");
           const entry = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
             (candidate) => candidate.textContent?.trim() === "Classifications",
           );

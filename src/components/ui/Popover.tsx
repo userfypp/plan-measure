@@ -70,7 +70,8 @@ function handlePopoverMouseDown(event: MouseEvent) {
 }
 
 function handlePopoverKeyDown(event: KeyboardEvent) {
-  if (event.key !== "Escape") return;
+  // Escape during IME composition cancels the composition, not the popover.
+  if (event.key !== "Escape" || event.isComposing) return;
   const layer = topPopoverLayer();
   if (!layer) return;
   event.preventDefault();
