@@ -29,6 +29,8 @@ import { createEmptySession, SessionProvider, useSessionState } from "./sessionS
 import { AppProvider } from "./state";
 import { createProjectFile, readProjectFile } from "../services/projectFile";
 import { createScaleCheckStore } from "../features/calibration/scaleCheckState";
+import { getPlanCompare, startPlanCompare } from "../features/planCompare/planCompareStore";
+import { getSymbolCount, startSymbolCount } from "../features/symbolCount/symbolCountStore";
 import type { WorkspaceModule } from "./workspaceState";
 
 vi.mock("../services/pdf", () => ({
@@ -455,11 +457,17 @@ describe("workspace initialization", () => {
         settings: { ...harnessSession!.settings, showLabels: false },
       }),
     );
+    act(() => {
+      startSymbolCount();
+      startPlanCompare(new File(["%PDF"], "rev-b.pdf"));
+    });
 
     await act(async () => {
       await lifecycle!.closeProject();
     });
 
+    expect(getSymbolCount().active).toBe(false);
+    expect(getPlanCompare()).toMatchObject({ active: false, file: null });
     expect(harnessSession).toBeNull();
     expect(lifecycle!.activePdf).toBeNull();
     expect(lifecycle!.activeProjectId).toBeNull();
