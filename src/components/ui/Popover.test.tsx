@@ -651,4 +651,74 @@ describe("Popover", () => {
     const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
     expect(content.style.left).toBe("4px");
   });
+
+  it("moves again when its content changes size while open", () => {
+    const observers: { callback: () => void; targets: Element[]; disconnected: boolean }[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        record: { callback: () => void; targets: Element[]; disconnected: boolean };
+        constructor(callback: () => void) {
+          this.record = { callback, targets: [], disconnected: false };
+          observers.push(this.record);
+        }
+        observe(target: Element) {
+          this.record.targets.push(target);
+        }
+        disconnect() {
+          this.record.disconnected = true;
+        }
+      },
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        <Popover trigger="Growing trigger" role="dialog" aria-label="Growing">
+          <button type="button">Inside action</button>
+        </Popover>,
+      );
+    });
+    const button = container.querySelector("button")!;
+    button.getBoundingClientRect = () =>
+      ({
+        width: 80,
+        height: 20,
+        top: 500,
+        left: 100,
+        right: 180,
+        bottom: 520,
+        x: 100,
+        y: 500,
+      }) as DOMRect;
+    let contentHeight = 100;
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.getAttribute("role") === "dialog"
+        ? ({
+            width: 200,
+            height: contentHeight,
+            top: 0,
+            left: 0,
+            right: 200,
+            bottom: contentHeight,
+            x: 0,
+            y: 0,
+          } as DOMRect)
+        : original.call(this);
+    });
+    act(() => button.click());
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(content.style.top).toBe("524px");
+    const observer = observers.find(({ targets }) => targets.includes(content))!;
+    // 400 px no longer fits below a trigger at 520 in jsdom's 768 px window: it flips above.
+    contentHeight = 400;
+    act(() => observer.callback());
+    expect(content.style.top).toBe("96px");
+    act(() => button.click());
+    expect(observer.disconnected).toBe(true);
+  });
 });
