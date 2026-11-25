@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { githubApi, isMain, pages, workflowContext } from "./github-api.mjs";
-import { isVersion, parseChangelog, renderNotes } from "./format-release-notes.mjs";
+import { compareUrl, isVersion, parseChangelog, renderNotes } from "./format-release-notes.mjs";
 
 const RELEASE_BRANCH = "release-please--branches--main--components--plan-measure";
 const PENDING = "autorelease: pending";
@@ -51,6 +51,7 @@ export function releaseMetadata({ manifest, pkg, lock, changelog }, pr) {
     tag: `v${version}`,
     title: `Plan Measure v${version}`,
     entries: parseChangelog(changelog, version),
+    compare: compareUrl(changelog, version),
   };
 }
 
@@ -148,7 +149,7 @@ export async function publishRelease(api, context, readMetadata, wait = delay) {
   if (!pr) return { status: "skipped", reason: "This commit is not a merged Release Please PR." };
   const state = stateOf(pr.labels);
   const metadata = releaseMetadata(await readMetadata(), pr);
-  const { tag, title, entries } = metadata;
+  const { tag, title, entries, compare } = metadata;
   // Listing includes drafts visible to a writer; the tag endpoint is for
   // published releases and cannot be our only recovery lookup.
   const matchingReleases = [];
@@ -175,7 +176,7 @@ export async function publishRelease(api, context, readMetadata, wait = delay) {
     throw new Error("Existing draft does not belong to this exact stable release commit.");
   }
   const sources = await collectSources(api, repository, entries);
-  const body = renderNotes(entries, sources, context);
+  const body = renderNotes(entries, sources, context, { repository, compare });
   const latest = await api(`${root}/releases/latest`, { optional: true });
   let makeLatest = "true";
   if (latest) {

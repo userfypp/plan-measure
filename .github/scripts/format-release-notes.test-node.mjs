@@ -4,9 +4,9 @@ import { readFile } from "node:fs/promises";
 import {
   parseChangelog,
   renderNotes,
-  summaryFromBody,
   sentence,
   closingReferences,
+  compareUrl,
 } from "./format-release-notes.mjs";
 import { checkTitle } from "./check-pr-title.mjs";
 
@@ -30,33 +30,29 @@ test("release configuration exposes documentation while keeping maintenance type
   );
 });
 
-test("documentation-only and mixed releases retain documentation summaries and links", () => {
+test("documentation-only and mixed releases keep the entry text and links", () => {
   const sources = new Map([
     [
       sha,
       {
         repository,
         number: 156,
-        body: "## Summary\n\n- Document PDF export options.\n\n## Related Issue\n\n- Closes #113",
+        body: "## Summary\n\n- Ignored text.\n\n## Related Issue\n\n- Closes #113",
       },
     ],
   ]);
-  const documentation = entry(`document PDF export ${metadata}`, "Documentation");
+  const documentation = entry(`document PDF export options ${metadata}`, "Documentation");
   const expected = `## Documentation\n\n- Document PDF export options. ([#156](https://github.com/${repository}/pull/156), [#113](https://github.com/${repository}/issues/113))\n`;
   assert.equal(renderNotes(parseChangelog(documentation, "3.0.0"), sources), expected);
   assert.equal(
     renderNotes(parseChangelog(documentation + "\n### Fixed\n\n* fix export\n", "3.0.0"), sources),
-    `## Improvements and fixes\n\n- Fixed export.\n\n${expected}`,
-  );
-  assert.match(
-    renderNotes(parseChangelog(documentation, "3.0.0")),
-    /## Documentation\n\n- Document PDF export\./,
+    `## Improvements and fixes\n\n- Fix export.\n\n${expected}`,
   );
 });
 
-test("release notes use the concrete Summary and link PR plus related issue", () => {
+test("release notes use the normalized PR title, never the PR description", () => {
   const entries = parseChangelog(
-    entry(`export measurements as annotated PDF ${metadata}`),
+    entry(`**export:** export measurements as annotated PDF ${metadata}`),
     "3.0.0",
   );
   const sources = new Map([
@@ -65,21 +61,37 @@ test("release notes use the concrete Summary and link PR plus related issue", ()
       {
         repository,
         number: 156,
-        body: "## Summary\n\n- Add annotated PDF export that preserves the original pages and overlays visible measurements.\n- Extend the dialog.\n\n## Validation\n\n- npm test\n\n## Related Issue\n\n- Closes #113",
+        body: "## Summary\n\n- Add annotated PDF export that preserves the original pages.\n\n## Related Issue\n\n- Closes #113",
       },
     ],
   ]);
   assert.equal(
     renderNotes(entries, sources),
-    `## What's new\n\n- Added annotated PDF export that preserves the original pages and overlays visible measurements. ([#156](https://github.com/${repository}/pull/156), [#113](https://github.com/${repository}/issues/113))\n`,
+    `## What's new\n\n- Export measurements as annotated PDF. ([#156](https://github.com/${repository}/pull/156), [#113](https://github.com/${repository}/issues/113))\n`,
   );
 });
 
-test("fallback retains references and only hides commit links when a stronger reference exists", () => {
+test("each line of a BEGIN_COMMIT_OVERRIDE block keeps its own text and the PR links", () => {
+  // Release Please writes one changelog entry per override line, all on the squash commit.
+  const changelog =
+    entry(`**viewer:** let users move labels ${metadata}`) +
+    `\n### Fixed\n\n* **export:** keep CSV numbers exact ${metadata}\n`;
+  const notes = renderNotes(
+    parseChangelog(changelog, "3.0.0"),
+    new Map([[sha, { repository, number: 156, body: "BEGIN_COMMIT_OVERRIDE\n...\nCloses #113" }]]),
+  );
+  const links = `([#156](https://github.com/${repository}/pull/156), [#113](https://github.com/${repository}/issues/113))`;
+  assert.equal(
+    notes,
+    `## What's new\n\n- Let users move labels. ${links}\n\n## Improvements and fixes\n\n- Keep CSV numbers exact. ${links}\n`,
+  );
+});
+
+test("references stay, and commit links appear only without a stronger reference", () => {
   const notes = renderNotes(
     parseChangelog(entry(`support multiple saved projects ${metadata}`), "3.0.0"),
   );
-  assert.match(notes, /Supported multiple saved projects\. \(\[#156\]/);
+  assert.match(notes, /Support multiple saved projects\. \(\[#156\]/);
   assert.doesNotMatch(notes, /commit\//);
   const fallback = renderNotes(
     parseChangelog(
@@ -87,48 +99,31 @@ test("fallback retains references and only hides commit links when a stronger re
       "3.0.0",
     ),
   );
-  assert.match(fallback, /Exported PDF\. \(\[aaaaaaa\]/);
+  assert.match(fallback, /Export PDF\. \(\[aaaaaaa\]/);
 });
 
-test("Summary parsing excludes comments, other sections, placeholders, and duplicate summaries", () => {
-  assert.equal(
-    summaryFromBody(
-      "## Summary\r\n\r\n<!-- Example - do not use -->\r\n- Preserve the PDF\r\n  and add measurements.\r\n- Another change.\r\n## Validation\r\n- Build.",
-    ),
-    "Preserve the PDF and add measurements.",
-  );
-  for (const body of [
-    "## Validation\n- tests",
-    "## Summary\n- TBD",
-    "## Summary\nDescribe the change.",
-    "## Summary\n- A\n## Summary\n- B",
-    "## Summary\n<!-- - Example -->",
-  ]) {
-    assert.equal(summaryFromBody(body), null, body);
-  }
-  assert.equal(summaryFromBody("## Summary\n- Fix a bug"), "Fix a bug");
-});
-
-test("capitalization, formatting and punctuation preserve meaning", () => {
+test("normalization drops the scope, capitalizes and ends with a period", () => {
   const cases = [
     ["align page bounds", "Align page bounds."],
     ["PDF export works!", "PDF export works!"],
-    ["**viewer:** preserve PDF pages", "**Viewer:** preserve PDF pages."],
+    ["**viewer:** preserve PDF pages", "Preserve PDF pages."],
+    ["**deps-dev:** bump vite", "Bump vite."],
     ["[export](https://example.com/export) works", "[Export](https://example.com/export) works."],
-    ["`setRatio` preserves scale", "Updated: `setRatio` preserves scale."],
-    ["improve rendering?", "Improved rendering?"],
+    ["`setRatio` preserves scale", "`setRatio` preserves scale."],
+    ["keep `setRatio`", "Keep `setRatio`."],
+    ["improve rendering?", "Improve rendering?"],
     ["éxport works", "Éxport works."],
-    ["Prevent overflow.", "Prevented overflow."],
-    ["support for rotated pages", "Support for rotated pages."],
-    ["update the dialog", "Updated the dialog."],
+    ["Prevent overflow.", "Prevent overflow."],
+    ['add a "What\'s new" button', 'Add a "What\'s new" button.'],
     ["iOS Safari support", "iOS Safari support."],
     ["pdf.js upgrade", "pdf.js upgrade."],
     ["2x faster rendering", "2x faster rendering."],
   ];
-  for (const [input, expected] of cases) assert.equal(sentence(input, "Fixed"), expected);
+  for (const [input, expected] of cases) assert.equal(sentence(input), expected);
+  assert.throws(() => sentence("**viewer:** "));
 });
 
-test("breaking changes remain visible and never replaced by a summary", () => {
+test("breaking changes stay in their own section", () => {
   const text =
     entry(`remove the old project format ${metadata}`, "⚠ BREAKING CHANGES") +
     "\n### Added\n\n* add import\n\n### Reverted\n\n* revert automatic saving\n";
@@ -136,9 +131,9 @@ test("breaking changes remain visible and never replaced by a summary", () => {
     parseChangelog(text, "3.0.0"),
     new Map([[sha, { repository, number: 156, body: "## Summary\n- Add a new importer." }]]),
   );
-  assert.match(notes, /^## Breaking changes\n\n- Removed the old project format/);
-  assert.match(notes, /## What's new\n\n- Added import\./);
-  assert.match(notes, /## Improvements and fixes\n\n- Reverted automatic saving\./);
+  assert.match(notes, /^## Breaking changes\n\n- Remove the old project format/);
+  assert.match(notes, /## What's new\n\n- Add import\./);
+  assert.match(notes, /## Improvements and fixes\n\n- Revert automatic saving\./);
 });
 
 test("malformed, ambiguous or empty changelog fails closed", () => {
@@ -197,21 +192,33 @@ test("closing references accept colons and ignore fenced and inline code example
   );
 });
 
-test("release summaries preserve inline code without guessing technical terms", () => {
-  const entries = parseChangelog(entry(`add export ${metadata}`), "3.0.0");
-  const sources = new Map([
-    [
-      sha,
-      {
-        repository,
-        number: 156,
-        body: "## Summary\n- Fix `setRatio` in `viewer.ts` with `--strict` and keep Show labels readable.",
-      },
-    ],
-  ]);
-  assert.match(
-    renderNotes(entries, sources),
-    /Fixed `setRatio` in `viewer\.ts` with `--strict` and keep Show labels readable\./,
+test("release notes preserve inline code without guessing technical terms", () => {
+  const entries = parseChangelog(
+    entry(`fix \`setRatio\` in \`viewer.ts\` with \`--strict\` ${metadata}`),
+    "3.0.0",
+  );
+  assert.match(renderNotes(entries), /- Fix `setRatio` in `viewer\.ts` with `--strict`\. /);
+});
+
+test("the footer links the app, the install guide and the full changelog", () => {
+  const changelog = `## [3.0.0](https://github.com/${repository}/compare/v2.9.0...v3.0.0) (2026-01-01)\n\n### Fixed\n\n* fix export\n`;
+  const compare = compareUrl(changelog, "3.0.0");
+  assert.equal(compare, `https://github.com/${repository}/compare/v2.9.0...v3.0.0`);
+  const notes = renderNotes(parseChangelog(changelog, "3.0.0"), new Map(), undefined, {
+    repository,
+    compare,
+  });
+  assert.equal(
+    notes,
+    `## Improvements and fixes\n\n- Fix export.\n\n---\n\n**Open Plan Measure:** https://userfypp.github.io/plan-measure/ (an open copy updates on its next reload). To install it as an app or use it offline, see [Install and offline](https://github.com/${repository}/blob/main/docs/user-guide.md#install-the-app-and-use-it-offline).\n\n**Full changelog:** [v2.9.0...v3.0.0](${compare})\n`,
+  );
+  assert.equal(compareUrl(entry("fix export"), "3.0.0"), null);
+  assert.doesNotMatch(
+    renderNotes(parseChangelog(entry("fix export"), "3.0.0"), new Map(), undefined, {
+      repository,
+      compare: null,
+    }),
+    /Full changelog/,
   );
 });
 
@@ -257,7 +264,7 @@ test("Conventional Commit title validation accepts release and dependency PRs", 
   assert.throws(() => checkTitle('Revert "feat: x"'), /revert: \.\.\./);
 });
 
-test("wrapped changelog entries retain references and multi-change commits keep specific descriptions", () => {
+test("wrapped changelog entries retain references and each entry keeps its description", () => {
   const changelog =
     entry(`add import\n  with validation ${metadata}`) +
     `\n### Fixed\n\n* prevent invalid export ${metadata}\n`;
@@ -267,17 +274,16 @@ test("wrapped changelog entries retain references and multi-change commits keep 
     entries,
     new Map([[sha, { repository, number: 156, body: "## Summary\n- Add general functionality." }]]),
   );
-  assert.match(notes, /Added import with validation/);
-  assert.match(notes, /Prevented invalid export/);
+  assert.match(notes, /Add import with validation/);
+  assert.match(notes, /Prevent invalid export/);
   assert.doesNotMatch(notes, /general functionality/);
 });
 
-test("absent PR descriptions fall back without losing links or mutating parser output", () => {
-  assert.equal(summaryFromBody(null), null);
+test("absent PR descriptions keep the PR link and do not mutate parser output", () => {
   const entries = parseChangelog(entry(`add export ${metadata}`), "3.0.0");
   const before = structuredClone(entries);
   const notes = renderNotes(entries, new Map([[sha, { repository, number: 156, body: null }]]));
-  assert.match(notes, /Added export/);
+  assert.match(notes, /Add export/);
   assert.match(notes, /\/pull\/156/);
   assert.deepEqual(entries, before);
 });
@@ -301,19 +307,10 @@ test("a Release Please closes footer keeps the commit, PR and closed issues", ()
     several.references.map(({ label }) => label),
     ["#346", "#299", "#300"],
   );
-  const sources = new Map([
-    [
-      sha,
-      {
-        repository,
-        number: 346,
-        body: "## Summary\n\n- Trim the undo history when the limit drops.",
-      },
-    ],
-  ]);
+  const sources = new Map([[sha, { repository, number: 346, body: "" }]]);
   assert.equal(
     renderNotes([single], sources),
-    `## Improvements and fixes\n\n- Trim the undo history when the limit drops. ([#346](${url("pull", 346)}), [#299](${url("issues", 299)}))\n`,
+    `## Improvements and fixes\n\n- Trim the existing undo history when its limit is lowered. ([#346](${url("pull", 346)}), [#299](${url("issues", 299)}))\n`,
   );
 });
 

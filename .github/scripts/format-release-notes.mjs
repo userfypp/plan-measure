@@ -95,29 +95,6 @@ export function parseChangelog(changelog, version) {
   return entries.map(({ section, raw }) => ({ section, ...splitMetadata(raw) }));
 }
 
-// Use the first concrete Summary bullet, not validation commands, issue text,
-// generated prose, or an arbitrary sentence elsewhere in the PR description.
-export function summaryFromBody(body = "") {
-  const clean = stripHtmlComments(body ?? "").replace(/\r\n/g, "\n");
-  const sections = [...clean.matchAll(/^## Summary\s*\n([^]*?)(?=^#{1,2} |$(?![^]))/gim)];
-  if (sections.length !== 1) return null;
-  const lines = sections[0][1].trim().split("\n");
-  const first = lines[0]?.match(/^[-*] (\S.*)$/);
-  if (!first) return null;
-  let result = first[1];
-  for (const line of lines.slice(1)) {
-    if (/^ {2,}\S/.test(line) && !/^\s*[-*] /.test(line)) result += ` ${line.trim()}`;
-    else break;
-  }
-  if (
-    !/\p{L}/u.test(result) ||
-    /^\[[ xX]\]\s/.test(result) ||
-    /^(?:todo|tbd|n\/a|what changed|describe)\b/i.test(result)
-  )
-    return null;
-  return result;
-}
-
 export function closingReferences(body = "", repository) {
   let fence;
   const clean = stripHtmlComments(body ?? "")
@@ -154,41 +131,46 @@ export function closingReferences(body = "", repository) {
   return result;
 }
 
-export function sentence(value, section) {
-  let text = value.trim();
+// Release notes are the changelog entries themselves: the squash-merged PR title, or
+// the lines of a BEGIN_COMMIT_OVERRIDE block, which Release Please already applied.
+// Only the format is normalized: no scope, capital first letter, final period.
+export function sentence(value) {
+  let text = value.trim().replace(/^\*\*[^*\n]+:\*\*\s*/, "");
   if (!text) throw new Error("Cannot format an empty release note.");
-  const verbs = {
-    add: "Added",
-    fix: "Fixed",
-    improve: "Improved",
-    revert: "Reverted",
-    export: "Exported",
-    synchronize: "Synchronized",
-    prevent: "Prevented",
-    preserve: "Preserved",
-    support: "Supported",
-    allow: "Allowed",
-    update: "Updated",
-    remove: "Removed",
-    correct: "Corrected",
-    enable: "Enabled",
-  };
-  text = text.replace(
-    /^(add|fix|improve|revert|export|synchronize|prevent|preserve|support|allow|update|remove|correct|enable)(?=\s(?!(?:for|of)\b))/i,
-    (word) => verbs[word.toLowerCase()],
+  // Names such as iOS, pdf.js or 2x and code such as `setRatio` keep their own spelling.
+  text = text.replace(/^([^\p{L}`]*)(\p{L})([\p{L}\p{N}._-]*)/u, (all, prefix, letter, rest) =>
+    /\d/.test(prefix) || /[\p{Lu}.]/u.test(rest) ? all : prefix + letter.toUpperCase() + rest,
   );
-  // Preserve code identifiers and their case when they lead a sentence.
-  if (/^[*_]*`/.test(text)) text = `${section === "Added" ? "Added" : "Updated"}: ${text}`;
-  else
-    // Names such as iOS, pdf.js or 2x keep their own spelling.
-    text = text.replace(/^(\P{L}*)(\p{L})([\p{L}\p{N}._-]*)/u, (all, prefix, letter, rest) =>
-      /\d/.test(prefix) || /[\p{Lu}.]/u.test(rest) ? all : prefix + letter.toUpperCase() + rest,
-    );
-  if (!/[.!?](?:["'”’*_]*)$/.test(text)) text += ".";
+  if (!/[.!?](?:["'”’*_`)]*)$/.test(text)) text += ".";
   return text;
 }
 
-export function renderNotes(entries, sources = new Map(), evidence) {
+/** The compare link Release Please puts in a version's heading, if any. */
+export function compareUrl(changelog, version) {
+  const escaped = version.replaceAll(".", "\\.");
+  const match = changelog.match(
+    new RegExp(
+      `^## \\[${escaped}\\]\\((https:\\/\\/github\\.com\\/[\\w.-]+\\/[\\w.-]+\\/compare\\/[\\w.-]+\\.\\.\\.[\\w.-]+)\\)`,
+      "m",
+    ),
+  );
+  return match?.[1] ?? null;
+}
+
+function footer({ repository, compare }) {
+  const [owner, name] = repository.split("/");
+  const guide = `https://github.com/${repository}/blob/main/docs/user-guide.md#install-the-app-and-use-it-offline`;
+  const lines = [
+    `**Open Plan Measure:** https://${owner.toLowerCase()}.github.io/${name}/ (an open copy updates on its next reload). To install it as an app or use it offline, see [Install and offline](${guide}).`,
+  ];
+  if (compare) {
+    const range = compare.slice(compare.lastIndexOf("/") + 1);
+    lines.push(`**Full changelog:** [${range}](${compare})`);
+  }
+  return `---\n\n${lines.join("\n\n")}`;
+}
+
+export function renderNotes(entries, sources = new Map(), evidence, about) {
   const sections = new Map([
     ["Breaking changes", []],
     ["What's new", []],
@@ -197,21 +179,7 @@ export function renderNotes(entries, sources = new Map(), evidence) {
   ]);
   for (const entry of entries) {
     const source = entry.commit && sources.get(entry.commit.sha);
-    // A breaking-change explanation must never be replaced by a PR summary.
     const breaking = entry.section.includes("BREAKING CHANGES");
-    const sameCommitEntries = entry.commit
-      ? entries.filter(
-          (candidate) =>
-            candidate.commit?.sha === entry.commit.sha &&
-            !candidate.section.includes("BREAKING CHANGES"),
-        ).length
-      : 0;
-    // A multi-change commit can produce several entries. Preserve each specific
-    // description instead of replacing them all with the same PR summary.
-    const text =
-      !breaking && source && sameCommitEntries === 1
-        ? (summaryFromBody(source.body) ?? entry.text)
-        : entry.text;
     const references = entry.references.map((ref) => ({ ...ref }));
     if (source) {
       const prUrl = `https://github.com/${source.repository}/pull/${source.number}`;
@@ -237,7 +205,7 @@ export function renderNotes(entries, sources = new Map(), evidence) {
           : "Improvements and fixes";
     sections
       .get(group)
-      .push(`- ${sentence(text, entry.section)}${links.length ? ` (${links.join(", ")})` : ""}`);
+      .push(`- ${sentence(entry.text)}${links.length ? ` (${links.join(", ")})` : ""}`);
   }
   const rendered = [...sections]
     .filter(([, bullets]) => bullets.length)
@@ -247,6 +215,7 @@ export function renderNotes(entries, sources = new Map(), evidence) {
       `## Validation\n\n- Automated tests, lint and production build passed.\n- GitHub Pages deployment verified for [${evidence.sha.slice(0, 7)}](https://github.com/${evidence.repository}/commit/${evidence.sha}).\n- [Workflow run](https://github.com/${evidence.repository}/actions/runs/${evidence.runId}/attempts/${evidence.attempt}).`,
     );
   }
+  if (about) rendered.push(footer(about));
   return `${rendered.join("\n\n")}\n`;
 }
 
@@ -265,11 +234,17 @@ if (isMain(import.meta.url)) {
     }
     if (values.size !== 3)
       throw new Error("Expected --changelog <path> --version <X.Y.Z> --output <path>.");
-    const entries = parseChangelog(
-      await readFile(values.get("--changelog"), "utf8"),
-      values.get("--version"),
+    const changelog = await readFile(values.get("--changelog"), "utf8");
+    const version = values.get("--version");
+    const about = {
+      repository: process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure",
+      compare: compareUrl(changelog, version),
+    };
+    await writeFile(
+      values.get("--output"),
+      renderNotes(parseChangelog(changelog, version), new Map(), undefined, about),
+      "utf8",
     );
-    await writeFile(values.get("--output"), renderNotes(entries), "utf8");
   } catch (error) {
     console.error(`format-release-notes: ${error.message}`);
     process.exitCode = 1;
