@@ -544,6 +544,47 @@ describe("annotated PDF export", () => {
     );
   });
 
+  it("refuses page transforms that cannot place a measurement", async () => {
+    const source = await sourcePdf();
+    const withConversion = (convertToPdfPoint: (x: number, y: number) => number[]) =>
+      ({
+        numPages: 1,
+        getData: vi.fn(async () => source),
+        getPage: vi.fn(async () => ({
+          rotate: 0,
+          getViewport: () => ({ width: 200, height: 120, rotation: 0, convertToPdfPoint }),
+        })),
+      }) as unknown as PDFDocumentProxy;
+
+    // A point the viewport cannot convert.
+    await expect(
+      createAnnotatedPdf(
+        sessionFixture(),
+        withConversion((x, y) => (x === 110 ? [Number.NaN, y] : [x, 120 - y])),
+      ),
+    ).rejects.toThrow("A measurement contains coordinates that cannot be exported.");
+    // A viewport that maps every point to the same place has no usable scale for labels.
+    await expect(
+      createAnnotatedPdf(
+        sessionFixture(),
+        withConversion(() => [5, 5]),
+      ),
+    ).rejects.toThrow("The PDF page coordinate system cannot be exported.");
+  });
+
+  it("copies the pages untouched without reading them when measurements are hidden", async () => {
+    const source = await sourcePdf();
+    const session = sessionFixture();
+    session.settings = { ...session.settings, showMeasurements: false };
+    const document = sourceDocument(source);
+
+    const output = await PDFDocument.load(await createAnnotatedPdf(session, document));
+
+    expect(document.getPage).not.toHaveBeenCalled();
+    expect(output.getPageCount()).toBe(1);
+    expect(output.getPage(0).getSize()).toEqual({ width: 200, height: 120 });
+  });
+
   it("explains how to export an encrypted PDF without exposing pdf-lib internals", async () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(import.meta.dirname, "fixtures/encrypted-empty-password.pdf")),
