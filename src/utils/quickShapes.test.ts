@@ -165,6 +165,53 @@ describe("ellipse results", () => {
     // rx = 5e-15 and ry = 0.5, so the area is pi * 2.5e-15 * 1e-310 * 1e150.
     expect(ellipseResultsMm(sliver, xy).areaMm2 / (Math.PI * 2.5e-175)).toBeCloseTo(1, 3);
   });
+
+  /** The exact perimeter, 4a E(e), from the arithmetic-geometric mean; independent of the code. */
+  function exactPerimeter(a: number, b: number): number {
+    if (b === 0 || a === 0) return 4 * Math.max(a, b);
+    let [x, y] = [Math.max(a, b), Math.min(a, b)];
+    let sum = (x * x - y * y) / 2;
+    for (let power = 1; Math.abs(x - y) > 1e-15 * x; power *= 2) {
+      const c = (x - y) / 2;
+      [x, y] = [(x + y) / 2, Math.sqrt(x * y)];
+      sum += power * c * c;
+    }
+    return (2 * Math.PI * (Math.max(a, b) ** 2 - sum)) / x;
+  }
+
+  const radii = (a: number, b: number): Point[] => [
+    { x: 0, y: 0 },
+    { x: 2 * a, y: 0 },
+    { x: 2 * a, y: 2 * b },
+    { x: 0, y: 2 * b },
+  ];
+
+  it("keeps the perimeter within 0.04% of the exact value at every eccentricity", () => {
+    // Ramanujan's second approximation is worst for a flat ellipse: 14π/11 against 4.
+    for (const ratio of [1, 0.9, 0.5, 0.2, 0.1, 0.01, 1e-4, 1e-8]) {
+      for (const [a, b] of [
+        [100, 100 * ratio],
+        [100 * ratio, 100],
+      ] as const) {
+        const { perimeterMm } = ellipseResultsMm(radii(a, b), unitCalibration);
+        const exact = exactPerimeter(a, b);
+        expect(Math.abs(perimeterMm - exact) / exact, `${a} × ${b}`).toBeLessThan(4.1e-4);
+      }
+    }
+  });
+
+  it("measures a flat ellipse as about twice its length and a point as nothing", () => {
+    const flat = ellipseResultsMm(radii(50, 0), unitCalibration);
+    expect(flat.areaMm2).toBe(0);
+    expect(flat.perimeterMm).toBeCloseTo((14 / 11) * Math.PI * 50, 10);
+    expect(Math.abs(flat.perimeterMm - 200) / 200).toBeLessThan(4.1e-4);
+    expect(ellipseResultsMm(radii(0, 0), unitCalibration)).toEqual({ perimeterMm: 0, areaMm2: 0 });
+  });
+
+  it("rejects an ellipse whose area is not a finite number", () => {
+    // Each radius is finite, but pi * 1e154 * 1e154 is past the largest double.
+    expect(() => ellipseResultsMm(radii(1e154, 1e154), unitCalibration)).toThrow(RangeError);
+  });
 });
 
 describe("cloud geometry", () => {
