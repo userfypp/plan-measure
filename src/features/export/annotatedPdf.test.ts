@@ -544,6 +544,47 @@ describe("annotated PDF export", () => {
     );
   });
 
+  it("refuses page transforms that cannot place a measurement", async () => {
+    const source = await sourcePdf();
+    const withConversion = (convertToPdfPoint: (x: number, y: number) => number[]) =>
+      ({
+        numPages: 1,
+        getData: vi.fn(async () => source),
+        getPage: vi.fn(async () => ({
+          rotate: 0,
+          getViewport: () => ({ width: 200, height: 120, rotation: 0, convertToPdfPoint }),
+        })),
+      }) as unknown as PDFDocumentProxy;
+
+    // A point the viewport cannot convert.
+    await expect(
+      createAnnotatedPdf(
+        sessionFixture(),
+        withConversion((x, y) => (x === 110 ? [Number.NaN, y] : [x, 120 - y])),
+      ),
+    ).rejects.toThrow("A measurement contains coordinates that cannot be exported.");
+    // A viewport that maps every point to the same place has no usable scale for labels.
+    await expect(
+      createAnnotatedPdf(
+        sessionFixture(),
+        withConversion(() => [5, 5]),
+      ),
+    ).rejects.toThrow("The PDF page coordinate system cannot be exported.");
+  });
+
+  it("copies the pages untouched without reading them when measurements are hidden", async () => {
+    const source = await sourcePdf();
+    const session = sessionFixture();
+    session.settings = { ...session.settings, showMeasurements: false };
+    const document = sourceDocument(source);
+
+    const output = await PDFDocument.load(await createAnnotatedPdf(session, document));
+
+    expect(document.getPage).not.toHaveBeenCalled();
+    expect(output.getPageCount()).toBe(1);
+    expect(output.getPage(0).getSize()).toEqual({ width: 200, height: 120 });
+  });
+
   it("explains how to export an encrypted PDF without exposing pdf-lib internals", async () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(import.meta.dirname, "fixtures/encrypted-empty-password.pdf")),
@@ -595,16 +636,17 @@ describe("annotated PDF export", () => {
       createObjectURL,
       revokeObjectURL,
     });
-    let downloadName = "";
+    let clicked: { download: string; href: string; attached: boolean } | null = null;
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      downloadName = this.download;
+      clicked = { download: this.download, href: this.href, attached: this.isConnected };
     });
+    let revokeLater: (() => void) | null = null;
     const timeout = vi
       .spyOn(window as Window, "setTimeout")
       .mockImplementation((handler: TimerHandler) => {
-        if (typeof handler === "function") handler();
+        if (typeof handler === "function") revokeLater = handler as () => void;
         return 1;
       });
 
@@ -615,9 +657,18 @@ describe("annotated PDF export", () => {
     expect(blob).toBeInstanceOf(Blob);
     expect((blob as Blob).type).toBe("application/pdf");
     expect(click).toHaveBeenCalledOnce();
-    expect(downloadName).toBe("sample-annotated.pdf");
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:annotated-pdf");
+    // The link is in the document with the blob URL when clicked, and gone afterwards.
+    expect(clicked).toEqual({
+      download: "sample-annotated.pdf",
+      href: "blob:annotated-pdf",
+      attached: true,
+    });
+    expect((click.mock.contexts[0] as HTMLAnchorElement).isConnected).toBe(false);
+    // The URL outlives the click so the browser can start the download, then is released.
     expect(timeout).toHaveBeenCalledWith(expect.any(Function), 60_000);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    revokeLater!();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:annotated-pdf");
 
     click.mockRestore();
     timeout.mockRestore();

@@ -1018,3 +1018,73 @@ describe("session domain reducer", () => {
     );
   });
 });
+
+describe("renaming classification dimensions and values", () => {
+  function catalogState(): SessionDomainState {
+    let state = loadedState();
+    for (const action of [
+      { type: "ADD_CLASSIFICATION_DIMENSION", id: "trade", name: "Trade" },
+      { type: "ADD_CLASSIFICATION_DIMENSION", id: "level", name: "Level" },
+      { type: "ADD_CLASSIFICATION_VALUE", dimensionId: "trade", id: "elec", name: "Electrical" },
+      { type: "ADD_CLASSIFICATION_VALUE", dimensionId: "trade", id: "plumb", name: "Plumbing" },
+      // The same name in another dimension does not clash.
+      { type: "ADD_CLASSIFICATION_VALUE", dimensionId: "level", id: "l1", name: "Plumbing" },
+    ] as const)
+      state = sessionReducer(state, action);
+    expect(state.error).toBeNull();
+    return state;
+  }
+  const dimensionNames = (state: SessionDomainState) =>
+    state.session!.classificationCatalog.dimensions.map(({ name }) => name);
+  const valueNames = (state: SessionDomainState) =>
+    state.session!.classificationCatalog.dimensions[0]!.values.map(({ name }) => name);
+  const renameDimension = (state: SessionDomainState, id: string, name: string) =>
+    sessionReducer(state, { type: "RENAME_CLASSIFICATION_DIMENSION", id, name });
+  const renameValue = (state: SessionDomainState, id: string, name: string) =>
+    sessionReducer(state, { type: "RENAME_CLASSIFICATION_VALUE", dimensionId: "trade", id, name });
+
+  it("rejects a dimension name used by another dimension, whatever its case", () => {
+    const state = catalogState();
+    for (const name of ["Level", "level", " LEVEL ", "", "   "]) {
+      const result = renameDimension(state, "trade", name);
+      expect(result.session, name).toBe(state.session);
+      expect(result.error, name).toBe(
+        "Classification dimension names must be unique and non-empty.",
+      );
+    }
+  });
+
+  it("keeps the session for the same dimension name and changes it for a case-only rename", () => {
+    const state = catalogState();
+    const same = renameDimension(state, "trade", "  Trade ");
+    expect(same.session).toBe(state.session);
+    expect(same.error).toBeNull();
+    const recased = renameDimension(state, "trade", "TRADE");
+    expect(recased.error).toBeNull();
+    expect(dimensionNames(recased)).toEqual(["TRADE", "Level"]);
+  });
+
+  it("applies the same rules to values, only within their own dimension", () => {
+    const state = catalogState();
+    for (const name of ["Plumbing", "plumbing", ""]) {
+      const result = renameValue(state, "elec", name);
+      expect(result.session, name).toBe(state.session);
+      expect(result.error, name).toBe("Classification value names must be unique and non-empty.");
+    }
+    expect(renameValue(state, "elec", " Electrical ").session).toBe(state.session);
+    expect(valueNames(renameValue(state, "elec", "electrical"))).toEqual([
+      "electrical",
+      "Plumbing",
+    ]);
+    // "Level" holds a value called Plumbing, which does not block renaming within Trade.
+    expect(valueNames(renameValue(state, "plumb", "PLUMBING"))).toEqual(["Electrical", "PLUMBING"]);
+  });
+
+  it("rejects renaming a dimension or value that does not exist", () => {
+    const state = catalogState();
+    expect(renameDimension(state, "missing", "New").session).toBe(state.session);
+    expect(renameDimension(state, "missing", "New").error).not.toBeNull();
+    expect(renameValue(state, "missing", "New").session).toBe(state.session);
+    expect(renameValue(state, "missing", "New").error).not.toBeNull();
+  });
+});
