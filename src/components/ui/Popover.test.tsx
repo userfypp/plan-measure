@@ -721,4 +721,23 @@ describe("Popover", () => {
     act(() => button.click());
     expect(observer.disconnected).toBe(true);
   });
+
+  it("stays open when Escape ends an IME composition, and closes on the next Escape", () => {
+    openPopover();
+    const escape = (isComposing: boolean) =>
+      act(() => {
+        document.activeElement!.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            isComposing,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      });
+    escape(true);
+    expect(dialog("Example disclosure")).not.toBeNull();
+    escape(false);
+    expect(dialog("Example disclosure")).toBeNull();
+  });
 });

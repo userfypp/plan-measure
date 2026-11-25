@@ -636,16 +636,17 @@ describe("annotated PDF export", () => {
       createObjectURL,
       revokeObjectURL,
     });
-    let downloadName = "";
+    let clicked: { download: string; href: string; attached: boolean } | null = null;
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      downloadName = this.download;
+      clicked = { download: this.download, href: this.href, attached: this.isConnected };
     });
+    let revokeLater: (() => void) | null = null;
     const timeout = vi
       .spyOn(window as Window, "setTimeout")
       .mockImplementation((handler: TimerHandler) => {
-        if (typeof handler === "function") handler();
+        if (typeof handler === "function") revokeLater = handler as () => void;
         return 1;
       });
 
@@ -656,9 +657,18 @@ describe("annotated PDF export", () => {
     expect(blob).toBeInstanceOf(Blob);
     expect((blob as Blob).type).toBe("application/pdf");
     expect(click).toHaveBeenCalledOnce();
-    expect(downloadName).toBe("sample-annotated.pdf");
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:annotated-pdf");
+    // The link is in the document with the blob URL when clicked, and gone afterwards.
+    expect(clicked).toEqual({
+      download: "sample-annotated.pdf",
+      href: "blob:annotated-pdf",
+      attached: true,
+    });
+    expect((click.mock.contexts[0] as HTMLAnchorElement).isConnected).toBe(false);
+    // The URL outlives the click so the browser can start the download, then is released.
     expect(timeout).toHaveBeenCalledWith(expect.any(Function), 60_000);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    revokeLater!();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:annotated-pdf");
 
     click.mockRestore();
     timeout.mockRestore();
