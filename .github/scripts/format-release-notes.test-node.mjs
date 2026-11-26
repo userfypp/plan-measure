@@ -1,13 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { performance } from "node:perf_hooks";
 import {
   parseChangelog,
   renderNotes,
   sentence,
   closingReferences,
-  compareUrl,
 } from "./format-release-notes.mjs";
 import { checkTitle } from "./check-pr-title.mjs";
 
@@ -201,26 +199,17 @@ test("release notes preserve inline code without guessing technical terms", () =
   assert.match(renderNotes(entries), /- Fix `setRatio` in `viewer\.ts` with `--strict`\. /);
 });
 
-test("the footer links the app, the install guide and the full changelog", () => {
-  const changelog = `## [3.0.0](https://github.com/${repository}/compare/v2.9.0...v3.0.0) (2026-01-01)\n\n### Fixed\n\n* fix export\n`;
-  const compare = compareUrl(changelog, "3.0.0");
-  assert.equal(compare, `https://github.com/${repository}/compare/v2.9.0...v3.0.0`);
-  const notes = renderNotes(parseChangelog(changelog, "3.0.0"), new Map(), undefined, {
+test("notes end with how to open the app and the install guide, plain and linked", () => {
+  const notes = renderNotes(
+    parseChangelog(entry("fix export", "Fixed"), "3.0.0"),
+    new Map(),
     repository,
-    compare,
-  });
+  );
   assert.equal(
     notes,
-    `## Improvements and fixes\n\n- Fix export.\n\n---\n\n**Open Plan Measure:** https://userfypp.github.io/plan-measure/ (an open copy updates on its next reload). To install it as an app or use it offline, see [Install and offline](https://github.com/${repository}/blob/main/docs/user-guide.md#install-the-app-and-use-it-offline).\n\n**Full changelog:** [v2.9.0...v3.0.0](${compare})\n`,
+    `## Improvements and fixes\n\n- Fix export.\n\n## Use\n\nOpen [Plan Measure](https://userfypp.github.io/plan-measure/) in your browser. An open copy updates on its next reload. To install it as an app or use it offline, see [Install and use offline](https://github.com/${repository}/blob/main/docs/user-guide.md#install-the-app-and-use-it-offline).\n`,
   );
-  assert.equal(compareUrl(entry("fix export"), "3.0.0"), null);
-  assert.doesNotMatch(
-    renderNotes(parseChangelog(entry("fix export"), "3.0.0"), new Map(), undefined, {
-      repository,
-      compare: null,
-    }),
-    /Full changelog/,
-  );
+  assert.doesNotMatch(notes, /\*\*|^---$|Validation|Full changelog/m);
 });
 
 test("all existing changelog versions render without invented validation claims", async () => {
@@ -322,18 +311,4 @@ test("text that only resembles a closes footer stays in the entry", () => {
   );
   assert.equal(kept.text, "handle the word closes [#5](https://example.com/5)");
   assert.deepEqual(kept.references, []);
-});
-
-test("compare link parsing rejects malformed headings in linear time", () => {
-  const heading = (url) => `## [3.0.0](${url}) (2026-01-01)\n`;
-  const base = `https://github.com/${repository}/compare/`;
-  for (const url of [
-    `${base}main...v3.0.0`,
-    `${base}v2.9.0..v3.0.0`,
-    `https://example.com/compare/v1.0.0...v3.0.0`,
-  ])
-    assert.equal(compareUrl(heading(url), "3.0.0"), null, url);
-  const started = performance.now();
-  assert.equal(compareUrl(heading(base + ".".repeat(100_000)), "3.0.0"), null);
-  assert.ok(performance.now() - started < 100);
 });

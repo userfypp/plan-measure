@@ -15,14 +15,14 @@ const [manifest, pkg, lock] = await Promise.all(
 );
 const changelog = await readFile("CHANGELOG.md", "utf8");
 const repository = process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure";
-const { entries, compare } = releaseMetadata(
+const { entries } = releaseMetadata(
   { manifest, pkg, lock, changelog },
   { title: `chore(main): release ${manifest["."]}` },
 );
 const sources = args.includes("--with-pull-requests")
   ? await collectSources(githubApi(), repository, entries)
   : new Map();
-const notes = renderNotes(entries, sources, undefined, { repository, compare });
+const notes = renderNotes(entries, sources, repository);
 console.log(notes);
 if (process.env.GITHUB_STEP_SUMMARY)
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `# Release notes preview\n\n${notes}`);

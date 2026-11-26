@@ -122,14 +122,10 @@ function assertPublished(state) {
   assert.doesNotMatch(state.release.body, /Summary text/);
   assert.match(state.release.body, /\/pull\/40/);
   assert.match(state.release.body, /\/issues\/12/);
-  assert.match(state.release.body, /actions\/runs\/123\/attempts\/1/);
+  assert.doesNotMatch(state.release.body, /Validation|actions\/runs|\*\*|^---$/m);
   assert.match(
     state.release.body,
-    /\*\*Open Plan Measure:\*\* https:\/\/userfypp\.github\.io\/plan-measure\//,
-  );
-  assert.match(
-    state.release.body,
-    /\*\*Full changelog:\*\* \[v2\.9\.0\.\.\.v3\.0\.0\]\(https:\/\/github\.com\/userfypp\/plan-measure\/compare\/v2\.9\.0\.\.\.v3\.0\.0\)\n$/,
+    /## Use\n\nOpen \[Plan Measure\]\(https:\/\/userfypp\.github\.io\/plan-measure\/\) in your browser\..*\[Install and use offline\]\(https:\/\/github\.com\/userfypp\/plan-measure\/blob\/main\/docs\/user-guide\.md#install-the-app-and-use-it-offline\)\.\n$/,
   );
   assert.deepEqual(state.labels.map(({ name }) => name).sort(), [tagged, "unrelated"].sort());
 }
@@ -662,7 +658,9 @@ test("recovery accepts successful jobs across retries but never skipped or wrong
   attempts.set(2, [job("pages / deploy")]);
   attempts.set(3, [job("pages / deploy", { conclusion: "skipped" })]);
   await recover();
-  assert.match(state.release.body, /actions\/runs\/123\/attempts\/2/);
+  // The deploy that succeeded in attempt 2 is enough to publish; the notes name no run.
+  assert.equal(state.release.draft, false);
+  assert.doesNotMatch(state.release.body, /actions\/runs/);
   for (const jobs of [
     [job("verify")],
     [job("verify"), job("pages / deploy", { conclusion: "skipped" })],
