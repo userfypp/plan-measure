@@ -145,37 +145,15 @@ export function sentence(value) {
   return text;
 }
 
-/** The compare link Release Please puts in a version's heading, if any. */
-export function compareUrl(changelog, version) {
-  if (!isVersion(version)) throw new Error(`Expected an X.Y.Z version; received "${version}".`);
-  const prefix = `## [${version}](`;
-  const line = changelog.split(/\r?\n/).find((candidate) => candidate.startsWith(prefix));
-  if (!line) return null;
-  const end = line.indexOf(")", prefix.length);
-  if (end < 0) return null;
-  const url = line.slice(prefix.length, end);
-  // Every part is delimited by a character the previous part cannot match, so this is linear.
-  return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/compare\/v\d+\.\d+\.\d+\.\.\.v\d+\.\d+\.\d+$/.test(
-    url,
-  )
-    ? url
-    : null;
-}
-
-function footer({ repository, compare }) {
+/** How to open the app, and the guide to installing it and using it offline. */
+function useSection(repository) {
   const [owner, name] = repository.split("/");
+  const app = `https://${owner.toLowerCase()}.github.io/${name}/`;
   const guide = `https://github.com/${repository}/blob/main/docs/user-guide.md#install-the-app-and-use-it-offline`;
-  const lines = [
-    `**Open Plan Measure:** https://${owner.toLowerCase()}.github.io/${name}/ (an open copy updates on its next reload). To install it as an app or use it offline, see [Install and offline](${guide}).`,
-  ];
-  if (compare) {
-    const range = compare.slice(compare.lastIndexOf("/") + 1);
-    lines.push(`**Full changelog:** [${range}](${compare})`);
-  }
-  return `---\n\n${lines.join("\n\n")}`;
+  return `## Use\n\nOpen [Plan Measure](${app}) in your browser. An open copy updates on its next reload. To install it as an app or use it offline, see [Install and use offline](${guide}).`;
 }
 
-export function renderNotes(entries, sources = new Map(), evidence, about) {
+export function renderNotes(entries, sources = new Map(), repository) {
   const sections = new Map([
     ["Breaking changes", []],
     ["What's new", []],
@@ -215,12 +193,7 @@ export function renderNotes(entries, sources = new Map(), evidence, about) {
   const rendered = [...sections]
     .filter(([, bullets]) => bullets.length)
     .map(([title, bullets]) => `## ${title}\n\n${bullets.join("\n")}`);
-  if (evidence) {
-    rendered.push(
-      `## Validation\n\n- Automated tests, lint and production build passed.\n- GitHub Pages deployment verified for [${evidence.sha.slice(0, 7)}](https://github.com/${evidence.repository}/commit/${evidence.sha}).\n- [Workflow run](https://github.com/${evidence.repository}/actions/runs/${evidence.runId}/attempts/${evidence.attempt}).`,
-    );
-  }
-  if (about) rendered.push(footer(about));
+  if (repository) rendered.push(useSection(repository));
   return `${rendered.join("\n\n")}\n`;
 }
 
@@ -241,13 +214,10 @@ if (isMain(import.meta.url)) {
       throw new Error("Expected --changelog <path> --version <X.Y.Z> --output <path>.");
     const changelog = await readFile(values.get("--changelog"), "utf8");
     const version = values.get("--version");
-    const about = {
-      repository: process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure",
-      compare: compareUrl(changelog, version),
-    };
+    const repository = process.env.GITHUB_REPOSITORY ?? "userfypp/plan-measure";
     await writeFile(
       values.get("--output"),
-      renderNotes(parseChangelog(changelog, version), new Map(), undefined, about),
+      renderNotes(parseChangelog(changelog, version), new Map(), repository),
       "utf8",
     );
   } catch (error) {
