@@ -131,9 +131,14 @@ export function ExportDialog({
             areaUnit: report.areaUnit,
             excludedCount: report.projectTotals.excludedCount,
             hasUnavailable: groups.some((group) =>
-              [group.length, group.perimeter, group.area].some(
-                (quantity) => quantity.kind === "unavailable",
-              ),
+              [
+                group.length,
+                group.perimeter,
+                group.area,
+                group.cost,
+                group.derivedArea,
+                group.derivedVolume,
+              ].some((quantity) => quantity.kind === "unavailable"),
             ),
           },
           error: null,
