@@ -4,6 +4,19 @@ All notable changes to Plan Measure are documented in this file.
 
 This changelog starts with v2.3.0. Earlier releases are documented in GitHub Releases.
 
+## [2.14.1](https://github.com/userfypp/plan-measure/compare/v2.14.0...v2.14.1) (2026-11-27)
+
+
+### Fixed
+
+* stop Find similar when Compare starts ([#573](https://github.com/userfypp/plan-measure/issues/573)) ([11b141c](https://github.com/userfypp/plan-measure/commit/11b141cbc6fb5d3920446b3cf78eb781079aed86))
+* warn in JSON export when cost, derived area or volume is unavailable ([#571](https://github.com/userfypp/plan-measure/issues/571)) ([5e61e96](https://github.com/userfypp/plan-measure/commit/5e61e96ae7d7f73fd214c80ab49e6431ccfe3785))
+
+
+### Documentation
+
+* say what perf: and revert: release ([#574](https://github.com/userfypp/plan-measure/issues/574)) ([ba27728](https://github.com/userfypp/plan-measure/commit/ba2772899bdb52610a0b3f050fbb348468ea44a0))
+
 ## [2.14.0](https://github.com/userfypp/plan-measure/compare/v2.13.0...v2.14.0) (2026-11-25)
 
 
