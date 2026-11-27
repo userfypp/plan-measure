@@ -5,8 +5,12 @@ import {
   stopPlanCompare,
   subscribePlanCompare,
 } from "./planCompareStore";
+import { getSymbolCount, setSymbolCount, startSymbolCount } from "../symbolCount/symbolCountStore";
 
-afterEach(() => stopPlanCompare());
+afterEach(() => {
+  stopPlanCompare();
+  setSymbolCount({ active: false });
+});
 
 describe("plan compare store", () => {
   it("starts with a file and stops, telling subscribers on each change", () => {
@@ -25,5 +29,15 @@ describe("plan compare store", () => {
     unsubscribe();
     startPlanCompare(file);
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops Find similar when Compare starts", () => {
+    const file = new File(["%PDF"], "rev-b.pdf", { type: "application/pdf" });
+    startSymbolCount();
+    expect(getSymbolCount().active).toBe(true);
+    startPlanCompare(file);
+    expect(getSymbolCount().active).toBe(false);
+    expect(getPlanCompare().active).toBe(true);
+    expect(getPlanCompare().file).toBe(file);
   });
 });
