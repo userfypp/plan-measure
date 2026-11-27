@@ -859,6 +859,49 @@ describe("Combined Takeoff exports", () => {
     expect(mocks.downloadCsv).not.toHaveBeenCalled();
     expect(mocks.downloadTakeoff).not.toHaveBeenCalled();
   });
+  it("warns in JSON when an overflowing price makes the cost unavailable", () => {
+    const session = sessionFixture();
+    session.pages[1]!.calibrations = [
+      {
+        id: "scale",
+        name: "Scale",
+        mode: "uniform",
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+        referenceDistanceMm: 10,
+      },
+    ];
+    session.pages[1]!.activeCalibrationId = "scale";
+    session.pages[1]!.measurements = [
+      {
+        id: "priced-area",
+        name: "Priced area",
+        type: "polygon",
+        calibrationId: "scale",
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+          { x: 100, y: 10 },
+          { x: 0, y: 10 },
+        ],
+        classificationValueIds: ["electrical"],
+        visible: true,
+      },
+    ];
+    session.classificationRates = [
+      {
+        valueId: "electrical",
+        derivation: null,
+        price: { amount: 1e308, basis: "area", unit: "mm²" },
+      },
+    ];
+    renderDialog(session);
+    choose("export-format", "json");
+    checkSummary("Project totals");
+    expect(dialog().querySelector('[role="status"]')?.textContent).toContain(
+      "Non-calculable totals are identified in the summary.",
+    );
+  });
   it("blocks each selected summary during an uncommitted edit and enables raw export only when none remain", () => {
     const session = measuredFixture();
     act(() =>
