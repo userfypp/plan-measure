@@ -206,6 +206,145 @@ describe("the saved page counters", () => {
   });
 });
 
+describe("the V13 to V16 validation branches", () => {
+  it.each<[string, (raw: Json) => void]>([
+    ["a rectangle counter of zero", (raw) => (raw.pages["1"].nextMeasurementNumber.rectangle = 0)],
+    ["a fractional ellipse counter", (raw) => (raw.pages["1"].nextMeasurementNumber.ellipse = 1.5)],
+    ["a cloud counter that is text", (raw) => (raw.pages["1"].nextMeasurementNumber.cloud = "1")],
+    ["no rectangle counter", (raw) => delete raw.pages["1"].nextMeasurementNumber.rectangle],
+  ])("rejects %s", (_name, edit) => {
+    expect(() => deserializeSession(corrupted(edit))).toThrow(
+      "The saved state for page 1 is invalid.",
+    );
+  });
+
+  it("accepts the quick-shape counters at their minimum of 1", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => {
+        raw.pages["1"].nextMeasurementNumber.rectangle = 1;
+        raw.pages["1"].nextMeasurementNumber.ellipse = 1;
+        raw.pages["1"].nextMeasurementNumber.cloud = 1;
+      }),
+    );
+    expect(decoded.pages[1]!.nextMeasurementNumber).toMatchObject({
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+    });
+  });
+
+  const cloud = (overrides: Record<string, unknown>) => ({
+    id: "cloud-1",
+    name: "Cloud 1",
+    type: "cloud",
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 10 },
+    ],
+    calibrationId: null,
+    classificationValueIds: [],
+    visible: true,
+    ...overrides,
+  });
+
+  it.each<[string, (raw: Json) => void]>([
+    [
+      "a cloud with a color outside the palette",
+      (raw) => raw.pages["1"].measurements.push(cloud({ color: "#ff0000" })),
+    ],
+    [
+      "a line with a color, which only clouds may carry",
+      (raw) => (raw.pages["1"].measurements[0].color = "#d92d20"),
+    ],
+  ])("rejects %s", (_name, edit) => {
+    expect(() => deserializeSession(corrupted(edit))).toThrow(
+      "The saved state for page 1 is invalid.",
+    );
+  });
+
+  it("accepts a cloud with a palette color", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => raw.pages["1"].measurements.push(cloud({ color: "#2e9e4f" }))),
+    );
+    expect(decoded.pages[1]!.measurements).toContainEqual(
+      expect.objectContaining({ id: "cloud-1", color: "#2e9e4f" }),
+    );
+  });
+
+  it.each<[string, (raw: Json) => void]>([
+    [
+      "a label dimension that does not exist",
+      (raw) => (raw.settings.labelClassificationDimensionId = "gone"),
+    ],
+    [
+      "a label dimension that is not a string",
+      (raw) => (raw.settings.labelClassificationDimensionId = 123),
+    ],
+  ])("rejects %s", (_name, edit) => {
+    expect(() => deserializeSession(corrupted(edit))).toThrow("The saved session is invalid.");
+  });
+
+  it("accepts a label dimension that exists in the catalog", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => (raw.settings.labelClassificationDimensionId = "trade")),
+    );
+    expect(decoded.settings.labelClassificationDimensionId).toBe("trade");
+  });
+
+  it("rejects a cloud measurement setting that is not a boolean", () => {
+    expect(() =>
+      deserializeSession(corrupted((raw) => (raw.settings.measureClouds = "yes"))),
+    ).toThrow("The saved cloud measurement setting is invalid.");
+  });
+
+  it("accepts the cloud measurement setting as true", () => {
+    const decoded = deserializeSession(corrupted((raw) => (raw.settings.measureClouds = true)));
+    expect(decoded.settings.measureClouds).toBe(true);
+  });
+
+  const emptyFilters = { page: "", type: "", scale: "", classification: "", visibility: "" };
+
+  it.each<[string, (raw: Json) => void]>([
+    [
+      "a page filter that is not empty or current",
+      (raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters, page: "3" }),
+    ],
+    [
+      "a type filter that is not a measurement type",
+      (raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters, type: "banana" }),
+    ],
+    [
+      "a visibility filter that is not empty, true or false",
+      (raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters, visibility: "yes" }),
+    ],
+  ])("rejects default measurement filters with %s", (_name, edit) => {
+    expect(() => deserializeSession(corrupted(edit))).toThrow("The saved session is invalid.");
+  });
+
+  it("accepts empty default measurement filters", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters })),
+    );
+    expect(decoded.settings.defaultMeasurementFilters).toStrictEqual(emptyFilters);
+  });
+
+  it("rejects a measurement with two values from one classification dimension", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.classificationCatalog.dimensions[0].values.push({
+            id: "plumbing",
+            name: "Plumbing",
+            archived: false,
+          });
+          raw.pages["1"].measurements[0].classificationValueIds = ["electrical", "plumbing"];
+        }),
+      ),
+    ).toThrow("The saved session assigns multiple values from one classification dimension.");
+  });
+});
+
 describe("the oldest saved schemas", () => {
   const start = { x: 0, y: 0 };
   const end = { x: 10, y: 0 };
