@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type ComponentType } from "react";
 import type { PlanCompareOverlayProps } from "./PlanCompareOverlay";
+import { setSymbolCount } from "../symbolCount/symbolCountStore";
 
 /**
  * Whether a plan is being compared with another PDF, which file, and the overlay it draws under
@@ -23,7 +24,14 @@ export function setPlanCompare(patch: Partial<PlanCompareState>) {
 }
 
 export const getPlanCompare = () => state;
-export const startPlanCompare = (file: File) => setPlanCompare({ active: true, file });
+export const startPlanCompare = (file: File) => {
+  // Find similar and Compare share one pointer host; starting one mode stops
+  // the other, so their overlays are never mounted together (#493). This is
+  // exactly what stopSymbolCount() does; the store setter is used here so the
+  // search code stays lazily loaded.
+  setSymbolCount({ active: false });
+  setPlanCompare({ active: true, file });
+};
 export const stopPlanCompare = () => setPlanCompare({ active: false, file: null });
 
 export const subscribePlanCompare = (listener: () => void) => {
