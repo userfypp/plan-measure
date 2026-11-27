@@ -206,6 +206,34 @@ describe("the saved page counters", () => {
   });
 });
 
+describe("the V13 to V16 validation branches", () => {
+  it.each<[string, (raw: Json) => void]>([
+    ["a rectangle counter of zero", (raw) => (raw.pages["1"].nextMeasurementNumber.rectangle = 0)],
+    ["a fractional ellipse counter", (raw) => (raw.pages["1"].nextMeasurementNumber.ellipse = 1.5)],
+    ["a cloud counter that is text", (raw) => (raw.pages["1"].nextMeasurementNumber.cloud = "1")],
+    ["no rectangle counter", (raw) => delete raw.pages["1"].nextMeasurementNumber.rectangle],
+  ])("rejects %s", (_name, edit) => {
+    expect(() => deserializeSession(corrupted(edit))).toThrow(
+      "The saved state for page 1 is invalid.",
+    );
+  });
+
+  it("accepts the quick-shape counters at their minimum of 1", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => {
+        raw.pages["1"].nextMeasurementNumber.rectangle = 1;
+        raw.pages["1"].nextMeasurementNumber.ellipse = 1;
+        raw.pages["1"].nextMeasurementNumber.cloud = 1;
+      }),
+    );
+    expect(decoded.pages[1]!.nextMeasurementNumber).toMatchObject({
+      rectangle: 1,
+      ellipse: 1,
+      cloud: 1,
+    });
+  });
+});
+
 describe("the oldest saved schemas", () => {
   const start = { x: 0, y: 0 };
   const end = { x: 10, y: 0 };
@@ -654,6 +682,89 @@ describe("the saved currency and classification rates", () => {
     raw.schemaVersion = 18;
     expect(() => deserializeSession(JSON.stringify(raw))).toThrow(
       "The saved session uses an unsupported schema.",
+    );
+  });
+});
+
+describe("the V5 to V10 validation branches", () => {
+  it("rejects a V5 record with two values from one classification dimension", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 5;
+          raw.classificationCatalog.dimensions[0].values.push({
+            id: "plumbing",
+            name: "Plumbing",
+            archived: false,
+          });
+          raw.pages["1"].measurements[0].classificationValueIds = ["electrical", "plumbing"];
+        }),
+      ),
+    ).toThrow("The saved session assigns multiple values from one classification dimension.");
+  });
+
+  it("rejects a V6 record with two values from one classification dimension", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 6;
+          raw.classificationCatalog.dimensions[0].values.push({
+            id: "plumbing",
+            name: "Plumbing",
+            archived: false,
+          });
+          raw.pages["1"].measurements[0].classificationValueIds = ["electrical", "plumbing"];
+        }),
+      ),
+    ).toThrow("The saved session assigns multiple values from one classification dimension.");
+  });
+
+  it("opens a V8 record as the current schema", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => {
+        raw.schemaVersion = 8;
+      }),
+    );
+    expect(decoded.schemaVersion).toBe(17);
+    expect(decoded.settings.measurementDecimalPlaces).toBe(2);
+  });
+
+  it("rejects a V9 record with decimal places outside 0 to 8", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 9;
+          raw.settings.measurementDecimalPlaces = 9;
+        }),
+      ),
+    ).toThrow("The saved measurement decimal places setting is invalid.");
+  });
+
+  it("rejects a V10 record with an unknown polygon area display", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 10;
+          raw.settings.areaDisplay = "banana";
+        }),
+      ),
+    ).toThrow("The saved polygon area display setting is invalid.");
+  });
+
+  it("flags a self-crossing polygon in a V5 record for historical repair", () => {
+    const json = corrupted((raw) => {
+      raw.schemaVersion = 5;
+      const page = raw.pages["1"];
+      page.measurements[0].type = "polygon";
+      page.measurements[0].points = [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 },
+      ];
+    });
+    expect(() => deserializeSession(json)).toThrow(
+      "The saved session contains historical measurements that require repair.",
     );
   });
 });
