@@ -232,7 +232,6 @@ describe("the V13 to V16 validation branches", () => {
       cloud: 1,
     });
   });
-
 });
 
 describe("the oldest saved schemas", () => {
@@ -730,7 +729,7 @@ describe("the V5 to V10 validation branches", () => {
     expect(decoded.settings.measurementDecimalPlaces).toBe(2);
   });
 
-  it("rejects a V9 record with decimal places outside 0 to 4", () => {
+  it("rejects a V9 record with decimal places outside 0 to 8", () => {
     expect(() =>
       deserializeSession(
         corrupted((raw) => {
