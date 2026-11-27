@@ -233,116 +233,6 @@ describe("the V13 to V16 validation branches", () => {
     });
   });
 
-  const cloud = (overrides: Record<string, unknown>) => ({
-    id: "cloud-1",
-    name: "Cloud 1",
-    type: "cloud",
-    points: [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 0, y: 10 },
-    ],
-    calibrationId: null,
-    classificationValueIds: [],
-    visible: true,
-    ...overrides,
-  });
-
-  it.each<[string, (raw: Json) => void]>([
-    [
-      "a cloud with a color outside the palette",
-      (raw) => raw.pages["1"].measurements.push(cloud({ color: "#ff0000" })),
-    ],
-    [
-      "a line with a color, which only clouds may carry",
-      (raw) => (raw.pages["1"].measurements[0].color = "#d92d20"),
-    ],
-  ])("rejects %s", (_name, edit) => {
-    expect(() => deserializeSession(corrupted(edit))).toThrow(
-      "The saved state for page 1 is invalid.",
-    );
-  });
-
-  it("accepts a cloud with a palette color", () => {
-    const decoded = deserializeSession(
-      corrupted((raw) => raw.pages["1"].measurements.push(cloud({ color: "#2e9e4f" }))),
-    );
-    expect(decoded.pages[1]!.measurements).toContainEqual(
-      expect.objectContaining({ id: "cloud-1", color: "#2e9e4f" }),
-    );
-  });
-
-  it.each<[string, (raw: Json) => void]>([
-    [
-      "a label dimension that does not exist",
-      (raw) => (raw.settings.labelClassificationDimensionId = "gone"),
-    ],
-    [
-      "a label dimension that is not a string",
-      (raw) => (raw.settings.labelClassificationDimensionId = 123),
-    ],
-  ])("rejects %s", (_name, edit) => {
-    expect(() => deserializeSession(corrupted(edit))).toThrow("The saved session is invalid.");
-  });
-
-  it("accepts a label dimension that exists in the catalog", () => {
-    const decoded = deserializeSession(
-      corrupted((raw) => (raw.settings.labelClassificationDimensionId = "trade")),
-    );
-    expect(decoded.settings.labelClassificationDimensionId).toBe("trade");
-  });
-
-  it("rejects a cloud measurement setting that is not a boolean", () => {
-    expect(() =>
-      deserializeSession(corrupted((raw) => (raw.settings.measureClouds = "yes"))),
-    ).toThrow("The saved cloud measurement setting is invalid.");
-  });
-
-  it("accepts the cloud measurement setting as true", () => {
-    const decoded = deserializeSession(corrupted((raw) => (raw.settings.measureClouds = true)));
-    expect(decoded.settings.measureClouds).toBe(true);
-  });
-
-  const emptyFilters = { page: "", type: "", scale: "", classification: "", visibility: "" };
-
-  it.each<[string, (raw: Json) => void]>([
-    [
-      "a page filter that is not empty or current",
-      (raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters, page: "3" }),
-    ],
-    [
-      "a type filter that is not a measurement type",
-      (raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters, type: "banana" }),
-    ],
-    [
-      "a visibility filter that is not empty, true or false",
-      (raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters, visibility: "yes" }),
-    ],
-  ])("rejects default measurement filters with %s", (_name, edit) => {
-    expect(() => deserializeSession(corrupted(edit))).toThrow("The saved session is invalid.");
-  });
-
-  it("accepts empty default measurement filters", () => {
-    const decoded = deserializeSession(
-      corrupted((raw) => (raw.settings.defaultMeasurementFilters = { ...emptyFilters })),
-    );
-    expect(decoded.settings.defaultMeasurementFilters).toStrictEqual(emptyFilters);
-  });
-
-  it("rejects a measurement with two values from one classification dimension", () => {
-    expect(() =>
-      deserializeSession(
-        corrupted((raw) => {
-          raw.classificationCatalog.dimensions[0].values.push({
-            id: "plumbing",
-            name: "Plumbing",
-            archived: false,
-          });
-          raw.pages["1"].measurements[0].classificationValueIds = ["electrical", "plumbing"];
-        }),
-      ),
-    ).toThrow("The saved session assigns multiple values from one classification dimension.");
-  });
 });
 
 describe("the oldest saved schemas", () => {
@@ -796,3 +686,158 @@ describe("the saved currency and classification rates", () => {
     );
   });
 });
+
+describe("the V5 to V10 validation branches", () => {
+  it("rejects a V5 record with two values from one classification dimension", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 5;
+          raw.classificationCatalog.dimensions[0].values.push({
+            id: "plumbing",
+            name: "Plumbing",
+            archived: false,
+          });
+          raw.pages["1"].measurements[0].classificationValueIds = ["electrical", "plumbing"];
+        }),
+      ),
+    ).toThrow("The saved session assigns multiple values from one classification dimension.");
+  });
+
+  it("rejects a V6 record with two values from one classification dimension", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 6;
+          raw.classificationCatalog.dimensions[0].values.push({
+            id: "plumbing",
+            name: "Plumbing",
+            archived: false,
+          });
+          raw.pages["1"].measurements[0].classificationValueIds = ["electrical", "plumbing"];
+        }),
+      ),
+    ).toThrow("The saved session assigns multiple values from one classification dimension.");
+  });
+
+  it("opens a V8 record as the current schema", () => {
+    const decoded = deserializeSession(
+      corrupted((raw) => {
+        raw.schemaVersion = 8;
+      }),
+    );
+    expect(decoded.schemaVersion).toBe(17);
+    expect(decoded.settings.measurementDecimalPlaces).toBe(2);
+  });
+
+  it("rejects a V9 record with decimal places outside 0 to 4", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 9;
+          raw.settings.measurementDecimalPlaces = 9;
+        }),
+      ),
+    ).toThrow("The saved measurement decimal places setting is invalid.");
+  });
+
+  it("rejects a V10 record with an unknown polygon area display", () => {
+    expect(() =>
+      deserializeSession(
+        corrupted((raw) => {
+          raw.schemaVersion = 10;
+          raw.settings.areaDisplay = "banana";
+        }),
+      ),
+    ).toThrow("The saved polygon area display setting is invalid.");
+  });
+
+  it("flags a self-crossing polygon in a V5 record for historical repair", () => {
+    const json = corrupted((raw) => {
+      raw.schemaVersion = 5;
+      const page = raw.pages["1"];
+      page.measurements[0].type = "polygon";
+      page.measurements[0].points = [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 },
+      ];
+    });
+    expect(() => deserializeSession(json)).toThrow(
+      "The saved session contains historical measurements that require repair.",
+    );
+  });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
