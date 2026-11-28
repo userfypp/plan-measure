@@ -1,6 +1,6 @@
 /* One column of cards that share the app's panel geometry: 16px padding, heading-size titles. */
 .start {
-  width: min(440px, 100%);
+  width: min(var(--geometry-empty-state-width), 100%);
   margin: auto;
   display: grid;
   gap: var(--space-16);
@@ -131,8 +131,8 @@
 }
 
 .chevron {
-  width: 7px;
-  height: 7px;
+  width: var(--geometry-empty-state-chevron-size);
+  height: var(--geometry-empty-state-chevron-size);
   border: solid var(--color-text-secondary);
   border-width: calc(var(--icon-stroke-width) * 1px) calc(var(--icon-stroke-width) * 1px) 0 0;
   transform: rotate(45deg);
