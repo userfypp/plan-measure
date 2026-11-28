@@ -72,7 +72,7 @@
 
 .details {
   pointer-events: auto;
-  width: 304px;
+  width: var(--geometry-save-status-width);
   font-size: var(--font-size-secondary);
   line-height: var(--line-height-secondary);
 }
