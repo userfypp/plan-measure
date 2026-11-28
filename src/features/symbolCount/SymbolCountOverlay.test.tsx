@@ -279,4 +279,26 @@ describe("SymbolCountOverlay error recovery", () => {
     });
     expect(getSymbolCount().active).toBe(false);
   });
+
+  it("clips a box dragged partly off the page to the page bounds before searching", async () => {
+    mocks.renderPageGray.mockResolvedValue({
+      data: new Uint8Array(160_000),
+      width: 400,
+      height: 400,
+    });
+
+    mount();
+    await dragBox(180, 180, 250, 250);
+    expect(mocks.renderPageGray).toHaveBeenCalledTimes(1);
+    expect(overlayPhase()).toBe("scanning");
+    expect(workerSearch.mock.calls[0]?.[0]).toEqual({ x: 360, y: 360, width: 40, height: 40 });
+  });
+
+  it("goes back to picking with the small-box message when the box clips to zero area", async () => {
+    mount();
+    await dragBox(210, 210, 250, 250);
+    expect(overlayPhase()).toBe("pick");
+    expect(mocks.renderPageGray).not.toHaveBeenCalled();
+    expect(statusText()).toBe("The box is too small.");
+  });
 });
