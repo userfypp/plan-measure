@@ -101,11 +101,11 @@
 }
 
 .emptyState p {
-  max-width: 320px;
+  max-width: var(--geometry-project-library-empty-max-width);
 }
 
 .discardConfirmation p {
-  max-width: 420px;
+  max-width: var(--geometry-project-library-discard-max-width);
 }
 
 @media (max-width: 520px) {

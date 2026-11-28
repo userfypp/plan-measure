@@ -16,7 +16,7 @@
   top: var(--space-12);
   right: var(--space-12);
   width: fit-content;
-  max-width: min(520px, calc(100% - 2 * var(--space-12)));
+  max-width: min(var(--geometry-app-shell-max-width), calc(100% - 2 * var(--space-12)));
   max-height: calc(100% - 2 * var(--space-12));
   min-width: 0;
   min-height: 0;

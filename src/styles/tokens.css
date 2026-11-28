@@ -238,6 +238,14 @@
     var(--geometry-keyboard-cursor-size) - 2 * var(--geometry-keyboard-cursor-stroke) + 2 *
       var(--geometry-keyboard-cursor-reach)
   );
+  /* Fixed widths that had no token (see #499): empty-state panel and chevron,
+   * project-library dialog text, app-shell panel, save-status details. */
+  --geometry-empty-state-width: 440px;
+  --geometry-empty-state-chevron-size: 7px;
+  --geometry-project-library-empty-max-width: 320px;
+  --geometry-project-library-discard-max-width: 420px;
+  --geometry-app-shell-max-width: 520px;
+  --geometry-save-status-width: 304px;
 
   /* Focus. Components draw `--focus-outline`; controlStates.css sets it to none while the last input was a press. */
   --focus-width: 2px;
@@ -248,6 +256,7 @@
   /* Shared button-like interaction motion. */
   --transition-interactive: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
   --transition-transform: transform 120ms ease;
+  --transition-opacity: opacity 120ms ease;
   /* Round trip of a select value that is wider than its trigger (Select.module.css). */
   --select-marquee-duration: 6s;
 
@@ -350,6 +359,7 @@
   :root {
     --transition-interactive: none;
     --transition-transform: none;
+    --transition-opacity: none;
     --dialog-offset: 0px;
     --dialog-scale-from: 1;
     --dialog-duration-enter: 100ms;
@@ -362,6 +372,7 @@
 :root[data-motion="reduce"] {
   --transition-interactive: none;
   --transition-transform: none;
+  --transition-opacity: none;
   --dialog-offset: 0px;
   --dialog-scale-from: 1;
   --dialog-duration-enter: 100ms;
